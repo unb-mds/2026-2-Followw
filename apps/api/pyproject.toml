@@ -1,0 +1,28 @@
+[project]
+name = "api"
+description = "API pública do Followw UnB"
+version = "0.0.1"
+authors = [
+    { name = "eliabe", email = "74092305+eliabexp@users.noreply.github.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "cryptography>=50.0.1",
+    "fastapi[standard]>=0.141.1",
+    "pydantic-settings>=2.15.0",
+    "pyjwt>=2.13.0",
+]
+
+[project.scripts]
+api = "src:main"
+
+[build-system]
+requires = ["uv_build>=0.12.9,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.ruff.format]
+line-ending = "lf"
+
+[tool.uv.build-backend]
+module-name = "src"
+module-root = ""
