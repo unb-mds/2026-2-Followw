@@ -50,8 +50,10 @@
 | #001 | [criar endpoint] | 🔴 Alta |  | [diegolxxz] |
 | #002 | [criar scrappers do sigaa] | 🔴 Alta |  | [eliabexp] |
 | #003 | [calendario academico pesquisa] | 🟡 Média |  | [ratatta-na-nite] |
-| #004 | [escrever documentação para agentes] | 🟢 baixa |  | [eliabexp] |
+| #004 | [escrever documentação para agentes] | 🟢 Baixa |  | [eliabexp] |
 | #005 | [criação de primeiros testes] | 🟡 Média |  | [Samukatoned] [Mendezalv] |
+| #006 | [prototipar interface do app] | 🔴 Alta |  | [ratatta-na-nite][ed9gaspar][gabrielcrzojo] |
+
 
 
 
