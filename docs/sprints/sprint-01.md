@@ -1,10 +1,10 @@
 # 🏃‍♂️ Reunião Semanal de Sprint
 
-**Data:** [dd/mm/aaaa]  
+**Data:** 02/08/2026  
 **Scrum Master:** Samuel  
 **Product Owner:** Eliabe  
 **Equipe:** [eliabexp, ratatta-na-nite, Mendezalv, diegolxxz, ed9gaspar, gabrielcrzojo e SamukaToned]  
-**Período da Sprint:** [Data de Início] até [Data de Fim]  
+**Período da Sprint:** 02/08/2026 até 9/08/2026  
 
 ---
 
@@ -12,14 +12,19 @@
 *Avaliação do que foi entregue na última semana em relação ao objetivo definido.*
 
 ### ✅ Entregas Concluídas
-- [ ] [ID/Card] [Nome da Tarefa/História] - [Responsável]
-- [ ] [ID/Card] [Nome da Tarefa/História] - [Responsável]
+- [X] [#1/feat] [criar template para sprint] - [SamukaToned]
+- [X] [#2/task] [pesquisar leitura da lista de turmas SIGAA] - [gabrielcrzojo]
+- [X] [#3/task] [pesquisar sobre pytest] - [SamukaToned][Mendezalv]
+- [X] [#4/task] [mapear sites da unb] - [ed9gaspar]
+- [X] [#5/feat] [estrutura inicial da API] - [diegolxxz][eliabexp]
+
+
 
 ### 🚧 Pendências (Rollover)
 *O que não foi terminado e por quê?*
-- [Card/ID] [Nome da Tarefa] 
-  - **Motivo:** [Explicação do bloqueio ou atraso]
-  - **Decisão:** [Mover para próxima sprint / Voltar pro Backlog]
+- [#6/task] [ pesquisar sobre o calendário acadêmico] 
+  - **Motivo:** [Desorganização]
+  - **Decisão:** [Mover para próxima sprint]
 
 ---
 
@@ -28,11 +33,8 @@
 
 | 🟢 O que foi bom? (Continuar fazendo) | 🟡 O que podemos melhorar? (Começar a fazer) | 🔴 O que não foi bem? (Parar de fazer) |
 | --- | --- | --- |
-| - | - | - |
-| - | - | - |
+| Registro em arquivo da pesquisa | Concluir as tasks mais cedo |  |
 
-**Ações de Melhoria para esta semana:**
-- [ ] [Ação prática a ser tomada] - Responsável: [Nome]
 
 ---
 
@@ -41,19 +43,16 @@
 
 **Objetivos da Sprint (Sprint Goals):**
 
+
 ### 📝 Backlog da Equipe
 | ID | História / Tarefa | Prioridade |  | Responsável |
 | --- | --- | --- | --- | --- |
-| #001 | [Descrição da Tarefa] | 🔴 Alta |  | [Nome] |
-| #002 | [Descrição da Tarefa] | 🟡 Média |  | [Nome] |
-| #003 | [Descrição da Tarefa] | 🟢 Baixa |  | [Nome] |
+| #001 | [criar endpoint] | 🔴 Alta |  | [diegolxxz] |
+| #002 | [criar scrappers do sigaa] | 🔴 Alta |  | [eliabexp] |
+| #003 | [calendario academico pesquisa] | 🟡 Média |  | [ratatta-na-nite] |
+| #004 | [escrever documentação para agentes] | 🟢 baixa |  | [eliabexp] |
+| #005 | [criação de primeiros testes] | 🟡 Média |  | [Samukatoned] [Mendezalv] |
 
----
 
-## ⚠️ Impedimentos e Riscos 
-*Existe algum bloqueio atual que impeça o início do trabalho?*
-
-- [ ] **Risco/Impedimento:** [Descrição] 
-  - **Ação mitigadora:** [O que fazer para resolver] (Resp: [Nome])
 
 ---
