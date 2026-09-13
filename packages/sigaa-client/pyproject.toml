@@ -1,27 +1,17 @@
 [project]
-name = "api"
-description = "API pública do Followw UnB."
+name = "sigaa-client"
+description = "Cliente Python para o SIGAA da UnB (dados públicos e autenticados)."
 version = "0.0.1"
 authors = [
     { name = "eliabe", email = "74092305+eliabexp@users.noreply.github.com" }
 ]
 requires-python = ">=3.14"
 dependencies = [
-    "asyncpg>=0.31.0",
-    "fastapi[standard]>=0.141.1",
+    "httpx>=0.28.1",
+    "beautifulsoup4>=4.13.0",
+    "lxml>=5.3.0",
     "pydantic>=2.13.5",
-    "pydantic-settings>=2.15.0",
-    "pyjwt>=2.13.0",
-    "sigaa-client",
-    "sqlalchemy[asyncio]>=2.0.52",
 ]
-
-[tool.uv.sources]
-sigaa-client = { workspace = true }
-
-[project.scripts]
-api = "src:main"
-db-init = "src.db.main:db_init"
 
 [build-system]
 requires = ["uv_build>=0.12.9,<0.13.0"]
@@ -31,10 +21,14 @@ build-backend = "uv_build"
 line-ending = "lf"
 
 [tool.uv.build-backend]
-module-name = "src"
-module-root = ""
+module-name = "sigaa_client"
 
 [dependency-groups]
 dev = [
     "ruff>=0.16.6",
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
 ]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

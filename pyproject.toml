@@ -1,0 +1,5 @@
+[tool.uv.workspace]
+members = ["apps/*", "packages/*"]
+
+[dependency-groups]
+dev = ["ruff>=0.16.6"]
