@@ -4,7 +4,7 @@
 **Scrum Master:** Samuel  
 **Product Owner:** Eliabe  
 **Equipe:** [eliabexp, ratatta-na-nite, Mendezalv, diegolxxz, ed9gaspar, gabrielcrzojo e SamukaToned]  
-**Período da Sprint:** 02/08/2026 até 9/08/2026  
+**Período da Sprint:** 02/08/2026 até 09/08/2026  
 
 ---
 
@@ -12,11 +12,12 @@
 *Avaliação do que foi entregue na última semana em relação ao objetivo definido.*
 
 ### ✅ Entregas Concluídas
-- [X] [#1/feat] [criar template para sprint] - [SamukaToned]
-- [X] [#2/task] [pesquisar leitura da lista de turmas SIGAA] - [gabrielcrzojo]
-- [X] [#3/task] [pesquisar sobre pytest] - [SamukaToned][Mendezalv]
-- [X] [#4/task] [mapear sites da unb] - [ed9gaspar]
-- [X] [#5/feat] [estrutura inicial da API] - [diegolxxz][eliabexp]
+- [X] [#1/feat] [estrutura inicial da API] - [diegolxxz][eliabexp]
+- [X] [#3/task] [criar template para sprint] - [SamukaToned]
+- [X] [#4/task] [pesquisar sobre pytest] - [SamukaToned][Mendezalv]
+- [X] [#6/task] [pesquisar leitura da lista de turmas SIGAA] - [gabrielcrzojo]
+- [X] [#7/feat] [mapear sites da unb] - [ed9gaspar]
+
 
 
 
