@@ -3,3 +3,7 @@ members = ["apps/*", "packages/*"]
 
 [dependency-groups]
 dev = ["ruff>=0.16.6"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["apps", "packages"]

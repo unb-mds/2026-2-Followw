@@ -14,14 +14,17 @@ dependencies = [
 ]
 
 [build-system]
-requires = ["uv_build>=0.12.9,<0.13.0"]
-build-backend = "uv_build"
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
 
 [tool.ruff.format]
 line-ending = "lf"
 
-[tool.uv.build-backend]
-module-name = "sigaa_client"
+# `src/` é publicado como `sigaa_client`: o nome importável não pode ser `src`,
+# que já é o módulo de `apps/api` — dois top-level `src` no mesmo ambiente e um
+# deles fica invisível.
+[tool.setuptools]
+package-dir = { "sigaa_client" = "src" }
 
 [dependency-groups]
 dev = [
@@ -32,3 +35,4 @@ dev = [
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+testpaths = ["tests"]
