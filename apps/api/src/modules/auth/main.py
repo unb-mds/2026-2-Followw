@@ -29,9 +29,14 @@ async def sigaa_login(body: SigaaLoginRequest, response: Response):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
         )
-    except SigaaError, httpx.HTTPError:
+    except httpx.HTTPError:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY, detail="SIGAA is unavailable"
+        )
+    except SigaaError as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(e),
         )
 
     set_access_cookie(response, session_token)
@@ -46,7 +51,7 @@ async def sigaa_logout(request: Request, response: Response):
         try:
             async with SigaaClient(session_token=session_token) as client:
                 await client.logout()
-        except SigaaError, httpx.HTTPError:
+        except (SigaaError, httpx.HTTPError):
             pass
 
     clear_cookies(response)

@@ -1,0 +1,10 @@
+Metadata-Version: 2.4
+Name: sigaa-client
+Version: 0.0.1
+Summary: Cliente Python para o SIGAA da UnB (dados públicos e autenticados).
+Author-email: eliabe <74092305+eliabexp@users.noreply.github.com>
+Requires-Python: >=3.14
+Requires-Dist: httpx>=0.28.1
+Requires-Dist: beautifulsoup4>=4.13.0
+Requires-Dist: lxml>=5.3.0
+Requires-Dist: pydantic>=2.13.5
