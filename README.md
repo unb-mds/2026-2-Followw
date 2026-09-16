@@ -14,3 +14,5 @@ lento e com uma interface desatualizada.
 É por isso que, em vez de apenas agregar dados públicos, o Followw UnB também dá acesso, de forma autenticada, a informações e ações que hoje só existem dentro do próprio SIGAA
 
 > O Followw UnB é um projeto independente, sem qualquer vínculo oficial com a UnB ou com o SIGAA. Parte do trabalho envolve o estudo do comportamento de sistemas legados e não documentados oficialmente, com fins educacionais e de melhoria da experiência dos próprios alunos que optarem por usar o projeto. O uso do Followw UnB é de responsabilidade de cada usuário.
+
+Link do Figma: https://www.figma.com/board/JqtNZhLBFlsVIbthMYOdzB/Template-MDS--c%C3%B3pia-limpa-?node-id=0-1&p=f&t=PFwLBexPkq3KOM8L-0
