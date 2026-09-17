@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Response, status
-from pydantic import BaseModel
+from pydantic import BaseModel, SecretStr
+from sigaa_client import AuthenticationFailed, Credentials, SigaaClient, SigaaError
 
 from src.core.config import settings
 from src.utils.security import (
@@ -18,13 +19,23 @@ class SigaaLoginRequest(BaseModel):
 
 
 @router.post("/sigaa")
-def sigaa_login(request: SigaaLoginRequest, response: Response):
-    access_token = None  # sigaa_login(request.registration, request.password)
+async def sigaa_login(request: SigaaLoginRequest, response: Response):
+    credentials = Credentials(
+        registration=request.registration, password=SecretStr(request.password)
+    )
 
-    if access_token is None:
+    try:
+        async with SigaaClient(credentials) as client:
+            access_token = await client.authenticate()
+    except AuthenticationFailed:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
+        )
+    except SigaaError as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(e),
         )
 
     access_jwt = create_access_token(
