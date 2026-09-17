@@ -66,10 +66,10 @@ Cada módulo é um atributo do client, e cada método devolve modelo Pydantic
 
 ```python
 async with SigaaClient(credentials) as client:
-    await client.profile.get_profile()                 # UserProfile
-    await client.classrooms.list_classrooms()          # turmas do semestre
-    await client.classrooms.list_all_classrooms()      # histórico completo
-    await client.classrooms.list_classroom_members(id) # docentes e discentes
+    await client.profile.get_profile()  # UserProfile
+    await client.classrooms.list_classrooms()  # turmas do semestre
+    await client.classrooms.list_all_classrooms()  # histórico completo
+    await client.classrooms.list_classroom_members(id)  # docentes e discentes
     await client.logout()
 ```
 
@@ -88,10 +88,10 @@ turmas de uma vez.
 from sigaa_client import SigaaPublicClient, TeachingLevel
 
 async with SigaaPublicClient() as client:
-    unidades = await client.classrooms.list_units("gama")   # list[Unit]
+    unidades = await client.classrooms.list_units("gama")  # list[Unit]
     turmas = await client.classrooms.search(
         "gama", level=TeachingLevel.GRADUACAO
-    )                                                       # list[PublicClassroom]
+    )  # list[PublicClassroom]
 ```
 
 `search()` aceita a unidade como `Unit`, como id numérico (`673`) ou como um

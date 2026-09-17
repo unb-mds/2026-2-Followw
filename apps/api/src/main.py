@@ -9,5 +9,4 @@ app = FastAPI()
 if settings.environment == "production":
     app.add_middleware(HTTPSRedirectMiddleware)
 
-
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
