@@ -1,6 +1,6 @@
 [project]
 name = "api"
-description = "API pública do Followw UnB"
+description = "API pública do Followw UnB."
 version = "0.0.1"
 authors = [
     { name = "eliabe", email = "74092305+eliabexp@users.noreply.github.com" }
@@ -12,8 +12,12 @@ dependencies = [
     "pydantic>=2.13.5",
     "pydantic-settings>=2.15.0",
     "pyjwt>=2.13.0",
+    "sigaa-client",
     "sqlalchemy[asyncio]>=2.0.52",
 ]
+
+[tool.uv.sources]
+sigaa-client = { workspace = true }
 
 [project.scripts]
 api = "src:main"

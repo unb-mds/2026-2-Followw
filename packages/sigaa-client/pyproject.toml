@@ -1,0 +1,38 @@
+[project]
+name = "sigaa-client"
+description = "Cliente Python para o SIGAA da UnB (dados públicos e autenticados)."
+version = "0.0.1"
+authors = [
+    { name = "eliabe", email = "74092305+eliabexp@users.noreply.github.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "httpx>=0.28.1",
+    "beautifulsoup4>=4.13.0",
+    "lxml>=5.3.0",
+    "pydantic>=2.13.5",
+]
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.ruff.format]
+line-ending = "lf"
+
+# `src/` é publicado como `sigaa_client`: o nome importável não pode ser `src`,
+# que já é o módulo de `apps/api` — dois top-level `src` no mesmo ambiente e um
+# deles fica invisível.
+[tool.setuptools]
+package-dir = { "sigaa_client" = "src" }
+
+[dependency-groups]
+dev = [
+    "ruff>=0.16.6",
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

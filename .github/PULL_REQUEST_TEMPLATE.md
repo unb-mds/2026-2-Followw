@@ -1,12 +1,12 @@
-## O que foi feito
+## Descrição
 
-## Como testar
-
-## Checklist
+### Detalhes das mudanças
 
 ## Issues relacionadas
 
 - Closes #000
+
+## Como testar
 
 ## Contexto adicional
 

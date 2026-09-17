@@ -1,12 +1,13 @@
-from fastapi import APIRouter, HTTPException, Response, status
+import httpx
+from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel
+from sigaa_client import AuthenticationFailed, Credentials, SigaaClient, SigaaError
 
-from src.core.config import settings
-from src.utils.security import (
-    ACCESS_TOKEN_COOKIE_NAME,
-    REFRESH_TOKEN_COOKIE_NAME,
-    create_access_token,
-    create_refresh_token,
+from src.utils.session import (
+    clear_cookies,
+    read_access_cookie,
+    set_access_cookie,
+    set_refresh_cookie,
 )
 
 router = APIRouter()
@@ -18,41 +19,35 @@ class SigaaLoginRequest(BaseModel):
 
 
 @router.post("/sigaa")
-def sigaa_login(request: SigaaLoginRequest, response: Response):
-    access_token = None  # sigaa_login(request.registration, request.password)
+async def sigaa_login(body: SigaaLoginRequest, response: Response):
+    credentials = Credentials(registration=body.registration, password=body.password)
 
-    if access_token is None:
+    try:
+        async with SigaaClient(credentials=credentials) as client:
+            session_token = await client.authenticate()
+    except AuthenticationFailed:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials",
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
+        )
+    except SigaaError, httpx.HTTPError:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY, detail="SIGAA is unavailable"
         )
 
-    access_jwt = create_access_token(
-        {"sub": request.registration, "access_token": access_token}
-    )
-    refresh_jwt = create_refresh_token(
-        {
-            "sub": request.registration,
-            "registration": request.registration,
-            "password": request.password,
-        }
-    )
-
-    response.set_cookie(
-        key=ACCESS_TOKEN_COOKIE_NAME,
-        value=access_jwt,
-        httponly=True,
-        secure=True,
-        samesite="lax",
-        max_age=settings.access_token_expire_minutes * 60,
-    )
-    response.set_cookie(
-        key=REFRESH_TOKEN_COOKIE_NAME,
-        value=refresh_jwt,
-        httponly=True,
-        secure=True,
-        samesite="lax",
-        max_age=settings.refresh_token_expire_minutes * 60,
-    )
-
+    set_access_cookie(response, session_token)
+    set_refresh_cookie(response, credentials)
     return {"message": "Login successful"}
+
+
+@router.delete("/sigaa")
+async def sigaa_logout(request: Request, response: Response):
+    session_token = read_access_cookie(request)
+    if session_token is not None:
+        try:
+            async with SigaaClient(session_token=session_token) as client:
+                await client.logout()
+        except SigaaError, httpx.HTTPError:
+            pass
+
+    clear_cookies(response)
+    return {"message": "Logout successful"}
