@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 
-from src.core.config import settings
-from src.modules.auth.main import router as auth_router
+from api.core.config import settings
+from api.modules.auth.main import router as auth_router
 
 app = FastAPI()
 

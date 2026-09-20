@@ -5,7 +5,7 @@ import httpx
 from fastapi import Depends, HTTPException, Request, Response, status
 from sigaa_client import AuthenticationFailed, SessionExpired, SigaaClient, SigaaError
 
-from src.utils.session import (
+from api.utils.session import (
     read_access_cookie,
     read_refresh_cookie,
     set_access_cookie,

@@ -4,8 +4,8 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy import ForeignKey, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
-from src.db.enums import ClassroomRole, ClassroomStatus, UserLevel
+from api.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from api.db.enums import ClassroomRole, ClassroomStatus, UserLevel
 
 
 class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):

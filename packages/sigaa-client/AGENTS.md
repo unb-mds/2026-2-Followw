@@ -8,12 +8,11 @@ consome nunca vê cookie, `ViewState`, postback ou HTML.
 
 ## Layout
 
-O código vive em `src/`, mas o módulo importável é `sigaa_client`: o top-level
-`src` já pertence a `apps/api` e dois pacotes não podem disputá-lo. O mapeamento
-está no `pyproject.toml` (`[tool.setuptools] package-dir`).
+O pacote usa flat layout: o módulo importável `sigaa_client` fica na raiz, sem
+`src/` no meio (`[tool.uv.build-backend] module-root = ""`).
 
 ```
-src/
+sigaa_client/
   client.py       # _BaseClient, SigaaClient, SigaaPublicClient — só monta resources
   config.py       # URLs, paths, timeout, User-Agent — nenhuma URL literal fora daqui
   exceptions.py   # SigaaError e derivadas
@@ -94,7 +93,7 @@ campo gerado, ritual de sessão). Comportamento óbvio não se comenta.
 
 4. **Modele o retorno** em `models.py` (frozen, opcionais com `None`).
 5. **Exponha** no `client.py` (`self.grades = Grades(self._session)`) e exporte
-   modelos/exceções novos em `src/__init__.py` (`__all__` em ordem alfabética).
+   modelos/exceções novos em `sigaa_client/__init__.py` (`__all__` em ordem alfabética).
 6. **Teste** com `httpx.MockTransport` (abaixo).
 7. **Documente** no README se muda a superfície pública.
 

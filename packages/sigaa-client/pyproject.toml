@@ -14,17 +14,14 @@ dependencies = [
 ]
 
 [build-system]
-requires = ["setuptools>=77"]
-build-backend = "setuptools.build_meta"
+requires = ["uv_build>=0.12.9,<0.13.0"]
+build-backend = "uv_build"
 
 [tool.ruff.format]
 line-ending = "lf"
 
-# `src/` é publicado como `sigaa_client`: o nome importável não pode ser `src`,
-# que já é o módulo de `apps/api` — dois top-level `src` no mesmo ambiente e um
-# deles fica invisível.
-[tool.setuptools]
-package-dir = { "sigaa_client" = "src" }
+[tool.uv.build-backend]
+module-root = ""
 
 [dependency-groups]
 dev = [

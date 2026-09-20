@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel
 from sigaa_client import AuthenticationFailed, Credentials, SigaaClient, SigaaError
 
-from src.utils.session import (
+from api.utils.session import (
     clear_cookies,
     read_access_cookie,
     set_access_cookie,
@@ -51,7 +51,7 @@ async def sigaa_logout(request: Request, response: Response):
         try:
             async with SigaaClient(session_token=session_token) as client:
                 await client.logout()
-        except (SigaaError, httpx.HTTPError):
+        except SigaaError, httpx.HTTPError:
             pass
 
     clear_cookies(response)

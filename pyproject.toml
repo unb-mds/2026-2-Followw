@@ -2,8 +2,20 @@
 members = ["apps/*", "packages/*"]
 
 [dependency-groups]
-dev = ["ruff>=0.16.6"]
+dev = ["pytest-cov>=7.0.0", "ruff>=0.16.6"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["apps", "packages"]
+# `apps/api/tests/test_auth.py` e `packages/sigaa-client/tests/test_auth.py`
+# viram o mesmo módulo `test_auth` no modo de import padrão.
+addopts = ["--import-mode=importlib"]
+
+[tool.coverage.run]
+branch = true
+source = ["apps/api/api", "packages/sigaa-client/sigaa_client"]
+
+[tool.coverage.report]
+skip_covered = false
+show_missing = true
+exclude_also = ["if TYPE_CHECKING:", "raise NotImplementedError"]
