@@ -6,6 +6,7 @@ from .config import DEFAULT_TIMEOUT, SIGAA_BASE_URL, USER_AGENT
 from .models import Credentials
 from .private.classrooms import Classrooms
 from .private.profile import Profile
+from .private.restaurant import Restaurant
 from .private.session import OnSessionRenewed, Session
 from .public.classrooms import PublicClassrooms
 from .public.session import PublicSession
@@ -56,6 +57,7 @@ class SigaaClient(_BaseClient):
         )
         self.profile = Profile(self._session)
         self.classrooms = Classrooms(self._session)
+        self.restaurant = Restaurant(self._session)
 
     @property
     def session_token(self) -> str | None:

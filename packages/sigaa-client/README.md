@@ -56,7 +56,7 @@ O login acontece sob demanda: chamar qualquer método já autentica. `authentica
 
 | Client | Precisa de login | Módulos |
 | --- | --- | --- |
-| `SigaaClient` | sim | `.profile`, `.classrooms` |
+| `SigaaClient` | sim | `.profile`, `.classrooms`, `.restaurant` |
 | `SigaaPublicClient` | não | `.classrooms` |
 
 Cada módulo é um atributo do client, e cada método devolve modelo Pydantic
@@ -70,11 +70,17 @@ async with SigaaClient(credentials) as client:
     await client.classrooms.list_classrooms()  # turmas do semestre
     await client.classrooms.list_all_classrooms()  # histórico completo
     await client.classrooms.list_classroom_members(id)  # docentes e discentes
+    await client.restaurant.get_restaurant_statement()  # extrato do RU (7 dias)
+    await client.restaurant.get_restaurant_credentials()  # token do QR e validade
     await client.logout()
 ```
 
 O `id` de `list_classroom_members()` é o `Classroom.id` — hash de 40 caracteres,
 estável entre sessões e presente tanto no semestre corrente quanto no histórico.
+
+`get_restaurant_statement()` devolve `None` para quem não tem extrato no RU.
+`get_restaurant_credentials()` lê o PDF da carteirinha estudantil: o token vem
+do QR code e `valid_until` do mês/ano impresso (o dia vem sempre `1`).
 
 Turmas de semestres passados vêm com `room`, `sigaa_id` e `subject.unity` em
 `None`: o SIGAA não guarda esses dados fora do semestre corrente.

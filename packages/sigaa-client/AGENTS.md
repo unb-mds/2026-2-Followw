@@ -15,12 +15,14 @@ sigaa_client/
   exceptions.py   # SigaaError e derivadas
   models.py       # modelos Pydantic (frozen) devolvidos ao chamador
   utils/
-    jsf.py        # ViewState, postback `jsfcljs` e submit de form
+    jsf.py        # ViewState, postback `jsfcljs`, submit de form e menu lateral
     parsing.py    # helpers de leitura de HTML compartilhados
+    pdf.py        # texto e QR code dos PDFs que o SIGAA devolve
   private/        # resources que exigem sessão autenticada
     session.py    # login CAS, relogin transparente, request/get/post
     profile.py
     classrooms.py
+    restaurant.py # extrato do RU e carteirinha estudantil
   public/         # resources sem login
     session.py    # aquecimento da sessão anônima
     classrooms.py
@@ -47,12 +49,12 @@ string vazia.
 
 **Erros.** Tudo deriva de `SigaaError`:
 
-| Exceção | Quando |
-| --- | --- |
-| `AuthenticationFailed` | CAS rejeitou a credencial |
-| `SessionExpired` | sessão morreu e não há como reautenticar |
-| `SigaaParseError` | o HTML não tem a estrutura esperada (layout mudou) |
-| `SigaaSearchError` | o SIGAA recusou os filtros e disse o porquê |
+| Exceção                | Quando                                             |
+| ---------------------- | -------------------------------------------------- |
+| `AuthenticationFailed` | CAS rejeitou a credencial                          |
+| `SessionExpired`       | sessão morreu e não há como reautenticar           |
+| `SigaaParseError`      | o HTML não tem a estrutura esperada (layout mudou) |
+| `SigaaSearchError`     | o SIGAA recusou os filtros e disse o porquê        |
 
 Estrutura ausente é `SigaaParseError`, não `None` silencioso: o pacote é
 desenhado para ser barulhento quando o SIGAA muda. Toda mensagem diz o que
@@ -64,7 +66,8 @@ constantes de módulo no topo do resource (`FORM_ID`, `UNIT_FIELD`,
 
 **Texto.** Não escreva parse de texto na mão: `clean_text` (normaliza espaços),
 `visible_text` (remove os balões `.popUp` que o SIGAA embute nas células),
-`split_course`, `split_location`, `schedule_code`. Se precisar de outro, ele vai
+`split_course`, `split_location`, `schedule_code`, `lookup_key` (minúscula e
+sem acento, para bater com as chaves de um dict). Se precisar de outro, ele vai
 para `utils/parsing.py`.
 
 **Comentários.** Só onde o SIGAA faz algo contraintuitivo (HTML malformado,
@@ -78,15 +81,15 @@ campo gerado, ritual de sessão). Comportamento óbvio não se comenta.
 2. **Escolha a camada**: exige login → `private/`; anônimo → `public/`.
 3. **Crie o resource** em um módulo próprio:
 
-   ```python
-   class Grades:
-       def __init__(self, session: Session) -> None:
-           self._session = session
+    ```python
+    class Grades:
+        def __init__(self, session: Session) -> None:
+            self._session = session
 
-       async def list_grades(self, classroom_id: str) -> list[Grade]:
-           page = await self._session.get(GRADES_PATH)
-           return _parse_grades(BeautifulSoup(page.text, "lxml"))
-   ```
+        async def list_grades(self, classroom_id: str) -> list[Grade]:
+            page = await self._session.get(GRADES_PATH)
+            return _parse_grades(BeautifulSoup(page.text, "lxml"))
+    ```
 
 4. **Modele o retorno** em `models.py` (frozen, opcionais com `None`).
 5. **Exponha** no `client.py` (`self.grades = Grades(self._session)`) e exporte
@@ -102,7 +105,7 @@ O SIGAA usa JSF: links que parecem `<a href="#">` na verdade disparam
 - **Clique em link** (`build_postback`): `link_params(anchor)` lê os pares do
   `onclick`, `read_viewstate(soup)` pega o `ViewState` da resposta **mais
   recente** e `build_postback(form, params, viewstate)` devolve `(action,
-  payload)`.
+payload)`.
 - **Submit de form** (`build_submit`): envia o form inteiro a partir do estado
   que a página trouxe, sobrescrevendo só os campos que você passa. O `name` do
   botão é gerado pelo JSF (`j_id_jsp_...`), então é achado pelo rótulo visível.
