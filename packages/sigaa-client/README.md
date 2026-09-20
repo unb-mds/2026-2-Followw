@@ -38,7 +38,7 @@ from sigaa_client import Credentials, SigaaClient
 
 
 async def main():
-    credentials = Credentials(registration="251020208", password=SecretStr("..."))
+    credentials = Credentials(registration="251000000", password=SecretStr("..."))
 
     async with SigaaClient(credentials) as client:
         session_token = await client.authenticate()

@@ -17,7 +17,7 @@ from api.utils.session import (
     set_refresh_cookie,
 )
 
-CREDENCIAIS = Credentials(registration="251020208", password=SecretStr("senha"))
+CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha"))
 
 
 def _request(**cookies: str) -> Request:
@@ -81,7 +81,7 @@ def test_refresh_cookie_sem_senha_vira_none():
     """Cookie assinado por nós, mas com formato antigo: não pode virar exceção."""
     token = _assinar(
         {
-            "registration": "251020208",
+            "registration": "251000000",
             "exp": datetime.now(UTC) + timedelta(minutes=5),
         }
     )

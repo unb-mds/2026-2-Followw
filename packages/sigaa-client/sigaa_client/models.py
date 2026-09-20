@@ -1,11 +1,11 @@
 import enum
+from datetime import datetime
+from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, SecretStr
 
 
 class Credentials(BaseModel):
-    """Credenciais do SIGAA. Nunca logar nem persistir em disco."""
-
     model_config = ConfigDict(frozen=True)
 
     registration: str
@@ -16,6 +16,14 @@ class UserLevel(str, enum.Enum):
     GRADUACAO = "Graduação"
     POS_GRADUACAO = "Pós-graduação"
     MESTRADO = "Mestrado"
+
+
+class RestaurantStatementEntry(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    occurred_at: datetime
+    description: str
+    amount: Decimal
 
 
 class UserProfile(BaseModel):

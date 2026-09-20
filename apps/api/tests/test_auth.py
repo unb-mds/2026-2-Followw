@@ -6,7 +6,7 @@ from sigaa_client import Credentials
 from api.core.config import settings
 from api.utils.session import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME
 
-CREDENCIAIS = Credentials(registration="251020208", password=SecretStr("senha"))
+CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha"))
 
 
 def _expirados(jar) -> set[str]:
@@ -29,7 +29,7 @@ def _payload(response, nome: str) -> dict:
 @pytest.mark.parametrize(
     "body",
     [
-        pytest.param({"registration": "251020208"}, id="sem-senha"),
+        pytest.param({"registration": "251000000"}, id="sem-senha"),
         pytest.param({"password": "senha"}, id="sem-matricula"),
         pytest.param({}, id="vazio"),
     ],
@@ -40,7 +40,7 @@ def test_login_sem_os_campos_obrigatorios_e_422(client, body: dict):
 
 def test_login_guarda_a_sessao_e_as_credenciais(client, sigaa):
     response = client.post(
-        "/auth/sigaa", json={"registration": "251020208", "password": "senha"}
+        "/auth/sigaa", json={"registration": "251000000", "password": "senha"}
     )
 
     assert response.status_code == 200
@@ -49,14 +49,14 @@ def test_login_guarda_a_sessao_e_as_credenciais(client, sigaa):
     assert _payload(response, ACCESS_COOKIE_NAME)["session_token"] == "app14~TOKEN1"
     # O refresh guarda a credencial porque a sessão do SIGAA é curta e só o
     # relogin a renova — não há refresh token do lado deles.
-    assert _payload(response, REFRESH_COOKIE_NAME)["registration"] == "251020208"
+    assert _payload(response, REFRESH_COOKIE_NAME)["registration"] == "251000000"
 
 
 def test_login_com_senha_errada_e_401(client, sigaa):
     sigaa.password = "outra"
 
     response = client.post(
-        "/auth/sigaa", json={"registration": "251020208", "password": "errada"}
+        "/auth/sigaa", json={"registration": "251000000", "password": "errada"}
     )
 
     assert response.status_code == 401
@@ -68,7 +68,7 @@ def test_login_com_sigaa_fora_do_ar_e_502(client, sigaa):
     sigaa.unavailable = True
 
     response = client.post(
-        "/auth/sigaa", json={"registration": "251020208", "password": "senha"}
+        "/auth/sigaa", json={"registration": "251000000", "password": "senha"}
     )
 
     assert response.status_code == 502
@@ -79,7 +79,7 @@ def test_login_com_cas_fora_do_esperado_e_502(client, sigaa):
     sigaa.mode = "sem_cookie"
 
     response = client.post(
-        "/auth/sigaa", json={"registration": "251020208", "password": "senha"}
+        "/auth/sigaa", json={"registration": "251000000", "password": "senha"}
     )
 
     assert response.status_code == 502

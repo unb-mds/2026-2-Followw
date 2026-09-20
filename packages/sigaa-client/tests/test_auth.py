@@ -11,7 +11,7 @@ from sigaa_client import (
 )
 from sigaa_client.config import DASHBOARD_PATH
 
-CREDENTIALS = Credentials(registration="251020208", password=SecretStr("senha"))
+CREDENTIALS = Credentials(registration="251000000", password=SecretStr("senha"))
 
 LOGIN_FORM = """
 <html><body><form action="/sso-server/login;jsessionid=ABC?service=x" method="post">
@@ -101,7 +101,7 @@ async def test_authenticate_devolve_o_jsessionid():
 
     assert token == "app14~TOKEN1"
     assert sigaa.payloads == [
-        {"username": "251020208", "password": "senha", "lt": "LT-1", "submit": "Entrar"}
+        {"username": "251000000", "password": "senha", "lt": "LT-1", "submit": "Entrar"}
     ]
 
 
