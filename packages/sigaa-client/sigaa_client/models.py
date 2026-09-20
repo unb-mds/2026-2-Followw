@@ -135,6 +135,33 @@ class ClassroomAttendance(BaseModel):
     total_percentage: int
 
 
+class StudentSituation(str, enum.Enum):
+    """As situações do gráfico "Situação dos Discentes", na ordem da legenda."""
+
+    APROVADO = "aprovado"
+    REPROVADO = "reprovado"
+    REPROVADO_POR_FALTAS = "reprovado_por_faltas"
+    REPROVADO_POR_MEDIA_E_POR_FALTAS = "reprovado_por_media_e_por_faltas"
+    APROVADO_POR_NOTA = "aprovado_por_nota"
+    REPROVADO_POR_NOTA = "reprovado_por_nota"
+    REPROVADO_POR_NOTA_E_FALTAS = "reprovado_por_nota_e_faltas"
+    TRANCADO = "trancado"
+    MATRICULADO = "matriculado"
+
+
+class StatisticsShare(BaseModel):
+    """Uma fatia do gráfico de estatísticas: a porcentagem dos discentes da turma.
+
+    O SIGAA arredonda cada fatia em uma casa, então a soma pode fechar em 99.9
+    ou 100.1. O gráfico não expõe a contagem de alunos, só a porcentagem.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    situation: StudentSituation
+    percentage: float
+
+
 class ClassroomProgress(BaseModel):
     """O "Andamento das Aulas" da turma virtual: quanto da CH já foi ministrada."""
 

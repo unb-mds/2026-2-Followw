@@ -21,7 +21,7 @@ sigaa_client/
   private/        # resources que exigem sessão autenticada
     session.py    # login CAS, relogin transparente, request/get/post
     profile.py
-    classrooms.py  # turmas, participantes e frequência (contexto de turma)
+    classrooms.py  # turmas, participantes, frequência e estatísticas da turma
     restaurant.py # extrato do RU e carteirinha estudantil
   public/         # resources sem login
     session.py    # aquecimento da sessão anônima
