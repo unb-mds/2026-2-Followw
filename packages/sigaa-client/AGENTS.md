@@ -1,10 +1,7 @@
-# `sigaa-client` — guia interno
+# `sigaa-client` — guia para agentes
 
-Este arquivo é para quem vai **trabalhar dentro do pacote**. Para usá-lo como
-biblioteca, veja o [README](README.md).
-
-O pacote raspa o SIGAA da UnB (HTML + JSF) e devolve modelos Pydantic. Quem
-consome nunca vê cookie, `ViewState`, postback ou HTML.
+O pacote raspa o SIGAA da UnB (HTML + JSF) e devolve modelos Pydantic. Este
+client tem o intuito de desacoplar a API da complexidade do SIGAA e de requests HTTP.
 
 ## Layout
 
@@ -143,12 +140,3 @@ sessão, descartar submit que não passou pela home. É assim que relogin e retr
 ficam cobertos. Os fixtures de HTML são strings no topo do arquivo de teste,
 recortadas da página real e reduzidas ao que o parser usa. Nomes dos testes em
 português, descrevendo o comportamento (`test_unidade_pode_vir_pelo_nome`).
-
-## Comandos
-
-```fish
-uv sync
-uv run pytest
-uv run ruff check .
-uv run ruff format .
-```
