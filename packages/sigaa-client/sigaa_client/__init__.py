@@ -8,8 +8,13 @@ from .exceptions import (
     SigaaSearchError,
 )
 from .models import (
+    AttendanceEntry,
+    AttendanceStatus,
     Classroom,
+    ClassroomAttendance,
+    ClassroomFrequency,
     ClassroomMember,
+    ClassroomProgress,
     ClassroomRole,
     Credentials,
     PublicClassroom,
@@ -24,9 +29,14 @@ from .models import (
 )
 
 __all__ = [
+    "AttendanceEntry",
+    "AttendanceStatus",
     "AuthenticationFailed",
     "Classroom",
+    "ClassroomAttendance",
+    "ClassroomFrequency",
     "ClassroomMember",
+    "ClassroomProgress",
     "ClassroomRole",
     "Credentials",
     "PublicClassroom",

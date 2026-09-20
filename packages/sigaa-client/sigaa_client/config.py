@@ -11,6 +11,7 @@ SESSION_COOKIE_NAME = "JSESSIONID"
 DASHBOARD_PATH = "/sigaa/portais/discente/discente.jsf"
 CLASSROOMS_PATH = "/sigaa/portais/discente/turmas.jsf"
 PARTICIPANTS_PATH = "/sigaa/ava/participantes.jsf"
+CLASSROOM_HOME_PATH = "/sigaa/ava/index.jsf"
 LOGOUT_PATH = "/sigaa/logar.do?dispatch=logOff"
 
 PUBLIC_HOME_PATH = "/sigaa/public/home.jsf"

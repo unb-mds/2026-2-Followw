@@ -1,20 +1,34 @@
 import asyncio
 import re
+from collections.abc import Awaitable, Callable
+from datetime import datetime
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup, Tag
 
 from ..config import (
+    CLASSROOM_HOME_PATH,
     CLASSROOMS_PATH,
     DASHBOARD_PATH,
     PARTICIPANTS_PATH,
     SIGAA_BASE_URL,
 )
 from ..exceptions import SessionExpired, SessionRenewed, SigaaParseError
-from ..models import Classroom, ClassroomMember, ClassroomRole, Subject
-from ..utils.jsf import build_postback, link_params, read_viewstate
+from ..models import (
+    AttendanceEntry,
+    AttendanceStatus,
+    Classroom,
+    ClassroomAttendance,
+    ClassroomFrequency,
+    ClassroomMember,
+    ClassroomProgress,
+    ClassroomRole,
+    Subject,
+)
+from ..utils.jsf import build_postback, link_params, read_form, read_viewstate
 from ..utils.parsing import (
     clean_text,
+    lookup_key,
     schedule_code,
     split_course,
     split_location,
@@ -23,15 +37,31 @@ from ..utils.parsing import (
 from .session import Session
 
 CLASSROOM_ID_FIELD = "frontEndIdTurma"
+MENU_FORM_ID = "formMenu"
+FREQUENCY_MENU_LABEL = "Frequência"
+PROGRESS_PANEL_LABEL = "Andamento das Aulas"
+
+# Uma tela da turma virtual, aberta com a turma já carregada na sessão.
+OpenScreen = Callable[[Session, bool], Awaitable[str]]
 
 _SEMESTER_RE = re.compile(r"^\d{4}\.\d$")
 _ROW_ID_RE = re.compile(r"^linha_(\d+)$")
 _HOURS_RE = re.compile(r"(\d+)")
 _PERSON_ID_RE = re.compile(r"'idPessoa'\s*:\s*(\d+)")
 _CONTEXT_RE = re.compile(r'var nomeTurma\s*=\s*"(.*?)";')
-_CONTEXT_NUMBER_RE = re.compile(r"\bturma\s*[:\-]?\s*([\w-]+)", re.IGNORECASE)
-_CONTEXT_SEMESTER_RE = re.compile(r"\b\d{4}\.\d\b")
-_CONTEXT_CODE_RE = re.compile(r"^\s*([\w]+)\s*-")
+# `Turma: FGA0146 - ESTRUTURAS DE DADOS 1 (2026.2 - T01)`, dentro de um `<div>`.
+_CONTEXT_CLASSROOM_RE = re.compile(
+    r"Turma:\s*(?P<code>\w+).*\((?P<semester>\d{4}\.\d)\s*-\s*T?(?P<number>[\w-]+)\)"
+)
+_NUMBER_RE = re.compile(r"(\d+)")
+_COUNTS_RE = re.compile(r"(\d+)\s*/\s*(\d+)")
+_ABSENCES_RE = re.compile(r"(\d+)\s*Falta", re.IGNORECASE)
+_NOT_LAUNCHED_RE = re.compile(r"frequência ainda não foi lançada", re.IGNORECASE)
+
+_STATUSES = {
+    "presente": AttendanceStatus.PRESENTE,
+    "nao registrada": AttendanceStatus.NAO_REGISTRADA,
+}
 
 
 class Classrooms:
@@ -56,24 +86,29 @@ class Classrooms:
         return [_merge(entry, active.get(key)) for key, entry in history.items()]
 
     async def list_classroom_members(self, classroom_id: str) -> list[ClassroomMember]:
-        # A troca de turma e a leitura dos participantes são uma operação única.
+        page = await self._read_screen(classroom_id, _open_participants)
+        soup = BeautifulSoup(page, "lxml")
+        return [
+            *_parse_members(soup, "Docentes", ClassroomRole.PROFESSOR),
+            *_parse_members(soup, "Discentes", ClassroomRole.ALUNO),
+        ]
+
+    async def get_classroom_frequency(self, classroom_id: str) -> ClassroomFrequency:
+        page = await self._read_screen(classroom_id, _open_frequency)
+        return _parse_frequency(BeautifulSoup(page, "lxml"))
+
+    async def _read_screen(self, classroom_id: str, open_screen: OpenScreen) -> str:
+        # A troca de turma e a leitura da tela são uma operação única.
         async with self._context_lock:
             for attempt in range(2):
+                allow_renewal = attempt == 0
                 try:
                     expected = await self._enter_classroom(
-                        classroom_id, allow_renewal=attempt == 0
+                        classroom_id, allow_renewal=allow_renewal
                     )
-                    response = await self._session.get(
-                        PARTICIPANTS_PATH,
-                        retry_on_renewal=False,
-                        allow_renewal=attempt == 0,
-                    )
-                    _assert_context(response.text, expected)
-                    soup = BeautifulSoup(response.text, "lxml")
-                    return [
-                        *_parse_members(soup, "Docentes", ClassroomRole.PROFESSOR),
-                        *_parse_members(soup, "Discentes", ClassroomRole.ALUNO),
-                    ]
+                    page = await open_screen(self._session, allow_renewal)
+                    _assert_context(page, expected)
+                    return page
                 except SessionRenewed:
                     continue
         raise SessionExpired("Não foi possível restaurar o contexto da turma.")
@@ -115,6 +150,132 @@ class Classrooms:
         return _classroom(row[0], row[1], semester=row[2])
 
 
+async def _open_participants(session: Session, allow_renewal: bool) -> str:
+    response = await session.get(
+        PARTICIPANTS_PATH, retry_on_renewal=False, allow_renewal=allow_renewal
+    )
+    return response.text
+
+
+async def _open_frequency(session: Session, allow_renewal: bool) -> str:
+    """O mapa de frequências só abre pelo item do menu — GET direto dá erro."""
+    response = await session.get(
+        CLASSROOM_HOME_PATH, retry_on_renewal=False, allow_renewal=allow_renewal
+    )
+    soup = BeautifulSoup(response.text, "lxml")
+    anchor = next(
+        (
+            link
+            for link in soup.find_all("a")
+            if clean_text(link) == FREQUENCY_MENU_LABEL
+        ),
+        None,
+    )
+    if not isinstance(anchor, Tag):
+        raise SigaaParseError(
+            f"Item `{FREQUENCY_MENU_LABEL}` não encontrado no menu da turma."
+        )
+
+    action, payload = build_postback(
+        read_form(soup, MENU_FORM_ID), link_params(anchor), read_viewstate(soup)
+    )
+    response = await session.post(action, data=payload, allow_renewal=allow_renewal)
+    return response.text
+
+
+def _parse_frequency(soup: BeautifulSoup) -> ClassroomFrequency:
+    return ClassroomFrequency(
+        progress=_parse_progress(soup), frequency=_parse_attendance(soup)
+    )
+
+
+def _parse_progress(soup: BeautifulSoup) -> ClassroomProgress:
+    label = soup.find(string=re.compile(PROGRESS_PANEL_LABEL))
+    panel = label.find_next("div", class_="rich-stglpanel-body") if label else None
+    bar = panel.find("div", class_="progress-bar") if isinstance(panel, Tag) else None
+    counts = _COUNTS_RE.search(clean_text(panel)) if isinstance(panel, Tag) else None
+    percentage = _NUMBER_RE.search(clean_text(bar)) if isinstance(bar, Tag) else None
+    if counts is None or percentage is None:
+        raise SigaaParseError(f"`{PROGRESS_PANEL_LABEL}` não encontrado na turma.")
+
+    return ClassroomProgress(
+        taught=int(counts.group(1)),
+        total=int(counts.group(2)),
+        percentage=int(percentage.group(1)),
+    )
+
+
+def _parse_attendance(soup: BeautifulSoup) -> ClassroomAttendance | None:
+    """`None` quando o docente ainda não lançou frequência nenhuma."""
+    content = soup.find("div", id="conteudo")
+    if not isinstance(content, Tag):
+        raise SigaaParseError("Mapa de frequências não encontrado na turma.")
+    if _NOT_LAUNCHED_RE.search(clean_text(content)):
+        return None
+
+    table = content.find("table", class_="listing")
+    totals = content.find("div", class_="botoes-show")
+    if not (isinstance(table, Tag) and isinstance(totals, Tag)):
+        raise SigaaParseError("Mapa de frequências sem tabela ou totais.")
+
+    return ClassroomAttendance(
+        entries=_parse_entries(table),
+        attended=_total(totals, "Presenças Registradas"),
+        registered=_total(totals, "Número de Aulas com Registro"),
+        registered_percentage=_total(
+            totals, "Porcentagem de Frequência em relação as Aulas"
+        ),
+        total=_total(totals, "Número de Aulas definidas"),
+        total_percentage=_total(totals, "Porcentagem de Frequência em relação a CH"),
+    )
+
+
+def _parse_entries(table: Tag) -> tuple[AttendanceEntry, ...]:
+    entries = []
+    for row in table.find_all("tr"):
+        cells = row.find_all("td")
+        if len(cells) == 2:
+            entries.append(_entry(clean_text(cells[0]), clean_text(cells[1])))
+    return tuple(entries)
+
+
+def _entry(day: str, situation: str) -> AttendanceEntry:
+    try:
+        # O SIGAA não expõe timezone; a data é sempre a do calendário da UnB.
+        occurred_on = datetime.strptime(day, "%d/%m/%Y").date()  # noqa: DTZ007
+    except ValueError as error:
+        raise SigaaParseError(
+            f"Data `{day}` do mapa de frequências em formato inesperado."
+        ) from error
+
+    absences = _ABSENCES_RE.search(situation)
+    if absences is not None:
+        return AttendanceEntry(
+            occurred_on=occurred_on,
+            status=AttendanceStatus.FALTA,
+            absences=int(absences.group(1)),
+        )
+
+    status = _STATUSES.get(lookup_key(situation))
+    if status is None:
+        raise SigaaParseError(
+            f"Situação `{situation}` desconhecida no mapa de frequências."
+        )
+    return AttendanceEntry(occurred_on=occurred_on, status=status)
+
+
+def _total(totals: Tag, label: str) -> int:
+    """O valor vem solto depois do `<b>` do rótulo, sem elemento próprio."""
+    key = lookup_key(label)
+    for field in totals.find_all("b"):
+        if not lookup_key(clean_text(field)).startswith(key):
+            continue
+        value = _NUMBER_RE.search(str(field.next_sibling or ""))
+        if value is not None:
+            return int(value.group(1))
+    raise SigaaParseError(f"`{label}` não encontrado no mapa de frequências.")
+
+
 def _assert_context(page: str, expected: Classroom) -> None:
     """A turma da sessão pode não ser a que se pediu — o cabeçalho é a prova."""
     match = _CONTEXT_RE.search(page)
@@ -122,17 +283,12 @@ def _assert_context(page: str, expected: Classroom) -> None:
         raise SigaaParseError("Página de participantes não declara a turma atual.")
 
     context = match.group(1)
-    code = _CONTEXT_CODE_RE.search(context)
-    number = _CONTEXT_NUMBER_RE.search(context)
-    semester = _CONTEXT_SEMESTER_RE.search(context)
-    if (
-        code is None
-        or number is None
-        or semester is None
-        or code.group(1) != expected.subject.code
-        or number.group(1) != expected.number
-        or semester.group() != expected.semester
-    ):
+    current = _CONTEXT_CLASSROOM_RE.search(context)
+    if current is None or (
+        current.group("code"),
+        current.group("number"),
+        current.group("semester"),
+    ) != (expected.subject.code, expected.number, expected.semester):
         raise SigaaParseError(
             f"A sessão está na turma `{context}`, não em `{expected.id}`."
         )

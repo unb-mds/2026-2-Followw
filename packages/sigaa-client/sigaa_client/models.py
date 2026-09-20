@@ -44,6 +44,8 @@ class UserProfile(BaseModel):
     unity: str
     course: str
     integralization: int | None
+    ira: float | None
+    mp: float | None
     level: UserLevel
 
 
@@ -97,6 +99,64 @@ class ClassroomMember(BaseModel):
     course: str | None = None
     unity: str | None = None
     person_id: int | None = None
+
+
+class AttendanceStatus(str, enum.Enum):
+    PRESENTE = "presente"
+    FALTA = "falta"
+    NAO_REGISTRADA = "nao_registrada"
+
+
+class AttendanceEntry(BaseModel):
+    """Uma aula do mapa de frequências. `absences` é 0 fora da situação de falta."""
+
+    model_config = ConfigDict(frozen=True)
+
+    occurred_on: date
+    status: AttendanceStatus
+    absences: int = 0
+
+
+class ClassroomAttendance(BaseModel):
+    """Mapa de frequências da turma, com os totais que o próprio SIGAA calcula.
+
+    `registered` conta as aulas que já têm frequência lançada; `total`, as que
+    a carga horária do componente prevê. Cada um tem sua porcentagem, que é a
+    do SIGAA — não o arredondamento de `attended / registered`.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    entries: tuple[AttendanceEntry, ...] = ()
+    attended: int
+    registered: int
+    registered_percentage: int
+    total: int
+    total_percentage: int
+
+
+class ClassroomProgress(BaseModel):
+    """O "Andamento das Aulas" da turma virtual: quanto da CH já foi ministrada."""
+
+    model_config = ConfigDict(frozen=True)
+
+    taught: int
+    total: int
+    percentage: int
+
+
+class ClassroomFrequency(BaseModel):
+    """A tela de frequência da turma virtual.
+
+    `frequency` é `None` quando o docente não lançou frequência — nesse caso o
+    SIGAA ainda mostra totais na tela, mas eles são fictícios (100% de presença
+    em toda a carga horária), então não são devolvidos.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    progress: ClassroomProgress
+    frequency: ClassroomAttendance | None = None
 
 
 class TeachingLevel(str, enum.Enum):

@@ -44,6 +44,8 @@ class Profile:
             unity=unity,
             course=course,
             integralization=_integralization(card),
+            ira=_academic_index(fields, "ira"),
+            mp=_academic_index(fields, "mp"),
             level=_level(_required(fields, "nível")),
         )
 
@@ -93,6 +95,18 @@ def _photo(card: Tag) -> str | None:
 def _integralization(card: Tag) -> int | None:
     match = _INTEGRALIZATION_RE.search(clean_text(card))
     return int(match.group(1)) if match else None
+
+
+def _academic_index(fields: dict[str, str], label: str) -> float | None:
+    value = fields.get(label)
+    if not value:
+        return None
+    try:
+        return float(value)
+    except ValueError as error:
+        raise SigaaParseError(
+            f"Campo `{label}` do perfil do discente em formato inesperado."
+        ) from error
 
 
 def _level(value: str) -> UserLevel:

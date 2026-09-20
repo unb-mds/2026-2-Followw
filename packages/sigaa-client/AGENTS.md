@@ -21,7 +21,7 @@ sigaa_client/
   private/        # resources que exigem sessão autenticada
     session.py    # login CAS, relogin transparente, request/get/post
     profile.py
-    classrooms.py
+    classrooms.py  # turmas, participantes e frequência (contexto de turma)
     restaurant.py # extrato do RU e carteirinha estudantil
   public/         # resources sem login
     session.py    # aquecimento da sessão anônima
@@ -123,6 +123,11 @@ Regras que não dá para burlar:
   exemplo, a turma é a que foi aberta pelo último postback de "Acessar Turma
   Virtual". Depois de trocar de contexto, **confirme na resposta** que o SIGAA
   foi para onde se pediu (veja `_assert_context` em `private/classrooms.py`).
+- **Nem toda tela da turma abre por GET.** `participantes.jsf` abre; o mapa de
+  frequências (`FrequenciaAluno/mapa.jsf`) devolve "Comportamento Inesperado" e
+  só aparece pelo postback do item **Frequência** do `formMenu` de
+  `ava/index.jsf`. Telas da turma passam por `_read_screen`, que segura o lock
+  do contexto, abre a turma, lê a tela e confere o contexto — uma operação só.
 - **A sessão anônima precisa de aquecimento.** O JSF só aceita a view de volta
   se ela passou pela home pública; `PublicSession` faz isso na primeira request
   e refaz em `restart()`. Como o `ViewState` morre junto, retry significa reler

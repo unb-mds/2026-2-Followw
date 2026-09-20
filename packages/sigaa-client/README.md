@@ -70,13 +70,22 @@ async with SigaaClient(credentials) as client:
     await client.classrooms.list_classrooms()  # turmas do semestre
     await client.classrooms.list_all_classrooms()  # histórico completo
     await client.classrooms.list_classroom_members(id)  # docentes e discentes
+    await client.classrooms.get_classroom_frequency(id)  # frequência e andamento
     await client.restaurant.get_restaurant_statement()  # extrato do RU (7 dias)
     await client.restaurant.get_restaurant_credentials()  # token do QR e validade
     await client.logout()
 ```
 
-O `id` de `list_classroom_members()` é o `Classroom.id` — hash de 40 caracteres,
-estável entre sessões e presente tanto no semestre corrente quanto no histórico.
+O `id` de `list_classroom_members()` e de `get_classroom_frequency()` é o
+`Classroom.id` — hash de 40 caracteres, estável entre sessões e presente tanto
+no semestre corrente quanto no histórico.
+
+`get_classroom_frequency()` devolve as duas coisas que a tela de frequência
+mostra: `progress` (o "Andamento das Aulas" — aulas ministradas, total e a
+porcentagem da carga horária) e `frequency`, o mapa de frequências com uma
+entrada por aula e os totais do SIGAA. Nem todo docente lança frequência: aí
+`frequency` vem `None` e só o `progress` é confiável — os totais que a tela
+mostra nesse caso são fictícios (100% de presença em toda a CH).
 
 `get_restaurant_statement()` devolve `None` para quem não tem extrato no RU.
 `get_restaurant_credentials()` lê o PDF da carteirinha estudantil: o token vem

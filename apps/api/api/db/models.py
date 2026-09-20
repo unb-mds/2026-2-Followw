@@ -19,6 +19,8 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     unity: Mapped[str] = mapped_column()
     course: Mapped[str] = mapped_column()
     integralization: Mapped[int | None] = mapped_column()
+    ira: Mapped[float | None] = mapped_column()
+    mp: Mapped[float | None] = mapped_column()
     level: Mapped[UserLevel] = mapped_column(
         SAEnum(
             UserLevel, name="user_level", values_callable=lambda e: [m.value for m in e]
