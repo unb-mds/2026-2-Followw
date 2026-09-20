@@ -2,6 +2,7 @@ from .client import SigaaClient, SigaaPublicClient
 from .exceptions import (
     AuthenticationFailed,
     SessionExpired,
+    SessionRenewed,
     SigaaError,
     SigaaParseError,
     SigaaSearchError,
@@ -28,6 +29,7 @@ __all__ = [
     "Credentials",
     "PublicClassroom",
     "SessionExpired",
+    "SessionRenewed",
     "SigaaClient",
     "SigaaError",
     "SigaaParseError",

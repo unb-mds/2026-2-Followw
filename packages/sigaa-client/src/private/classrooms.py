@@ -10,7 +10,7 @@ from ..config import (
     PARTICIPANTS_PATH,
     SIGAA_BASE_URL,
 )
-from ..exceptions import SigaaParseError
+from ..exceptions import SessionExpired, SessionRenewed, SigaaParseError
 from ..models import Classroom, ClassroomMember, ClassroomRole, Subject
 from ..utils.jsf import build_postback, link_params, read_viewstate
 from ..utils.parsing import (
@@ -29,11 +29,15 @@ _ROW_ID_RE = re.compile(r"^linha_(\d+)$")
 _HOURS_RE = re.compile(r"(\d+)")
 _PERSON_ID_RE = re.compile(r"'idPessoa'\s*:\s*(\d+)")
 _CONTEXT_RE = re.compile(r'var nomeTurma\s*=\s*"(.*?)";')
+_CONTEXT_NUMBER_RE = re.compile(r"\bturma\s*[:\-]?\s*([\w-]+)", re.IGNORECASE)
+_CONTEXT_SEMESTER_RE = re.compile(r"\b\d{4}\.\d\b")
+_CONTEXT_CODE_RE = re.compile(r"^\s*([\w]+)\s*-")
 
 
 class Classrooms:
     def __init__(self, session: Session) -> None:
         self._session = session
+        self._context_lock = asyncio.Lock()
 
     async def list_classrooms(self) -> list[Classroom]:
         dashboard, classrooms = await asyncio.gather(
@@ -52,28 +56,43 @@ class Classrooms:
         return [_merge(entry, active.get(key)) for key, entry in history.items()]
 
     async def list_classroom_members(self, classroom_id: str) -> list[ClassroomMember]:
-        expected = await self._enter_classroom(classroom_id)
-        page = await self._get(PARTICIPANTS_PATH)
-        soup = BeautifulSoup(page, "lxml")
-
-        _assert_context(page, expected)
-        return [
-            *_parse_members(soup, "Docentes", ClassroomRole.PROFESSOR),
-            *_parse_members(soup, "Discentes", ClassroomRole.ALUNO),
-        ]
+        # A troca de turma e a leitura dos participantes são uma operação única.
+        async with self._context_lock:
+            for attempt in range(2):
+                try:
+                    expected = await self._enter_classroom(
+                        classroom_id, allow_renewal=attempt == 0
+                    )
+                    response = await self._session.get(
+                        PARTICIPANTS_PATH,
+                        retry_on_renewal=False,
+                        allow_renewal=attempt == 0,
+                    )
+                    _assert_context(response.text, expected)
+                    soup = BeautifulSoup(response.text, "lxml")
+                    return [
+                        *_parse_members(soup, "Docentes", ClassroomRole.PROFESSOR),
+                        *_parse_members(soup, "Discentes", ClassroomRole.ALUNO),
+                    ]
+                except SessionRenewed:
+                    continue
+        raise SessionExpired("Não foi possível restaurar o contexto da turma.")
 
     async def _get(self, path: str) -> str:
         response = await self._session.get(path)
         return response.text
 
-    async def _enter_classroom(self, classroom_id: str) -> Classroom:
+    async def _enter_classroom(
+        self, classroom_id: str, *, allow_renewal: bool = True
+    ) -> Classroom:
         """Faz o postback de "Acessar Turma Virtual", que troca a turma da sessão.
 
         O contexto da turma vive na sessão, não na URL — sem esse passo,
         `participantes.jsf` devolve a turma que estiver carregada.
         """
         # O ViewState morre a cada postback, então a listagem é relida aqui.
-        soup = BeautifulSoup(await self._get(CLASSROOMS_PATH), "lxml")
+        response = await self._session.get(CLASSROOMS_PATH, allow_renewal=allow_renewal)
+        soup = BeautifulSoup(response.text, "lxml")
         row = next(
             (
                 row
@@ -92,7 +111,7 @@ class Classrooms:
         action, payload = build_postback(
             form, link_params(row[1]), read_viewstate(soup)
         )
-        await self._session.post(action, data=payload)
+        await self._session.post(action, data=payload, allow_renewal=allow_renewal)
         return _classroom(row[0], row[1], semester=row[2])
 
 
@@ -103,11 +122,20 @@ def _assert_context(page: str, expected: Classroom) -> None:
         raise SigaaParseError("Página de participantes não declara a turma atual.")
 
     context = match.group(1)
-    for token in (expected.subject.code, expected.semester):
-        if token and token not in context:
-            raise SigaaParseError(
-                f"A sessão está na turma `{context}`, não em `{expected.id}`."
-            )
+    code = _CONTEXT_CODE_RE.search(context)
+    number = _CONTEXT_NUMBER_RE.search(context)
+    semester = _CONTEXT_SEMESTER_RE.search(context)
+    if (
+        code is None
+        or number is None
+        or semester is None
+        or code.group(1) != expected.subject.code
+        or number.group(1) != expected.number
+        or semester.group() != expected.semester
+    ):
+        raise SigaaParseError(
+            f"A sessão está na turma `{context}`, não em `{expected.id}`."
+        )
 
 
 def _history_rows(soup: BeautifulSoup) -> list[tuple[Tag, Tag, str]]:

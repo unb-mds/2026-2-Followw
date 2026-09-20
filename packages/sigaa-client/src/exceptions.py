@@ -7,7 +7,11 @@ class AuthenticationFailed(SigaaError):
 
 
 class SessionExpired(SigaaError):
-    """A sessão morreu e não há credenciais para refazer o login."""
+    """A sessão morreu e a operação não pôde ser recuperada."""
+
+
+class SessionRenewed(SessionExpired):
+    """A sessão foi renovada; o resource precisa reconstruir a operação JSF."""
 
 
 class SigaaParseError(SigaaError):

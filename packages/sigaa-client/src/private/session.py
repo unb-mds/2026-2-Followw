@@ -15,7 +15,12 @@ from ..config import (
     SESSION_COOKIE_NAME,
     SIGAA_COOKIE_DOMAIN,
 )
-from ..exceptions import AuthenticationFailed, SessionExpired, SigaaParseError
+from ..exceptions import (
+    AuthenticationFailed,
+    SessionExpired,
+    SessionRenewed,
+    SigaaParseError,
+)
 from ..models import Credentials
 
 OnSessionRenewed = Callable[[str], None | Awaitable[None]]
@@ -58,14 +63,29 @@ class Session:
                 return self._token
             return await self._login()
 
-    async def request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
-        await self.authenticate()
+    async def request(
+        self,
+        method: str,
+        url: str,
+        *,
+        retry_on_renewal: bool = True,
+        allow_renewal: bool = True,
+        **kwargs: Any,
+    ) -> httpx.Response:
+        stale_token = await self.authenticate()
 
         response = await self._http.request(method, url, **kwargs)
         if not _is_unauthenticated(response):
+            response.raise_for_status()
             return response
 
-        token = await self._renew(stale_token=self._token)
+        if not allow_renewal:
+            raise SessionExpired("Sessão expirou novamente durante a recuperação.")
+
+        await self._renew(stale_token=stale_token)
+        # POSTs e leituras que dependem da turma aberta perdem seu estado no relogin.
+        if method.upper() not in ("GET", "HEAD") or not retry_on_renewal:
+            raise SessionRenewed("Refaça a operação com o estado da nova sessão.")
 
         response = await self._http.request(method, url, **kwargs)
         if _is_unauthenticated(response):
@@ -74,7 +94,7 @@ class Session:
                 f"o SIGAA devolveu {response.url}."
             )
 
-        await self._notify(token)
+        response.raise_for_status()
         return response
 
     async def get(self, url: str, **kwargs: Any) -> httpx.Response:
@@ -87,7 +107,8 @@ class Session:
         if self._token is None:
             return
         try:
-            await self._http.get(LOGOUT_PATH)
+            response = await self._http.get(LOGOUT_PATH)
+            response.raise_for_status()
         finally:
             self._token = None
             self._http.cookies.clear()
@@ -101,10 +122,13 @@ class Session:
                     "Sessão expirada e o client foi construído sem credenciais "
                     "— não há como reautenticar."
                 )
-            return await self._login()
+            token = await self._login()
+            await self._notify(token)
+            return token
 
     async def _login(self) -> str:
-        assert self._credentials is not None
+        if self._credentials is None:
+            raise SessionExpired("Não há credenciais para iniciar outra sessão.")
 
         self._http.cookies.clear()
         self._token = None
