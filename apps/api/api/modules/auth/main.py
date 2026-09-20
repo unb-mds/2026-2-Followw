@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel
 from sigaa_client import AuthenticationFailed, Credentials, SigaaClient, SigaaError
 
-from src.utils.session import (
+from api.utils.session import (
     clear_cookies,
     read_access_cookie,
     set_access_cookie,
@@ -29,9 +29,14 @@ async def sigaa_login(body: SigaaLoginRequest, response: Response):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
         )
-    except SigaaError, httpx.HTTPError:
+    except httpx.HTTPError:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY, detail="SIGAA is unavailable"
+        )
+    except SigaaError as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(e),
         )
 
     set_access_cookie(response, session_token)

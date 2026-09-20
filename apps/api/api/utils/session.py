@@ -5,7 +5,7 @@ from fastapi import Request, Response
 from pydantic import ValidationError
 from sigaa_client import Credentials
 
-from src.core.config import settings
+from api.core.config import settings
 
 ACCESS_COOKIE_NAME = "access_token"
 REFRESH_COOKIE_NAME = "refresh_token"

@@ -20,8 +20,8 @@ dependencies = [
 sigaa-client = { workspace = true }
 
 [project.scripts]
-api = "src:main"
-db-init = "src.db.main:db_init"
+api = "api:main"
+db-init = "api.db.main:db_init"
 
 [build-system]
 requires = ["uv_build>=0.12.9,<0.13.0"]
@@ -31,10 +31,12 @@ build-backend = "uv_build"
 line-ending = "lf"
 
 [tool.uv.build-backend]
-module-name = "src"
 module-root = ""
 
 [dependency-groups]
 dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "respx>=0.23.1",
     "ruff>=0.16.6",
 ]
