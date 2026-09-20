@@ -1,5 +1,5 @@
 import enum
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, SecretStr
@@ -24,6 +24,13 @@ class RestaurantStatementEntry(BaseModel):
     occurred_at: datetime
     description: str
     amount: Decimal
+
+
+class RestaurantCredentials(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    token: str
+    valid_until: date
 
 
 class UserProfile(BaseModel):

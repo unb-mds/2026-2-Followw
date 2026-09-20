@@ -97,7 +97,7 @@ campo gerado, ritual de sessão). Comportamento óbvio não se comenta.
 ### Se a tela exigir postback JSF
 
 O SIGAA usa JSF: links que parecem `<a href="#">` na verdade disparam
-`jsfcljs(...)` com um payload. `utils/jsf.py` cobre os dois casos:
+`jsfcljs(...)` com um payload. `utils/jsf.py` cobre os três casos:
 
 - **Clique em link** (`build_postback`): `link_params(anchor)` lê os pares do
   `onclick`, `read_viewstate(soup)` pega o `ViewState` da resposta **mais
@@ -106,6 +106,11 @@ O SIGAA usa JSF: links que parecem `<a href="#">` na verdade disparam
 - **Submit de form** (`build_submit`): envia o form inteiro a partir do estado
   que a página trouxe, sobrescrevendo só os campos que você passa. O `name` do
   botão é gerado pelo JSF (`j_id_jsp_...`), então é achado pelo rótulo visível.
+- **Item do menu lateral** (`build_menu_action`): o menu (`jscookMenu`) não usa
+  `jsfcljs` — cada item só sobrescreve o hidden `jscook_action` do form com a
+  expressão do managed bean (ex.: `algumForm:algumMenu:A]#{ bean.metodo }`,
+  lida direto do array JS que desenha o menu) e submete o resto do form como
+  veio. Sem botão, sem parâmetros de link.
 
 Regras que não dá para burlar:
 
@@ -122,6 +127,14 @@ Regras que não dá para burlar:
 - **O HTML do SIGAA é malformado.** Tags fecham no lugar errado (`</fieldset>`
   antes da tabela), então às vezes `find_next` é a única saída em vez de
   navegar pela árvore.
+
+### Se a tela devolver PDF
+
+Alguns postbacks (ex.: emissão de documentos) não devolvem HTML: a resposta já
+é o PDF (`content-type: application/pdf`). `utils/pdf.py` lê esse conteúdo:
+`extract_text` para o texto e `find_qr_code` para o QR code embutido (tenta
+decodificar cada imagem da página até achar um `BarcodeFormat.QRCode` — não dá
+para contar com a ordem/nome das imagens extraídas).
 
 ## Testes
 
@@ -140,3 +153,7 @@ sessão, descartar submit que não passou pela home. É assim que relogin e retr
 ficam cobertos. Os fixtures de HTML são strings no topo do arquivo de teste,
 recortadas da página real e reduzidas ao que o parser usa. Nomes dos testes em
 português, descrevendo o comportamento (`test_unidade_pode_vir_pelo_nome`).
+
+Fixtures de PDF vão em `tests/fixtures/` (binário, não string) — geradas com
+dados sintéticos, nunca um documento real exportado de uma conta de verdade
+(o PDF carrega CPF, foto e matrícula de quem gerou).

@@ -1,4 +1,6 @@
+from datetime import date
 from decimal import Decimal
+from pathlib import Path
 
 import httpx
 import pytest
@@ -7,10 +9,15 @@ from bs4 import BeautifulSoup
 from sigaa_client import SigaaClient
 from sigaa_client.exceptions import SigaaParseError
 from sigaa_client.private.profile import (
+    _STUDENT_CARD_MENU_ACTION,
+    _month_number,
     _parse_amount,
     _parse_datetime,
+    _restaurant_credentials,
     _restaurant_statement,
 )
+
+CARTEIRINHA_PDF = (Path(__file__).parent / "fixtures" / "carteirinha.pdf").read_bytes()
 
 CARD = """
 <div id="perfil-docente">
@@ -38,7 +45,19 @@ FORM_EXTRATO = """
 <input type="hidden" name="javax.faces.ViewState" value="VS1" />
 """
 
-DASHBOARD_SEM_EXTRATO = f"<html><body>{CARD}{FORM_EXTRATO}</body></html>"
+FORM_MENU_DISCENTE = """
+<form id="menu:form_menu_discente" name="menu:form_menu_discente" method="post"
+      action="/sigaa/portais/discente/discente.jsf">
+  <input type="hidden" name="menu:form_menu_discente" value="menu:form_menu_discente" />
+  <input type="hidden" name="id" value="494110" />
+  <input type="hidden" name="jscook_action" />
+  <input type="hidden" name="javax.faces.ViewState" value="VS1" />
+</form>
+"""
+
+DASHBOARD_SEM_EXTRATO = (
+    f"<html><body>{CARD}{FORM_EXTRATO}{FORM_MENU_DISCENTE}</body></html>"
+)
 
 DASHBOARD_SEM_LINK_DE_EXTRATO = f"<html><body>{CARD}</body></html>"
 
@@ -70,9 +89,15 @@ class FakeDashboard:
             return httpx.Response(200, text=self.initial)
 
         payload = dict(httpx.QueryParams(request.content.decode()))
-        if payload.get("formExibirExtrato") != "formExibirExtrato":
-            return httpx.Response(200, text=self.initial)
-        return httpx.Response(200, text=DASHBOARD_COM_EXTRATO)
+        if payload.get("formExibirExtrato") == "formExibirExtrato":
+            return httpx.Response(200, text=DASHBOARD_COM_EXTRATO)
+        if payload.get("jscook_action") == _STUDENT_CARD_MENU_ACTION:
+            return httpx.Response(
+                200,
+                content=CARTEIRINHA_PDF,
+                headers={"content-type": "application/pdf"},
+            )
+        return httpx.Response(200, text=self.initial)
 
 
 async def test_get_profile_faz_um_unico_get_e_nao_busca_o_extrato():
@@ -131,3 +156,38 @@ def test_parse_amount_invalido_e_barulhento():
 def test_parse_datetime_invalido_e_barulhento():
     with pytest.raises(SigaaParseError):
         _parse_datetime("ontem")
+
+
+async def test_get_restaurant_credentials_le_token_e_validade():
+    sigaa = FakeDashboard()
+    async with SigaaClient(session_token="tok", transport=sigaa.transport) as client:
+        credentials = await client.profile.get_restaurant_credentials()
+
+    assert [r.method for r in sigaa.requests] == ["GET", "POST"]
+    assert credentials.token == "TESTE0000000001"
+    assert credentials.valid_until == date(2027, 3, 1)
+
+
+async def test_get_restaurant_credentials_sem_menu_e_barulhento():
+    sigaa = FakeDashboard(initial=DASHBOARD_SEM_LINK_DE_EXTRATO)
+    async with SigaaClient(session_token="tok", transport=sigaa.transport) as client:
+        with pytest.raises(SigaaParseError):
+            await client.profile.get_restaurant_credentials()
+
+    assert [r.method for r in sigaa.requests] == ["GET"]
+
+
+def test_restaurant_credentials_le_token_e_validade_do_pdf():
+    credentials = _restaurant_credentials(CARTEIRINHA_PDF)
+
+    assert credentials.token == "TESTE0000000001"
+    assert credentials.valid_until == date(2027, 3, 1)
+
+
+def test_month_number_ignora_acento_e_caixa():
+    assert _month_number("MARÇO") == 3
+
+
+def test_month_number_invalido_e_barulhento():
+    with pytest.raises(SigaaParseError):
+        _month_number("Blursday")

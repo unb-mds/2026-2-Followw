@@ -1,6 +1,6 @@
 import re
 import unicodedata
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from urllib.parse import urljoin
 
@@ -8,9 +8,15 @@ from bs4 import BeautifulSoup, Tag
 
 from ..config import DASHBOARD_PATH, SIGAA_BASE_URL
 from ..exceptions import SigaaParseError
-from ..models import RestaurantStatementEntry, UserLevel, UserProfile
-from ..utils.jsf import build_postback, link_params, read_viewstate
+from ..models import (
+    RestaurantCredentials,
+    RestaurantStatementEntry,
+    UserLevel,
+    UserProfile,
+)
+from ..utils.jsf import build_menu_action, build_postback, link_params, read_viewstate
 from ..utils.parsing import clean_text, split_course
+from ..utils.pdf import extract_text, find_qr_code
 from .session import Session
 
 _INTEGRALIZATION_RE = re.compile(r"(\d+)\s*%\s*Integralizado")
@@ -24,6 +30,30 @@ _LEVELS = {
 # Postback que expande o extrato do RU dentro da própria página do dashboard.
 _RESTAURANT_STATEMENT_FORM_ID = "formExibirExtrato"
 _RESTAURANT_STATEMENT_TITLE = "Extrato no Restaurante Universitário"
+
+# Postback do menu lateral que gera o PDF da carteirinha estudantil.
+_STUDENT_CARD_MENU_FORM_ID = "menu:form_menu_discente"
+_STUDENT_CARD_MENU_ACTION = (
+    "menu_form_menu_discente_discente_menu:A]"
+    "#{ portalDiscente.emitiCarteiraEstudantilUnb }"
+)
+
+_VALIDITY_RE = re.compile(r"VALIDADE\s+(\w+)\s+(\d{4})", re.IGNORECASE)
+
+_MONTHS = {
+    "janeiro": 1,
+    "fevereiro": 2,
+    "marco": 3,
+    "abril": 4,
+    "maio": 5,
+    "junho": 6,
+    "julho": 7,
+    "agosto": 8,
+    "setembro": 9,
+    "outubro": 10,
+    "novembro": 11,
+    "dezembro": 12,
+}
 
 
 class Profile:
@@ -78,6 +108,20 @@ class Profile:
         page = await self._session.post(action, data=payload)
         return _restaurant_statement(BeautifulSoup(page.text, "lxml"))
 
+    async def get_restaurant_credentials(self) -> RestaurantCredentials:
+        """Token do QR code e validade da carteirinha estudantil (usada no RU)."""
+        page = await self._session.get(DASHBOARD_PATH)
+        soup = BeautifulSoup(page.text, "lxml")
+
+        form = soup.find("form", id=_STUDENT_CARD_MENU_FORM_ID)
+        if not isinstance(form, Tag):
+            raise SigaaParseError("Menu do discente não encontrado no portal.")
+
+        action, payload = build_menu_action(form, _STUDENT_CARD_MENU_ACTION)
+        response = await self._session.post(action, data=payload)
+
+        return _restaurant_credentials(response.content)
+
 
 def _labeled_fields(card: Tag) -> dict[str, str]:
     fields: dict[str, str] = {}
@@ -127,12 +171,15 @@ def _integralization(card: Tag) -> int | None:
 
 
 def _level(value: str) -> UserLevel:
-    key = unicodedata.normalize("NFKD", value.strip().lower())
-    key = "".join(c for c in key if not unicodedata.combining(c))
-    level = _LEVELS.get(key)
+    level = _LEVELS.get(_strip_accents(value))
     if level is None:
         raise SigaaParseError(f"Nível `{value}` desconhecido.")
     return level
+
+
+def _strip_accents(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", value.strip().lower())
+    return "".join(c for c in normalized if not unicodedata.combining(c))
 
 
 def _restaurant_statement(
@@ -179,3 +226,25 @@ def _parse_amount(value: str) -> Decimal:
         raise SigaaParseError(
             f"Valor `{value}` do extrato do RU em formato inesperado."
         ) from error
+
+
+def _restaurant_credentials(pdf: bytes) -> RestaurantCredentials:
+    token = find_qr_code(pdf)
+    if token is None:
+        raise SigaaParseError("QR code não encontrado na carteirinha estudantil.")
+
+    match = _VALIDITY_RE.search(extract_text(pdf))
+    if match is None:
+        raise SigaaParseError("Validade não encontrada na carteirinha estudantil.")
+
+    return RestaurantCredentials(
+        token=token,
+        valid_until=date(int(match.group(2)), _month_number(match.group(1)), 1),
+    )
+
+
+def _month_number(value: str) -> int:
+    month = _MONTHS.get(_strip_accents(value))
+    if month is None:
+        raise SigaaParseError(f"Mês `{value}` desconhecido na carteirinha estudantil.")
+    return month
