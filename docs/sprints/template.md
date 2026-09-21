@@ -1,4 +1,4 @@
-# 🏃‍♂️ Reunião Semanal de Sprint
+# Reunião Semanal de Sprint
 
 **Data:** [dd/mm/aaaa]  
 **Scrum Master:** Samuel  
@@ -47,13 +47,5 @@
 | #001 | [Descrição da Tarefa] | 🔴 Alta |  | [Nome] |
 | #002 | [Descrição da Tarefa] | 🟡 Média |  | [Nome] |
 | #003 | [Descrição da Tarefa] | 🟢 Baixa |  | [Nome] |
-
----
-
-## ⚠️ Impedimentos e Riscos 
-*Existe algum bloqueio atual que impeça o início do trabalho?*
-
-- [ ] **Risco/Impedimento:** [Descrição] 
-  - **Ação mitigadora:** [O que fazer para resolver] (Resp: [Nome])
 
 ---

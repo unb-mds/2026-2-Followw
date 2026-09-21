@@ -1,4 +1,4 @@
-# 🏃‍♂️ Reunião Semanal de Sprint
+#  Reunião Semanal de Sprint
 
 **Data:** 02/08/2026  
 **Scrum Master:** Samuel  
