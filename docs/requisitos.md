@@ -59,11 +59,12 @@ Como um estudante autenticado:
 Como um estudante autenticado:
 * Eu quero listar rapidamente as turmas em que estou matriculado no semestre atual e visualizar os detalhes de cada turma (horários, local, docentes e lista de colegas de classe), para me organizar academicamente e identificar contatos na disciplina.
 
-* **RF03: Listagem de Turmas Matriculadas (/turmas):** O sistema deve disponibilizar um endpoint protegido (GET /turmas) que lista todas as turmas em que o estudante logado está matriculado no semestre letivo corrente.
+* **RF03: Listagem de Turmas Matriculadas (/classrooms):** O sistema deve disponibilizar um endpoint protegido (GET /classrooms) que consulta as turmas atuais do estudante no SIGAA. Cada item retorna `number`, `semester`, `schedule`, `room` e `subject` com `name`, `code`, `hours` e `unity`, além dos identificadores fornecidos pelo cliente SIGAA.
 * **RF04: Detalhes da Turma e Relação de Colegas (/turmas/<id>):** O sistema deve fornecer um endpoint protegido (GET /turmas/<id>) para consultar os dados específicos de uma disciplina selecionada, incluindo código, nome, horário, local/sala, docentes e a lista completa de colegas matriculados na mesma turma.
 
 **Critérios de Aceitação:**
-* A listagem de turmas deve trazer sumário com código, turma, nome da matéria e docentes.
+* A listagem usa os cookies de `POST /auth/sigaa` e retorna HTTP 401 para credenciais ausentes ou inválidas e falhas do SIGAA, conforme a issue #16.
+* Sem turmas atuais, o retorno é HTTP 200 com `[]`. Campos opcionais indisponíveis são `null`. A consulta não persiste dados nem depende do banco; cache e sincronização pertencem ao RF05.
 * A visualização detalhada deve expor a lista de colegas de turma com nome e matrícula (ou identificador único retornado pelo SIGAA).
 * Requisições para turmas inexistentes ou para as quais o usuário não tem permissão de visualização devem retornar código 404 (Not Found) ou 403 (Forbidden).
 
@@ -74,7 +75,7 @@ Como um estudante autenticado:
 * **RF05: Sincronização e Invalidação de Cache sob Demanda:** O sistema deve armazenar em cache os dados de turmas e colegas obtidos do SIGAA para reduzir a latência de consultas subsequentes, oferecendo parâmetros ou endpoints específicos para forçar a re-extração e atualização imediata desse cache.
 
 **Critérios de Aceitação:**
-* As consultas padrão a /turmas e /turmas/<id> devem responder com base no cache pré-carregado sempre que disponível e válido.
+* Quando o RF05 for implementado, as consultas a /classrooms e /turmas/<id> deverão responder com base no cache pré-carregado sempre que disponível e válido.
 * Ao acionar a opção de atualização manual (forçar sincronização), a API deve refazer as requisições ao SIGAA, atualizar a base de cache e retornar a versão recém-sincronizada.
 * Caso o SIGAA esteja temporariamente indisponível durante uma solicitação de atualização forçada, o sistema deve registrar o erro e manter intactos os dados armazenados no cache anterior.
 
@@ -143,7 +144,7 @@ Como um estudante:
 **Funcionalidades INCLUÍDAS na Release 1:**
 * Autenticação de usuário via SIGAA sem retenção de senhas (RF01).
 * Endpoint de perfil acadêmico pessoal GET /me (RF02).
-* Listagem de turmas matriculadas GET /turmas com cache inicial (RF03).
+* Listagem de turmas matriculadas GET /classrooms (RF03), com cache previsto no RF05.
 * Detalhamento de turma com relação de colegas GET /turmas/ (RF04).
 * Mecanismo de sincronização e atualização sob demanda do cache de turmas/colegas (RF05).
 * Mecanismo de busca tanto em turmas matriculadas quanto no catálogo geral de turmas da UnB (RF06, RF07).
