@@ -109,6 +109,19 @@ async def test_resync_remove_turma_que_saiu_da_lista(async_database, usuarios):
     assert [l.front_end_id for l in links] == ["AAA"]
 
 
+async def test_turma_sem_numero_nao_e_gravada(async_database, usuarios):
+    # A turma só do portal ainda não tem o número que o histórico traz.
+    portal = _turma("AAA", current=True).model_copy(update={"number": ""})
+
+    await _salvar_turmas(
+        async_database, usuarios[0], [portal, _turma("BBB", "FGA0158")]
+    )
+
+    links = await _vinculos(async_database, usuarios[0])
+    assert [l.front_end_id for l in links] == ["BBB"]
+    assert await _contar(async_database, Classroom) == 1
+
+
 async def test_turma_e_compartilhada_entre_alunos(async_database, usuarios):
     await _salvar_turmas(async_database, usuarios[0], [_turma("AAA", room="MOCAP")])
     # O segundo aluno só vê a turma pelo histórico, sem a sala.
@@ -176,6 +189,26 @@ async def test_docente_e_identificado_pelo_email_entre_turmas(async_database, us
             await session.scalars(select(User).where(User.email == "d@unb.br"))
         )
     assert [d.name for d in docentes] == ["NOME ABREVIADO"]
+
+
+async def test_docente_visto_so_pelo_email_ganha_o_id_pessoa(async_database, usuarios):
+    await _salvar_turmas(
+        async_database, usuarios[0], [_turma("AAA"), _turma("BBB", "FGA0158")]
+    )
+    links = await _vinculos(async_database, usuarios[0])
+    docente = _membro("NOME DOCENTE", role=ClassroomRole.PROFESSOR, email="d@unb.br")
+    await _salvar_membros(async_database, links[0].classroom_id, [docente])
+    await _salvar_membros(
+        async_database,
+        links[1].classroom_id,
+        [docente.model_copy(update={"person_id": 42})],
+    )
+
+    async with async_database() as session:
+        docentes = list(
+            await session.scalars(select(User).where(User.email == "d@unb.br"))
+        )
+    assert [d.person_id for d in docentes] == [42]
 
 
 async def test_docente_sem_email_nao_duplica_no_resync_da_turma(

@@ -80,11 +80,16 @@ async def get_sigaa_connection(
 
     try:
         yield SigaaConnection(credentials, session_token, response)
-    except AuthenticationFailed, SessionExpired:
+    except AuthenticationFailed:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Session expired",
             headers=clear_cookies_headers(),
+        )
+    # A credencial ainda pode valer: não desloga por uma falha de sessão.
+    except SessionExpired:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired"
         )
     except SigaaError, httpx.HTTPError:
         raise HTTPException(

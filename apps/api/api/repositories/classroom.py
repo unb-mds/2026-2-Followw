@@ -66,6 +66,9 @@ class ClassroomRepository:
         }
         seen: set[UUID] = set()
         for item in classrooms:
+            # Turma só do portal vem sem número: gravá-la duplicaria a do histórico.
+            if not item.number:
+                continue
             classroom = await self._save_classroom(item)
             link = links.get(classroom.id)
             if link is None:
@@ -219,15 +222,14 @@ class ClassroomRepository:
                 select(User).where(User.person_id == member.person_id)
             )
             user = user or person_owner
-        if user is None and member.registration is None and member.person_id is None:
-            # Docentes não trazem matrícula nem `idPessoa`: o email é a identidade.
-            if member.email is not None:
-                user = await self._session.scalar(
-                    select(User).where(User.email == member.email, USER_WITHOUT_IDS)
-                )
-            else:
-                # Sem email, só dá para reconhecer quem já estava nesta turma.
-                user = next((u for u in known if _anonymous(u, member.name)), None)
+        # Quem foi visto antes só pelo email ganha os ids quando eles aparecem.
+        if user is None and member.email is not None:
+            user = await self._session.scalar(
+                select(User).where(User.email == member.email, USER_WITHOUT_IDS)
+            )
+        if user is None and member.email is None and _without_ids(member):
+            # Sem id nem email, só dá para reconhecer quem já estava nesta turma.
+            user = next((u for u in known if _anonymous(u, member.name)), None)
         if user is None:
             user = User(name=member.name)
             self._session.add(user)
@@ -254,6 +256,10 @@ def _same_subject(item: sigaa_client.Subject) -> ColumnElement[bool]:
         return Subject.code == item.code
 
     return Subject.code.is_(None) & (Subject.name == item.name)
+
+
+def _without_ids(member: sigaa_client.ClassroomMember) -> bool:
+    return member.registration is None and member.person_id is None
 
 
 def _anonymous(user: User, name: str) -> bool:

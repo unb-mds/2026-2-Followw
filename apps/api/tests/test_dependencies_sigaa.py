@@ -2,7 +2,7 @@ import httpx
 import jwt
 import pytest
 from pydantic import SecretStr
-from sigaa_client import Credentials, SigaaError
+from sigaa_client import Credentials, SessionExpired, SigaaError
 
 from api.core.config import settings
 from api.dependencies.sigaa import SigaaClientDep
@@ -102,6 +102,22 @@ def test_credenciais_recusadas_viram_401_e_apagam_os_cookies(
         REFRESH_COOKIE_NAME: "",
     }
     assert jar[REFRESH_COOKIE_NAME]["max-age"] == "0"
+
+
+def test_sessao_irrecuperavel_vira_401_sem_apagar_os_cookies(
+    probe_app, sigaa, cookies, ler_cookies
+):
+    """A senha ainda vale: uma falha de sessão não pode deslogar o usuário."""
+
+    async def falha(client: SigaaClientDep):
+        raise SessionExpired("contexto perdido")
+
+    sonda = probe_app(falha)
+    sonda.cookies.update(cookies(refresh=CREDENCIAIS))
+    response = sonda.get("/probe")
+
+    assert response.status_code == 401
+    assert REFRESH_COOKIE_NAME not in ler_cookies(response)
 
 
 def test_sigaa_fora_do_ar_vira_502(sonda, sigaa, cookies):
