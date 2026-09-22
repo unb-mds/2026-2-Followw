@@ -12,7 +12,7 @@ package = false
 api = { workspace = true }
 
 [tool.uv.workspace]
-members = ["apps/*", "packages/*"]
+members = ["apps/api", "packages/sigaa-client"]
 
 [dependency-groups]
 dev = ["pytest-cov>=7.0.0", "ruff>=0.16.6"]
