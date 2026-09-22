@@ -41,12 +41,14 @@ Como um estudante da UnB:
 Como um estudante autenticado:
 * Eu quero visualizar os dados básicos do meu perfil acadêmico (/me), para conferir minha identidade, curso e situação cadastral no sistema.
 
-* **RF02: Visualização de Perfil Pessoal (/me):** O sistema deve disponibilizar um endpoint protegido (GET /me) que retorna os dados cadastrais do aluno extraídos do SIGAA, tais como nome completo, matrícula, curso, modalidade e índice de rendimento acadêmico (se disponível).
+* **RF02: Visualização de Perfil Pessoal (/me):** O sistema deve disponibilizar um endpoint protegido (GET /me) que consulta o SIGAA e retorna `name`, `registration`, `photo`, `email`, `bio`, `unity`, `course`, `integralization`, `ira`, `mp` e `level`, com os mesmos nomes das colunas do banco.
 
 **Critérios de Aceitação:**
 * O endpoint deve exigir autenticação válida (sessão ativa).
 * Os dados retornados devem ser padronizados em formato JSON legível e normalizado.
-* Se a sessão do usuário estiver expirada, a API deve indicar a necessidade de reautenticação.
+* A autenticação utiliza os cookies emitidos por `POST /auth/sigaa`. A sessão do SIGAA é renovada quando possível; credenciais ausentes ou inválidas e erros do SIGAA retornam HTTP 401 nesta rota, conforme a issue #10.
+* Foto, bio, integralização, IRA e MP indisponíveis são retornados como `null`. O e-mail também é `null` enquanto o cliente não conseguir obter o endereço completo; o portal do discente só exibe o endereço truncado.
+* A consulta não persiste o perfil nem as credenciais e não depende de conexão com o banco. O `UserRepository` estabelece o acesso ao banco por matrícula para os módulos que precisarem de dados persistidos.
 
 ---
 

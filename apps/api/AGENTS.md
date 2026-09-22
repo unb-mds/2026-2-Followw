@@ -17,6 +17,8 @@ api/
   dependencies/
     sigaa.py           # SigaaClientDep — cliente autenticado
     sigaa_public.py     # SigaaPublicClientDep — cliente público
+  repositories/
+    user.py             # UserRepository e UserRepositoryDep
   modules/
     <feature>/
       main.py            # router da feature
@@ -48,6 +50,18 @@ cookies `httponly` assinados com JWT (`api/utils/session.py`). O client SIGAA
 `SessionExpired` → 401; qualquer outro `SigaaError` ou `httpx.HTTPError` → 502
 ("SIGAA is unavailable" ou a mensagem da exceção). Nunca deixe uma exceção do
 `sigaa_client` vazar para fora da rota.
+
+**Perfil.** `GET /me` consulta o SIGAA sem persistir o perfil. Por exigência da
+issue #10, a dependência local dessa rota converte também os erros 502 do SIGAA
+em 401, inclusive durante a autenticação inicial. As demais rotas mantêm 502.
+
+**Repositories.** Consultas ao banco ficam em `repositories/`. `UserRepository`
+recebe `AsyncSession` no construtor e consulta por matrícula; `UserRepositoryDep`
+obtém a sessão de `get_db`. Nos testes, substitua `get_db` ou
+`get_user_repository` em `app.dependency_overrides`. Não persista credenciais.
+`User.ira` e `User.mp` são opcionais, como no cliente. Bancos já criados precisam
+receber essas colunas antes de usar o repository; `create_tables` não altera
+tabelas existentes.
 
 **Modelos SQLAlchemy.** Toda tabela herda `Base, UUIDPrimaryKeyMixin,
 TimestampMixin` (`db/base.py`): id é UUID, `created_at`/`updated_at`

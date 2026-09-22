@@ -53,6 +53,9 @@ class FakeSigaa:
         # (`mode = "sem_cookie"`), que é como uma mudança de layout aparece.
         self.unavailable = False
         self.mode = "normal"
+        self.profile = PERFIL
+        self.profile_status = 200
+        self.profile_requests = 0
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         if self.unavailable:
@@ -100,7 +103,8 @@ class FakeSigaa:
             return httpx.Response(
                 302, headers={"location": "https://sigaa.unb.br/sigaa/verTelaLogin.do"}
             )
-        return httpx.Response(200, text=PERFIL)
+        self.profile_requests += 1
+        return httpx.Response(self.profile_status, text=self.profile)
 
 
 def _cookie(request: httpx.Request, name: str) -> str | None:
