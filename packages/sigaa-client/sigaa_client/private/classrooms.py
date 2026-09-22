@@ -548,12 +548,8 @@ def _member_fields(card: Tag) -> dict[str, str]:
 
 
 # --- Leitura do gráfico de estatísticas -------------------------------------
-#
-# O gráfico (cewolf/JFreeChart) é só imagem: rótulo e porcentagem são pixels.
-# Os números existem em um lugar só, a legenda, e são lidos glifo a glifo — o
-# desenho da fonte vem do servidor do SIGAA, igual em todo gráfico. Medir o
-# ângulo das fatias não serve: a borda de cada uma come precisão suficiente
-# para errar a casa decimal (96.46% medido contra 96.3% na legenda).
+# Gráfico é só imagem; lemos os glifos da legenda por OCR de pixel em vez de
+# medir o ângulo das fatias, que erra a casa decimal (96.46% vs 96.3% real).
 
 _WHITE = (255, 255, 255)
 
