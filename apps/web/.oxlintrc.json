@@ -1,0 +1,30 @@
+{
+    "$schema": "./node_modules/oxlint/configuration_schema.json",
+    "ignorePatterns": ["routeTree.gen.ts"],
+    "plugins": ["typescript", "react", "import", "unicorn", "oxc", "jsx-a11y", "promise"],
+    "categories": {
+        "correctness": "error",
+        "suspicious": "warn",
+        "perf": "warn"
+    },
+    "options": {
+        "typeAware": true,
+        "reportUnusedDisableDirectives": "warn"
+    },
+    "env": {
+        "browser": true,
+        "es2024": true,
+        "node": true
+    },
+    "settings": {
+        "react": {
+            "linkComponents": [{ "name": "Link", "linkAttribute": "to" }]
+        },
+        "jsx-a11y": {
+            "components": { "Link": "a" }
+        }
+    },
+    "rules": {
+        "react/react-in-jsx-scope": "off"
+    }
+}
