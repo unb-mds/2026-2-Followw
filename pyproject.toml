@@ -1,3 +1,16 @@
+[project]
+name = "followw"
+version = "0.0.1"
+description = "O Followw é uma nova forma de usar o SIGAA UnB."
+requires-python = ">=3.14"
+dependencies = ["api"]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+api = { workspace = true }
+
 [tool.uv.workspace]
 members = ["apps/*", "packages/*"]
 
