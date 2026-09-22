@@ -13,13 +13,18 @@ api/
     base.py          # Base, UUIDPrimaryKeyMixin, TimestampMixin
     enums.py          # enums do banco (str Enum)
     models.py         # modelos SQLAlchemy
-    main.py           # engine, async_session, get_db, db-init
+    main.py           # engine, async_session, get_sessionmaker, get_db, db-init
   dependencies/
-    sigaa.py           # SigaaClientDep — cliente autenticado
+    sigaa.py           # SigaaConnectionDep (preguiçosa) e SigaaClientDep
     sigaa_public.py     # SigaaPublicClientDep — cliente público
+    refresh.py          # RefreshQuery — `?refresh=true` que ignora o cache
   repositories/
     user.py             # UserRepository e UserRepositoryDep
     classroom.py        # ClassroomRepository e ClassroomRepositoryDep
+  services/
+    sync.py             # SyncEngine: stale-while-revalidate e sync do login
+    profile.py          # ProfileService (GET /me)
+    classroom.py        # ClassroomService (turmas, participantes, estatísticas)
   modules/
     <feature>/
       main.py            # router da feature
@@ -36,44 +41,30 @@ tests/
 `app.include_router(router, prefix="/<feature>", tags=["<feature>"])`. Não
 compartilhe router entre features.
 
-**Sessão do SIGAA.** Não existe tabela de sessão no banco: o `access_token`
-(token de sessão do `sigaa_client`) e o `refresh_token` (credenciais) vivem em
-cookies `httponly` assinados com JWT (`api/utils/session.py`). O client SIGAA
-é obtido via `Depends`:
+**Sessão do SIGAA.** Não existe tabela de sessão: o token do SIGAA e as
+credenciais vivem em cookies `httponly` assinados com JWT (`utils/session.py`).
+O client vem por `Depends` (`dependencies/`):
 
-- `SigaaClientDep` (`dependencies/sigaa.py`) — exige refresh cookie, autentica
-  sob demanda se não houver access cookie válido, e renova o access cookie
-  quando o `sigaa_client` troca a sessão sozinho (`on_session_renewed`).
-- `SigaaPublicClientDep` (`dependencies/sigaa_public.py`) — sem cookie, sem
-  login.
+- `SigaaConnectionDep` — exige refresh cookie, mas só abre o `SigaaClient` em
+  `open()`; `detached()` é a cópia sem cookies para o background.
+- `SigaaClientDep` — o client já aberto, para rotas sem cache.
+- `SigaaPublicClientDep` — sem cookie, sem login.
 
-**Erros do SIGAA viram `HTTPException`.** `AuthenticationFailed`/
-`SessionExpired` → 401; qualquer outro `SigaaError` ou `httpx.HTTPError` → 502
-("SIGAA is unavailable" ou a mensagem da exceção). Nunca deixe uma exceção do
-`sigaa_client` vazar para fora da rota.
+**Erros do SIGAA viram `HTTPException`** (401 para credencial/sessão, 502 para o
+resto) nas próprias dependências. Nunca deixe exceção do `sigaa_client` vazar da
+rota.
 
-**Perfil e turmas.** `GET /me` e `GET /classrooms` consultam o SIGAA sem persistir
-os dados e usam `SigaaClientDep`, inclusive na autenticação inicial. `/classrooms`
-usa `list_classrooms()` (turmas atuais) quando `semester` não é informado. Com
-`semester=all` ou um semestre no formato `AAAA.P`, usa `list_all_classrooms()` e
-filtra o período quando necessário. Retorna `[]` quando não há resultados e não
-depende do banco. Ambos os métodos consultam as mesmas duas páginas em paralelo;
-turmas antigas podem não ter sala, unidade ou ID numérico. Formato inválido de
-semestre retorna 422; o semestre atual vem do portal, não do calendário local.
+**Services e cache.** Rota não fala com repository nem com SIGAA: chama um
+service (`services/`), que resolve o dado por `SyncEngine.resolve`
+(stale-while-revalidate, gravação em background via `BackgroundTasks`). As
+regras de revalidação e os TTLs ficam em `services/sync.py`. O sync completo do
+login é o `SyncEngine.sync_account()`. Todo dado novo do SIGAA que vale cache
+segue esse caminho.
 
-**Repositories.** Consultas ao banco ficam em `repositories/`. `UserRepository`
-recebe `AsyncSession` no construtor e consulta por matrícula; `UserRepositoryDep`
-obtém a sessão de `get_db`. Nos testes, substitua `get_db` ou
-`get_user_repository` em `app.dependency_overrides`. Não persista credenciais.
-`User.ira` e `User.mp` são opcionais, como no cliente. Bancos já criados precisam
-receber essas colunas antes de usar o repository; `create_tables` não altera
-tabelas existentes.
-
-`ClassroomRepository.list_by_user_id` consulta os vínculos do usuário no banco,
-com filtro opcional por semestre, sem duplicar turmas e carregando o componente
-curricular. Recebe o UUID local do usuário; os IDs retornados pelo endpoint são
-os do SIGAA. A dependência `ClassroomRepositoryDep` segue o mesmo padrão de
-injeção do `UserRepositoryDep`.
+**Repositories.** Consultas e gravações ficam em `repositories/`, recebem
+`AsyncSession` e não fazem commit (quem faz é o `SyncEngine`). Como usuários,
+turmas e participantes são identificados e mesclados está em
+`repositories/classroom.py` e `repositories/user.py`. Não persista credenciais.
 
 **Modelos SQLAlchemy.** Toda tabela herda `Base, UUIDPrimaryKeyMixin,
 TimestampMixin` (`db/base.py`): id é UUID, `created_at`/`updated_at`
@@ -95,16 +86,25 @@ precise de uma variável de ambiente diferente (como os testes) precisa setá-la
 3. Registre em `api/main.py`:
    `app.include_router(router, prefix="/<feature>", tags=["<feature>"])`.
 4. Se a feature usa tabela nova, modele em `db/models.py` (mixins acima) e
-   rode `db-init` (ou reinicie — `create_tables` não é destrutivo, só cria o
-   que falta).
-5. Teste com `respx` mockando `sigaa.unb.br`/`autenticacao.unb.br` (abaixo).
+   rode `db-init`. `create_tables` só cria o que falta: mudança em tabela
+   existente exige recriar o banco (ainda não há migrations).
+5. Dados do SIGAA que valem cache passam por um service com
+   `SyncEngine.resolve` (acima), não pela rota.
+6. Teste com `respx` mockando `sigaa.unb.br`/`autenticacao.unb.br` (abaixo).
+
+## Testes
+
+Fixtures em `tests/conftest.py`: `client` já usa um SQLite por teste
+(`database` para preparar/conferir o banco), `sigaa` simula o SIGAA via respx e
+`stub_sigaa` troca só o `SigaaClient` por `AsyncMock`s. O `TestClient` roda as
+`BackgroundTasks` antes de devolver a resposta.
 
 ## Comandos
 
 ```fish
 uv run pytest apps/api      # só os testes da api (da raiz do monorepo)
 docker compose up -d db      # sobe o Postgres local (compose.yml da raiz)
-uv run db-init                # cria as tabelas
+uv run db-init                # cria as tabelas (schema mudou? recrie o banco)
 uv run api                     # sobe a api em dev (reload on)
 ```
 

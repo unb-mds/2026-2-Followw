@@ -22,6 +22,7 @@ def set_access_cookie(response: Response, session_token: str) -> None:
 
 def read_access_cookie(request: Request) -> str | None:
     payload = _read_cookie(request, ACCESS_COOKIE_NAME)
+
     return payload.get("session_token") if payload else None
 
 

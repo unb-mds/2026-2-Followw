@@ -72,7 +72,8 @@ class Classroom(BaseModel):
 
     `id` é o `frontEndIdTurma` do SIGAA — o único identificador presente tanto
     nas turmas do semestre quanto no histórico. `sigaa_id` é o id numérico
-    interno, que só o portal do semestre expõe.
+    interno, que só o portal do semestre expõe. `current` marca as turmas que o
+    portal lista como atuais.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -83,6 +84,7 @@ class Classroom(BaseModel):
     semester: str
     schedule: str | None = None
     room: str | None = None
+    current: bool = False
     subject: Subject
 
 

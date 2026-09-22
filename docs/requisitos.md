@@ -65,7 +65,7 @@ Como um estudante autenticado:
 **Critérios de Aceitação:**
 * A listagem usa os cookies de `POST /auth/sigaa` e retorna HTTP 401 para credenciais ausentes ou inválidas e HTTP 502 para falhas do SIGAA.
 * Sem o parâmetro `semester`, `/classrooms` retorna as turmas atuais do portal. `?semester=all` inclui o histórico completo; `?semester=2026.2` ou `?semester=2025.2` retorna somente o período indicado. Valores fora do formato `all` ou `AAAA.P` retornam HTTP 422.
-* Sem turmas no período selecionado, o retorno é HTTP 200 com `[]`. Campos opcionais indisponíveis são `null`; sala, unidade e ID numérico podem não estar disponíveis nas turmas antigas. A consulta não persiste dados nem depende do banco; cache e sincronização pertencem ao RF05.
+* Sem turmas no período selecionado, o retorno é HTTP 200 com `[]`. Campos opcionais indisponíveis são `null`; sala, unidade e ID numérico podem não estar disponíveis nas turmas antigas. Com o cache do RF05, a resposta sai do banco quando disponível e o SIGAA é revalidado em background.
 * A visualização detalhada deve expor a lista de colegas de turma com nome e matrícula (ou identificador único retornado pelo SIGAA).
 * Requisições para turmas inexistentes ou para as quais o usuário não tem permissão de visualização devem retornar código 404 (Not Found) ou 403 (Forbidden).
 

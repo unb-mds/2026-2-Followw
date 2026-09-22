@@ -28,12 +28,12 @@ PERFIL = """
 """
 
 
-def test_login_seguido_de_me_retorna_o_perfil_atualizado(client, sigaa):
+def test_login_seguido_de_me_responde_do_cache(client, sigaa):
+    sigaa.profile = PERFIL
     login = client.post(
         "/auth/sigaa", json={"registration": "251000000", "password": "senha"}
     )
     assert login.status_code == 200
-    sigaa.profile = PERFIL
     requests_before = sigaa.profile_requests
 
     response = client.get("/me")
@@ -52,9 +52,12 @@ def test_login_seguido_de_me_retorna_o_perfil_atualizado(client, sigaa):
         "mp": 4.1724,
         "level": "Graduação",
     }
+    assert sigaa.profile_requests == requests_before
     sigaa.profile = PERFIL.replace("3.9524", "4.0")
+    assert client.get("/me").json()["ira"] == 3.9524
+    assert client.get("/me", params={"refresh": "true"}).json()["ira"] == 4.0
     assert client.get("/me").json()["ira"] == 4.0
-    assert sigaa.profile_requests == requests_before + 2
+    assert sigaa.profile_requests == requests_before + 1
     assert sigaa.logins == 1
 
 

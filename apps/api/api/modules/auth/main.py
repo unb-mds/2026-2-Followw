@@ -1,8 +1,22 @@
+from typing import Annotated
+
 import httpx
-from fastapi import APIRouter, HTTPException, Request, Response, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Request,
+    Response,
+    status,
+)
 from pydantic import BaseModel
 from sigaa_client import AuthenticationFailed, Credentials, SigaaClient, SigaaError
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from api.db.main import get_sessionmaker
+from api.dependencies.sigaa import SigaaConnection
+from api.services.sync import SyncEngine
 from api.utils.session import (
     clear_cookies,
     read_access_cookie,
@@ -19,7 +33,14 @@ class SigaaLoginRequest(BaseModel):
 
 
 @router.post("/sigaa")
-async def sigaa_login(body: SigaaLoginRequest, response: Response):
+async def sigaa_login(
+    body: SigaaLoginRequest,
+    response: Response,
+    tasks: BackgroundTasks,
+    sessionmaker: Annotated[
+        async_sessionmaker[AsyncSession], Depends(get_sessionmaker)
+    ],
+):
     credentials = Credentials(registration=body.registration, password=body.password)
 
     try:
@@ -41,6 +62,9 @@ async def sigaa_login(body: SigaaLoginRequest, response: Response):
 
     set_access_cookie(response, session_token)
     set_refresh_cookie(response, credentials)
+    connection = SigaaConnection(credentials, session_token)
+    SyncEngine(sessionmaker, connection, tasks).sync_account()
+
     return {"message": "Login successful"}
 
 
@@ -55,4 +79,5 @@ async def sigaa_logout(request: Request, response: Response):
             pass
 
     clear_cookies(response)
+
     return {"message": "Logout successful"}
