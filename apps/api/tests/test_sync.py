@@ -1,12 +1,15 @@
 from datetime import UTC, datetime, timedelta
 
+import httpx
 import pytest
 import sigaa_client
 from pydantic import SecretStr
 from sigaa_client import (
+    AuthenticationFailed,
     ClassroomMember,
     ClassroomRole,
     Credentials,
+    SessionExpired,
     SigaaError,
     SigaaParseError,
     StatisticsShare,
@@ -16,6 +19,7 @@ from sqlalchemy import select, update
 
 from api.db.models import Classroom, ClassroomStatistic, ClassroomUser, User
 from api.services.sync import is_stale
+from api.utils.session import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME
 
 CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha"))
 LOGIN = {"registration": "251000000", "password": "senha"}
@@ -38,7 +42,7 @@ FATIA = StatisticsShare(situation=StudentSituation.APROVADO, percentage=100)
 
 @pytest.fixture
 def conta(stub_sigaa):
-    stub_sigaa.classrooms.list_all_classrooms.return_value = [ATUAL, ANTIGA]
+    stub_sigaa.classrooms.list_classrooms.return_value = [ATUAL, ANTIGA]
     stub_sigaa.classrooms.list_classroom_members.return_value = [COLEGA]
     stub_sigaa.classrooms.get_classroom_statistics.return_value = (FATIA,)
     return stub_sigaa
@@ -134,6 +138,16 @@ def test_refresh_com_sigaa_fora_mantem_o_cache(logado, stub_sigaa, database):
     assert logado.get("/me").json()["ira"] == 3.5
 
 
+def test_resposta_do_cache_renova_os_cookies(client, stub_sigaa, cookies, ler_cookies):
+    client.cookies.update(cookies(access="app14~VIVO", refresh=CREDENCIAIS))
+    client.get("/me")
+
+    response = client.get("/me")
+
+    assert stub_sigaa.profile.get_profile.await_count == 1
+    assert ler_cookies(response).keys() == {ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME}
+
+
 def test_primeiro_login_sincroniza_tudo(client, sigaa, conta, database):
     assert client.post("/auth/sigaa", json=LOGIN).status_code == 200
 
@@ -159,7 +173,7 @@ def test_novo_login_so_revalida_o_que_venceu(client, sigaa, conta, database):
 
     # Perfil em dia, turmas vencidas; detalhes só revalidam na turma atual.
     assert conta.profile.get_profile.await_count == 1
-    assert conta.classrooms.list_all_classrooms.await_count == 2
+    assert conta.classrooms.list_classrooms.await_count == 2
     assert conta.classrooms.list_classroom_members.await_count == 3
     assert conta.classrooms.list_classroom_members.await_args.args == ("AAA",)
 
@@ -183,10 +197,20 @@ def test_segundo_aluno_aproveita_as_turmas_ja_sincronizadas(
         assert len(list(session.scalars(select(ClassroomUser)))) == 6
 
 
-def test_turma_ilegivel_nao_impede_o_sync_das_outras(client, sigaa, conta, database):
+@pytest.mark.parametrize(
+    "erro",
+    [
+        SigaaParseError("layout mudou"),
+        SessionExpired("contexto perdido"),
+        httpx.ReadTimeout("SIGAA lento"),
+    ],
+)
+def test_turma_com_falha_nao_impede_o_sync_das_outras(
+    client, sigaa, conta, database, erro
+):
     async def members(classroom_id: str) -> list[ClassroomMember]:
         if classroom_id == "AAA":
-            raise SigaaParseError("layout mudou")
+            raise erro
         return [COLEGA]
 
     conta.classrooms.list_classroom_members.side_effect = members
@@ -204,6 +228,17 @@ def test_turma_ilegivel_nao_impede_o_sync_das_outras(client, sigaa, conta, datab
     # A que falhou fica sem data e é tentada de novo no próximo sync.
     assert synced["AAA"] is None
     assert synced["BBB"] is not None
+    estatisticas = conta.classrooms.get_classroom_statistics.await_args_list
+    assert sorted(c.args for c in estatisticas) == [("AAA",), ("BBB",)]
+
+
+def test_senha_recusada_interrompe_o_sync_das_turmas(client, sigaa, conta):
+    conta.classrooms.list_classroom_members.side_effect = AuthenticationFailed()
+
+    client.post("/auth/sigaa", json=LOGIN)
+
+    assert conta.classrooms.list_classroom_members.await_count == 1
+    conta.classrooms.get_classroom_statistics.assert_not_awaited()
 
 
 def test_login_nao_espera_o_sync(client, sigaa, conta):

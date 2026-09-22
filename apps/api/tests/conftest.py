@@ -262,7 +262,7 @@ def stub_sigaa(monkeypatch):
             )
         ),
         classrooms=SimpleNamespace(
-            list_all_classrooms=AsyncMock(return_value=[]),
+            list_classrooms=AsyncMock(return_value=[]),
             list_classroom_members=AsyncMock(return_value=[]),
             get_classroom_statistics=AsyncMock(return_value=()),
         ),

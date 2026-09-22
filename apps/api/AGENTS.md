@@ -50,6 +50,12 @@ O client vem por `Depends` (`dependencies/`):
 - `SigaaClientDep` — o client já aberto, para rotas sem cache.
 - `SigaaPublicClientDep` — sem cookie, sem login.
 
+Toda resposta de sucesso de uma rota autenticada, inclusive as que saem do
+cache, renova os dois cookies (access por `access_token_expire_minutes`). Isso
+acontece antes da rota rodar, porque o teardown do `yield` roda tarde demais.
+Um 401 do SIGAA (`AuthenticationFailed`/`SessionExpired`) apaga os dois cookies
+via `clear_cookies_headers()`.
+
 **Erros do SIGAA viram `HTTPException`** (401 para credencial/sessão, 502 para o
 resto) nas próprias dependências. Nunca deixe exceção do `sigaa_client` vazar da
 rota.

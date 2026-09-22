@@ -71,9 +71,8 @@ integralização do curso e é independente desses índices.
 ```python
 async with SigaaClient(credentials) as client:
     await client.profile.get_profile()  # UserProfile
-    await client.classrooms.list_classrooms()  # turmas do semestre
     await (
-        client.classrooms.list_all_classrooms()
+        client.classrooms.list_classrooms()
     )  # histórico completo (`current` marca as atuais)
     await client.classrooms.list_classroom_members(id)  # docentes e discentes
     await client.classrooms.get_classroom_frequency(id)  # frequência e andamento

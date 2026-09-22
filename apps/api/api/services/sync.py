@@ -4,12 +4,14 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated
 from uuid import UUID
 
+import httpx
 from fastapi import BackgroundTasks, Depends
 from sigaa_client import (
+    AuthenticationFailed,
     Classroom,
     ClassroomMember,
     SigaaClient,
-    SigaaParseError,
+    SigaaError,
     StatisticsShare,
     UserProfile,
 )
@@ -149,9 +151,7 @@ class SyncEngine:
             if user is None or is_stale(user.profile_synced_at, PROFILE_TTL):
                 await self.save_profile(await client.profile.get_profile())
             if user is None or is_stale(user.classrooms_synced_at, CLASSROOMS_TTL):
-                await self.save_classrooms(
-                    await client.classrooms.list_all_classrooms()
-                )
+                await self.save_classrooms(await client.classrooms.list_classrooms())
             for link in await self._read(self._links):
                 await self._sync_classroom(client, link)
 
@@ -176,7 +176,10 @@ class SyncEngine:
                 continue
             try:
                 await save(classroom.id, await fetch(link.front_end_id))
-            except SigaaParseError, IntegrityError:
+            except AuthenticationFailed:
+                # Senha recusada: as outras turmas falhariam do mesmo jeito.
+                raise
+            except SigaaError, httpx.HTTPError, IntegrityError:
                 # Fica sem data de sync e é refeita da próxima vez; as outras seguem.
                 log.warning("Turma %s não sincronizada", classroom.id, exc_info=True)
 

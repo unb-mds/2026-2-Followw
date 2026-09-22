@@ -86,14 +86,22 @@ def test_sessao_morta_reloga_e_reescreve_o_access_cookie(sonda, sigaa, cookies):
     assert _access(response) == "app14~TOKEN1"
 
 
-def test_credenciais_recusadas_viram_401(sonda, sigaa, cookies):
+def test_credenciais_recusadas_viram_401_e_apagam_os_cookies(
+    sonda, sigaa, cookies, ler_cookies
+):
     sigaa.password = "outra"
 
-    sonda.cookies.update(cookies(refresh=CREDENCIAIS))
+    sonda.cookies.update(cookies(access="app14~MORTO", refresh=CREDENCIAIS))
     response = sonda.get("/probe")
 
     assert response.status_code == 401
     assert response.json()["detail"] == "Session expired"
+    jar = ler_cookies(response)
+    assert {nome: jar[nome].value for nome in jar} == {
+        ACCESS_COOKIE_NAME: "",
+        REFRESH_COOKIE_NAME: "",
+    }
+    assert jar[REFRESH_COOKIE_NAME]["max-age"] == "0"
 
 
 def test_sigaa_fora_do_ar_vira_502(sonda, sigaa, cookies):
@@ -117,14 +125,29 @@ def test_cas_sem_jsessionid_vira_502(sonda, sigaa, cookies):
     assert response.json()["detail"] == "SIGAA is unavailable"
 
 
-def test_refresh_cookie_e_reemitido_a_cada_requisicao(sonda, sigaa, cookies):
-    """A validade do refresh é deslizante: quem usa a API não é deslogado."""
+def test_cookies_sao_renovados_a_cada_requisicao(sonda, sigaa, cookies, ler_cookies):
+    """A validade é deslizante: quem usa a API não é deslogado."""
     sigaa.valid_tokens.add("app14~VIVO")
 
     sonda.cookies.update(cookies(access="app14~VIVO", refresh=CREDENCIAIS))
     response = sonda.get("/probe")
 
-    assert response.cookies.get(REFRESH_COOKIE_NAME) is not None
+    jar = ler_cookies(response)
+    assert jar[ACCESS_COOKIE_NAME]["max-age"] == str(
+        settings.access_token_expire_minutes * 60
+    )
+    assert _access(response) == "app14~VIVO"
+    assert REFRESH_COOKIE_NAME in jar
+
+
+def test_erro_do_sigaa_nao_renova_os_cookies(sonda, sigaa, cookies):
+    sigaa.unavailable = True
+
+    sonda.cookies.update(cookies(access="app14~VIVO", refresh=CREDENCIAIS))
+    response = sonda.get("/probe")
+
+    assert response.status_code == 502
+    assert "set-cookie" not in response.headers
 
 
 async def _sonda_publica(client: SigaaPublicClientDep):

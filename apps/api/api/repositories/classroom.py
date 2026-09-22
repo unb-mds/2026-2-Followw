@@ -11,7 +11,14 @@ from sqlalchemy.orm import selectinload
 
 from api.db.enums import ClassroomRole, StudentSituation
 from api.db.main import get_db
-from api.db.models import Classroom, ClassroomStatistic, ClassroomUser, Subject, User
+from api.db.models import (
+    USER_WITHOUT_IDS,
+    Classroom,
+    ClassroomStatistic,
+    ClassroomUser,
+    Subject,
+    User,
+)
 
 _WITH_CLASSROOM = selectinload(ClassroomUser.classroom).selectinload(Classroom.subject)
 
@@ -206,15 +213,17 @@ class ClassroomRepository:
             user = await self._session.scalar(
                 select(User).where(User.registration == member.registration)
             )
-        if user is None and member.person_id is not None:
-            user = await self._session.scalar(
+        person_owner = None
+        if member.person_id is not None and (user is None or user.person_id is None):
+            person_owner = await self._session.scalar(
                 select(User).where(User.person_id == member.person_id)
             )
+            user = user or person_owner
         if user is None and member.registration is None and member.person_id is None:
             # Docentes não trazem matrícula nem `idPessoa`: o email é a identidade.
             if member.email is not None:
                 user = await self._session.scalar(
-                    select(User).where(User.email == member.email, _WITHOUT_IDS)
+                    select(User).where(User.email == member.email, USER_WITHOUT_IDS)
                 )
             else:
                 # Sem email, só dá para reconhecer quem já estava nesta turma.
@@ -232,13 +241,12 @@ class ClassroomRepository:
             if value is not None and (shadow or getattr(user, field) is None):
                 setattr(user, field, value)
         user.registration = user.registration or member.registration
-        user.person_id = user.person_id or member.person_id
+        # O `idPessoa` pode já ser de outro usuário, achado antes só por ele.
+        if person_owner is None or person_owner is user:
+            user.person_id = user.person_id or member.person_id
         await self._session.flush()
 
         return user
-
-
-_WITHOUT_IDS = User.registration.is_(None) & User.person_id.is_(None)
 
 
 def _same_subject(item: sigaa_client.Subject) -> ColumnElement[bool]:

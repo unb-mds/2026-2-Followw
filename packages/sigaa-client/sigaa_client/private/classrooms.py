@@ -89,14 +89,6 @@ class Classrooms:
         self._context_lock = asyncio.Lock()
 
     async def list_classrooms(self) -> list[Classroom]:
-        dashboard, classrooms = await asyncio.gather(
-            self._get(DASHBOARD_PATH), self._get(CLASSROOMS_PATH)
-        )
-        active = _parse_dashboard(dashboard)
-        history = _parse_history(classrooms)
-        return [_merge(history.get(key), entry) for key, entry in active.items()]
-
-    async def list_all_classrooms(self) -> list[Classroom]:
         classrooms, dashboard = await asyncio.gather(
             self._get(CLASSROOMS_PATH), self._get(DASHBOARD_PATH)
         )

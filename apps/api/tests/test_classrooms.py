@@ -369,7 +369,7 @@ PARTICIPANTES = [
 
 @pytest.fixture
 def turmas(stub_sigaa):
-    stub_sigaa.classrooms.list_all_classrooms.return_value = [ATUAL, ANTIGA]
+    stub_sigaa.classrooms.list_classrooms.return_value = [ATUAL, ANTIGA]
     stub_sigaa.classrooms.list_classroom_members.return_value = PARTICIPANTES
     stub_sigaa.classrooms.get_classroom_statistics.return_value = (
         StatisticsShare(situation=StudentSituation.MATRICULADO, percentage=10),
@@ -399,7 +399,7 @@ def test_participantes_sem_cache_buscam_as_turmas_antes(client, turmas, cookies)
 
     assert primeira.status_code == segunda.status_code == 200
     assert primeira.json() == segunda.json()
-    assert turmas.classrooms.list_all_classrooms.await_count == 1
+    assert turmas.classrooms.list_classrooms.await_count == 1
     assert turmas.classrooms.list_classroom_members.await_count == 1
 
 

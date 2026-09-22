@@ -13,6 +13,7 @@ from sigaa_client import (
 )
 
 from api.utils.session import (
+    clear_cookies_headers,
     read_access_cookie,
     read_refresh_cookie,
     set_access_cookie,
@@ -23,7 +24,7 @@ from api.utils.session import (
 class SigaaConnection:
     """Abre um `SigaaClient` só quando alguém precisa do SIGAA.
 
-    Com `response`, é a conexão da requisição: grava os cookies de sessão.
+    Com `response`, é a conexão da requisição: grava o token renovado no cookie.
     `detached()` devolve uma cópia sem cookies para o sync em background.
     """
 
@@ -58,8 +59,6 @@ class SigaaConnection:
         ) as client:
             if self._session_token is None:
                 on_session_renewed(await client.authenticate())
-            if self._response is not None:
-                set_refresh_cookie(self._response, self.credentials)
             yield client
 
 
@@ -72,11 +71,20 @@ async def get_sigaa_connection(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated"
         )
 
+    session_token = read_access_cookie(request)
+    # O teardown do `yield` roda tarde demais para gravar cookies; como uma
+    # `HTTPException` descarta estes, só as respostas de sucesso renovam a sessão.
+    set_refresh_cookie(response, credentials)
+    if session_token is not None:
+        set_access_cookie(response, session_token)
+
     try:
-        yield SigaaConnection(credentials, read_access_cookie(request), response)
+        yield SigaaConnection(credentials, session_token, response)
     except AuthenticationFailed, SessionExpired:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired",
+            headers=clear_cookies_headers(),
         )
     except SigaaError, httpx.HTTPError:
         raise HTTPException(

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, Text, UniqueConstraint, text
+from sqlalchemy import DateTime, ForeignKey, Index, Text, UniqueConstraint
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -13,21 +13,8 @@ def _enum(enum: type, name: str) -> SAEnum:
     return SAEnum(enum, name=name, values_callable=lambda e: [m.value for m in e])
 
 
-_WITHOUT_IDS = text("registration IS NULL AND person_id IS NULL")
-
-
 class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "users"
-    __table_args__ = (
-        # Docentes chegam sem matrícula nem `idPessoa`: aí o email é a identidade.
-        Index(
-            "uq_user_email_without_ids",
-            "email",
-            unique=True,
-            postgresql_where=_WITHOUT_IDS,
-            sqlite_where=_WITHOUT_IDS,
-        ),
-    )
 
     name: Mapped[str] = mapped_column()
     registration: Mapped[str | None] = mapped_column(unique=True)
@@ -50,6 +37,17 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     classroom_links: Mapped[list[ClassroomUser]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
+
+
+# Docentes chegam sem matrícula nem `idPessoa`: aí o email é a identidade.
+USER_WITHOUT_IDS = User.registration.is_(None) & User.person_id.is_(None)
+Index(
+    "uq_user_email_without_ids",
+    User.email,
+    unique=True,
+    postgresql_where=USER_WITHOUT_IDS,
+    sqlite_where=USER_WITHOUT_IDS,
+)
 
 
 class Subject(Base, UUIDPrimaryKeyMixin, TimestampMixin):

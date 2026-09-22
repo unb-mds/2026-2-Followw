@@ -191,6 +191,27 @@ async def test_docente_sem_email_nao_duplica_no_resync_da_turma(
     assert await _contar(async_database, User) == 3
 
 
+async def test_id_pessoa_de_outro_usuario_nao_e_copiado(async_database, usuarios):
+    await _salvar_turmas(
+        async_database, usuarios[0], [_turma("AAA"), _turma("BBB", "FGA0158")]
+    )
+    links = await _vinculos(async_database, usuarios[0])
+    await _salvar_membros(
+        async_database, links[0].classroom_id, [_membro("PESSOA", person_id=42)]
+    )
+    # Na outra turma a mesma pessoa aparece já com a matrícula de um usuário existente.
+    await _salvar_membros(
+        async_database,
+        links[1].classroom_id,
+        [_membro("Discente 0", registration="251000000", person_id=42)],
+    )
+
+    async with async_database() as session:
+        eu = await session.get_one(User, usuarios[0].id)
+        assert eu.person_id is None
+    assert await _contar(async_database, User) == 3
+
+
 async def test_turma_passada_existente_nao_e_regravada(async_database, usuarios):
     passada = _turma("AAA", semester="2025.2").model_copy(update={"schedule": "24T23"})
     atual = _turma("CCC", "FGA0158", room="MOCAP", current=True)

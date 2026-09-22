@@ -4,6 +4,7 @@ import jwt
 from fastapi import Request, Response
 from pydantic import ValidationError
 from sigaa_client import Credentials
+from starlette.datastructures import Headers, MutableHeaders
 
 from api.core.config import settings
 
@@ -49,6 +50,16 @@ def read_refresh_cookie(request: Request) -> Credentials | None:
 def clear_cookies(response: Response) -> None:
     response.delete_cookie(ACCESS_COOKIE_NAME)
     response.delete_cookie(REFRESH_COOKIE_NAME)
+
+
+def clear_cookies_headers() -> Headers:
+    """`Set-Cookie` que apagam a sessão, para o `headers` de uma `HTTPException`."""
+    response = Response()
+    clear_cookies(response)
+    # `Headers.items()` repete a chave, então os dois `Set-Cookie` sobrevivem.
+    return MutableHeaders(
+        raw=[header for header in response.raw_headers if header[0] == b"set-cookie"]
+    )
 
 
 def _set_cookie(

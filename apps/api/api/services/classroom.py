@@ -46,7 +46,7 @@ class ClassroomService:
             "classrooms",
             cached=cached,
             stale=is_stale(synced_at, CLASSROOMS_TTL),
-            fetch=lambda client: client.classrooms.list_all_classrooms(),
+            fetch=lambda client: client.classrooms.list_classrooms(),
             save=self._engine.save_classrooms,
             refresh=refresh,
         )

@@ -143,13 +143,11 @@ async def test_historico_completo_marca_as_turmas_atuais():
     so_no_portal = DASHBOARD.replace("'AAA'", "'CCC'")
     session = PagesSession({CLASSROOMS_PATH: HISTORY, DASHBOARD_PATH: DASHBOARD})
 
-    turmas = await Classrooms(session).list_all_classrooms()  # type: ignore[arg-type]
-    atuais = await Classrooms(session).list_classrooms()  # type: ignore[arg-type]
+    turmas = await Classrooms(session).list_classrooms()  # type: ignore[arg-type]
     session.pages[DASHBOARD_PATH] = so_no_portal
-    com_extra = await Classrooms(session).list_all_classrooms()  # type: ignore[arg-type]
+    com_extra = await Classrooms(session).list_classrooms()  # type: ignore[arg-type]
 
     assert [(t.id, t.current) for t in turmas] == [("AAA", True), ("BBB", False)]
-    assert [(t.id, t.current) for t in atuais] == [("AAA", True)]
     assert [(t.id, t.current) for t in com_extra] == [
         ("AAA", False),
         ("BBB", False),
