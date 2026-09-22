@@ -11,41 +11,39 @@ from sigaa_client import (
     StudentSituation,
     Subject,
 )
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.models import ClassroomStatistic, ClassroomUser
-from api.repositories.classroom import ClassroomRepositoryDep
-from api.repositories.user import UserRepositoryDep
+from api.repositories.classroom import ClassroomRepository
+from api.repositories.user import UserRepository
 from api.services.sync import CLASSROOMS_TTL, SyncEngineDep, details_ttl, is_stale
 
 _SITUATIONS = list(StudentSituation)
 
 
 class ClassroomService:
-    def __init__(
-        self,
-        users: UserRepositoryDep,
-        classrooms: ClassroomRepositoryDep,
-        engine: SyncEngineDep,
-    ) -> None:
-        self._users = users
-        self._classrooms = classrooms
+    def __init__(self, engine: SyncEngineDep) -> None:
         self._engine = engine
 
     async def list_classrooms(
         self, semester: str | None = None, *, refresh: bool = False
     ) -> list[Classroom]:
         """Sem `semester`, as turmas atuais; `all` para todas ou um período `AAAA.P`."""
-        user = await self._users.get_by_registration(self._engine.registration)
-        synced_at = user.classrooms_synced_at if user else None
-        cached = None
-        if user and synced_at:
-            links = await self._classrooms.list_by_user_id(user.id)
-            cached = [_to_classroom(link) for link in links]
+
+        async def load(session: AsyncSession) -> tuple[list[Classroom] | None, bool]:
+            users = UserRepository(session)
+            user = await users.get_by_registration(self._engine.registration)
+            synced_at = user.classrooms_synced_at if user else None
+            if user is None or synced_at is None:
+                return None, True
+            links = await ClassroomRepository(session).list_by_user_id(user.id)
+            return [_to_classroom(link) for link in links], is_stale(
+                synced_at, CLASSROOMS_TTL
+            )
 
         classrooms = await self._engine.resolve(
             "classrooms",
-            cached=cached,
-            stale=is_stale(synced_at, CLASSROOMS_TTL),
+            load=load,
             fetch=lambda client: client.classrooms.list_classrooms(),
             save=self._engine.save_classrooms,
             refresh=refresh,
@@ -60,16 +58,21 @@ class ClassroomService:
     ) -> list[ClassroomMember]:
         link = await self._link(classroom_id)
         classroom = link.classroom
-        synced_at = classroom.members_synced_at
-        cached = None
-        if synced_at:
-            members = await self._classrooms.list_members(classroom.id)
-            cached = [_to_member(member) for member in members]
+
+        async def load(
+            session: AsyncSession,
+        ) -> tuple[list[ClassroomMember] | None, bool]:
+            synced_at = classroom.members_synced_at
+            if synced_at is None:
+                return None, True
+            members = await ClassroomRepository(session).list_members(classroom.id)
+            return [_to_member(member) for member in members], is_stale(
+                synced_at, details_ttl(link.current)
+            )
 
         members = await self._engine.resolve(
             f"members:{classroom.id}",
-            cached=cached,
-            stale=is_stale(synced_at, details_ttl(link.current)),
+            load=load,
             fetch=lambda client: client.classrooms.list_classroom_members(classroom_id),
             save=partial(self._engine.save_members, classroom.id),
             refresh=refresh,
@@ -84,19 +87,26 @@ class ClassroomService:
     ) -> list[StatisticsShare]:
         link = await self._link(classroom_id)
         classroom = link.classroom
-        synced_at = classroom.statistics_synced_at
-        cached = None
-        if synced_at:
-            statistics = await self._classrooms.list_statistics(classroom.id)
-            cached = [_to_share(statistic) for statistic in statistics]
+
+        async def load(
+            session: AsyncSession,
+        ) -> tuple[list[StatisticsShare] | None, bool]:
+            synced_at = classroom.statistics_synced_at
+            if synced_at is None:
+                return None, True
+            statistics = await ClassroomRepository(session).list_statistics(
+                classroom.id
+            )
+            return [_to_share(statistic) for statistic in statistics], is_stale(
+                synced_at, details_ttl(link.current)
+            )
 
         async def fetch(client: SigaaClient) -> list[StatisticsShare]:
             return list(await client.classrooms.get_classroom_statistics(classroom_id))
 
         shares = await self._engine.resolve(
             f"statistics:{classroom.id}",
-            cached=cached,
-            stale=is_stale(synced_at, details_ttl(link.current)),
+            load=load,
             fetch=fetch,
             save=partial(self._engine.save_statistics, classroom.id),
             refresh=refresh,
@@ -105,21 +115,31 @@ class ClassroomService:
         return sorted(shares, key=lambda s: _SITUATIONS.index(s.situation))
 
     async def _link(self, classroom_id: str) -> ClassroomUser:
-        user = await self._users.get_by_registration(self._engine.registration)
-        if user is None or user.classrooms_synced_at is None:
-            # Sem a lista de turmas no cache não dá para saber se a turma é dele.
+        find = partial(self._find_link, classroom_id)
+        link = await self._engine.read(find)
+        if link is None:
+            # Lista nunca lida ou turma nova (ajuste de matrícula): relê a lista uma vez.
             await self.list_classrooms(refresh=True)
-            user = await self._users.get_by_registration(self._engine.registration)
-
-        link = user and await self._classrooms.get_by_front_end_id(
-            user.id, classroom_id
-        )
+            link = await self._engine.read(find)
         if link is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Classroom not found"
             )
 
         return link
+
+    async def _find_link(
+        self, classroom_id: str, session: AsyncSession
+    ) -> ClassroomUser | None:
+        user = await UserRepository(session).get_by_registration(
+            self._engine.registration
+        )
+        if user is None:
+            return None
+
+        return await ClassroomRepository(session).get_by_front_end_id(
+            user.id, classroom_id
+        )
 
 
 def _in_semester(classroom: Classroom, semester: str | None) -> bool:

@@ -138,14 +138,93 @@ def test_refresh_com_sigaa_fora_mantem_o_cache(logado, stub_sigaa, database):
     assert logado.get("/me").json()["ira"] == 3.5
 
 
-def test_resposta_do_cache_renova_os_cookies(client, stub_sigaa, cookies, ler_cookies):
+def test_cache_com_access_token_valido_nao_renova_os_cookies(
+    client, stub_sigaa, cookies, ler_cookies
+):
     client.cookies.update(cookies(access="app14~VIVO", refresh=CREDENCIAIS))
-    client.get("/me")
+    primeira = client.get("/me")
+
+    segunda = client.get("/me")
+
+    assert ler_cookies(primeira).keys() == {ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME}
+    assert segunda.status_code == 200
+    assert "set-cookie" not in segunda.headers
+    assert stub_sigaa.created.call_count == 1
+    stub_sigaa.authenticate.assert_not_awaited()
+
+
+def test_cache_sem_access_token_so_sai_depois_do_login(logado, stub_sigaa, ler_cookies):
+    logado.get("/me")
+    logado.cookies.delete(ACCESS_COOKIE_NAME)
+
+    response = logado.get("/me")
+
+    assert response.status_code == 200
+    assert ler_cookies(response).keys() == {ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME}
+    assert stub_sigaa.authenticate.await_count == 2
+    assert stub_sigaa.profile.get_profile.await_count == 1
+
+
+def test_senha_trocada_desloga_quando_o_access_token_vence(client, sigaa, ler_cookies):
+    client.post("/auth/sigaa", json=LOGIN)
+    client.cookies.delete(ACCESS_COOKIE_NAME)
+    sigaa.password = "senha-nova"
 
     response = client.get("/me")
 
-    assert stub_sigaa.profile.get_profile.await_count == 1
-    assert ler_cookies(response).keys() == {ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME}
+    assert response.status_code == 401
+    jar = ler_cookies(response)
+    assert {nome: jar[nome].value for nome in jar} == {
+        ACCESS_COOKIE_NAME: "",
+        REFRESH_COOKIE_NAME: "",
+    }
+
+
+def test_requisicao_usa_um_so_client_do_sigaa(logado, conta):
+    # Sem cache: lê as turmas, o perfil para gravá-las e os participantes.
+    response = logado.get("/classrooms/AAA/members")
+
+    assert response.status_code == 200
+    conta.profile.get_profile.assert_awaited_once()
+    conta.classrooms.list_classroom_members.assert_awaited_once()
+    assert conta.created.call_count == 1
+    conta.aclose.assert_awaited_once()
+
+
+def test_nenhuma_sessao_do_banco_fica_aberta_esperando_o_sigaa(
+    client, stub_sigaa, async_database, cookies
+):
+    from contextlib import asynccontextmanager
+
+    from api.db.main import get_sessionmaker
+
+    abertas = 0
+
+    @asynccontextmanager
+    async def sessionmaker():
+        nonlocal abertas
+        abertas += 1
+        try:
+            async with async_database() as session:
+                yield session
+        finally:
+            abertas -= 1
+
+    durante_o_sigaa = []
+
+    async def get_profile():
+        durante_o_sigaa.append(abertas)
+        return perfil
+
+    perfil = stub_sigaa.profile.get_profile.return_value
+    stub_sigaa.profile.get_profile.side_effect = get_profile
+    client.app.dependency_overrides[get_sessionmaker] = lambda: sessionmaker
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+
+    client.get("/me")
+    client.get("/me", params={"refresh": "true"})
+
+    assert durante_o_sigaa == [0, 0]
 
 
 def test_primeiro_login_sincroniza_tudo(client, sigaa, conta, database):

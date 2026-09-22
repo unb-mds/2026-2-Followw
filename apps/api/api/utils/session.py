@@ -71,6 +71,13 @@ def _set_cookie(
         settings.jwt_secret_key,
         algorithm=settings.jwt_algorithm,
     )
+    # Gravar de novo na mesma resposta substitui o cookie em vez de repeti-lo.
+    prefix = f"{name}=".encode("latin-1")
+    response.raw_headers[:] = [
+        (key, value)
+        for key, value in response.raw_headers
+        if not (key == b"set-cookie" and value.startswith(prefix))
+    ]
     response.set_cookie(
         key=name,
         value=token,

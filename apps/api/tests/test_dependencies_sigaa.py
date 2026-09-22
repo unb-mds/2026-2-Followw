@@ -86,6 +86,17 @@ def test_sessao_morta_reloga_e_reescreve_o_access_cookie(sonda, sigaa, cookies):
     assert _access(response) == "app14~TOKEN1"
 
 
+def test_sessao_renovada_nao_repete_os_cookies(sonda, sigaa, cookies):
+    sonda.cookies.update(cookies(access="app14~MORTO", refresh=CREDENCIAIS))
+    response = sonda.get("/probe")
+
+    nomes = [
+        header.split("=", 1)[0] for header in response.headers.get_list("set-cookie")
+    ]
+    assert sorted(nomes) == [ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME]
+    assert _access(response) == "app14~TOKEN1"
+
+
 def test_credenciais_recusadas_viram_401_e_apagam_os_cookies(
     sonda, sigaa, cookies, ler_cookies
 ):

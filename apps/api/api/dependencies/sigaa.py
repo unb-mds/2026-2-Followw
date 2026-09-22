@@ -1,5 +1,4 @@
-from collections.abc import AsyncGenerator, AsyncIterator
-from contextlib import asynccontextmanager
+from collections.abc import AsyncGenerator
 from typing import Annotated
 
 import httpx
@@ -22,10 +21,10 @@ from api.utils.session import (
 
 
 class SigaaConnection:
-    """Abre um `SigaaClient` só quando alguém precisa do SIGAA.
+    """Abre um único `SigaaClient` por conexão, e só quando alguém precisa do SIGAA.
 
-    Com `response`, é a conexão da requisição: grava o token renovado no cookie.
-    `detached()` devolve uma cópia sem cookies para o sync em background.
+    Com `response`, é a conexão da requisição: cada uso do client renova os
+    cookies. Quem cria a conexão fecha o client com `aclose()`.
     """
 
     def __init__(
@@ -37,29 +36,41 @@ class SigaaConnection:
         self.credentials = credentials
         self._session_token = session_token
         self._response = response
+        self._client: SigaaClient | None = None
 
     @property
     def registration(self) -> str:
         return self.credentials.registration
 
-    def detached(self) -> SigaaConnection:
-        return SigaaConnection(self.credentials, self._session_token)
+    @property
+    def authenticated(self) -> bool:
+        """Se há um access_token válido, vindo do cookie ou de um login nesta conexão."""
+        return self._session_token is not None
 
-    @asynccontextmanager
-    async def open(self) -> AsyncIterator[SigaaClient]:
-        def on_session_renewed(token: str) -> None:
-            self._session_token = token
-            if self._response is not None:
-                set_access_cookie(self._response, token)
+    async def client(self) -> SigaaClient:
+        if self._client is None:
+            self._client = SigaaClient(
+                session_token=self._session_token,
+                credentials=self.credentials,
+                on_session_renewed=self._renew,
+            )
+        if self._session_token is None:
+            self._renew(await self._client.authenticate())
+        else:
+            self._renew(self._session_token)
+        return self._client
 
-        async with SigaaClient(
-            session_token=self._session_token,
-            credentials=self.credentials,
-            on_session_renewed=on_session_renewed,
-        ) as client:
-            if self._session_token is None:
-                on_session_renewed(await client.authenticate())
-            yield client
+    async def aclose(self) -> None:
+        if self._client is not None:
+            await self._client.aclose()
+            self._client = None
+
+    def _renew(self, token: str) -> None:
+        self._session_token = token
+        # Se a chamada ao SIGAA falhar, a `HTTPException` descarta estes cookies.
+        if self._response is not None:
+            set_refresh_cookie(self._response, self.credentials)
+            set_access_cookie(self._response, token)
 
 
 async def get_sigaa_connection(
@@ -71,15 +82,9 @@ async def get_sigaa_connection(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated"
         )
 
-    session_token = read_access_cookie(request)
-    # O teardown do `yield` roda tarde demais para gravar cookies; como uma
-    # `HTTPException` descarta estes, só as respostas de sucesso renovam a sessão.
-    set_refresh_cookie(response, credentials)
-    if session_token is not None:
-        set_access_cookie(response, session_token)
-
+    connection = SigaaConnection(credentials, read_access_cookie(request), response)
     try:
-        yield SigaaConnection(credentials, session_token, response)
+        yield connection
     except AuthenticationFailed:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -95,16 +100,16 @@ async def get_sigaa_connection(
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY, detail="SIGAA is unavailable"
         )
+    finally:
+        # O teardown roda depois das `BackgroundTasks`, que também usam o client.
+        await connection.aclose()
 
 
 SigaaConnectionDep = Annotated[SigaaConnection, Depends(get_sigaa_connection)]
 
 
-async def get_sigaa_client(
-    connection: SigaaConnectionDep,
-) -> AsyncGenerator[SigaaClient]:
-    async with connection.open() as client:
-        yield client
+async def get_sigaa_client(connection: SigaaConnectionDep) -> SigaaClient:
+    return await connection.client()
 
 
 SigaaClientDep = Annotated[SigaaClient, Depends(get_sigaa_client)]

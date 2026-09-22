@@ -412,6 +412,18 @@ def test_turma_fora_da_lista_do_usuario_retorna_404(client, turmas, cookies):
     turmas.classrooms.list_classroom_members.assert_not_awaited()
 
 
+def test_turma_nova_fora_do_cache_rele_a_lista(client, sigaa, turmas):
+    client.post("/auth/sigaa", json={"registration": "251000000", "password": "senha"})
+    nova = ATUAL.model_copy(update={"id": "CCC", "number": "02"})
+    turmas.classrooms.list_classrooms.return_value = [ATUAL, nova, ANTIGA]
+
+    response = client.get("/classrooms/CCC/members")
+
+    assert response.status_code == 200
+    assert turmas.classrooms.list_classrooms.await_count == 2
+    assert turmas.classrooms.list_classroom_members.await_args.args == ("CCC",)
+
+
 def test_detalhes_de_turma_passada_nunca_revalidam(client, sigaa, turmas, database):
     client.post("/auth/sigaa", json={"registration": "251000000", "password": "senha"})
     with database() as session:

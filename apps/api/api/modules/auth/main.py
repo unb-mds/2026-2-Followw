@@ -64,6 +64,8 @@ async def sigaa_login(
     set_refresh_cookie(response, credentials)
     connection = SigaaConnection(credentials, session_token)
     SyncEngine(sessionmaker, connection, tasks).sync_account()
+    # As tasks rodam em ordem: o client só fecha depois do sync.
+    tasks.add_task(connection.aclose)
 
     return {"message": "Login successful"}
 

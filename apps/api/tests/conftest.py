@@ -234,17 +234,17 @@ def probe_app():
 def stub_sigaa(monkeypatch):
     """Troca o `SigaaClient` por dublês de método, para testar o cache sem HTML.
 
-    Só o `open()` muda: cookies e tradução de erros continuam os da app.
+    Só o client muda: conexão, cookies e tradução de erros continuam os da app.
+    `created` conta quantos clients a app abriu.
     """
-    from contextlib import asynccontextmanager
     from types import SimpleNamespace
-    from unittest.mock import AsyncMock
+    from unittest.mock import AsyncMock, Mock
 
     from sigaa_client import UserLevel, UserProfile
 
-    from api.dependencies.sigaa import SigaaConnection
-
     client = SimpleNamespace(
+        authenticate=AsyncMock(return_value="app14~STUB"),
+        aclose=AsyncMock(),
         profile=SimpleNamespace(
             get_profile=AsyncMock(
                 return_value=UserProfile(
@@ -268,9 +268,6 @@ def stub_sigaa(monkeypatch):
         ),
     )
 
-    @asynccontextmanager
-    async def open(self):
-        yield client
-
-    monkeypatch.setattr(SigaaConnection, "open", open)
+    client.created = Mock(return_value=client)
+    monkeypatch.setattr("api.dependencies.sigaa.SigaaClient", client.created)
     return client

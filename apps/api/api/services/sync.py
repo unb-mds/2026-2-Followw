@@ -57,8 +57,9 @@ def details_ttl(current: bool) -> timedelta | None:
 class SyncEngine:
     """Cache dos dados do SIGAA no banco, no modelo stale-while-revalidate.
 
-    Cada escrita abre a própria sessão do banco, então o mesmo código grava
-    tanto antes de responder quanto em background, depois da resposta.
+    Cada leitura e escrita abre a própria sessão do banco: nenhuma transação
+    fica aberta esperando o SIGAA, e o mesmo código grava tanto antes de
+    responder quanto em background, depois da resposta.
     """
 
     def __init__(
@@ -79,24 +80,29 @@ class SyncEngine:
         self,
         key: str,
         *,
-        cached: T | None,
-        stale: bool,
+        load: Callable[[AsyncSession], Awaitable[tuple[T | None, bool]]],
         fetch: Callable[[SigaaClient], Awaitable[T]],
         save: Callable[[T], Awaitable[None]],
         refresh: bool = False,
     ) -> T:
         """Devolve o cache na hora e, se vencido, revalida em background.
 
-        Sem cache, busca no SIGAA e grava em background. Com `refresh`, busca e
-        grava antes de responder: se o SIGAA falhar, o cache fica intacto.
+        `load` lê o cache e se ele venceu, numa sessão fechada antes de ir ao
+        SIGAA. Sem cache, busca no SIGAA e grava em background. Com `refresh`,
+        nem lê o cache: busca e grava antes de responder, e se o SIGAA falhar o
+        cache fica intacto.
         """
-        if cached is not None and not refresh:
-            if stale:
-                self._tasks.add_task(self._run, key, self._revalidate(fetch, save))
-            return cached
+        if not refresh:
+            cached, stale = await self.read(load)
+            if cached is not None:
+                # Sem access_token válido, o cache só sai depois de o SIGAA aceitar a senha.
+                if not self._sigaa.authenticated:
+                    await self._sigaa.client()
+                if stale:
+                    self._tasks.add_task(self._run, key, self._revalidate(fetch, save))
+                return cached
 
-        async with self._sigaa.open() as client:
-            data = await fetch(client)
+        data = await fetch(await self._sigaa.client())
         if refresh:
             await save(data)
         else:
@@ -113,10 +119,10 @@ class SyncEngine:
         )
 
     async def save_classrooms(self, classrooms: Sequence[Classroom]) -> None:
-        if await self._read(self._user) is None:
+        if await self.read(self._user) is None:
             # As turmas penduram no usuário: sem perfil no cache, ele vem antes.
-            async with self._sigaa.detached().open() as client:
-                await self.save_profile(await client.profile.get_profile())
+            client = await self._sigaa.client()
+            await self.save_profile(await client.profile.get_profile())
 
         async def write(session: AsyncSession) -> None:
             user = await self._user(session)
@@ -146,14 +152,14 @@ class SyncEngine:
         )
 
     async def _sync_account(self) -> None:
-        async with self._sigaa.detached().open() as client:
-            user = await self._read(self._user)
-            if user is None or is_stale(user.profile_synced_at, PROFILE_TTL):
-                await self.save_profile(await client.profile.get_profile())
-            if user is None or is_stale(user.classrooms_synced_at, CLASSROOMS_TTL):
-                await self.save_classrooms(await client.classrooms.list_classrooms())
-            for link in await self._read(self._links):
-                await self._sync_classroom(client, link)
+        client = await self._sigaa.client()
+        user = await self.read(self._user)
+        if user is None or is_stale(user.profile_synced_at, PROFILE_TTL):
+            await self.save_profile(await client.profile.get_profile())
+        if user is None or is_stale(user.classrooms_synced_at, CLASSROOMS_TTL):
+            await self.save_classrooms(await client.classrooms.list_classrooms())
+        for link in await self.read(self._links):
+            await self._sync_classroom(client, link)
 
     async def _sync_classroom(self, client: SigaaClient, link: ClassroomUser) -> None:
         assert link.front_end_id is not None
@@ -189,9 +195,7 @@ class SyncEngine:
         save: Callable[[T], Awaitable[None]],
     ) -> Callable[[], Awaitable[None]]:
         async def job() -> None:
-            async with self._sigaa.detached().open() as client:
-                data = await fetch(client)
-            await save(data)
+            await save(await fetch(await self._sigaa.client()))
 
         return job
 
@@ -216,7 +220,7 @@ class SyncEngine:
             return []
         return await ClassroomRepository(session).list_by_user_id(user.id)
 
-    async def _read[T](self, query: Callable[[AsyncSession], Awaitable[T]]) -> T:
+    async def read[T](self, query: Callable[[AsyncSession], Awaitable[T]]) -> T:
         async with self._sessionmaker() as session:
             return await query(session)
 

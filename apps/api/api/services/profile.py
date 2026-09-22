@@ -2,24 +2,28 @@ from typing import Annotated
 
 from fastapi import Depends
 from sigaa_client import UserLevel, UserProfile
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.models import User
-from api.repositories.user import UserRepositoryDep
+from api.repositories.user import UserRepository
 from api.services.sync import PROFILE_TTL, SyncEngineDep, is_stale
 
 
 class ProfileService:
-    def __init__(self, users: UserRepositoryDep, engine: SyncEngineDep) -> None:
-        self._users = users
+    def __init__(self, engine: SyncEngineDep) -> None:
         self._engine = engine
 
     async def get_profile(self, *, refresh: bool = False) -> UserProfile:
-        user = await self._users.get_by_registration(self._engine.registration)
-        synced_at = user.profile_synced_at if user else None
+        async def load(session: AsyncSession) -> tuple[UserProfile | None, bool]:
+            users = UserRepository(session)
+            user = await users.get_by_registration(self._engine.registration)
+            synced_at = user.profile_synced_at if user else None
+            cached = _to_profile(user) if user and synced_at else None
+            return cached, is_stale(synced_at, PROFILE_TTL)
+
         return await self._engine.resolve(
             "profile",
-            cached=_to_profile(user) if user and synced_at else None,
-            stale=is_stale(synced_at, PROFILE_TTL),
+            load=load,
             fetch=lambda client: client.profile.get_profile(),
             save=self._engine.save_profile,
             refresh=refresh,

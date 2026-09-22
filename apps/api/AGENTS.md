@@ -46,16 +46,20 @@ credenciais vivem em cookies `httponly` assinados com JWT (`utils/session.py`).
 O client vem por `Depends` (`dependencies/`):
 
 - `SigaaConnectionDep` — exige refresh cookie, mas só abre o `SigaaClient` em
-  `open()`; `detached()` é a cópia sem cookies para o background.
+  `client()`. É um client só por requisição, reaproveitado pelas
+  `BackgroundTasks` (o teardown da dependência, que o fecha, roda depois delas).
 - `SigaaClientDep` — o client já aberto, para rotas sem cache.
 - `SigaaPublicClientDep` — sem cookie, sem login.
 
-Toda resposta de sucesso de uma rota autenticada, inclusive as que saem do
-cache, renova os dois cookies (access por `access_token_expire_minutes`). Isso
-acontece antes da rota rodar, porque o teardown do `yield` roda tarde demais.
-`AuthenticationFailed` (senha recusada) vira 401 e apaga os dois cookies via
-`clear_cookies_headers()`; `SessionExpired` também é 401, mas mantém os cookies,
-porque a credencial ainda pode valer.
+Os dois cookies só renovam quando a requisição usa o SIGAA: cada
+`connection.client()` e cada relogin os regravam (substituindo, sem repetir o
+`Set-Cookie`), e se a chamada falhar a `HTTPException` os descarta. Resposta que
+sai do cache não renova nada, e o cache só é servido com um access_token válido;
+sem ele, o `SyncEngine` loga no SIGAA antes. Assim uma senha trocada desloga o
+usuário em até `access_token_expire_minutes`. `AuthenticationFailed` (senha
+recusada) vira 401 e apaga os dois cookies via `clear_cookies_headers()`;
+`SessionExpired` também é 401, mas mantém os cookies, porque a credencial ainda
+pode valer.
 
 **Erros do SIGAA viram `HTTPException`** (401 para credencial/sessão, 502 para o
 resto) nas próprias dependências. Nunca deixe exceção do `sigaa_client` vazar da
@@ -63,9 +67,11 @@ rota.
 
 **Services e cache.** Rota não fala com repository nem com SIGAA: chama um
 service (`services/`), que resolve o dado por `SyncEngine.resolve`
-(stale-while-revalidate, gravação em background via `BackgroundTasks`). As
-regras de revalidação e os TTLs ficam em `services/sync.py`. O sync completo do
-login é o `SyncEngine.sync_account()`. Todo dado novo do SIGAA que vale cache
+(stale-while-revalidate, gravação em background via `BackgroundTasks`). O cache
+é lido pelo `load` do `resolve` (ou `SyncEngine.read`), numa sessão própria que
+fecha antes de ir ao SIGAA: services não usam a sessão `get_db` da requisição.
+As regras de revalidação e os TTLs ficam em `services/sync.py`. O sync completo
+do login é o `SyncEngine.sync_account()`. Todo dado novo do SIGAA que vale cache
 segue esse caminho.
 
 **Repositories.** Consultas e gravações ficam em `repositories/`, recebem
@@ -103,8 +109,9 @@ precise de uma variável de ambiente diferente (como os testes) precisa setá-la
 
 Fixtures em `tests/conftest.py`: `client` já usa um SQLite por teste
 (`database` para preparar/conferir o banco), `sigaa` simula o SIGAA via respx e
-`stub_sigaa` troca só o `SigaaClient` por `AsyncMock`s. O `TestClient` roda as
-`BackgroundTasks` antes de devolver a resposta.
+`stub_sigaa` troca só o `SigaaClient` por `AsyncMock`s (`created` conta os
+clients abertos). O `TestClient` roda as `BackgroundTasks` antes de devolver a
+resposta.
 
 ## Comandos
 
