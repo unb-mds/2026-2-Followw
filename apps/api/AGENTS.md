@@ -54,8 +54,12 @@ cookies `httponly` assinados com JWT (`api/utils/session.py`). O client SIGAA
 
 **Perfil e turmas.** `GET /me` e `GET /classrooms` consultam o SIGAA sem persistir
 os dados e usam `SigaaClientDep`, inclusive na autenticação inicial. `/classrooms`
-usa `list_classrooms()` (turmas atuais), retorna `[]` quando não há turmas e não
-depende do banco.
+usa `list_classrooms()` (turmas atuais) quando `semester` não é informado. Com
+`semester=all` ou um semestre no formato `AAAA.P`, usa `list_all_classrooms()` e
+filtra o período quando necessário. Retorna `[]` quando não há resultados e não
+depende do banco. Ambos os métodos consultam as mesmas duas páginas em paralelo;
+turmas antigas podem não ter sala, unidade ou ID numérico. Formato inválido de
+semestre retorna 422; o semestre atual vem do portal, não do calendário local.
 
 **Repositories.** Consultas ao banco ficam em `repositories/`. `UserRepository`
 recebe `AsyncSession` no construtor e consulta por matrícula; `UserRepositoryDep`

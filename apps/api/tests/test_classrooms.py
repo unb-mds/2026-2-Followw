@@ -231,3 +231,89 @@ def test_openapi_documenta_lista_de_turmas_e_401(client):
     assert {"name", "code", "hours", "unity"} <= schema["components"]["schemas"][
         "Subject"
     ]["properties"].keys()
+    parameter = next(p for p in route["parameters"] if p["name"] == "semester")
+    assert parameter["in"] == "query"
+    assert parameter["required"] is False
+    assert "422" in route["responses"]
+    assert "502" in route["responses"]
+
+
+@pytest.mark.parametrize(
+    "semester,expected",
+    [
+        ("all", ["CURRENT", "OLD"]),
+        ("2026.2", ["CURRENT"]),
+        ("2025.2", ["OLD"]),
+        ("2020.1", []),
+    ],
+)
+def test_filtro_por_semestre_consulta_as_duas_paginas_uma_vez(
+    client, classrooms_sigaa, cookies, semester, expected
+):
+    classrooms_sigaa.valid_tokens.add("app14~VIVO")
+    client.cookies.update(cookies(access="app14~VIVO", refresh=CREDENCIAIS))
+
+    response = client.get("/classrooms", params={"semester": semester})
+
+    assert response.status_code == 200
+    assert [classroom["id"] for classroom in response.json()] == expected
+    assert classrooms_sigaa.profile_requests == 1
+    assert classrooms_sigaa.classrooms_requests == 1
+    assert classrooms_sigaa.logins == 0
+
+
+def test_historico_preserva_campos_das_turmas_atuais(client, classrooms_sigaa, cookies):
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+    current = client.get("/classrooms").json()
+
+    response = client.get("/classrooms?semester=all")
+
+    assert response.status_code == 200
+    assert response.json()[0] == current[0]
+    assert response.json()[1] == {
+        "id": "OLD",
+        "sigaa_id": None,
+        "number": "02",
+        "semester": "2025.2",
+        "schedule": "24T23",
+        "room": None,
+        "subject": {
+            "name": "ORIENTAÇÃO A OBJETOS",
+            "code": "FGA0158",
+            "hours": 60,
+            "unity": None,
+            "sigaa_id": None,
+        },
+    }
+
+
+@pytest.mark.parametrize("semester", ["", "2026", "2026-2", "2026.22", "ALL"])
+def test_semestre_invalido_retorna_422_sem_buscar_turmas(
+    client, classrooms_sigaa, cookies, semester
+):
+    classrooms_sigaa.valid_tokens.add("app14~VIVO")
+    client.cookies.update(cookies(access="app14~VIVO", refresh=CREDENCIAIS))
+
+    response = client.get("/classrooms", params={"semester": semester})
+
+    assert response.status_code == 422
+    assert classrooms_sigaa.profile_requests == 0
+    assert classrooms_sigaa.classrooms_requests == 0
+
+
+def test_filtro_renova_sessao_expirada(client, classrooms_sigaa, cookies):
+    client.cookies.update(cookies(access="app14~MORTO", refresh=CREDENCIAIS))
+
+    response = client.get("/classrooms?semester=all")
+
+    assert response.status_code == 200
+    assert any(item["id"] == "OLD" for item in response.json())
+    assert classrooms_sigaa.logins == 1
+    assert ACCESS_COOKIE_NAME in response.cookies
+
+
+def test_filtro_com_erro_no_sigaa_retorna_502(client, classrooms_sigaa, cookies):
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+    classrooms_sigaa.classrooms_status = 503
+
+    assert client.get("/classrooms?semester=all").status_code == 502
