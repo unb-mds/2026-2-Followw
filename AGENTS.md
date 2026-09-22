@@ -23,7 +23,7 @@ Monorepo Python gerenciado como workspace `uv` (`[tool.uv.workspace]` no
 ```
 apps/
   api/              # API pública (FastAPI) — apps/api/AGENTS.md
-  web/              # Front-end web do Follow (ainda não implementado)
+  web/              # Front-end web do Follow — apps/web/AGENTS.md
 packages/
   sigaa-client/      # biblioteca async que fala com o SIGAA — packages/sigaa-client/AGENTS.md
 docs/                # requisitos e notas de sprint
