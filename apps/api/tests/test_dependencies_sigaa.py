@@ -9,7 +9,7 @@ from api.dependencies.sigaa import SigaaClientDep
 from api.dependencies.sigaa_public import SigaaPublicClientDep
 from api.utils.session import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME
 
-CREDENCIAIS = Credentials(registration="251020208", password=SecretStr("senha"))
+CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha"))
 
 
 async def _sonda(client: SigaaClientDep):
@@ -43,7 +43,7 @@ def test_sem_refresh_cookie_e_401(sonda, sigaa):
 def test_refresh_cookie_de_outra_chave_e_401(sonda, sigaa):
     """Sem isso, um cookie forjado viraria 500 em vez de pedir login."""
     forjado = jwt.encode(
-        {"registration": "251020208", "password": "senha"},
+        {"registration": "251000000", "password": "senha"},
         "outra-chave-bem-comprida-para-o-hmac-nao-reclamar",
     )
 
@@ -59,7 +59,7 @@ def test_sem_access_cookie_autentica_e_grava_o_token(sonda, sigaa, cookies):
     response = sonda.get("/probe")
 
     assert response.status_code == 200
-    assert response.json()["registration"] == "251020208"
+    assert response.json()["registration"] == "251000000"
     assert sigaa.logins == 1
     assert _access(response) == "app14~TOKEN1"
 

@@ -1,5 +1,4 @@
 import re
-import unicodedata
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup, Tag
@@ -7,7 +6,7 @@ from bs4 import BeautifulSoup, Tag
 from ..config import DASHBOARD_PATH, SIGAA_BASE_URL
 from ..exceptions import SigaaParseError
 from ..models import UserLevel, UserProfile
-from ..utils.parsing import clean_text, split_course
+from ..utils.parsing import clean_text, lookup_key, split_course
 from .session import Session
 
 _INTEGRALIZATION_RE = re.compile(r"(\d+)\s*%\s*Integralizado")
@@ -45,6 +44,8 @@ class Profile:
             unity=unity,
             course=course,
             integralization=_integralization(card),
+            ira=_academic_index(fields, "ira"),
+            mp=_academic_index(fields, "mp"),
             level=_level(_required(fields, "nível")),
         )
 
@@ -96,10 +97,20 @@ def _integralization(card: Tag) -> int | None:
     return int(match.group(1)) if match else None
 
 
+def _academic_index(fields: dict[str, str], label: str) -> float | None:
+    value = fields.get(label)
+    if not value:
+        return None
+    try:
+        return float(value)
+    except ValueError as error:
+        raise SigaaParseError(
+            f"Campo `{label}` do perfil do discente em formato inesperado."
+        ) from error
+
+
 def _level(value: str) -> UserLevel:
-    key = unicodedata.normalize("NFKD", value.strip().lower())
-    key = "".join(c for c in key if not unicodedata.combining(c))
-    level = _LEVELS.get(key)
+    level = _LEVELS.get(lookup_key(value))
     if level is None:
         raise SigaaParseError(f"Nível `{value}` desconhecido.")
     return level

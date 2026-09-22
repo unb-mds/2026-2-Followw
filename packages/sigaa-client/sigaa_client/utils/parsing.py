@@ -1,6 +1,7 @@
 """Helpers de leitura de HTML compartilhados entre os resources."""
 
 import re
+import unicodedata
 
 from bs4 import BeautifulSoup, Tag
 
@@ -38,3 +39,9 @@ def split_location(value: str) -> tuple[str | None, str | None]:
 def schedule_code(value: str) -> str | None:
     """`35M5 35T1 (10/08/2026 - 14/12/2026)` -> `35M5 35T1`."""
     return _DATE_RANGE_RE.sub(" ", value).strip() or None
+
+
+def lookup_key(value: str) -> str:
+    """Chave de lookup, sem acento e em minúscula: `Março` -> `marco`."""
+    normalized = unicodedata.normalize("NFKD", value.strip().lower())
+    return "".join(c for c in normalized if not unicodedata.combining(c))

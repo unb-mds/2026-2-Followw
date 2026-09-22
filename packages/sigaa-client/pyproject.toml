@@ -10,7 +10,10 @@ dependencies = [
     "httpx>=0.28.1",
     "beautifulsoup4>=4.13.0",
     "lxml>=5.3.0",
+    "pillow>=11.0.0",
     "pydantic>=2.13.5",
+    "pypdf[image]>=5.9.0",
+    "zxing-cpp>=2.3.0",
 ]
 
 [build-system]

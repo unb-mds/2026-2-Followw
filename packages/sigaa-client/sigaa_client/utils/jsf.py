@@ -63,6 +63,18 @@ def build_submit(
     return urljoin(SIGAA_BASE_URL, str(form.get("action") or "")), payload
 
 
+def build_menu_action(form: Tag, action: str) -> tuple[str, dict[str, str]]:
+    """A URL e o corpo do postback de um item do menu lateral (`jscookMenu`).
+
+    Diferente do link `jsfcljs`, o clique aqui só troca o hidden `jscook_action`
+    do form e submete o resto do estado como veio — sem botão nem parâmetros
+    extras.
+    """
+    payload = _form_defaults(form)
+    payload["jscook_action"] = action
+    return urljoin(SIGAA_BASE_URL, str(form.get("action") or "")), payload
+
+
 def _form_defaults(form: Tag) -> dict[str, str]:
     payload: dict[str, str] = {}
 
