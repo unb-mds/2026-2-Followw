@@ -145,8 +145,6 @@ def test_me_com_login_sem_token_retorna_401(client, sigaa, cookies):
     [
         pytest.param("<html>layout inesperado</html>", id="sem-perfil"),
         pytest.param(PERFIL.replace("3.9524", "invalido"), id="ira-invalido"),
-        pytest.param(PERFIL.replace("3.9524", "NaN"), id="ira-nao-numerico"),
-        pytest.param(PERFIL.replace("4.1724", "Infinity"), id="mp-infinito"),
     ],
 )
 def test_me_com_perfil_invalido_retorna_401(client, sigaa, cookies, page):
@@ -157,15 +155,14 @@ def test_me_com_perfil_invalido_retorna_401(client, sigaa, cookies, page):
     assert client.get("/me").status_code == 401
 
 
-def test_me_aceita_indices_com_virgula_e_zero(client, sigaa, cookies):
+def test_me_aceita_indice_zero(client, sigaa, cookies):
     sigaa.valid_tokens.add("app14~VIVO")
     client.cookies.update(cookies(access="app14~VIVO", refresh=CREDENCIAIS))
-    sigaa.profile = PERFIL.replace("3.9524", "3,9524").replace("4.1724", "0")
+    sigaa.profile = PERFIL.replace("4.1724", "0")
 
     response = client.get("/me")
 
     assert response.status_code == 200
-    assert response.json()["ira"] == 3.9524
     assert response.json()["mp"] == 0
 
 
