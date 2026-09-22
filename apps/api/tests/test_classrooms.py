@@ -184,31 +184,31 @@ def test_senha_recusada_retorna_401(client, classrooms_sigaa, cookies, access):
 
 
 @pytest.mark.parametrize("access", [None, "app14~VIVO"])
-def test_sigaa_indisponivel_retorna_401(client, classrooms_sigaa, cookies, access):
+def test_sigaa_indisponivel_retorna_502(client, classrooms_sigaa, cookies, access):
     classrooms_sigaa.unavailable = True
     client.cookies.update(cookies(access=access, refresh=CREDENCIAIS))
 
     response = client.get("/classrooms")
 
-    assert response.status_code == 401
+    assert response.status_code == 502
     assert response.json() == {"detail": "SIGAA is unavailable"}
 
 
 @pytest.mark.parametrize("status_code", [403, 500, 503])
-def test_erro_http_na_listagem_retorna_401(
+def test_erro_http_na_listagem_retorna_502(
     client, classrooms_sigaa, cookies, status_code
 ):
     classrooms_sigaa.classrooms_status = status_code
     client.cookies.update(cookies(refresh=CREDENCIAIS))
 
-    assert client.get("/classrooms").status_code == 401
+    assert client.get("/classrooms").status_code == 502
 
 
-def test_html_da_listagem_invalido_retorna_401(client, classrooms_sigaa, cookies):
+def test_html_da_listagem_invalido_retorna_502(client, classrooms_sigaa, cookies):
     classrooms_sigaa.classrooms = "<html>layout inesperado</html>"
     client.cookies.update(cookies(refresh=CREDENCIAIS))
 
-    assert client.get("/classrooms").status_code == 401
+    assert client.get("/classrooms").status_code == 502
 
 
 def test_logout_impede_nova_consulta(client, classrooms_sigaa):

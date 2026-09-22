@@ -46,7 +46,7 @@ Como um estudante autenticado:
 **Critérios de Aceitação:**
 * O endpoint deve exigir autenticação válida (sessão ativa).
 * Os dados retornados devem ser padronizados em formato JSON legível e normalizado.
-* A autenticação utiliza os cookies emitidos por `POST /auth/sigaa`. A sessão do SIGAA é renovada quando possível; credenciais ausentes ou inválidas e erros do SIGAA retornam HTTP 401 nesta rota, conforme a issue #10.
+* A autenticação utiliza os cookies emitidos por `POST /auth/sigaa`. A sessão do SIGAA é renovada quando possível; credenciais ausentes ou inválidas retornam HTTP 401 e falhas do SIGAA retornam HTTP 502 nesta rota.
 * Foto, bio, integralização, IRA e MP indisponíveis são retornados como `null`. O e-mail também é `null` enquanto o cliente não conseguir obter o endereço completo; o portal do discente só exibe o endereço truncado.
 * A consulta não persiste o perfil nem as credenciais e não depende de conexão com o banco. O `UserRepository` estabelece o acesso ao banco por matrícula para os módulos que precisarem de dados persistidos.
 
@@ -63,7 +63,7 @@ Como um estudante autenticado:
 * **RF04: Detalhes da Turma e Relação de Colegas (/turmas/<id>):** O sistema deve fornecer um endpoint protegido (GET /turmas/<id>) para consultar os dados específicos de uma disciplina selecionada, incluindo código, nome, horário, local/sala, docentes e a lista completa de colegas matriculados na mesma turma.
 
 **Critérios de Aceitação:**
-* A listagem usa os cookies de `POST /auth/sigaa` e retorna HTTP 401 para credenciais ausentes ou inválidas e falhas do SIGAA, conforme a issue #16.
+* A listagem usa os cookies de `POST /auth/sigaa` e retorna HTTP 401 para credenciais ausentes ou inválidas e HTTP 502 para falhas do SIGAA.
 * Sem turmas atuais, o retorno é HTTP 200 com `[]`. Campos opcionais indisponíveis são `null`. A consulta não persiste dados nem depende do banco; cache e sincronização pertencem ao RF05.
 * A visualização detalhada deve expor a lista de colegas de turma com nome e matrícula (ou identificador único retornado pelo SIGAA).
 * Requisições para turmas inexistentes ou para as quais o usuário não tem permissão de visualização devem retornar código 404 (Not Found) ou 403 (Forbidden).

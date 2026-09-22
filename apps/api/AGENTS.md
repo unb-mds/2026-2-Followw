@@ -15,7 +15,7 @@ api/
     models.py         # modelos SQLAlchemy
     main.py           # engine, async_session, get_db, db-init
   dependencies/
-    sigaa.py           # SigaaClientDep e SigaaClient401Dep — clientes autenticados
+    sigaa.py           # SigaaClientDep — cliente autenticado
     sigaa_public.py     # SigaaPublicClientDep — cliente público
   repositories/
     user.py             # UserRepository e UserRepositoryDep
@@ -46,8 +46,6 @@ cookies `httponly` assinados com JWT (`api/utils/session.py`). O client SIGAA
   quando o `sigaa_client` troca a sessão sozinho (`on_session_renewed`).
 - `SigaaPublicClientDep` (`dependencies/sigaa_public.py`) — sem cookie, sem
   login.
-- `SigaaClient401Dep` (`dependencies/sigaa.py`) — reutiliza o cliente autenticado
-  e converte também os erros 502 do SIGAA em 401, conforme as issues #10 e #16.
 
 **Erros do SIGAA viram `HTTPException`.** `AuthenticationFailed`/
 `SessionExpired` → 401; qualquer outro `SigaaError` ou `httpx.HTTPError` → 502
@@ -55,9 +53,9 @@ cookies `httponly` assinados com JWT (`api/utils/session.py`). O client SIGAA
 `sigaa_client` vazar para fora da rota.
 
 **Perfil e turmas.** `GET /me` e `GET /classrooms` consultam o SIGAA sem persistir
-os dados e usam `SigaaClient401Dep`, inclusive na autenticação inicial. As demais
-rotas mantêm 502 para falhas do SIGAA. `/classrooms` usa `list_classrooms()`
-(turmas atuais), retorna `[]` quando não há turmas e não depende do banco.
+os dados e usam `SigaaClientDep`, inclusive na autenticação inicial. `/classrooms`
+usa `list_classrooms()` (turmas atuais), retorna `[]` quando não há turmas e não
+depende do banco.
 
 **Repositories.** Consultas ao banco ficam em `repositories/`. `UserRepository`
 recebe `AsyncSession` no construtor e consulta por matrícula; `UserRepositoryDep`

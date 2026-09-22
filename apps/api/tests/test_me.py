@@ -122,22 +122,22 @@ def test_me_com_credenciais_recusadas_retorna_401(client, sigaa, cookies, access
 
 
 @pytest.mark.parametrize("access", [None, "app14~VIVO"])
-def test_me_com_sigaa_indisponivel_retorna_401(client, sigaa, cookies, access):
+def test_me_com_sigaa_indisponivel_retorna_502(client, sigaa, cookies, access):
     sigaa.valid_tokens.add("app14~VIVO")
     client.cookies.update(cookies(access=access, refresh=CREDENCIAIS))
     sigaa.unavailable = True
 
     response = client.get("/me")
 
-    assert response.status_code == 401
+    assert response.status_code == 502
     assert response.json() == {"detail": "SIGAA is unavailable"}
 
 
-def test_me_com_login_sem_token_retorna_401(client, sigaa, cookies):
+def test_me_com_login_sem_token_retorna_502(client, sigaa, cookies):
     client.cookies.update(cookies(refresh=CREDENCIAIS))
     sigaa.mode = "sem_cookie"
 
-    assert client.get("/me").status_code == 401
+    assert client.get("/me").status_code == 502
 
 
 @pytest.mark.parametrize(
@@ -147,12 +147,12 @@ def test_me_com_login_sem_token_retorna_401(client, sigaa, cookies):
         pytest.param(PERFIL.replace("3.9524", "invalido"), id="ira-invalido"),
     ],
 )
-def test_me_com_perfil_invalido_retorna_401(client, sigaa, cookies, page):
+def test_me_com_perfil_invalido_retorna_502(client, sigaa, cookies, page):
     sigaa.valid_tokens.add("app14~VIVO")
     client.cookies.update(cookies(access="app14~VIVO", refresh=CREDENCIAIS))
     sigaa.profile = page
 
-    assert client.get("/me").status_code == 401
+    assert client.get("/me").status_code == 502
 
 
 def test_me_aceita_indice_zero(client, sigaa, cookies):
@@ -166,12 +166,12 @@ def test_me_aceita_indice_zero(client, sigaa, cookies):
     assert response.json()["mp"] == 0
 
 
-def test_me_com_erro_http_do_sigaa_retorna_401(client, sigaa, cookies):
+def test_me_com_erro_http_do_sigaa_retorna_502(client, sigaa, cookies):
     sigaa.valid_tokens.add("app14~VIVO")
     client.cookies.update(cookies(access="app14~VIVO", refresh=CREDENCIAIS))
     sigaa.profile_status = 503
 
-    assert client.get("/me").status_code == 401
+    assert client.get("/me").status_code == 502
 
 
 def test_me_apos_logout_exige_novo_login(client, sigaa):

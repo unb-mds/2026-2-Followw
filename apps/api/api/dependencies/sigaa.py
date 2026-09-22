@@ -1,5 +1,4 @@
 from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
 from typing import Annotated
 
 import httpx
@@ -49,21 +48,3 @@ async def get_sigaa_client(
 
 
 SigaaClientDep = Annotated[SigaaClient, Depends(get_sigaa_client)]
-
-
-async def get_sigaa_client_or_401(
-    request: Request, response: Response
-) -> AsyncGenerator[SigaaClient]:
-    try:
-        async with asynccontextmanager(get_sigaa_client)(request, response) as client:
-            yield client
-    except HTTPException as error:
-        # As issues #10 e #16 exigem 401 também para falhas do SIGAA.
-        if error.status_code == status.HTTP_502_BAD_GATEWAY:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail=error.detail
-            ) from error
-        raise
-
-
-SigaaClient401Dep = Annotated[SigaaClient, Depends(get_sigaa_client_or_401)]
