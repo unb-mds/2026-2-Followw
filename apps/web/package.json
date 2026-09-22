@@ -1,46 +1,54 @@
 {
-  "name": "web",
-  "private": true,
-  "type": "module",
-  "imports": {
-    "#/*": "./src/*"
-  },
-  "scripts": {
-    "dev": "vite dev --port 3000",
-    "generate-routes": "tsr generate",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "@posthog/react": "^1.7.0",
-    "@tailwindcss/vite": "^4.1.18",
-    "@tanstack/react-devtools": "latest",
-    "@tanstack/react-query": "latest",
-    "@tanstack/react-query-devtools": "latest",
-    "@tanstack/react-router": "latest",
-    "@tanstack/react-router-devtools": "latest",
-    "@tanstack/react-router-ssr-query": "latest",
-    "@tanstack/react-start": "latest",
-    "nitro": "3.0.260610-beta",
-    "posthog-js": "^1.358.1",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "tailwindcss": "^4.1.18"
-  },
-  "devDependencies": {
-    "@tanstack/devtools-vite": "latest",
-    "@tanstack/router-cli": "^1.132.0",
-    "@types/node": "^22.10.2",
-    "@types/react": "^19.2.0",
-    "@types/react-dom": "^19.2.0",
-    "@vitejs/plugin-react": "^6.0.1",
-    "typescript": "^6.0.2",
-    "vite": "^8.0.0"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "lightningcss"
-    ]
-  }
+    "name": "web",
+    "private": true,
+    "type": "module",
+    "imports": {
+        "#/*": "./src/*"
+    },
+    "scripts": {
+        "dev": "vite dev",
+        "generate-routes": "tsr generate",
+        "build": "vite build",
+        "preview": "vite preview",
+        "fmt": "oxfmt",
+        "fmt:check": "oxfmt --check",
+        "lint": "oxlint",
+        "lint:fix": "oxlint --fix",
+        "check": "oxfmt --check && oxlint --deny-warnings"
+    },
+    "dependencies": {
+        "@posthog/react": "^1.7.0",
+        "@tailwindcss/vite": "^4.1.18",
+        "@tanstack/react-devtools": "latest",
+        "@tanstack/react-query": "latest",
+        "@tanstack/react-query-devtools": "latest",
+        "@tanstack/react-router": "latest",
+        "@tanstack/react-router-devtools": "latest",
+        "@tanstack/react-router-ssr-query": "latest",
+        "@tanstack/react-start": "latest",
+        "nitro": "3.0.260903-beta",
+        "posthog-js": "^1.358.1",
+        "react": "^19.2.0",
+        "react-dom": "^19.2.0",
+        "tailwindcss": "^4.1.18"
+    },
+    "devDependencies": {
+        "@tanstack/devtools-vite": "latest",
+        "@tanstack/router-cli": "^1.132.0",
+        "@types/node": "^26.6.2",
+        "@types/react": "^19.2.0",
+        "@types/react-dom": "^19.2.0",
+        "@vitejs/plugin-react": "^6.0.1",
+        "oxfmt": "^0.70.0",
+        "oxlint": "^1.85.0",
+        "oxlint-tsgolint": "^7.0.2002",
+        "typescript": "^7.0.2",
+        "vite": "^8.0.0"
+    },
+    "pnpm": {
+        "onlyBuiltDependencies": [
+            "esbuild",
+            "lightningcss"
+        ]
+    }
 }
