@@ -62,6 +62,10 @@ O login acontece sob demanda: chamar qualquer método já autentica. `authentica
 Cada módulo é um atributo do client, e cada método devolve modelo Pydantic
 (frozen) ou lista deles.
 
+`get_profile()` inclui `ira` e `mp` como números decimais, ou `None` quando
+esses índices não aparecem no perfil. `integralization` é a porcentagem de
+integralização do curso e é independente desses índices.
+
 ### `SigaaClient` (autenticado)
 
 ```python

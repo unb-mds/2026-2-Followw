@@ -7,6 +7,7 @@ import respx
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sigaa_client import Credentials
+from sigaa_client.config import CLASSROOMS_PATH
 
 # O `Settings` é instanciado no import de `api.core.config`, então as variáveis
 # precisam existir antes de qualquer teste importar a app.
@@ -53,6 +54,12 @@ class FakeSigaa:
         # (`mode = "sem_cookie"`), que é como uma mudança de layout aparece.
         self.unavailable = False
         self.mode = "normal"
+        self.profile = PERFIL
+        self.profile_status = 200
+        self.profile_requests = 0
+        self.classrooms = '<html><body><table class="listagem"></table></body></html>'
+        self.classrooms_status = 200
+        self.classrooms_requests = 0
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         if self.unavailable:
@@ -100,7 +107,12 @@ class FakeSigaa:
             return httpx.Response(
                 302, headers={"location": "https://sigaa.unb.br/sigaa/verTelaLogin.do"}
             )
-        return httpx.Response(200, text=PERFIL)
+        if path == CLASSROOMS_PATH:
+            self.classrooms_requests += 1
+            return httpx.Response(self.classrooms_status, text=self.classrooms)
+
+        self.profile_requests += 1
+        return httpx.Response(self.profile_status, text=self.profile)
 
 
 def _cookie(request: httpx.Request, name: str) -> str | None:

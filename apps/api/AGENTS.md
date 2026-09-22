@@ -17,6 +17,9 @@ api/
   dependencies/
     sigaa.py           # SigaaClientDep — cliente autenticado
     sigaa_public.py     # SigaaPublicClientDep — cliente público
+  repositories/
+    user.py             # UserRepository e UserRepositoryDep
+    classroom.py        # ClassroomRepository e ClassroomRepositoryDep
   modules/
     <feature>/
       main.py            # router da feature
@@ -48,6 +51,25 @@ cookies `httponly` assinados com JWT (`api/utils/session.py`). O client SIGAA
 `SessionExpired` → 401; qualquer outro `SigaaError` ou `httpx.HTTPError` → 502
 ("SIGAA is unavailable" ou a mensagem da exceção). Nunca deixe uma exceção do
 `sigaa_client` vazar para fora da rota.
+
+**Perfil e turmas.** `GET /me` e `GET /classrooms` consultam o SIGAA sem persistir
+os dados e usam `SigaaClientDep`, inclusive na autenticação inicial. `/classrooms`
+usa `list_classrooms()` (turmas atuais), retorna `[]` quando não há turmas e não
+depende do banco.
+
+**Repositories.** Consultas ao banco ficam em `repositories/`. `UserRepository`
+recebe `AsyncSession` no construtor e consulta por matrícula; `UserRepositoryDep`
+obtém a sessão de `get_db`. Nos testes, substitua `get_db` ou
+`get_user_repository` em `app.dependency_overrides`. Não persista credenciais.
+`User.ira` e `User.mp` são opcionais, como no cliente. Bancos já criados precisam
+receber essas colunas antes de usar o repository; `create_tables` não altera
+tabelas existentes.
+
+`ClassroomRepository.list_by_user_id` consulta os vínculos do usuário no banco,
+com filtro opcional por semestre, sem duplicar turmas e carregando o componente
+curricular. Recebe o UUID local do usuário; os IDs retornados pelo endpoint são
+os do SIGAA. A dependência `ClassroomRepositoryDep` segue o mesmo padrão de
+injeção do `UserRepositoryDep`.
 
 **Modelos SQLAlchemy.** Toda tabela herda `Base, UUIDPrimaryKeyMixin,
 TimestampMixin` (`db/base.py`): id é UUID, `created_at`/`updated_at`
