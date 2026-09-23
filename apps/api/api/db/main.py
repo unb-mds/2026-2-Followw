@@ -1,6 +1,8 @@
 import asyncio
 from collections.abc import AsyncGenerator
+from typing import Annotated
 
+from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from api.core.config import settings
@@ -11,8 +13,17 @@ engine = create_async_engine(settings.database_url)
 async_session = async_sessionmaker(engine, expire_on_commit=False)
 
 
-async def get_db() -> AsyncGenerator[AsyncSession]:
-    async with async_session() as session:
+def get_sessionmaker() -> async_sessionmaker[AsyncSession]:
+    """Background sync fabric"""
+    return async_session
+
+
+async def get_db(
+    sessionmaker: Annotated[
+        async_sessionmaker[AsyncSession], Depends(get_sessionmaker)
+    ],
+) -> AsyncGenerator[AsyncSession]:
+    async with sessionmaker() as session:
         yield session
 
 

@@ -1,7 +1,8 @@
 from fastapi import APIRouter
 from sigaa_client import UserProfile
 
-from api.dependencies.sigaa import SigaaClientDep
+from api.dependencies.refresh import RefreshQuery
+from api.services.profile import ProfileServiceDep
 
 router = APIRouter()
 
@@ -15,5 +16,7 @@ router = APIRouter()
         502: {"description": "SIGAA indisponível."},
     },
 )
-async def get_me(client: SigaaClientDep) -> UserProfile:
-    return await client.profile.get_profile()
+async def get_me(
+    service: ProfileServiceDep, refresh: RefreshQuery = False
+) -> UserProfile:
+    return await service.get_profile(refresh=refresh)

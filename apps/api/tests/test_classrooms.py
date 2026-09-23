@@ -3,9 +3,21 @@ from datetime import UTC, datetime, timedelta
 import jwt
 import pytest
 from pydantic import SecretStr
-from sigaa_client import Credentials
+from sigaa_client import (
+    Classroom,
+    ClassroomMember,
+    ClassroomRole,
+    Credentials,
+    SigaaError,
+    StatisticsShare,
+    StudentSituation,
+    Subject,
+)
+from sqlalchemy import update
 
 from api.core.config import settings
+from api.db.models import Classroom as ClassroomModel
+from api.db.models import User
 from api.utils.session import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME
 
 CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha"))
@@ -55,6 +67,7 @@ def test_login_e_listagem_retornam_apenas_turmas_atuais(client, classrooms_sigaa
         "/auth/sigaa", json={"registration": "251000000", "password": "senha"}
     )
     assert login.status_code == 200
+    requests_before = classrooms_sigaa.classrooms_requests
 
     response = client.get("/classrooms")
 
@@ -67,6 +80,7 @@ def test_login_e_listagem_retornam_apenas_turmas_atuais(client, classrooms_sigaa
             "semester": "2026.2",
             "schedule": "35M5 35T1",
             "room": "MOCAP",
+            "current": True,
             "subject": {
                 "name": "ESTRUTURAS DE DADOS 1",
                 "code": "FGA0146",
@@ -77,19 +91,22 @@ def test_login_e_listagem_retornam_apenas_turmas_atuais(client, classrooms_sigaa
         }
     ]
     assert classrooms_sigaa.logins == 1
-    assert classrooms_sigaa.classrooms_requests == 1
+    # O login já sincronizou as turmas: a listagem sai do cache.
+    assert classrooms_sigaa.classrooms_requests == requests_before
     assert client.get("/me").status_code == 200
 
 
-def test_listagem_reflete_alteracoes_no_sigaa(client, classrooms_sigaa, cookies):
+def test_refresh_reflete_alteracoes_no_sigaa(client, classrooms_sigaa, cookies):
     client.cookies.update(cookies(refresh=CREDENCIAIS))
     assert client.get("/classrooms").json()[0]["room"] == "MOCAP"
     classrooms_sigaa.profile = classrooms_sigaa.profile.replace("MOCAP", "SALA 02")
+    assert client.get("/classrooms").json()[0]["room"] == "MOCAP"
 
-    response = client.get("/classrooms")
+    response = client.get("/classrooms", params={"refresh": "true"})
 
     assert response.status_code == 200
     assert response.json()[0]["room"] == "SALA 02"
+    assert client.get("/classrooms").json()[0]["room"] == "SALA 02"
     assert classrooms_sigaa.classrooms_requests == 2
 
 
@@ -248,8 +265,18 @@ def test_openapi_documenta_lista_de_turmas_e_401(client):
     ],
 )
 def test_filtro_por_semestre_consulta_as_duas_paginas_uma_vez(
-    client, classrooms_sigaa, cookies, semester, expected
+    client, classrooms_sigaa, cookies, database, semester, expected
 ):
+    # Com o perfil já no cache, gravar as turmas não precisa buscá-lo.
+    with database() as session:
+        session.add(
+            User(
+                name="NOME DISCENTE",
+                registration=CREDENCIAIS.registration,
+                profile_synced_at=datetime.now(UTC),
+            )
+        )
+        session.commit()
     classrooms_sigaa.valid_tokens.add("app14~VIVO")
     client.cookies.update(cookies(access="app14~VIVO", refresh=CREDENCIAIS))
 
@@ -277,6 +304,7 @@ def test_historico_preserva_campos_das_turmas_atuais(client, classrooms_sigaa, c
         "semester": "2025.2",
         "schedule": "24T23",
         "room": None,
+        "current": False,
         "subject": {
             "name": "ORIENTAÇÃO A OBJETOS",
             "code": "FGA0158",
@@ -317,3 +345,172 @@ def test_filtro_com_erro_no_sigaa_retorna_502(client, classrooms_sigaa, cookies)
     classrooms_sigaa.classrooms_status = 503
 
     assert client.get("/classrooms?semester=all").status_code == 502
+
+
+ATUAL = Classroom(
+    id="AAA",
+    number="01",
+    semester="2026.2",
+    current=True,
+    subject=Subject(code="FGA0146", name="ESTRUTURAS DE DADOS 1"),
+)
+ANTIGA = Classroom(
+    id="BBB",
+    number="02",
+    semester="2025.2",
+    subject=Subject(code="FGA0158", name="ORIENTAÇÃO A OBJETOS"),
+)
+PARTICIPANTES = [
+    ClassroomMember(name="ZECA", role=ClassroomRole.ALUNO, registration="2"),
+    ClassroomMember(name="NOME DOCENTE", role=ClassroomRole.PROFESSOR),
+    ClassroomMember(name="ANA", role=ClassroomRole.ALUNO, registration="3"),
+]
+
+
+@pytest.fixture
+def turmas(stub_sigaa):
+    stub_sigaa.classrooms.list_classrooms.return_value = [ATUAL, ANTIGA]
+    stub_sigaa.classrooms.list_classroom_members.return_value = PARTICIPANTES
+    stub_sigaa.classrooms.get_classroom_statistics.return_value = (
+        StatisticsShare(situation=StudentSituation.MATRICULADO, percentage=10),
+        StatisticsShare(situation=StudentSituation.APROVADO, percentage=90),
+    )
+    return stub_sigaa
+
+
+def test_participantes_saem_do_cache_do_login(client, sigaa, turmas):
+    client.post("/auth/sigaa", json={"registration": "251000000", "password": "senha"})
+    lidas = turmas.classrooms.list_classroom_members.await_count
+
+    response = client.get("/classrooms/AAA/members")
+
+    assert response.status_code == 200
+    # Docentes primeiro, depois discentes em ordem alfabética.
+    assert [m["name"] for m in response.json()] == ["NOME DOCENTE", "ANA", "ZECA"]
+    assert response.json()[1]["registration"] == "3"
+    assert turmas.classrooms.list_classroom_members.await_count == lidas
+
+
+def test_participantes_sem_cache_buscam_as_turmas_antes(client, turmas, cookies):
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+
+    primeira = client.get("/classrooms/BBB/members")
+    segunda = client.get("/classrooms/BBB/members")
+
+    assert primeira.status_code == segunda.status_code == 200
+    assert primeira.json() == segunda.json()
+    assert turmas.classrooms.list_classrooms.await_count == 1
+    assert turmas.classrooms.list_classroom_members.await_count == 1
+
+
+def test_turma_fora_da_lista_do_usuario_retorna_404(client, turmas, cookies):
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+
+    for screen in ("members", "statistics"):
+        response = client.get(f"/classrooms/DE-OUTRO-ALUNO/{screen}")
+        assert response.status_code == 404
+    turmas.classrooms.list_classroom_members.assert_not_awaited()
+
+
+def test_turma_nova_fora_do_cache_rele_a_lista(client, sigaa, turmas):
+    client.post("/auth/sigaa", json={"registration": "251000000", "password": "senha"})
+    nova = ATUAL.model_copy(update={"id": "CCC", "number": "02"})
+    turmas.classrooms.list_classrooms.return_value = [ATUAL, nova, ANTIGA]
+
+    response = client.get("/classrooms/CCC/members")
+
+    assert response.status_code == 200
+    assert turmas.classrooms.list_classrooms.await_count == 2
+    assert turmas.classrooms.list_classroom_members.await_args.args == ("CCC",)
+
+
+def test_detalhes_de_turma_passada_nunca_revalidam(client, sigaa, turmas, database):
+    client.post("/auth/sigaa", json={"registration": "251000000", "password": "senha"})
+    with database() as session:
+        session.execute(
+            update(ClassroomModel).values(
+                members_synced_at=datetime.now(UTC) - timedelta(days=365)
+            )
+        )
+        session.commit()
+
+    client.get("/classrooms/BBB/members")
+    assert turmas.classrooms.list_classroom_members.await_count == 2
+    client.get("/classrooms/AAA/members")
+    assert turmas.classrooms.list_classroom_members.await_count == 3
+
+
+def test_refresh_dos_participantes_busca_no_sigaa(client, sigaa, turmas):
+    client.post("/auth/sigaa", json={"registration": "251000000", "password": "senha"})
+    turmas.classrooms.list_classroom_members.return_value = PARTICIPANTES[:1]
+
+    response = client.get("/classrooms/AAA/members", params={"refresh": "true"})
+
+    assert [m["name"] for m in response.json()] == ["ZECA"]
+    assert [m["name"] for m in client.get("/classrooms/AAA/members").json()] == ["ZECA"]
+
+
+def test_estatisticas_na_ordem_da_legenda(client, turmas, cookies):
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+
+    primeira = client.get("/classrooms/AAA/statistics")
+    segunda = client.get("/classrooms/AAA/statistics")
+
+    assert primeira.status_code == 200
+    assert (
+        primeira.json()
+        == segunda.json()
+        == [
+            {"situation": "aprovado", "percentage": 90.0},
+            {"situation": "matriculado", "percentage": 10.0},
+        ]
+    )
+    assert turmas.classrooms.get_classroom_statistics.await_count == 1
+
+
+def test_detalhes_com_sigaa_fora_retornam_502(client, turmas, cookies):
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+    turmas.classrooms.get_classroom_statistics.side_effect = SigaaError("fora")
+
+    assert client.get("/classrooms/AAA/statistics").status_code == 502
+
+
+def test_openapi_documenta_participantes_e_estatisticas(client):
+    paths = client.get("/openapi.json").json()["paths"]
+
+    for screen in ("members", "statistics"):
+        route = paths[f"/classrooms/{{classroom_id}}/{screen}"]["get"]
+        assert {"401", "404", "502"} <= route["responses"].keys()
+        assert any(p["name"] == "refresh" for p in route["parameters"])
+
+
+def test_refresh_atualiza_turmas_antigas(client, sigaa, turmas):
+    client.post("/auth/sigaa", json={"registration": "251000000", "password": "senha"})
+    antiga = ANTIGA.model_copy(update={"schedule": "24T45", "room": "SALA 07"})
+    turmas.classrooms.list_classrooms.return_value = [ATUAL, antiga]
+
+    response = client.get("/classrooms?semester=2025.2&refresh=true")
+
+    assert response.json()[0]["schedule"] == "24T45"
+    assert response.json()[0]["room"] == "SALA 07"
+    assert client.get("/classrooms?semester=2025.2").json() == response.json()
+
+
+@pytest.mark.parametrize("screen", ["members", "statistics"])
+def test_detalhes_revalidam_a_lista_de_turmas_vencida(
+    client, sigaa, turmas, database, screen
+):
+    client.post("/auth/sigaa", json={"registration": "251000000", "password": "senha"})
+    with database() as session:
+        session.execute(
+            update(User).values(
+                classrooms_synced_at=datetime.now(UTC) - timedelta(days=4)
+            )
+        )
+        session.commit()
+    # A turma foi trancada: o acesso a ela some depois da revalidação.
+    turmas.classrooms.list_classrooms.return_value = [ANTIGA]
+
+    assert client.get(f"/classrooms/AAA/{screen}").status_code == 200
+    assert turmas.classrooms.list_classrooms.await_count == 2
+    assert client.get(f"/classrooms/AAA/{screen}").status_code == 404

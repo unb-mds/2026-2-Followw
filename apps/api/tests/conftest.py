@@ -112,6 +112,7 @@ class FakeSigaa:
             return httpx.Response(self.classrooms_status, text=self.classrooms)
 
         self.profile_requests += 1
+
         return httpx.Response(self.profile_status, text=self.profile)
 
 
@@ -120,6 +121,7 @@ def _cookie(request: httpx.Request, name: str) -> str | None:
         key, _, value = part.strip().partition("=")
         if key == name:
             return value
+
     return None
 
 
@@ -135,10 +137,39 @@ def sigaa():
 
 
 @pytest.fixture
-def client():
+def database(tmp_path):
+    """Banco SQLite em arquivo: a app usa via aiosqlite, o teste via sessão síncrona."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    from api.db.base import Base
+    from api.db.models import User  # noqa: F401 — registra as tabelas no metadata
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'cache.db'}")
+    Base.metadata.create_all(engine)
+    yield sessionmaker(engine, expire_on_commit=False)
+    engine.dispose()
+
+
+@pytest.fixture
+def async_database(database):
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+    from sqlalchemy.pool import NullPool
+
+    url = database.kw["bind"].url.set(drivername="sqlite+aiosqlite")
+    # Sem pool: o TestClient abre um event loop novo a cada requisição.
+    engine = create_async_engine(url, poolclass=NullPool)
+    return async_sessionmaker(engine, expire_on_commit=False)
+
+
+@pytest.fixture
+def client(async_database):
+    from api.db.main import get_sessionmaker
     from api.main import app
 
-    return TestClient(app)
+    app.dependency_overrides[get_sessionmaker] = lambda: async_database
+    yield TestClient(app)
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture
@@ -197,3 +228,46 @@ def probe_app():
         return TestClient(app)
 
     return _build
+
+
+@pytest.fixture
+def stub_sigaa(monkeypatch):
+    """Troca o `SigaaClient` por dublês de método, para testar o cache sem HTML.
+
+    Só o client muda: conexão, cookies e tradução de erros continuam os da app.
+    `created` conta quantos clients a app abriu.
+    """
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock, Mock
+
+    from sigaa_client import UserLevel, UserProfile
+
+    client = SimpleNamespace(
+        authenticate=AsyncMock(return_value="app14~STUB"),
+        aclose=AsyncMock(),
+        profile=SimpleNamespace(
+            get_profile=AsyncMock(
+                return_value=UserProfile(
+                    name="NOME DISCENTE",
+                    registration="251000000",
+                    photo=None,
+                    bio=None,
+                    unity="FCTE",
+                    course="ENGENHARIA DE SOFTWARE",
+                    integralization=35,
+                    ira=3.5,
+                    mp=4.0,
+                    level=UserLevel.GRADUACAO,
+                )
+            )
+        ),
+        classrooms=SimpleNamespace(
+            list_classrooms=AsyncMock(return_value=[]),
+            list_classroom_members=AsyncMock(return_value=[]),
+            get_classroom_statistics=AsyncMock(return_value=()),
+        ),
+    )
+
+    client.created = Mock(return_value=client)
+    monkeypatch.setattr("api.dependencies.sigaa.SigaaClient", client.created)
+    return client
