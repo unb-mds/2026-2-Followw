@@ -1,13 +1,21 @@
+import base64
+import hashlib
+import json
 import os
+import time
+from collections import deque
 from http.cookies import SimpleCookie
 
 import httpx
+import jwt
 import pytest
 import respx
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sigaa_client import Credentials
 from sigaa_client.config import CLASSROOMS_PATH
+
+QSTASH_SIGNING_KEY = "sig_atual_de_teste_com_32_bytes_ou_mais"
 
 # O `Settings` é instanciado no import de `api.core.config`, então as variáveis
 # precisam existir antes de qualquer teste importar a app.
@@ -16,6 +24,12 @@ os.environ["DATABASE_URL"] = (
     "postgresql+asyncpg://postgres:postgres@localhost:5432/followw_test"
 )
 os.environ["JWT_SECRET_KEY"] = "chave-de-teste-nao-usar-em-producao"
+os.environ["PUBLIC_URL"] = "https://api.followw.test"
+
+os.environ["QSTASH_URL"] = "https://qstash.upstash.io"
+os.environ["QSTASH_TOKEN"] = "token-de-teste"
+os.environ["QSTASH_CURRENT_SIGNING_KEY"] = QSTASH_SIGNING_KEY
+os.environ["QSTASH_NEXT_SIGNING_KEY"] = "sig_proxima_de_teste_com_32_bytes_ou_mais"
 
 PERFIL = """
 <html><body><div id="perfil-docente">
@@ -136,6 +150,85 @@ def sigaa():
         yield fake
 
 
+class FakeQStash:
+    """QStash de mentira: guarda o que a app publica e entrega em `POST /jobs`.
+
+    Entrega cada mensagem uma vez, assinada como o QStash assinaria, sem
+    retentativa nem deduplicação: essas regras ficam na conta do QStash.
+    """
+
+    def __init__(self) -> None:
+        self.published: list[dict] = []
+        self.pending: deque[dict] = deque()
+        self.deliveries: list[httpx.Response] = []
+        self.unavailable = False
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        if self.unavailable:
+            return httpx.Response(500, json={"error": "fora do ar"})
+
+        batch = json.loads(request.content)
+        # O QStash de verdade recusa ':' na deduplicação.
+        if any(":" in m["headers"].get("Upstash-Deduplication-Id", "") for m in batch):
+            return httpx.Response(
+                400, json={"error": "DeduplicationId cannot contain ':'"}
+            )
+        self.published.extend(batch)
+        self.pending.extend(batch)
+        return httpx.Response(
+            200, json=[{"messageId": f"msg_{n}"} for n in range(len(batch))]
+        )
+
+    def deliver(self, client: TestClient) -> None:
+        while self.pending:
+            message = self.pending.popleft()
+            url = message["destination"]
+            response = client.post(
+                httpx.URL(url).path,
+                content=message["body"],
+                headers={"Upstash-Signature": self.sign(url, message["body"])},
+            )
+            self.deliveries.append(response)
+
+    @staticmethod
+    def sign(url: str, body: str, key: str = QSTASH_SIGNING_KEY) -> str:
+        """O `Upstash-Signature` que o QStash mandaria com este corpo."""
+        digest = hashlib.sha256(body.encode()).digest()
+        now = int(time.time())
+        claims = {
+            "iss": "Upstash",
+            "sub": url,
+            "exp": now + 300,
+            "nbf": now,
+            "body": base64.urlsafe_b64encode(digest).decode().rstrip("="),
+        }
+        return jwt.encode(claims, key, algorithm="HS256")
+
+
+@pytest.fixture
+def qstash():
+    """Intercepta só a API do QStash; os outros hosts seguem para o próximo mock."""
+    fake = FakeQStash()
+    with respx.MockRouter(assert_all_called=False) as router:
+        router.post(host="qstash.upstash.io", path="/v2/batch").mock(side_effect=fake)
+        yield fake
+
+
+class JobsClient(TestClient):
+    """Entrega os jobs publicados antes de devolver a resposta, como o QStash faria."""
+
+    def __init__(self, app: FastAPI, qstash: FakeQStash) -> None:
+        super().__init__(app)
+        self.qstash = qstash
+        # O QStash não carrega os cookies do usuário.
+        self._jobs = TestClient(app)
+
+    def request(self, *args, **kwargs) -> httpx.Response:
+        response = super().request(*args, **kwargs)
+        self.qstash.deliver(self._jobs)
+        return response
+
+
 @pytest.fixture
 def database(tmp_path):
     """Banco SQLite em arquivo: a app usa via aiosqlite, o teste via sessão síncrona."""
@@ -163,12 +256,12 @@ def async_database(database):
 
 
 @pytest.fixture
-def client(async_database):
+def client(async_database, qstash):
     from api.db.main import get_sessionmaker
     from api.main import app
 
     app.dependency_overrides[get_sessionmaker] = lambda: async_database
-    yield TestClient(app)
+    yield JobsClient(app, qstash)
     app.dependency_overrides.clear()
 
 

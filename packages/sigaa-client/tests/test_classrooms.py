@@ -13,7 +13,13 @@ from sigaa_client import (
     ClassroomRole,
     StudentSituation,
 )
-from sigaa_client.config import CLASSROOMS_PATH, DASHBOARD_PATH
+from sigaa_client.config import (
+    CLASSROOMS_PATH,
+    DASHBOARD_PATH,
+    PARTICIPANTS_PATH,
+    PARTICIPANTS_TIMEOUT,
+    SIGAA_BASE_URL,
+)
 from sigaa_client.exceptions import SigaaParseError
 from sigaa_client.private.classrooms import (
     _GLYPHS,
@@ -30,6 +36,7 @@ from sigaa_client.private.classrooms import (
     _parse_members,
     _parse_statistics,
 )
+from sigaa_client.private.session import Session
 
 HISTORY = """
 <html><body><table class="listagem">
@@ -324,6 +331,75 @@ async def test_frequencia_abre_pelo_postback_do_menu():
         "formMenu:j_id_jsp_97": "formMenu:j_id_jsp_97",
         "javax.faces.ViewState": "j_id6",
     }
+
+
+class SharedSession:
+    """Entra na turma pedida, mas a tela sai na turma em que outro uso da sessão a deixou."""
+
+    history = HISTORY.replace(
+        "<body>",
+        '<body><form name="form"><input name="javax.faces.ViewState" value="j1"/>',
+    ).replace("</body>", "</form></body>")
+
+    def __init__(self, *screens: str) -> None:
+        self.screens = list(screens)
+        self.entries = 0
+
+    async def get(self, url: str, **_: object) -> httpx.Response:
+        if url == CLASSROOMS_PATH:
+            return httpx.Response(200, text=self.history)
+        return httpx.Response(200, text=self.screens.pop(0))
+
+    async def post(self, url: str, **_: object) -> httpx.Response:
+        self.entries += 1
+        return httpx.Response(200, text="")
+
+
+OTHER_CONTEXT = CONTEXT.replace(
+    "FGA0146 - ESTRUTURAS DE DADOS 1 (2026.2 - T01)",
+    "FGA0158 - ORIENTAÇÃO A OBJETOS (2025.2 - T02)",
+)
+
+
+async def test_turma_trocada_por_outro_uso_da_sessao_e_reaberta():
+    session = SharedSession(PARTICIPANTS + OTHER_CONTEXT, PARTICIPANTS + CONTEXT)
+
+    membros = await Classrooms(session).list_classroom_members("AAA")  # type: ignore[arg-type]
+
+    assert len(membros) == 2
+    assert session.entries == 2
+
+
+async def test_turma_sempre_trocada_desiste_barulhenta():
+    session = SharedSession(*[PARTICIPANTS + OTHER_CONTEXT] * 3)
+
+    with pytest.raises(SigaaParseError):
+        await Classrooms(session).list_classroom_members("AAA")  # type: ignore[arg-type]
+    assert session.entries == 3
+
+
+async def test_participantes_esperam_mais_que_o_timeout_padrao():
+    timeouts: dict[str, float] = {}
+
+    def sigaa(request: httpx.Request) -> httpx.Response:
+        timeouts[request.url.path] = request.extensions["timeout"]["read"]
+        if request.url.path == CLASSROOMS_PATH:
+            return httpx.Response(200, text=SharedSession.history)
+        if request.url.path == PARTICIPANTS_PATH:
+            return httpx.Response(200, text=PARTICIPANTS + CONTEXT)
+        return httpx.Response(200, text="")
+
+    http = httpx.AsyncClient(
+        base_url=SIGAA_BASE_URL, transport=httpx.MockTransport(sigaa), timeout=15
+    )
+    async with http:
+        session = Session(http, session_token="token")
+        membros = await Classrooms(session).list_classroom_members("AAA")
+
+    assert len(membros) == 2
+    # Turma com milhares de alunos demora mais que isso para o SIGAA responder.
+    assert timeouts[PARTICIPANTS_PATH] == PARTICIPANTS_TIMEOUT
+    assert timeouts[CLASSROOMS_PATH] == 15
 
 
 def test_contexto_confere_codigo_numero_e_semestre():

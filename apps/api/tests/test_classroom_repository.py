@@ -10,7 +10,7 @@ from sigaa_client import (
     StatisticsShare,
     StudentSituation,
 )
-from sqlalchemy import func, select
+from sqlalchemy import event, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -243,6 +243,51 @@ async def test_id_pessoa_de_outro_usuario_nao_e_copiado(async_database, usuarios
         eu = await session.get_one(User, usuarios[0].id)
         assert eu.person_id is None
     assert await _contar(async_database, User) == 3
+
+
+async def test_turma_grande_nao_consulta_o_banco_por_participante(
+    async_database, usuarios
+):
+    await _salvar_turmas(async_database, usuarios[0], [_turma("AAA")])
+    classroom_id = (await _vinculos(async_database, usuarios[0]))[0].classroom_id
+    membros = [
+        _membro(f"ALUNO {i}", registration=f"26{i:07}", person_id=i, email=f"{i}@x")
+        for i in range(300)
+    ]
+    await _salvar_membros(async_database, classroom_id, membros[:100])
+
+    selects: list[str] = []
+    engine = async_database.kw["bind"].sync_engine
+    listener = lambda *args: selects.append(args[2])
+    event.listen(engine, "before_cursor_execute", listener)
+    try:
+        await _salvar_membros(async_database, classroom_id, membros)
+    finally:
+        event.remove(engine, "before_cursor_execute", listener)
+
+    assert len([sql for sql in selects if sql.lstrip().startswith("SELECT")]) < 10
+    assert len(await _membros(async_database, classroom_id)) == 300
+    assert await _contar(async_database, User) == 302
+
+
+async def test_participante_repetido_na_listagem_vira_um_usuario_so(
+    async_database, usuarios
+):
+    await _salvar_turmas(async_database, usuarios[0], [_turma("AAA")])
+    classroom_id = (await _vinculos(async_database, usuarios[0]))[0].classroom_id
+    docente = _membro("DOCENTE", role=ClassroomRole.PROFESSOR, email="d@unb.br")
+    colega = _membro("COLEGA", registration="251000009", person_id=9)
+
+    await _salvar_membros(
+        async_database,
+        classroom_id,
+        [docente, colega, docente.model_copy(update={"person_id": 42}), colega],
+    )
+
+    assert await _contar(async_database, User) == 4
+    async with async_database() as session:
+        achado = await session.scalar(select(User).where(User.email == "d@unb.br"))
+    assert achado is not None and achado.person_id == 42
 
 
 async def test_turma_passada_existente_nao_e_regravada(async_database, usuarios):

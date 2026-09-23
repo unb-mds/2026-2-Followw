@@ -13,6 +13,7 @@ from ..config import (
     CLASSROOMS_PATH,
     DASHBOARD_PATH,
     PARTICIPANTS_PATH,
+    PARTICIPANTS_TIMEOUT,
     SIGAA_BASE_URL,
 )
 from ..exceptions import SessionExpired, SessionRenewed, SigaaParseError
@@ -62,6 +63,9 @@ SITUATIONS = (
 
 # Uma tela da turma virtual, aberta com a turma já carregada na sessão.
 OpenScreen = Callable[[Session, bool], Awaitable[str]]
+
+# Outro client na mesma sessão do SIGAA pode trocar a turma no meio da leitura.
+_SCREEN_ATTEMPTS = 3
 
 _SEMESTER_RE = re.compile(r"^\d{4}\.\d$")
 _ROW_ID_RE = re.compile(r"^linha_(\d+)$")
@@ -121,17 +125,20 @@ class Classrooms:
     async def _read_screen(self, classroom_id: str, open_screen: OpenScreen) -> str:
         # A troca de turma e a leitura da tela são uma operação única.
         async with self._context_lock:
-            for attempt in range(2):
-                allow_renewal = attempt == 0
+            renewed = False
+            for attempt in range(_SCREEN_ATTEMPTS):
                 try:
                     expected = await self._enter_classroom(
-                        classroom_id, allow_renewal=allow_renewal
+                        classroom_id, allow_renewal=not renewed
                     )
-                    page = await open_screen(self._session, allow_renewal)
+                    page = await open_screen(self._session, not renewed)
                     _assert_context(page, expected)
                     return page
                 except SessionRenewed:
-                    continue
+                    renewed = True
+                except _ContextSwitched:
+                    if attempt == _SCREEN_ATTEMPTS - 1:
+                        raise
         raise SessionExpired("Não foi possível restaurar o contexto da turma.")
 
     async def _get(self, path: str) -> str:
@@ -173,7 +180,10 @@ class Classrooms:
 
 async def _open_participants(session: Session, allow_renewal: bool) -> str:
     response = await session.get(
-        PARTICIPANTS_PATH, retry_on_renewal=False, allow_renewal=allow_renewal
+        PARTICIPANTS_PATH,
+        retry_on_renewal=False,
+        allow_renewal=allow_renewal,
+        timeout=PARTICIPANTS_TIMEOUT,
     )
     return response.text
 
@@ -319,6 +329,10 @@ def _total(totals: Tag, label: str) -> int:
     raise SigaaParseError(f"`{label}` não encontrado no mapa de frequências.")
 
 
+class _ContextSwitched(SigaaParseError):
+    """A sessão está em outra turma: alguém a trocou entre a entrada e a leitura."""
+
+
 def _assert_context(page: str, expected: Classroom) -> None:
     """A turma da sessão pode não ser a que se pediu — o cabeçalho é a prova."""
     match = _CONTEXT_RE.search(page)
@@ -327,12 +341,14 @@ def _assert_context(page: str, expected: Classroom) -> None:
 
     context = match.group(1)
     current = _CONTEXT_CLASSROOM_RE.search(context)
-    if current is None or (
+    if current is None:
+        raise SigaaParseError(f"Cabeçalho da turma fora do formato: `{context}`.")
+    if (
         current.group("code"),
         current.group("number"),
         current.group("semester"),
     ) != (expected.subject.code, expected.number, expected.semester):
-        raise SigaaParseError(
+        raise _ContextSwitched(
             f"A sessão está na turma `{context}`, não em `{expected.id}`."
         )
 

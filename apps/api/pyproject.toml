@@ -8,10 +8,12 @@ authors = [
 requires-python = ">=3.14"
 dependencies = [
     "asyncpg>=0.31.0",
+    "cryptography>=50.0.1",
     "fastapi[standard]>=0.141.1",
     "pydantic>=2.13.5",
     "pydantic-settings>=2.15.0",
     "pyjwt>=2.13.0",
+    "qstash>=3.4.0",
     "sigaa-client",
     "sqlalchemy[asyncio]>=2.0.52",
 ]

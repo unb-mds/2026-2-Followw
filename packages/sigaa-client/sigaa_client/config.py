@@ -18,6 +18,7 @@ PUBLIC_HOME_PATH = "/sigaa/public/home.jsf"
 PUBLIC_CLASSROOMS_PATH = "/sigaa/public/turmas/listar.jsf"
 
 DEFAULT_TIMEOUT = 15
+PARTICIPANTS_TIMEOUT = 60
 
 USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
