@@ -1,3 +1,4 @@
+from datetime import datetime
 from functools import partial
 from typing import Annotated
 
@@ -44,8 +45,8 @@ class ClassroomService:
         classrooms = await self._engine.resolve(
             "classrooms",
             load=load,
-            fetch=lambda client: client.classrooms.list_classrooms(),
-            save=self._engine.save_classrooms,
+            fetch=_fetch_classrooms,
+            save=partial(self._engine.save_classrooms, refresh=refresh),
             refresh=refresh,
         )
         selected = [c for c in classrooms if _in_semester(c, semester)]
@@ -116,11 +117,16 @@ class ClassroomService:
 
     async def _link(self, classroom_id: str) -> ClassroomUser:
         find = partial(self._find_link, classroom_id)
-        link = await self._engine.read(find)
+        link, synced_at = await self._engine.read(find)
         if link is None:
             # Lista nunca lida ou turma nova (ajuste de matrícula): relê a lista uma vez.
             await self.list_classrooms(refresh=True)
-            link = await self._engine.read(find)
+            link, _ = await self._engine.read(find)
+        elif is_stale(synced_at, CLASSROOMS_TTL):
+            # A lista é o que dá acesso à turma: vencida, revalida como a listagem.
+            self._engine.revalidate(
+                "classrooms", fetch=_fetch_classrooms, save=self._engine.save_classrooms
+            )
         if link is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Classroom not found"
@@ -130,16 +136,22 @@ class ClassroomService:
 
     async def _find_link(
         self, classroom_id: str, session: AsyncSession
-    ) -> ClassroomUser | None:
+    ) -> tuple[ClassroomUser | None, datetime | None]:
+        """O vínculo com a turma e quando a lista de turmas foi sincronizada."""
         user = await UserRepository(session).get_by_registration(
             self._engine.registration
         )
         if user is None:
-            return None
+            return None, None
 
-        return await ClassroomRepository(session).get_by_front_end_id(
+        link = await ClassroomRepository(session).get_by_front_end_id(
             user.id, classroom_id
         )
+        return link, user.classrooms_synced_at
+
+
+async def _fetch_classrooms(client: SigaaClient) -> list[Classroom]:
+    return await client.classrooms.list_classrooms()
 
 
 def _in_semester(classroom: Classroom, semester: str | None) -> bool:

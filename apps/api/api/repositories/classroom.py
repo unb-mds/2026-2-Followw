@@ -57,6 +57,8 @@ class ClassroomRepository:
         user: User,
         classrooms: Sequence[sigaa_client.Classroom],
         synced_at: datetime,
+        *,
+        refresh: bool = False,
     ) -> None:
         links = {
             link.classroom_id: link
@@ -69,7 +71,7 @@ class ClassroomRepository:
             # Turma só do portal vem sem número: gravá-la duplicaria a do histórico.
             if not item.number:
                 continue
-            classroom = await self._save_classroom(item)
+            classroom = await self._save_classroom(item, refresh=refresh)
             link = links.get(classroom.id)
             if link is None:
                 link = ClassroomUser(
@@ -178,7 +180,9 @@ class ClassroomRepository:
 
         return subject
 
-    async def _save_classroom(self, item: sigaa_client.Classroom) -> Classroom:
+    async def _save_classroom(
+        self, item: sigaa_client.Classroom, *, refresh: bool
+    ) -> Classroom:
         classroom = await self._session.scalar(
             select(Classroom)
             .join(Classroom.subject)
@@ -188,8 +192,8 @@ class ClassroomRepository:
                 Classroom.semester == item.semester,
             )
         )
-        # Turma de semestre passado não muda mais: se já existe, não há o que gravar.
-        if classroom is not None and not item.current:
+        # Turma de semestre passado quase não muda: só é regravada num refresh.
+        if classroom is not None and not item.current and not refresh:
             return classroom
 
         subject = await self._save_subject(item.subject)

@@ -482,3 +482,35 @@ def test_openapi_documenta_participantes_e_estatisticas(client):
         route = paths[f"/classrooms/{{classroom_id}}/{screen}"]["get"]
         assert {"401", "404", "502"} <= route["responses"].keys()
         assert any(p["name"] == "refresh" for p in route["parameters"])
+
+
+def test_refresh_atualiza_turmas_antigas(client, sigaa, turmas):
+    client.post("/auth/sigaa", json={"registration": "251000000", "password": "senha"})
+    antiga = ANTIGA.model_copy(update={"schedule": "24T45", "room": "SALA 07"})
+    turmas.classrooms.list_classrooms.return_value = [ATUAL, antiga]
+
+    response = client.get("/classrooms?semester=2025.2&refresh=true")
+
+    assert response.json()[0]["schedule"] == "24T45"
+    assert response.json()[0]["room"] == "SALA 07"
+    assert client.get("/classrooms?semester=2025.2").json() == response.json()
+
+
+@pytest.mark.parametrize("screen", ["members", "statistics"])
+def test_detalhes_revalidam_a_lista_de_turmas_vencida(
+    client, sigaa, turmas, database, screen
+):
+    client.post("/auth/sigaa", json={"registration": "251000000", "password": "senha"})
+    with database() as session:
+        session.execute(
+            update(User).values(
+                classrooms_synced_at=datetime.now(UTC) - timedelta(days=4)
+            )
+        )
+        session.commit()
+    # A turma foi trancada: o acesso a ela some depois da revalidação.
+    turmas.classrooms.list_classrooms.return_value = [ANTIGA]
+
+    assert client.get(f"/classrooms/AAA/{screen}").status_code == 200
+    assert turmas.classrooms.list_classrooms.await_count == 2
+    assert client.get(f"/classrooms/AAA/{screen}").status_code == 404

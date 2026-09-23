@@ -99,7 +99,7 @@ class SyncEngine:
                 if not self._sigaa.authenticated:
                     await self._sigaa.client()
                 if stale:
-                    self._tasks.add_task(self._run, key, self._revalidate(fetch, save))
+                    self.revalidate(key, fetch=fetch, save=save)
                 return cached
 
         data = await fetch(await self._sigaa.client())
@@ -108,6 +108,16 @@ class SyncEngine:
         else:
             self._tasks.add_task(self._run, f"save:{key}", lambda: save(data))
         return data
+
+    def revalidate[T](
+        self,
+        key: str,
+        *,
+        fetch: Callable[[SigaaClient], Awaitable[T]],
+        save: Callable[[T], Awaitable[None]],
+    ) -> None:
+        """Agenda a leitura no SIGAA e a gravação no cache, depois da resposta."""
+        self._tasks.add_task(self._run, key, self._revalidate(fetch, save))
 
     def sync_account(self) -> None:
         """Agenda o sync do login: perfil, turmas, participantes e estatísticas vencidos."""
@@ -118,7 +128,9 @@ class SyncEngine:
             lambda session: UserRepository(session).save_profile(profile, _now())
         )
 
-    async def save_classrooms(self, classrooms: Sequence[Classroom]) -> None:
+    async def save_classrooms(
+        self, classrooms: Sequence[Classroom], *, refresh: bool = False
+    ) -> None:
         if await self.read(self._user) is None:
             # As turmas penduram no usuário: sem perfil no cache, ele vem antes.
             client = await self._sigaa.client()
@@ -128,7 +140,7 @@ class SyncEngine:
             user = await self._user(session)
             assert user is not None
             await ClassroomRepository(session).save_user_classrooms(
-                user, classrooms, _now()
+                user, classrooms, _now(), refresh=refresh
             )
 
         await self._write(write)
