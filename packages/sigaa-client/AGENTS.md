@@ -128,6 +128,9 @@ Regras que não dá para burlar:
   só aparece pelo postback do item **Frequência** do `formMenu` de
   `ava/index.jsf`. Telas da turma passam por `_read_screen`, que segura o lock
   do contexto, abre a turma, lê a tela e confere o contexto — uma operação só.
+  O lock só vale dentro do client: outro client na mesma sessão (a api e um job
+  do mesmo usuário) pode trocar a turma no meio, então turma trocada
+  (`_ContextSwitched`) reabre a turma até `_SCREEN_ATTEMPTS` vezes.
 - **A sessão anônima precisa de aquecimento.** O JSF só aceita a view de volta
   se ela passou pela home pública; `PublicSession` faz isso na primeira request
   e refaz em `restart()`. Como o `ViewState` morre junto, retry significa reler

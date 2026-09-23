@@ -18,11 +18,13 @@ api/
     sigaa.py           # SigaaConnectionDep (preguiçosa) e SigaaClientDep
     sigaa_public.py     # SigaaPublicClientDep — cliente público
     refresh.py          # RefreshQuery — `?refresh=true` que ignora o cache
+    qstash.py           # QStashQueue (JobQueueDep) e o job recebido (JobDep)
+    sync.py             # SyncEngineDep e JobEngineDep
   repositories/
     user.py             # UserRepository e UserRepositoryDep
     classroom.py        # ClassroomRepository e ClassroomRepositoryDep
   services/
-    sync.py             # SyncEngine: stale-while-revalidate e sync do login
+    sync.py             # SyncEngine, Task, Job e JobQueue: cache e jobs do sync
     profile.py          # ProfileService (GET /me)
     classroom.py        # ClassroomService (turmas, participantes, estatísticas)
   modules/
@@ -46,8 +48,7 @@ credenciais vivem em cookies `httponly` assinados com JWT (`utils/session.py`).
 O client vem por `Depends` (`dependencies/`):
 
 - `SigaaConnectionDep` — exige refresh cookie, mas só abre o `SigaaClient` em
-  `client()`. É um client só por requisição, reaproveitado pelas
-  `BackgroundTasks` (o teardown da dependência, que o fecha, roda depois delas).
+  `client()`. É um client só por requisição.
 - `SigaaClientDep` — o client já aberto, para rotas sem cache.
 - `SigaaPublicClientDep` — sem cookie, sem login.
 
@@ -66,18 +67,50 @@ resto) nas próprias dependências. Nunca deixe exceção do `sigaa_client` vaza
 rota.
 
 **Services e cache.** Rota não fala com repository nem com SIGAA: chama um
-service (`services/`), que resolve o dado por `SyncEngine.resolve`
-(stale-while-revalidate, gravação em background via `BackgroundTasks`). O cache
-é lido pelo `load` do `resolve` (ou `SyncEngine.read`), numa sessão própria que
-fecha antes de ir ao SIGAA: services não usam a sessão `get_db` da requisição.
-As regras de revalidação e os TTLs ficam em `services/sync.py`. O sync completo
-do login é o `SyncEngine.sync_account()`. Todo dado novo do SIGAA que vale cache
-segue esse caminho.
+service (`services/`), que resolve o dado por `SyncEngine.resolve(task, load)`
+(stale-while-revalidate). O cache é lido pelo `load` (ou `SyncEngine.read`),
+numa sessão própria que fecha antes de ir ao SIGAA: services não usam a sessão
+`get_db` da requisição. Sem cache ou com `refresh`, a `Task` roda antes da
+resposta e o `load` relê o cache; vencido, o cache sai na hora e a `Task` vira
+um `Job` na fila. Se outro sync vencer todas as tentativas de gravar, o `load`
+relê o que ele gravou; sem nada no cache ainda, a resposta é 503. Nas telas de
+turma, o service passa o vínculo já lido (`link=`) para o engine não relê-lo.
+Cada `Task` busca e grava no engine, então as regras de
+revalidação e os TTLs ficam em `services/sync.py`. Todo dado novo do SIGAA que
+vale cache segue esse caminho: uma `Task` no engine e um `load` no service.
+
+**Jobs (QStash).** Nada roda depois da resposta no processo da API (na Vercel a
+função pode parar): o `SyncEngine` só conhece a `JobQueue`, e a `QStashQueue`
+(`dependencies/qstash.py`) publica cada `Job` no QStash, que o entrega em
+`POST /jobs` (`modules/jobs`). A rota confere a assinatura (`Upstash-Signature`),
+decifra o job e chama `SyncEngine.run`. Decisões:
+
+- O job leva só o token da sessão do SIGAA, nunca a senha, e vai cifrado
+  (Fernet, chave derivada do `jwt_secret_key`). Sem senha não há relogin:
+  `SessionExpired` descarta o job (204) e o próximo acesso agenda outro. Erro
+  passageiro do SIGAA devolve 502 e o QStash tenta de novo.
+- Um job por vez por usuário (flow control `sigaa-<matrícula>`, parallelism 1),
+  para os jobs não disputarem a sessão do SIGAA entre si. As requisições do
+  próprio usuário usam a mesma sessão e ficam fora do flow control: quem segura
+  a troca de turma é o `sigaa_client`, que reabre a turma se outro uso da sessão
+  a trocou no meio da leitura.
+- A mesma `Job.key` na mesma sessão, publicada em até 10 minutos, é descartada
+  (deduplicação do QStash, em hash: o QStash recusa ':'). O token entra na
+  chave para o job de uma sessão nova não cair na deduplicação do job que
+  morreu com a anterior.
+- Um `AsyncQStash` por requisição (`get_job_queue`), fechado no fim: o pool do
+  httpx fica preso ao event loop que o abriu.
+- O sync do login (`Task.ACCOUNT`) grava perfil e turmas e publica um job por
+  tela de turma vencida: o sync inteiro não cabe numa requisição só.
+- Falhar ao publicar não derruba a requisição: só vai para o log.
 
 **Repositories.** Consultas e gravações ficam em `repositories/`, recebem
 `AsyncSession` e não fazem commit (quem faz é o `SyncEngine`). Como usuários,
 turmas e participantes são identificados e mesclados está em
 `repositories/classroom.py` e `repositories/user.py`. Não persista credenciais.
+Participantes são gravados em lote (`save_members`): uma turma pode ter milhares,
+então os usuários são lidos de uma vez e casados em memória (`_UserIndex`), sem
+consulta nem flush por participante.
 
 **Modelos SQLAlchemy.** Toda tabela herda `Base, UUIDPrimaryKeyMixin,
 TimestampMixin` (`db/base.py`): id é UUID, `created_at`/`updated_at`
@@ -110,17 +143,19 @@ precise de uma variável de ambiente diferente (como os testes) precisa setá-la
 Fixtures em `tests/conftest.py`: `client` já usa um SQLite por teste
 (`database` para preparar/conferir o banco), `sigaa` simula o SIGAA via respx e
 `stub_sigaa` troca só o `SigaaClient` por `AsyncMock`s (`created` conta os
-clients abertos). O `TestClient` roda as `BackgroundTasks` antes de devolver a
-resposta.
+clients abertos). `qstash` intercepta a API do QStash e guarda o que foi
+publicado (`published`); o `client` entrega esses jobs em `POST /jobs`,
+assinados, antes de devolver a resposta (`deliveries` guarda o resultado).
 
 ## Comandos
 
 ```fish
 uv run pytest apps/api      # só os testes da api (da raiz do monorepo)
 docker compose up -d db      # sobe o Postgres local (compose.yml da raiz)
+npx --allow-scripts=@upstash/qstash-cli @upstash/qstash-cli dev   # QStash local (o npm 12 só baixa o binário com --allow-scripts)
 uv run db-init                # cria as tabelas (schema mudou? recrie o banco)
 uv run api                     # sobe a api em dev (reload on)
 ```
 
-Requer `apps/api/.env` com `database_url`, `jwt_secret_key` (veja
-`core/config.py` para os demais campos e defaults).
+Requer `apps/api/.env` com `database_url`, `jwt_secret_key`, `public_url` e as
+chaves do QStash (`.env.example` traz as do dev server; veja `core/config.py`).

@@ -1,26 +1,26 @@
 import logging
 from collections.abc import Awaitable, Callable, Sequence
 from datetime import UTC, datetime, timedelta
-from typing import Annotated
+from enum import StrEnum
+from functools import partial
+from typing import Protocol
 from uuid import UUID
 
-import httpx
-from fastapi import BackgroundTasks, Depends
+from fastapi import HTTPException, status
+from pydantic import BaseModel, ConfigDict
 from sigaa_client import (
-    AuthenticationFailed,
     Classroom,
     ClassroomMember,
+    SessionExpired,
     SigaaClient,
-    SigaaError,
     StatisticsShare,
     UserProfile,
 )
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from api.db.main import get_sessionmaker
 from api.db.models import ClassroomUser, User
-from api.dependencies.sigaa import SigaaConnection, SigaaConnectionDep
+from api.dependencies.sigaa import SigaaConnection
 from api.repositories.classroom import ClassroomRepository
 from api.repositories.user import UserRepository
 
@@ -33,8 +33,36 @@ CLASSROOM_DETAILS_TTL = timedelta(hours=24)
 
 _WRITE_ATTEMPTS = 3
 
-# Jobs em andamento neste processo, para não repetir a mesma leitura do SIGAA.
-_running: set[tuple[str, str]] = set()
+
+class Task(StrEnum):
+    ACCOUNT = "account"
+    PROFILE = "profile"
+    CLASSROOMS = "classrooms"
+    MEMBERS = "members"
+    STATISTICS = "statistics"
+
+
+class Job(BaseModel):
+    """Uma tarefa do sync com o que ela precisa para rodar em outra requisição."""
+
+    model_config = ConfigDict(frozen=True)
+
+    task: Task
+    registration: str
+    session_token: str
+    # `front_end_id` da turma, nas tarefas de participantes e estatísticas.
+    classroom_id: str | None = None
+
+    @property
+    def key(self) -> str:
+        """A mesma tarefa do mesmo usuário tem a mesma chave, seja qual for a sessão."""
+        return ":".join(filter(None, (self.registration, self.task, self.classroom_id)))
+
+
+class JobQueue(Protocol):
+    async def enqueue(self, *jobs: Job) -> None:
+        """Agenda os jobs. Uma falha ao agendar não chega a quem chamou."""
+        ...
 
 
 def is_stale(synced_at: datetime | None, ttl: timedelta | None) -> bool:
@@ -55,22 +83,15 @@ def details_ttl(current: bool) -> timedelta | None:
 
 
 class SyncEngine:
-    """Cache dos dados do SIGAA no banco, no modelo stale-while-revalidate.
-
-    Cada leitura e escrita abre a própria sessão do banco: nenhuma transação
-    fica aberta esperando o SIGAA, e o mesmo código grava tanto antes de
-    responder quanto em background, depois da resposta.
-    """
-
     def __init__(
         self,
         sessionmaker: async_sessionmaker[AsyncSession],
         sigaa: SigaaConnection,
-        tasks: BackgroundTasks,
+        queue: JobQueue,
     ) -> None:
         self._sessionmaker = sessionmaker
         self._sigaa = sigaa
-        self._tasks = tasks
+        self._queue = queue
 
     @property
     def registration(self) -> str:
@@ -78,63 +99,135 @@ class SyncEngine:
 
     async def resolve[T](
         self,
-        key: str,
-        *,
+        task: Task,
         load: Callable[[AsyncSession], Awaitable[tuple[T | None, bool]]],
-        fetch: Callable[[SigaaClient], Awaitable[T]],
-        save: Callable[[T], Awaitable[None]],
+        *,
+        link: ClassroomUser | None = None,
         refresh: bool = False,
     ) -> T:
-        """Devolve o cache na hora e, se vencido, revalida em background.
+        """Devolve o cache na hora e, se vencido, agenda a revalidação.
 
         `load` lê o cache e se ele venceu, numa sessão fechada antes de ir ao
-        SIGAA. Sem cache, busca no SIGAA e grava em background. Com `refresh`,
-        nem lê o cache: busca e grava antes de responder, e se o SIGAA falhar o
-        cache fica intacto.
+        SIGAA. Sem cache ou com `refresh`, roda a tarefa antes de responder e
+        relê o cache; se o SIGAA falhar, o cache fica intacto. `link` é o
+        vínculo com a turma, nas tarefas de participantes e estatísticas.
         """
         if not refresh:
             cached, stale = await self.read(load)
             if cached is not None:
                 # Sem access_token válido, o cache só sai depois de o SIGAA aceitar a senha.
-                if not self._sigaa.authenticated:
-                    await self._sigaa.client()
+                await self._sigaa.token()
                 if stale:
-                    self.revalidate(key, fetch=fetch, save=save)
+                    await self.schedule(task, link.front_end_id if link else None)
                 return cached
 
-        data = await fetch(await self._sigaa.client())
-        if refresh:
-            await save(data)
-        else:
-            self._tasks.add_task(self._run, f"save:{key}", lambda: save(data))
-        return data
+        try:
+            await self._perform(task, link, refresh=refresh)
+        except IntegrityError:
+            # Outro sync ganhou todas as tentativas de gravar: o que ele gravou serve.
+            log.warning("Gravação concorrente em %s", task, exc_info=True)
+        cached, _ = await self.read(load)
+        if cached is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Cache is being updated, try again",
+            )
+        return cached
 
-    def revalidate[T](
+    async def schedule(self, task: Task, classroom_id: str | None = None) -> None:
+        """Agenda a tarefa na fila, para rodar fora desta requisição."""
+        await self._queue.enqueue(await self._job(task, classroom_id))
+
+    async def run(self, job: Job) -> None:
+        """Roda um job que voltou da fila, com a sessão do SIGAA que veio nele."""
+        link = None
+        if job.classroom_id is not None:
+            link = await self.read(partial(self._link, job.classroom_id))
+            # A turma pode ter saído da lista do usuário depois de agendada.
+            if link is None:
+                return
+        try:
+            await self._perform(job.task, link)
+        except SessionExpired:
+            # Sem a senha não há relogin: o job acaba aqui e o próximo acesso agenda outro.
+            log.info("Sessão do SIGAA expirou antes do job %s", job.key)
+
+    async def read[T](self, query: Callable[[AsyncSession], Awaitable[T]]) -> T:
+        async with self._sessionmaker() as session:
+            return await query(session)
+
+    async def _perform(
         self,
-        key: str,
+        task: Task,
+        link: ClassroomUser | None = None,
         *,
-        fetch: Callable[[SigaaClient], Awaitable[T]],
-        save: Callable[[T], Awaitable[None]],
+        refresh: bool = False,
     ) -> None:
-        """Agenda a leitura no SIGAA e a gravação no cache, depois da resposta."""
-        self._tasks.add_task(self._run, key, self._revalidate(fetch, save))
+        client = await self._sigaa.client()
+        match task:
+            case Task.ACCOUNT:
+                await self._sync_account(client)
+            case Task.PROFILE:
+                await self._save_profile(await client.profile.get_profile())
+            case Task.CLASSROOMS:
+                classrooms = await client.classrooms.list_classrooms()
+                await self._save_classrooms(classrooms, refresh=refresh)
+            case Task.MEMBERS | Task.STATISTICS:
+                assert link is not None
+                await self._sync_screen(client, task, link)
 
-    def sync_account(self) -> None:
-        """Agenda o sync do login: perfil, turmas, participantes e estatísticas vencidos."""
-        self._tasks.add_task(self._run, "account", self._sync_account)
+    async def _sync_account(self, client: SigaaClient) -> None:
+        """O sync do login: perfil, turmas e as telas das turmas que venceram."""
+        user = await self.read(self._user)
+        if user is None or is_stale(user.profile_synced_at, PROFILE_TTL):
+            await self._save_profile(await client.profile.get_profile())
+        if user is None or is_stale(user.classrooms_synced_at, CLASSROOMS_TTL):
+            await self._save_classrooms(await client.classrooms.list_classrooms())
 
-    async def save_profile(self, profile: UserProfile) -> None:
+        # Uma tela de turma por job: o sync inteiro não cabe numa requisição só.
+        await self._queue.enqueue(
+            *[
+                await self._job(task, link.front_end_id)
+                for link in await self.read(self._links)
+                for task, synced_at in (
+                    (Task.MEMBERS, link.classroom.members_synced_at),
+                    (Task.STATISTICS, link.classroom.statistics_synced_at),
+                )
+                if is_stale(synced_at, details_ttl(link.current))
+            ]
+        )
+
+    async def _sync_screen(
+        self, client: SigaaClient, task: Task, link: ClassroomUser
+    ) -> None:
+        assert link.front_end_id is not None
+        if task is Task.MEMBERS:
+            members = await client.classrooms.list_classroom_members(link.front_end_id)
+            await self._save_members(link.classroom_id, members)
+        else:
+            shares = await client.classrooms.get_classroom_statistics(link.front_end_id)
+            await self._save_statistics(link.classroom_id, shares)
+
+    async def _job(self, task: Task, classroom_id: str | None = None) -> Job:
+        return Job(
+            task=task,
+            registration=self.registration,
+            session_token=await self._sigaa.token(),
+            classroom_id=classroom_id,
+        )
+
+    async def _save_profile(self, profile: UserProfile) -> None:
         await self._write(
             lambda session: UserRepository(session).save_profile(profile, _now())
         )
 
-    async def save_classrooms(
+    async def _save_classrooms(
         self, classrooms: Sequence[Classroom], *, refresh: bool = False
     ) -> None:
         if await self.read(self._user) is None:
             # As turmas penduram no usuário: sem perfil no cache, ele vem antes.
             client = await self._sigaa.client()
-            await self.save_profile(await client.profile.get_profile())
+            await self._save_profile(await client.profile.get_profile())
 
         async def write(session: AsyncSession) -> None:
             user = await self._user(session)
@@ -145,7 +238,7 @@ class SyncEngine:
 
         await self._write(write)
 
-    async def save_members(
+    async def _save_members(
         self, classroom_id: UUID, members: Sequence[ClassroomMember]
     ) -> None:
         await self._write(
@@ -154,7 +247,7 @@ class SyncEngine:
             )
         )
 
-    async def save_statistics(
+    async def _save_statistics(
         self, classroom_id: UUID, shares: Sequence[StatisticsShare]
     ) -> None:
         await self._write(
@@ -162,66 +255,6 @@ class SyncEngine:
                 classroom_id, shares, _now()
             )
         )
-
-    async def _sync_account(self) -> None:
-        client = await self._sigaa.client()
-        user = await self.read(self._user)
-        if user is None or is_stale(user.profile_synced_at, PROFILE_TTL):
-            await self.save_profile(await client.profile.get_profile())
-        if user is None or is_stale(user.classrooms_synced_at, CLASSROOMS_TTL):
-            await self.save_classrooms(await client.classrooms.list_classrooms())
-        for link in await self.read(self._links):
-            await self._sync_classroom(client, link)
-
-    async def _sync_classroom(self, client: SigaaClient, link: ClassroomUser) -> None:
-        assert link.front_end_id is not None
-        classroom = link.classroom
-        ttl = details_ttl(link.current)
-        screens = (
-            (
-                classroom.members_synced_at,
-                client.classrooms.list_classroom_members,
-                self.save_members,
-            ),
-            (
-                classroom.statistics_synced_at,
-                client.classrooms.get_classroom_statistics,
-                self.save_statistics,
-            ),
-        )
-        for synced_at, fetch, save in screens:
-            if not is_stale(synced_at, ttl):
-                continue
-            try:
-                await save(classroom.id, await fetch(link.front_end_id))
-            except AuthenticationFailed:
-                # Senha recusada: as outras turmas falhariam do mesmo jeito.
-                raise
-            except SigaaError, httpx.HTTPError, IntegrityError:
-                # Fica sem data de sync e é refeita da próxima vez; as outras seguem.
-                log.warning("Turma %s não sincronizada", classroom.id, exc_info=True)
-
-    def _revalidate[T](
-        self,
-        fetch: Callable[[SigaaClient], Awaitable[T]],
-        save: Callable[[T], Awaitable[None]],
-    ) -> Callable[[], Awaitable[None]]:
-        async def job() -> None:
-            await save(await fetch(await self._sigaa.client()))
-
-        return job
-
-    async def _run(self, key: str, job: Callable[[], Awaitable[None]]) -> None:
-        marker = (self.registration, key)
-        if marker in _running:
-            return
-        _running.add(marker)
-        try:
-            await job()
-        except Exception:
-            log.exception("Falha no sync em background (%s)", key)
-        finally:
-            _running.discard(marker)
 
     async def _user(self, session: AsyncSession) -> User | None:
         return await UserRepository(session).get_by_registration(self.registration)
@@ -232,9 +265,15 @@ class SyncEngine:
             return []
         return await ClassroomRepository(session).list_by_user_id(user.id)
 
-    async def read[T](self, query: Callable[[AsyncSession], Awaitable[T]]) -> T:
-        async with self._sessionmaker() as session:
-            return await query(session)
+    async def _link(
+        self, front_end_id: str, session: AsyncSession
+    ) -> ClassroomUser | None:
+        user = await self._user(session)
+        if user is None:
+            return None
+        return await ClassroomRepository(session).get_by_front_end_id(
+            user.id, front_end_id
+        )
 
     async def _write(self, write: Callable[[AsyncSession], Awaitable[object]]) -> None:
         # Outro sync pode criar as mesmas linhas ao mesmo tempo: na tentativa
@@ -252,16 +291,3 @@ class SyncEngine:
 
 def _now() -> datetime:
     return datetime.now(UTC)
-
-
-def get_sync_engine(
-    sessionmaker: Annotated[
-        async_sessionmaker[AsyncSession], Depends(get_sessionmaker)
-    ],
-    sigaa: SigaaConnectionDep,
-    tasks: BackgroundTasks,
-) -> SyncEngine:
-    return SyncEngine(sessionmaker, sigaa, tasks)
-
-
-SyncEngineDep = Annotated[SyncEngine, Depends(get_sync_engine)]

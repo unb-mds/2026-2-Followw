@@ -6,6 +6,7 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from api.core.config import settings
+from api.db import models  # noqa: F401 — registra os modelos em Base.metadata
 from api.db.base import Base
 
 engine = create_async_engine(settings.database_url)

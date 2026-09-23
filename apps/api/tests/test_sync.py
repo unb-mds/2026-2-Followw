@@ -5,7 +5,6 @@ import pytest
 import sigaa_client
 from pydantic import SecretStr
 from sigaa_client import (
-    AuthenticationFailed,
     ClassroomMember,
     ClassroomRole,
     Credentials,
@@ -18,7 +17,8 @@ from sigaa_client import (
 from sqlalchemy import select, update
 
 from api.db.models import Classroom, ClassroomStatistic, ClassroomUser, User
-from api.services.sync import is_stale
+from api.dependencies.qstash import JOBS_URL, decode_job, encode_job
+from api.services.sync import Job, Task, is_stale
 from api.utils.session import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME
 
 CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha"))
@@ -136,6 +136,43 @@ def test_refresh_com_sigaa_fora_mantem_o_cache(logado, stub_sigaa, database):
 
     stub_sigaa.profile.get_profile.side_effect = None
     assert logado.get("/me").json()["ira"] == 3.5
+
+
+def _gravacao_concorrente(monkeypatch, async_database, *, vence: bool) -> None:
+    """Toda gravação do perfil esbarra na de outro sync; com `vence`, a outra commita."""
+    from sqlalchemy.exc import IntegrityError
+
+    from api.repositories.user import UserRepository
+
+    save_profile = UserRepository.save_profile
+
+    async def concorrente(self, profile, now):
+        if vence:
+            async with async_database() as session:
+                await save_profile(UserRepository(session), profile, now)
+                await session.commit()
+        raise IntegrityError("INSERT INTO users", {}, Exception("unique"))
+
+    monkeypatch.setattr(UserRepository, "save_profile", concorrente)
+
+
+def test_gravacao_concorrente_responde_com_o_que_o_outro_sync_gravou(
+    logado, stub_sigaa, async_database, monkeypatch
+):
+    _gravacao_concorrente(monkeypatch, async_database, vence=True)
+
+    response = logado.get("/me")
+
+    assert response.status_code == 200
+    assert response.json()["ira"] == 3.5
+
+
+def test_gravacao_concorrente_sem_cache_pede_nova_tentativa(
+    logado, stub_sigaa, async_database, monkeypatch
+):
+    _gravacao_concorrente(monkeypatch, async_database, vence=False)
+
+    assert logado.get("/me").status_code == 503
 
 
 def test_cache_com_access_token_valido_nao_renova_os_cookies(
@@ -277,15 +314,16 @@ def test_segundo_aluno_aproveita_as_turmas_ja_sincronizadas(
 
 
 @pytest.mark.parametrize(
-    "erro",
+    "erro,status",
     [
-        SigaaParseError("layout mudou"),
-        SessionExpired("contexto perdido"),
-        httpx.ReadTimeout("SIGAA lento"),
+        (SigaaParseError("layout mudou"), 502),
+        # Sem a senha o job não reloga: é descartado, sem nova tentativa.
+        (SessionExpired("contexto perdido"), 204),
+        (httpx.ReadTimeout("SIGAA lento"), 502),
     ],
 )
 def test_turma_com_falha_nao_impede_o_sync_das_outras(
-    client, sigaa, conta, database, erro
+    client, sigaa, conta, database, qstash, erro, status
 ):
     async def members(classroom_id: str) -> list[ClassroomMember]:
         if classroom_id == "AAA":
@@ -304,20 +342,48 @@ def test_turma_com_falha_nao_impede_o_sync_das_outras(
                 )
             ).all()
         )
-    # A que falhou fica sem data e é tentada de novo no próximo sync.
+    # A que falhou fica sem data: o QStash tenta de novo ou o próximo sync refaz.
     assert synced["AAA"] is None
     assert synced["BBB"] is not None
+    assert sorted(r.status_code for r in qstash.deliveries) == sorted(
+        [status] + [204] * 4
+    )
     estatisticas = conta.classrooms.get_classroom_statistics.await_args_list
     assert sorted(c.args for c in estatisticas) == [("AAA",), ("BBB",)]
 
 
-def test_senha_recusada_interrompe_o_sync_das_turmas(client, sigaa, conta):
-    conta.classrooms.list_classroom_members.side_effect = AuthenticationFailed()
-
+def test_login_sincroniza_cada_tela_de_turma_em_um_job(client, sigaa, conta, qstash):
     client.post("/auth/sigaa", json=LOGIN)
 
-    assert conta.classrooms.list_classroom_members.await_count == 1
-    conta.classrooms.get_classroom_statistics.assert_not_awaited()
+    jobs = [decode_job(message["body"].encode()) for message in qstash.published]
+    assert jobs[0].task == Task.ACCOUNT
+    assert sorted((job.task, job.classroom_id) for job in jobs[1:]) == [
+        (Task.MEMBERS, "AAA"),
+        (Task.MEMBERS, "BBB"),
+        (Task.STATISTICS, "AAA"),
+        (Task.STATISTICS, "BBB"),
+    ]
+    assert {job.session_token for job in jobs} == {"app14~TOKEN1"}
+
+
+def test_job_de_turma_fora_da_lista_nao_busca_nada(logado, conta, qstash):
+    logado.get("/classrooms")
+    job = Job(
+        task=Task.MEMBERS,
+        registration="251000000",
+        session_token="app14~STUB",
+        classroom_id="ZZZ",
+    )
+    body = encode_job(job)
+
+    response = logado.post(
+        "/jobs",
+        content=body,
+        headers={"Upstash-Signature": qstash.sign(JOBS_URL, body)},
+    )
+
+    assert response.status_code == 204
+    conta.classrooms.list_classroom_members.assert_not_awaited()
 
 
 def test_login_nao_espera_o_sync(client, sigaa, conta):

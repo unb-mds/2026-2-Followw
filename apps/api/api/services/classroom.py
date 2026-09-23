@@ -7,7 +7,6 @@ from sigaa_client import (
     Classroom,
     ClassroomMember,
     ClassroomRole,
-    SigaaClient,
     StatisticsShare,
     StudentSituation,
     Subject,
@@ -15,9 +14,10 @@ from sigaa_client import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.models import ClassroomStatistic, ClassroomUser
+from api.dependencies.sync import SyncEngineDep
 from api.repositories.classroom import ClassroomRepository
 from api.repositories.user import UserRepository
-from api.services.sync import CLASSROOMS_TTL, SyncEngineDep, details_ttl, is_stale
+from api.services.sync import CLASSROOMS_TTL, Task, details_ttl, is_stale
 
 _SITUATIONS = list(StudentSituation)
 
@@ -42,13 +42,7 @@ class ClassroomService:
                 synced_at, CLASSROOMS_TTL
             )
 
-        classrooms = await self._engine.resolve(
-            "classrooms",
-            load=load,
-            fetch=_fetch_classrooms,
-            save=partial(self._engine.save_classrooms, refresh=refresh),
-            refresh=refresh,
-        )
+        classrooms = await self._engine.resolve(Task.CLASSROOMS, load, refresh=refresh)
         selected = [c for c in classrooms if _in_semester(c, semester)]
         selected.sort(key=lambda c: (c.subject.name, c.number))
 
@@ -58,25 +52,22 @@ class ClassroomService:
         self, classroom_id: str, *, refresh: bool = False
     ) -> list[ClassroomMember]:
         link = await self._link(classroom_id)
-        classroom = link.classroom
 
         async def load(
             session: AsyncSession,
         ) -> tuple[list[ClassroomMember] | None, bool]:
-            synced_at = classroom.members_synced_at
+            repository = ClassroomRepository(session)
+            classroom = await repository.get(link.classroom_id)
+            synced_at = classroom.members_synced_at if classroom else None
             if synced_at is None:
                 return None, True
-            members = await ClassroomRepository(session).list_members(classroom.id)
+            members = await repository.list_members(link.classroom_id)
             return [_to_member(member) for member in members], is_stale(
                 synced_at, details_ttl(link.current)
             )
 
         members = await self._engine.resolve(
-            f"members:{classroom.id}",
-            load=load,
-            fetch=lambda client: client.classrooms.list_classroom_members(classroom_id),
-            save=partial(self._engine.save_members, classroom.id),
-            refresh=refresh,
+            Task.MEMBERS, load, link=link, refresh=refresh
         )
 
         return sorted(
@@ -87,30 +78,22 @@ class ClassroomService:
         self, classroom_id: str, *, refresh: bool = False
     ) -> list[StatisticsShare]:
         link = await self._link(classroom_id)
-        classroom = link.classroom
 
         async def load(
             session: AsyncSession,
         ) -> tuple[list[StatisticsShare] | None, bool]:
-            synced_at = classroom.statistics_synced_at
+            repository = ClassroomRepository(session)
+            classroom = await repository.get(link.classroom_id)
+            synced_at = classroom.statistics_synced_at if classroom else None
             if synced_at is None:
                 return None, True
-            statistics = await ClassroomRepository(session).list_statistics(
-                classroom.id
-            )
+            statistics = await repository.list_statistics(link.classroom_id)
             return [_to_share(statistic) for statistic in statistics], is_stale(
                 synced_at, details_ttl(link.current)
             )
 
-        async def fetch(client: SigaaClient) -> list[StatisticsShare]:
-            return list(await client.classrooms.get_classroom_statistics(classroom_id))
-
         shares = await self._engine.resolve(
-            f"statistics:{classroom.id}",
-            load=load,
-            fetch=fetch,
-            save=partial(self._engine.save_statistics, classroom.id),
-            refresh=refresh,
+            Task.STATISTICS, load, link=link, refresh=refresh
         )
 
         return sorted(shares, key=lambda s: _SITUATIONS.index(s.situation))
@@ -124,9 +107,7 @@ class ClassroomService:
             link, _ = await self._engine.read(find)
         elif is_stale(synced_at, CLASSROOMS_TTL):
             # A lista é o que dá acesso à turma: vencida, revalida como a listagem.
-            self._engine.revalidate(
-                "classrooms", fetch=_fetch_classrooms, save=self._engine.save_classrooms
-            )
+            await self._engine.schedule(Task.CLASSROOMS)
         if link is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Classroom not found"
@@ -148,10 +129,6 @@ class ClassroomService:
             user.id, classroom_id
         )
         return link, user.classrooms_synced_at
-
-
-async def _fetch_classrooms(client: SigaaClient) -> list[Classroom]:
-    return await client.classrooms.list_classrooms()
 
 
 def _in_semester(classroom: Classroom, semester: str | None) -> bool:

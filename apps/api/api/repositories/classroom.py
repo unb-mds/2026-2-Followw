@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from datetime import datetime
 from typing import Annotated
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import sigaa_client
 from fastapi import Depends
@@ -39,6 +39,9 @@ class ClassroomRepository:
                 .options(_WITH_CLASSROOM)
             )
         )
+
+    async def get(self, classroom_id: UUID) -> Classroom | None:
+        return await self._session.get(Classroom, classroom_id)
 
     async def get_by_front_end_id(
         self, user_id: UUID, front_end_id: str
@@ -101,9 +104,11 @@ class ClassroomRepository:
     ) -> None:
         links = {link.user_id: link for link in await self._links(classroom_id)}
         known = [link.user for link in links.values()]
+        # Turma grande tem milhares de participantes: os usuários vêm de uma vez.
+        users = await self._member_users(members)
         seen: set[UUID] = set()
         for member in members:
-            user = await self._save_member(member, known)
+            user = self._save_member(member, users, known)
             link = links.get(user.id)
             if link is None:
                 link = ClassroomUser(user_id=user.id, classroom_id=classroom_id)
@@ -212,32 +217,47 @@ class ClassroomRepository:
 
         return classroom
 
-    async def _save_member(
-        self, member: sigaa_client.ClassroomMember, known: Sequence[User]
+    async def _member_users(
+        self, members: Sequence[sigaa_client.ClassroomMember]
+    ) -> _UserIndex:
+        registrations = {m.registration for m in members if m.registration}
+        person_ids = {m.person_id for m in members if m.person_id is not None}
+        emails = {m.email for m in members if m.email}
+        index = _UserIndex()
+        for condition in (
+            User.registration.in_(registrations),
+            User.person_id.in_(person_ids),
+            User.email.in_(emails) & USER_WITHOUT_IDS,
+        ):
+            for user in await self._session.scalars(select(User).where(condition)):
+                index.add(user)
+        return index
+
+    def _save_member(
+        self,
+        member: sigaa_client.ClassroomMember,
+        users: _UserIndex,
+        known: Sequence[User],
     ) -> User:
         user = None
         if member.registration is not None:
-            user = await self._session.scalar(
-                select(User).where(User.registration == member.registration)
-            )
+            user = users.by_registration.get(member.registration)
         person_owner = None
         if member.person_id is not None and (user is None or user.person_id is None):
-            person_owner = await self._session.scalar(
-                select(User).where(User.person_id == member.person_id)
-            )
+            person_owner = users.by_person_id.get(member.person_id)
             user = user or person_owner
         # Quem foi visto antes só pelo email ganha os ids quando eles aparecem.
         if user is None and member.email is not None:
-            user = await self._session.scalar(
-                select(User).where(User.email == member.email, USER_WITHOUT_IDS)
-            )
+            user = users.by_email.get(member.email)
         if user is None and member.email is None and _without_ids(member):
             # Sem id nem email, só dá para reconhecer quem já estava nesta turma.
             user = next((u for u in known if _anonymous(u, member.name)), None)
         if user is None:
-            user = User(name=member.name)
+            # O id é gerado aqui porque o vínculo precisa dele antes do flush.
+            user = User(id=uuid4(), name=member.name)
             self._session.add(user)
 
+        users.discard(user)
         # O perfil de quem já logou é mais confiável: só completa o que falta.
         shadow = user.profile_synced_at is None
         if shadow:
@@ -250,9 +270,36 @@ class ClassroomRepository:
         # O `idPessoa` pode já ser de outro usuário, achado antes só por ele.
         if person_owner is None or person_owner is user:
             user.person_id = user.person_id or member.person_id
-        await self._session.flush()
+        users.add(user)
 
         return user
+
+
+class _UserIndex:
+    """Usuários por identidade, espelhando as consultas que o banco responderia."""
+
+    def __init__(self) -> None:
+        self.by_registration: dict[str, User] = {}
+        self.by_person_id: dict[int, User] = {}
+        self.by_email: dict[str, User] = {}
+
+    def _keys(self, user: User) -> list[tuple[dict, object]]:
+        keys: list[tuple[dict, object]] = [
+            (self.by_registration, user.registration),
+            (self.by_person_id, user.person_id),
+        ]
+        if user.registration is None and user.person_id is None:
+            keys.append((self.by_email, user.email))
+        return [(index, key) for index, key in keys if key is not None]
+
+    def add(self, user: User) -> None:
+        for index, key in self._keys(user):
+            index[key] = user
+
+    def discard(self, user: User) -> None:
+        for index, key in self._keys(user):
+            if index.get(key) is user:
+                del index[key]
 
 
 def _same_subject(item: sigaa_client.Subject) -> ColumnElement[bool]:
