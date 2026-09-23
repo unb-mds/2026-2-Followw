@@ -1,24 +1,31 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Query
-from sigaa_client import Classroom
+from sigaa_client import Classroom, ClassroomMember, StatisticsShare
 
-from api.dependencies.sigaa import SigaaClientDep
+from api.dependencies.refresh import RefreshQuery
+from api.services.classroom import ClassroomServiceDep
 
 router = APIRouter()
+
+ERRORS = {
+    401: {"description": "Credenciais ausentes ou inválidas."},
+    502: {"description": "SIGAA indisponível."},
+}
+CLASSROOM_ERRORS = {
+    **ERRORS,
+    404: {"description": "Turma não encontrada entre as turmas do usuário."},
+}
 
 
 @router.get(
     "",
     response_model=list[Classroom],
     summary="Consultar as turmas do usuário autenticado",
-    responses={
-        401: {"description": "Credenciais ausentes ou inválidas."},
-        502: {"description": "SIGAA indisponível."},
-    },
+    responses=ERRORS,
 )
 async def get_classrooms(
-    client: SigaaClientDep,
+    service: ClassroomServiceDep,
     semester: Annotated[
         str | None,
         Query(
@@ -26,11 +33,30 @@ async def get_classrooms(
             description="Sem filtro: turmas atuais. Use 'all' ou um semestre no formato AAAA.P, como 2026.2.",
         ),
     ] = None,
+    refresh: RefreshQuery = False,
 ) -> list[Classroom]:
-    if semester is None:
-        return await client.classrooms.list_classrooms()
+    return await service.list_classrooms(semester, refresh=refresh)
 
-    classrooms = await client.classrooms.list_all_classrooms()
-    if semester == "all":
-        return classrooms
-    return [classroom for classroom in classrooms if classroom.semester == semester]
+
+@router.get(
+    "/{classroom_id}/members",
+    response_model=list[ClassroomMember],
+    summary="Consultar docentes e discentes de uma turma do usuário",
+    responses=CLASSROOM_ERRORS,
+)
+async def get_classroom_members(
+    service: ClassroomServiceDep, classroom_id: str, refresh: RefreshQuery = False
+) -> list[ClassroomMember]:
+    return await service.list_members(classroom_id, refresh=refresh)
+
+
+@router.get(
+    "/{classroom_id}/statistics",
+    response_model=list[StatisticsShare],
+    summary="Consultar a situação dos discentes de uma turma do usuário",
+    responses=CLASSROOM_ERRORS,
+)
+async def get_classroom_statistics(
+    service: ClassroomServiceDep, classroom_id: str, refresh: RefreshQuery = False
+) -> list[StatisticsShare]:
+    return await service.list_statistics(classroom_id, refresh=refresh)

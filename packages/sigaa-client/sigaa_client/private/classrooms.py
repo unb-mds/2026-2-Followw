@@ -89,20 +89,13 @@ class Classrooms:
         self._context_lock = asyncio.Lock()
 
     async def list_classrooms(self) -> list[Classroom]:
-        dashboard, classrooms = await asyncio.gather(
-            self._get(DASHBOARD_PATH), self._get(CLASSROOMS_PATH)
-        )
-        active = _parse_dashboard(dashboard)
-        history = _parse_history(classrooms)
-        return [_merge(history.get(key), entry) for key, entry in active.items()]
-
-    async def list_all_classrooms(self) -> list[Classroom]:
         classrooms, dashboard = await asyncio.gather(
             self._get(CLASSROOMS_PATH), self._get(DASHBOARD_PATH)
         )
         history = _parse_history(classrooms)
         active = _parse_dashboard(dashboard)
-        return [_merge(entry, active.get(key)) for key, entry in history.items()]
+        merged = [_merge(entry, active.get(key)) for key, entry in history.items()]
+        return merged + [entry for key, entry in active.items() if key not in history]
 
     async def list_classroom_members(self, classroom_id: str) -> list[ClassroomMember]:
         page = await self._read_screen(classroom_id, _open_participants)
@@ -441,6 +434,7 @@ def _parse_dashboard(html: str) -> dict[str, Classroom]:
             semester=semester,
             schedule=schedule_code(visible_text(cells[2])) if len(cells) > 2 else None,
             room=room,
+            current=True,
             subject=Subject(name=clean_text(anchor), unity=unity),
         )
 
@@ -463,6 +457,7 @@ def _merge(base: Classroom | None, extra: Classroom | None) -> Classroom:
             "number": base.number or extra.number,
             "schedule": base.schedule or extra.schedule,
             "room": base.room or extra.room,
+            "current": base.current or extra.current,
             "subject": base.subject.model_copy(
                 update={
                     "unity": base.subject.unity or extra.subject.unity,

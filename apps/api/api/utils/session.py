@@ -4,6 +4,7 @@ import jwt
 from fastapi import Request, Response
 from pydantic import ValidationError
 from sigaa_client import Credentials
+from starlette.datastructures import Headers, MutableHeaders
 
 from api.core.config import settings
 
@@ -22,6 +23,7 @@ def set_access_cookie(response: Response, session_token: str) -> None:
 
 def read_access_cookie(request: Request) -> str | None:
     payload = _read_cookie(request, ACCESS_COOKIE_NAME)
+
     return payload.get("session_token") if payload else None
 
 
@@ -50,6 +52,16 @@ def clear_cookies(response: Response) -> None:
     response.delete_cookie(REFRESH_COOKIE_NAME)
 
 
+def clear_cookies_headers() -> Headers:
+    """`Set-Cookie` que apagam a sessão, para o `headers` de uma `HTTPException`."""
+    response = Response()
+    clear_cookies(response)
+    # `Headers.items()` repete a chave, então os dois `Set-Cookie` sobrevivem.
+    return MutableHeaders(
+        raw=[header for header in response.raw_headers if header[0] == b"set-cookie"]
+    )
+
+
 def _set_cookie(
     response: Response, name: str, payload: dict, expire_minutes: int
 ) -> None:
@@ -59,6 +71,13 @@ def _set_cookie(
         settings.jwt_secret_key,
         algorithm=settings.jwt_algorithm,
     )
+    # Gravar de novo na mesma resposta substitui o cookie em vez de repeti-lo.
+    prefix = f"{name}=".encode("latin-1")
+    response.raw_headers[:] = [
+        (key, value)
+        for key, value in response.raw_headers
+        if not (key == b"set-cookie" and value.startswith(prefix))
+    ]
     response.set_cookie(
         key=name,
         value=token,

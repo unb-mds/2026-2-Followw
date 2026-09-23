@@ -13,9 +13,11 @@ from sigaa_client import (
     ClassroomRole,
     StudentSituation,
 )
+from sigaa_client.config import CLASSROOMS_PATH, DASHBOARD_PATH
 from sigaa_client.exceptions import SigaaParseError
 from sigaa_client.private.classrooms import (
     _GLYPHS,
+    Classrooms,
     _assert_context,
     _chart_source,
     _legend_percentages,
@@ -125,6 +127,32 @@ def test_merge_completa_o_historico_com_o_portal():
 
 def test_dashboard_sem_turmas_nao_quebra():
     assert _parse_dashboard("<html><body></body></html>") == {}
+
+
+class PagesSession:
+    """Devolve uma página fixa por path, como as duas telas da listagem."""
+
+    def __init__(self, pages: dict[str, str]) -> None:
+        self.pages = pages
+
+    async def get(self, url: str, **_: object) -> httpx.Response:
+        return httpx.Response(200, text=self.pages[url])
+
+
+async def test_historico_completo_marca_as_turmas_atuais():
+    so_no_portal = DASHBOARD.replace("'AAA'", "'CCC'")
+    session = PagesSession({CLASSROOMS_PATH: HISTORY, DASHBOARD_PATH: DASHBOARD})
+
+    turmas = await Classrooms(session).list_classrooms()  # type: ignore[arg-type]
+    session.pages[DASHBOARD_PATH] = so_no_portal
+    com_extra = await Classrooms(session).list_classrooms()  # type: ignore[arg-type]
+
+    assert [(t.id, t.current) for t in turmas] == [("AAA", True), ("BBB", False)]
+    assert [(t.id, t.current) for t in com_extra] == [
+        ("AAA", False),
+        ("BBB", False),
+        ("CCC", True),
+    ]
 
 
 def test_participantes_separam_docente_de_discente():
