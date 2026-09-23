@@ -1,5 +1,6 @@
+.env.*
+!.env.example
 __pycache__/
-.env
 .coverage
 *.local
 .vercel
