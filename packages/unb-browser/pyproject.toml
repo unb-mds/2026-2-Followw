@@ -1,16 +1,14 @@
 [project]
-name = "sigaa-client"
-description = "Cliente Python para o SIGAA da UnB (dados públicos e autenticados)."
+name = "unb-browser"
+description = "Cliente Python para os sites públicos da UnB fora do SIGAA (RU, calendário, editais)."
 version = "0.0.1"
 requires-python = ">=3.14"
 dependencies = [
     "httpx>=0.28.1",
     "beautifulsoup4>=4.13.0",
     "lxml>=5.3.0",
-    "pillow>=11.0.0",
+    "pdfplumber>=0.11.10",
     "pydantic>=2.13.5",
-    "pypdf[image]>=5.9.0",
-    "zxing-cpp>=2.3.0",
 ]
 
 [build-system]
