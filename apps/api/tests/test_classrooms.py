@@ -1,6 +1,5 @@
 from datetime import UTC, datetime, timedelta
 
-import jwt
 import pytest
 from pydantic import SecretStr
 from sigaa_client import (
@@ -15,10 +14,13 @@ from sigaa_client import (
 )
 from sqlalchemy import update
 
-from api.core.config import settings
 from api.db.models import Classroom as ClassroomModel
 from api.db.models import User
-from api.utils.session import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME
+from api.utils.session import (
+    ACCESS_COOKIE_NAME,
+    REFRESH_COOKIE_NAME,
+    encrypt_cookie,
+)
 
 CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha"))
 DASHBOARD = """
@@ -160,14 +162,13 @@ def test_campos_opcionais_ausentes_retornam_null(client, classrooms_sigaa, cooki
 @pytest.mark.parametrize("refresh", [None, "invalido", "expirado"])
 def test_sem_credenciais_validas_retorna_401(client, sigaa, refresh):
     if refresh == "expirado":
-        refresh = jwt.encode(
+        refresh = encrypt_cookie(
+            REFRESH_COOKIE_NAME,
             {
                 "registration": "251000000",
                 "password": "senha",
-                "exp": datetime.now(UTC) - timedelta(minutes=1),
+                "exp": int((datetime.now(UTC) - timedelta(minutes=1)).timestamp()),
             },
-            settings.jwt_secret_key,
-            algorithm=settings.jwt_algorithm,
         )
     if refresh is not None:
         client.cookies.set(REFRESH_COOKIE_NAME, refresh)

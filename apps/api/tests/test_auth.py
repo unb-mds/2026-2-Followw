@@ -1,10 +1,8 @@
-import jwt
 import pytest
 from pydantic import SecretStr
 from sigaa_client import Credentials
 
-from api.core.config import settings
-from api.utils.session import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME
+from api.utils.session import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME, decrypt_cookie
 
 CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha"))
 
@@ -19,11 +17,7 @@ def _expirados(jar) -> set[str]:
 
 
 def _payload(response, nome: str) -> dict:
-    return jwt.decode(
-        response.cookies[nome],
-        settings.jwt_secret_key,
-        algorithms=[settings.jwt_algorithm],
-    )
+    return decrypt_cookie(nome, response.cookies[nome])
 
 
 @pytest.mark.parametrize(

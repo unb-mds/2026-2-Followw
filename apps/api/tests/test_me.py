@@ -1,13 +1,16 @@
 from datetime import UTC, datetime, timedelta
 
-import jwt
 import pytest
 from pydantic import SecretStr
 from sigaa_client import Credentials
 from sigaa_client.config import SIGAA_BASE_URL
 
-from api.core.config import settings
-from api.utils.session import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME
+from api.utils.session import (
+    ACCESS_COOKIE_NAME,
+    REFRESH_COOKIE_NAME,
+    decrypt_cookie,
+    encrypt_cookie,
+)
 
 CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha"))
 PERFIL = """
@@ -76,14 +79,13 @@ def test_me_sem_refresh_valido_retorna_401(client, sigaa, cookies, refresh):
     sigaa.valid_tokens.add("app14~VIVO")
     client.cookies.update(cookies(access="app14~VIVO"))
     if refresh == "expirado":
-        refresh = jwt.encode(
+        refresh = encrypt_cookie(
+            REFRESH_COOKIE_NAME,
             {
                 "registration": CREDENCIAIS.registration,
                 "password": "senha",
-                "exp": datetime.now(UTC) - timedelta(minutes=1),
+                "exp": int((datetime.now(UTC) - timedelta(minutes=1)).timestamp()),
             },
-            settings.jwt_secret_key,
-            algorithm=settings.jwt_algorithm,
         )
     if refresh is not None:
         client.cookies.set(REFRESH_COOKIE_NAME, refresh)
@@ -107,11 +109,7 @@ def test_me_renova_sessao_e_devolve_cookies(client, sigaa, cookies, access):
 
     assert response.status_code == 200
     assert sigaa.logins == 1
-    token = jwt.decode(
-        response.cookies[ACCESS_COOKIE_NAME],
-        settings.jwt_secret_key,
-        algorithms=[settings.jwt_algorithm],
-    )
+    token = decrypt_cookie(ACCESS_COOKIE_NAME, response.cookies[ACCESS_COOKIE_NAME])
     assert token["session_token"] == "app14~TOKEN1"
     assert REFRESH_COOKIE_NAME in response.cookies
 
