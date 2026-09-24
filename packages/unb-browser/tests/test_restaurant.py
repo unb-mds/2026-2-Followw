@@ -4,8 +4,15 @@ from pathlib import Path
 import httpx
 import pytest
 
-from unb_browser import Campus, MenuSection, UnbBrowser, UnbParseError
+from unb_browser import (
+    Campus,
+    MenuSection,
+    MenuSectionKey,
+    UnbBrowser,
+    UnbParseError,
+)
 from unb_browser.config import RU_MENU_URL
+from unb_browser.restaurant import pdf
 from unb_browser.restaurant.pdf import parse_menu
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -86,11 +93,17 @@ async def test_get_menu_devolve_json():
     data = menu[0].model_dump(mode="json")
     assert data["date"] == "2026-09-14"
     assert data["breakfast"][0] == {
+        "key": "drink",
         "name": "Bebidas",
         "items": ["Leite integral OU Bebida de soja", "Café OU chá"],
     }
-    assert data["lunch"][0] == {"name": "Salada 1", "items": ["Alface roxa"]}
+    assert data["lunch"][0] == {
+        "key": "salad_1",
+        "name": "Salada 1",
+        "items": ["Alface roxa"],
+    }
     assert data["dinner"][0] == {
+        "key": "salad_1",
         "name": "Salada 1",
         "items": ["Alface lisa com agrião"],
     }
@@ -121,6 +134,7 @@ def test_celula_partida_pelos_icones_vira_um_item_so():
     menu = parse_menu(DARCY_PDF)
 
     assert menu[0].lunch[3] == MenuSection(
+        key=MenuSectionKey.MAIN_DISH,
         name="Prato principal padrão",
         items=("Carne de sol trinchada com cebola roxa",),
     )
@@ -130,41 +144,51 @@ def test_cada_pagina_vira_uma_refeicao_com_as_secoes_na_ordem_da_tabela():
     menu = parse_menu(DARCY_PDF)
 
     assert [m.date.day for m in menu] == [14, 15, 16, 17, 18, 19, 20]
-    assert [s.name for s in menu[0].breakfast] == [
-        "Bebidas",
-        "Panificação",
-        "Opção extra",
-        "Gordura",
-        "Complemento padrão",
-        "Complemento ovolactovegetariano",
-        "Complemento vegetariano estrito",
-        "Fruta",
+    assert [s.key for s in menu[0].breakfast] == [
+        "drink",
+        "bread",
+        "extra",
+        "spread",
+        "complement",
+        "complement_vegetarian",
+        "complement_vegan",
+        "fruit",
     ]
-    assert [s.name for s in menu[0].lunch] == [
-        "Salada 1",
-        "Salada 2",
-        "Molho para salada",
-        "Prato principal padrão",
-        "Prato principal ovolactovegetariano",
-        "Prato principal vegetariano estrito",
-        "Guarnição",
-        "Acompanhamentos",
-        "Sobremesa",
-        "Bebida (refresco de)",
+    assert [s.key for s in menu[0].lunch] == [
+        "salad_1",
+        "salad_2",
+        "salad_dressing",
+        "main_dish",
+        "main_dish_vegetarian",
+        "main_dish_vegan",
+        "side_dish",
+        "accompaniments",
+        "dessert",
+        "drink",
     ]
-    assert [s.name for s in menu[0].dinner] == [
-        "Salada 1",
-        "Salada 2",
-        "Molho para salada",
-        "Prato principal padrão",
-        "Prato principal ovolactovegetariano",
-        "Prato principal vegetariano estrito",
-        "Sopa",
-        "Torrada",
-        "Acompanhamentos",
-        "Sobremesa",
-        "Bebida (refresco de)",
+    assert [s.key for s in menu[0].dinner] == [
+        "salad_1",
+        "salad_2",
+        "salad_dressing",
+        "main_dish",
+        "main_dish_vegetarian",
+        "main_dish_vegan",
+        "soup",
+        "toast",
+        "accompaniments",
+        "dessert",
+        "drink",
     ]
+
+
+def test_categoria_desconhecida_vem_sem_key(monkeypatch):
+    keys = {k: v for k, v in pdf._SECTION_KEYS.items() if k != "sopa"}
+    monkeypatch.setattr(pdf, "_SECTION_KEYS", keys)
+
+    soup = parse_menu(DARCY_PDF)[0].dinner[6]
+
+    assert soup.key is None
+    assert soup.name == "Sopa"
 
 
 def test_celula_mesclada_vale_para_todos_os_dias_e_cada_linha_e_um_item():
@@ -172,6 +196,7 @@ def test_celula_mesclada_vale_para_todos_os_dias_e_cada_linha_e_um_item():
 
     assert {m.breakfast[0] for m in menu} == {
         MenuSection(
+            key=MenuSectionKey.DRINK,
             name="Bebidas",
             items=("Leite integral OU Bebida de soja", "Café OU chá"),
         )

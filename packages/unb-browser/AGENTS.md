@@ -19,7 +19,7 @@ unb_browser/
     parsing.py      # clean_text, lookup_key
   restaurant/       # cardápio do RU (ru.unb.br)
     resource.py     # Restaurant.get_menu — acha os PDFs do campus na página
-    models.py       # Campus, DailyMenu, MenuSection
+    models.py       # Campus, DailyMenu, MenuSection, MenuSectionKey
     pdf.py          # tabela do PDF -> DailyMenu
 tests/
   fixtures/         # PDFs reais e completos do RU (públicos)
@@ -74,6 +74,10 @@ pela **geometria**, nunca pelo índice da coluna:
   trás pra frente (`ã h n a m a d é f a C`).
 - **Dias e refeições variam por campus** (Gama só publica seg–sex, Fazenda não
   tem jantar): refeição ausente é `None` e célula vazia não vira seção.
+- **Cada seção ganha uma `key`** (`MenuSectionKey`) pelo nome da categoria, via
+  `_SECTION_KEYS` (chaves em `lookup_key`). Categoria fora da lista vem com
+  `key=None` em vez de erro, para não derrubar o cardápio inteiro; se o RU
+  criar uma categoria nova, acrescente-a no enum e no dict.
 - **Quebra de linha dentro da célula não separa itens**: o texto é normalizado
   num item só ("Arroz branco e integral Feijão preto").
 

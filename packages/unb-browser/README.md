@@ -59,19 +59,44 @@ uma ou duas), em ordem de data. Cada `DailyMenu` traz `breakfast`, `lunch` e
 {
   "date": "2026-09-21",
   "breakfast": [
-    {"name": "Bebidas", "items": ["Leite integral OU Bebida de soja", "Café OU chá"]},
-    {"name": "Panificação", "items": ["Pão francês ou Pão careca ou Pão integral"]}
+    {"key": "drink", "name": "Bebidas", "items": ["Leite integral OU Bebida de soja", "Café OU chá"]},
+    {"key": "bread", "name": "Panificação", "items": ["Pão francês ou Pão careca ou Pão integral"]}
   ],
   "lunch": [
-    {"name": "Salada 1", "items": ["Repolho roxo"]},
-    {"name": "Prato principal padrão", "items": ["Frango com manteiga de ervas"]}
+    {"key": "salad_1", "name": "Salada 1", "items": ["Repolho roxo"]},
+    {"key": "main_dish", "name": "Prato principal padrão", "items": ["Frango com manteiga de ervas"]}
   ],
   "dinner": null
 }
 ```
 
-- Os nomes das seções vêm do PDF, então variam por refeição (`Sopa` e `Torrada`
-  só no jantar) e podem mudar se o RU mudar o cardápio.
+- `name` é o texto do PDF e `key` é uma chave estável para o código usar
+  (`MenuSectionKey`):
+
+  | `key`                   | Seção no PDF                          | Refeições      |
+  | ----------------------- | ------------------------------------- | -------------- |
+  | `drink`                 | Bebidas / Bebida (refresco de)        | todas          |
+  | `bread`                 | Panificação                           | café           |
+  | `extra`                 | Opção extra                           | café           |
+  | `spread`                | Gordura                               | café           |
+  | `complement`            | Complemento padrão                    | café           |
+  | `complement_vegetarian` | Complemento ovolactovegetariano       | café           |
+  | `complement_vegan`      | Complemento vegetariano estrito       | café           |
+  | `fruit`                 | Fruta                                 | café           |
+  | `salad_1`               | Salada 1                              | almoço, jantar |
+  | `salad_2`               | Salada 2                              | almoço, jantar |
+  | `salad_dressing`        | Molho para salada                     | almoço, jantar |
+  | `main_dish`             | Prato principal padrão                | almoço, jantar |
+  | `main_dish_vegetarian`  | Prato principal ovolactovegetariano   | almoço, jantar |
+  | `main_dish_vegan`       | Prato principal vegetariano estrito   | almoço, jantar |
+  | `side_dish`             | Guarnição                             | almoço         |
+  | `accompaniments`        | Acompanhamentos                       | almoço, jantar |
+  | `soup`                  | Sopa                                  | jantar         |
+  | `toast`                 | Torrada                               | jantar         |
+  | `dessert`               | Sobremesa                             | almoço, jantar |
+
+- Se o RU criar ou renomear uma categoria, a seção continua vindo com o `name`
+  do PDF, mas com `key` `null`.
 - Refeição que o campus não serve no dia vem `null` (a Fazenda Água Limpa não
   tem jantar; alguns campi não servem café no sábado).
 - Campus sem semana publicada devolve `()`.

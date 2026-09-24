@@ -15,7 +15,7 @@ from pdfplumber.page import Page
 
 from ..exceptions import UnbParseError
 from ..utils.parsing import clean_text, lookup_key
-from .models import DailyMenu, MenuSection
+from .models import DailyMenu, MenuSection, MenuSectionKey
 
 _DATE_RE = re.compile(r"(\d{1,2})/(\d{1,2})/(\d{4})")
 
@@ -25,6 +25,30 @@ _MEALS = {
     "desjejum": "breakfast",
     "almoco": "lunch",
     "jantar": "dinner",
+}
+
+# Chave estável por categoria; `Bebidas` (café) e `Bebida (refresco de)` são a mesma.
+_SECTION_KEYS = {
+    "bebidas": MenuSectionKey.DRINK,
+    "panificacao": MenuSectionKey.BREAD,
+    "opcao extra": MenuSectionKey.EXTRA,
+    "gordura": MenuSectionKey.SPREAD,
+    "complemento padrao": MenuSectionKey.COMPLEMENT,
+    "complemento ovolactovegetariano": MenuSectionKey.COMPLEMENT_VEGETARIAN,
+    "complemento vegetariano estrito": MenuSectionKey.COMPLEMENT_VEGAN,
+    "fruta": MenuSectionKey.FRUIT,
+    "salada 1": MenuSectionKey.SALAD_1,
+    "salada 2": MenuSectionKey.SALAD_2,
+    "molho para salada": MenuSectionKey.SALAD_DRESSING,
+    "prato principal padrao": MenuSectionKey.MAIN_DISH,
+    "prato principal ovolactovegetariano": MenuSectionKey.MAIN_DISH_VEGETARIAN,
+    "prato principal vegetariano estrito": MenuSectionKey.MAIN_DISH_VEGAN,
+    "guarnicao": MenuSectionKey.SIDE_DISH,
+    "acompanhamentos": MenuSectionKey.ACCOMPANIMENTS,
+    "sopa": MenuSectionKey.SOUP,
+    "torrada": MenuSectionKey.TOAST,
+    "sobremesa": MenuSectionKey.DESSERT,
+    "bebida (refresco de)": MenuSectionKey.DRINK,
 }
 
 _SHAPES = {"rect", "line", "curve"}
@@ -103,7 +127,11 @@ def _parse_page(page: Page) -> tuple[str, _Sections]:
 
     sections = {
         day: tuple(
-            MenuSection(name=label.text.capitalize(), items=tuple(texts))
+            MenuSection(
+                key=_SECTION_KEYS.get(lookup_key(label.text)),
+                name=label.text.capitalize(),
+                items=tuple(texts),
+            )
             for label, texts in by_label.items()
             if texts
         )
