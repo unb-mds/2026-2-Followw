@@ -1,0 +1,21 @@
+{
+  "$schema": "https://registry.scalar.com/@scalar/schemas/config",
+  "scalar": "2.0.0",
+  "info": {
+    "title": "Followw UnB API",
+    "description": "API alternativa e cliente assíncrono para o ecossistema da UnB / SIGAA"
+  },
+  "siteConfig": {
+    "theme": "purple"
+  },
+  "navigation": {
+    "routes": {
+      "/": {
+        "type": "openapi",
+        "title": "API Reference",
+        "url": "http://localhost:8000/openapi.json"
+      }
+    }
+  }
+}
+
