@@ -7,6 +7,12 @@
       "skillPath": "skills/engineering/codebase-design/SKILL.md",
       "computedHash": "5a17552cc1482f1a40124bf4e6c9dbd90ac0dbb47e71c07d47369f9e5f2ae3b5"
     },
+    "scalar-docs": {
+      "source": "scalar/scalar",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/scalar-docs/SKILL.md",
+      "computedHash": "13307156d2fc92d5fe8ab4899dcd06bf2e33d6fb2c714c821d50f59eea9f6c34"
+    },
     "to-spec": {
       "source": "mattpocock/skills",
       "sourceType": "github",
