@@ -1,0 +1,33 @@
+[project]
+name = "unb-browser"
+description = "Cliente Python para os sites públicos da UnB fora do SIGAA (RU, calendário, editais)."
+version = "0.0.1"
+requires-python = ">=3.14"
+dependencies = [
+    "httpx>=0.28.1",
+    "beautifulsoup4>=4.13.0",
+    "lxml>=5.3.0",
+    "pdfplumber>=0.11.10",
+    "pydantic>=2.13.5",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.9,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.ruff.format]
+line-ending = "lf"
+
+[tool.uv.build-backend]
+module-root = ""
+
+[dependency-groups]
+dev = [
+    "ruff>=0.16.6",
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

@@ -22,10 +22,11 @@ Monorepo Python gerenciado como workspace `uv` (`[tool.uv.workspace]` no
 
 ```
 apps/
-  api/              # API pública (FastAPI) — apps/api/AGENTS.md
-  web/              # Front-end web do Follow — apps/web/AGENTS.md
+  api/              # API pública (FastAPI)
+  web/              # Front-end web do Follow
 packages/
-  sigaa-client/      # biblioteca async que fala com o SIGAA — packages/sigaa-client/AGENTS.md
+  sigaa-client/      # biblioteca async que fala com o SIGAA
+  unb-browser/       # biblioteca async dos sites públicos da UnB (RU, calendário, editais)
 docs/                # requisitos e notas de sprint
 compose.yml          # Postgres local, usado pela api
 ```

@@ -1,5 +1,5 @@
 [tool.uv.workspace]
-members = ["apps/api", "packages/sigaa-client"]
+members = ["apps/api", "packages/sigaa-client", "packages/unb-browser"]
 
 [dependency-groups]
 dev = ["pytest-cov>=7.0.0", "ruff>=0.16.6"]
@@ -13,7 +13,7 @@ addopts = ["--import-mode=importlib"]
 
 [tool.coverage.run]
 branch = true
-source = ["apps/api/api", "packages/sigaa-client/sigaa_client"]
+source = ["apps/api/api", "packages/sigaa-client/sigaa_client", "packages/unb-browser/unb_browser"]
 
 [tool.coverage.report]
 skip_covered = false

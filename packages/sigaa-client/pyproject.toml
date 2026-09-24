@@ -2,9 +2,6 @@
 name = "sigaa-client"
 description = "Cliente Python para o SIGAA da UnB (dados públicos e autenticados)."
 version = "0.0.1"
-authors = [
-    { name = "eliabe", email = "74092305+eliabexp@users.noreply.github.com" }
-]
 requires-python = ">=3.14"
 dependencies = [
     "httpx>=0.28.1",

@@ -2,9 +2,6 @@
 name = "api"
 description = "API pública do Followw UnB."
 version = "0.0.1"
-authors = [
-    { name = "eliabe", email = "74092305+eliabexp@users.noreply.github.com" }
-]
 requires-python = ">=3.14"
 dependencies = [
     "asyncpg>=0.31.0",
