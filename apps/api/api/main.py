@@ -48,7 +48,7 @@ async def scalar_docs() -> HTMLResponse:
     return HTMLResponse(
         f"""
         <!doctype html>
-        <html>
+        <html lang="pt-BR">
           <head>
             <title>{app.title} — Documentação</title>
             <meta charset="utf-8" />
