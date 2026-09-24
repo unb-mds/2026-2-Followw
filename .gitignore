@@ -1,5 +1,4 @@
-.env
-.env.*
+.env*
 !.env.example
 __pycache__/
 .coverage
