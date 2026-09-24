@@ -14,12 +14,32 @@ from api.modules.me.main import router as me_router
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 
+tags_metadata = [
+    {
+        "name": "Auth",
+        "description": "Autenticação via SIGAA/CAS da UnB e gerenciamento de sessão stateless por cookies.",
+    },
+    {
+        "name": "Classrooms",
+        "description": "Turmas do semestre e histórico, participantes e estatísticas de aprovação.",
+    },
+    {
+        "name": "Me",
+        "description": "Perfil acadêmico do estudante autenticado.",
+    },
+    {
+        "name": "Jobs",
+        "description": "Processamento assíncrono e sincronização de dados via fila em background.",
+    },
+]
+
 app = FastAPI(
     title="Followw UnB API",
     description="API pública e client assíncrono para o SIGAA / ecossistema UnB.",
     version="0.1.0",
     docs_url=None,
     redoc_url=None,
+    openapi_tags=tags_metadata,
 )
 
 
@@ -51,7 +71,7 @@ async def scalar_docs() -> HTMLResponse:
 if settings.environment == "production":
     app.add_middleware(HTTPSRedirectMiddleware)
 
-app.include_router(auth_router, prefix="/auth", tags=["auth"])
-app.include_router(classrooms_router, prefix="/classrooms", tags=["classrooms"])
-app.include_router(me_router, prefix="/me", tags=["me"])
-app.include_router(jobs_router, prefix="/jobs", tags=["jobs"])
+app.include_router(auth_router, prefix="/auth", tags=["Auth"])
+app.include_router(classrooms_router, prefix="/classrooms", tags=["Classrooms"])
+app.include_router(me_router, prefix="/me", tags=["Me"])
+app.include_router(jobs_router, prefix="/jobs", tags=["Jobs"])
