@@ -236,3 +236,28 @@ class PublicClassroom(BaseModel):
     occupied: int | None = None
     teachers: tuple[Teacher, ...] = ()
     subject: Subject
+
+
+class NewsAttachment(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    name: str
+    url: str
+
+
+class News(BaseModel):
+    """
+    A home não expõe o `id` da notícia, mas diz de qual turma ela é
+    (`classroom_sigaa_id`, o mesmo `Classroom.sigaa_id`). Hora, texto (markdown) e
+    anexos só vêm da visualização da notícia (`get_classroom_news`).
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    id: int | None = None
+    classroom_sigaa_id: int | None = None
+    title: str
+    published_on: date
+    published_at: datetime | None = None
+    content: str | None = None
+    attachments: tuple[NewsAttachment, ...] = ()

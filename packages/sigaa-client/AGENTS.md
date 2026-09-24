@@ -20,8 +20,8 @@ sigaa_client/
     pdf.py        # texto e QR code dos PDFs que o SIGAA devolve
   private/        # resources que exigem sessão autenticada
     session.py    # login CAS, relogin transparente, request/get/post
-    profile.py
-    classrooms.py  # turmas, participantes, frequência e estatísticas da turma
+    profile.py    # perfil e outros dados gerais
+    classrooms.py  # turmas, participantes, frequência, estatísticas e notícias da turma
     restaurant.py # extrato do RU e carteirinha estudantil
   public/         # resources sem login
     session.py    # aquecimento da sessão anônima
@@ -67,7 +67,10 @@ constantes de módulo no topo do resource (`FORM_ID`, `UNIT_FIELD`,
 **Texto.** Não escreva parse de texto na mão: `clean_text` (normaliza espaços),
 `visible_text` (remove os balões `.popUp` que o SIGAA embute nas células),
 `split_course`, `split_location`, `schedule_code`, `lookup_key` (minúscula e
-sem acento, para bater com as chaves de um dict). Se precisar de outro, ele vai
+sem acento, para bater com as chaves de um dict), `parse_datetime` (data do
+SIGAA, sem timezone, com `SigaaParseError` no formato inesperado), `to_markdown`
+(texto rico do editor do SIGAA, como o de notícias, em markdown limpo — nunca
+devolva o HTML cru). Se precisar de outro, ele vai
 para `utils/parsing.py`.
 
 **Comentários.** Só onde o SIGAA faz algo contraintuitivo (HTML malformado,
@@ -130,7 +133,9 @@ Regras que não dá para burlar:
   do contexto, abre a turma, lê a tela e confere o contexto — uma operação só.
   O lock só vale dentro do client: outro client na mesma sessão (a api e um job
   do mesmo usuário) pode trocar a turma no meio, então turma trocada
-  (`_ContextSwitched`) reabre a turma até `_SCREEN_ATTEMPTS` vezes.
+  (`_ContextSwitched`) reabre a turma até `_SCREEN_ATTEMPTS` vezes. Telas em
+  dois passos (notícias: item **Notícias** do menu → **Visualizar** da
+  listagem) fazem os dois postbacks dentro do mesmo `open_screen`.
 - **A sessão anônima precisa de aquecimento.** O JSF só aceita a view de volta
   se ela passou pela home pública; `PublicSession` faz isso na primeira request
   e refaz em `restart()`. Como o `ViewState` morre junto, retry significa reler

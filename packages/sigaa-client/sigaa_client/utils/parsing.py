@@ -2,10 +2,25 @@
 
 import re
 import unicodedata
+from datetime import datetime
+from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup, Tag
+from markdownify import ATX, BACKSLASH, MarkdownConverter
+
+from ..config import SIGAA_BASE_URL
+from ..exceptions import SigaaParseError
 
 _DATE_RANGE_RE = re.compile(r"\s*\([^)]*\)\s*")
+_TRAILING_SPACES_RE = re.compile(r"[ \t]+$", re.MULTILINE)
+_BLANK_LINES_RE = re.compile(r"\n{3,}")
+# `<br>` no começo ou no fim de parágrafo vira um `\` solto junto da linha em branco.
+_DANGLING_BREAKS_RE = re.compile(
+    r"\n*(?:\\\n)+\n+|\n\n(?:\\\n)+|^(?:\\\n)+|(?:\\\n)*\\$"
+)
+
+# Quebra de linha com `\` em vez de dois espaços, que a limpeza de fim de linha apagaria.
+_MARKDOWN = MarkdownConverter(heading_style=ATX, bullets="-", newline_style=BACKSLASH)
 
 
 def clean_text(node: Tag) -> str:
@@ -42,6 +57,31 @@ def schedule_code(value: str) -> str | None:
 
 
 def lookup_key(value: str) -> str:
-    """Chave de lookup, sem acento e em minúscula: `Março` -> `marco`."""
+    """Chave de lookup, sem acento e em minúscula."""
     normalized = unicodedata.normalize("NFKD", value.strip().lower())
     return "".join(c for c in normalized if not unicodedata.combining(c))
+
+
+def parse_datetime(value: str, fmt: str, where: str) -> datetime:
+    """O SIGAA não expõe timezone; a data é sempre a do calendário da UnB."""
+    try:
+        return datetime.strptime(value, fmt)  # noqa: DTZ007
+    except ValueError as error:
+        raise SigaaParseError(
+            f"Data `{value}` {where} em formato inesperado."
+        ) from error
+
+
+def to_markdown(node: Tag) -> str | None:
+    """HTML do editor do SIGAA -> markdown, sem estilos, `&nbsp;` nem parágrafos vazios."""
+    copy = BeautifulSoup(str(node), "lxml")
+    for tag in copy.find_all(href=True):
+        tag["href"] = urljoin(SIGAA_BASE_URL, str(tag["href"]))
+        del tag["title"]
+    for tag in copy.find_all(src=True):
+        tag["src"] = urljoin(SIGAA_BASE_URL, str(tag["src"]))
+
+    text = _MARKDOWN.convert_soup(copy).replace("\xa0", " ")
+    text = _TRAILING_SPACES_RE.sub("", text).strip()
+    text = _DANGLING_BREAKS_RE.sub("\n\n", text).strip()
+    return _BLANK_LINES_RE.sub("\n\n", text) or None

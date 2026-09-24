@@ -71,19 +71,23 @@ integralização do curso e é independente desses índices.
 ```python
 async with SigaaClient(credentials) as client:
     await client.profile.get_profile()  # UserProfile
+    await client.profile.list_news()  # notícias das turmas, da home
     await (
         client.classrooms.list_classrooms()
     )  # histórico completo (`current` marca as atuais)
     await client.classrooms.list_classroom_members(id)  # docentes e discentes
     await client.classrooms.get_classroom_frequency(id)  # frequência e andamento
     await client.classrooms.get_classroom_statistics(id)  # gráfico de estatísticas
+    await client.classrooms.list_classroom_news(id)  # notícias da turma
+    await client.classrooms.get_classroom_news(id, news_id)  # texto e anexos
     await client.restaurant.get_restaurant_statement()  # extrato do RU (7 dias)
     await client.restaurant.get_restaurant_credentials()  # token do QR e validade
     await client.logout()
 ```
 
 O `id` dos métodos por turma (`list_classroom_members()`,
-`get_classroom_frequency()`, `get_classroom_statistics()`) é o `Classroom.id` —
+`get_classroom_frequency()`, `get_classroom_statistics()`,
+`list_classroom_news()`, `get_classroom_news()`) é o `Classroom.id` —
 hash de 40 caracteres, estável entre sessões e presente tanto no semestre
 corrente quanto no histórico.
 
@@ -99,6 +103,14 @@ Turma" (`StatisticsShare`), sempre todas, inclusive as zeradas. O SIGAA só
 desenha esse gráfico como imagem: os números saem da legenda do PNG, lidos
 glifo a glifo. Como cada fatia vem arredondada em uma casa, a soma pode fechar
 em 99.9 ou 100.1 — e a contagem de alunos por situação não existe na tela.
+
+As notícias (`News`) vêm em três níveis de detalhe. `profile.list_news()` lê
+as "Últimas Atualizações" da home — só as de "Nova Notícia", sem outros avisos
+— e traz título, dia e `classroom_sigaa_id` (o `Classroom.sigaa_id`), mas não o
+`id` da notícia. `list_classroom_news()` traz `id`, título e dia. Hora
+(`published_at`), texto (`content`, em markdown, convertido do HTML do editor
+do SIGAA) e anexos
+só vêm de `get_classroom_news()`, um postback por notícia.
 
 `get_restaurant_statement()` devolve `None` para quem não tem extrato no RU.
 `get_restaurant_credentials()` lê o PDF da carteirinha estudantil: o token vem
