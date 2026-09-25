@@ -236,3 +236,24 @@ class PublicClassroom(BaseModel):
     occupied: int | None = None
     teachers: tuple[Teacher, ...] = ()
     subject: Subject
+
+
+class NewsAttachment(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    name: str
+    url: str
+
+
+class News(BaseModel):
+    """A home não traz `id`; hora, texto e anexos só vêm de `get_classroom_news`."""
+
+    model_config = ConfigDict(frozen=True)
+
+    id: int | None = None
+    classroom_sigaa_id: int | None = None
+    title: str
+    published_on: date
+    published_at: datetime | None = None
+    content: str | None = None
+    attachments: tuple[NewsAttachment, ...] = ()

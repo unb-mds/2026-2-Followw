@@ -1,6 +1,9 @@
-import httpx
+from datetime import date
 
-from sigaa_client import SigaaClient
+import httpx
+import pytest
+
+from sigaa_client import News, SigaaClient, SigaaParseError
 
 CARD = """
 <div id="perfil-docente">
@@ -75,3 +78,50 @@ async def test_get_profile_sem_indices_academicos_vem_none():
 
     assert profile.ira is None
     assert profile.mp is None
+
+
+UPDATES = """
+<html><body><div id="atualizacoes-turma"><div class="rotator">
+  <table>
+    <tr><td>
+      12/09/2026 -
+      <a href="#" onclick="jsfcljs(x,{'formAtualizacoesTurmas:j_id':'formAtualizacoesTurmas:j_id','idTurma':'1615025'},'');">MATEMÁTICA DISCRETA 2 (2026.2)</a>
+    </td></tr>
+    <tr><td>Nova Not&#237;cia: Link Whatsapp da turma</td></tr>
+  </table>
+  <table>
+    <tr><td>
+      15/07/2026 -
+      <a href="#" onclick="jsfcljs(x,{'idTurma':'1615025'},'');">MATEMÁTICA DISCRETA 2 (2026.2)</a>
+    </td></tr>
+    <tr><td>Avaliação marcada para o dia 21/05/2026</td></tr>
+  </table>
+</div></div></body></html>
+"""
+
+
+async def test_noticias_da_home_ignoram_outras_atualizacoes():
+    sigaa = FakeDashboard(page=UPDATES)
+    async with SigaaClient(session_token="tok", transport=sigaa.transport) as client:
+        noticias = await client.profile.list_news()
+
+    assert noticias == [
+        News(
+            classroom_sigaa_id=1615025,
+            title="Link Whatsapp da turma",
+            published_on=date(2026, 9, 12),
+        )
+    ]
+
+
+async def test_home_sem_painel_de_turmas_nao_tem_noticias():
+    sigaa = FakeDashboard(page=DASHBOARD)
+    async with SigaaClient(session_token="tok", transport=sigaa.transport) as client:
+        assert await client.profile.list_news() == []
+
+
+async def test_noticia_da_home_sem_turma_e_barulhenta():
+    sigaa = FakeDashboard(page=UPDATES.replace("'idTurma':'1615025'", "", 1))
+    async with SigaaClient(session_token="tok", transport=sigaa.transport) as client:
+        with pytest.raises(SigaaParseError):
+            await client.profile.list_news()

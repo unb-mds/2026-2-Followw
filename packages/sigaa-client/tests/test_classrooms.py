@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from datetime import date
+from datetime import date, datetime
 from io import BytesIO
 
 import httpx
@@ -9,8 +9,10 @@ from PIL import Image
 
 from sigaa_client import (
     AttendanceStatus,
+    ClassroomNotFound,
     ClassroomProgress,
     ClassroomRole,
+    NewsNotFound,
     StudentSituation,
 )
 from sigaa_client.config import (
@@ -28,12 +30,16 @@ from sigaa_client.private.classrooms import (
     _chart_source,
     _legend_percentages,
     _merge,
+    _news_fieldset,
     _open_frequency,
+    _open_news_detail,
     _open_statistics,
     _parse_dashboard,
     _parse_frequency,
     _parse_history,
     _parse_members,
+    _parse_news_detail,
+    _parse_news_list,
     _parse_statistics,
 )
 from sigaa_client.private.session import Session
@@ -162,6 +168,21 @@ async def test_historico_completo_marca_as_turmas_atuais():
     ]
 
 
+async def test_turmas_atuais_so_leem_o_portal():
+    session = PagesSession({DASHBOARD_PATH: DASHBOARD})
+
+    turmas = await Classrooms(session).list_current_classrooms()  # type: ignore[arg-type]
+
+    assert [(t.id, t.sigaa_id) for t in turmas] == [("AAA", 1617644)]
+
+
+async def test_turma_fora_do_historico_nao_e_erro_de_layout():
+    session = PagesSession({CLASSROOMS_PATH: HISTORY})
+
+    with pytest.raises(ClassroomNotFound):
+        await Classrooms(session).list_classroom_news("CCC")  # type: ignore[arg-type]
+
+
 def test_participantes_separam_docente_de_discente():
     soup = BeautifulSoup(PARTICIPANTS, "lxml")
 
@@ -244,6 +265,9 @@ CLASSROOM_HOME = """
     {'formMenu:j_id_jsp_97':'formMenu:j_id_jsp_97'},'');">Frequência</a>
   <a href="#" onclick="jsfcljs(document.getElementById('formMenu'),
     {'formMenu:j_id_jsp_142':'formMenu:j_id_jsp_142'},'');">Situação dos Discentes</a>
+  <a href="#" onclick="jsfcljs(document.getElementById('formMenu'),
+    {'formMenu:j_id_jsp_88':'formMenu:j_id_jsp_88'},'');">
+    <div class="itemMenu">Notícias</div></a>
   <input name="javax.faces.ViewState" type="hidden" value="j_id6"/>
 </form>
 </body></html>
@@ -542,3 +566,133 @@ def test_imagem_sem_legenda_e_barulhenta():
 
     with pytest.raises(SigaaParseError):
         _legend_percentages(buffer.getvalue())
+
+
+NEWS_LIST = """
+<html><body><div id="conteudo">
+<form id="j_id_jsp_297" name="j_id_jsp_297" action="/sigaa/ava/NoticiaTurma/listar.jsf">
+<fieldset><legend>Notícias</legend>
+<table class="listing">
+<thead><tr><th><p align="left">Título</p></th><th>Data</th><th></th></tr></thead>
+<tbody>
+<tr class="even">
+  <td class="first">Bem-vindos à disciplina</td>
+  <td class="width75">10/08/2026</td>
+  <td class="icon"><a href="#" onclick="if(typeof jsfcljs == 'function'){jsfcljs(document.getElementById('j_id_jsp_297'),{'j_id_jsp_297:j_id_jsp_300':'j_id_jsp_297:j_id_jsp_300','id':'23433316'},'');}return false"><img title="Visualizar"/></a></td>
+</tr>
+</tbody>
+</table>
+</fieldset>
+<input type="hidden" name="javax.faces.ViewState" value="j_id3"/>
+</form>
+</div></body></html>
+"""
+
+NEWS_EMPTY = """
+<html><body><div id="conteudo"><form id="f">
+<fieldset><legend>Notícias</legend></fieldset>
+</form></div></body></html>
+"""
+
+NEWS_DETAIL = """
+<html><body><div id="conteudo">
+<form id="j_id_jsp_297" action="/sigaa/ava/NoticiaTurma/mostrar.jsf">
+<fieldset>
+  <legend>Visualização de Notícia</legend>
+<ul class="form">
+  <li><label>Título:</label><span> Bem-vindos à disciplina </span></li>
+  <li><label>Data:</label><span> 10/08/2026 15:24 </span></li>
+  <li><table><tbody><tr><th>Texto:</th><td class="conteudoNoticia">
+    <div style="padding-left:20px;"><p>Prezados(as) estudantes,</p></div>
+  </td></tr></tbody></table></li>
+  <li><label>Anexo:</label><span>
+    <a href="/sigaa/verArquivo?idArquivo=4068560&amp;key=abc" target="_blank"> Plano.pdf </a>
+  </span></li>
+</ul>
+</fieldset>
+</form>
+</div></body></html>
+"""
+
+
+def test_listagem_de_noticias_traz_id_titulo_e_dia():
+    noticias = _parse_news_list(BeautifulSoup(NEWS_LIST, "lxml"))
+
+    assert [(n.id, n.title, n.published_on) for n in noticias] == [
+        (23433316, "Bem-vindos à disciplina", date(2026, 8, 10))
+    ]
+
+
+def test_turma_sem_noticias_devolve_lista_vazia():
+    assert _parse_news_list(BeautifulSoup(NEWS_EMPTY, "lxml")) == []
+
+
+def test_legenda_da_noticia_e_comparada_como_texto():
+    soup = BeautifulSoup(
+        "<fieldset><legend> Notícias (Turma)? </legend></fieldset>", "lxml"
+    )
+
+    assert _news_fieldset(soup, "Notícias (Turma)?") is not None
+
+
+def test_tela_sem_listagem_de_noticias_e_barulhenta():
+    with pytest.raises(SigaaParseError):
+        _parse_news_list(BeautifulSoup("<html><body></body></html>", "lxml"))
+
+
+def test_visualizacao_traz_hora_texto_e_anexo():
+    noticia = _parse_news_detail(BeautifulSoup(NEWS_DETAIL, "lxml"), 23433316)
+
+    assert noticia.title == "Bem-vindos à disciplina"
+    assert noticia.published_at == datetime(2026, 8, 10, 15, 24)  # noqa: DTZ001
+    assert noticia.published_on == date(2026, 8, 10)
+    assert noticia.content == "Prezados(as) estudantes,"
+    assert [(a.name, a.url) for a in noticia.attachments] == [
+        ("Plano.pdf", f"{SIGAA_BASE_URL}/sigaa/verArquivo?idArquivo=4068560&key=abc")
+    ]
+
+
+class NewsSession:
+    """O menu da turma no GET; depois, uma resposta por postback, na ordem."""
+
+    def __init__(self, *results: str) -> None:
+        self.results = list(results)
+        self.payloads: list[dict[str, str]] = []
+
+    async def get(self, url: str, **_: object) -> httpx.Response:
+        return httpx.Response(200, text=CLASSROOM_HOME)
+
+    async def post(self, url: str, data: dict[str, str], **_: object) -> httpx.Response:
+        self.payloads.append(data)
+        return httpx.Response(200, text=self.results.pop(0))
+
+
+async def test_noticia_abre_pelo_menu_e_pelo_link_da_listagem():
+    session = NewsSession(NEWS_LIST, NEWS_DETAIL)
+
+    pagina = await _open_news_detail(23433316, session, True)  # type: ignore[arg-type]
+
+    assert pagina == NEWS_DETAIL
+    assert session.payloads[0]["formMenu:j_id_jsp_88"] == "formMenu:j_id_jsp_88"
+    assert session.payloads[1] == {
+        "j_id_jsp_297": "j_id_jsp_297",
+        "j_id_jsp_297:j_id_jsp_300": "j_id_jsp_297:j_id_jsp_300",
+        "id": "23433316",
+        "javax.faces.ViewState": "j_id3",
+    }
+
+
+async def test_noticia_que_nao_esta_na_turma_e_barulhenta():
+    session = NewsSession(NEWS_LIST)
+
+    pagina = await _open_news_detail(1, session, True)  # type: ignore[arg-type]
+
+    assert len(session.payloads) == 1
+    with pytest.raises(NewsNotFound):
+        _parse_news_detail(BeautifulSoup(pagina, "lxml"), 1)
+
+
+@pytest.mark.parametrize("page", ["<html>layout inesperado</html>", NEWS_LIST])
+def test_detalhe_ilegivel_nao_e_confundido_com_noticia_ausente(page):
+    with pytest.raises(SigaaParseError):
+        _parse_news_detail(BeautifulSoup(page, "lxml"), 23433316)
