@@ -17,17 +17,20 @@ CLASSROOM_ERRORS = {
     **ERRORS,
     404: {"description": "Turma não encontrada entre as turmas do usuário."},
 }
+NewsClassroomId = Annotated[
+    str, Path(description="Classroom.id ou o classroom_sigaa_id de /news.")
+]
 
 
 @router.get(
     "/{classroom_id}/news",
     response_model=list[News],
     summary="Consultar notícias de uma turma do usuário",
-    description="Consulta o SIGAA sem cache. Aceita classroom_sigaa_id retornado por /news (Classroom.sigaa_id) ou o antigo Classroom.id. Retorna o ID da notícia, o ID numérico da turma, título e dia. Para conteúdo e anexos, use /classrooms/{classroom_id}/news/{news_id}.",
+    description="ID, título e dia das notícias da turma, sem cache.",
     responses=CLASSROOM_ERRORS,
 )
 async def get_classroom_news(
-    service: NewsServiceDep, classroom_id: str, response: Response
+    service: NewsServiceDep, classroom_id: NewsClassroomId, response: Response
 ) -> list[News]:
     response.headers["Cache-Control"] = "no-store"
     return await service.list_classroom_news(classroom_id)
@@ -37,7 +40,7 @@ async def get_classroom_news(
     "/{classroom_id}/news/{news_id}",
     response_model=News,
     summary="Consultar conteúdo e anexos de uma notícia da turma",
-    description="Consulta o SIGAA sem cache. Aceita o ID numérico da turma (classroom_sigaa_id) ou o antigo Classroom.id. Retorna texto em Markdown, data e hora do SIGAA (sem fuso) e anexos com nome e URL. O news_id pode ser obtido em /news?resolve_ids=true ou na listagem da turma.",
+    description="Texto em Markdown, data e hora e anexos da notícia, sem cache.",
     responses={
         **ERRORS,
         404: {
@@ -47,7 +50,7 @@ async def get_classroom_news(
 )
 async def get_classroom_news_detail(
     service: NewsServiceDep,
-    classroom_id: str,
+    classroom_id: NewsClassroomId,
     news_id: Annotated[
         int, Path(gt=0, description="ID da notícia na listagem da turma.")
     ],

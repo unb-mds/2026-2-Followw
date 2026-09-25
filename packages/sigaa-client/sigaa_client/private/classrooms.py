@@ -1,7 +1,6 @@
 import asyncio
 import re
 from collections.abc import Awaitable, Callable
-from datetime import datetime
 from functools import partial
 from io import BytesIO
 from urllib.parse import urljoin
@@ -17,7 +16,13 @@ from ..config import (
     PARTICIPANTS_TIMEOUT,
     SIGAA_BASE_URL,
 )
-from ..exceptions import NewsNotFound, SessionExpired, SessionRenewed, SigaaParseError
+from ..exceptions import (
+    ClassroomNotFound,
+    NewsNotFound,
+    SessionExpired,
+    SessionRenewed,
+    SigaaParseError,
+)
 from ..models import (
     AttendanceEntry,
     AttendanceStatus,
@@ -109,6 +114,10 @@ class Classrooms:
         merged = [_merge(entry, active.get(key)) for key, entry in history.items()]
         return merged + [entry for key, entry in active.items() if key not in history]
 
+    async def list_current_classrooms(self) -> list[Classroom]:
+        """Só as turmas do portal: sem código e CH, mas com `sigaa_id`, numa request."""
+        return list(_parse_dashboard(await self._get(DASHBOARD_PATH)).values())
+
     async def list_classroom_members(self, classroom_id: str) -> list[ClassroomMember]:
         page = await self._read_screen(classroom_id, _open_participants)
         soup = BeautifulSoup(page, "lxml")
@@ -183,7 +192,7 @@ class Classrooms:
             None,
         )
         if row is None:
-            raise SigaaParseError(f"Turma `{classroom_id}` não está no histórico.")
+            raise ClassroomNotFound(f"Turma `{classroom_id}` não está no histórico.")
 
         form = row[1].find_parent("form") or soup.find("form")
         if not isinstance(form, Tag):
@@ -260,7 +269,9 @@ async def _open_menu(session: Session, label: str, allow_renewal: bool) -> str:
 
 
 def _news_fieldset(soup: BeautifulSoup, legend: str) -> Tag | None:
-    heading = soup.find("legend", string=re.compile(rf"^\s*{legend}\s*$"))
+    heading = next(
+        (tag for tag in soup.find_all("legend") if clean_text(tag) == legend), None
+    )
     fieldset = heading.find_parent("fieldset") if heading is not None else None
     return fieldset if isinstance(fieldset, Tag) else None
 
@@ -408,13 +419,7 @@ def _parse_entries(table: Tag) -> tuple[AttendanceEntry, ...]:
 
 
 def _entry(day: str, situation: str) -> AttendanceEntry:
-    try:
-        # O SIGAA não expõe timezone; a data é sempre a do calendário da UnB.
-        occurred_on = datetime.strptime(day, "%d/%m/%Y").date()  # noqa: DTZ007
-    except ValueError as error:
-        raise SigaaParseError(
-            f"Data `{day}` do mapa de frequências em formato inesperado."
-        ) from error
+    occurred_on = parse_datetime(day, "%d/%m/%Y", "do mapa de frequências").date()
 
     absences = _ABSENCES_RE.search(situation)
     if absences is not None:

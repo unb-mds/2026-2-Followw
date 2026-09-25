@@ -2,7 +2,7 @@ from html import unescape
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
-from sigaa_client import Classroom, News, NewsNotFound
+from sigaa_client import ClassroomNotFound, News, NewsNotFound
 
 from api.dependencies.sigaa import SigaaClientDep
 
@@ -16,19 +16,22 @@ class NewsService:
         if not resolve_ids or not news:
             return news
 
-        classrooms = await self._client.classrooms.list_classrooms()
+        # A home só cita turmas do semestre, então o portal basta para achar o `id`.
+        current = {
+            c.sigaa_id: c.id
+            for c in await self._client.classrooms.list_current_classrooms()
+        }
         by_classroom: dict[int, list[News]] = {}
         for item in news:
-            classroom_id = item.classroom_sigaa_id
-            if classroom_id is None or classroom_id in by_classroom:
+            sigaa_id = item.classroom_sigaa_id
+            if sigaa_id is None or sigaa_id in by_classroom:
                 continue
-            matches = [c for c in classrooms if c.sigaa_id == classroom_id]
-            if len(matches) == 1:
-                by_classroom[classroom_id] = (
-                    await self._client.classrooms.list_classroom_news(matches[0].id)
-                )
-            else:
-                by_classroom[classroom_id] = []
+            classroom_id = current.get(sigaa_id)
+            by_classroom[sigaa_id] = (
+                await self._client.classrooms.list_classroom_news(classroom_id)
+                if classroom_id is not None
+                else []
+            )
 
         result = []
         for item in news:
@@ -47,34 +50,48 @@ class NewsService:
         return result
 
     async def list_classroom_news(self, classroom_id: str) -> list[News]:
-        classroom = await self._classroom(classroom_id)
-        news = await self._client.classrooms.list_classroom_news(classroom.id)
-        return [item.model_copy(update={"classroom_sigaa_id": classroom.sigaa_id}) for item in news]
-
-    async def _classroom(self, classroom_id: str) -> Classroom:
-        classrooms = await self._client.classrooms.list_classrooms()
-        matches = [c for c in classrooms if c.id == classroom_id]
-        if not matches and classroom_id.isascii() and classroom_id.isdecimal():
-            matches = [c for c in classrooms if c.sigaa_id == int(classroom_id)]
-        if len(matches) != 1:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Classroom not found"
-            )
-        return matches[0]
+        classroom_id, sigaa_id = await self._resolve(classroom_id)
+        try:
+            news = await self._client.classrooms.list_classroom_news(classroom_id)
+        except ClassroomNotFound:
+            raise _classroom_not_found()
+        return [
+            item.model_copy(update={"classroom_sigaa_id": sigaa_id}) for item in news
+        ]
 
     async def get_classroom_news(self, classroom_id: str, news_id: int) -> News:
-        classroom = await self._classroom(classroom_id)
+        classroom_id, sigaa_id = await self._resolve(classroom_id)
         try:
-            news = await self._client.classrooms.get_classroom_news(classroom.id, news_id)
+            news = await self._client.classrooms.get_classroom_news(
+                classroom_id, news_id
+            )
+        except ClassroomNotFound:
+            raise _classroom_not_found()
         except NewsNotFound:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="News not found"
             )
-        return news.model_copy(update={"classroom_sigaa_id": classroom.sigaa_id})
+        return news.model_copy(update={"classroom_sigaa_id": sigaa_id})
+
+    async def _resolve(self, classroom_id: str) -> tuple[str, int | None]:
+        """`Classroom.id` e `sigaa_id` da turma; quem confere o histórico é o client."""
+        current = await self._client.classrooms.list_current_classrooms()
+        match = next((c for c in current if c.id == classroom_id), None) or next(
+            (c for c in current if c.sigaa_id and str(c.sigaa_id) == classroom_id),
+            None,
+        )
+        # Fora do portal, só pode ser um `Classroom.id` de semestre passado.
+        return (match.id, match.sigaa_id) if match else (classroom_id, None)
 
 
 def _title(title: str) -> str:
     return " ".join(unescape(title).split())
+
+
+def _classroom_not_found() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND, detail="Classroom not found"
+    )
 
 
 NewsServiceDep = Annotated[NewsService, Depends()]

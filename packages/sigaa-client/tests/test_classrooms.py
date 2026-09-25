@@ -9,6 +9,7 @@ from PIL import Image
 
 from sigaa_client import (
     AttendanceStatus,
+    ClassroomNotFound,
     ClassroomProgress,
     ClassroomRole,
     NewsNotFound,
@@ -29,6 +30,7 @@ from sigaa_client.private.classrooms import (
     _chart_source,
     _legend_percentages,
     _merge,
+    _news_fieldset,
     _open_frequency,
     _open_news_detail,
     _open_statistics,
@@ -164,6 +166,21 @@ async def test_historico_completo_marca_as_turmas_atuais():
         ("BBB", False),
         ("CCC", True),
     ]
+
+
+async def test_turmas_atuais_so_leem_o_portal():
+    session = PagesSession({DASHBOARD_PATH: DASHBOARD})
+
+    turmas = await Classrooms(session).list_current_classrooms()  # type: ignore[arg-type]
+
+    assert [(t.id, t.sigaa_id) for t in turmas] == [("AAA", 1617644)]
+
+
+async def test_turma_fora_do_historico_nao_e_erro_de_layout():
+    session = PagesSession({CLASSROOMS_PATH: HISTORY})
+
+    with pytest.raises(ClassroomNotFound):
+        await Classrooms(session).list_classroom_news("CCC")  # type: ignore[arg-type]
 
 
 def test_participantes_separam_docente_de_discente():
@@ -608,6 +625,14 @@ def test_listagem_de_noticias_traz_id_titulo_e_dia():
 
 def test_turma_sem_noticias_devolve_lista_vazia():
     assert _parse_news_list(BeautifulSoup(NEWS_EMPTY, "lxml")) == []
+
+
+def test_legenda_da_noticia_e_comparada_como_texto():
+    soup = BeautifulSoup(
+        "<fieldset><legend> Notícias (Turma)? </legend></fieldset>", "lxml"
+    )
+
+    assert _news_fieldset(soup, "Notícias (Turma)?") is not None
 
 
 def test_tela_sem_listagem_de_noticias_e_barulhenta():

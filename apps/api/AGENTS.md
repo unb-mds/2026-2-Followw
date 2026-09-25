@@ -81,7 +81,10 @@ vale cache segue esse caminho: uma `Task` no engine e um `load` no service.
 
 **Notícias.** `/news`, `/classrooms/{id}/news` e `/classrooms/{id}/news/{news_id}` usam `NewsService` com
 `SigaaClientDep`, sem banco, fila ou cache (`Cache-Control: no-store`). A rota
-por turma confere a lista do usuário diretamente no SIGAA. As respostas são
+por turma lê só o portal (`list_current_classrooms`) para traduzir o `sigaa_id`
+e preencher `classroom_sigaa_id`; quem confere se a turma é do usuário é o
+próprio client, com `ClassroomNotFound` (404) quando ela não está no histórico.
+As respostas são
 as listagens do scraper: notícias recentes da home ou títulos e datas da turma;
 texto completo em Markdown, horário e anexos vêm da rota de detalhe, que
 confere também se a notícia está na listagem da turma antes de abri-la.

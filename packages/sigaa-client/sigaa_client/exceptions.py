@@ -18,6 +18,10 @@ class SigaaParseError(SigaaError):
     """O HTML não tem a estrutura esperada — provável mudança de layout."""
 
 
+class ClassroomNotFound(SigaaError):
+    """A turma não está no histórico do usuário."""
+
+
 class NewsNotFound(SigaaError):
     """A notícia não está na listagem da turma solicitada."""
 

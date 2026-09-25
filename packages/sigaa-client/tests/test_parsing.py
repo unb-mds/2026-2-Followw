@@ -1,9 +1,12 @@
 import json
+from datetime import datetime
 
+import pytest
 from bs4 import BeautifulSoup
 
 from sigaa_client.config import SIGAA_BASE_URL
-from sigaa_client.utils.parsing import to_markdown
+from sigaa_client.exceptions import SigaaParseError
+from sigaa_client.utils.parsing import parse_datetime, to_markdown
 
 
 def _markdown(html: str) -> str | None:
@@ -52,8 +55,30 @@ def test_markdown_de_html_vazio_e_none():
 
 
 def test_quebra_markdown_nao_duplica_barras_ao_serializar_json():
-    content = _markdown("<p>🎥 <b>Filme:</b> Exemplo<br>📅 <b>Data:</b> 15/10<br>📍 Local: FCTE</p>")
+    content = _markdown(
+        "<p>🎥 <b>Filme:</b> Exemplo<br>📅 <b>Data:</b> 15/10<br>📍 Local: FCTE</p>"
+    )
     assert content == "🎥 **Filme:** Exemplo\\\n📅 **Data:** 15/10\\\n📍 Local: FCTE"
     decoded = json.loads(json.dumps({"content": content}))
     assert decoded["content"] == content
     assert "\\\\" not in decoded["content"]
+
+
+def test_markdown_nao_gera_link_nem_imagem_executavel():
+    html = (
+        '<p><a href="javascript:alert(1)">aqui</a> <a href=" JavaScript:x">ali</a> '
+        '<a href="mailto:prof@unb.br">e-mail</a><img alt="x" src="data:text/html,oi"></p>'
+    )
+
+    assert _markdown(html) == "aqui ali [e-mail](mailto:prof@unb.br)"
+
+
+def test_parse_datetime_le_data_do_sigaa():
+    assert parse_datetime("10/08/2026 15:24", "%d/%m/%Y %H:%M", "da notícia") == (
+        datetime(2026, 8, 10, 15, 24)  # noqa: DTZ001
+    )
+
+
+def test_parse_datetime_invalido_e_barulhento():
+    with pytest.raises(SigaaParseError, match="do extrato do RU"):
+        parse_datetime("ontem", "%d/%m/%Y %H:%M", "do extrato do RU")

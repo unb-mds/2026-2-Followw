@@ -246,11 +246,7 @@ class NewsAttachment(BaseModel):
 
 
 class News(BaseModel):
-    """
-    A home não expõe o `id` da notícia, mas diz de qual turma ela é
-    (`classroom_sigaa_id`, o mesmo `Classroom.sigaa_id`). Hora, texto (markdown) e
-    anexos só vêm da visualização da notícia (`get_classroom_news`).
-    """
+    """A home não traz `id`; hora, texto e anexos só vêm de `get_classroom_news`."""
 
     model_config = ConfigDict(frozen=True)
 

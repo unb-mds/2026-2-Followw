@@ -55,6 +55,11 @@ string vazia.
 | `SessionExpired`       | sessão morreu e não há como reautenticar           |
 | `SigaaParseError`      | o HTML não tem a estrutura esperada (layout mudou) |
 | `SigaaSearchError`     | o SIGAA recusou os filtros e disse o porquê        |
+| `ClassroomNotFound`    | a turma pedida não está no histórico do usuário    |
+| `NewsNotFound`         | a notícia não está na listagem da turma            |
+
+`NewsNotFound` só sai quando a listagem da turma foi lida e não traz o `id`;
+sem a listagem, continua sendo `SigaaParseError`.
 
 Estrutura ausente é `SigaaParseError`, não `None` silencioso: o pacote é
 desenhado para ser barulhento quando o SIGAA muda. Toda mensagem diz o que

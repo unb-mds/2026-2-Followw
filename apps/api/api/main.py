@@ -17,10 +17,6 @@ logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 tags_metadata = [
     {
-        "name": "News",
-        "description": "Notícias recentes das turmas, consultadas diretamente no SIGAA.",
-    },
-    {
         "name": "Auth",
         "description": "Autenticação via SIGAA/CAS da UnB e gerenciamento de sessão stateless por cookies.",
     },
@@ -33,8 +29,8 @@ tags_metadata = [
         "description": "Perfil acadêmico do estudante autenticado.",
     },
     {
-        "name": "Jobs",
-        "description": "Processamento assíncrono e sincronização de dados via fila em background.",
+        "name": "News",
+        "description": "Notícias recentes das turmas, consultadas diretamente no SIGAA.",
     },
 ]
 

@@ -1,6 +1,7 @@
 from .client import SigaaClient, SigaaPublicClient
 from .exceptions import (
     AuthenticationFailed,
+    ClassroomNotFound,
     NewsNotFound,
     SessionExpired,
     SessionRenewed,
@@ -41,6 +42,7 @@ __all__ = [
     "ClassroomAttendance",
     "ClassroomFrequency",
     "ClassroomMember",
+    "ClassroomNotFound",
     "ClassroomProgress",
     "ClassroomRole",
     "Credentials",

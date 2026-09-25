@@ -75,6 +75,7 @@ async with SigaaClient(credentials) as client:
     await (
         client.classrooms.list_classrooms()
     )  # histórico completo (`current` marca as atuais)
+    await client.classrooms.list_current_classrooms()  # só o portal, com `sigaa_id`
     await client.classrooms.list_classroom_members(id)  # docentes e discentes
     await client.classrooms.get_classroom_frequency(id)  # frequência e andamento
     await client.classrooms.get_classroom_statistics(id)  # gráfico de estatísticas
@@ -187,6 +188,8 @@ Todos derivam de `SigaaError`, então `except SigaaError` cobre o pacote inteiro
 | `SessionExpired` | a sessão morreu e não há credenciais para refazer o login |
 | `SigaaParseError` | o SIGAA mudou de layout — a página não tem o que se esperava |
 | `SigaaSearchError` | o SIGAA recusou os filtros da busca (a mensagem é a da tela) |
+| `ClassroomNotFound` | um método por turma pediu uma turma que não está no histórico |
+| `NewsNotFound` | `get_classroom_news()` pediu uma notícia que não está na listagem da turma |
 
 Busca que simplesmente não achou nada devolve `[]`, não levanta erro.
 

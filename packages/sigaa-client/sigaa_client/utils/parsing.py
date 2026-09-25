@@ -3,7 +3,7 @@
 import re
 import unicodedata
 from datetime import datetime
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 from bs4 import BeautifulSoup, Tag
 from markdownify import ATX, BACKSLASH, MarkdownConverter
@@ -14,6 +14,8 @@ from ..exceptions import SigaaParseError
 _DATE_RANGE_RE = re.compile(r"\s*\([^)]*\)\s*")
 _TRAILING_SPACES_RE = re.compile(r"[ \t]+$", re.MULTILINE)
 _BLANK_LINES_RE = re.compile(r"\n{3,}")
+# O texto é escrito pelo docente: `javascript:` e afins não podem virar link.
+_SAFE_SCHEMES = {"http", "https", "mailto"}
 # `<br>` no começo ou no fim de parágrafo vira um `\` solto junto da linha em branco.
 _DANGLING_BREAKS_RE = re.compile(
     r"\n*(?:\\\n)+\n+|\n\n(?:\\\n)+|^(?:\\\n)+|(?:\\\n)*\\$"
@@ -76,12 +78,25 @@ def to_markdown(node: Tag) -> str | None:
     """HTML do editor do SIGAA -> markdown, sem estilos, `&nbsp;` nem parágrafos vazios."""
     copy = BeautifulSoup(str(node), "lxml")
     for tag in copy.find_all(href=True):
-        tag["href"] = urljoin(SIGAA_BASE_URL, str(tag["href"]))
+        href = _safe_url(str(tag["href"]))
+        if href is None:
+            del tag["href"]
+        else:
+            tag["href"] = href
         del tag["title"]
     for tag in copy.find_all(src=True):
-        tag["src"] = urljoin(SIGAA_BASE_URL, str(tag["src"]))
+        src = _safe_url(str(tag["src"]))
+        if src is None:
+            tag.decompose()
+        else:
+            tag["src"] = src
 
     text = _MARKDOWN.convert_soup(copy).replace("\xa0", " ")
     text = _TRAILING_SPACES_RE.sub("", text).strip()
     text = _DANGLING_BREAKS_RE.sub("\n\n", text).strip()
     return _BLANK_LINES_RE.sub("\n\n", text) or None
+
+
+def _safe_url(value: str) -> str | None:
+    url = urljoin(SIGAA_BASE_URL, value.strip())
+    return url if urlsplit(url).scheme.lower() in _SAFE_SCHEMES else None
