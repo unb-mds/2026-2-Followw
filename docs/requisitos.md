@@ -1,4 +1,4 @@
-﻿# Documento de Requisitos de Software: Followw UnB
+# Documento de Requisitos de Software: Followw UnB
 Versão: 0.1.0 (Escopo da Release 1 / MVP)
 Data: 15 de Setembro de 2026
 
@@ -23,32 +23,46 @@ Data: 15 de Setembro de 2026
 ---
 
 ### **ÉPICO 1: Autenticação e Gestão de Perfil**
-* Conjunto de funcionalidades responsáveis por mediar o acesso autenticado ao SIGAA, gerenciar a sessão do usuário de forma segura e stateless e disponibilizar os dados cadastrais do perfil do estudante.
+* Conjunto de funcionalidades responsáveis por mediar o acesso autenticado ao SIGAA, gerenciar a sessão do usuário de forma segura e stateless e disponibilizar os dados cadastrais e acadêmicos do estudante.
 
-#### **História de Usuário 1.1: Autenticação no SIGAA**
-Como um estudante da UnB:
-* Eu quero realizar login na plataforma utilizando minhas credenciais institucionais do SIGAA (matrícula e senha), para que a aplicação possa acessar minhas informações acadêmicas sem necessidade de criar credenciais paralelas.
+#### **1.1: Autenticação de Usuário via SIGAA**
+**Histórias de Usuário:**
+* **US01:** Como um estudante, eu quero realizar login na plataforma utilizando minhas credenciais institucionais do SIGAA sem que elas fiquem salvas em nenhum DB.
+* **US02:** Como um estudante, eu quero realizar login na plataforma utilizando minhas credenciais institucionais do SIGAA e ter acesso aos recursos do SIGAA.
 
 * **RF01: Autenticação de Usuário via SIGAA:** O sistema deve fornecer um endpoint de login que recebe as credenciais do usuário (matrícula e senha), autentica-as na camada legada do SIGAA e inicializa a sessão mantendo cookies de sessão ativos sem persistir a senha do usuário em banco de dados ou logs.
 
 **Critérios de Aceitação:**
-* O sistema deve validar o par matrícula/senha diretamente contra o SIGAA.
+* O sistema deve validar o par matrícula/senha diretamente contra o SIGAA/CAS da UnB.
 * Caso as credenciais sejam inválidas ou haja bloqueio no SIGAA, o sistema deve retornar mensagem de erro clara e código de status HTTP correspondente (401 Unauthorized).
 * Nenhuma senha ou credencial sensível deve ser registrada em logs ou retida em armazenamento persistente.
 * A sessão do usuário deve ser mantida enquanto durar a validade dos cookies da sessão original ou até logout explícito/expiração por inatividade.
 
-#### **História de Usuário 1.2: Consulta de Perfil Pessoal**
-Como um estudante autenticado:
-* Eu quero visualizar os dados básicos do meu perfil acadêmico (/me), para conferir minha identidade, curso e situação cadastral no sistema.
+#### **1.2: Logout Seguro**
+**Histórias de Usuário:**
+* **US03:** Como um estudante, eu quero poder realizar logout a qualquer momento.
+* **US04:** Como um estudante, eu quero estar seguro que ao realizar logout meu token de sessão seja invalidado.
 
-* **RF02: Visualização de Perfil Pessoal (/me):** O sistema deve disponibilizar um endpoint protegido (GET /me) que consulta o SIGAA e retorna `name`, `registration`, `photo`, `email`, `bio`, `unity`, `course`, `integralization`, `ira`, `mp` e `level`, com os mesmos nomes das colunas do banco.
+* **RF02: Logout Seguro e Invalidação de Sessão:** O sistema deve fornecer funcionalidade de encerramento de sessão que invalida os cookies e tokens emitidos, garantindo que o token não possa mais ser utilizado para consultar endpoints protegidos.
+
+**Critérios de Aceitação:**
+* Ao acionar o logout, o sistema deve limpar os cookies `access_token` e `refresh_token` do cliente via cabeçalho `Set-Cookie` com expiração imediata (`Max-Age=0`).
+* Requisições subsequentes com o token revogado/expirado devem retornar código HTTP 401.
+
+#### **1.3: Visualização de Perfil Pessoal**
+**Histórias de Usuário:**
+* **US05:** Como um estudante autenticado, eu quero visualizar os dados básicos do meu perfil acadêmico.
+* **US06:** Como um estudante autenticado, eu quero consultar meu IRA e média ponderada.
+* **US07:** Como um estudante, se alguma informação envolvendo esses dados estiver no BD, eu quero que seja seguro.
+
+* **RF03: Visualização de Perfil Pessoal (/me):** O sistema deve disponibilizar um endpoint protegido (GET /me) que consulta o SIGAA e retorna `name`, `registration`, `photo`, `email`, `bio`, `unity`, `course`, `integralization`, `ira`, `mp` e `level`, com os mesmos nomes das colunas do banco de dados.
 
 **Critérios de Aceitação:**
 * O endpoint deve exigir autenticação válida (sessão ativa).
 * Os dados retornados devem ser padronizados em formato JSON legível e normalizado.
 * A autenticação utiliza os cookies emitidos por `POST /auth/sigaa`. A sessão do SIGAA é renovada quando possível; credenciais ausentes ou inválidas retornam HTTP 401 e falhas do SIGAA retornam HTTP 502 nesta rota.
-* Foto, bio, integralização, IRA e MP indisponíveis são retornados como `null`. O e-mail também é `null` enquanto o cliente não conseguir obter o endereço completo; o portal do discente só exibe o endereço truncado.
-* A consulta não persiste o perfil nem as credenciais e não depende de conexão com o banco. O `UserRepository` estabelece o acesso ao banco por matrícula para os módulos que precisarem de dados persistidos.
+* Foto, bio, integralização, IRA e MP indisponíveis são retornados como `null`. O e-mail também é `null` enquanto o cliente não conseguir obter o endereço completo.
+* Caso dados de perfil sejam cacheados ou armazenados em banco relacional, nenhuma credencial de acesso ou dado sensível desprotegido deve ser exposto.
 
 ---
 
@@ -58,57 +72,86 @@ Como um estudante autenticado:
 #### **História de Usuário 2.1: Listagem e Detalhes das Turmas do Aluno**
 Como um estudante autenticado:
 * Eu quero listar rapidamente as turmas em que estou matriculado no semestre atual e visualizar os detalhes de cada turma (horários, local, docentes e lista de colegas de classe), para me organizar academicamente e identificar contatos na disciplina.
+#### **2.1: Listagem de Turmas Matriculadas**
+**Histórias de Usuário:**
+* **US08:** Como um estudante, eu quero listar rapidamente as turmas em que estou matriculado no semestre atual.
+* **US09:** Como um estudante, eu quero poder ter acesso a informações completas sobre a turma, ao selecionar uma turma em específico.
+* **US10:** Como um estudante, eu quero visualizar os detalhes da turma (horário, local, código...) de forma rápida e junto da listagem.
+* **US11:** Como um estudante matriculado, eu quero poder acessar turmas matriculadas em semestres anteriores.
 
-* **RF03: Listagem de Turmas Matriculadas (/classrooms):** O sistema deve disponibilizar um endpoint protegido (GET /classrooms) que consulta as turmas atuais do estudante no SIGAA. Cada item retorna `number`, `semester`, `schedule`, `room` e `subject` com `name`, `code`, `hours` e `unity`, além dos identificadores fornecidos pelo cliente SIGAA.
-* **RF04: Detalhes da Turma e Relação de Colegas (/turmas/<id>):** O sistema deve fornecer um endpoint protegido (GET /turmas/<id>) para consultar os dados específicos de uma disciplina selecionada, incluindo código, nome, horário, local/sala, docentes e a lista completa de colegas matriculados na mesma turma.
+* **RF04: Listagem de Turmas Matriculadas (/classrooms):** O sistema deve disponibilizar um endpoint protegido (GET /classrooms) que consulta as turmas do estudante no SIGAA. Cada item retorna `number`, `semester`, `schedule`, `room` e `subject` com `name`, `code`, `hours` e `unity`, além dos identificadores fornecidos pelo cliente SIGAA.
 
 **Critérios de Aceitação:**
 * A listagem usa os cookies de `POST /auth/sigaa` e retorna HTTP 401 para credenciais ausentes ou inválidas e HTTP 502 para falhas do SIGAA.
 * Sem o parâmetro `semester`, `/classrooms` retorna as turmas atuais do portal. `?semester=all` inclui o histórico completo; `?semester=2026.2` ou `?semester=2025.2` retorna somente o período indicado. Valores fora do formato `all` ou `AAAA.P` retornam HTTP 422.
-* Sem turmas no período selecionado, o retorno é HTTP 200 com `[]`. Campos opcionais indisponíveis são `null`; sala, unidade e ID numérico podem não estar disponíveis nas turmas antigas. Com o cache do RF05, a resposta sai do banco quando disponível e o SIGAA é revalidado em background.
-* A visualização detalhada deve expor a lista de colegas de turma com nome e matrícula (ou identificador único retornado pelo SIGAA).
-* Requisições para turmas inexistentes ou para as quais o usuário não tem permissão de visualização devem retornar código 404 (Not Found) ou 403 (Forbidden).
+* Sem turmas no período selecionado, o retorno é HTTP 200 com `[]`. Campos opcionais indisponíveis são `null`; sala, unidade e ID numérico podem não estar disponíveis nas turmas antigas.
 
-#### **História de Usuário 2.2: Sincronização e Atualização do Cache**
-Como um estudante autenticado:
-* Eu quero que as minhas turmas e colegas fiquem disponíveis rapidamente a partir de cache, mas com a opção de forçar uma nova sincronização com o SIGAA a qualquer momento, para que o app seja rápido e eu possa refletir alterações recentes de matrícula (como ajustes ou trancamentos).
+#### **2.2: Relação de Usuários em uma mesma Turma**
+**Histórias de Usuário:**
+* **US12:** Como um estudante, eu quero visualizar a relação de colegas matriculados na mesma turma e professores.
+* **US13:** Como um estudante, eu quero ter a opção de interagir com colegas e professores, por meio de mensagens.
+* **US14:** Como um estudante, eu quero poder visualizar o perfil, com suas informações essenciais, de outros usuários.
 
-* **RF05: Sincronização e Invalidação de Cache sob Demanda:** O sistema deve armazenar em cache os dados de turmas e colegas obtidos do SIGAA para reduzir a latência de consultas subsequentes, oferecendo parâmetros ou endpoints específicos para forçar a re-extração e atualização imediata desse cache.
+* **RF04: Detalhes da Turma e Relação de Colegas (/classrooms/{id}/members):** O sistema deve fornecer endpoint protegido para consultar os dados específicos de uma disciplina selecionada, incluindo docentes e a lista completa de colegas matriculados na mesma turma (`name`, `role`, `registration`, `photo`, `email`, `course`, `unity`).
 
 **Critérios de Aceitação:**
-* Quando o RF05 for implementado, as consultas a /classrooms e /turmas/<id> deverão responder com base no cache pré-carregado sempre que disponível e válido.
-* Ao acionar a opção de atualização manual (forçar sincronização), a API deve refazer as requisições ao SIGAA, atualizar a base de cache e retornar a versão recém-sincronizada.
-* Caso o SIGAA esteja temporariamente indisponível durante uma solicitação de atualização forçada, o sistema deve registrar o erro e manter intactos os dados armazenados no cache anterior.
+* A visualização detalhada deve expor a lista de colegas de turma com nome, papel (aluno, professor, monitor) e curso.
+* Requisições para turmas inexistentes ou para as quais o usuário não tem permissão de visualização devem retornar código 404 (Not Found).
+* A funcionalidade de troca de mensagens entre colegas e docentes (US13) fica catalogada como evolução pós-MVP da aplicação.
+
+#### **2.3: Sincronização e Invalidação de Cache sob Demanda**
+**Histórias de Usuário:**
+* **US15:** Como um estudante autenticado, eu quero forçar uma revalidação imediata dos dados com o SIGAA a qualquer momento.
+* **US16:** Como um estudante autenticado, eu quero consultar minhas turmas e horários de forma instantânea a partir do cache local.
+
+* **RF05: Sincronização e Invalidação de Cache sob Demanda:** O sistema deve armazenar em cache os dados de turmas e colegas obtidos do SIGAA para reduzir a latência de consultas subsequentes, oferecendo suporte ao parâmetro `?refresh=true` para forçar a re-extração imediata do SIGAA.
+
+**Critérios de Aceitação:**
+* Consultas a endpoints com cache pré-carregado devem responder com dados locais sem aguardar nova raspagem no SIGAA (estratégia stale-while-revalidate via QStash).
+* Ao acionar a opção de atualização manual (`?refresh=true`), a API deve consultar o SIGAA, atualizar a base de cache e retornar a versão recém-sincronizada.
+* Caso o SIGAA esteja indisponível durante uma revalidação em background, os dados cacheados anteriores devem ser preservados para o usuário.
 
 ---
 
 ### **ÉPICO 3: Busca e Descoberta de Turmas**
 * Conjunto de recursos para pesquisa e exploração de turmas, tanto no âmbito das matrículas individuais do aluno quanto no catálogo aberto da UnB.
 
-#### **História de Usuário 3.1: Pesquisa de Turmas**
-Como um estudante:
-* Eu quero buscar turmas tanto entre as disciplinas em que estou matriculado quanto na listagem geral de turmas ofertadas pela UnB no período, para que eu possa localizar matérias de interesse, verificar horários e checar professores ofertantes.
+#### **3.1: Busca em Turmas Matriculadas**
+**Histórias de Usuário:**
+* **US17:** Como um estudante matriculado, eu quero realizar buscas textuais dentro da minha própria grade por nome da disciplina, código ou professor.
+* **US18:** Como um estudante matriculado, eu quero realizar buscas textuais em uma turma selecionada, para buscar elementos específicos, como um material postado.
 
 * **RF06: Busca em Turmas Matriculadas:** O sistema deve permitir filtragem e busca textual sobre a lista de turmas em que o aluno está inscrito, filtrando por nome da matéria, código ou docente.
-* **RF07: Consulta Geral de Turmas da UnB:** O sistema deve disponibilizar funcionalidade de busca no catálogo completo de turmas e componentes curriculares ofertados na universidade, aceitando filtros por departamento/unidade acadêmica, código ou nome da disciplina, nome do professor e semestre letivo.
 
 **Critérios de Aceitação:**
 * A busca deve ser insensível a maiúsculas/minúsculas e tolerar acentuação.
-* A busca pública/geral não deve depender de credenciais privadas caso consulte a listagem aberta de turmas do SIGAA.
-* Os resultados devem ser paginados ou limitados para garantir tempos de resposta eficientes.
+* A busca por materiais e elementos internos de uma turma específica (US18) fica catalogada como evolução complementar.
 
+#### **3.2: Consulta Geral de Turmas da UnB**
+**Histórias de Usuário:**
+* **US19:** Como um estudante, eu quero consultar a lista aberta de turmas ofertadas pela UnB.
+* **US20:** Como um estudante, eu quero poder filtrar por depto, docente... a lista aberta de turmas ofertadas pela UnB.
+* **US21:** Como um estudante, eu quero poder ter acesso às informações de turmas selecionadas na lista aberta de turmas ofertadas pela UnB.
 
-#### **História de Usuário 3.2: Visualização e Compartilhamento de Estatísticas de Turmas Anteriores**
-Como um estudante:
-* Eu quero poder optar por compartilhar anonimamente estatísticas de aprovação de turmas anteriores e, em contrapartida, consultar a taxa consolidada de aprovação e reprovação de semestres anteriores de outras turmas (por disciplina e professor), para que eu e meus colegas possamos analisar o histórico da matéria e tomar decisões embasadas no período de matrícula.
-
-* **RF08: Visualização e Compartilhamento de Estatísticas de Aprovação:** O sistema deve disponibilizar funcionalidade e endpoints para compartilhar opcionalmente e consultar porcentagens consolidadas de aprovação e reprovação de turmas de semestres anteriores ofertadas na UnB, agrupadas por disciplina e docente. Pedindo que o usuário seja recíproco em também compartilhar anonimamente suas turmas anteriores em troca de visualizar as informações.
+* **RF07: Consulta Geral de Turmas da UnB:** O sistema deve disponibilizar funcionalidade de busca no catálogo completo de turmas e componentes curriculares ofertados na universidade, aceitando filtros por departamento/unidade acadêmica, código ou nome da disciplina, nome do professor e semestre letivo.
 
 **Critérios de Aceitação:**
-* As estatísticas devem apresentar métricas gerais consolidadas da turma (% de aprovação e % de reprovação), sem qualquer exposição de menções individuais, notas nominais ou dados pessoais de estudantes.
-* A base histórica deve ser obtida e estruturada a partir de fontes de dados abertos e relatórios públicos da UnB.
-* O sistema deve disponibilizar um identificador/URL direta pública para que o estudante possa compartilhar os dados estatísticos da disciplina/professor com colegas.
-* Caso uma disciplina ou docente não possua registros históricos consolidados, o sistema deve indicar expressamente a ausência de dados para o termo pesquisado.
+* A busca geral não deve depender de autenticação prévia caso consulte dados públicos do catálogo da UnB.
+* Deve ser possível filtrar resultados por departamento, docente e código de componente curricular.
+* Os resultados devem ser estruturados e paginados para garantir eficiência.
+
+#### **3.3: Visualização e Compartilhamento de Estatísticas de Aprovação**
+**Histórias de Usuário:**
+* **US22:** Como um estudante, eu quero consultar a taxa histórica consolidada de aprovação e reprovação de uma disciplina por professor.
+* **US23:** Como um estudante, eu quero poder compartilhar a taxa histórica consolidada de aprovação e reprovação de uma disciplina por professor.
+* **US24:** Como um estudante, eu quero gerar um link público direto com as estatísticas consolidadas de uma disciplina ou docente.
+
+* **RF08: Visualização e Compartilhamento de Estatísticas de Aprovação:** O sistema deve disponibilizar funcionalidade e endpoints para consultar e compartilhar porcentagens consolidadas de aprovação e reprovação de turmas de semestres anteriores ofertadas na UnB (`/classrooms/{id}/statistics`), agrupadas por disciplina e docente.
+
+**Critérios de Aceitação:**
+* As estatísticas devem apresentar métricas gerais consolidadas da turma (% de aprovação e % de reprovação), sem qualquer exposição de dados pessoais ou menções individuais de discentes.
+* O sistema deve permitir gerar links ou identificar diretamente a disciplina/docente para compartilhamento rápido entre estudantes.
+* Caso uma disciplina ou docente não possua registros estatísticos, o sistema deve retornar mensagem amigável indicando a ausência de dados.
 ---
 
 3. **Requisitos Não Funcionais (RNF)**
@@ -143,19 +186,20 @@ Como um estudante:
 * O desenvolvimento é segmentado em entregas incrementais. A Release 1 concentra-se no núcleo de integração autenticada com o SIGAA e infraestrutura básica da API.
 
 **Funcionalidades INCLUÍDAS na Release 1:**
-* Autenticação de usuário via SIGAA sem retenção de senhas (RF01).
-* Endpoint de perfil acadêmico pessoal GET /me (RF02).
-* Listagem de turmas matriculadas GET /classrooms (RF03), com cache previsto no RF05.
-* Detalhamento de turma com relação de colegas GET /turmas/ (RF04).
+* Autenticação de usuário via SIGAA sem retenção de senhas (RF01) e Logout seguro (RF02).
+* Endpoint de perfil acadêmico pessoal GET /me (RF03).
+* Listagem de turmas matriculadas GET /classrooms (RF04).
 * Mecanismo de sincronização e atualização sob demanda do cache de turmas/colegas (RF05).
-* Mecanismo de busca tanto em turmas matriculadas quanto no catálogo geral de turmas da UnB (RF06, RF07).
-* Documentação interativa Swagger/OpenAPI de 100% dos endpoints (RNF01).
+* Mecanismo de busca em turmas matriculadas pelo usuário. (RF06).
+* Mecanismo de busca em turmas no catálogo geral de turmas da UnB (RF07).
+* Consulta e compartilhamento de estatísticas de aprovação (RF08).
+* Documentação interativa Scalar/OpenAPI de 100% dos endpoints (RNF01).
 * Cobertura de testes automatizados com Pytest em todos os endpoints e parsers (RNF02).
 
 **Funcionalidades para Versões Futuras (PÓS-MVP / Release 2 - Visão de Alto Nível):**
 * **Módulo Restaurante Universitário (RU):** Extração automatizada e centralização do cardápio diário dos quatro campi da UnB.
 * **Módulo Calendário Acadêmico:** Consulta estruturada de datas limites, períodos de matrícula, trancamento e feriados acadêmicos.
-* **Módulo de Notícias e Editais:** Agregador de comunicados oficiais, processos seletivos, editais de extensão e bolsas de assistência.
+* **Módulo de Notícias:** Agregador de comunicados oficiais, processos seletivos de extensão e bolsas de assistência.
 * **Módulo de Ações Interativas no SIGAA:** Habilitação de operações ativas autenticadas diretamente pela API (ex: download em lote de materiais de aula e emissão de declarações).
 * **Interface do Usuário (Front-end):** Aplicação visual completa (Web e/ou Mobile) consumindo a API com design moderno e responsivo.
 
