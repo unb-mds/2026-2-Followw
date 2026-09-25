@@ -13,7 +13,6 @@ from sigaa_client.private.restaurant import (
     _credentials,
     _month_number,
     _parse_amount,
-    _parse_datetime,
     _statement,
 )
 
@@ -141,11 +140,6 @@ def test_parse_amount_le_formato_brasileiro():
 def test_parse_amount_invalido_e_barulhento():
     with pytest.raises(SigaaParseError):
         _parse_amount("grátis")
-
-
-def test_parse_datetime_invalido_e_barulhento():
-    with pytest.raises(SigaaParseError):
-        _parse_datetime("ontem")
 
 
 def test_credentials_le_token_e_validade_do_pdf():

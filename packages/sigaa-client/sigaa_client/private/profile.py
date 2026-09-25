@@ -5,11 +5,18 @@ from bs4 import BeautifulSoup, Tag
 
 from ..config import DASHBOARD_PATH, SIGAA_BASE_URL
 from ..exceptions import SigaaParseError
-from ..models import UserLevel, UserProfile
-from ..utils.parsing import clean_text, lookup_key, split_course
+from ..models import News, UserLevel, UserProfile
+from ..utils.jsf import link_params
+from ..utils.parsing import clean_text, lookup_key, parse_datetime, split_course
 from .session import Session
 
+UPDATES_ID = "atualizacoes-turma"
+CLASSROOM_SIGAA_ID_FIELD = "idTurma"
+
 _INTEGRALIZATION_RE = re.compile(r"(\d+)\s*%\s*Integralizado")
+_UPDATE_DATE_RE = re.compile(r"(\d{2}/\d{2}/\d{4})")
+# As "Últimas Atualizações" misturam notícias com outros avisos da turma.
+_NEWS_RE = re.compile(r"^Nova Notícia:\s*(.+)$")
 
 _LEVELS = {
     "graduacao": UserLevel.GRADUACAO,
@@ -48,6 +55,48 @@ class Profile:
             mp=_academic_index(fields, "mp"),
             level=_level(_required(fields, "nível")),
         )
+
+    async def list_news(self) -> list[News]:
+        page = await self._session.get(DASHBOARD_PATH)
+        return _parse_news(BeautifulSoup(page.text, "lxml"))
+
+
+def _parse_news(soup: BeautifulSoup) -> list[News]:
+    updates = soup.find("div", id=UPDATES_ID)
+    # Sem turmas no semestre, o portal não desenha o painel.
+    if not isinstance(updates, Tag):
+        return []
+
+    news = []
+    for entry in updates.find_all("table"):
+        cells = entry.find_all("td")
+        if len(cells) != 2:
+            raise SigaaParseError("Atualização de turma fora do formato na home.")
+
+        title = _NEWS_RE.match(clean_text(cells[1]))
+        if title is None:
+            continue
+
+        day = _UPDATE_DATE_RE.search(clean_text(cells[0]))
+        anchor = cells[0].find("a")
+        classroom_id = (
+            link_params(anchor).get(CLASSROOM_SIGAA_ID_FIELD)
+            if isinstance(anchor, Tag)
+            else None
+        )
+        if day is None or classroom_id is None:
+            raise SigaaParseError("Notícia da home sem data ou sem turma.")
+
+        news.append(
+            News(
+                classroom_sigaa_id=int(classroom_id),
+                title=title.group(1),
+                published_on=parse_datetime(
+                    day.group(1), "%d/%m/%Y", "da notícia na home"
+                ).date(),
+            )
+        )
+    return news
 
 
 def _labeled_fields(card: Tag) -> dict[str, str]:
