@@ -54,10 +54,10 @@ O login acontece sob demanda: chamar qualquer método já autentica. `authentica
 
 ## Os dois clients
 
-| Client | Precisa de login | Módulos |
-| --- | --- | --- |
-| `SigaaClient` | sim | `.profile`, `.classrooms`, `.restaurant` |
-| `SigaaPublicClient` | não | `.classrooms` |
+| Client              | Precisa de login | Módulos                                  |
+| ------------------- | ---------------- | ---------------------------------------- |
+| `SigaaClient`       | sim              | `.profile`, `.classrooms`, `.restaurant` |
+| `SigaaPublicClient` | não              | `.classrooms`                            |
 
 Cada módulo é um atributo do client, e cada método devolve modelo Pydantic
 (frozen) ou lista deles.
@@ -146,8 +146,7 @@ turma. A identidade lá é a chave natural `(subject.code, number, semester)`.
 ## Sessão e token
 
 O SIGAA não emite token: a credencial é o cookie `JSESSIONID`. `authenticate()`
-devolve esse valor, que pode ser guardado (é o que `apps/api` coloca no JWT de
-acesso) e reusado depois, sem passar pelo CAS:
+devolve esse valor, que pode ser reutilizado.
 
 ```python
 async with SigaaClient(credentials) as client:
@@ -176,7 +175,7 @@ async with SigaaClient(
 
 `Credentials.password` é `SecretStr` e não deve ser logada nem persistida em
 disco. Este pacote não conhece o esquema de auth do Followw: quem decifra a
-senha do JWT é `apps/api`.
+senha do cookie é `apps/api`.
 
 ## Erros
 
