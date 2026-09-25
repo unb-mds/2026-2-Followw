@@ -22,7 +22,7 @@ from api.utils.session import (
     encrypt_cookie,
 )
 
-CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha"))
+CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha123"))
 DASHBOARD = """
 <table>
   <tr><td colspan="5">2026.2</td></tr>
@@ -66,7 +66,7 @@ def classrooms_sigaa(sigaa):
 
 def test_login_e_listagem_retornam_apenas_turmas_atuais(client, classrooms_sigaa):
     login = client.post(
-        "/auth/sigaa", json={"registration": "251000000", "password": "senha"}
+        "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
     )
     assert login.status_code == 200
     requests_before = classrooms_sigaa.classrooms_requests
@@ -166,7 +166,7 @@ def test_sem_credenciais_validas_retorna_401(client, sigaa, refresh):
             REFRESH_COOKIE_NAME,
             {
                 "registration": "251000000",
-                "password": "senha",
+                "password": "senha123",
                 "exp": int((datetime.now(UTC) - timedelta(minutes=1)).timestamp()),
             },
         )
@@ -230,7 +230,9 @@ def test_html_da_listagem_invalido_retorna_502(client, classrooms_sigaa, cookies
 
 
 def test_logout_impede_nova_consulta(client, classrooms_sigaa):
-    client.post("/auth/sigaa", json={"registration": "251000000", "password": "senha"})
+    client.post(
+        "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
+    )
     assert client.get("/classrooms").status_code == 200
     assert client.delete("/auth/sigaa").status_code == 200
     assert client.get("/classrooms").status_code == 401
@@ -380,7 +382,9 @@ def turmas(stub_sigaa):
 
 
 def test_participantes_saem_do_cache_do_login(client, sigaa, turmas):
-    client.post("/auth/sigaa", json={"registration": "251000000", "password": "senha"})
+    client.post(
+        "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
+    )
     lidas = turmas.classrooms.list_classroom_members.await_count
 
     response = client.get("/classrooms/AAA/members")
@@ -414,7 +418,9 @@ def test_turma_fora_da_lista_do_usuario_retorna_404(client, turmas, cookies):
 
 
 def test_turma_nova_fora_do_cache_rele_a_lista(client, sigaa, turmas):
-    client.post("/auth/sigaa", json={"registration": "251000000", "password": "senha"})
+    client.post(
+        "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
+    )
     nova = ATUAL.model_copy(update={"id": "CCC", "number": "02"})
     turmas.classrooms.list_classrooms.return_value = [ATUAL, nova, ANTIGA]
 
@@ -426,7 +432,9 @@ def test_turma_nova_fora_do_cache_rele_a_lista(client, sigaa, turmas):
 
 
 def test_detalhes_de_turma_passada_nunca_revalidam(client, sigaa, turmas, database):
-    client.post("/auth/sigaa", json={"registration": "251000000", "password": "senha"})
+    client.post(
+        "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
+    )
     with database() as session:
         session.execute(
             update(ClassroomModel).values(
@@ -442,7 +450,9 @@ def test_detalhes_de_turma_passada_nunca_revalidam(client, sigaa, turmas, databa
 
 
 def test_refresh_dos_participantes_busca_no_sigaa(client, sigaa, turmas):
-    client.post("/auth/sigaa", json={"registration": "251000000", "password": "senha"})
+    client.post(
+        "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
+    )
     turmas.classrooms.list_classroom_members.return_value = PARTICIPANTES[:1]
 
     response = client.get("/classrooms/AAA/members", params={"refresh": "true"})
@@ -486,7 +496,9 @@ def test_openapi_documenta_participantes_e_estatisticas(client):
 
 
 def test_refresh_atualiza_turmas_antigas(client, sigaa, turmas):
-    client.post("/auth/sigaa", json={"registration": "251000000", "password": "senha"})
+    client.post(
+        "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
+    )
     antiga = ANTIGA.model_copy(update={"schedule": "24T45", "room": "SALA 07"})
     turmas.classrooms.list_classrooms.return_value = [ATUAL, antiga]
 
@@ -501,7 +513,9 @@ def test_refresh_atualiza_turmas_antigas(client, sigaa, turmas):
 def test_detalhes_revalidam_a_lista_de_turmas_vencida(
     client, sigaa, turmas, database, screen
 ):
-    client.post("/auth/sigaa", json={"registration": "251000000", "password": "senha"})
+    client.post(
+        "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
+    )
     with database() as session:
         session.execute(
             update(User).values(

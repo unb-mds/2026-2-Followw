@@ -1,6 +1,6 @@
 import httpx
 from fastapi import APIRouter, HTTPException, Request, Response, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sigaa_client import AuthenticationFailed, Credentials, SigaaClient, SigaaError
 
 from api.dependencies.qstash import JobQueueDep
@@ -16,8 +16,8 @@ router = APIRouter()
 
 
 class SigaaLoginRequest(BaseModel):
-    registration: str
-    password: str
+    registration: str = Field(min_length=9, max_length=9)
+    password: str = Field(min_length=6, max_length=64)
 
 
 @router.post("/sigaa")

@@ -12,7 +12,7 @@ from api.utils.session import (
     encrypt_cookie,
 )
 
-CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha"))
+CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha123"))
 PERFIL = """
 <html><body><div id="perfil-docente">
   <div class="foto"><img src="/arquivos/foto.jpg" /></div>
@@ -34,7 +34,7 @@ PERFIL = """
 def test_login_seguido_de_me_responde_do_cache(client, sigaa):
     sigaa.profile = PERFIL
     login = client.post(
-        "/auth/sigaa", json={"registration": "251000000", "password": "senha"}
+        "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
     )
     assert login.status_code == 200
     requests_before = sigaa.profile_requests
@@ -83,7 +83,7 @@ def test_me_sem_refresh_valido_retorna_401(client, sigaa, cookies, refresh):
             REFRESH_COOKIE_NAME,
             {
                 "registration": CREDENCIAIS.registration,
-                "password": "senha",
+                "password": "senha123",
                 "exp": int((datetime.now(UTC) - timedelta(minutes=1)).timestamp()),
             },
         )
@@ -176,7 +176,9 @@ def test_me_com_erro_http_do_sigaa_retorna_502(client, sigaa, cookies):
 
 
 def test_me_apos_logout_exige_novo_login(client, sigaa):
-    client.post("/auth/sigaa", json={"registration": "251000000", "password": "senha"})
+    client.post(
+        "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
+    )
     assert client.get("/me").status_code == 200
     assert client.delete("/auth/sigaa").status_code == 200
     assert client.get("/me").status_code == 401

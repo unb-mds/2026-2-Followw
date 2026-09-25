@@ -11,7 +11,7 @@ from api.dependencies.sigaa import SigaaClientDep
 from api.dependencies.sigaa_public import SigaaPublicClientDep
 from api.utils.session import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME, decrypt_cookie
 
-CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha"))
+CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha123"))
 
 
 async def _sonda(client: SigaaClientDep):
@@ -44,7 +44,7 @@ def test_refresh_cookie_de_outra_chave_e_401(sonda, sigaa):
     """Sem isso, um cookie forjado viraria 500 em vez de pedir login."""
     forjado = jwt.encode(
         {"alg": "dir", "enc": "A256GCM"},
-        {"registration": "251000000", "password": "senha"},
+        {"registration": "251000000", "password": "senha123"},
         OctKey.generate_key(256),
         registry=JWERegistry(),
     )
