@@ -17,7 +17,7 @@ from ..config import (
     PARTICIPANTS_TIMEOUT,
     SIGAA_BASE_URL,
 )
-from ..exceptions import SessionExpired, SessionRenewed, SigaaParseError
+from ..exceptions import NewsNotFound, SessionExpired, SessionRenewed, SigaaParseError
 from ..models import (
     AttendanceEntry,
     AttendanceStatus,
@@ -297,6 +297,8 @@ def _parse_news_list(soup: BeautifulSoup) -> list[News]:
 def _parse_news_detail(soup: BeautifulSoup, news_id: int) -> News:
     fieldset = _news_fieldset(soup, NEWS_DETAIL_LEGEND)
     if fieldset is None:
+        if not any(item.id == news_id for item in _parse_news_list(soup)):
+            raise NewsNotFound(f"Notícia `{news_id}` não encontrada na turma.")
         raise SigaaParseError(f"Notícia `{news_id}` não encontrada na turma.")
 
     fields: dict[str, Tag] = {}

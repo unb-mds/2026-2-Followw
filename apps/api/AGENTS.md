@@ -79,6 +79,13 @@ Cada `Task` busca e grava no engine, então as regras de
 revalidação e os TTLs ficam em `services/sync.py`. Todo dado novo do SIGAA que
 vale cache segue esse caminho: uma `Task` no engine e um `load` no service.
 
+**Notícias.** `/news`, `/classrooms/{id}/news` e `/classrooms/{id}/news/{news_id}` usam `NewsService` com
+`SigaaClientDep`, sem banco, fila ou cache (`Cache-Control: no-store`). A rota
+por turma confere a lista do usuário diretamente no SIGAA. As respostas são
+as listagens do scraper: notícias recentes da home ou títulos e datas da turma;
+texto completo em Markdown, horário e anexos vêm da rota de detalhe, que
+confere também se a notícia está na listagem da turma antes de abri-la.
+
 **Jobs (QStash).** Nada roda depois da resposta no processo da API (na Vercel a
 função pode parar): o `SyncEngine` só conhece a `JobQueue`, e a `QStashQueue`
 (`dependencies/qstash.py`) publica cada `Job` no QStash, que o entrega em

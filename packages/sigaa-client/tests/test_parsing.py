@@ -1,3 +1,5 @@
+import json
+
 from bs4 import BeautifulSoup
 
 from sigaa_client.config import SIGAA_BASE_URL
@@ -47,3 +49,11 @@ def test_markdown_deixa_links_absolutos_e_sem_titulo():
 
 def test_markdown_de_html_vazio_e_none():
     assert _markdown("<p>&nbsp;</p><br>") is None
+
+
+def test_quebra_markdown_nao_duplica_barras_ao_serializar_json():
+    content = _markdown("<p>🎥 <b>Filme:</b> Exemplo<br>📅 <b>Data:</b> 15/10<br>📍 Local: FCTE</p>")
+    assert content == "🎥 **Filme:** Exemplo\\\n📅 **Data:** 15/10\\\n📍 Local: FCTE"
+    decoded = json.loads(json.dumps({"content": content}))
+    assert decoded["content"] == content
+    assert "\\\\" not in decoded["content"]

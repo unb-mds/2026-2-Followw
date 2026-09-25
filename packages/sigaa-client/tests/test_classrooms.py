@@ -11,6 +11,7 @@ from sigaa_client import (
     AttendanceStatus,
     ClassroomProgress,
     ClassroomRole,
+    NewsNotFound,
     StudentSituation,
 )
 from sigaa_client.config import (
@@ -662,5 +663,11 @@ async def test_noticia_que_nao_esta_na_turma_e_barulhenta():
     pagina = await _open_news_detail(1, session, True)  # type: ignore[arg-type]
 
     assert len(session.payloads) == 1
-    with pytest.raises(SigaaParseError):
+    with pytest.raises(NewsNotFound):
         _parse_news_detail(BeautifulSoup(pagina, "lxml"), 1)
+
+
+@pytest.mark.parametrize("page", ["<html>layout inesperado</html>", NEWS_LIST])
+def test_detalhe_ilegivel_nao_e_confundido_com_noticia_ausente(page):
+    with pytest.raises(SigaaParseError):
+        _parse_news_detail(BeautifulSoup(page, "lxml"), 23433316)

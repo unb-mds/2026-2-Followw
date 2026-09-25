@@ -1,10 +1,11 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Query
-from sigaa_client import Classroom, ClassroomMember, StatisticsShare
+from fastapi import APIRouter, Path, Query, Response
+from sigaa_client import Classroom, ClassroomMember, News, StatisticsShare
 
 from api.dependencies.refresh import RefreshQuery
 from api.services.classroom import ClassroomServiceDep
+from api.services.news import NewsServiceDep
 
 router = APIRouter()
 
@@ -16,6 +17,44 @@ CLASSROOM_ERRORS = {
     **ERRORS,
     404: {"description": "Turma não encontrada entre as turmas do usuário."},
 }
+
+
+@router.get(
+    "/{classroom_id}/news",
+    response_model=list[News],
+    summary="Consultar notícias de uma turma do usuário",
+    description="Consulta o SIGAA sem cache. Aceita classroom_sigaa_id retornado por /news (Classroom.sigaa_id) ou o antigo Classroom.id. Retorna o ID da notícia, o ID numérico da turma, título e dia. Para conteúdo e anexos, use /classrooms/{classroom_id}/news/{news_id}.",
+    responses=CLASSROOM_ERRORS,
+)
+async def get_classroom_news(
+    service: NewsServiceDep, classroom_id: str, response: Response
+) -> list[News]:
+    response.headers["Cache-Control"] = "no-store"
+    return await service.list_classroom_news(classroom_id)
+
+
+@router.get(
+    "/{classroom_id}/news/{news_id}",
+    response_model=News,
+    summary="Consultar conteúdo e anexos de uma notícia da turma",
+    description="Consulta o SIGAA sem cache. Aceita o ID numérico da turma (classroom_sigaa_id) ou o antigo Classroom.id. Retorna texto em Markdown, data e hora do SIGAA (sem fuso) e anexos com nome e URL. O news_id pode ser obtido em /news?resolve_ids=true ou na listagem da turma.",
+    responses={
+        **ERRORS,
+        404: {
+            "description": "Turma fora da lista do usuário ou notícia ausente na turma."
+        },
+    },
+)
+async def get_classroom_news_detail(
+    service: NewsServiceDep,
+    classroom_id: str,
+    news_id: Annotated[
+        int, Path(gt=0, description="ID da notícia na listagem da turma.")
+    ],
+    response: Response,
+) -> News:
+    response.headers["Cache-Control"] = "no-store"
+    return await service.get_classroom_news(classroom_id, news_id)
 
 
 @router.get(

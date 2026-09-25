@@ -9,12 +9,17 @@ from api.modules.auth.main import router as auth_router
 from api.modules.classrooms.main import router as classrooms_router
 from api.modules.jobs.main import router as jobs_router
 from api.modules.me.main import router as me_router
+from api.modules.news.main import router as news_router
 
 # desativa logs "HTTP Request: ..." que o httpx emite pra cada chamada ao SIGAA
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 tags_metadata = [
+    {
+        "name": "News",
+        "description": "Notícias recentes das turmas, consultadas diretamente no SIGAA.",
+    },
     {
         "name": "Auth",
         "description": "Autenticação via SIGAA/CAS da UnB e gerenciamento de sessão stateless por cookies.",
@@ -74,4 +79,5 @@ if settings.environment == "production":
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 app.include_router(classrooms_router, prefix="/classrooms", tags=["Classrooms"])
 app.include_router(me_router, prefix="/me", tags=["Me"])
+app.include_router(news_router, prefix="/news", tags=["News"])
 app.include_router(jobs_router, prefix="/jobs", tags=["Jobs"])
