@@ -12,9 +12,7 @@ router = APIRouter()
     "",
     response_model=list[News],
     summary="Consultar notícias recentes das turmas na home do SIGAA",
-    description=(
-        "Notícias recentes da home, sem cache."
-    ),
+    description=("Notícias recentes da home, sem cache."),
     responses={
         401: {"description": "Credenciais ausentes ou inválidas."},
         502: {"description": "SIGAA indisponível."},
