@@ -1,5 +1,5 @@
 import re
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
 
 from bs4 import BeautifulSoup, Tag
@@ -8,7 +8,7 @@ from ..config import DASHBOARD_PATH
 from ..exceptions import SigaaParseError
 from ..models import RestaurantCredentials, RestaurantStatementEntry
 from ..utils.jsf import build_menu_action, build_postback, link_params, read_viewstate
-from ..utils.parsing import clean_text, lookup_key
+from ..utils.parsing import clean_text, lookup_key, parse_datetime
 from ..utils.pdf import extract_text, find_qr_code
 from .session import Session
 
@@ -98,22 +98,14 @@ def _statement(page: BeautifulSoup) -> tuple[RestaurantStatementEntry, ...] | No
             continue
         entries.append(
             RestaurantStatementEntry(
-                occurred_at=_parse_datetime(clean_text(cells[0])),
+                occurred_at=parse_datetime(
+                    clean_text(cells[0]), "%d/%m/%Y %H:%M", "do extrato do RU"
+                ),
                 description=clean_text(cells[1]),
                 amount=_parse_amount(clean_text(cells[2])),
             )
         )
     return tuple(entries)
-
-
-def _parse_datetime(value: str) -> datetime:
-    try:
-        # O SIGAA não expõe timezone; o horário é sempre o de Brasília.
-        return datetime.strptime(value, "%d/%m/%Y %H:%M")  # noqa: DTZ007
-    except ValueError as error:
-        raise SigaaParseError(
-            f"Data `{value}` do extrato do RU em formato inesperado."
-        ) from error
 
 
 def _parse_amount(value: str) -> Decimal:

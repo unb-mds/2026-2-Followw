@@ -1,7 +1,7 @@
 import asyncio
 import re
 from collections.abc import Awaitable, Callable
-from datetime import datetime
+from functools import partial
 from io import BytesIO
 from urllib.parse import urljoin
 
@@ -16,7 +16,13 @@ from ..config import (
     PARTICIPANTS_TIMEOUT,
     SIGAA_BASE_URL,
 )
-from ..exceptions import SessionExpired, SessionRenewed, SigaaParseError
+from ..exceptions import (
+    ClassroomNotFound,
+    NewsNotFound,
+    SessionExpired,
+    SessionRenewed,
+    SigaaParseError,
+)
 from ..models import (
     AttendanceEntry,
     AttendanceStatus,
@@ -26,6 +32,8 @@ from ..models import (
     ClassroomMember,
     ClassroomProgress,
     ClassroomRole,
+    News,
+    NewsAttachment,
     StatisticsShare,
     StudentSituation,
     Subject,
@@ -34,9 +42,11 @@ from ..utils.jsf import build_postback, link_params, read_form, read_viewstate
 from ..utils.parsing import (
     clean_text,
     lookup_key,
+    parse_datetime,
     schedule_code,
     split_course,
     split_location,
+    to_markdown,
     visible_text,
 )
 from .session import Session
@@ -45,6 +55,9 @@ CLASSROOM_ID_FIELD = "frontEndIdTurma"
 MENU_FORM_ID = "formMenu"
 FREQUENCY_MENU_LABEL = "Frequência"
 STATISTICS_MENU_LABEL = "Situação dos Discentes"
+NEWS_MENU_LABEL = "Notícias"
+NEWS_ID_FIELD = "id"
+NEWS_DETAIL_LEGEND = "Visualização de Notícia"
 PROGRESS_PANEL_LABEL = "Andamento das Aulas"
 
 # O gráfico de situação não escreve os rótulos em lugar nenhum além da própria
@@ -101,6 +114,10 @@ class Classrooms:
         merged = [_merge(entry, active.get(key)) for key, entry in history.items()]
         return merged + [entry for key, entry in active.items() if key not in history]
 
+    async def list_current_classrooms(self) -> list[Classroom]:
+        """Só as turmas do portal: sem código e CH, mas com `sigaa_id`, numa request."""
+        return list(_parse_dashboard(await self._get(DASHBOARD_PATH)).values())
+
     async def list_classroom_members(self, classroom_id: str) -> list[ClassroomMember]:
         page = await self._read_screen(classroom_id, _open_participants)
         soup = BeautifulSoup(page, "lxml")
@@ -121,6 +138,16 @@ class Classrooms:
         # mais da turma que está aberta na sessão.
         chart = await self._session.get(_chart_source(BeautifulSoup(page, "lxml")))
         return _parse_statistics(chart.content)
+
+    async def list_classroom_news(self, classroom_id: str) -> list[News]:
+        page = await self._read_screen(classroom_id, _open_news)
+        return _parse_news_list(BeautifulSoup(page, "lxml"))
+
+    async def get_classroom_news(self, classroom_id: str, news_id: int) -> News:
+        page = await self._read_screen(
+            classroom_id, partial(_open_news_detail, news_id)
+        )
+        return _parse_news_detail(BeautifulSoup(page, "lxml"), news_id)
 
     async def _read_screen(self, classroom_id: str, open_screen: OpenScreen) -> str:
         # A troca de turma e a leitura da tela são uma operação única.
@@ -165,7 +192,7 @@ class Classrooms:
             None,
         )
         if row is None:
-            raise SigaaParseError(f"Turma `{classroom_id}` não está no histórico.")
+            raise ClassroomNotFound(f"Turma `{classroom_id}` não está no histórico.")
 
         form = row[1].find_parent("form") or soup.find("form")
         if not isinstance(form, Tag):
@@ -196,6 +223,32 @@ async def _open_statistics(session: Session, allow_renewal: bool) -> str:
     return await _open_menu(session, STATISTICS_MENU_LABEL, allow_renewal)
 
 
+async def _open_news(session: Session, allow_renewal: bool) -> str:
+    return await _open_menu(session, NEWS_MENU_LABEL, allow_renewal)
+
+
+async def _open_news_detail(news_id: int, session: Session, allow_renewal: bool) -> str:
+    page = await _open_news(session, allow_renewal)
+    soup = BeautifulSoup(page, "lxml")
+    anchor = next(
+        (
+            link
+            for link in soup.select("table.listing a")
+            if link_params(link).get(NEWS_ID_FIELD) == str(news_id)
+        ),
+        None,
+    )
+    form = anchor.find_parent("form") if anchor is not None else None
+    # Sem a notícia, devolve a listagem: se a turma foi trocada, `_assert_context`
+    # pega; se não, o parse da visualização acusa a notícia ausente.
+    if anchor is None or not isinstance(form, Tag):
+        return page
+
+    action, payload = build_postback(form, link_params(anchor), read_viewstate(soup))
+    response = await session.post(action, data=payload, allow_renewal=allow_renewal)
+    return response.text
+
+
 async def _open_menu(session: Session, label: str, allow_renewal: bool) -> str:
     """Essas telas só abrem pelo item do menu da turma — GET direto dá erro."""
     response = await session.get(
@@ -213,6 +266,79 @@ async def _open_menu(session: Session, label: str, allow_renewal: bool) -> str:
     )
     response = await session.post(action, data=payload, allow_renewal=allow_renewal)
     return response.text
+
+
+def _news_fieldset(soup: BeautifulSoup, legend: str) -> Tag | None:
+    heading = next(
+        (tag for tag in soup.find_all("legend") if clean_text(tag) == legend), None
+    )
+    fieldset = heading.find_parent("fieldset") if heading is not None else None
+    return fieldset if isinstance(fieldset, Tag) else None
+
+
+def _parse_news_list(soup: BeautifulSoup) -> list[News]:
+    fieldset = _news_fieldset(soup, NEWS_MENU_LABEL)
+    if fieldset is None:
+        raise SigaaParseError("Listagem de notícias não encontrada na turma.")
+
+    table = fieldset.find("table", class_="listing")
+    if not isinstance(table, Tag):
+        return []
+
+    news = []
+    for row in table.select("tbody tr"):
+        cells = row.find_all("td")
+        anchor = row.find("a")
+        news_id = link_params(anchor).get(NEWS_ID_FIELD) if anchor else None
+        if len(cells) < 2 or news_id is None:
+            raise SigaaParseError("Linha da listagem de notícias fora do formato.")
+
+        news.append(
+            News(
+                id=int(news_id),
+                title=clean_text(cells[0]),
+                published_on=parse_datetime(
+                    clean_text(cells[1]), "%d/%m/%Y", "da listagem de notícias"
+                ).date(),
+            )
+        )
+    return news
+
+
+def _parse_news_detail(soup: BeautifulSoup, news_id: int) -> News:
+    fieldset = _news_fieldset(soup, NEWS_DETAIL_LEGEND)
+    if fieldset is None:
+        if not any(item.id == news_id for item in _parse_news_list(soup)):
+            raise NewsNotFound(f"Notícia `{news_id}` não encontrada na turma.")
+        raise SigaaParseError(f"Notícia `{news_id}` não encontrada na turma.")
+
+    fields: dict[str, Tag] = {}
+    for item in fieldset.select("ul.form > li"):
+        label = item.find("label")
+        value = item.find("span")
+        if isinstance(label, Tag) and isinstance(value, Tag):
+            fields[clean_text(label).rstrip(":").lower()] = value
+
+    title, published = fields.get("título"), fields.get("data")
+    if title is None or published is None:
+        raise SigaaParseError(f"Notícia `{news_id}` sem título ou data.")
+
+    published_at = parse_datetime(clean_text(published), "%d/%m/%Y %H:%M", "da notícia")
+    body = fieldset.select_one("td.conteudoNoticia > div")
+    attachment = fields.get("anexo")
+    return News(
+        id=news_id,
+        title=clean_text(title),
+        published_on=published_at.date(),
+        published_at=published_at,
+        content=to_markdown(body) if body is not None else None,
+        attachments=tuple(
+            NewsAttachment(
+                name=clean_text(link), url=urljoin(SIGAA_BASE_URL, str(link["href"]))
+            )
+            for link in (attachment.find_all("a", href=True) if attachment else [])
+        ),
+    )
 
 
 def _chart_source(soup: BeautifulSoup) -> str:
@@ -293,13 +419,7 @@ def _parse_entries(table: Tag) -> tuple[AttendanceEntry, ...]:
 
 
 def _entry(day: str, situation: str) -> AttendanceEntry:
-    try:
-        # O SIGAA não expõe timezone; a data é sempre a do calendário da UnB.
-        occurred_on = datetime.strptime(day, "%d/%m/%Y").date()  # noqa: DTZ007
-    except ValueError as error:
-        raise SigaaParseError(
-            f"Data `{day}` do mapa de frequências em formato inesperado."
-        ) from error
+    occurred_on = parse_datetime(day, "%d/%m/%Y", "do mapa de frequências").date()
 
     absences = _ABSENCES_RE.search(situation)
     if absences is not None:

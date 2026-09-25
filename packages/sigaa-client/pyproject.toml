@@ -11,6 +11,7 @@ dependencies = [
     "pydantic>=2.13.5",
     "pypdf[image]>=5.9.0",
     "zxing-cpp>=2.3.0",
+    "markdownify>=1.2.3",
 ]
 
 [build-system]
