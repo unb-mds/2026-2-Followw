@@ -1,15 +1,17 @@
 import httpx
-import jwt
 import pytest
+from joserfc import jwt
+from joserfc.jwe import JWERegistry
+from joserfc.jwk import OctKey
 from pydantic import SecretStr
 from sigaa_client import Credentials, SessionExpired, SigaaError
 
 from api.core.config import settings
 from api.dependencies.sigaa import SigaaClientDep
 from api.dependencies.sigaa_public import SigaaPublicClientDep
-from api.utils.session import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME
+from api.utils.session import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME, decrypt_cookie
 
-CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha"))
+CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha123"))
 
 
 async def _sonda(client: SigaaClientDep):
@@ -27,9 +29,7 @@ def _access(response: httpx.Response) -> str | None:
     token = response.cookies.get(ACCESS_COOKIE_NAME)
     if token is None:
         return None
-    return jwt.decode(
-        token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm]
-    )["session_token"]
+    return decrypt_cookie(ACCESS_COOKIE_NAME, token)["session_token"]
 
 
 def test_sem_refresh_cookie_e_401(sonda, sigaa):
@@ -43,8 +43,10 @@ def test_sem_refresh_cookie_e_401(sonda, sigaa):
 def test_refresh_cookie_de_outra_chave_e_401(sonda, sigaa):
     """Sem isso, um cookie forjado viraria 500 em vez de pedir login."""
     forjado = jwt.encode(
-        {"registration": "251000000", "password": "senha"},
-        "outra-chave-bem-comprida-para-o-hmac-nao-reclamar",
+        {"alg": "dir", "enc": "A256GCM"},
+        {"registration": "251000000", "password": "senha123"},
+        OctKey.generate_key(256),
+        registry=JWERegistry(),
     )
 
     sonda.cookies.update({REFRESH_COOKIE_NAME: forjado})

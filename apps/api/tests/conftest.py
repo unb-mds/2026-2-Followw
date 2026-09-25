@@ -58,7 +58,7 @@ class FakeSigaa:
     transport, então o dublê vive onde a app não manda: no socket.
     """
 
-    def __init__(self, password: str = "senha") -> None:
+    def __init__(self, password: str = "senha123") -> None:
         self.password = password
         self.valid_tokens: set[str] = set()
         self.logins = 0
