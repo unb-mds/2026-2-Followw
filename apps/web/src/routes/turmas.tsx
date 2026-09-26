@@ -1,30 +1,60 @@
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import React from 'react';
 
-import { AppLayout } from '../components/AppLayout';
-import { Card } from '../components/ui/Card';
-import { HeaderBar } from '../components/ui/HeaderBar';
+import { ClassCard } from '#/components/home/ClassCard';
+import { LoginPromptCard } from '#/components/home/LoginPromptCard';
+import { Card } from '#/components/ui/Card';
+import { ErrorState } from '#/components/ui/ErrorState';
+import { HeaderBar } from '#/components/ui/HeaderBar';
+import { SectionHeader } from '#/components/ui/SectionHeader';
+import { describeSchedule } from '#/lib/schedule';
+import { classroomsQueryOptions } from '#/queries/classrooms';
+import { meQueryOptions } from '#/queries/me';
 
 export const Route = createFileRoute('/turmas')({
+    loader: async ({ context: { queryClient } }) => {
+        const user = await queryClient.ensureQueryData(meQueryOptions);
+        if (user) await queryClient.ensureQueryData(classroomsQueryOptions);
+    },
+    errorComponent: ErrorState,
     component: TurmasPage
 });
 
 function TurmasPage() {
+    const { data: user } = useSuspenseQuery(meQueryOptions);
+    const { data: classrooms = [] } = useQuery({
+        ...classroomsQueryOptions,
+        enabled: Boolean(user)
+    });
+
     return (
-        <AppLayout>
+        <>
             <HeaderBar />
-            <div className="space-y-4">
-                <Card className="p-6 text-center">
-                    <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-[#1EA6A9]/20 bg-[#E6FAF5] text-[#1EA6A9]">
-                        <span className="material-symbols-outlined text-[28px]">school</span>
-                    </div>
-                    <h3 className="text-[17px] font-bold text-[#243037]">Grade Horária & Turmas</h3>
-                    <p className="mt-1 text-[13px] text-[#5A686E]">
-                        Consulte os detalhes das suas disciplinas, listas de alunos, professores e
-                        notas do SIGAA.
-                    </p>
-                </Card>
-            </div>
-        </AppLayout>
+            {user ? (
+                <>
+                    <SectionHeader
+                        title="Minhas Turmas"
+                        badge={`${classrooms.length} disciplinas`}
+                    />
+                    {classrooms.map((classroom) => (
+                        <ClassCard
+                            key={classroom.id}
+                            title={classroom.subject.name}
+                            code={classroom.subject.code ?? undefined}
+                            time={describeSchedule(classroom.schedule) ?? 'Horário a definir'}
+                            location={classroom.room ?? 'Local não informado'}
+                            professor={`Turma ${classroom.number} • ${classroom.semester}`}
+                        />
+                    ))}
+                    {classrooms.length === 0 && (
+                        <Card className="text-center text-sm text-muted">
+                            Nenhuma turma no semestre atual.
+                        </Card>
+                    )}
+                </>
+            ) : (
+                <LoginPromptCard />
+            )}
+        </>
     );
 }

@@ -1,4 +1,4 @@
-import React, { useId, useMemo } from 'react';
+import React, { useId, useMemo, useSyncExternalStore } from 'react';
 
 export interface LiquidGlassProps {
     width: number;
@@ -40,10 +40,11 @@ function buildDisplacementMapUri(width: number, height: number, radius: number):
 
 /** True for Chrome/Edge (Chromium). SVG url() in backdrop-filter is Chromium-only. */
 function supportsBackdropSvgFilter(): boolean {
-    if (typeof window === 'undefined') return false;
     const ua = navigator.userAgent;
     return /Chrome\//.test(ua) || /Edg\//.test(ua);
 }
+
+const noopSubscribe = () => () => {};
 
 export const LiquidGlass: React.FC<LiquidGlassProps> = ({
     width,
@@ -65,7 +66,8 @@ export const LiquidGlass: React.FC<LiquidGlassProps> = ({
         [width, height, resolvedRadius],
     );
 
-    const isChrome = useMemo(() => supportsBackdropSvgFilter(), []);
+    // `false` no SSR e na hidratação, para o HTML do servidor bater com o do cliente.
+    const isChrome = useSyncExternalStore(noopSubscribe, supportsBackdropSvgFilter, () => false);
 
     const backdropFilter = isChrome
         ? `blur(${blur}px) url(#${filterId}) brightness(1.04) saturate(1.4)`

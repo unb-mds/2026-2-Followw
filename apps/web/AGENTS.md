@@ -25,6 +25,11 @@ bun lint            # oxlint
 bun fmt             # oxfmt
 ```
 
+## Estilos
+
+- A paleta de cores vive no `@theme` de `src/styles.css` (`primary`, `ink`, `muted`, `line`, ...). Use as classes geradas (`text-ink`, `bg-primary/10`) ou `var(--color-*)` em `style`; nunca hex solto no JSX.
+- Não use valores arbitrários (`text-[13px]`, `w-[54px]`); use a escala padrão do Tailwind (`text-sm`, `w-12`).
+
 ## Camada de Acesso à API (`src/queries`)
 
 Todo acesso HTTP à API do Followw UnB é centralizado em `src/queries/`.
@@ -60,7 +65,7 @@ Defina cada recurso em um arquivo próprio dentro de `src/queries/`:
 
 ```ts
 // src/queries/me.ts
-import { api } from './api.ts';
+import { api } from '#/queries/api.ts';
 
 export const meQueryOptions = api.queryOptions('get', '/me');
 ```
@@ -69,7 +74,7 @@ Para queries com parâmetros:
 
 ```ts
 // src/queries/classrooms.ts
-import { api } from './api.ts';
+import { api } from '#/queries/api.ts';
 
 export const classroomsQueryOptions = (semester?: string) =>
     api.queryOptions('get', '/classrooms', {
@@ -87,8 +92,8 @@ Em loaders de rotas, use `ensureQueryData` para pré-carregar os dados tanto no 
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, redirect } from '@tanstack/react-router';
 
-import { ApiError } from '../queries/errors.ts';
-import { meQueryOptions } from '../queries/me.ts';
+import { ApiError } from '#/queries/errors.ts';
+import { meQueryOptions } from '#/queries/me.ts';
 
 export const Route = createFileRoute('/')({
     loader: async ({ context }) => {
@@ -119,7 +124,9 @@ function HomePage() {
 
 ## Convenções
 
+- Imports internos são sempre absolutos via `#/` (aponta para `src/`), nunca `./` ou `../`.
 - Rotas seguem a convenção _file-based_ do TanStack Router (`routeTree.gen.ts`).
+- O `AppLayout` (com a `BottomNavigation`) é renderizado uma vez no `__root.tsx` em volta do `<Outlet />`; rotas e `errorComponent`s não devem envolvê-lo de novo, senão a navbar remonta e perde a animação entre abas.
 - Estilos usam Tailwind CSS v4 direto nas classes JSX.
 - Arquivos gerados (`routeTree.gen.ts`, `schema.gen.ts`) são ignorados no `.oxlintrc.json`.
 

@@ -29,7 +29,7 @@ export const FollowwLogo: React.FC<FollowwLogoProps> = ({
                        L 25 395
                        C 110 415, 200 375, 305 285
                        C 385 215, 445 125, 475 20 Z"
-                    fill="#006F80"
+                    fill="var(--color-logo-teal)"
                 />
 
                 {/* Bottom-Left Shape (Emerald Green) */}
@@ -41,7 +41,7 @@ export const FollowwLogo: React.FC<FollowwLogoProps> = ({
                        L 25 470
                        C 115 488, 215 448, 315 362
                        C 395 292, 450 220, 475 165 Z"
-                    fill="#2EA275"
+                    fill="var(--color-logo-green)"
                 />
             </g>
 
@@ -55,7 +55,7 @@ export const FollowwLogo: React.FC<FollowwLogoProps> = ({
                        L 975 395
                        C 890 415, 800 375, 695 285
                        C 615 215, 555 125, 525 20 Z"
-                    fill="#006F80"
+                    fill="var(--color-logo-teal)"
                 />
 
                 {/* Bottom-Right Shape (Emerald Green) */}
@@ -67,7 +67,7 @@ export const FollowwLogo: React.FC<FollowwLogoProps> = ({
                        L 975 470
                        C 885 488, 785 448, 685 362
                        C 605 292, 550 220, 525 165 Z"
-                    fill="#2EA275"
+                    fill="var(--color-logo-green)"
                 />
             </g>
         </svg>

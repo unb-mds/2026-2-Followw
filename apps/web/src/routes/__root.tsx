@@ -1,12 +1,13 @@
 import type { QueryClient } from '@tanstack/react-query';
 
 import { TanStackDevtools } from '@tanstack/react-devtools';
-import { HeadContent, Scripts, createRootRouteWithContext } from '@tanstack/react-router';
+import { HeadContent, Outlet, Scripts, createRootRouteWithContext } from '@tanstack/react-router';
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools';
 
-import PostHogProvider from '../integrations/posthog/provider';
-import TanStackQueryDevtools from '../integrations/tanstack-query/devtools';
-import appCss from '../styles.css?url';
+import { AppLayout } from '#/components/AppLayout';
+import PostHogProvider from '#/integrations/posthog/provider';
+import TanStackQueryDevtools from '#/integrations/tanstack-query/devtools';
+import appCss from '#/styles.css?url';
 
 interface MyRouterContext {
     queryClient: QueryClient;
@@ -50,7 +51,13 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
             }
         ]
     }),
-    shellComponent: RootDocument
+    shellComponent: RootDocument,
+    // Layout no root para a navbar não remontar entre rotas (e animar a troca de aba).
+    component: () => (
+        <AppLayout>
+            <Outlet />
+        </AppLayout>
+    )
 });
 
 function RootDocument({ children }: { children: React.ReactNode }) {

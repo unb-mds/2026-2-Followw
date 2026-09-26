@@ -1,6 +1,6 @@
 import React from 'react';
-import { FollowwLogo } from './FollowwLogo';
-import { NotificationBell } from './NotificationBell';
+import { FollowwLogo } from '#/components/ui/FollowwLogo';
+import { NotificationBell } from '#/components/ui/NotificationBell';
 
 interface HeaderBarProps {
     children?: React.ReactNode;

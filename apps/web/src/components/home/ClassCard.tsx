@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { Card } from '../ui/Card';
+import { Card } from '#/components/ui/Card';
 
 export interface ClassCardProps {
     title: string;
@@ -23,7 +23,7 @@ export const ClassCard: React.FC<ClassCardProps> = ({
     professor,
     status = 'normal',
     statusText,
-    accentColor = '#1EA6A9',
+    accentColor = 'var(--color-primary)',
     onLocationClick,
     onClick
 }) => {
@@ -31,41 +31,41 @@ export const ClassCard: React.FC<ClassCardProps> = ({
         <Card accentColor={accentColor} onClick={onClick} className="mb-3">
             <div className="mb-1 flex items-start justify-between gap-2 pl-1">
                 <div className="flex items-center gap-2">
-                    <span className="text-[13px] font-bold text-[#2B7A56]">{time}</span>
+                    <span className="text-sm font-bold text-success">{time}</span>
                     {status === 'in_progress' && (
-                        <span className="flex items-center gap-1 rounded-full bg-[#C2EDDA]/50 px-2 py-0.5 text-[10px] font-bold tracking-wider text-[#2B7A56] uppercase">
-                            <span className="h-1.5 w-1.5 animate-ping rounded-full bg-[#06D764]" />
+                        <span className="flex items-center gap-1 rounded-full bg-mint-light/50 px-2 py-0.5 text-xs font-bold tracking-wider text-success uppercase">
+                            <span className="h-1.5 w-1.5 animate-ping rounded-full bg-live" />
                             {statusText || 'Em andamento'}
                         </span>
                     )}
                     {status === 'next' && (
-                        <span className="text-[11px] font-semibold text-[#5A686E]">
+                        <span className="text-xs font-semibold text-muted">
                             {statusText || 'Próxima'}
                         </span>
                     )}
                     {status === 'warning' && (
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold tracking-wider text-amber-800 uppercase">
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold tracking-wider text-amber-800 uppercase">
                             {statusText || 'Atenção'}
                         </span>
                     )}
                 </div>
                 {code && (
-                    <span className="text-[11px] font-semibold tracking-wider text-[#5A686E] uppercase">
+                    <span className="text-xs font-semibold tracking-wider text-muted uppercase">
                         {code}
                     </span>
                 )}
             </div>
 
             <div className="mb-2 pl-1">
-                <h3 className="cursor-pointer text-[16px] font-bold text-[#243037] transition-colors hover:text-[#1EA6A9]">
+                <h3 className="cursor-pointer text-base font-bold text-ink transition-colors hover:text-primary">
                     {title}
                 </h3>
-                {professor && <p className="mt-0.5 text-[12.5px] text-[#5A686E]">{professor}</p>}
+                {professor && <p className="mt-0.5 text-xs text-muted">{professor}</p>}
             </div>
 
-            <div className="flex items-center justify-between border-t border-[#E4E7E7]/60 pt-2 pl-1">
-                <div className="flex items-center gap-1.5 text-[12px] font-medium text-[#5A686E]">
-                    <span className="material-symbols-outlined text-[17px] text-[#1EA6A9]">
+            <div className="flex items-center justify-between border-t border-line/60 pt-2 pl-1">
+                <div className="flex items-center gap-1.5 text-xs font-medium text-muted">
+                    <span className="material-symbols-outlined text-lg text-primary">
                         location_on
                     </span>
                     <span>{location}</span>
@@ -77,10 +77,10 @@ export const ClassCard: React.FC<ClassCardProps> = ({
                             e.stopPropagation();
                             onLocationClick();
                         }}
-                        className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-[#E4E7E7] bg-[#F5FAFF] text-[#5A686E] transition hover:text-[#1EA6A9] active:scale-95"
+                        className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-line bg-surface text-muted transition hover:text-primary active:scale-95"
                         title="Ver mapa da sala"
                     >
-                        <span className="material-symbols-outlined text-[18px]">map</span>
+                        <span className="material-symbols-outlined text-lg">map</span>
                     </button>
                 )}
             </div>

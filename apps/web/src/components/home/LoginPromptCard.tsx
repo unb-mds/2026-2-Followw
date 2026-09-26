@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import React from 'react';
 
-import { Card } from '../ui/Card';
+import { Card } from '#/components/ui/Card';
 
 interface LoginPromptCardProps {
     onLoginClick?: () => void;
@@ -9,17 +9,17 @@ interface LoginPromptCardProps {
 
 export const LoginPromptCard: React.FC<LoginPromptCardProps> = ({ onLoginClick }) => {
     return (
-        <Card className="border-[#E4E7E7] bg-white p-5 shadow-sm">
+        <Card className="border-line bg-white p-5 shadow-sm">
             <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#1EA6A9]/30 bg-[#E6FAF5] p-0.5 text-[#1EA6A9] shadow-sm">
-                    <span className="material-symbols-outlined text-[26px]">lock</span>
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-primary/30 bg-primary-light p-0.5 text-primary shadow-sm">
+                    <span className="material-symbols-outlined text-2xl">lock</span>
                 </div>
 
                 <div className="flex-1">
-                    <h3 className="text-[17px] font-bold tracking-tight text-[#243037]">
+                    <h3 className="text-lg font-bold tracking-tight text-ink">
                         Acesse com sua Matrícula UnB
                     </h3>
-                    <p className="mt-1 text-[12.5px] leading-relaxed text-[#5A686E]">
+                    <p className="mt-1 text-xs leading-relaxed text-muted">
                         Conecte-se com as credenciais do SIGAA para visualizar suas turmas, horários
                         e notas em tempo real.
                     </p>
@@ -28,12 +28,10 @@ export const LoginPromptCard: React.FC<LoginPromptCardProps> = ({ onLoginClick }
                         <Link
                             to="/perfil"
                             onClick={onLoginClick}
-                            className="inline-flex items-center gap-1.5 rounded-xl bg-[#1EA6A9] px-4 py-2.5 text-[13px] font-bold text-white shadow-sm transition-all hover:bg-[#007080] active:scale-95"
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-primary-dark active:scale-95"
                         >
                             <span>Entrar com SIGAA</span>
-                            <span className="material-symbols-outlined text-[18px]">
-                                arrow_forward
-                            </span>
+                            <span className="material-symbols-outlined text-lg">arrow_forward</span>
                         </Link>
                     </div>
                 </div>

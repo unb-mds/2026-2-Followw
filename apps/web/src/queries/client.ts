@@ -1,9 +1,9 @@
 import { createIsomorphicFn } from '@tanstack/react-start';
 import createClient, { type Middleware } from 'openapi-fetch';
 
-import type { paths } from './schema.gen.ts';
+import type { paths } from '#/queries/schema.gen.ts';
 
-import { toApiError } from './errors.ts';
+import { toApiError } from '#/queries/errors.ts';
 
 const baseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
 

@@ -1,77 +1,68 @@
-import { Link } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import React from 'react';
 
-import { Card } from '../ui/Card';
-import { SectionHeader } from '../ui/SectionHeader';
+import type { DailyMenu, MenuSection } from '#/queries/restaurant';
 
-export interface NewsItem {
-    id: string;
-    title: string;
-    date: string;
-    category?: string;
-    url?: string;
-}
+import { Card } from '#/components/ui/Card';
+import { SectionHeader } from '#/components/ui/SectionHeader';
 
 interface PublicInfoSectionProps {
-    ruMenuSummary?: {
-        lunch?: string;
-        dinner?: string;
-    };
+    menu?: DailyMenu;
+    isLoading?: boolean;
 }
 
-const DEFAULT_RU_SUMMARY = {
-    lunch: 'Estrogonofe de Frango, Arroz, Feijão, Salada Tropical',
-    dinner: 'Sopa de Legumes, Pão de Alho, Fruta da Estação'
-};
+function mainDish(sections: MenuSection[] | null | undefined) {
+    const section = sections?.find((s) => s.key === 'main_dish') ?? sections?.[0];
+    return section?.items.join(', ');
+}
 
-export const PublicInfoSection: React.FC<PublicInfoSectionProps> = ({
-    ruMenuSummary = DEFAULT_RU_SUMMARY
-}) => {
+export const PublicInfoSection: React.FC<PublicInfoSectionProps> = ({ menu, isLoading }) => {
+    const navigate = useNavigate();
+    const meals = [
+        { label: 'Almoço', color: 'var(--color-primary)', dish: mainDish(menu?.lunch) },
+        { label: 'Jantar', color: 'var(--color-primary-dark)', dish: mainDish(menu?.dinner) }
+    ].filter((meal) => meal.dish);
+
     return (
         <div className="mt-6 flex flex-col gap-4">
-            {/* RU Quick Card */}
             <div>
                 <SectionHeader
-                    title="Restaurante Universitário"
+                    title="RU"
                     actionLabel="Ver Cardápio"
-                    onAction={() => {}}
+                    onAction={() => navigate({ to: '/ru' })}
                 />
                 <Link to="/ru">
-                    <Card className="cursor-pointer transition-all hover:border-[#1EA6A9]">
+                    <Card className="cursor-pointer transition-all hover:border-primary">
                         <div className="mb-2 flex items-center gap-3">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#1EA6A9]/20 bg-[#E6FAF5] text-[#1EA6A9]">
-                                <span className="material-symbols-outlined text-[20px]">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-primary/20 bg-primary-light text-primary">
+                                <span className="material-symbols-outlined text-xl">
                                     restaurant
                                 </span>
                             </div>
                             <div>
-                                <h3 className="text-[14px] font-bold text-[#243037]">
-                                    Prato Principal Hoje
-                                </h3>
-                                <p className="text-[11px] text-[#5A686E]">Campus Darcy Ribeiro</p>
+                                <h3 className="text-sm font-bold text-ink">Prato Principal Hoje</h3>
+                                <p className="text-xs text-muted">Campus Darcy Ribeiro</p>
                             </div>
                         </div>
 
-                        <div className="space-y-1.5 border-t border-[#E4E7E7]/60 pt-2">
-                            {ruMenuSummary?.lunch && (
-                                <div className="flex items-start gap-2 text-[12.5px]">
-                                    <span className="shrink-0 font-bold text-[#1EA6A9]">
-                                        Almoço:
+                        <div className="space-y-1.5 border-t border-line/60 pt-2">
+                            {meals.map((meal) => (
+                                <div key={meal.label} className="flex items-start gap-2 text-xs">
+                                    <span
+                                        className="shrink-0 font-bold"
+                                        style={{ color: meal.color }}
+                                    >
+                                        {meal.label}:
                                     </span>
-                                    <span className="line-clamp-1 text-[#243037]">
-                                        {ruMenuSummary.lunch}
-                                    </span>
+                                    <span className="line-clamp-1 text-ink">{meal.dish}</span>
                                 </div>
-                            )}
-                            {ruMenuSummary?.dinner && (
-                                <div className="flex items-start gap-2 text-[12.5px]">
-                                    <span className="shrink-0 font-bold text-[#007080]">
-                                        Jantar:
-                                    </span>
-                                    <span className="line-clamp-1 text-[#243037]">
-                                        {ruMenuSummary.dinner}
-                                    </span>
-                                </div>
+                            ))}
+                            {meals.length === 0 && (
+                                <p className="text-xs text-muted">
+                                    {isLoading
+                                        ? 'Carregando cardápio...'
+                                        : 'Cardápio de hoje não publicado.'}
+                                </p>
                             )}
                         </div>
                     </Card>

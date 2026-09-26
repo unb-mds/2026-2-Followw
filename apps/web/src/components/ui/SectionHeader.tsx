@@ -18,9 +18,9 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
     return (
         <div className={`flex items-center justify-between mb-3 ${className}`}>
             <div className="flex items-center gap-2.5">
-                <h2 className="text-[19px] font-bold text-[#243037] tracking-tight">{title}</h2>
+                <h2 className="text-xl font-bold text-ink tracking-tight">{title}</h2>
                 {badge !== undefined && (
-                    <span className="text-[11.5px] font-bold text-[#007080] bg-[#1EA6A9]/10 px-2.5 py-0.5 rounded-full">
+                    <span className="text-xs font-bold text-primary-dark bg-primary/10 px-2.5 py-0.5 rounded-full">
                         {badge}
                     </span>
                 )}
@@ -29,7 +29,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
                 <button
                     type="button"
                     onClick={onAction}
-                    className="text-[12.5px] font-bold text-[#007080] hover:text-[#1EA6A9] transition-colors cursor-pointer"
+                    className="text-xs font-bold text-primary-dark hover:text-primary transition-colors cursor-pointer"
                 >
                     {actionLabel}
                 </button>

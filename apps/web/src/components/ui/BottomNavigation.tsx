@@ -1,7 +1,7 @@
 import { Link, useLocation } from '@tanstack/react-router';
 import React from 'react';
 
-import { LiquidGlass } from './LiquidGlass';
+import { LiquidGlass } from '#/components/ui/LiquidGlass';
 
 interface NavItem {
     to: '/' | '/turmas' | '/ru' | '/perfil';
@@ -32,7 +32,7 @@ export const BottomNavigation: React.FC = () => {
 
     return (
         <nav
-            className="fixed bottom-5 left-1/2 z-[100] -translate-x-1/2 select-none"
+            className="fixed bottom-5 left-1/2 z-100 -translate-x-1/2 select-none"
             style={{
                 filter: 'drop-shadow(0 12px 28px rgba(0,36,40,0.28)) drop-shadow(0 4px 8px rgba(0,0,0,0.12))',
             }}
@@ -106,7 +106,7 @@ export const BottomNavigation: React.FC = () => {
                                     className="material-symbols-outlined"
                                     style={{
                                         fontSize: 23,
-                                        color: isActive ? '#007080' : '#486267',
+                                        color: isActive ? 'var(--color-primary-dark)' : 'var(--color-ink-soft)',
                                         fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0",
                                         transform: isActive ? 'scale(1.1)' : 'scale(1)',
                                         transition: 'color 0.35s ease, transform 0.35s ease',

@@ -24,8 +24,8 @@ export const Card: React.FC<CardProps> = ({
                     onClick();
                 }
             }}
-            className={`relative bg-white rounded-2xl p-4 shadow-sm border border-[#E4E7E7] overflow-hidden transition-all duration-200 ${
-                onClick ? 'cursor-pointer hover:border-[#1EA6A9] hover:shadow-md active:scale-[0.99]' : ''
+            className={`relative bg-white rounded-2xl p-4 shadow-sm border border-line overflow-hidden transition-all duration-200 ${
+                onClick ? 'cursor-pointer hover:border-primary hover:shadow-md active:scale-99' : ''
             } ${className}`}
         >
             {accentColor && (
