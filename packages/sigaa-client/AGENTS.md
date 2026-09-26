@@ -149,6 +149,16 @@ Regras que não dá para burlar:
   antes da tabela), então às vezes `find_next` é a única saída em vez de
   navegar pela árvore.
 
+### Extrato do RU
+
+`restaurant.get_restaurant_statement()` retorna `RestaurantStatement` (saldo,
+grupo e entradas). O próprio resource infere saldo/grupo pelas entradas mais
+recentes, preservando a ordem original do extrato e `None` para dados ausentes.
+O portal pode manter a tabela aberta na sessão: leia-a antes de procurar o
+formulário de expansão, evitando fechar o extrato ou retornar vazio em chamadas
+seguintes. Cada chamada faz um novo GET; não há cache local. Após o postback,
+extrato ausente é `SigaaParseError`.
+
 ### Se a tela devolver PDF
 
 Alguns postbacks (ex.: emissão de documentos) não devolvem HTML: a resposta já

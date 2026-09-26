@@ -113,7 +113,11 @@ as "Últimas Atualizações" da home — só as de "Nova Notícia", sem outros a
 do SIGAA) e anexos
 só vêm de `get_classroom_news()`, um postback por notícia.
 
-`get_restaurant_statement()` devolve `None` para quem não tem extrato no RU.
+`get_restaurant_statement()` devolve `RestaurantStatement` com `balance`, `group`
+e `entries`. Saldo e grupo vêm das movimentações mais recentes que os informam;
+quando ausentes, ficam `None`. Sem extrato, `entries` é uma tupla vazia.
+Cada chamada relê o portal: se a tabela já estiver aberta, lê diretamente;
+caso contrário, usa o postback para abri-la, sem precisar de outro login.
 `get_restaurant_credentials()` lê o PDF da carteirinha estudantil: o token vem
 do QR code e `valid_until` do mês/ano impresso (o dia vem sempre `1`).
 

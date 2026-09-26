@@ -28,6 +28,7 @@ log = logging.getLogger(__name__)
 
 PROFILE_TTL = timedelta(hours=24)
 CLASSROOMS_TTL = timedelta(hours=72)
+MENU_TTL = timedelta(hours=24)
 # Participantes e estatísticas das turmas atuais; as de semestres passados não mudam.
 CLASSROOM_DETAILS_TTL = timedelta(hours=24)
 
