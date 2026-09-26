@@ -6,7 +6,7 @@ import { meQueryOptions } from '../queries/me.ts';
 
 export const Route = createFileRoute('/')({
     loader: async ({ context }) => {
-        await context.queryClient.ensureQueryData(meQueryOptions);
+        await context.queryClient.query(meQueryOptions);
     },
     errorComponent: ({ error }) => {
         if (error instanceof ApiError && error.isUnauthorized) {
