@@ -12,6 +12,7 @@ import { ApiError } from '#/queries/errors';
 import { meQueryOptions } from '#/queries/me';
 
 export const Route = createFileRoute('/perfil')({
+    ssr: false,
     loader: ({ context }) => context.queryClient.query(meQueryOptions),
     errorComponent: ErrorState,
     component: PerfilPage

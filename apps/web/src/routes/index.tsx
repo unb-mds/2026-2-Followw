@@ -27,9 +27,10 @@ const WEEKDAYS = [
 const MONTHS = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
 
 export const Route = createFileRoute('/')({
+    ssr: false,
     loader: async ({ context: { queryClient } }) => {
         const now = nowInBrasilia();
-        // Aguardado para o SSR já renderizar o cardápio; sem isso a hidratação diverge.
+        // o cardápio depende do campus do usuário
         const user = await queryClient.query(meQueryOptions);
         // .catch(noop): falha nas turmas não derruba o cardápio
         await Promise.all([
@@ -42,7 +43,7 @@ export const Route = createFileRoute('/')({
     component: HomePage
 });
 
-// Parte do horário do loader para a hidratação bater com o SSR e segue atualizando.
+// Parte do horário do loader e segue atualizando.
 function useNow() {
     const [now, setNow] = useState(Route.useLoaderData().now);
     useEffect(() => {

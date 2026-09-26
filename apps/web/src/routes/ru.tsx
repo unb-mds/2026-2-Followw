@@ -19,6 +19,7 @@ const MEALS = [
 ] as const;
 
 export const Route = createFileRoute('/ru')({
+    ssr: false,
     loader: async ({ context: { queryClient } }) => {
         const user = await queryClient.query(meQueryOptions);
         await queryClient.query(menuQueryOptions({ date: nowInBrasilia().date, user })).catch(noop);
