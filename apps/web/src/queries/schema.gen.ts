@@ -145,6 +145,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    '/restaurant/menu': {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Consultar o cardápio público do RU */
+        get: operations['get_menu_restaurant_menu_get'];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    '/restaurant/statement': {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Consultar extrato, saldo e grupo do estudante no RU */
+        get: operations['get_statement_restaurant_statement_get'];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    '/restaurant/token': {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Consultar o token da carteirinha estudantil
+         * @description Lê o QR code da carteirinha no SIGAA a cada acesso, sem persistência. Retorna token e valid_until; a validade informa mês/ano e o scraper representa o mês pelo dia 1.
+         */
+        get: operations['get_token_restaurant_token_get'];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -152,6 +206,11 @@ export interface components {
         /**
          * Classroom
          * @description Turma, nos campos da tabela `classrooms`.
+         *
+         *     `id` é o `frontEndIdTurma` do SIGAA — o único identificador presente tanto
+         *     nas turmas do semestre quanto no histórico. `sigaa_id` é o id numérico
+         *     interno, que só o portal do semestre expõe. `current` marca as turmas que o
+         *     portal lista como atuais.
          */
         Classroom: {
             /** Id */
@@ -199,11 +258,60 @@ export interface components {
          * @enum {string}
          */
         ClassroomRole: 'aluno' | 'professor' | 'monitor';
+        /**
+         * DailyMenu
+         * @description Refeição que o campus não serve (ou não publicou) no dia vem `None`.
+         */
+        DailyMenu: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Breakfast */
+            breakfast?: components['schemas']['MenuSection'][] | null;
+            /** Lunch */
+            lunch?: components['schemas']['MenuSection'][] | null;
+            /** Dinner */
+            dinner?: components['schemas']['MenuSection'][] | null;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components['schemas']['ValidationError'][];
         };
+        /** MenuSection */
+        MenuSection: {
+            key?: components['schemas']['MenuSectionKey'] | null;
+            /** Name */
+            name: string;
+            /** Items */
+            items: string[];
+        };
+        /**
+         * MenuSectionKey
+         * @enum {string}
+         */
+        MenuSectionKey:
+            | 'drink'
+            | 'bread'
+            | 'extra'
+            | 'spread'
+            | 'complement'
+            | 'complement_vegetarian'
+            | 'complement_vegan'
+            | 'fruit'
+            | 'salad_1'
+            | 'salad_2'
+            | 'salad_dressing'
+            | 'main_dish'
+            | 'main_dish_vegetarian'
+            | 'main_dish_vegan'
+            | 'side_dish'
+            | 'accompaniments'
+            | 'soup'
+            | 'toast'
+            | 'dessert';
         /**
          * News
          * @description A home não traz `id`; hora, texto e anexos só vêm de `get_classroom_news`.
@@ -237,6 +345,40 @@ export interface components {
             /** Url */
             url: string;
         };
+        /** RestaurantCredentials */
+        RestaurantCredentials: {
+            /** Token */
+            token: string;
+            /**
+             * Valid Until
+             * Format: date
+             */
+            valid_until: string;
+        };
+        /** RestaurantStatement */
+        RestaurantStatement: {
+            /** Balance */
+            balance?: string | null;
+            /** Group */
+            group?: (1 | 2 | 3) | null;
+            /**
+             * Entries
+             * @default []
+             */
+            entries: components['schemas']['RestaurantStatementEntry'][];
+        };
+        /** RestaurantStatementEntry */
+        RestaurantStatementEntry: {
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /** Description */
+            description: string;
+            /** Amount */
+            amount: string;
+        };
         /** SigaaLoginRequest */
         SigaaLoginRequest: {
             /** Registration */
@@ -247,6 +389,9 @@ export interface components {
         /**
          * StatisticsShare
          * @description Uma fatia do gráfico de estatísticas: a porcentagem dos discentes da turma.
+         *
+         *     O SIGAA arredonda cada fatia em uma casa, então a soma pode fechar em 99.9
+         *     ou 100.1. O gráfico não expõe a contagem de alunos, só a porcentagem.
          */
         StatisticsShare: {
             situation: components['schemas']['StudentSituation'];
@@ -283,13 +428,6 @@ export interface components {
             hours?: number | null;
             /** Unity */
             unity?: string | null;
-        };
-        /** UserInfo */
-        UserInfo: {
-            /** Nome */
-            nome: string;
-            /** Matricula */
-            matricula: string;
         };
         /**
          * UserLevel
@@ -328,6 +466,10 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+            /** Input */
+            input?: unknown;
+            /** Context */
+            ctx?: Record<string, never>;
         };
     };
     responses: never;
@@ -357,7 +499,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': Record<string, never>;
+                    'application/json': unknown;
                 };
             };
             /** @description Validation Error */
@@ -386,7 +528,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': Record<string, never>;
+                    'application/json': unknown;
                 };
             };
         };
@@ -504,6 +646,7 @@ export interface operations {
             query?: {
                 /** @description Sem filtro: turmas atuais. Use 'all' ou um semestre no formato AAAA.P, como 2026.2. */
                 semester?: string | null;
+                /** @description Ignora o cache: busca no SIGAA e atualiza o cache antes de responder. */
                 refresh?: boolean;
             };
             header?: never;
@@ -549,6 +692,7 @@ export interface operations {
     get_classroom_members_classrooms__classroom_id__members_get: {
         parameters: {
             query?: {
+                /** @description Ignora o cache: busca no SIGAA e atualiza o cache antes de responder. */
                 refresh?: boolean;
             };
             header?: never;
@@ -603,6 +747,7 @@ export interface operations {
     get_classroom_statistics_classrooms__classroom_id__statistics_get: {
         parameters: {
             query?: {
+                /** @description Ignora o cache: busca no SIGAA e atualiza o cache antes de responder. */
                 refresh?: boolean;
             };
             header?: never;
@@ -657,6 +802,7 @@ export interface operations {
     get_me_me_get: {
         parameters: {
             query?: {
+                /** @description Ignora o cache: busca no SIGAA e atualiza o cache antes de responder. */
                 refresh?: boolean;
             };
             header?: never;
@@ -735,6 +881,123 @@ export interface operations {
                 content: {
                     'application/json': components['schemas']['HTTPValidationError'];
                 };
+            };
+            /** @description SIGAA indisponível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_menu_restaurant_menu_get: {
+        parameters: {
+            query?: {
+                /** @description Campus do restaurante. */
+                campus?: 'Darcy' | 'Gama' | 'Ceilandia' | 'Planaltina' | 'Fazenda';
+                /** @description Ignora o cache: busca no SIGAA e atualiza o cache antes de responder. */
+                refresh?: boolean;
+                /** @description Dia específico (AAAA-MM-DD). */
+                date?: string | null;
+                /** @description Início do intervalo (AAAA-MM-DD). */
+                start_date?: string | null;
+                /** @description Fim do intervalo (AAAA-MM-DD). */
+                end_date?: string | null;
+                /** @description Retorna apenas a refeição escolhida e a data. Se não publicada no dia, a refeição é null. Sem filtro, retorna todas. */
+                meal?: ('breakfast' | 'lunch' | 'dinner') | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['DailyMenu'][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['HTTPValidationError'];
+                };
+            };
+            /** @description Site do RU indisponível ou cardápio ilegível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_statement_restaurant_statement_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['RestaurantStatement'];
+                };
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description SIGAA indisponível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_token_restaurant_token_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['RestaurantCredentials'];
+                };
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description SIGAA indisponível. */
             502: {

@@ -1,4 +1,4 @@
-import calendarData from '@calendar';
+import calendarData from 'academic-calendar';
 
 export type CalendarEventCategory =
     | 'academic'
