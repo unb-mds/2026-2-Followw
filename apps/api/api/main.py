@@ -1,6 +1,7 @@
 import logging
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.responses import HTMLResponse
 
@@ -76,6 +77,14 @@ async def scalar_docs() -> HTMLResponse:
 
 if settings.environment == "production":
     app.add_middleware(HTTPSRedirectMiddleware)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 app.include_router(classrooms_router, prefix="/classrooms", tags=["Classrooms"])

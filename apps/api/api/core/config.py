@@ -7,6 +7,9 @@ class Settings(BaseSettings):
 
     environment: str = "development"
 
+    # Origens do front liberadas no CORS (com cookies).
+    cors_origins: list[str] = ["https://followw.app"]
+
     database_url: str
 
     # Deriva as chaves que cifram os cookies (JWE) e os jobs.

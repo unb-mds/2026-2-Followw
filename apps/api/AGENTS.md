@@ -162,7 +162,9 @@ automáticos. Enums do banco são `str, enum.Enum` com
 `.value` do enum, não o nome do membro.
 
 **Settings.** `Settings` (`core/config.py`) lê `.env` via
-`pydantic-settings`. É instanciado no import do módulo — qualquer coisa que
+`pydantic-settings`. `cors_origins` (JSON, padrão `["https://followw.app"]`)
+lista as origens do front liberadas no CORS com credenciais; não use `*`, o
+browser recusa com cookies. É instanciado no import do módulo — qualquer coisa que
 precise de uma variável de ambiente diferente (como os testes) precisa setá-la
 **antes** do primeiro import de `api.core.config` (veja `tests/conftest.py`).
 

@@ -32,3 +32,21 @@ def test_scalar_docs_retorna_html_com_referencia_openapi(client):
     assert "text/html" in response.headers["content-type"]
     assert "api-reference" in response.text
     assert "/openapi.json" in response.text
+
+
+def test_cors_libera_origem_do_front_com_credenciais(client):
+    response = client.options(
+        "/me",
+        headers={
+            "Origin": "https://followw.app",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "https://followw.app"
+    assert response.headers["access-control-allow-credentials"] == "true"
+
+
+def test_cors_nao_libera_origem_desconhecida(client):
+    response = client.get("/docs", headers={"Origin": "https://evil.example"})
+    assert "access-control-allow-origin" not in response.headers
