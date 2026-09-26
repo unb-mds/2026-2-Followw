@@ -1,4 +1,4 @@
-import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 
@@ -21,7 +21,7 @@ const MEALS = [
 export const Route = createFileRoute('/ru')({
     loader: async ({ context: { queryClient } }) => {
         const user = await queryClient.query(meQueryOptions);
-        await queryClient.prefetchQuery(menuQueryOptions({ date: nowInBrasilia().date, user }));
+        await queryClient.query(menuQueryOptions({ date: nowInBrasilia().date, user })).catch(noop);
     },
     errorComponent: ErrorState,
     component: RUPage

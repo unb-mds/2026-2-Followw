@@ -1,9 +1,10 @@
+import { Link, type LinkProps } from '@tanstack/react-router';
 
 interface SectionHeaderProps {
     title: string;
     badge?: string | number;
     actionLabel?: string;
-    onAction?: () => void;
+    actionTo?: LinkProps['to'];
     className?: string;
 }
 
@@ -11,7 +12,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
     title,
     badge,
     actionLabel,
-    onAction,
+    actionTo,
     className = '',
 }) => {
     return (
@@ -24,14 +25,13 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
                     </span>
                 )}
             </div>
-            {actionLabel && (
-                <button
-                    type="button"
-                    onClick={onAction}
-                    className="text-xs font-bold text-primary-dark hover:text-primary transition-colors cursor-pointer"
+            {actionLabel && actionTo && (
+                <Link
+                    to={actionTo}
+                    className="text-xs font-bold text-primary-dark hover:text-primary transition-colors"
                 >
                     {actionLabel}
-                </button>
+                </Link>
             )}
         </div>
     );

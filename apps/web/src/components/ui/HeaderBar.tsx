@@ -1,17 +1,12 @@
 import { FollowwLogo } from '#/components/ui/FollowwLogo';
-import { NotificationBell } from '#/components/ui/NotificationBell';
 
 interface HeaderBarProps {
     children?: React.ReactNode;
-    unreadCount?: number;
-    onNotificationClick?: () => void;
     showLogo?: boolean;
 }
 
 export const HeaderBar: React.FC<HeaderBarProps> = ({
     children,
-    unreadCount = 0,
-    onNotificationClick,
     showLogo = true,
 }) => {
     return (
@@ -20,7 +15,6 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                 {showLogo && <FollowwLogo className="w-12 h-8 shrink-0" />}
                 {children}
             </div>
-            <NotificationBell unreadCount={unreadCount} onClick={onNotificationClick} />
         </header>
     );
 };

@@ -2,11 +2,7 @@ import { Link } from '@tanstack/react-router';
 
 import { Card } from '#/components/ui/Card';
 
-interface LoginPromptCardProps {
-    onLoginClick?: () => void;
-}
-
-export const LoginPromptCard: React.FC<LoginPromptCardProps> = ({ onLoginClick }) => {
+export const LoginPromptCard: React.FC = () => {
     return (
         <Card className="border-line bg-white p-5 shadow-sm">
             <div className="flex items-start gap-4">
@@ -26,7 +22,6 @@ export const LoginPromptCard: React.FC<LoginPromptCardProps> = ({ onLoginClick }
                     <div className="mt-4 flex items-center gap-3">
                         <Link
                             to="/perfil"
-                            onClick={onLoginClick}
                             className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-primary-dark active:scale-95"
                         >
                             <span>Entrar com SIGAA</span>

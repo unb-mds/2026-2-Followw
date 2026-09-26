@@ -1,4 +1,4 @@
-import { Link, useNavigate } from '@tanstack/react-router';
+import { Link } from '@tanstack/react-router';
 
 import type { Campus, DailyMenu, MenuSection } from '#/queries/restaurant';
 
@@ -22,7 +22,6 @@ export const PublicInfoSection: React.FC<PublicInfoSectionProps> = ({
     menu,
     isLoading
 }) => {
-    const navigate = useNavigate();
     const meals = [
         { label: 'Almoço', color: 'var(--color-primary)', dish: mainDish(menu?.lunch) },
         { label: 'Jantar', color: 'var(--color-primary-dark)', dish: mainDish(menu?.dinner) }
@@ -31,11 +30,7 @@ export const PublicInfoSection: React.FC<PublicInfoSectionProps> = ({
     return (
         <div className="mt-6 flex flex-col gap-4">
             <div>
-                <SectionHeader
-                    title="RU"
-                    actionLabel="Ver Cardápio"
-                    onAction={() => navigate({ to: '/ru' })}
-                />
+                <SectionHeader title="RU" actionLabel="Ver Cardápio" actionTo="/ru" />
                 <Link to="/ru">
                     <Card className="cursor-pointer transition-all hover:border-primary">
                         <div className="mb-2 flex items-center gap-3">

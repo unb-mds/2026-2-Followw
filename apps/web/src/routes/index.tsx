@@ -1,13 +1,13 @@
-import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import type { Day } from '#/lib/schedule';
 
 import { ClassCard } from '#/components/home/ClassCard';
 import { LoginPromptCard } from '#/components/home/LoginPromptCard';
 import { PublicInfoSection } from '#/components/home/PublicInfoSection';
-import { ErrorState } from '#/components/ui/ErrorState';
+import { ErrorCard, ErrorState, SIGAA_DOWN_MESSAGE } from '#/components/ui/ErrorState';
 import { HeaderBar } from '#/components/ui/HeaderBar';
 import { SectionHeader } from '#/components/ui/SectionHeader';
 import { classesOn, nowInBrasilia, weekDays } from '#/lib/schedule';
@@ -28,29 +28,44 @@ const MONTHS = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', '
 
 export const Route = createFileRoute('/')({
     loader: async ({ context: { queryClient } }) => {
+        const now = nowInBrasilia();
         // Aguardado para o SSR já renderizar o cardápio; sem isso a hidratação diverge.
         const user = await queryClient.query(meQueryOptions);
+        // .catch(noop): falha nas turmas não derruba o cardápio
         await Promise.all([
-            queryClient.prefetchQuery(menuQueryOptions({ date: nowInBrasilia().date, user })),
-            user && queryClient.query(classroomsQueryOptions)
+            queryClient.query(menuQueryOptions({ date: now.date, user })).catch(noop),
+            user && queryClient.query(classroomsQueryOptions).catch(noop)
         ]);
+        return { now };
     },
     errorComponent: ErrorState,
     component: HomePage
 });
 
+// Parte do horário do loader para a hidratação bater com o SSR e segue atualizando.
+function useNow() {
+    const [now, setNow] = useState(Route.useLoaderData().now);
+    useEffect(() => {
+        const id = setInterval(() => setNow(nowInBrasilia()), 30_000);
+        return () => clearInterval(id);
+    }, []);
+    return now;
+}
+
 function HomePage() {
-    const [now] = useState(nowInBrasilia);
+    const now = useNow();
     const days = weekDays(now.date);
-    const [selectedDay, setSelectedDay] = useState<Day>(now);
+    const [pickedDay, setPickedDay] = useState<Day | null>(null);
+    const selectedDay = pickedDay ?? now;
     const [showDaysSelector, setShowDaysSelector] = useState(false);
     const isToday = selectedDay.date === now.date;
 
     const { data: user } = useSuspenseQuery(meQueryOptions);
-    const { data: classrooms = [] } = useQuery({
+    const classroomsQuery = useQuery({
         ...classroomsQueryOptions,
         enabled: Boolean(user)
     });
+    const classrooms = classroomsQuery.data ?? [];
     const menu = useQuery(menuQueryOptions({ date: now.date, user }));
 
     const classes = classesOn(classrooms, selectedDay.weekday, isToday ? now.time : undefined);
@@ -85,7 +100,7 @@ function HomePage() {
                             <button
                                 key={item.date}
                                 type="button"
-                                onClick={() => setSelectedDay(item)}
+                                onClick={() => setPickedDay(item.date === now.date ? null : item)}
                                 className={`flex h-16.5 w-13.5 min-w-13.5 shrink-0 cursor-pointer flex-col items-center justify-center rounded-2xl transition-all active:scale-95 ${
                                     isActive
                                         ? 'bg-primary text-white shadow-md shadow-primary/30'
@@ -113,28 +128,40 @@ function HomePage() {
             )}
 
             {user ? (
-                classes.length > 0 && (
+                classroomsQuery.isError ? (
                     <section>
-                        <SectionHeader
-                            title="Aulas do dia"
-                            badge={`${classes.length} ${classes.length === 1 ? 'aula' : 'aulas'}`}
+                        <SectionHeader title="Aulas do dia" />
+                        <ErrorCard
+                            message={SIGAA_DOWN_MESSAGE}
+                            onRetry={() => classroomsQuery.refetch()}
                         />
-                        <div className="flex flex-col gap-1">
-                            {classes.map(({ item, start, end, status }) => (
-                                <ClassCard
-                                    key={`${item.id}-${start}`}
-                                    title={item.subject.name}
-                                    code={item.subject.code ?? undefined}
-                                    time={`${start} - ${end}`}
-                                    location={item.room ?? 'Local não informado'}
-                                    status={status}
-                                    accentColor={
-                                        status === 'in_progress' ? 'var(--color-live)' : undefined
-                                    }
-                                />
-                            ))}
-                        </div>
                     </section>
+                ) : (
+                    classes.length > 0 && (
+                        <section>
+                            <SectionHeader
+                                title="Aulas do dia"
+                                badge={`${classes.length} ${classes.length === 1 ? 'aula' : 'aulas'}`}
+                            />
+                            <div className="flex flex-col gap-1">
+                                {classes.map(({ item, start, end, status }) => (
+                                    <ClassCard
+                                        key={`${item.id}-${start}`}
+                                        title={item.subject.name}
+                                        code={item.subject.code ?? undefined}
+                                        time={`${start} - ${end}`}
+                                        location={item.room ?? 'Local não informado'}
+                                        status={status}
+                                        accentColor={
+                                            status === 'in_progress'
+                                                ? 'var(--color-live)'
+                                                : undefined
+                                        }
+                                    />
+                                ))}
+                            </div>
+                        </section>
+                    )
                 )
             ) : (
                 <section>

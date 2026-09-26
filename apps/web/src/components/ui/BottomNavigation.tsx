@@ -27,7 +27,9 @@ const BUBBLE_TOP = (BAR_H - BUBBLE_H) / 2; // 7
 
 export const BottomNavigation: React.FC = () => {
     const location = useLocation();
-    const activeIndex = navItems.findIndex((item) => item.to === location.pathname);
+    // Ignora a barra final (`/turmas/`); fora das abas a bolha some em vez de sair da barra.
+    const pathname = location.pathname.replace(/(.)\/$/, '$1');
+    const activeIndex = navItems.findIndex((item) => item.to === pathname);
 
     return (
         <nav
@@ -54,9 +56,10 @@ export const BottomNavigation: React.FC = () => {
                         height: BUBBLE_H,
                         borderRadius: BUBBLE_H / 2,
                         overflow: 'hidden',
-                        transform: `translateX(${activeIndex * SLOT_W}px)`,
-                        // Spring curve: slight overshoot for a lively feel
-                        transition: 'transform 0.4s cubic-bezier(0.34, 1.4, 0.64, 1)',
+                        transform: `translateX(${Math.max(activeIndex, 0) * SLOT_W}px)`,
+                        opacity: activeIndex === -1 ? 0 : 1,
+                        transition:
+                            'transform 0.4s cubic-bezier(0.34, 1.4, 0.64, 1), opacity 0.2s ease',
                         zIndex: 1,
                     }}
                 >
@@ -95,8 +98,8 @@ export const BottomNavigation: React.FC = () => {
 
                 {/* Tab items */}
                 <div className="relative flex h-full w-full items-center justify-around px-2.5" style={{ zIndex: 2 }}>
-                    {navItems.map((item) => {
-                        const isActive = location.pathname === item.to;
+                    {navItems.map((item, index) => {
+                        const isActive = index === activeIndex;
                         return (
                             <Link
                                 key={item.to}
