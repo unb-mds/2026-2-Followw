@@ -99,6 +99,14 @@ entrada por aula e os totais do SIGAA. Nem todo docente lança frequência: aí
 `frequency` vem `None` e só o `progress` é confiável — os totais que a tela
 mostra nesse caso são fictícios (100% de presença em toda a CH).
 
+`frequency_status` indica `not_registered`, `partially_registered` ou `registered`,
+considerando as entradas publicadas, sem afirmar que o semestre inteiro já foi
+lançado. Quando há mapa, `frequency.summary` informa `total_entries`,
+`recorded_entries`, `unrecorded_entries`, `absence_entries` e `total_absences`.
+Uma entrada pode conter mais de uma falta; as contagens de entradas não são
+carga horária. Os totais originais do SIGAA são preservados e podem mostrar
+100% mesmo com datas pendentes, por isso não definem o estado dos lançamentos.
+
 `get_classroom_statistics()` devolve as 9 fatias do gráfico "Estatísticas da
 Turma" (`StatisticsShare`), sempre todas, inclusive as zeradas. O SIGAA só
 desenha esse gráfico como imagem: os números saem da legenda do PNG, lidos

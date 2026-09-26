@@ -14,6 +14,7 @@ from api.db.main import get_db
 from api.db.models import (
     USER_WITHOUT_IDS,
     Classroom,
+    ClassroomFrequencyCache,
     ClassroomStatistic,
     ClassroomUser,
     Subject,
@@ -54,6 +55,43 @@ class ClassroomRepository:
             )
             .options(_WITH_CLASSROOM)
         )
+
+    async def get_by_sigaa_id(
+        self, user_id: UUID, sigaa_id: int
+    ) -> ClassroomUser | None:
+        return await self._session.scalar(
+            select(ClassroomUser)
+            .join(Classroom)
+            .where(
+                ClassroomUser.user_id == user_id,
+                ClassroomUser.front_end_id.is_not(None),
+                Classroom.sigaa_id == sigaa_id,
+            )
+            .options(_WITH_CLASSROOM)
+        )
+
+    async def get_frequency(
+        self, user_classroom_id: UUID
+    ) -> ClassroomFrequencyCache | None:
+        return await self._session.scalar(
+            select(ClassroomFrequencyCache).where(
+                ClassroomFrequencyCache.user_classroom_id == user_classroom_id
+            )
+        )
+
+    async def save_frequency(
+        self,
+        user_classroom_id: UUID,
+        frequency: sigaa_client.ClassroomFrequency,
+        synced_at: datetime,
+    ) -> None:
+        cached = await self.get_frequency(user_classroom_id)
+        if cached is None:
+            cached = ClassroomFrequencyCache(user_classroom_id=user_classroom_id)
+            self._session.add(cached)
+        cached.data = frequency.model_dump(mode="json")
+        cached.synced_at = synced_at
+        await self._session.flush()
 
     async def save_user_classrooms(
         self,

@@ -3,7 +3,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, SecretStr
+from pydantic import BaseModel, ConfigDict, SecretStr, computed_field
 
 
 class Credentials(BaseModel):
@@ -128,12 +128,24 @@ class AttendanceEntry(BaseModel):
     absences: int = 0
 
 
+class AttendanceSummary(BaseModel):
+    """Contagens das entradas publicadas, sem presumir duração de cada aula."""
+
+    model_config = ConfigDict(frozen=True)
+
+    total_entries: int
+    recorded_entries: int
+    unrecorded_entries: int
+    absence_entries: int
+    total_absences: int
+
+
 class ClassroomAttendance(BaseModel):
     """Mapa de frequências da turma, com os totais que o próprio SIGAA calcula.
 
-    `registered` conta as aulas que já têm frequência lançada; `total`, as que
-    a carga horária do componente prevê. Cada um tem sua porcentagem, que é a
-    do SIGAA — não o arredondamento de `attended / registered`.
+    Totais e porcentagens são os valores exibidos pelo SIGAA; eles podem
+    incluir aulas ainda não registradas. `summary` conta apenas as entradas
+    publicadas, sem confundir quantidade de datas com carga horária.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -144,6 +156,23 @@ class ClassroomAttendance(BaseModel):
     registered_percentage: int
     total: int
     total_percentage: int
+
+    @computed_field
+    @property
+    def summary(self) -> AttendanceSummary:
+        unrecorded = sum(
+            entry.status == AttendanceStatus.NAO_REGISTRADA for entry in self.entries
+        )
+        absent = [
+            entry for entry in self.entries if entry.status == AttendanceStatus.FALTA
+        ]
+        return AttendanceSummary(
+            total_entries=len(self.entries),
+            recorded_entries=len(self.entries) - unrecorded,
+            unrecorded_entries=unrecorded,
+            absence_entries=len(absent),
+            total_absences=sum(entry.absences for entry in absent),
+        )
 
 
 class StudentSituation(str, enum.Enum):
@@ -195,6 +224,17 @@ class ClassroomFrequency(BaseModel):
 
     progress: ClassroomProgress
     frequency: ClassroomAttendance | None = None
+
+    @computed_field
+    @property
+    def frequency_status(
+        self,
+    ) -> Literal["not_registered", "partially_registered", "registered"]:
+        if self.frequency is None or self.frequency.summary.recorded_entries == 0:
+            return "not_registered"
+        if self.frequency.summary.unrecorded_entries:
+            return "partially_registered"
+        return "registered"
 
 
 class TeachingLevel(str, enum.Enum):

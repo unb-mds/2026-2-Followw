@@ -3,9 +3,12 @@ from functools import partial
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
+from pydantic import ValidationError
 from sigaa_client import (
     Classroom,
+    ClassroomFrequency,
     ClassroomMember,
+    ClassroomNotFound,
     ClassroomRole,
     StatisticsShare,
     StudentSituation,
@@ -20,6 +23,10 @@ from api.repositories.user import UserRepository
 from api.services.sync import CLASSROOMS_TTL, Task, details_ttl, is_stale
 
 _SITUATIONS = list(StudentSituation)
+
+
+class ClassroomFrequencyResult(ClassroomFrequency):
+    classroom: Classroom
 
 
 class ClassroomService:
@@ -98,8 +105,44 @@ class ClassroomService:
 
         return sorted(shares, key=lambda s: _SITUATIONS.index(s.situation))
 
-    async def _link(self, classroom_id: str) -> ClassroomUser:
-        find = partial(self._find_link, classroom_id)
+    async def get_frequency(
+        self, classroom_id: str, *, refresh: bool = False
+    ) -> ClassroomFrequency:
+        link = await self._link(classroom_id, allow_sigaa_id=True)
+
+        async def load(session: AsyncSession) -> tuple[ClassroomFrequency | None, bool]:
+            cached = await ClassroomRepository(session).get_frequency(link.id)
+            if cached is None:
+                return None, True
+            try:
+                frequency = ClassroomFrequency.model_validate(cached.data)
+            except ValidationError:
+                return None, True
+            return frequency, is_stale(cached.synced_at, details_ttl(link.current))
+
+        try:
+            return await self._engine.resolve(
+                Task.FREQUENCY, load, link=link, refresh=refresh
+            )
+        except ClassroomNotFound:
+            raise HTTPException(status_code=404, detail="Classroom not found")
+
+    async def list_frequencies(
+        self, *, refresh: bool = False
+    ) -> list[ClassroomFrequencyResult]:
+        classrooms = await self.list_classrooms(refresh=refresh)
+        result = []
+        for classroom in classrooms:
+            frequency = await self.get_frequency(classroom.id, refresh=refresh)
+            result.append(
+                ClassroomFrequencyResult(classroom=classroom, **frequency.model_dump())
+            )
+        return result
+
+    async def _link(
+        self, classroom_id: str, *, allow_sigaa_id: bool = False
+    ) -> ClassroomUser:
+        find = partial(self._find_link, classroom_id, allow_sigaa_id=allow_sigaa_id)
         link, synced_at = await self._engine.read(find)
         if link is None:
             # Lista nunca lida ou turma nova (ajuste de matrícula): relê a lista uma vez.
@@ -116,7 +159,7 @@ class ClassroomService:
         return link
 
     async def _find_link(
-        self, classroom_id: str, session: AsyncSession
+        self, classroom_id: str, session: AsyncSession, *, allow_sigaa_id: bool = False
     ) -> tuple[ClassroomUser | None, datetime | None]:
         """O vínculo com a turma e quando a lista de turmas foi sincronizada."""
         user = await UserRepository(session).get_by_registration(
@@ -125,9 +168,18 @@ class ClassroomService:
         if user is None:
             return None, None
 
-        link = await ClassroomRepository(session).get_by_front_end_id(
-            user.id, classroom_id
-        )
+        repository = ClassroomRepository(session)
+        link = await repository.get_by_front_end_id(user.id, classroom_id)
+        if (
+            link is None
+            and allow_sigaa_id
+            and classroom_id.isascii()
+            and classroom_id.isdecimal()
+        ):
+            # O ID numérico do SIGAA cabe em um inteiro do banco.
+            numeric = int(classroom_id) if len(classroom_id) <= 10 else 0
+            if 0 < numeric <= 2**31 - 1:
+                link = await repository.get_by_sigaa_id(user.id, numeric)
         return link, user.classrooms_synced_at
 
 
