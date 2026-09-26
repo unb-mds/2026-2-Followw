@@ -5,6 +5,7 @@ from fastapi import Depends, HTTPException, status
 from sigaa_client import ClassroomNotFound, News, NewsNotFound
 
 from api.dependencies.sigaa import SigaaClientDep
+from api.services.classroom import classroom_not_found
 
 
 class NewsService:
@@ -54,7 +55,7 @@ class NewsService:
         try:
             news = await self._client.classrooms.list_classroom_news(classroom_id)
         except ClassroomNotFound:
-            raise _classroom_not_found()
+            raise classroom_not_found()
         return [
             item.model_copy(update={"classroom_sigaa_id": sigaa_id}) for item in news
         ]
@@ -66,7 +67,7 @@ class NewsService:
                 classroom_id, news_id
             )
         except ClassroomNotFound:
-            raise _classroom_not_found()
+            raise classroom_not_found()
         except NewsNotFound:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="News not found"
@@ -86,12 +87,6 @@ class NewsService:
 
 def _title(title: str) -> str:
     return " ".join(unescape(title).split())
-
-
-def _classroom_not_found() -> HTTPException:
-    return HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail="Classroom not found"
-    )
 
 
 NewsServiceDep = Annotated[NewsService, Depends()]

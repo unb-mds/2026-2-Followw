@@ -149,6 +149,16 @@ Regras que não dá para burlar:
   antes da tabela), então às vezes `find_next` é a única saída em vez de
   navegar pela árvore.
 
+### Frequência
+
+`ClassroomFrequency.frequency_status` descreve os lançamentos nas entradas
+publicadas (`not_registered`, `partially_registered`, `registered`). Não mede
+o término do semestre. `ClassroomAttendance.summary` conta entradas registradas,
+pendentes e com faltas, além de somar as faltas explicitamente lançadas.
+São campos calculados no client, também ao ler modelos de caches antigos.
+Totais do SIGAA são preservados: podem indicar 100% mesmo com datas pendentes.
+Nunca substitua `frequency=None` por presença total ou zero faltas.
+
 ### Extrato do RU
 
 `restaurant.get_restaurant_statement()` retorna `RestaurantStatement` (saldo,

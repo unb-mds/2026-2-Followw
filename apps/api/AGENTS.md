@@ -96,6 +96,27 @@ as listagens do scraper: notícias recentes da home ou títulos e datas da turma
 texto completo em Markdown, horário e anexos vêm da rota de detalhe, que
 confere também se a notícia está na listagem da turma antes de abri-la.
 
+**Frequência.** Como `/members` e `/statistics`,
+`/classrooms/{classroom_id}/frequency` aceita o hash `id` ou o `sigaa_id`
+(`ClassroomService._link`), sempre conferindo o vínculo do usuário. `/classrooms/frequency`
+reúne as turmas atuais (mesma seleção de `/classrooms`), em ordem de disciplina,
+com `classroom`, `progress` e `frequency`. Sem lançamentos, `frequency` é `null`;
+`frequency_status` informa se não há lançamentos, se são parciais ou se todas
+as entradas publicadas estão registradas. O `frequency.summary` conta apenas
+as entradas do mapa e as faltas explícitas, sem reinterpretar os totais do SIGAA.
+Esses campos são calculados pelo client inclusive para dados já em cache.
+`classroom.subject.sigaa_id` pode ser `null`: a listagem privada não fornece
+o ID interno da disciplina. Para consultar a turma use `classroom.sigaa_id` ou `id`.
+sem turmas atuais, a lista é vazia. Uma falha não omite silenciosamente a turma:
+o agregado retorna erro. As leituras do SIGAA são sequenciais na mesma sessão.
+O cache é individual: `classroom_frequencies` referencia `user_classrooms.id`,
+nunca só a turma, e é removido com o vínculo. `Task.FREQUENCY` usa o SyncEngine,
+TTL de detalhes (24h nas atuais, sem vencimento nas antigas) e `refresh=true`.
+O refresh agregado também atualiza a lista de turmas. A frequência é buscada
+sob demanda, sem novos jobs no login. As respostas têm `Cache-Control: no-store`
+para impedir cache HTTP compartilhado; o cache interno continua ativo.
+Crie a nova tabela com `uv run db-init`; não é preciso recriar o banco.
+
 **Restaurante.** `/restaurant/menu` é público, usa `UnbBrowserDep` e aceita
 `campus` (`Darcy`, `Gama`, `Ceilandia`, `Planaltina`, `Fazenda`, padrão `Darcy`)
 e `refresh`. Datas: `date` para um dia ou `start_date`/`end_date` para intervalo

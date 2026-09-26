@@ -12,6 +12,7 @@ from .exceptions import (
 from .models import (
     AttendanceEntry,
     AttendanceStatus,
+    AttendanceSummary,
     Classroom,
     ClassroomAttendance,
     ClassroomFrequency,
@@ -38,6 +39,7 @@ from .models import (
 __all__ = [
     "AttendanceEntry",
     "AttendanceStatus",
+    "AttendanceSummary",
     "AuthenticationFailed",
     "Classroom",
     "ClassroomAttendance",
