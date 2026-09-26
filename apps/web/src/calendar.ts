@@ -10,6 +10,7 @@ export type CalendarEventCategory =
     | 'other';
 
 export interface CalendarEvent {
+    id?: string;
     name: string;
     start_date: string;
     end_date: string;
@@ -33,27 +34,18 @@ export interface SemesterCalendar {
     events: CalendarEvent[];
 }
 
-export interface YearCalendar {
-    year: number;
-    resolution: string;
-    semesters: Record<string, SemesterCalendar>;
-}
-
 export interface AcademicCalendar {
-    description: string;
-    source: string;
-    years: Record<string, YearCalendar>;
+    semesters: Record<string, SemesterCalendar>;
 }
 
 export const academicCalendar: AcademicCalendar = calendarData;
 
 export function getSemester(semester: string): SemesterCalendar | undefined {
-    const yearStr = semester.split('.')[0];
-    return academicCalendar.years[yearStr]?.semesters[semester];
+    return academicCalendar.semesters[semester];
 }
 
 export function listSemesters(): SemesterCalendar[] {
-    return Object.values(academicCalendar.years).flatMap((year) => Object.values(year.semesters));
+    return Object.values(academicCalendar.semesters);
 }
 
 export default academicCalendar;

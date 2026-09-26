@@ -28,6 +28,7 @@ class ClassesPeriod(CalendarPeriod):
 class CalendarEvent(BaseModel):
     model_config = ConfigDict(frozen=True)
 
+    id: str | None = None
     name: str
     start_date: date
     end_date: date
@@ -44,33 +45,13 @@ class SemesterCalendar(BaseModel):
     events: tuple[CalendarEvent, ...] = ()
 
 
-class YearCalendar(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    year: int
-    resolution: str
-    semesters: dict[str, SemesterCalendar]
-
-
 class AcademicCalendar(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    description: str
-    source: str
-    years: dict[str, YearCalendar]
-
-    def get_year(self, year: int | str) -> YearCalendar | None:
-        return self.years.get(str(year))
+    semesters: dict[str, SemesterCalendar]
 
     def get_semester(self, semester: str) -> SemesterCalendar | None:
-        year_str = semester.split(".")[0]
-        year = self.get_year(year_str)
-        if year is None:
-            return None
-        return year.semesters.get(semester)
+        return self.semesters.get(semester)
 
     def list_semesters(self) -> tuple[SemesterCalendar, ...]:
-        semesters: list[SemesterCalendar] = []
-        for year in self.years.values():
-            semesters.extend(year.semesters.values())
-        return tuple(semesters)
+        return tuple(self.semesters.values())

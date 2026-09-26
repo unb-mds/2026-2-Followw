@@ -5,7 +5,6 @@ from .models import (
     CalendarPeriod,
     ClassesPeriod,
     SemesterCalendar,
-    YearCalendar,
 )
 from .resource import Calendar, load_academic_calendar
 
@@ -17,6 +16,5 @@ __all__ = [
     "CalendarPeriod",
     "ClassesPeriod",
     "SemesterCalendar",
-    "YearCalendar",
     "load_academic_calendar",
 ]
