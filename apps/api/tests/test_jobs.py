@@ -10,7 +10,7 @@ from api.db.models import User
 from api.dependencies.qstash import JOBS_URL, decode_job, encode_job
 from api.services.sync import Job, Task
 
-LOGIN = {"registration": "251000000", "password": "senha"}
+LOGIN = {"registration": "251000000", "password": "senha123"}
 PERFIL = Job(task=Task.PROFILE, registration="251000000", session_token="app14~VIVO")
 
 
@@ -33,7 +33,7 @@ def test_publica_o_job_cifrado_e_um_por_vez_por_usuario(client, sigaa, qstash):
     job = decode_job(message["body"].encode())
     # A Upstash não enxerga o token da sessão, e a senha nem entra no job.
     assert job.session_token not in message["body"]
-    assert "senha" not in job.model_dump_json()
+    assert "senha123" not in job.model_dump_json()
 
 
 def test_sessao_nova_nao_cai_na_deduplicacao_da_anterior(client, sigaa, qstash):

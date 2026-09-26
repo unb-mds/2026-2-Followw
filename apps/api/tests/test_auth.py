@@ -1,12 +1,10 @@
-import jwt
 import pytest
 from pydantic import SecretStr
 from sigaa_client import Credentials
 
-from api.core.config import settings
-from api.utils.session import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME
+from api.utils.session import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME, decrypt_cookie
 
-CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha"))
+CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha123"))
 
 
 def _expirados(jar) -> set[str]:
@@ -19,28 +17,45 @@ def _expirados(jar) -> set[str]:
 
 
 def _payload(response, nome: str) -> dict:
-    return jwt.decode(
-        response.cookies[nome],
-        settings.jwt_secret_key,
-        algorithms=[settings.jwt_algorithm],
-    )
+    return decrypt_cookie(nome, response.cookies[nome])
 
 
 @pytest.mark.parametrize(
     "body",
     [
         pytest.param({"registration": "251000000"}, id="sem-senha"),
-        pytest.param({"password": "senha"}, id="sem-matricula"),
+        pytest.param({"password": "senha123"}, id="sem-matricula"),
         pytest.param({}, id="vazio"),
+        pytest.param(
+            {"registration": "25100000", "password": "senha123"}, id="matricula-8"
+        ),
+        pytest.param(
+            {"registration": "2510000000", "password": "senha123"}, id="matricula-10"
+        ),
+        pytest.param(
+            {"registration": "25100000000", "password": "senha123"}, id="matricula-11"
+        ),
+        pytest.param({"registration": "251000000", "password": "a" * 5}, id="senha-5"),
+        pytest.param(
+            {"registration": "251000000", "password": "a" * 65}, id="senha-65"
+        ),
     ],
 )
-def test_login_sem_os_campos_obrigatorios_e_422(client, body: dict):
+def test_login_com_campos_invalidos_e_422(client, body: dict):
     assert client.post("/auth/sigaa", json=body).status_code == 422
+
+
+def test_login_aceita_senha_com_64_caracteres(client, sigaa):
+    sigaa.password = "a" * 64
+    response = client.post(
+        "/auth/sigaa", json={"registration": "251000000", "password": "a" * 64}
+    )
+    assert response.status_code == 200
 
 
 def test_login_guarda_a_sessao_e_as_credenciais(client, sigaa):
     response = client.post(
-        "/auth/sigaa", json={"registration": "251000000", "password": "senha"}
+        "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
     )
 
     assert response.status_code == 200
@@ -68,7 +83,7 @@ def test_login_com_sigaa_fora_do_ar_e_502(client, sigaa):
     sigaa.unavailable = True
 
     response = client.post(
-        "/auth/sigaa", json={"registration": "251000000", "password": "senha"}
+        "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
     )
 
     assert response.status_code == 502
@@ -79,7 +94,7 @@ def test_login_com_cas_fora_do_esperado_e_502(client, sigaa):
     sigaa.mode = "sem_cookie"
 
     response = client.post(
-        "/auth/sigaa", json={"registration": "251000000", "password": "senha"}
+        "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
     )
 
     assert response.status_code == 502

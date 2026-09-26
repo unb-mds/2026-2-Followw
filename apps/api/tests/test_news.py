@@ -19,7 +19,7 @@ from sigaa_client import (
 
 from api.db.main import get_sessionmaker
 
-CREDENTIALS = Credentials(registration="251000000", password=SecretStr("senha"))
+CREDENTIALS = Credentials(registration="251000000", password=SecretStr("senha123"))
 DETAIL_PATH = "/classrooms/AAA/news/1"
 DETAIL_PATHS = [DETAIL_PATH, "/classrooms/123/news/1"]
 PATHS = ["/news", "/classrooms/AAA/news", "/classrooms/123/news", *DETAIL_PATHS]
