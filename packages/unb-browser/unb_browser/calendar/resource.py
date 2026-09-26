@@ -8,7 +8,9 @@ from .models import AcademicCalendar, SemesterCalendar
 @lru_cache(maxsize=1)
 def load_academic_calendar() -> AcademicCalendar:
     """Carrega o calendário acadêmico estático em memória a partir do JSON."""
-    data_path = resources.files("unb_browser.calendar").joinpath("academic_calendar.json")
+    data_path = resources.files("unb_browser.calendar").joinpath(
+        "academic_calendar.json"
+    )
     with data_path.open("r", encoding="utf-8") as f:
         data = json.load(f)
     return AcademicCalendar.model_validate(data)

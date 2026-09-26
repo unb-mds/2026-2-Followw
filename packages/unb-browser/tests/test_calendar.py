@@ -37,12 +37,12 @@ def test_calendar_trancamento_all_semesters() -> None:
         sem = cal.get_semester(sem_id)
         assert sem is not None, f"Semestre {sem_id} não encontrado"
         event_ids = {e.id for e in sem.events}
-        assert (
-            "registration_partial_suspend" in event_ids
-        ), f"Falta registration_partial_suspend em {sem_id}"
-        assert (
-            "registration_general_suspend" in event_ids
-        ), f"Falta registration_general_suspend em {sem_id}"
+        assert "registration_partial_suspend" in event_ids, (
+            f"Falta registration_partial_suspend em {sem_id}"
+        )
+        assert "registration_general_suspend" in event_ids, (
+            f"Falta registration_general_suspend em {sem_id}"
+        )
 
 
 def test_calendar_resource_2027() -> None:
