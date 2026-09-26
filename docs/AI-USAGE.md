@@ -40,6 +40,9 @@ da disciplina, é uma parte que exige menos esforço criativo e permite um certo
 - Skills:
     - grill-me: Todos
     - scalar-docs: Kauã e Samuel
+- MCPs:
+    - Playwright: para ajudar na criação dos scrappers (Eliabe, Diego)
+    - Vercel: para criar os projetos, as configurações de deploy foram feitas manualmente
 
 
 ---
