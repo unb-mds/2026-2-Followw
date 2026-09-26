@@ -31,7 +31,7 @@ api/
     <feature>/
       main.py            # router da feature
   utils/
-    session.py           # cookies JWT de sessão
+    session.py           # cookies de sessão criptografados (JWE) e derive_key (HKDF, também usada pelos jobs)
   main.py                 # monta a FastAPI, registra os routers
 tests/
 ```
@@ -44,7 +44,11 @@ tests/
 compartilhe router entre features.
 
 **Sessão do SIGAA.** Não existe tabela de sessão: o token do SIGAA e as
-credenciais vivem em cookies `httponly` assinados com JWT (`utils/session.py`).
+credenciais vivem em cookies `httponly` criptografados com JWE (`utils/session.py`):
+`dir` + `A256GCM`, uma chave por cookie derivada (HKDF) do `jwt_secret_key`, que
+precisa de 32+ caracteres. Quem copia o cookie do navegador não lê a senha nem o
+token. Na leitura só esse perfil passa: JWS, `zip`, outro `alg`/`enc` ou um
+cookie no lugar do outro viram `None`. `exp` vai cifrado e é obrigatório. Os testes de segurança dessa etapa ficam em `tests/test_session.py`.
 O client vem por `Depends` (`dependencies/`):
 
 - `SigaaConnectionDep` — exige refresh cookie, mas só abre o `SigaaClient` em
@@ -96,7 +100,7 @@ função pode parar): o `SyncEngine` só conhece a `JobQueue`, e a `QStashQueue`
 decifra o job e chama `SyncEngine.run`. Decisões:
 
 - O job leva só o token da sessão do SIGAA, nunca a senha, e vai cifrado
-  (Fernet, chave derivada do `jwt_secret_key`). Sem senha não há relogin:
+  (Fernet, chave de `derive_key`). Sem senha não há relogin:
   `SessionExpired` descarta o job (204) e o próximo acesso agenda outro. Erro
   passageiro do SIGAA devolve 502 e o QStash tenta de novo.
 - Um job por vez por usuário (flow control `sigaa-<matrícula>`, parallelism 1),

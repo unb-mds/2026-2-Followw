@@ -12,7 +12,7 @@ logado, utilizando de cache e outras técnicas para facilitar a vida do estudant
 
 Não há conta própria do Followw: o login é sempre a matrícula e senha
 do SIGAA, delegado ao CAS da UnB. A sessão nunca é persistida no nosso
-sistema (vive em cookies assinados no cliente) e cada requisição para
+sistema (vive em cookies cifrados no cliente) e cada requisição para
 o SIGAA é stateless.
 
 ## Layout

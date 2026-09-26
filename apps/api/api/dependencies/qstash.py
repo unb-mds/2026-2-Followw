@@ -8,8 +8,6 @@ from typing import Annotated
 
 import httpx
 from cryptography.fernet import Fernet, InvalidToken
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from fastapi import Depends, Header, HTTPException, Request, status
 from pydantic import ValidationError
 from qstash import AsyncQStash, Receiver
@@ -18,6 +16,7 @@ from qstash.message import BatchRequest
 
 from api.core.config import settings
 from api.services.sync import Job, JobQueue
+from api.utils.session import derive_key
 
 log = logging.getLogger(__name__)
 
@@ -126,7 +125,4 @@ def _receiver() -> Receiver:
 @cache
 def _cipher() -> Fernet:
     # Chave própria dos jobs, derivada do segredo que assina os cookies.
-    key = HKDF(
-        algorithm=hashes.SHA256(), length=32, salt=None, info=b"followw:jobs"
-    ).derive(settings.jwt_secret_key.encode())
-    return Fernet(base64.urlsafe_b64encode(key))
+    return Fernet(base64.urlsafe_b64encode(derive_key("followw:jobs")))

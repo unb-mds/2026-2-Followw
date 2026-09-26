@@ -21,8 +21,8 @@ from api.dependencies.qstash import JOBS_URL, decode_job, encode_job
 from api.services.sync import Job, Task, is_stale
 from api.utils.session import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME
 
-CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha"))
-LOGIN = {"registration": "251000000", "password": "senha"}
+CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha123"))
+LOGIN = {"registration": "251000000", "password": "senha123"}
 ATUAL = sigaa_client.Classroom(
     id="AAA",
     number="01",
