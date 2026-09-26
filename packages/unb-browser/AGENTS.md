@@ -17,6 +17,10 @@ unb_browser/
   utils/
     http.py         # fetch_page (HTML -> BeautifulSoup) e fetch_file (bytes)
     parsing.py      # clean_text, lookup_key
+  calendar/         # calendário acadêmico oficial (2026/2027)
+    academic_calendar.json # dados estáticos oficiais (fonte única da verdade)
+    models.py       # AcademicCalendar, SemesterCalendar, CalendarEvent
+    resource.py     # Calendar, load_academic_calendar
   restaurant/       # cardápio do RU (ru.unb.br)
     resource.py     # Restaurant.get_menu — acha os PDFs do campus na página
     models.py       # Campus, DailyMenu, MenuSection, MenuSectionKey

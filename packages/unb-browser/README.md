@@ -1,7 +1,7 @@
 # `unb-browser`
 
 Biblioteca Python assíncrona que lê os sites públicos da UnB fora do SIGAA e
-devolve modelos Pydantic. Hoje cobre o cardápio do RU; calendário acadêmico e
+devolve modelos Pydantic. Hoje cobre o cardápio do RU e o calendário acadêmico oficial;
 editais entram como novos módulos.
 
 > Trabalhando **dentro** do pacote (novos scrapers, padrões, testes)? Veja
@@ -103,6 +103,39 @@ uma ou duas), em ordem de data. Cada `DailyMenu` traz `breakfast`, `lunch` e
 - Custa um GET da página + um GET por PDF (em paralelo). Não há cache aqui.
 
 Alérgenos ainda não são extraídos.
+
+## Calendário Acadêmico
+
+O calendário acadêmico oficial da UnB para os anos de 2026 e 2027 está integrado diretamente como arquivo estático (`academic_calendar.json`), baseado nas Resoluções CEPE nº 0140/2025 e nº 0151/2026. Não necessita de login nem de requisições de rede.
+
+### Como importar na API (Python)
+
+```python
+from unb_browser import load_academic_calendar
+
+calendar = load_academic_calendar()
+sem_2026_1 = calendar.get_semester("2026.1")
+print(sem_2026_1.classes.start)  # 2026-03-16
+print(sem_2026_1.classes.instructional_days)  # 100
+```
+
+Ou através do client:
+
+```python
+async with UnbBrowser() as browser:
+    semester = browser.calendar.get_semester("2026.1")
+```
+
+### Como importar no Front-end (Web)
+
+No front-end (`apps/web`), pode ser importado via wrapper tipado ou diretamente do JSON:
+
+```typescript
+import { academicCalendar, getSemester, listSemesters } from '#/calendar';
+
+const sem = getSemester('2026.1');
+console.log(sem?.classes.start); // '2026-03-16'
+```
 
 ## Erros
 
