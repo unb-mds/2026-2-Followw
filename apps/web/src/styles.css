@@ -1,15 +1,84 @@
 @import 'tailwindcss';
 
+@theme {
+    --font-sans: 'Inter', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+
+    --color-primary: #1ea6a9;
+    --color-primary-dark: #007080;
+    --color-primary-light: #e6faf5;
+
+    --color-ink: #243037;
+    --color-ink-soft: #486267;
+    --color-muted: #5a686e;
+    --color-subtle: #8b9c9c;
+    --color-line: #e4e7e7;
+    --color-surface: #f5faff;
+    --color-night: #0b151a;
+
+    --color-mint: #78dac6;
+    --color-mint-light: #c2edda;
+    --color-deep: #004c4c;
+
+    --color-success: #2b7a56;
+    --color-live: #06d764;
+    --color-warning: #e08a00;
+
+    --color-logo-teal: #006f80;
+    --color-logo-green: #2ea275;
+}
+
 * {
     box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
 }
 
 html,
 body,
 #app {
     min-height: 100%;
+    background-color: var(--color-night);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
 }
 
 body {
     margin: 0;
+    overflow-x: hidden;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--color-slate-100);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--color-slate-300);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--color-slate-400);
+}
+
+/* Em components para que utilities como text-xl consigam sobrescrever o tamanho */
+@layer components {
+    .material-symbols-outlined {
+        font-family: 'Material Symbols Outlined';
+        font-weight: normal;
+        font-style: normal;
+        font-size: 24px;
+        line-height: 1;
+        letter-spacing: normal;
+        text-transform: none;
+        display: inline-block;
+        white-space: nowrap;
+        word-wrap: normal;
+        direction: ltr;
+        -webkit-font-smoothing: antialiased;
+    }
 }
