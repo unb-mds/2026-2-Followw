@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, Text, UniqueConstraint
+from sqlalchemy import JSON, DateTime, ForeignKey, Index, Text, UniqueConstraint
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -134,3 +134,11 @@ class ClassroomStatistic(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     percentage: Mapped[float] = mapped_column()
 
     classroom: Mapped[Classroom] = relationship(back_populates="statistics")
+
+
+class RestaurantMenu(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "restaurant_menus"
+
+    campus: Mapped[str] = mapped_column(unique=True)
+    days: Mapped[list[dict[str, object]]] = mapped_column(JSON)
+    synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

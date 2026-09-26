@@ -30,20 +30,20 @@ _MEALS = {
 # Chave estável por categoria; `Bebidas` (café) e `Bebida (refresco de)` são a mesma.
 _SECTION_KEYS = {
     "bebidas": MenuSectionKey.DRINK,
-    "panificacao": MenuSectionKey.BREAD,
-    "opcao extra": MenuSectionKey.EXTRA,
+    "panificação": MenuSectionKey.BREAD,
+    "opção extra": MenuSectionKey.EXTRA,
     "gordura": MenuSectionKey.SPREAD,
-    "complemento padrao": MenuSectionKey.COMPLEMENT,
+    "complemento padrão": MenuSectionKey.COMPLEMENT,
     "complemento ovolactovegetariano": MenuSectionKey.COMPLEMENT_VEGETARIAN,
     "complemento vegetariano estrito": MenuSectionKey.COMPLEMENT_VEGAN,
     "fruta": MenuSectionKey.FRUIT,
     "salada 1": MenuSectionKey.SALAD_1,
     "salada 2": MenuSectionKey.SALAD_2,
     "molho para salada": MenuSectionKey.SALAD_DRESSING,
-    "prato principal padrao": MenuSectionKey.MAIN_DISH,
+    "prato principal padrão": MenuSectionKey.MAIN_DISH,
     "prato principal ovolactovegetariano": MenuSectionKey.MAIN_DISH_VEGETARIAN,
     "prato principal vegetariano estrito": MenuSectionKey.MAIN_DISH_VEGAN,
-    "guarnicao": MenuSectionKey.SIDE_DISH,
+    "guarnição": MenuSectionKey.SIDE_DISH,
     "acompanhamentos": MenuSectionKey.ACCOMPANIMENTS,
     "sopa": MenuSectionKey.SOUP,
     "torrada": MenuSectionKey.TOAST,
@@ -127,17 +127,20 @@ def _parse_page(page: Page) -> tuple[str, _Sections]:
 
     sections = {
         day: tuple(
-            MenuSection(
-                key=_SECTION_KEYS.get(lookup_key(label.text)),
-                name=label.text.capitalize(),
-                items=tuple(texts),
-            )
-            for label, texts in by_label.items()
-            if texts
+            _section(label.text, texts) for label, texts in by_label.items() if texts
         )
         for day, by_label in items.items()
     }
     return _meal(cells, header), sections
+
+
+def _section(label: str, items: list[str]) -> MenuSection:
+    # Quebras de linha do PDF podem dividir uma palavra da categoria.
+    normalized = lookup_key(label).replace(" ", "")
+    for name, key in _SECTION_KEYS.items():
+        if lookup_key(name).replace(" ", "") == normalized:
+            return MenuSection(key=key, name=name.capitalize(), items=tuple(items))
+    return MenuSection(name=label.capitalize(), items=tuple(items))
 
 
 def _cells(page: Page) -> list[_Cell]:
@@ -180,7 +183,7 @@ def _days(cells: list[_Cell], header: _Cell) -> list[tuple[datetime.date, _Cell]
     days = []
     for cell in cells:
         match = _DATE_RE.search(cell.text)
-        if match is None or cell.center_y > header.bottom:
+        if match is None or cell.center_y > header.bottom + _TOLERANCE:
             continue
         day, month, year = map(int, match.groups())
         try:

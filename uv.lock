@@ -73,6 +73,7 @@ dependencies = [
     { name = "qstash" },
     { name = "sigaa-client" },
     { name = "sqlalchemy", extra = ["asyncio"] },
+    { name = "unb-browser" },
 ]
 
 [package.dev-dependencies]
@@ -96,6 +97,7 @@ requires-dist = [
     { name = "qstash", specifier = ">=3.4.0" },
     { name = "sigaa-client", editable = "packages/sigaa-client" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.52" },
+    { name = "unb-browser", editable = "packages/unb-browser" },
 ]
 
 [package.metadata.requires-dev]

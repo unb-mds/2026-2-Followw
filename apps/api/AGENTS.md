@@ -93,6 +93,23 @@ as listagens do scraper: notícias recentes da home ou títulos e datas da turma
 texto completo em Markdown, horário e anexos vêm da rota de detalhe, que
 confere também se a notícia está na listagem da turma antes de abri-la.
 
+**Restaurante.** `/restaurant/menu` é público, usa `UnbBrowserDep` e aceita
+`campus` (`Darcy`, `Gama`, `Ceilandia`, `Planaltina`, `Fazenda`, padrão `Darcy`)
+e `refresh`. Datas: `date` para um dia ou `start_date`/`end_date` para intervalo
+inclusivo (aceita apenas um limite), sem combinar os dois modos. Filtros são
+aplicados depois da leitura: o cache sempre mantém todos os dias publicados.
+`meal` aceita `breakfast`, `lunch` ou `dinner`: cada dia mantém a data e apenas
+a refeição escolhida (ou `null`, se ausente). Sem `meal`, mantém todas as refeições.
+`RestaurantService` guarda uma
+lista de dias por campus em `restaurant_menus`, válida por 6h; grava antes de
+responder, sem jobs. Sessões do banco fecham antes da consulta ao site; erros
+de leitura/gravação não impedem servir o cardápio obtido do RU. O repository
+não faz commit. Cache vazio também tem TTL. Crie a tabela nova com `db-init`.
+`/restaurant/statement` e `/restaurant/token` usam `RestaurantAccountService`
+com `SigaaClientDep`, sem banco/fila e com `Cache-Control: no-store`. O saldo
+vem da linha de saldo mais recente; o grupo (1/2/3), da descrição mais recente
+que o informa. Sem esses dados, devolve `null`, nunca presume grupo ou saldo.
+
 **Jobs (QStash).** Nada roda depois da resposta no processo da API (na Vercel a
 função pode parar): o `SyncEngine` só conhece a `JobQueue`, e a `QStashQueue`
 (`dependencies/qstash.py`) publica cada `Job` no QStash, que o entrega em

@@ -13,10 +13,12 @@ dependencies = [
     "qstash>=3.4.0",
     "sigaa-client",
     "sqlalchemy[asyncio]>=2.0.52",
+    "unb-browser",
 ]
 
 [tool.uv.sources]
 sigaa-client = { workspace = true }
+unb-browser = { workspace = true }
 
 [tool.vercel]
 entrypoint = "api.main:app"
