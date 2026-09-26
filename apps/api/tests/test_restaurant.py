@@ -12,6 +12,7 @@ from sigaa_client import (
     AuthenticationFailed,
     Credentials,
     RestaurantCredentials,
+    RestaurantStatement,
     RestaurantStatementEntry,
     SessionExpired,
     SigaaParseError,
@@ -53,9 +54,13 @@ def _entry(description, amount="0.00", *, day=25):
 def restaurant(stub_sigaa):
     stub_sigaa.restaurant = SimpleNamespace(
         get_restaurant_statement=AsyncMock(
-            return_value=(
-                _entry("Saldo", "12.50"),
-                _entry("Grupo 2 Almoço", "6.10"),
+            return_value=RestaurantStatement(
+                balance=Decimal("12.50"),
+                group=2,
+                entries=(
+                    _entry("Saldo", "12.50"),
+                    _entry("Grupo 2 Almoço", "6.10"),
+                ),
             )
         ),
         get_restaurant_credentials=AsyncMock(
@@ -199,7 +204,7 @@ def test_dados_privados_sem_banco_fila_ou_cache(
         assert response.json()["balance"] == "12.50"
         assert response.json()["group"] == 2
         assert len(response.json()["entries"]) == 2
-        restaurant.get_restaurant_statement.return_value = None
+        restaurant.get_restaurant_statement.return_value = RestaurantStatement()
         assert client.get(f"/restaurant/{path}").json() == {
             "balance": None,
             "group": None,
@@ -216,15 +221,19 @@ def test_dados_privados_sem_banco_fila_ou_cache(
 
 
 @pytest.mark.parametrize("group", [1, 2, 3])
-def test_extrato_usa_grupo_e_saldo_mais_recentes_sem_somar_movimentos(
+def test_extrato_repassa_grupo_saldo_e_movimentos_do_client(
     client, cookies, restaurant, group
 ):
     client.cookies.update(cookies(refresh=CREDENTIALS))
-    restaurant.get_restaurant_statement.return_value = (
-        _entry("Grupo 2 Almoço", "6.10", day=20),
-        _entry(f"Grupo {group} Jantar", "6.10", day=24),
-        _entry("Saldo", "-1.50", day=25),
-        _entry("Saldo", "100.00", day=20),
+    restaurant.get_restaurant_statement.return_value = RestaurantStatement(
+        balance=Decimal("-1.50"),
+        group=group,
+        entries=(
+            _entry("Grupo 2 Almoço", "6.10", day=20),
+            _entry(f"Grupo {group} Jantar", "6.10", day=24),
+            _entry("Saldo", "-1.50", day=25),
+            _entry("Saldo", "100.00", day=20),
+        ),
     )
     response = client.get("/restaurant/statement")
     assert response.status_code == 200
@@ -235,12 +244,65 @@ def test_extrato_usa_grupo_e_saldo_mais_recentes_sem_somar_movimentos(
 
 def test_extrato_sem_saldo_ou_grupo_nao_presume_valores(client, cookies, restaurant):
     client.cookies.update(cookies(refresh=CREDENTIALS))
-    restaurant.get_restaurant_statement.return_value = (
-        _entry("Compra de créditos", "20.00"),
+    restaurant.get_restaurant_statement.return_value = RestaurantStatement(
+        entries=(_entry("Compra de créditos", "20.00"),),
     )
     response = client.get("/restaurant/statement")
     assert response.json()["balance"] is None
     assert response.json()["group"] is None
+
+
+def test_extrato_repetido_na_api_preserva_sessao_e_consulta_saldo_atual(
+    client, cookies
+):
+    client.cookies.update(cookies(access="tok", refresh=CREDENTIALS))
+    opened = False
+    amount = "49,50"
+    methods = []
+
+    def dashboard(request):
+        nonlocal opened
+        assert "JSESSIONID=tok" in request.headers["cookie"]
+        methods.append(request.method)
+        if request.method == "POST":
+            assert not opened
+            opened = True
+        if opened:
+            return httpx.Response(
+                200,
+                text=f"""
+                <h4>Extrato no Restaurante Universitário</h4><table>
+                <tr><td>25/09/2026 22:15</td><td>Saldo</td><td>{amount}</td></tr>
+                <tr><td>18/09/2026 22:15</td><td>Saldo Anterior</td><td>49,50</td></tr>
+                </table>
+            """,
+            )
+        return httpx.Response(
+            200,
+            text="""
+            <form id="formExibirExtrato" name="formExibirExtrato"
+                action="/sigaa/portais/discente/discente.jsf">
+              <input type="hidden" name="formExibirExtrato" value="formExibirExtrato">
+              <input type="hidden" name="javax.faces.ViewState" value="VS1">
+              <a onclick="jsfcljs(document.getElementById('formExibirExtrato'),
+                {'formExibirExtrato:botao':'formExibirExtrato:botao'},'');">
+                Mostrar Extrato</a>
+            </form>
+        """,
+        )
+
+    with respx.mock as network:
+        network.route(
+            host="sigaa.unb.br", path="/sigaa/portais/discente/discente.jsf"
+        ).mock(side_effect=dashboard)
+        for amount in ("49,50", "51,00", "40,00"):
+            response = client.get("/restaurant/statement")
+            assert response.status_code == 200
+            assert response.headers["cache-control"] == "no-store"
+            assert response.json()["balance"] == amount.replace(",", ".")
+            assert response.json()["group"] is None
+            assert len(response.json()["entries"]) == 2
+    assert methods == ["GET", "POST", "GET", "GET"]
 
 
 @pytest.mark.parametrize("path", ["statement", "token"])

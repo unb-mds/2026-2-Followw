@@ -106,9 +106,10 @@ responder, sem jobs. Sessões do banco fecham antes da consulta ao site; erros
 de leitura/gravação não impedem servir o cardápio obtido do RU. O repository
 não faz commit. Cache vazio também tem TTL. Crie a tabela nova com `db-init`.
 `/restaurant/statement` e `/restaurant/token` usam `RestaurantAccountService`
-com `SigaaClientDep`, sem banco/fila e com `Cache-Control: no-store`. O saldo
-vem da linha de saldo mais recente; o grupo (1/2/3), da descrição mais recente
-que o informa. Sem esses dados, devolve `null`, nunca presume grupo ou saldo.
+com `SigaaClientDep`, sem banco/fila e com `Cache-Control: no-store`. A API repassa
+o `RestaurantStatement` montado pelo `sigaa-client`, que infere saldo e grupo
+(1/2/3) pelas entradas mais recentes que os informam. Sem esses dados, devolve
+`null`, nunca presume grupo ou saldo.
 
 **Jobs (QStash).** Nada roda depois da resposta no processo da API (na Vercel a
 função pode parar): o `SyncEngine` só conhece a `JobQueue`, e a `QStashQueue`

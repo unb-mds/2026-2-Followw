@@ -1,12 +1,10 @@
 import logging
-import re
 from datetime import UTC, date, datetime, timedelta
-from decimal import Decimal
 from typing import Annotated, Literal
 
 from fastapi import Depends, HTTPException
-from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
-from sigaa_client import RestaurantCredentials, RestaurantStatementEntry
+from pydantic import TypeAdapter, ValidationError
+from sigaa_client import RestaurantCredentials, RestaurantStatement
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from unb_browser import Campus, DailyMenu
@@ -20,16 +18,7 @@ from api.services.sync import is_stale
 log = logging.getLogger(__name__)
 MENU_TTL = timedelta(hours=6)
 _MENU = TypeAdapter(tuple[DailyMenu, ...])
-_GROUP_RE = re.compile(r"\bgrupo\s*([123])\b", re.IGNORECASE)
 Meal = Literal["breakfast", "lunch", "dinner"]
-
-
-class RestaurantStatement(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    balance: Decimal | None
-    group: Literal[1, 2, 3] | None
-    entries: tuple[RestaurantStatementEntry, ...]
 
 
 class RestaurantService:
@@ -101,26 +90,7 @@ class RestaurantAccountService:
         self._client = client
 
     async def get_statement(self) -> RestaurantStatement:
-        entries = await self._client.restaurant.get_restaurant_statement() or ()
-        latest = sorted(entries, key=lambda entry: entry.occurred_at, reverse=True)
-        balance = next(
-            (
-                entry.amount
-                for entry in latest
-                if entry.description.strip().casefold().rstrip(":")
-                in {"saldo", "saldo atual"}
-            ),
-            None,
-        )
-        group = next(
-            (
-                int(match.group(1))
-                for entry in latest
-                if (match := _GROUP_RE.search(entry.description))
-            ),
-            None,
-        )
-        return RestaurantStatement(balance=balance, group=group, entries=entries)
+        return await self._client.restaurant.get_restaurant_statement()
 
     async def get_token(self) -> RestaurantCredentials:
         return await self._client.restaurant.get_restaurant_credentials()

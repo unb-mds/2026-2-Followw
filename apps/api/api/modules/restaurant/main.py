@@ -2,7 +2,7 @@ from datetime import date
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Query, Response
-from sigaa_client import RestaurantCredentials
+from sigaa_client import RestaurantCredentials, RestaurantStatement
 from unb_browser import Campus, DailyMenu
 
 from api.dependencies.refresh import RefreshQuery
@@ -10,7 +10,6 @@ from api.services.restaurant import (
     Meal,
     RestaurantAccountServiceDep,
     RestaurantServiceDep,
-    RestaurantStatement,
 )
 
 router = APIRouter()
