@@ -86,7 +86,7 @@ export const classroomsQueryOptions = (semester?: string) =>
 
 ### Uso em Rotas (Loaders e Componentes)
 
-Em loaders de rotas, use `ensureQueryData` para pré-carregar os dados tanto no SSR quanto na navegação client-side. Em componentes, consuma com `useSuspenseQuery`:
+Em loaders de rotas, use `query` para pré-carregar os dados tanto no SSR quanto na navegação client-side. Em componentes, consuma com `useSuspenseQuery`:
 
 ```tsx
 import { useSuspenseQuery } from '@tanstack/react-query';
@@ -98,7 +98,7 @@ import { meQueryOptions } from '#/queries/me.ts';
 export const Route = createFileRoute('/')({
     loader: async ({ context }) => {
         try {
-            await context.queryClient.ensureQueryData(meQueryOptions);
+            await context.queryClient.query(meQueryOptions);
         } catch (error) {
             if (error instanceof ApiError && error.isUnauthorized) {
                 // Sessão expirada ou ausente — redireciona para login se necessário
@@ -125,6 +125,7 @@ function HomePage() {
 ## Convenções
 
 - Imports internos são sempre absolutos via `#/` (aponta para `src/`), nunca `./` ou `../`.
+- O namespace `React` é global (via `@types/react`): use `React.FC`, `React.ReactNode` etc. sem importar. `import React from 'react'` é proibido (`no-restricted-imports`); imports nomeados como `useState` continuam permitidos.
 - Rotas seguem a convenção _file-based_ do TanStack Router (`routeTree.gen.ts`).
 - O `AppLayout` (com a `BottomNavigation`) é renderizado uma vez no `__root.tsx` em volta do `<Outlet />`; rotas e `errorComponent`s não devem envolvê-lo de novo, senão a navbar remonta e perde a animação entre abas.
 - Estilos usam Tailwind CSS v4 direto nas classes JSX.
@@ -145,3 +146,4 @@ function HomePage() {
 
 - Utilize Bun (`bun run dev`, `bun install`, `bun test`, etc.) ao interagir com a aplicação web em `apps/web/`.
 - Siga as especificações do TanStack Start e Tailwind CSS para construção de rotas, componentes e estilização.
+- Testes (`bun test`) ficam em `tests/`, espelhando a estrutura de `src/` (ex.: `src/lib/schedule.ts` → `tests/lib/schedule.test.ts`) e importando via `#/`.

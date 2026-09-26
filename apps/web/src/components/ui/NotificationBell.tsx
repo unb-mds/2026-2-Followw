@@ -1,5 +1,3 @@
-import React from 'react';
-
 interface NotificationBellProps {
     unreadCount?: number;
     onClick?: () => void;

@@ -1,4 +1,4 @@
-import React, { useId, useMemo, useSyncExternalStore } from 'react';
+import { useId, useMemo, useSyncExternalStore } from 'react';
 
 export interface LiquidGlassProps {
     width: number;

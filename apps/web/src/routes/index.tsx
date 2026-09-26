@@ -7,14 +7,13 @@ import type { Day } from '#/lib/schedule';
 import { ClassCard } from '#/components/home/ClassCard';
 import { LoginPromptCard } from '#/components/home/LoginPromptCard';
 import { PublicInfoSection } from '#/components/home/PublicInfoSection';
-import { Card } from '#/components/ui/Card';
 import { ErrorState } from '#/components/ui/ErrorState';
 import { HeaderBar } from '#/components/ui/HeaderBar';
 import { SectionHeader } from '#/components/ui/SectionHeader';
 import { classesOn, nowInBrasilia, weekDays } from '#/lib/schedule';
 import { classroomsQueryOptions } from '#/queries/classrooms';
 import { meQueryOptions } from '#/queries/me';
-import { menuQueryOptions } from '#/queries/restaurant';
+import { campusOf, menuQueryOptions } from '#/queries/restaurant';
 
 const WEEKDAYS = [
     'Domingo',
@@ -27,17 +26,14 @@ const WEEKDAYS = [
 ];
 const MONTHS = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
 
-const todayMenuQueryOptions = () =>
-    menuQueryOptions({ campus: 'Darcy', date: nowInBrasilia().date });
-
 export const Route = createFileRoute('/')({
     loader: async ({ context: { queryClient } }) => {
         // Aguardado para o SSR já renderizar o cardápio; sem isso a hidratação diverge.
-        const [user] = await Promise.all([
-            queryClient.ensureQueryData(meQueryOptions),
-            queryClient.prefetchQuery(todayMenuQueryOptions())
+        const user = await queryClient.query(meQueryOptions);
+        await Promise.all([
+            queryClient.prefetchQuery(menuQueryOptions({ date: nowInBrasilia().date, user })),
+            user && queryClient.query(classroomsQueryOptions)
         ]);
-        if (user) await queryClient.ensureQueryData(classroomsQueryOptions);
     },
     errorComponent: ErrorState,
     component: HomePage
@@ -55,7 +51,7 @@ function HomePage() {
         ...classroomsQueryOptions,
         enabled: Boolean(user)
     });
-    const menu = useQuery(todayMenuQueryOptions());
+    const menu = useQuery(menuQueryOptions({ date: now.date, user }));
 
     const classes = classesOn(classrooms, selectedDay.weekday, isToday ? now.time : undefined);
 
@@ -116,41 +112,44 @@ function HomePage() {
                 </div>
             )}
 
-            <SectionHeader
-                title="Aulas do Dia"
-                badge={
-                    user
-                        ? `${classes.length} ${classes.length === 1 ? 'aula' : 'aulas'}`
-                        : undefined
-                }
-            />
-
             {user ? (
-                <div className="flex flex-col gap-1">
-                    {classes.map(({ item, start, end, status }) => (
-                        <ClassCard
-                            key={`${item.id}-${start}`}
-                            title={item.subject.name}
-                            code={item.subject.code ?? undefined}
-                            time={`${start} - ${end}`}
-                            location={item.room ?? 'Local não informado'}
-                            status={status}
-                            accentColor={status === 'in_progress' ? 'var(--color-live)' : undefined}
+                classes.length > 0 && (
+                    <section>
+                        <SectionHeader
+                            title="Aulas do dia"
+                            badge={`${classes.length} ${classes.length === 1 ? 'aula' : 'aulas'}`}
                         />
-                    ))}
-                    {classes.length === 0 && (
-                        <Card className="mb-3 text-center text-sm text-muted">
-                            Nenhuma aula neste dia.
-                        </Card>
-                    )}
-                </div>
+                        <div className="flex flex-col gap-1">
+                            {classes.map(({ item, start, end, status }) => (
+                                <ClassCard
+                                    key={`${item.id}-${start}`}
+                                    title={item.subject.name}
+                                    code={item.subject.code ?? undefined}
+                                    time={`${start} - ${end}`}
+                                    location={item.room ?? 'Local não informado'}
+                                    status={status}
+                                    accentColor={
+                                        status === 'in_progress' ? 'var(--color-live)' : undefined
+                                    }
+                                />
+                            ))}
+                        </div>
+                    </section>
+                )
             ) : (
-                <div className="mb-4">
-                    <LoginPromptCard />
-                </div>
+                <section>
+                    <SectionHeader title="Aulas do dia" />
+                    <div className="mb-4">
+                        <LoginPromptCard />
+                    </div>
+                </section>
             )}
 
-            <PublicInfoSection menu={menu.data?.[0]} isLoading={menu.isPending} />
+            <PublicInfoSection
+                campus={campusOf(user?.unity)}
+                menu={menu.data?.[0]}
+                isLoading={menu.isPending}
+            />
         </>
     );
 }

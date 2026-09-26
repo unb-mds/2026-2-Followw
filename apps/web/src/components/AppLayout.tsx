@@ -1,5 +1,3 @@
-import React from 'react';
-
 import { BottomNavigation } from '#/components/ui/BottomNavigation';
 
 interface AppLayoutProps {

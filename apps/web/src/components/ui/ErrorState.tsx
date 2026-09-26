@@ -1,5 +1,4 @@
 import { type ErrorComponentProps, useRouter } from '@tanstack/react-router';
-import React from 'react';
 
 import { ApiError } from '#/queries/errors';
 import { Card } from '#/components/ui/Card';

@@ -1,5 +1,3 @@
-import React from 'react';
-
 interface SemesterProgressProps {
     daysRemaining: number;
     percentage: number;

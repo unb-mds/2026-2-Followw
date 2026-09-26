@@ -1,5 +1,4 @@
 import { Link, useLocation } from '@tanstack/react-router';
-import React from 'react';
 
 import { LiquidGlass } from '#/components/ui/LiquidGlass';
 
@@ -33,12 +32,17 @@ export const BottomNavigation: React.FC = () => {
     return (
         <nav
             className="fixed bottom-5 left-1/2 z-100 -translate-x-1/2 select-none"
-            style={{
-                filter: 'drop-shadow(0 12px 28px rgba(0,36,40,0.28)) drop-shadow(0 4px 8px rgba(0,0,0,0.12))',
-            }}
             aria-label="Navegação principal do aplicativo"
         >
-            <LiquidGlass width={BAR_W} height={BAR_H} scale={-30} blur={28} tint="rgba(30,166,169,0.08)">
+            {/* box-shadow em vez de filter no <nav>: filter no ancestral isola o backdrop-filter do glass */}
+            <LiquidGlass
+                width={BAR_W}
+                height={BAR_H}
+                scale={-30}
+                blur={28}
+                tint="rgba(30,166,169,0.08)"
+                style={{ boxShadow: '0 12px 28px rgba(0,36,40,0.28), 0 4px 8px rgba(0,0,0,0.12)' }}
+            >
                 {/* Sliding glass bubble — single element, translates to active slot */}
                 <div
                     aria-hidden="true"

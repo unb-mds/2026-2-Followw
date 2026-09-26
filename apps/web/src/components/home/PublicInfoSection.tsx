@@ -1,12 +1,13 @@
 import { Link, useNavigate } from '@tanstack/react-router';
-import React from 'react';
 
-import type { DailyMenu, MenuSection } from '#/queries/restaurant';
+import type { Campus, DailyMenu, MenuSection } from '#/queries/restaurant';
 
 import { Card } from '#/components/ui/Card';
 import { SectionHeader } from '#/components/ui/SectionHeader';
+import { CAMPUS_LABELS } from '#/queries/restaurant';
 
 interface PublicInfoSectionProps {
+    campus: Campus;
     menu?: DailyMenu;
     isLoading?: boolean;
 }
@@ -16,7 +17,11 @@ function mainDish(sections: MenuSection[] | null | undefined) {
     return section?.items.join(', ');
 }
 
-export const PublicInfoSection: React.FC<PublicInfoSectionProps> = ({ menu, isLoading }) => {
+export const PublicInfoSection: React.FC<PublicInfoSectionProps> = ({
+    campus,
+    menu,
+    isLoading
+}) => {
     const navigate = useNavigate();
     const meals = [
         { label: 'Almoço', color: 'var(--color-primary)', dish: mainDish(menu?.lunch) },
@@ -41,7 +46,7 @@ export const PublicInfoSection: React.FC<PublicInfoSectionProps> = ({ menu, isLo
                             </div>
                             <div>
                                 <h3 className="text-sm font-bold text-ink">Prato Principal Hoje</h3>
-                                <p className="text-xs text-muted">Campus Darcy Ribeiro</p>
+                                <p className="text-xs text-muted">Campus {CAMPUS_LABELS[campus]}</p>
                             </div>
                         </div>
 

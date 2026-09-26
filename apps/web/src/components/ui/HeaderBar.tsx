@@ -1,4 +1,3 @@
-import React from 'react';
 import { FollowwLogo } from '#/components/ui/FollowwLogo';
 import { NotificationBell } from '#/components/ui/NotificationBell';
 

@@ -23,6 +23,18 @@
         "no-restricted-globals": [
             "error",
             { "name": "fetch", "message": "Use o client de src/queries." }
+        ],
+        "no-restricted-imports": [
+            "error",
+            {
+                "paths": [
+                    {
+                        "name": "react",
+                        "importNames": ["default"],
+                        "message": "O namespace React é global; use React.* sem importar."
+                    }
+                ]
+            }
         ]
     },
     "overrides": [

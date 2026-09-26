@@ -13,8 +13,8 @@ import { meQueryOptions } from '#/queries/me';
 
 export const Route = createFileRoute('/turmas')({
     loader: async ({ context: { queryClient } }) => {
-        const user = await queryClient.ensureQueryData(meQueryOptions);
-        if (user) await queryClient.ensureQueryData(classroomsQueryOptions);
+        const user = await queryClient.query(meQueryOptions);
+        if (user) await queryClient.query(classroomsQueryOptions);
     },
     errorComponent: ErrorState,
     component: TurmasPage
