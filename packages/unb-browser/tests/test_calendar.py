@@ -18,11 +18,16 @@ def test_calendar_resource_semesters() -> None:
     assert sem_2026_1.classes.end == date(2026, 7, 18)
     assert sem_2026_1.classes.instructional_days == 100
 
-    # Verifica os IDs e eventos de matrícula e trancamento
     event_ids = {e.id for e in sem_2026_1.events}
+    assert "regular_enrollment" in event_ids
+    assert "enrollment_processing" in event_ids
+    assert "enrollment_results" in event_ids
+    assert "re_enrollment_period" in event_ids
+    assert "re_enrollment_processing" in event_ids
+    assert "re_enrollment_results" in event_ids
+    assert "extraordinary_enrollment" in event_ids
     assert "registration_partial_suspend" in event_ids
     assert "registration_general_suspend" in event_ids
-    assert "regular_enrollment" in event_ids
     assert "quarter_semester" in event_ids
 
     enrollment_events = [
@@ -31,18 +36,49 @@ def test_calendar_resource_semesters() -> None:
     assert len(enrollment_events) > 0
 
 
-def test_calendar_trancamento_all_semesters() -> None:
+def test_calendar_enrollment_cycle_all_semesters() -> None:
     cal = Calendar()
-    for sem_id in ["2026.1", "2026.2", "2026.4", "2027.1", "2027.2", "2027.4"]:
+    expected_regular_cycle = {
+        "regular_enrollment",
+        "enrollment_processing",
+        "enrollment_results",
+        "re_enrollment_period",
+        "re_enrollment_processing",
+        "re_enrollment_results",
+        "extraordinary_enrollment",
+        "registration_partial_suspend",
+        "registration_general_suspend",
+        "classes_start",
+        "classes_end",
+        "grades_consolidation",
+        "semester_end",
+        "student_dismissal_processing",
+    }
+    for sem_id in ["2026.1", "2026.2", "2027.1", "2027.2"]:
         sem = cal.get_semester(sem_id)
         assert sem is not None, f"Semestre {sem_id} não encontrado"
         event_ids = {e.id for e in sem.events}
-        assert "registration_partial_suspend" in event_ids, (
-            f"Falta registration_partial_suspend em {sem_id}"
-        )
-        assert "registration_general_suspend" in event_ids, (
-            f"Falta registration_general_suspend em {sem_id}"
-        )
+        missing = expected_regular_cycle - event_ids
+        assert not missing, f"Semestre {sem_id} está sem as etapas: {missing}"
+
+    expected_summer_cycle = {
+        "regular_enrollment",
+        "enrollment_processing",
+        "enrollment_results",
+        "extraordinary_enrollment",
+        "registration_partial_suspend",
+        "registration_general_suspend",
+        "classes_start",
+        "classes_end",
+        "grades_consolidation",
+        "semester_end",
+    }
+    for sem_id in ["2026.4", "2027.4"]:
+        sem = cal.get_semester(sem_id)
+        assert sem is not None, f"Semestre de verão {sem_id} não encontrado"
+        event_ids = {e.id for e in sem.events}
+        missing = expected_summer_cycle - event_ids
+        assert not missing, f"Semestre de verão {sem_id} está sem as etapas: {missing}"
 
 
 def test_calendar_resource_2027() -> None:

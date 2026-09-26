@@ -42,6 +42,13 @@
           "category": "enrollment"
         },
         {
+          "id": "re_enrollment_processing",
+          "name": "Processamento das Rematrículas",
+          "start_date": "2026-03-06",
+          "end_date": "2026-03-09",
+          "category": "administrative"
+        },
+        {
           "id": "re_enrollment_results",
           "name": "Resultado da Rematrícula",
           "start_date": "2026-03-09",
@@ -190,10 +197,45 @@
       },
       "events": [
         {
+          "id": "regular_enrollment",
+          "name": "Solicitação de Matrícula Regular (SIGAA)",
+          "start_date": "2026-07-27",
+          "end_date": "2026-07-29",
+          "category": "enrollment"
+        },
+        {
+          "id": "enrollment_processing",
+          "name": "Processamento das Matrículas",
+          "start_date": "2026-07-30",
+          "end_date": "2026-07-31",
+          "category": "administrative"
+        },
+        {
+          "id": "enrollment_results",
+          "name": "Resultado da Matrícula",
+          "start_date": "2026-07-31",
+          "end_date": "2026-07-31",
+          "category": "enrollment"
+        },
+        {
           "id": "re_enrollment_period",
-          "name": "Período de Rematrícula",
+          "name": "Solicitação de Rematrícula",
           "start_date": "2026-08-03",
           "end_date": "2026-08-04",
+          "category": "enrollment"
+        },
+        {
+          "id": "re_enrollment_processing",
+          "name": "Processamento das Rematrículas",
+          "start_date": "2026-08-05",
+          "end_date": "2026-08-06",
+          "category": "administrative"
+        },
+        {
+          "id": "re_enrollment_results",
+          "name": "Resultado da Rematrícula",
+          "start_date": "2026-08-06",
+          "end_date": "2026-08-06",
           "category": "enrollment"
         },
         {
@@ -316,6 +358,13 @@
           "category": "administrative"
         },
         {
+          "id": "student_dismissal_processing",
+          "name": "Processamento dos Desligamentos",
+          "start_date": "2026-12-21",
+          "end_date": "2026-12-21",
+          "category": "administrative"
+        },
+        {
           "id": "optional_holiday",
           "name": "Ponto Facultativo (após 13h)",
           "start_date": "2026-12-24",
@@ -352,6 +401,34 @@
       },
       "events": [
         {
+          "id": "regular_enrollment",
+          "name": "Solicitação de Matrícula em Turma de Férias",
+          "start_date": "2026-12-24",
+          "end_date": "2026-12-29",
+          "category": "enrollment"
+        },
+        {
+          "id": "enrollment_processing",
+          "name": "Processamento das Matrículas de Férias",
+          "start_date": "2026-12-30",
+          "end_date": "2026-12-30",
+          "category": "administrative"
+        },
+        {
+          "id": "enrollment_results",
+          "name": "Resultado da Matrícula de Férias",
+          "start_date": "2026-12-31",
+          "end_date": "2026-12-31",
+          "category": "enrollment"
+        },
+        {
+          "id": "extraordinary_enrollment",
+          "name": "Matrícula Extraordinária em Turma de Férias",
+          "start_date": "2027-01-04",
+          "end_date": "2027-01-08",
+          "category": "enrollment"
+        },
+        {
           "id": "classes_start",
           "name": "Início do Período de Aulas do Verão",
           "start_date": "2027-01-11",
@@ -380,6 +457,13 @@
           "category": "academic"
         },
         {
+          "id": "grades_consolidation",
+          "name": "Data Limite para Consolidação das Turmas de Férias",
+          "start_date": "2027-02-19",
+          "end_date": "2027-02-19",
+          "category": "administrative"
+        },
+        {
           "id": "semester_end",
           "name": "Término do Período Letivo do Verão",
           "start_date": "2027-02-22",
@@ -401,6 +485,55 @@
         "instructional_days": 100
       },
       "events": [
+        {
+          "id": "regular_enrollment",
+          "name": "Solicitação de Matrícula Regular (SIGAA)",
+          "start_date": "2027-02-22",
+          "end_date": "2027-02-25",
+          "category": "enrollment"
+        },
+        {
+          "id": "enrollment_processing",
+          "name": "Processamento das Matrículas",
+          "start_date": "2027-02-26",
+          "end_date": "2027-03-01",
+          "category": "administrative"
+        },
+        {
+          "id": "enrollment_results",
+          "name": "Resultado da Matrícula",
+          "start_date": "2027-03-01",
+          "end_date": "2027-03-01",
+          "category": "enrollment"
+        },
+        {
+          "id": "re_enrollment_period",
+          "name": "Solicitação de Rematrícula",
+          "start_date": "2027-03-02",
+          "end_date": "2027-03-04",
+          "category": "enrollment"
+        },
+        {
+          "id": "re_enrollment_processing",
+          "name": "Processamento das Rematrículas",
+          "start_date": "2027-03-05",
+          "end_date": "2027-03-08",
+          "category": "administrative"
+        },
+        {
+          "id": "re_enrollment_results",
+          "name": "Resultado da Rematrícula",
+          "start_date": "2027-03-08",
+          "end_date": "2027-03-08",
+          "category": "enrollment"
+        },
+        {
+          "id": "extraordinary_enrollment",
+          "name": "Matrícula Extraordinária e Retirada de Disciplinas",
+          "start_date": "2027-03-09",
+          "end_date": "2027-03-12",
+          "category": "enrollment"
+        },
         {
           "id": "classes_start",
           "name": "Início do Período de Aulas",
@@ -479,11 +612,25 @@
           "category": "academic"
         },
         {
+          "id": "grades_consolidation",
+          "name": "Data Limite para Consolidação de Turmas no SIGAA",
+          "start_date": "2027-07-19",
+          "end_date": "2027-07-19",
+          "category": "administrative"
+        },
+        {
           "id": "semester_end",
           "name": "Término do Período Letivo",
           "start_date": "2027-07-20",
           "end_date": "2027-07-20",
           "category": "academic"
+        },
+        {
+          "id": "student_dismissal_processing",
+          "name": "Processamento dos Desligamentos",
+          "start_date": "2027-07-21",
+          "end_date": "2027-07-21",
+          "category": "administrative"
         }
       ]
     },
@@ -500,6 +647,55 @@
         "instructional_days": 107
       },
       "events": [
+        {
+          "id": "regular_enrollment",
+          "name": "Solicitação de Matrícula Regular (SIGAA)",
+          "start_date": "2027-07-26",
+          "end_date": "2027-07-28",
+          "category": "enrollment"
+        },
+        {
+          "id": "enrollment_processing",
+          "name": "Processamento das Matrículas",
+          "start_date": "2027-07-29",
+          "end_date": "2027-07-30",
+          "category": "administrative"
+        },
+        {
+          "id": "enrollment_results",
+          "name": "Resultado da Matrícula",
+          "start_date": "2027-07-30",
+          "end_date": "2027-07-30",
+          "category": "enrollment"
+        },
+        {
+          "id": "re_enrollment_period",
+          "name": "Solicitação de Rematrícula",
+          "start_date": "2027-08-02",
+          "end_date": "2027-08-03",
+          "category": "enrollment"
+        },
+        {
+          "id": "re_enrollment_processing",
+          "name": "Processamento das Rematrículas",
+          "start_date": "2027-08-04",
+          "end_date": "2027-08-05",
+          "category": "administrative"
+        },
+        {
+          "id": "re_enrollment_results",
+          "name": "Resultado da Rematrícula",
+          "start_date": "2027-08-05",
+          "end_date": "2027-08-05",
+          "category": "enrollment"
+        },
+        {
+          "id": "extraordinary_enrollment",
+          "name": "Matrícula Extraordinária",
+          "start_date": "2027-08-06",
+          "end_date": "2027-08-13",
+          "category": "enrollment"
+        },
         {
           "id": "classes_start",
           "name": "Início do Período de Aulas",
@@ -592,11 +788,25 @@
           "category": "academic"
         },
         {
+          "id": "grades_consolidation",
+          "name": "Data Limite para Consolidação de Turmas no SIGAA",
+          "start_date": "2027-12-17",
+          "end_date": "2027-12-17",
+          "category": "administrative"
+        },
+        {
           "id": "semester_end",
           "name": "Término do Período Letivo",
           "start_date": "2027-12-18",
           "end_date": "2027-12-18",
           "category": "academic"
+        },
+        {
+          "id": "student_dismissal_processing",
+          "name": "Processamento dos Desligamentos",
+          "start_date": "2027-12-20",
+          "end_date": "2027-12-20",
+          "category": "administrative"
         }
       ]
     },
@@ -613,6 +823,34 @@
         "instructional_days": 30
       },
       "events": [
+        {
+          "id": "regular_enrollment",
+          "name": "Solicitação de Matrícula em Turma de Férias",
+          "start_date": "2027-12-23",
+          "end_date": "2027-12-28",
+          "category": "enrollment"
+        },
+        {
+          "id": "enrollment_processing",
+          "name": "Processamento das Matrículas de Férias",
+          "start_date": "2027-12-29",
+          "end_date": "2027-12-29",
+          "category": "administrative"
+        },
+        {
+          "id": "enrollment_results",
+          "name": "Resultado da Matrícula de Férias",
+          "start_date": "2027-12-30",
+          "end_date": "2027-12-30",
+          "category": "enrollment"
+        },
+        {
+          "id": "extraordinary_enrollment",
+          "name": "Matrícula Extraordinária em Turma de Férias",
+          "start_date": "2028-01-03",
+          "end_date": "2028-01-07",
+          "category": "enrollment"
+        },
         {
           "id": "classes_start",
           "name": "Início do Período de Aulas do Verão",
@@ -640,6 +878,13 @@
           "start_date": "2028-02-15",
           "end_date": "2028-02-15",
           "category": "academic"
+        },
+        {
+          "id": "grades_consolidation",
+          "name": "Data Limite para Consolidação das Turmas de Férias",
+          "start_date": "2028-02-18",
+          "end_date": "2028-02-18",
+          "category": "administrative"
         },
         {
           "id": "semester_end",
