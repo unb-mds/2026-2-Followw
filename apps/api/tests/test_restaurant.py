@@ -33,6 +33,21 @@ DAY = DailyMenu(
 )
 
 
+def _cached_days(session):
+    rows = session.scalars(select(RestaurantMenu).order_by(RestaurantMenu.date))
+    return [
+        DailyMenu.model_validate(row, from_attributes=True).model_dump(mode="json")
+        for row in rows
+    ]
+
+
+@pytest.fixture(autouse=True)
+def today(monkeypatch):
+    current = SimpleNamespace(value=date(2026, 9, 25))
+    monkeypatch.setattr("api.services.restaurant.today", lambda: current.value)
+    return current
+
+
 @pytest.fixture
 def browser(monkeypatch):
     browser = MagicMock()
@@ -82,41 +97,166 @@ def test_menu_publico_grava_antes_de_responder_e_reutiliza_cache(
     with database() as session:
         cached = session.scalar(select(RestaurantMenu))
         assert cached.campus == "Darcy Ribeiro"
-        assert cached.days == response.json()
+        assert _cached_days(session) == response.json()
     browser.restaurant.get_menu.side_effect = UnbParseError("fora")
     assert client.get("/restaurant/menu").json() == response.json()
     browser.restaurant.get_menu.assert_awaited_once_with(Campus.DARCY_RIBEIRO)
     assert qstash.published == []
-    assert browser.__aexit__.await_count == 2
+    # Resposta do cache não abre o browser.
+    assert browser.__aexit__.await_count == 1
 
 
 def test_menu_cache_separado_por_campus_e_refresh(client, browser, database):
     client.get("/restaurant/menu")
-    browser.restaurant.get_menu.return_value = ()
-    assert client.get("/restaurant/menu", params={"campus": "Gama"}).json() == []
+    other = DAY.model_copy(update={"lunch": None})
+    browser.restaurant.get_menu.return_value = (other,)
+    expected = [other.model_dump(mode="json")]
+    assert client.get("/restaurant/menu", params={"campus": "Gama"}).json() == expected
     assert client.get("/restaurant/menu").json() == [DAY.model_dump(mode="json")]
-    assert client.get("/restaurant/menu?refresh=true").json() == []
-    assert client.get("/restaurant/menu").json() == []
+    assert client.get("/restaurant/menu?refresh=true").json() == expected
+    assert client.get("/restaurant/menu").json() == expected
     assert browser.restaurant.get_menu.await_count == 3
     with database() as session:
         assert len(list(session.scalars(select(RestaurantMenu)))) == 2
 
 
-def test_menu_vencido_reconsulta_e_substitui_cache(client, browser, database):
-    client.get("/restaurant/menu")
+def test_menu_vazio_nao_fica_em_cache(client, browser, database):
+    browser.restaurant.get_menu.return_value = ()
+    assert client.get("/restaurant/menu").json() == []
+    assert client.get("/restaurant/menu").json() == []
+    assert browser.restaurant.get_menu.await_count == 2
+    with database() as session:
+        assert session.scalar(select(RestaurantMenu)) is None
+
+
+def _age_cache(database, hours):
     with database() as session:
         session.execute(
             update(RestaurantMenu).values(
-                synced_at=datetime.now(UTC) - timedelta(hours=7)
+                synced_at=datetime.now(UTC) - timedelta(hours=hours)
             )
         )
         session.commit()
+
+
+def test_menu_vencido_reconsulta_e_substitui_cache(client, browser, database):
+    client.get("/restaurant/menu")
+    _age_cache(database, 23)
+    client.get("/restaurant/menu")
+    browser.restaurant.get_menu.assert_awaited_once()
+    _age_cache(database, 25)
     browser.restaurant.get_menu.return_value = (DAY.model_copy(update={"lunch": None}),)
     response = client.get("/restaurant/menu")
     assert response.status_code == 200
     assert response.json()[0]["lunch"] is None
     assert client.get("/restaurant/menu").json() == response.json()
     assert browser.restaurant.get_menu.await_count == 2
+
+
+def test_menu_grava_uma_linha_por_dia_e_atualiza_no_refresh(client, browser, database):
+    browser.restaurant.get_menu.return_value = (
+        DAY,
+        DAY.model_copy(update={"date": date(2026, 9, 26), "breakfast": DAY.lunch}),
+    )
+    client.get("/restaurant/menu")
+    with database() as session:
+        rows = list(session.scalars(select(RestaurantMenu)))
+        assert [row.date for row in rows] == [date(2026, 9, 25), date(2026, 9, 26)]
+        assert rows[0].breakfast is None and rows[0].dinner is None
+        assert rows[0].lunch == DAY.model_dump(mode="json")["lunch"]
+        assert rows[1].breakfast == rows[1].lunch
+        first = rows[0].id
+    browser.restaurant.get_menu.return_value = (
+        DAY.model_copy(update={"lunch": None}),
+        DAY.model_copy(update={"date": date(2026, 9, 27)}),
+    )
+    response = client.get("/restaurant/menu?refresh=true").json()
+    assert [(item["date"], item.get("lunch")) for item in response] == [
+        ("2026-09-25", None),
+        ("2026-09-26", DAY.model_dump(mode="json")["lunch"]),
+        ("2026-09-27", DAY.model_dump(mode="json")["lunch"]),
+    ]
+    with database() as session:
+        assert _cached_days(session) == response
+        assert session.get(RestaurantMenu, first).lunch is None
+
+
+def test_dia_antigo_fora_do_cardapio_nao_vence_o_cache(client, browser, database):
+    browser.restaurant.get_menu.return_value = (
+        DAY.model_copy(update={"date": date(2026, 9, 24)}),
+    )
+    client.get("/restaurant/menu")
+    _age_cache(database, 25)
+    browser.restaurant.get_menu.return_value = (DAY,)
+    assert len(client.get("/restaurant/menu").json()) == 2
+    assert len(client.get("/restaurant/menu").json()) == 2
+    assert browser.restaurant.get_menu.await_count == 2
+
+
+@pytest.mark.parametrize(
+    "error", [UnbParseError("layout mudou"), httpx.ReadTimeout("fora do ar")]
+)
+def test_ru_fora_do_ar_serve_cache_vencido(client, browser, database, error):
+    original = client.get("/restaurant/menu").json()
+    _age_cache(database, 25)
+    browser.restaurant.get_menu.side_effect = error
+    response = client.get("/restaurant/menu")
+    assert response.status_code == 200
+    assert response.json() == original
+    assert browser.restaurant.get_menu.await_count == 2
+
+
+def test_ru_fora_do_ar_sem_cache_retorna_502(client, browser):
+    browser.restaurant.get_menu.side_effect = UnbParseError("layout mudou")
+    assert client.get("/restaurant/menu").status_code == 502
+
+
+@pytest.mark.parametrize(
+    "params,expected",
+    [
+        ({}, [21, 27]),
+        ({"meal": "lunch"}, [21, 27]),
+        ({"start_date": "2026-09-27"}, [27, 28]),
+        ({"end_date": "2026-09-21"}, [20, 21]),
+        ({"date": "2026-09-28"}, [28]),
+    ],
+)
+def test_sem_intervalo_retorna_semana_atual(client, browser, params, expected):
+    browser.restaurant.get_menu.return_value = tuple(
+        DAY.model_copy(update={"date": date(2026, 9, day)}) for day in (20, 21, 27, 28)
+    )
+    response = client.get("/restaurant/menu", params=params)
+    assert [
+        date.fromisoformat(item["date"]).day for item in response.json()
+    ] == expected
+
+
+def test_semana_atual_segue_o_dia_de_hoje(client, browser, today):
+    browser.restaurant.get_menu.return_value = tuple(
+        DAY.model_copy(update={"date": date(2026, 9, day)}) for day in (27, 28)
+    )
+    today.value = date(2026, 9, 28)
+    assert [item["date"] for item in client.get("/restaurant/menu").json()] == [
+        "2026-09-28"
+    ]
+
+
+def test_falha_ao_salvar_mantem_formato_do_cache(client, browser, monkeypatch):
+    section = MenuSection(name="Categoria nova", items=("Item",))
+    browser.restaurant.get_menu.return_value = (
+        DailyMenu(date=DAY.date, lunch=(section,)),
+    )
+    monkeypatch.setattr(
+        RestaurantRepository, "save", AsyncMock(side_effect=SQLAlchemyError("fora"))
+    )
+    expected = {
+        "date": "2026-09-25",
+        "lunch": [{"key": None, "name": "Categoria nova", "items": ["Item"]}],
+    }
+    assert client.get("/restaurant/menu?meal=lunch").json() == [expected]
+    assert client.get("/restaurant/menu").json() == [
+        {**expected, "breakfast": None, "dinner": None}
+    ]
 
 
 @pytest.mark.parametrize("method", ["get", "save"])
@@ -146,7 +286,7 @@ def test_falha_no_commit_preserva_cache_e_retorna_menu_novo(
     )
     assert client.get("/restaurant/menu?refresh=true").json() == []
     with database() as session:
-        assert session.scalar(select(RestaurantMenu)).days == original
+        assert _cached_days(session) == original
 
 
 def test_conflito_entre_gravacoes_nao_impede_resposta(client, browser, monkeypatch):
@@ -161,7 +301,7 @@ def test_conflito_entre_gravacoes_nao_impede_resposta(client, browser, monkeypat
 def test_menu_em_cache_invalido_e_refeito(client, browser, database):
     client.get("/restaurant/menu")
     with database() as session:
-        session.execute(update(RestaurantMenu).values(days=[{"date": "inválida"}]))
+        session.execute(update(RestaurantMenu).values(lunch=[{"nome": "inválido"}]))
         session.commit()
     assert client.get("/restaurant/menu").json() == [DAY.model_dump(mode="json")]
     assert browser.restaurant.get_menu.await_count == 2
@@ -355,7 +495,8 @@ def test_openapi_documenta_restaurante(client):
     ]["properties"].keys()
 
 
-def test_cardapio_do_pdf_real_chega_ao_endpoint_e_ao_cache(client):
+def test_cardapio_do_pdf_real_chega_ao_endpoint_e_ao_cache(client, today):
+    today.value = date(2026, 9, 16)
     fixture = (
         Path(__file__).resolve().parents[3]
         / "packages/unb-browser/tests/fixtures/cardapio-darcy.pdf"
@@ -421,7 +562,7 @@ def test_filtros_de_datas_preservam_cache_completo(
         ] == expected
     assert len(client.get("/restaurant/menu").json()) == 3
     with database() as session:
-        assert len(session.scalar(select(RestaurantMenu)).days) == 3
+        assert len(_cached_days(session)) == 3
     browser.restaurant.get_menu.assert_awaited_once()
 
 
@@ -471,9 +612,9 @@ def test_filtro_de_refeicao_com_data_preserva_cache(client, browser, database, m
     assert len(client.get("/restaurant/menu").json()) == 2
     assert client.get("/restaurant/menu").json()[0] == complete.model_dump(mode="json")
     with database() as session:
-        cached = session.scalar(select(RestaurantMenu))
-        assert len(cached.days) == 2
-        assert cached.days[0] == complete.model_dump(mode="json")
+        cached = _cached_days(session)
+        assert len(cached) == 2
+        assert cached[0] == complete.model_dump(mode="json")
     browser.restaurant.get_menu.assert_awaited_once()
 
 

@@ -182,8 +182,8 @@ def test_cada_pagina_vira_uma_refeicao_com_as_secoes_na_ordem_da_tabela():
 
 
 def test_categoria_desconhecida_vem_sem_key(monkeypatch):
-    keys = {k: v for k, v in pdf._SECTION_KEYS.items() if k != "sopa"}
-    monkeypatch.setattr(pdf, "_SECTION_KEYS", keys)
+    sections = {k: v for k, v in pdf._SECTIONS.items() if k != "sopa"}
+    monkeypatch.setattr(pdf, "_SECTIONS", sections)
 
     soup = parse_menu(DARCY_PDF)[0].dinner[6]
 

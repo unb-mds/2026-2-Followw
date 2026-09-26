@@ -77,7 +77,8 @@ pela **geometria**, nunca pelo índice da coluna:
 - **Dias e refeições variam por campus** (Gama só publica seg–sex, Fazenda não
   tem jantar): refeição ausente é `None` e célula vazia não vira seção.
 - **Cada seção ganha uma `key`** (`MenuSectionKey`) pelo nome da categoria, via
-  `_SECTION_KEYS` (nomes canônicos, comparados via `lookup_key` sem espaços).
+  `_SECTION_KEYS` (nomes canônicos, comparados via `lookup_key` sem espaços,
+  pré-calculados em `_SECTIONS`).
   Palavras quebradas entre linhas, como `ACOMPANHAMENTO S`, recuperam a chave
   e o nome canônico sem alterar os alimentos. Categoria fora da lista vem com
   `key=None` em vez de erro, para não derrubar o cardápio inteiro; se o RU

@@ -1,3 +1,4 @@
+import datetime as dt
 import uuid
 from datetime import datetime
 
@@ -138,7 +139,13 @@ class ClassroomStatistic(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
 class RestaurantMenu(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "restaurant_menus"
+    __table_args__ = (
+        UniqueConstraint("campus", "date", name="uq_restaurant_menu_campus_date"),
+    )
 
-    campus: Mapped[str] = mapped_column(unique=True)
-    days: Mapped[list[dict[str, object]]] = mapped_column(JSON)
+    campus: Mapped[str] = mapped_column()
+    date: Mapped[dt.date] = mapped_column()
+    breakfast: Mapped[list[dict[str, object]] | None] = mapped_column(JSON)
+    lunch: Mapped[list[dict[str, object]] | None] = mapped_column(JSON)
+    dinner: Mapped[list[dict[str, object]] | None] = mapped_column(JSON)
     synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

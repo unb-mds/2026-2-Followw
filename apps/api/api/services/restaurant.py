@@ -1,13 +1,14 @@
 import logging
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta, timezone
 from typing import Annotated, Literal
 
+import httpx
 from fastapi import Depends, HTTPException
 from pydantic import TypeAdapter, ValidationError
 from sigaa_client import RestaurantCredentials, RestaurantStatement
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-from unb_browser import Campus, DailyMenu
+from unb_browser import Campus, DailyMenu, UnbBrowserError
 
 from api.db.main import get_sessionmaker
 from api.dependencies.sigaa import SigaaClientDep
@@ -16,9 +17,14 @@ from api.repositories.restaurant import RestaurantRepository
 from api.services.sync import is_stale
 
 log = logging.getLogger(__name__)
-MENU_TTL = timedelta(hours=6)
+MENU_TTL = timedelta(hours=24)
+BRASILIA = timezone(timedelta(hours=-3))
 _MENU = TypeAdapter(tuple[DailyMenu, ...])
 Meal = Literal["breakfast", "lunch", "dinner"]
+
+
+def today() -> date:
+    return datetime.now(BRASILIA).date()
 
 
 class RestaurantService:
@@ -50,11 +56,15 @@ class RestaurantService:
             raise HTTPException(
                 status_code=422, detail="start_date must not be after end_date"
             )
+        if day is None and start_date is None and end_date is None:
+            current = today()
+            start_date = current - timedelta(days=current.weekday())
+            end_date = start_date + timedelta(days=6)
         days = await self._load_menu(campus, refresh=refresh)
         return tuple(
             DailyMenu(date=item.date, **{meal: getattr(item, meal)})
             if meal is not None
-            else DailyMenu.model_validate(item.model_dump())
+            else item
             for item in days
             if (day is None or item.date == day)
             and (start_date is None or item.date >= start_date)
@@ -64,25 +74,38 @@ class RestaurantService:
     async def _load_menu(
         self, campus: Campus, *, refresh: bool = False
     ) -> tuple[DailyMenu, ...]:
+        cached: tuple[DailyMenu, ...] = ()
         if not refresh:
             try:
                 async with self._sessionmaker() as session:
-                    cached = await RestaurantRepository(session).get(campus)
-                    if cached is not None and not is_stale(cached.synced_at, MENU_TTL):
-                        return _MENU.validate_python(cached.days)
+                    rows = await RestaurantRepository(session).get(campus)
+                    cached = _MENU.validate_python(rows, from_attributes=True)
+                    synced_at = max((row.synced_at for row in rows), default=None)
+                    if synced_at is not None and not is_stale(synced_at, MENU_TTL):
+                        return cached
             except SQLAlchemyError, OSError, TimeoutError, ValidationError:
                 log.warning("Não foi possível ler o cache do cardápio", exc_info=True)
 
-        days = await self._browser.restaurant.get_menu(campus)
+        try:
+            browser = await self._browser.browser()
+            days = await browser.restaurant.get_menu(campus)
+        except UnbBrowserError, httpx.HTTPError:
+            if not cached:
+                raise
+            log.warning("RU indisponível, servindo cardápio vencido", exc_info=True)
+            return cached
+
         try:
             async with self._sessionmaker() as session:
-                await RestaurantRepository(session).save(
+                saved = await RestaurantRepository(session).save(
                     campus, days, datetime.now(UTC)
                 )
                 await session.commit()
-        except SQLAlchemyError, OSError, TimeoutError:
+                return _MENU.validate_python(saved, from_attributes=True)
+        except SQLAlchemyError, OSError, TimeoutError, ValidationError:
             log.warning("Não foi possível salvar o cache do cardápio", exc_info=True)
-        return days
+        # Revalida para marcar todos os campos como definidos, igual ao que vem do banco.
+        return _MENU.validate_python(_MENU.dump_python(days))
 
 
 class RestaurantAccountService:

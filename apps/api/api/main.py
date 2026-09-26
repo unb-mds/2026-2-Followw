@@ -18,10 +18,6 @@ logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 tags_metadata = [
     {
-        "name": "Restaurant",
-        "description": "Cardápio público do RU, extrato e carteirinha do estudante autenticado.",
-    },
-    {
         "name": "Auth",
         "description": "Autenticação via SIGAA/CAS da UnB e gerenciamento de sessão stateless por cookies.",
     },
@@ -36,6 +32,10 @@ tags_metadata = [
     {
         "name": "News",
         "description": "Notícias recentes das turmas, consultadas diretamente no SIGAA.",
+    },
+    {
+        "name": "Restaurant",
+        "description": "Cardápio público do RU, extrato e carteirinha do estudante autenticado.",
     },
 ]
 

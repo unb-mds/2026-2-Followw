@@ -134,12 +134,18 @@ def _parse_page(page: Page) -> tuple[str, _Sections]:
     return _meal(cells, header), sections
 
 
-def _section(label: str, items: list[str]) -> MenuSection:
+def _section_lookup(label: str) -> str:
     # Quebras de linha do PDF podem dividir uma palavra da categoria.
-    normalized = lookup_key(label).replace(" ", "")
-    for name, key in _SECTION_KEYS.items():
-        if lookup_key(name).replace(" ", "") == normalized:
-            return MenuSection(key=key, name=name.capitalize(), items=tuple(items))
+    return lookup_key(label).replace(" ", "")
+
+
+_SECTIONS = {_section_lookup(name): (name, key) for name, key in _SECTION_KEYS.items()}
+
+
+def _section(label: str, items: list[str]) -> MenuSection:
+    if (section := _SECTIONS.get(_section_lookup(label))) is not None:
+        name, key = section
+        return MenuSection(key=key, name=name.capitalize(), items=tuple(items))
     return MenuSection(name=label.capitalize(), items=tuple(items))
 
 

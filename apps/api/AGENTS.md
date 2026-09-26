@@ -17,16 +17,19 @@ api/
   dependencies/
     sigaa.py           # SigaaConnectionDep (preguiçosa) e SigaaClientDep
     sigaa_public.py     # SigaaPublicClientDep — cliente público
+    unb_browser.py      # UnbBrowserDep — abre o UnbBrowser só quando a rota precisa do site
     refresh.py          # RefreshQuery — `?refresh=true` que ignora o cache
     qstash.py           # QStashQueue (JobQueueDep) e o job recebido (JobDep)
     sync.py             # SyncEngineDep e JobEngineDep
   repositories/
     user.py             # UserRepository e UserRepositoryDep
     classroom.py        # ClassroomRepository e ClassroomRepositoryDep
+    restaurant.py       # RestaurantRepository (cache do cardápio do RU)
   services/
     sync.py             # SyncEngine, Task, Job e JobQueue: cache e jobs do sync
     profile.py          # ProfileService (GET /me)
     classroom.py        # ClassroomService (turmas, participantes, estatísticas)
+    restaurant.py       # RestaurantService (cardápio) e RestaurantAccountService (extrato e token)
   modules/
     <feature>/
       main.py            # router da feature
@@ -96,15 +99,21 @@ confere também se a notícia está na listagem da turma antes de abri-la.
 **Restaurante.** `/restaurant/menu` é público, usa `UnbBrowserDep` e aceita
 `campus` (`Darcy`, `Gama`, `Ceilandia`, `Planaltina`, `Fazenda`, padrão `Darcy`)
 e `refresh`. Datas: `date` para um dia ou `start_date`/`end_date` para intervalo
-inclusivo (aceita apenas um limite), sem combinar os dois modos. Filtros são
+inclusivo (aceita apenas um limite), sem combinar os dois modos. Sem nenhuma
+data, devolve a semana atual (segunda a domingo, horário de Brasília). Filtros são
 aplicados depois da leitura: o cache sempre mantém todos os dias publicados.
 `meal` aceita `breakfast`, `lunch` ou `dinner`: cada dia mantém a data e apenas
 a refeição escolhida (ou `null`, se ausente). Sem `meal`, mantém todas as refeições.
-`RestaurantService` guarda uma
-lista de dias por campus em `restaurant_menus`, válida por 6h; grava antes de
-responder, sem jobs. Sessões do banco fecham antes da consulta ao site; erros
-de leitura/gravação não impedem servir o cardápio obtido do RU. O repository
-não faz commit. Cache vazio também tem TTL. Crie a tabela nova com `db-init`.
+`RestaurantService` guarda em
+`restaurant_menus` uma linha por campus e dia, com
+colunas JSON `breakfast`, `lunch` e `dinner` e o `synced_at`, válido por 24h.
+Cada sync atualiza a linha de cada dia (ou insere, se nova). A validade usa o `synced_at` mais
+recente do campus, e a resposta do sync é relida do que foi gravado. Grava antes
+de responder, sem jobs. Cardápio vazio não gera linha, então não fica em cache.
+Sessões do banco fecham antes da consulta ao site; erros
+de leitura/gravação não impedem servir o cardápio obtido do RU. Com o cache
+vencido e o RU fora do ar, serve o cache vencido; sem cache (ou com `refresh`), 502.
+O browser só abre se o cache não resolver.
 `/restaurant/statement` e `/restaurant/token` usam `RestaurantAccountService`
 com `SigaaClientDep`, sem banco/fila e com `Cache-Control: no-store`. A API repassa
 o `RestaurantStatement` montado pelo `sigaa-client`, que infere saldo e grupo
