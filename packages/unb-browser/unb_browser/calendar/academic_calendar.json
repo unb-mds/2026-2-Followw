@@ -1,0 +1,899 @@
+{
+  "semesters": {
+    "2026.1": {
+      "semester": "2026.1",
+      "name": "1º Semestre Letivo de 2026",
+      "period": {
+        "start": "2026-02-23",
+        "end": "2026-07-23"
+      },
+      "classes": {
+        "start": "2026-03-16",
+        "end": "2026-07-18",
+        "instructional_days": 100
+      },
+      "events": [
+        {
+          "id": "regular_enrollment",
+          "name": "Solicitação de Matrícula Regular (SIGAA)",
+          "start_date": "2026-02-23",
+          "end_date": "2026-02-26",
+          "category": "enrollment"
+        },
+        {
+          "id": "enrollment_processing",
+          "name": "Processamento das Matrículas",
+          "start_date": "2026-02-27",
+          "end_date": "2026-03-02",
+          "category": "administrative"
+        },
+        {
+          "id": "enrollment_results",
+          "name": "Resultado da Matrícula",
+          "start_date": "2026-03-02",
+          "end_date": "2026-03-02",
+          "category": "enrollment"
+        },
+        {
+          "id": "re_enrollment_period",
+          "name": "Solicitação de Rematrícula",
+          "start_date": "2026-03-03",
+          "end_date": "2026-03-05",
+          "category": "enrollment"
+        },
+        {
+          "id": "re_enrollment_processing",
+          "name": "Processamento das Rematrículas",
+          "start_date": "2026-03-06",
+          "end_date": "2026-03-09",
+          "category": "administrative"
+        },
+        {
+          "id": "re_enrollment_results",
+          "name": "Resultado da Rematrícula",
+          "start_date": "2026-03-09",
+          "end_date": "2026-03-09",
+          "category": "enrollment"
+        },
+        {
+          "id": "extraordinary_enrollment",
+          "name": "Matrícula Extraordinária e Retirada de Disciplinas",
+          "start_date": "2026-03-10",
+          "end_date": "2026-03-13",
+          "category": "enrollment"
+        },
+        {
+          "id": "classes_start",
+          "name": "Início do Período de Aulas",
+          "start_date": "2026-03-16",
+          "end_date": "2026-03-16",
+          "category": "academic"
+        },
+        {
+          "id": "registration_general_suspend",
+          "name": "Trancamento Geral de Matrícula Automático",
+          "start_date": "2026-02-23",
+          "end_date": "2026-06-22",
+          "category": "academic"
+        },
+        {
+          "id": "registration_partial_suspend",
+          "name": "Trancamento Parcial de Matrícula Automático",
+          "start_date": "2026-03-14",
+          "end_date": "2026-05-18",
+          "category": "academic"
+        },
+        {
+          "id": "good_friday",
+          "name": "Sexta-feira Santa",
+          "start_date": "2026-04-03",
+          "end_date": "2026-04-03",
+          "category": "holiday"
+        },
+        {
+          "id": "optional_holiday",
+          "name": "Ponto Facultativo",
+          "start_date": "2026-04-04",
+          "end_date": "2026-04-04",
+          "category": "optional_holiday"
+        },
+        {
+          "id": "quarter_semester",
+          "name": "25% do Período de Aulas",
+          "start_date": "2026-04-15",
+          "end_date": "2026-04-15",
+          "category": "academic"
+        },
+        {
+          "id": "optional_holiday",
+          "name": "Ponto Facultativo",
+          "start_date": "2026-04-20",
+          "end_date": "2026-04-20",
+          "category": "optional_holiday"
+        },
+        {
+          "id": "tiradentes",
+          "name": "Tiradentes",
+          "start_date": "2026-04-21",
+          "end_date": "2026-04-21",
+          "category": "holiday"
+        },
+        {
+          "id": "labor_day",
+          "name": "Dia do Trabalho",
+          "start_date": "2026-05-01",
+          "end_date": "2026-05-01",
+          "category": "holiday"
+        },
+        {
+          "id": "half_semester",
+          "name": "50% do Período de Aulas",
+          "start_date": "2026-05-18",
+          "end_date": "2026-05-18",
+          "category": "academic"
+        },
+        {
+          "id": "corpus_christi",
+          "name": "Corpus Christi",
+          "start_date": "2026-06-04",
+          "end_date": "2026-06-04",
+          "category": "holiday"
+        },
+        {
+          "id": "optional_holiday",
+          "name": "Ponto Facultativo",
+          "start_date": "2026-06-05",
+          "end_date": "2026-06-06",
+          "category": "optional_holiday"
+        },
+        {
+          "id": "three_quarters_semester",
+          "name": "75% do Período de Aulas",
+          "start_date": "2026-06-19",
+          "end_date": "2026-06-19",
+          "category": "academic"
+        },
+        {
+          "id": "classes_end",
+          "name": "Término do Período de Aulas",
+          "start_date": "2026-07-18",
+          "end_date": "2026-07-18",
+          "category": "academic"
+        },
+        {
+          "id": "grades_consolidation",
+          "name": "Data Limite para Consolidação de Turmas no SIGAA",
+          "start_date": "2026-07-21",
+          "end_date": "2026-07-21",
+          "category": "administrative"
+        },
+        {
+          "id": "semester_end",
+          "name": "Término do Período Letivo",
+          "start_date": "2026-07-23",
+          "end_date": "2026-07-23",
+          "category": "academic"
+        },
+        {
+          "id": "student_dismissal_processing",
+          "name": "Processamento dos Desligamentos",
+          "start_date": "2026-07-24",
+          "end_date": "2026-07-24",
+          "category": "administrative"
+        }
+      ]
+    },
+    "2026.2": {
+      "semester": "2026.2",
+      "name": "2º Semestre Letivo de 2026",
+      "period": {
+        "start": "2026-07-24",
+        "end": "2026-12-18"
+      },
+      "classes": {
+        "start": "2026-08-10",
+        "end": "2026-12-14",
+        "instructional_days": 100
+      },
+      "events": [
+        {
+          "id": "regular_enrollment",
+          "name": "Solicitação de Matrícula Regular (SIGAA)",
+          "start_date": "2026-07-27",
+          "end_date": "2026-07-29",
+          "category": "enrollment"
+        },
+        {
+          "id": "enrollment_processing",
+          "name": "Processamento das Matrículas",
+          "start_date": "2026-07-30",
+          "end_date": "2026-07-31",
+          "category": "administrative"
+        },
+        {
+          "id": "enrollment_results",
+          "name": "Resultado da Matrícula",
+          "start_date": "2026-07-31",
+          "end_date": "2026-07-31",
+          "category": "enrollment"
+        },
+        {
+          "id": "re_enrollment_period",
+          "name": "Solicitação de Rematrícula",
+          "start_date": "2026-08-03",
+          "end_date": "2026-08-04",
+          "category": "enrollment"
+        },
+        {
+          "id": "re_enrollment_processing",
+          "name": "Processamento das Rematrículas",
+          "start_date": "2026-08-05",
+          "end_date": "2026-08-06",
+          "category": "administrative"
+        },
+        {
+          "id": "re_enrollment_results",
+          "name": "Resultado da Rematrícula",
+          "start_date": "2026-08-06",
+          "end_date": "2026-08-06",
+          "category": "enrollment"
+        },
+        {
+          "id": "extraordinary_enrollment",
+          "name": "Matrícula Extraordinária",
+          "start_date": "2026-08-07",
+          "end_date": "2026-08-14",
+          "category": "enrollment"
+        },
+        {
+          "id": "classes_start",
+          "name": "Início do Período de Aulas",
+          "start_date": "2026-08-10",
+          "end_date": "2026-08-10",
+          "category": "academic"
+        },
+        {
+          "id": "registration_general_suspend",
+          "name": "Trancamento Geral de Matrícula Automático",
+          "start_date": "2026-07-24",
+          "end_date": "2026-11-12",
+          "category": "academic"
+        },
+        {
+          "id": "registration_partial_suspend",
+          "name": "Trancamento Parcial de Matrícula Automático",
+          "start_date": "2026-08-10",
+          "end_date": "2026-10-09",
+          "category": "academic"
+        },
+        {
+          "id": "independence_day",
+          "name": "Independência do Brasil",
+          "start_date": "2026-09-07",
+          "end_date": "2026-09-07",
+          "category": "holiday"
+        },
+        {
+          "id": "quarter_semester",
+          "name": "25% do Período de Aulas",
+          "start_date": "2026-09-09",
+          "end_date": "2026-09-09",
+          "category": "academic"
+        },
+        {
+          "id": "university_week",
+          "name": "Semana Universitária 2026",
+          "start_date": "2026-09-20",
+          "end_date": "2026-09-25",
+          "category": "university_week"
+        },
+        {
+          "id": "half_semester",
+          "name": "50% do Período de Aulas",
+          "start_date": "2026-10-09",
+          "end_date": "2026-10-09",
+          "category": "academic"
+        },
+        {
+          "id": "our_lady_aparecida",
+          "name": "Nossa Senhora Aparecida",
+          "start_date": "2026-10-12",
+          "end_date": "2026-10-12",
+          "category": "holiday"
+        },
+        {
+          "id": "public_servant_day",
+          "name": "Dia do Servidor Público",
+          "start_date": "2026-10-28",
+          "end_date": "2026-10-28",
+          "category": "optional_holiday"
+        },
+        {
+          "id": "all_souls_day",
+          "name": "Finados",
+          "start_date": "2026-11-02",
+          "end_date": "2026-11-02",
+          "category": "holiday"
+        },
+        {
+          "id": "three_quarters_semester",
+          "name": "75% do Período de Aulas",
+          "start_date": "2026-11-12",
+          "end_date": "2026-11-12",
+          "category": "academic"
+        },
+        {
+          "id": "republic_day",
+          "name": "Proclamação da República",
+          "start_date": "2026-11-15",
+          "end_date": "2026-11-15",
+          "category": "holiday"
+        },
+        {
+          "id": "black_consciousness_day",
+          "name": "Dia de Zumbi e da Consciência Negra",
+          "start_date": "2026-11-20",
+          "end_date": "2026-11-20",
+          "category": "holiday"
+        },
+        {
+          "id": "classes_end",
+          "name": "Término do Período de Aulas",
+          "start_date": "2026-12-14",
+          "end_date": "2026-12-14",
+          "category": "academic"
+        },
+        {
+          "id": "semester_end",
+          "name": "Término do Período Letivo",
+          "start_date": "2026-12-18",
+          "end_date": "2026-12-18",
+          "category": "academic"
+        },
+        {
+          "id": "grades_consolidation",
+          "name": "Data Limite para Consolidação de Turmas no SIGAA",
+          "start_date": "2026-12-19",
+          "end_date": "2026-12-19",
+          "category": "administrative"
+        },
+        {
+          "id": "student_dismissal_processing",
+          "name": "Processamento dos Desligamentos",
+          "start_date": "2026-12-21",
+          "end_date": "2026-12-21",
+          "category": "administrative"
+        },
+        {
+          "id": "optional_holiday",
+          "name": "Ponto Facultativo (após 13h)",
+          "start_date": "2026-12-24",
+          "end_date": "2026-12-24",
+          "category": "optional_holiday"
+        },
+        {
+          "id": "christmas",
+          "name": "Natal",
+          "start_date": "2026-12-25",
+          "end_date": "2026-12-25",
+          "category": "holiday"
+        },
+        {
+          "id": "optional_holiday",
+          "name": "Ponto Facultativo (após 13h)",
+          "start_date": "2026-12-31",
+          "end_date": "2026-12-31",
+          "category": "optional_holiday"
+        }
+      ]
+    },
+    "2026.4": {
+      "semester": "2026.4",
+      "name": "Período de Férias 2026 (Verão 2027)",
+      "period": {
+        "start": "2026-12-21",
+        "end": "2027-02-22"
+      },
+      "classes": {
+        "start": "2027-01-11",
+        "end": "2027-02-17",
+        "instructional_days": 30
+      },
+      "events": [
+        {
+          "id": "regular_enrollment",
+          "name": "Solicitação de Matrícula em Turma de Férias",
+          "start_date": "2026-12-24",
+          "end_date": "2026-12-29",
+          "category": "enrollment"
+        },
+        {
+          "id": "enrollment_processing",
+          "name": "Processamento das Matrículas de Férias",
+          "start_date": "2026-12-30",
+          "end_date": "2026-12-30",
+          "category": "administrative"
+        },
+        {
+          "id": "enrollment_results",
+          "name": "Resultado da Matrícula de Férias",
+          "start_date": "2026-12-31",
+          "end_date": "2026-12-31",
+          "category": "enrollment"
+        },
+        {
+          "id": "extraordinary_enrollment",
+          "name": "Matrícula Extraordinária em Turma de Férias",
+          "start_date": "2027-01-04",
+          "end_date": "2027-01-08",
+          "category": "enrollment"
+        },
+        {
+          "id": "classes_start",
+          "name": "Início do Período de Aulas do Verão",
+          "start_date": "2027-01-11",
+          "end_date": "2027-01-11",
+          "category": "academic"
+        },
+        {
+          "id": "registration_partial_suspend",
+          "name": "Trancamento Parcial de Matrícula (Verão)",
+          "start_date": "2027-01-11",
+          "end_date": "2027-01-27",
+          "category": "academic"
+        },
+        {
+          "id": "registration_general_suspend",
+          "name": "Trancamento Geral de Matrícula (Verão)",
+          "start_date": "2026-12-21",
+          "end_date": "2027-02-05",
+          "category": "academic"
+        },
+        {
+          "id": "classes_end",
+          "name": "Término do Período de Aulas do Verão",
+          "start_date": "2027-02-17",
+          "end_date": "2027-02-17",
+          "category": "academic"
+        },
+        {
+          "id": "grades_consolidation",
+          "name": "Data Limite para Consolidação das Turmas de Férias",
+          "start_date": "2027-02-19",
+          "end_date": "2027-02-19",
+          "category": "administrative"
+        },
+        {
+          "id": "semester_end",
+          "name": "Término do Período Letivo do Verão",
+          "start_date": "2027-02-22",
+          "end_date": "2027-02-22",
+          "category": "academic"
+        }
+      ]
+    },
+    "2027.1": {
+      "semester": "2027.1",
+      "name": "1º Semestre Letivo de 2027",
+      "period": {
+        "start": "2027-02-23",
+        "end": "2027-07-20"
+      },
+      "classes": {
+        "start": "2027-03-15",
+        "end": "2027-07-16",
+        "instructional_days": 100
+      },
+      "events": [
+        {
+          "id": "regular_enrollment",
+          "name": "Solicitação de Matrícula Regular (SIGAA)",
+          "start_date": "2027-02-22",
+          "end_date": "2027-02-25",
+          "category": "enrollment"
+        },
+        {
+          "id": "enrollment_processing",
+          "name": "Processamento das Matrículas",
+          "start_date": "2027-02-26",
+          "end_date": "2027-03-01",
+          "category": "administrative"
+        },
+        {
+          "id": "enrollment_results",
+          "name": "Resultado da Matrícula",
+          "start_date": "2027-03-01",
+          "end_date": "2027-03-01",
+          "category": "enrollment"
+        },
+        {
+          "id": "re_enrollment_period",
+          "name": "Solicitação de Rematrícula",
+          "start_date": "2027-03-02",
+          "end_date": "2027-03-04",
+          "category": "enrollment"
+        },
+        {
+          "id": "re_enrollment_processing",
+          "name": "Processamento das Rematrículas",
+          "start_date": "2027-03-05",
+          "end_date": "2027-03-08",
+          "category": "administrative"
+        },
+        {
+          "id": "re_enrollment_results",
+          "name": "Resultado da Rematrícula",
+          "start_date": "2027-03-08",
+          "end_date": "2027-03-08",
+          "category": "enrollment"
+        },
+        {
+          "id": "extraordinary_enrollment",
+          "name": "Matrícula Extraordinária e Retirada de Disciplinas",
+          "start_date": "2027-03-09",
+          "end_date": "2027-03-12",
+          "category": "enrollment"
+        },
+        {
+          "id": "classes_start",
+          "name": "Início do Período de Aulas",
+          "start_date": "2027-03-15",
+          "end_date": "2027-03-15",
+          "category": "academic"
+        },
+        {
+          "id": "registration_general_suspend",
+          "name": "Trancamento Geral de Matrícula Automático",
+          "start_date": "2027-02-23",
+          "end_date": "2027-06-18",
+          "category": "academic"
+        },
+        {
+          "id": "registration_partial_suspend",
+          "name": "Trancamento Parcial de Matrícula Automático",
+          "start_date": "2027-03-15",
+          "end_date": "2027-05-17",
+          "category": "academic"
+        },
+        {
+          "id": "good_friday",
+          "name": "Sexta-feira Santa",
+          "start_date": "2027-03-26",
+          "end_date": "2027-03-26",
+          "category": "holiday"
+        },
+        {
+          "id": "quarter_semester",
+          "name": "25% do Período de Aulas",
+          "start_date": "2027-04-16",
+          "end_date": "2027-04-16",
+          "category": "academic"
+        },
+        {
+          "id": "tiradentes",
+          "name": "Tiradentes / Aniversário de Brasília",
+          "start_date": "2027-04-21",
+          "end_date": "2027-04-21",
+          "category": "holiday"
+        },
+        {
+          "id": "labor_day",
+          "name": "Dia do Trabalho",
+          "start_date": "2027-05-01",
+          "end_date": "2027-05-01",
+          "category": "holiday"
+        },
+        {
+          "id": "half_semester",
+          "name": "50% do Período de Aulas",
+          "start_date": "2027-05-17",
+          "end_date": "2027-05-17",
+          "category": "academic"
+        },
+        {
+          "id": "corpus_christi",
+          "name": "Corpus Christi",
+          "start_date": "2027-05-27",
+          "end_date": "2027-05-27",
+          "category": "holiday"
+        },
+        {
+          "id": "three_quarters_semester",
+          "name": "75% do Período de Aulas",
+          "start_date": "2027-06-18",
+          "end_date": "2027-06-18",
+          "category": "academic"
+        },
+        {
+          "id": "classes_end",
+          "name": "Término do Período de Aulas",
+          "start_date": "2027-07-16",
+          "end_date": "2027-07-16",
+          "category": "academic"
+        },
+        {
+          "id": "grades_consolidation",
+          "name": "Data Limite para Consolidação de Turmas no SIGAA",
+          "start_date": "2027-07-19",
+          "end_date": "2027-07-19",
+          "category": "administrative"
+        },
+        {
+          "id": "semester_end",
+          "name": "Término do Período Letivo",
+          "start_date": "2027-07-20",
+          "end_date": "2027-07-20",
+          "category": "academic"
+        },
+        {
+          "id": "student_dismissal_processing",
+          "name": "Processamento dos Desligamentos",
+          "start_date": "2027-07-21",
+          "end_date": "2027-07-21",
+          "category": "administrative"
+        }
+      ]
+    },
+    "2027.2": {
+      "semester": "2027.2",
+      "name": "2º Semestre Letivo de 2027",
+      "period": {
+        "start": "2027-07-21",
+        "end": "2027-12-18"
+      },
+      "classes": {
+        "start": "2027-08-09",
+        "end": "2027-12-16",
+        "instructional_days": 107
+      },
+      "events": [
+        {
+          "id": "regular_enrollment",
+          "name": "Solicitação de Matrícula Regular (SIGAA)",
+          "start_date": "2027-07-26",
+          "end_date": "2027-07-28",
+          "category": "enrollment"
+        },
+        {
+          "id": "enrollment_processing",
+          "name": "Processamento das Matrículas",
+          "start_date": "2027-07-29",
+          "end_date": "2027-07-30",
+          "category": "administrative"
+        },
+        {
+          "id": "enrollment_results",
+          "name": "Resultado da Matrícula",
+          "start_date": "2027-07-30",
+          "end_date": "2027-07-30",
+          "category": "enrollment"
+        },
+        {
+          "id": "re_enrollment_period",
+          "name": "Solicitação de Rematrícula",
+          "start_date": "2027-08-02",
+          "end_date": "2027-08-03",
+          "category": "enrollment"
+        },
+        {
+          "id": "re_enrollment_processing",
+          "name": "Processamento das Rematrículas",
+          "start_date": "2027-08-04",
+          "end_date": "2027-08-05",
+          "category": "administrative"
+        },
+        {
+          "id": "re_enrollment_results",
+          "name": "Resultado da Rematrícula",
+          "start_date": "2027-08-05",
+          "end_date": "2027-08-05",
+          "category": "enrollment"
+        },
+        {
+          "id": "extraordinary_enrollment",
+          "name": "Matrícula Extraordinária",
+          "start_date": "2027-08-06",
+          "end_date": "2027-08-13",
+          "category": "enrollment"
+        },
+        {
+          "id": "classes_start",
+          "name": "Início do Período de Aulas",
+          "start_date": "2027-08-09",
+          "end_date": "2027-08-09",
+          "category": "academic"
+        },
+        {
+          "id": "registration_general_suspend",
+          "name": "Trancamento Geral de Matrícula Automático",
+          "start_date": "2027-07-21",
+          "end_date": "2027-11-10",
+          "category": "academic"
+        },
+        {
+          "id": "registration_partial_suspend",
+          "name": "Trancamento Parcial de Matrícula Automático",
+          "start_date": "2027-08-09",
+          "end_date": "2027-10-08",
+          "category": "academic"
+        },
+        {
+          "id": "quarter_semester",
+          "name": "25% do Período de Aulas",
+          "start_date": "2027-09-08",
+          "end_date": "2027-09-08",
+          "category": "academic"
+        },
+        {
+          "id": "independence_day",
+          "name": "Independência do Brasil",
+          "start_date": "2027-09-07",
+          "end_date": "2027-09-07",
+          "category": "holiday"
+        },
+        {
+          "id": "half_semester",
+          "name": "50% do Período de Aulas",
+          "start_date": "2027-10-08",
+          "end_date": "2027-10-08",
+          "category": "academic"
+        },
+        {
+          "id": "our_lady_aparecida",
+          "name": "Nossa Senhora Aparecida",
+          "start_date": "2027-10-12",
+          "end_date": "2027-10-12",
+          "category": "holiday"
+        },
+        {
+          "id": "public_servant_day",
+          "name": "Dia do Servidor Público",
+          "start_date": "2027-10-28",
+          "end_date": "2027-10-28",
+          "category": "optional_holiday"
+        },
+        {
+          "id": "all_souls_day",
+          "name": "Finados",
+          "start_date": "2027-11-02",
+          "end_date": "2027-11-02",
+          "category": "holiday"
+        },
+        {
+          "id": "three_quarters_semester",
+          "name": "75% do Período de Aulas",
+          "start_date": "2027-11-10",
+          "end_date": "2027-11-10",
+          "category": "academic"
+        },
+        {
+          "id": "republic_day",
+          "name": "Proclamação da República",
+          "start_date": "2027-11-15",
+          "end_date": "2027-11-15",
+          "category": "holiday"
+        },
+        {
+          "id": "black_consciousness_day",
+          "name": "Dia Nacional de Zumbi e da Consciência Negra",
+          "start_date": "2027-11-20",
+          "end_date": "2027-11-20",
+          "category": "holiday"
+        },
+        {
+          "id": "classes_end",
+          "name": "Término do Período de Aulas",
+          "start_date": "2027-12-16",
+          "end_date": "2027-12-16",
+          "category": "academic"
+        },
+        {
+          "id": "grades_consolidation",
+          "name": "Data Limite para Consolidação de Turmas no SIGAA",
+          "start_date": "2027-12-17",
+          "end_date": "2027-12-17",
+          "category": "administrative"
+        },
+        {
+          "id": "semester_end",
+          "name": "Término do Período Letivo",
+          "start_date": "2027-12-18",
+          "end_date": "2027-12-18",
+          "category": "academic"
+        },
+        {
+          "id": "student_dismissal_processing",
+          "name": "Processamento dos Desligamentos",
+          "start_date": "2027-12-20",
+          "end_date": "2027-12-20",
+          "category": "administrative"
+        }
+      ]
+    },
+    "2027.4": {
+      "semester": "2027.4",
+      "name": "Período de Férias 2027 (Verão 2028)",
+      "period": {
+        "start": "2027-12-20",
+        "end": "2028-02-22"
+      },
+      "classes": {
+        "start": "2028-01-10",
+        "end": "2028-02-15",
+        "instructional_days": 30
+      },
+      "events": [
+        {
+          "id": "regular_enrollment",
+          "name": "Solicitação de Matrícula em Turma de Férias",
+          "start_date": "2027-12-23",
+          "end_date": "2027-12-28",
+          "category": "enrollment"
+        },
+        {
+          "id": "enrollment_processing",
+          "name": "Processamento das Matrículas de Férias",
+          "start_date": "2027-12-29",
+          "end_date": "2027-12-29",
+          "category": "administrative"
+        },
+        {
+          "id": "enrollment_results",
+          "name": "Resultado da Matrícula de Férias",
+          "start_date": "2027-12-30",
+          "end_date": "2027-12-30",
+          "category": "enrollment"
+        },
+        {
+          "id": "extraordinary_enrollment",
+          "name": "Matrícula Extraordinária em Turma de Férias",
+          "start_date": "2028-01-03",
+          "end_date": "2028-01-07",
+          "category": "enrollment"
+        },
+        {
+          "id": "classes_start",
+          "name": "Início do Período de Aulas do Verão",
+          "start_date": "2028-01-10",
+          "end_date": "2028-01-10",
+          "category": "academic"
+        },
+        {
+          "id": "registration_partial_suspend",
+          "name": "Trancamento Parcial de Matrícula (Verão)",
+          "start_date": "2028-01-10",
+          "end_date": "2028-01-26",
+          "category": "academic"
+        },
+        {
+          "id": "registration_general_suspend",
+          "name": "Trancamento Geral de Matrícula (Verão)",
+          "start_date": "2027-12-20",
+          "end_date": "2028-02-04",
+          "category": "academic"
+        },
+        {
+          "id": "classes_end",
+          "name": "Término do Período de Aulas do Verão",
+          "start_date": "2028-02-15",
+          "end_date": "2028-02-15",
+          "category": "academic"
+        },
+        {
+          "id": "grades_consolidation",
+          "name": "Data Limite para Consolidação das Turmas de Férias",
+          "start_date": "2028-02-18",
+          "end_date": "2028-02-18",
+          "category": "administrative"
+        },
+        {
+          "id": "semester_end",
+          "name": "Término do Período Letivo do Verão",
+          "start_date": "2028-02-22",
+          "end_date": "2028-02-22",
+          "category": "academic"
+        }
+      ]
+    }
+  }
+}

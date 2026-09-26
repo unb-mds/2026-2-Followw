@@ -2,6 +2,7 @@ from typing import Self
 
 import httpx
 
+from .calendar import Calendar
 from .config import DEFAULT_TIMEOUT, USER_AGENT
 from .restaurant import Restaurant
 
@@ -21,6 +22,7 @@ class UnbBrowser:
             transport=transport,
         )
         self.restaurant = Restaurant(self._http)
+        self.calendar = Calendar()
 
     async def __aenter__(self) -> Self:
         return self
