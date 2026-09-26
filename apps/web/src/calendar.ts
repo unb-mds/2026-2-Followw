@@ -48,4 +48,18 @@ export function listSemesters(): SemesterCalendar[] {
     return Object.values(academicCalendar.semesters);
 }
 
-export default academicCalendar;
+export function getCurrentSemester(date: Date = new Date()): SemesterCalendar | undefined {
+    const today = date.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+    const semesters = listSemesters();
+
+    // Retorna o semestre atual ou o futuro mais próximo
+    return (
+        semesters.find(({ period }) => period.start <= today && today <= period.end) ??
+        semesters
+            .filter(({ period }) => period.start > today)
+            .reduce<SemesterCalendar | undefined>(
+                (next, s) => (!next || s.period.start < next.period.start ? s : next),
+                undefined
+            )
+    );
+}
