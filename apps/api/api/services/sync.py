@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 PROFILE_TTL = timedelta(hours=24)
 CLASSROOMS_TTL = timedelta(hours=72)
 MENU_TTL = timedelta(hours=24)
-# Participantes e estatísticas das turmas atuais; as de semestres passados não mudam.
+# Detalhes das turmas atuais; os de semestres passados não mudam.
 CLASSROOM_DETAILS_TTL = timedelta(hours=24)
 
 _WRITE_ATTEMPTS = 3
@@ -39,6 +39,7 @@ class Task(StrEnum):
     ACCOUNT = "account"
     PROFILE = "profile"
     CLASSROOMS = "classrooms"
+    FREQUENCY = "frequency"
     MEMBERS = "members"
     STATISTICS = "statistics"
 
@@ -51,7 +52,7 @@ class Job(BaseModel):
     task: Task
     registration: str
     session_token: str
-    # `front_end_id` da turma, nas tarefas de participantes e estatísticas.
+    # `front_end_id` da turma nas tarefas de telas acadêmicas.
     classroom_id: str | None = None
 
     @property
@@ -111,7 +112,7 @@ class SyncEngine:
         `load` lê o cache e se ele venceu, numa sessão fechada antes de ir ao
         SIGAA. Sem cache ou com `refresh`, roda a tarefa antes de responder e
         relê o cache; se o SIGAA falhar, o cache fica intacto. `link` é o
-        vínculo com a turma, nas tarefas de participantes e estatísticas.
+        vínculo com a turma, nas tarefas de participantes, estatísticas e frequência.
         """
         if not refresh:
             cached, stale = await self.read(load)
@@ -173,7 +174,7 @@ class SyncEngine:
             case Task.CLASSROOMS:
                 classrooms = await client.classrooms.list_classrooms()
                 await self._save_classrooms(classrooms, refresh=refresh)
-            case Task.MEMBERS | Task.STATISTICS:
+            case Task.MEMBERS | Task.STATISTICS | Task.FREQUENCY:
                 assert link is not None
                 await self._sync_screen(client, task, link)
 
@@ -205,6 +206,15 @@ class SyncEngine:
         if task is Task.MEMBERS:
             members = await client.classrooms.list_classroom_members(link.front_end_id)
             await self._save_members(link.classroom_id, members)
+        elif task is Task.FREQUENCY:
+            frequency = await client.classrooms.get_classroom_frequency(
+                link.front_end_id
+            )
+            await self._write(
+                lambda session: ClassroomRepository(session).save_frequency(
+                    link.id, frequency, _now()
+                )
+            )
         else:
             shares = await client.classrooms.get_classroom_statistics(link.front_end_id)
             await self._save_statistics(link.classroom_id, shares)

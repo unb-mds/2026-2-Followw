@@ -24,7 +24,7 @@ tags_metadata = [
     },
     {
         "name": "Classrooms",
-        "description": "Turmas do semestre e histórico, participantes e estatísticas de aprovação.",
+        "description": "Turmas do semestre e histórico, participantes, frequência e estatísticas de aprovação.",
     },
     {
         "name": "Me",

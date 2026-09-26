@@ -330,6 +330,41 @@ def test_frequencia_nao_lancada_vem_none_com_andamento():
     assert frequencia.progress == ClassroomProgress(taught=10, total=32, percentage=31)
 
 
+def test_resumo_separa_pendencias_dos_totais_do_sigaa():
+    frequency = _parse_frequency(BeautifulSoup(FREQUENCY, "lxml"))
+    assert frequency.frequency_status == "partially_registered"
+    assert frequency.frequency.summary.model_dump() == {
+        "total_entries": 3,
+        "recorded_entries": 2,
+        "unrecorded_entries": 1,
+        "absence_entries": 1,
+        "total_absences": 2,
+    }
+    assert frequency.frequency.registered == 65
+    assert frequency.frequency.total_percentage == 87
+
+
+@pytest.mark.parametrize(
+    "html,expected",
+    [
+        (NOT_LAUNCHED, "not_registered"),
+        (
+            FREQUENCY.replace("Presente", "Não Registrada").replace(
+                "2 Falta(s)", "Não Registrada"
+            ),
+            "not_registered",
+        ),
+        (FREQUENCY.replace("Não Registrada", "Presente"), "registered"),
+    ],
+)
+def test_estado_dos_lancamentos_nao_depende_da_porcentagem(html, expected):
+    frequency = _parse_frequency(BeautifulSoup(html, "lxml"))
+    assert frequency.frequency_status == expected
+    assert frequency.model_dump(mode="json")["frequency_status"] == expected
+    if html == NOT_LAUNCHED:
+        assert frequency.frequency is None
+
+
 def test_situacao_desconhecida_e_barulhenta():
     pagina = FREQUENCY.replace("Presente", "Dispensado")
 

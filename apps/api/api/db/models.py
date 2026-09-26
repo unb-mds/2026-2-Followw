@@ -116,6 +116,19 @@ class ClassroomUser(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     user: Mapped[User] = relationship(back_populates="classroom_links")
     classroom: Mapped[Classroom] = relationship(back_populates="user_links")
+    frequency_cache: Mapped[ClassroomFrequencyCache | None] = relationship(
+        cascade="all, delete-orphan", single_parent=True
+    )
+
+
+class ClassroomFrequencyCache(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "classroom_frequencies"
+
+    user_classroom_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_classrooms.id", ondelete="CASCADE"), unique=True
+    )
+    data: Mapped[dict[str, object]] = mapped_column(JSON)
+    synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class ClassroomStatistic(Base, UUIDPrimaryKeyMixin, TimestampMixin):
