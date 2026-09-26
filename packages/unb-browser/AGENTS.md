@@ -65,6 +65,8 @@ pela **geometria**, nunca pelo índice da coluna:
 - **Colunas variam** entre campi e semanas (subcolunas, células mescladas). Um
   item vai para todo dia cujo centro está dentro da célula — assim "Café OU
   chá", mesclado na semana inteira, aparece em todos os dias.
+- **Datas do cabeçalho** usam a tolerância geométrica de 2 pontos: no PDF de
+  28/09/2026, o centro das datas fica 0,12 ponto abaixo de `COMPOSIÇÃO`.
 - **Categorias mescladas na vertical** (`BEBIDAS` cobre duas linhas) viram uma
   seção com um item por linha.
 - **Retângulos brancos** em volta dos ícones de alérgenos seriam lidos como
@@ -75,7 +77,10 @@ pela **geometria**, nunca pelo índice da coluna:
 - **Dias e refeições variam por campus** (Gama só publica seg–sex, Fazenda não
   tem jantar): refeição ausente é `None` e célula vazia não vira seção.
 - **Cada seção ganha uma `key`** (`MenuSectionKey`) pelo nome da categoria, via
-  `_SECTION_KEYS` (chaves em `lookup_key`). Categoria fora da lista vem com
+  `_SECTION_KEYS` (nomes canônicos, comparados via `lookup_key` sem espaços,
+  pré-calculados em `_SECTIONS`).
+  Palavras quebradas entre linhas, como `ACOMPANHAMENTO S`, recuperam a chave
+  e o nome canônico sem alterar os alimentos. Categoria fora da lista vem com
   `key=None` em vez de erro, para não derrubar o cardápio inteiro; se o RU
   criar uma categoria nova, acrescente-a no enum e no dict.
 - **Quebra de linha dentro da célula não separa itens**: o texto é normalizado

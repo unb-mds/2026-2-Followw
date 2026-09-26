@@ -6,7 +6,11 @@ from bs4 import BeautifulSoup, Tag
 
 from ..config import DASHBOARD_PATH
 from ..exceptions import SigaaParseError
-from ..models import RestaurantCredentials, RestaurantStatementEntry
+from ..models import (
+    RestaurantCredentials,
+    RestaurantStatement,
+    RestaurantStatementEntry,
+)
 from ..utils.jsf import build_menu_action, build_postback, link_params, read_viewstate
 from ..utils.parsing import clean_text, lookup_key, parse_datetime
 from ..utils.pdf import extract_text, find_qr_code
@@ -24,6 +28,7 @@ _STUDENT_CARD_MENU_ACTION = (
 )
 
 _VALIDITY_RE = re.compile(r"VALIDADE\s+(\w+)\s+(\d{4})", re.IGNORECASE)
+_GROUP_RE = re.compile(r"\bgrupo\s*([123])\b", re.IGNORECASE)
 
 _MONTHS = {
     "janeiro": 1,
@@ -47,26 +52,32 @@ class Restaurant:
 
     async def get_restaurant_statement(
         self,
-    ) -> tuple[RestaurantStatementEntry, ...] | None:
-        """`None` quando o discente não tem extrato do RU pra mostrar.
+    ) -> RestaurantStatement:
+        """Saldo, grupo e movimentações do RU; campos ausentes ficam `None`.
 
-        Custa um GET (pelo `ViewState` atual) + o POST do postback que abre
-        o extrato — não dá pra economizar isso: o `ViewState` morre a cada
-        postback, então não há como reaproveitar o de outra chamada.
+        Relê o portal a cada chamada. Só faz postback com o `ViewState`
+        atual se o extrato ainda não estiver aberto na sessão do SIGAA.
         """
         page = await self._session.get(DASHBOARD_PATH)
         soup = BeautifulSoup(page.text, "lxml")
 
+        statement = _statement(soup)
+        if statement is not None:
+            return statement
+
         form = soup.find("form", id=_STATEMENT_FORM_ID)
         anchor = form.find("a") if isinstance(form, Tag) else None
         if not (isinstance(form, Tag) and isinstance(anchor, Tag)):
-            return None
+            return RestaurantStatement()
 
         action, payload = build_postback(
             form, link_params(anchor), read_viewstate(soup)
         )
         page = await self._session.post(action, data=payload)
-        return _statement(BeautifulSoup(page.text, "lxml"))
+        statement = _statement(BeautifulSoup(page.text, "lxml"))
+        if statement is None:
+            raise SigaaParseError("Extrato do RU não encontrado após o postback.")
+        return statement
 
     async def get_restaurant_credentials(self) -> RestaurantCredentials:
         """Token do QR code e validade da carteirinha estudantil (lida no RU)."""
@@ -83,13 +94,15 @@ class Restaurant:
         return _credentials(response.content)
 
 
-def _statement(page: BeautifulSoup) -> tuple[RestaurantStatementEntry, ...] | None:
+def _statement(page: BeautifulSoup) -> RestaurantStatement | None:
     heading = page.find(
         lambda tag: tag.name == "h4" and _STATEMENT_TITLE in clean_text(tag)
     )
-    table = heading.find_next("table") if isinstance(heading, Tag) else None
-    if table is None:
+    if not isinstance(heading, Tag):
         return None
+    table = heading.find_next("table")
+    if table is None:
+        raise SigaaParseError("Tabela do extrato do RU não encontrada.")
 
     entries = []
     for row in table.find_all("tr"):
@@ -105,7 +118,25 @@ def _statement(page: BeautifulSoup) -> tuple[RestaurantStatementEntry, ...] | No
                 amount=_parse_amount(clean_text(cells[2])),
             )
         )
-    return tuple(entries)
+    latest = sorted(entries, key=lambda entry: entry.occurred_at, reverse=True)
+    balance = next(
+        (
+            entry.amount
+            for entry in latest
+            if lookup_key(entry.description).rstrip(":").strip()
+            in {"saldo", "saldo atual"}
+        ),
+        None,
+    )
+    group = next(
+        (
+            int(match.group(1))
+            for entry in latest
+            if (match := _GROUP_RE.search(entry.description))
+        ),
+        None,
+    )
+    return RestaurantStatement(balance=balance, group=group, entries=tuple(entries))
 
 
 def _parse_amount(value: str) -> Decimal:

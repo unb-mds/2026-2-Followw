@@ -182,8 +182,8 @@ def test_cada_pagina_vira_uma_refeicao_com_as_secoes_na_ordem_da_tabela():
 
 
 def test_categoria_desconhecida_vem_sem_key(monkeypatch):
-    keys = {k: v for k, v in pdf._SECTION_KEYS.items() if k != "sopa"}
-    monkeypatch.setattr(pdf, "_SECTION_KEYS", keys)
+    sections = {k: v for k, v in pdf._SECTIONS.items() if k != "sopa"}
+    monkeypatch.setattr(pdf, "_SECTIONS", sections)
 
     soup = parse_menu(DARCY_PDF)[0].dinner[6]
 
@@ -222,3 +222,58 @@ def test_refeicao_que_o_campus_nao_serve_vem_none():
 def test_pdf_invalido_e_barulhento():
     with pytest.raises(UnbParseError):
         parse_menu(b"<html>nao e pdf</html>")
+
+
+def test_datas_ligeiramente_abaixo_do_cabecalho_sao_reconhecidas():
+    menu = parse_menu((FIXTURES / "cardapio-darcy-28-09.pdf").read_bytes())
+    assert len(menu) == 7
+    assert menu[0].date == date(2026, 9, 28)
+    assert menu[-1].date == date(2026, 10, 4)
+    assert all(day.breakfast and day.lunch and day.dinner for day in menu)
+    assert menu[0].breakfast[0].key == MenuSectionKey.DRINK
+    assert "Leite integral ou Bebida de soja" in menu[0].breakfast[0].items
+
+
+def test_gama_reconhece_categorias_com_palavras_quebradas_sem_perder_itens():
+    menu = parse_menu((FIXTURES / "cardapio-gama-28-09.pdf").read_bytes())
+
+    assert [day.date for day in menu] == [
+        date(2026, 9, 28),
+        date(2026, 9, 29),
+        date(2026, 9, 30),
+        date(2026, 10, 1),
+        date(2026, 10, 2),
+    ]
+    for day in menu:
+        for meal in (day.breakfast, day.lunch, day.dinner):
+            assert meal
+            assert all(section.key is not None for section in meal)
+        assert day.lunch[4].key == MenuSectionKey.MAIN_DISH_VEGETARIAN
+        assert day.lunch[4].name == "Prato principal ovolactovegetariano"
+        assert day.lunch[7].key == MenuSectionKey.ACCOMPANIMENTS
+        assert day.lunch[7].name == "Acompanhamentos"
+    assert [day.lunch[4].items for day in menu] == [
+        ("Risoto de espinafre",),
+        ("Croquete de soja com queijo",),
+        ("Isca de soja ao sugo gratinada",),
+        ("Bolinho de lentilha gratinado",),
+        ("Ovos assados ao sugo",),
+    ]
+    assert menu[0].lunch[7].items == ("Arroz branco e integral Feijão carioca",)
+
+
+@pytest.mark.parametrize(
+    "label,key,name",
+    [
+        ("GUAR NIÇÃO", "side_dish", "Guarnição"),
+        ("PANIFICA ÇÃO", "bread", "Panificação"),
+        ("COMPLEMENTO PAD RÃO", "complement", "Complemento padrão"),
+        ("CATEGORIA NOVA", None, "Categoria nova"),
+    ],
+)
+def test_normalizacao_de_categoria_preserva_acentos_e_categorias_desconhecidas(
+    label, key, name
+):
+    assert pdf._section(label, ["Alimento"]) == MenuSection(
+        key=key, name=name, items=("Alimento",)
+    )

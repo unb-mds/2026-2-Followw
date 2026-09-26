@@ -1,6 +1,7 @@
 import enum
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, SecretStr
 
@@ -24,6 +25,14 @@ class RestaurantStatementEntry(BaseModel):
     occurred_at: datetime
     description: str
     amount: Decimal
+
+
+class RestaurantStatement(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    balance: Decimal | None = None
+    group: Literal[1, 2, 3] | None = None
+    entries: tuple[RestaurantStatementEntry, ...] = ()
 
 
 class RestaurantCredentials(BaseModel):
