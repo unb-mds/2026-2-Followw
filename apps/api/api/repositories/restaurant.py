@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from unb_browser import Campus, DailyMenu
 
@@ -11,20 +11,38 @@ class RestaurantRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def get(self, campus: Campus) -> list[RestaurantMenu]:
+    async def get(self, campus: Campus, start: date, end: date) -> list[RestaurantMenu]:
         return list(
             await self._session.scalars(
                 select(RestaurantMenu)
-                .where(RestaurantMenu.campus == campus.value)
+                .where(
+                    RestaurantMenu.campus == campus.value,
+                    RestaurantMenu.date.between(start, end),
+                )
                 .order_by(RestaurantMenu.date)
+            )
+        )
+
+    async def synced_at(self, campus: Campus) -> datetime | None:
+        return await self._session.scalar(
+            select(func.max(RestaurantMenu.synced_at)).where(
+                RestaurantMenu.campus == campus.value
             )
         )
 
     async def save(
         self, campus: Campus, days: tuple[DailyMenu, ...], synced_at: datetime
-    ) -> list[RestaurantMenu]:
+    ) -> None:
         # Datas que saíram do cardápio publicado continuam guardadas.
-        rows = {row.date: row for row in await self.get(campus)}
+        rows = {
+            row.date: row
+            for row in await self._session.scalars(
+                select(RestaurantMenu).where(
+                    RestaurantMenu.campus == campus.value,
+                    RestaurantMenu.date.in_([day.date for day in days]),
+                )
+            )
+        }
         for day in days:
             row = rows.get(day.date)
             if row is None:
@@ -39,4 +57,3 @@ class RestaurantRepository:
                 setattr(row, meal, sections)
             row.synced_at = synced_at
         await self._session.flush()
-        return sorted(rows.values(), key=lambda row: row.date)

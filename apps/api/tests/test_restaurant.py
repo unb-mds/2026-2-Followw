@@ -211,6 +211,38 @@ def test_ru_fora_do_ar_sem_cache_retorna_502(client, browser):
     assert client.get("/restaurant/menu").status_code == 502
 
 
+def test_ru_fora_do_ar_com_cache_so_de_outras_datas_retorna_502(
+    client, browser, database
+):
+    browser.restaurant.get_menu.return_value = (
+        DAY.model_copy(update={"date": date(2026, 9, 18)}),
+    )
+    client.get("/restaurant/menu?date=2026-09-18")
+    _age_cache(database, 25)
+    browser.restaurant.get_menu.side_effect = UnbParseError("fora")
+    assert client.get("/restaurant/menu").status_code == 502
+    assert client.get("/restaurant/menu?date=2026-09-18").status_code == 200
+
+
+def test_cache_le_so_o_intervalo_pedido(client, browser, monkeypatch):
+    client.get("/restaurant/menu")
+    ranges, original = [], RestaurantRepository.get
+
+    async def get(self, campus, start, end):
+        ranges.append((start, end))
+        return await original(self, campus, start, end)
+
+    monkeypatch.setattr(RestaurantRepository, "get", get)
+    client.get("/restaurant/menu", params={"start_date": "2026-09-01"})
+    client.get("/restaurant/menu", params={"end_date": "2026-09-01"})
+    client.get("/restaurant/menu")
+    assert ranges == [
+        (date(2026, 9, 1), date(2026, 9, 7)),
+        (date(2026, 8, 26), date(2026, 9, 1)),
+        (date(2026, 9, 21), date(2026, 9, 27)),
+    ]
+
+
 @pytest.mark.parametrize(
     "params,expected",
     [
@@ -218,6 +250,8 @@ def test_ru_fora_do_ar_sem_cache_retorna_502(client, browser):
         ({"meal": "lunch"}, [21, 27]),
         ({"start_date": "2026-09-27"}, [27, 28]),
         ({"end_date": "2026-09-21"}, [20, 21]),
+        ({"start_date": "2026-09-20"}, [20, 21]),
+        ({"end_date": "2026-09-28"}, [27, 28]),
         ({"date": "2026-09-28"}, [28]),
     ],
 )

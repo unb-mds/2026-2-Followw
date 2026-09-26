@@ -99,9 +99,10 @@ confere também se a notícia está na listagem da turma antes de abri-la.
 **Restaurante.** `/restaurant/menu` é público, usa `UnbBrowserDep` e aceita
 `campus` (`Darcy`, `Gama`, `Ceilandia`, `Planaltina`, `Fazenda`, padrão `Darcy`)
 e `refresh`. Datas: `date` para um dia ou `start_date`/`end_date` para intervalo
-inclusivo (aceita apenas um limite), sem combinar os dois modos. Sem nenhuma
-data, devolve a semana atual (segunda a domingo, horário de Brasília). Filtros são
-aplicados depois da leitura: o cache sempre mantém todos os dias publicados.
+inclusivo, sem combinar os dois modos. Com só um limite, o outro completa 7
+dias; sem nenhuma data, devolve a semana atual (segunda a domingo, horário de
+Brasília). O banco só lê as linhas do intervalo, mas o cache mantém todos os
+dias publicados.
 `meal` aceita `breakfast`, `lunch` ou `dinner`: cada dia mantém a data e apenas
 a refeição escolhida (ou `null`, se ausente). Sem `meal`, mantém todas as refeições.
 `RestaurantService` guarda em
@@ -112,7 +113,8 @@ recente do campus, e a resposta do sync é relida do que foi gravado. Grava ante
 de responder, sem jobs. Cardápio vazio não gera linha, então não fica em cache.
 Sessões do banco fecham antes da consulta ao site; erros
 de leitura/gravação não impedem servir o cardápio obtido do RU. Com o cache
-vencido e o RU fora do ar, serve o cache vencido; sem cache (ou com `refresh`), 502.
+vencido e o RU fora do ar, serve o cache vencido do intervalo; sem linhas no
+intervalo (ou com `refresh`), 502. O `MENU_TTL` fica em `services/sync.py`.
 O browser só abre se o cache não resolver.
 `/restaurant/statement` e `/restaurant/token` usam `RestaurantAccountService`
 com `SigaaClientDep`, sem banco/fila e com `Cache-Control: no-store`. A API repassa
