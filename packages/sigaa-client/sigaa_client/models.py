@@ -1,6 +1,7 @@
 import enum
 from datetime import date, datetime
 from decimal import Decimal
+from functools import cached_property
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, SecretStr, computed_field
@@ -158,7 +159,7 @@ class ClassroomAttendance(BaseModel):
     total_percentage: int
 
     @computed_field
-    @property
+    @cached_property
     def summary(self) -> AttendanceSummary:
         unrecorded = sum(
             entry.status == AttendanceStatus.NAO_REGISTRADA for entry in self.entries

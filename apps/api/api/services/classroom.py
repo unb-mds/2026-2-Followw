@@ -108,7 +108,7 @@ class ClassroomService:
     async def get_frequency(
         self, classroom_id: str, *, refresh: bool = False
     ) -> ClassroomFrequency:
-        link = await self._link(classroom_id, allow_sigaa_id=True)
+        link = await self._link(classroom_id)
 
         async def load(session: AsyncSession) -> tuple[ClassroomFrequency | None, bool]:
             cached = await ClassroomRepository(session).get_frequency(link.id)
@@ -125,7 +125,7 @@ class ClassroomService:
                 Task.FREQUENCY, load, link=link, refresh=refresh
             )
         except ClassroomNotFound:
-            raise HTTPException(status_code=404, detail="Classroom not found")
+            raise classroom_not_found()
 
     async def list_frequencies(
         self, *, refresh: bool = False
@@ -135,14 +135,17 @@ class ClassroomService:
         for classroom in classrooms:
             frequency = await self.get_frequency(classroom.id, refresh=refresh)
             result.append(
-                ClassroomFrequencyResult(classroom=classroom, **frequency.model_dump())
+                ClassroomFrequencyResult(
+                    classroom=classroom,
+                    progress=frequency.progress,
+                    frequency=frequency.frequency,
+                )
             )
         return result
 
-    async def _link(
-        self, classroom_id: str, *, allow_sigaa_id: bool = False
-    ) -> ClassroomUser:
-        find = partial(self._find_link, classroom_id, allow_sigaa_id=allow_sigaa_id)
+    async def _link(self, classroom_id: str) -> ClassroomUser:
+        """O vínculo pelo `Classroom.id` ou pelo `sigaa_id` da turma."""
+        find = partial(self._find_link, classroom_id)
         link, synced_at = await self._engine.read(find)
         if link is None:
             # Lista nunca lida ou turma nova (ajuste de matrícula): relê a lista uma vez.
@@ -152,14 +155,12 @@ class ClassroomService:
             # A lista é o que dá acesso à turma: vencida, revalida como a listagem.
             await self._engine.schedule(Task.CLASSROOMS)
         if link is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Classroom not found"
-            )
+            raise classroom_not_found()
 
         return link
 
     async def _find_link(
-        self, classroom_id: str, session: AsyncSession, *, allow_sigaa_id: bool = False
+        self, classroom_id: str, session: AsyncSession
     ) -> tuple[ClassroomUser | None, datetime | None]:
         """O vínculo com a turma e quando a lista de turmas foi sincronizada."""
         user = await UserRepository(session).get_by_registration(
@@ -169,17 +170,9 @@ class ClassroomService:
             return None, None
 
         repository = ClassroomRepository(session)
-        link = await repository.get_by_front_end_id(user.id, classroom_id)
-        if (
-            link is None
-            and allow_sigaa_id
-            and classroom_id.isascii()
-            and classroom_id.isdecimal()
-        ):
-            # O ID numérico do SIGAA cabe em um inteiro do banco.
-            numeric = int(classroom_id) if len(classroom_id) <= 10 else 0
-            if 0 < numeric <= 2**31 - 1:
-                link = await repository.get_by_sigaa_id(user.id, numeric)
+        link = await repository.get_by_front_end_id(
+            user.id, classroom_id
+        ) or await repository.get_by_sigaa_id(user.id, classroom_id)
         return link, user.classrooms_synced_at
 
 
@@ -232,6 +225,12 @@ def _to_share(statistic: ClassroomStatistic) -> StatisticsShare:
     return StatisticsShare(
         situation=StudentSituation(statistic.situation.value),
         percentage=statistic.percentage,
+    )
+
+
+def classroom_not_found() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND, detail="Classroom not found"
     )
 
 

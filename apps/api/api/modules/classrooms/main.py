@@ -26,6 +26,7 @@ CLASSROOM_ERRORS = {
 NewsClassroomId = Annotated[
     str, Path(description="Classroom.id ou o classroom_sigaa_id de /news.")
 ]
+ClassroomId = Annotated[str, Path(description="Classroom.id ou Classroom.sigaa_id.")]
 
 
 @router.get(
@@ -90,7 +91,7 @@ async def get_classrooms(
     "/frequency",
     response_model=list[ClassroomFrequencyResult],
     summary="Consultar frequência de todas as turmas atuais",
-    description="Turmas atuais com identificação, andamento, frequência, frequency_status e resumo das entradas. Sem turmas, retorna []. Sem lançamentos, frequency é null e frequency_status é not_registered. Totais originais do SIGAA podem incluir aulas pendentes: consulte frequency.summary. Usa cache individual; refresh=true atualiza antes de responder. Falha em uma turma retorna erro, sem omiti-la da lista.",
+    description="Turmas atuais com identificação, andamento, frequência, frequency_status e resumo das entradas. Falha em uma turma retorna erro, sem omiti-la da lista.",
     responses={**CLASSROOM_ERRORS, 503: {"description": "Cache em atualização."}},
 )
 async def get_current_frequencies(
@@ -104,14 +105,12 @@ async def get_current_frequencies(
     "/{classroom_id}/frequency",
     response_model=ClassroomFrequency,
     summary="Consultar frequência e andamento de uma turma",
-    description="Aceita Classroom.id (hash) ou sigaa_id numérico. frequency_status indica not_registered, partially_registered ou registered nas entradas publicadas. Sem lançamentos, frequency é null e progress permanece disponível. frequency.summary conta as entradas e faltas explícitas, preservando os totais originais do SIGAA. Usa cache individual; refresh=true atualiza antes de responder.",
+    description="Aceita Classroom.id (hash) ou sigaa_id numérico. frequency_status indica not_registered, partially_registered ou registered nas entradas publicadas.",
     responses={**CLASSROOM_ERRORS, 503: {"description": "Cache em atualização."}},
 )
 async def get_classroom_frequency(
     service: ClassroomServiceDep,
-    classroom_id: Annotated[
-        str, Path(description="Classroom.id ou Classroom.sigaa_id.")
-    ],
+    classroom_id: ClassroomId,
     response: Response,
     refresh: RefreshQuery = False,
 ) -> ClassroomFrequency:
@@ -126,7 +125,9 @@ async def get_classroom_frequency(
     responses=CLASSROOM_ERRORS,
 )
 async def get_classroom_members(
-    service: ClassroomServiceDep, classroom_id: str, refresh: RefreshQuery = False
+    service: ClassroomServiceDep,
+    classroom_id: ClassroomId,
+    refresh: RefreshQuery = False,
 ) -> list[ClassroomMember]:
     return await service.list_members(classroom_id, refresh=refresh)
 
@@ -138,6 +139,8 @@ async def get_classroom_members(
     responses=CLASSROOM_ERRORS,
 )
 async def get_classroom_statistics(
-    service: ClassroomServiceDep, classroom_id: str, refresh: RefreshQuery = False
+    service: ClassroomServiceDep,
+    classroom_id: ClassroomId,
+    refresh: RefreshQuery = False,
 ) -> list[StatisticsShare]:
     return await service.list_statistics(classroom_id, refresh=refresh)

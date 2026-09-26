@@ -96,8 +96,9 @@ as listagens do scraper: notícias recentes da home ou títulos e datas da turma
 texto completo em Markdown, horário e anexos vêm da rota de detalhe, que
 confere também se a notícia está na listagem da turma antes de abri-la.
 
-**Frequência.** `/classrooms/{classroom_id}/frequency` aceita o hash `id` ou
-`sigaa_id`, sempre conferindo o vínculo do usuário. `/classrooms/frequency`
+**Frequência.** Como `/members` e `/statistics`,
+`/classrooms/{classroom_id}/frequency` aceita o hash `id` ou o `sigaa_id`
+(`ClassroomService._link`), sempre conferindo o vínculo do usuário. `/classrooms/frequency`
 reúne as turmas atuais (mesma seleção de `/classrooms`), em ordem de disciplina,
 com `classroom`, `progress` e `frequency`. Sem lançamentos, `frequency` é `null`;
 `frequency_status` informa se não há lançamentos, se são parciais ou se todas

@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 
 import sigaa_client
 from fastapi import Depends
-from sqlalchemy import ColumnElement, delete, select
+from sqlalchemy import ColumnElement, String, cast, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -57,7 +57,7 @@ class ClassroomRepository:
         )
 
     async def get_by_sigaa_id(
-        self, user_id: UUID, sigaa_id: int
+        self, user_id: UUID, sigaa_id: str
     ) -> ClassroomUser | None:
         return await self._session.scalar(
             select(ClassroomUser)
@@ -65,7 +65,7 @@ class ClassroomRepository:
             .where(
                 ClassroomUser.user_id == user_id,
                 ClassroomUser.front_end_id.is_not(None),
-                Classroom.sigaa_id == sigaa_id,
+                cast(Classroom.sigaa_id, String) == sigaa_id,
             )
             .options(_WITH_CLASSROOM)
         )
