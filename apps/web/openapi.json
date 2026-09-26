@@ -1,0 +1,992 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "Followw UnB API",
+        "description": "API pública e client assíncrono para o SIGAA / ecossistema UnB.",
+        "version": "0.1.0"
+    },
+    "paths": {
+        "/auth/sigaa": {
+            "post": {
+                "tags": ["Auth"],
+                "summary": "Sigaa Login",
+                "operationId": "sigaa_login_auth_sigaa_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SigaaLoginRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "title": "Response Sigaa Login Auth Sigaa Post"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": ["Auth"],
+                "summary": "Sigaa Logout",
+                "operationId": "sigaa_logout_auth_sigaa_delete",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "title": "Response Sigaa Logout Auth Sigaa Delete"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/classrooms/{classroom_id}/news": {
+            "get": {
+                "tags": ["Classrooms"],
+                "summary": "Consultar notícias de uma turma do usuário",
+                "description": "ID, título e dia das notícias da turma, sem cache.",
+                "operationId": "get_classroom_news_classrooms__classroom_id__news_get",
+                "parameters": [
+                    {
+                        "name": "classroom_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "description": "Classroom.id ou o classroom_sigaa_id de /news.",
+                            "title": "Classroom Id"
+                        },
+                        "description": "Classroom.id ou o classroom_sigaa_id de /news."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/News"
+                                    },
+                                    "type": "array",
+                                    "title": "Response Get Classroom News Classrooms  Classroom Id  News Get"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Credenciais ausentes ou inválidas."
+                    },
+                    "502": {
+                        "description": "SIGAA indisponível."
+                    },
+                    "404": {
+                        "description": "Turma não encontrada entre as turmas do usuário."
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/classrooms/{classroom_id}/news/{news_id}": {
+            "get": {
+                "tags": ["Classrooms"],
+                "summary": "Consultar conteúdo e anexos de uma notícia da turma",
+                "description": "Texto em Markdown, data e hora e anexos da notícia, sem cache.",
+                "operationId": "get_classroom_news_detail_classrooms__classroom_id__news__news_id__get",
+                "parameters": [
+                    {
+                        "name": "classroom_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "description": "Classroom.id ou o classroom_sigaa_id de /news.",
+                            "title": "Classroom Id"
+                        },
+                        "description": "Classroom.id ou o classroom_sigaa_id de /news."
+                    },
+                    {
+                        "name": "news_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "description": "ID da notícia na listagem da turma.",
+                            "title": "News Id"
+                        },
+                        "description": "ID da notícia na listagem da turma."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/News"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Credenciais ausentes ou inválidas."
+                    },
+                    "502": {
+                        "description": "SIGAA indisponível."
+                    },
+                    "404": {
+                        "description": "Turma fora da lista do usuário ou notícia ausente na turma."
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/classrooms": {
+            "get": {
+                "tags": ["Classrooms"],
+                "summary": "Consultar as turmas do usuário autenticado",
+                "operationId": "get_classrooms_classrooms_get",
+                "parameters": [
+                    {
+                        "name": "semester",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string",
+                                    "pattern": "^(all|[0-9]{4}\\.[0-9])$"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Sem filtro: turmas atuais. Use 'all' ou um semestre no formato AAAA.P, como 2026.2.",
+                            "title": "Semester"
+                        },
+                        "description": "Sem filtro: turmas atuais. Use 'all' ou um semestre no formato AAAA.P, como 2026.2."
+                    },
+                    {
+                        "name": "refresh",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "default": false,
+                            "title": "Refresh"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/Classroom"
+                                    },
+                                    "type": "array",
+                                    "title": "Response Get Classrooms Classrooms Get"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Credenciais ausentes ou inválidas."
+                    },
+                    "502": {
+                        "description": "SIGAA indisponível."
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/classrooms/{classroom_id}/members": {
+            "get": {
+                "tags": ["Classrooms"],
+                "summary": "Consultar docentes e discentes de uma turma do usuário",
+                "operationId": "get_classroom_members_classrooms__classroom_id__members_get",
+                "parameters": [
+                    {
+                        "name": "classroom_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Classroom Id"
+                        }
+                    },
+                    {
+                        "name": "refresh",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "default": false,
+                            "title": "Refresh"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/ClassroomMember"
+                                    },
+                                    "type": "array",
+                                    "title": "Response Get Classroom Members Classrooms  Classroom Id  Members Get"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Credenciais ausentes ou inválidas."
+                    },
+                    "502": {
+                        "description": "SIGAA indisponível."
+                    },
+                    "404": {
+                        "description": "Turma não encontrada entre as turmas do usuário."
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/classrooms/{classroom_id}/statistics": {
+            "get": {
+                "tags": ["Classrooms"],
+                "summary": "Consultar a situação dos discentes de uma turma do usuário",
+                "operationId": "get_classroom_statistics_classrooms__classroom_id__statistics_get",
+                "parameters": [
+                    {
+                        "name": "classroom_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Classroom Id"
+                        }
+                    },
+                    {
+                        "name": "refresh",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "default": false,
+                            "title": "Refresh"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/StatisticsShare"
+                                    },
+                                    "type": "array",
+                                    "title": "Response Get Classroom Statistics Classrooms  Classroom Id  Statistics Get"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Credenciais ausentes ou inválidas."
+                    },
+                    "502": {
+                        "description": "SIGAA indisponível."
+                    },
+                    "404": {
+                        "description": "Turma não encontrada entre as turmas do usuário."
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/me": {
+            "get": {
+                "tags": ["Me"],
+                "summary": "Consultar o perfil do usuário autenticado",
+                "operationId": "get_me_me_get",
+                "parameters": [
+                    {
+                        "name": "refresh",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "default": false,
+                            "title": "Refresh"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserProfile"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Credenciais ausentes ou inválidas."
+                    },
+                    "502": {
+                        "description": "SIGAA indisponível."
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/news": {
+            "get": {
+                "tags": ["News"],
+                "summary": "Consultar notícias recentes das turmas na home do SIGAA",
+                "description": "Notícias recentes da home, sem cache.",
+                "operationId": "get_news_news_get",
+                "parameters": [
+                    {
+                        "name": "resolve_ids",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "default": false,
+                            "description": "Resolve os IDs com uma consulta adicional à listagem de notícias por turma.",
+                            "title": "Resolve Ids"
+                        },
+                        "description": "Resolve os IDs com uma consulta adicional à listagem de notícias por turma."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/News"
+                                    },
+                                    "type": "array",
+                                    "title": "Response Get News News Get"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Credenciais ausentes ou inválidas."
+                    },
+                    "502": {
+                        "description": "SIGAA indisponível."
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "Classroom": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "title": "Id"
+                    },
+                    "sigaa_id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Sigaa Id"
+                    },
+                    "number": {
+                        "type": "string",
+                        "title": "Number"
+                    },
+                    "semester": {
+                        "type": "string",
+                        "title": "Semester"
+                    },
+                    "schedule": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Schedule"
+                    },
+                    "room": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Room"
+                    },
+                    "current": {
+                        "type": "boolean",
+                        "title": "Current",
+                        "default": false
+                    },
+                    "subject": {
+                        "$ref": "#/components/schemas/Subject"
+                    }
+                },
+                "type": "object",
+                "required": ["id", "number", "semester", "subject"],
+                "title": "Classroom",
+                "description": "Turma, nos campos da tabela `classrooms`."
+            },
+            "ClassroomMember": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "role": {
+                        "$ref": "#/components/schemas/ClassroomRole"
+                    },
+                    "registration": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Registration"
+                    },
+                    "photo": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Photo"
+                    },
+                    "email": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Email"
+                    },
+                    "course": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Course"
+                    },
+                    "unity": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Unity"
+                    },
+                    "person_id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Person Id"
+                    }
+                },
+                "type": "object",
+                "required": ["name", "role"],
+                "title": "ClassroomMember",
+                "description": "Participante de uma turma, nos campos da tabela `users` que a tela expõe."
+            },
+            "ClassroomRole": {
+                "type": "string",
+                "enum": ["aluno", "professor", "monitor"],
+                "title": "ClassroomRole"
+            },
+            "HTTPValidationError": {
+                "properties": {
+                    "detail": {
+                        "items": {
+                            "$ref": "#/components/schemas/ValidationError"
+                        },
+                        "type": "array",
+                        "title": "Detail"
+                    }
+                },
+                "type": "object",
+                "title": "HTTPValidationError"
+            },
+            "News": {
+                "properties": {
+                    "id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Id"
+                    },
+                    "classroom_sigaa_id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Classroom Sigaa Id"
+                    },
+                    "title": {
+                        "type": "string",
+                        "title": "Title"
+                    },
+                    "published_on": {
+                        "type": "string",
+                        "format": "date",
+                        "title": "Published On"
+                    },
+                    "published_at": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Published At"
+                    },
+                    "content": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Content"
+                    },
+                    "attachments": {
+                        "items": {
+                            "$ref": "#/components/schemas/NewsAttachment"
+                        },
+                        "type": "array",
+                        "title": "Attachments",
+                        "default": []
+                    }
+                },
+                "type": "object",
+                "required": ["title", "published_on"],
+                "title": "News",
+                "description": "A home não traz `id`; hora, texto e anexos só vêm de `get_classroom_news`."
+            },
+            "NewsAttachment": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "url": {
+                        "type": "string",
+                        "title": "Url"
+                    }
+                },
+                "type": "object",
+                "required": ["name", "url"],
+                "title": "NewsAttachment"
+            },
+            "SigaaLoginRequest": {
+                "properties": {
+                    "registration": {
+                        "type": "string",
+                        "maxLength": 9,
+                        "minLength": 9,
+                        "title": "Registration"
+                    },
+                    "password": {
+                        "type": "string",
+                        "maxLength": 64,
+                        "minLength": 6,
+                        "title": "Password"
+                    }
+                },
+                "type": "object",
+                "required": ["registration", "password"],
+                "title": "SigaaLoginRequest"
+            },
+            "StatisticsShare": {
+                "properties": {
+                    "situation": {
+                        "$ref": "#/components/schemas/StudentSituation"
+                    },
+                    "percentage": {
+                        "type": "number",
+                        "title": "Percentage"
+                    }
+                },
+                "type": "object",
+                "required": ["situation", "percentage"],
+                "title": "StatisticsShare",
+                "description": "Uma fatia do gráfico de estatísticas: a porcentagem dos discentes da turma."
+            },
+            "StudentSituation": {
+                "type": "string",
+                "enum": [
+                    "aprovado",
+                    "reprovado",
+                    "reprovado_por_faltas",
+                    "reprovado_por_media_e_por_faltas",
+                    "aprovado_por_nota",
+                    "reprovado_por_nota",
+                    "reprovado_por_nota_e_faltas",
+                    "trancado",
+                    "matriculado"
+                ],
+                "title": "StudentSituation",
+                "description": "As situações do gráfico \"Situação dos Discentes\", na ordem da legenda."
+            },
+            "Subject": {
+                "properties": {
+                    "code": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Code"
+                    },
+                    "sigaa_id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Sigaa Id"
+                    },
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "hours": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Hours"
+                    },
+                    "unity": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Unity"
+                    }
+                },
+                "type": "object",
+                "required": ["name"],
+                "title": "Subject",
+                "description": "Componente curricular, nos campos da tabela `subjects`."
+            },
+            "UserInfo": {
+                "properties": {
+                    "nome": {
+                        "type": "string",
+                        "title": "Nome"
+                    },
+                    "matricula": {
+                        "type": "string",
+                        "title": "Matricula"
+                    }
+                },
+                "type": "object",
+                "required": ["nome", "matricula"],
+                "title": "UserInfo"
+            },
+            "UserLevel": {
+                "type": "string",
+                "enum": ["Graduação", "Pós-graduação", "Mestrado"],
+                "title": "UserLevel"
+            },
+            "UserProfile": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "registration": {
+                        "type": "string",
+                        "title": "Registration"
+                    },
+                    "photo": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Photo"
+                    },
+                    "email": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Email"
+                    },
+                    "bio": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Bio"
+                    },
+                    "unity": {
+                        "type": "string",
+                        "title": "Unity"
+                    },
+                    "course": {
+                        "type": "string",
+                        "title": "Course"
+                    },
+                    "integralization": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Integralization"
+                    },
+                    "ira": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Ira"
+                    },
+                    "mp": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Mp"
+                    },
+                    "level": {
+                        "$ref": "#/components/schemas/UserLevel"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "name",
+                    "registration",
+                    "photo",
+                    "bio",
+                    "unity",
+                    "course",
+                    "integralization",
+                    "ira",
+                    "mp",
+                    "level"
+                ],
+                "title": "UserProfile"
+            },
+            "ValidationError": {
+                "properties": {
+                    "loc": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "integer"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Location"
+                    },
+                    "msg": {
+                        "type": "string",
+                        "title": "Message"
+                    },
+                    "type": {
+                        "type": "string",
+                        "title": "Error Type"
+                    }
+                },
+                "type": "object",
+                "required": ["loc", "msg", "type"],
+                "title": "ValidationError"
+            }
+        }
+    }
+}

@@ -8,6 +8,7 @@
     "scripts": {
         "dev": "vite dev",
         "generate-routes": "tsr generate",
+        "generate-api": "bun ./scripts/generate-api.ts",
         "build": "vite build",
         "preview": "vite preview",
         "fmt": "oxfmt",
@@ -27,6 +28,8 @@
         "@tanstack/react-router-ssr-query": "latest",
         "@tanstack/react-start": "latest",
         "nitro": "3.0.260903-beta",
+        "openapi-fetch": "^0.17.0",
+        "openapi-react-query": "^0.5.4",
         "posthog-js": "^1.358.1",
         "react": "^19.2.0",
         "react-dom": "^19.2.0",
@@ -39,10 +42,11 @@
         "@types/react": "^19.2.0",
         "@types/react-dom": "^19.2.0",
         "@vitejs/plugin-react": "^6.0.1",
+        "openapi-typescript": "^7.13.0",
         "oxfmt": "^0.70.0",
         "oxlint": "^1.85.0",
         "oxlint-tsgolint": "^7.0.2002",
-        "typescript": "^7.0.2",
+        "typescript": "^5.8.2",
         "vite": "^8.0.0"
     },
     "pnpm": {
