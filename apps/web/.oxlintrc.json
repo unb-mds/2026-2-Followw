@@ -1,6 +1,6 @@
 {
     "$schema": "./node_modules/oxlint/configuration_schema.json",
-    "ignorePatterns": ["routeTree.gen.ts"],
+    "ignorePatterns": ["routeTree.gen.ts", "schema.gen.ts"],
     "plugins": ["typescript", "react", "import", "unicorn", "oxc", "jsx-a11y", "promise"],
     "categories": {
         "correctness": "error",
@@ -25,6 +25,18 @@
         }
     },
     "rules": {
-        "react/react-in-jsx-scope": "off"
-    }
+        "react/react-in-jsx-scope": "off",
+        "no-restricted-globals": [
+            "error",
+            { "name": "fetch", "message": "Use o client de src/queries." }
+        ]
+    },
+    "overrides": [
+        {
+            "files": ["src/queries/**"],
+            "rules": {
+                "no-restricted-globals": "off"
+            }
+        }
+    ]
 }
