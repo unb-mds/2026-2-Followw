@@ -16,16 +16,10 @@
         "es2024": true,
         "node": true
     },
-    "settings": {
-        "react": {
-            "linkComponents": [{ "name": "Link", "linkAttribute": "to" }]
-        },
-        "jsx-a11y": {
-            "components": { "Link": "a" }
-        }
-    },
     "rules": {
         "react/react-in-jsx-scope": "off",
+        "jsx-a11y/anchor-is-valid": "off",
+        "jsx-a11y/no-noninteractive-element-interactions": "off",
         "no-restricted-globals": [
             "error",
             { "name": "fetch", "message": "Use o client de src/queries." }

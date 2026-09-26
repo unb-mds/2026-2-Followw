@@ -20,13 +20,30 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
             },
             {
                 name: 'viewport',
-                content: 'width=device-width, initial-scale=1'
+                content: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no'
             },
             {
-                title: 'TanStack Start Starter'
+                title: 'Followw — Portal Acadêmico UnB'
             }
         ],
         links: [
+            {
+                rel: 'preconnect',
+                href: 'https://fonts.googleapis.com'
+            },
+            {
+                rel: 'preconnect',
+                href: 'https://fonts.gstatic.com',
+                crossOrigin: 'anonymous'
+            },
+            {
+                rel: 'stylesheet',
+                href: 'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap'
+            },
+            {
+                rel: 'stylesheet',
+                href: 'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200'
+            },
             {
                 rel: 'stylesheet',
                 href: appCss
@@ -38,7 +55,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 
 function RootDocument({ children }: { children: React.ReactNode }) {
     return (
-        <html lang="en">
+        <html lang="pt-BR">
             <head>
                 <HeadContent />
             </head>
