@@ -41,6 +41,7 @@ Todo acesso HTTP à API do Followw UnB é centralizado em `src/queries/`.
 - `client.ts`: Cliente único do `openapi-fetch` com:
     - Base URL vinda de `VITE_API_URL` (default: `http://localhost:8000`);
     - `credentials: 'include'` para envio automático dos cookies de sessão `httponly`;
+    - Middleware de SSR que repassa o header `cookie` da requisição original para a API e devolve ao navegador os `Set-Cookie` dela (renovação da sessão). Ambos são lidos do contexto da requisição, nunca de variável de módulo, que vazaria a sessão entre usuários;
     - Middleware de tratamento de erro que lança instâncias previsíveis de `ApiError` quando o status for `>= 400`.
 - `api.ts`: Adaptador `openapi-react-query` gerado a partir do `apiClient`.
 - `errors.ts`: Classe `ApiError` contendo `status`, `detail` e getters utilitários (`isUnauthorized`, `isForbidden`, `isNotFound`, `isServerError`).
@@ -85,9 +86,9 @@ export const classroomsQueryOptions = (semester?: string) =>
 
 ### Uso em Rotas (Loaders e Componentes)
 
-Em loaders de rotas, use `query` para pré-carregar os dados. Em componentes, consuma com `useSuspenseQuery`.
+Em loaders de rotas, use `query` para pré-carregar os dados tanto no SSR quanto na navegação client-side. Em componentes, consuma com `useSuspenseQuery`.
 
-Os cookies de sessão pertencem ao host da API (`api.followw.app`) e não chegam ao servidor do front, então o SSR não tem como autenticar. Toda rota que lê dado logado precisa de `ssr: false`: o loader e o componente rodam só no client, enquanto o `AppLayout` do root continua no SSR.
+O SSR só autentica porque a API grava os cookies de sessão com `Domain=followw.app` (`COOKIE_DOMAIN` da API em produção): sem isso eles ficam presos a `api.followw.app`, não chegam ao servidor do front e o `/me` hidrata como `null` após o reload. Em dev não precisa, cookies de `localhost` valem para todas as portas.
 
 ```tsx
 import { useSuspenseQuery } from '@tanstack/react-query';
@@ -97,7 +98,6 @@ import { ApiError } from '#/queries/errors.ts';
 import { meQueryOptions } from '#/queries/me.ts';
 
 export const Route = createFileRoute('/')({
-    ssr: false,
     loader: async ({ context }) => {
         try {
             await context.queryClient.query(meQueryOptions);

@@ -23,27 +23,13 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
                 name: 'viewport',
                 content: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no'
             },
-            {
-                title: 'Followw — Portal Acadêmico UnB'
-            }
+            { name: 'description', content: 'O Followw é uma nova forma de usar o SIGAA UnB.' },
+            { title: 'Followw' }
         ],
         links: [
             {
-                rel: 'preconnect',
-                href: 'https://fonts.googleapis.com'
-            },
-            {
-                rel: 'preconnect',
-                href: 'https://fonts.gstatic.com',
-                crossOrigin: 'anonymous'
-            },
-            {
                 rel: 'stylesheet',
                 href: 'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap'
-            },
-            {
-                rel: 'stylesheet',
-                href: 'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200'
             },
             {
                 rel: 'stylesheet',
@@ -52,7 +38,6 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
         ]
     }),
     shellComponent: RootDocument,
-    // Layout no root para a navbar não remontar entre rotas (e animar a troca de aba).
     component: () => (
         <AppLayout>
             <Outlet />

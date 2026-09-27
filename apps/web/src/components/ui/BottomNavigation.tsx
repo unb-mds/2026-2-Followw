@@ -1,18 +1,19 @@
 import { Link, useLocation } from '@tanstack/react-router';
+import { House, Search, User, type LucideIcon, Utensils } from 'lucide-react';
 
 import { LiquidGlass } from '#/components/ui/LiquidGlass';
 
 interface NavItem {
     to: '/' | '/turmas' | '/ru' | '/perfil';
     label: string;
-    icon: string;
+    icon: LucideIcon;
 }
 
 const navItems: NavItem[] = [
-    { to: '/', label: 'Início', icon: 'home' },
-    { to: '/turmas', label: 'Turmas', icon: 'search' },
-    { to: '/ru', label: 'RU', icon: 'restaurant' },
-    { to: '/perfil', label: 'Perfil', icon: 'person' },
+    { to: '/', label: 'Início', icon: House },
+    { to: '/turmas', label: 'Turmas', icon: Search },
+    { to: '/ru', label: 'RU', icon: Utensils },
+    { to: '/perfil', label: 'Perfil', icon: User },
 ];
 
 const BAR_W = 296;
@@ -109,18 +110,15 @@ export const BottomNavigation: React.FC = () => {
                                 aria-label={item.label}
                                 aria-current={isActive ? 'page' : undefined}
                             >
-                                <span
-                                    className="material-symbols-outlined"
+                                <item.icon
+                                    size={20}
+                                    strokeWidth={isActive ? 2.5 : 2}
                                     style={{
-                                        fontSize: 23,
                                         color: isActive ? 'var(--color-primary-dark)' : 'var(--color-ink-soft)',
-                                        fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0",
                                         transform: isActive ? 'scale(1.1)' : 'scale(1)',
                                         transition: 'color 0.35s ease, transform 0.35s ease',
                                     }}
-                                >
-                                    {item.icon}
-                                </span>
+                                />
                             </Link>
                         );
                     })}

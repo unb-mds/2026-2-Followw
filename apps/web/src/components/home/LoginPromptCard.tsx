@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router';
+import { ArrowRight, Lock } from 'lucide-react';
 
 import { Card } from '#/components/ui/Card';
 
@@ -7,7 +8,7 @@ export const LoginPromptCard: React.FC = () => {
         <Card className="border-line bg-white p-5 shadow-sm">
             <div className="flex items-start gap-4">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-primary/30 bg-primary-light p-0.5 text-primary shadow-sm">
-                    <span className="material-symbols-outlined text-2xl">lock</span>
+                    <Lock className="size-6" />
                 </div>
 
                 <div className="flex-1">
@@ -15,17 +16,15 @@ export const LoginPromptCard: React.FC = () => {
                         Acesse com sua Matrícula UnB
                     </h3>
                     <p className="mt-1 text-xs leading-relaxed text-muted">
-                        Conecte-se com as credenciais do SIGAA para visualizar suas turmas, horários
-                        e notas em tempo real.
+                        Conecte-se sua conta do SIGAA para visualizar suas turmas, horários e notas.
                     </p>
 
                     <div className="mt-4 flex items-center gap-3">
                         <Link
                             to="/perfil"
-                            className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-primary-dark active:scale-95"
-                        >
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-primary-dark active:scale-95">
                             <span>Entrar com SIGAA</span>
-                            <span className="material-symbols-outlined text-lg">arrow_forward</span>
+                            <ArrowRight className="size-4" />
                         </Link>
                     </div>
                 </div>

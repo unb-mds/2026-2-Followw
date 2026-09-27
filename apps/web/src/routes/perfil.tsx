@@ -1,5 +1,6 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
+import { Check, Copy, LogOut, User } from 'lucide-react';
 import { useState } from 'react';
 
 import type { components } from '#/queries/schema.gen';
@@ -12,7 +13,6 @@ import { ApiError } from '#/queries/errors';
 import { meQueryOptions } from '#/queries/me';
 
 export const Route = createFileRoute('/perfil')({
-    ssr: false,
     loader: ({ context }) => context.queryClient.query(meQueryOptions),
     errorComponent: ErrorState,
     component: PerfilPage
@@ -48,7 +48,7 @@ function Profile({ user }: { user: components['schemas']['UserProfile'] }) {
                     />
                 ) : (
                     <div className="flex aspect-3/4 w-32 shrink-0 items-center justify-center rounded-2xl bg-white/70 text-primary shadow-lg ring-1 ring-white/80">
-                        <span className="material-symbols-outlined text-5xl">person</span>
+                        <User className="size-12" />
                     </div>
                 )}
                 <div className="min-w-0 pb-1">
@@ -106,7 +106,7 @@ function Profile({ user }: { user: components['schemas']['UserProfile'] }) {
                 onClick={() => logout.mutate({})}
                 className="mt-10 flex cursor-pointer items-center gap-2 text-sm font-bold text-muted transition hover:text-primary-dark disabled:opacity-60"
             >
-                <span className="material-symbols-outlined text-xl">logout</span>
+                <LogOut className="size-4" />
                 {logout.isPending ? 'Saindo...' : 'Sair'}
             </button>
         </section>
@@ -130,9 +130,7 @@ function CopyRegistration({ registration }: { registration: string }) {
             className="mt-2 inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-white/60 py-0.5 pr-2 pl-2.5 text-xs font-bold tracking-wide text-primary-dark transition hover:bg-white active:scale-95"
         >
             {registration}
-            <span className="material-symbols-outlined text-sm">
-                {copied ? 'check' : 'content_copy'}
-            </span>
+            {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
         </button>
     );
 }
@@ -152,7 +150,7 @@ function LoginForm() {
     return (
         <Card className="p-6">
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-primary/20 bg-primary-light text-primary">
-                <span className="material-symbols-outlined text-3xl">person</span>
+                <User className="size-7" />
             </div>
             <h3 className="mb-1 text-center text-lg font-bold text-ink">Entrar no Followw</h3>
             <p className="mb-5 text-center text-xs text-muted">

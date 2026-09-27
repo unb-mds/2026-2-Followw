@@ -12,7 +12,6 @@ import { classroomsQueryOptions } from '#/queries/classrooms';
 import { meQueryOptions } from '#/queries/me';
 
 export const Route = createFileRoute('/turmas')({
-    ssr: false,
     loader: async ({ context: { queryClient } }) => {
         const user = await queryClient.query(meQueryOptions);
         // erro das turmas é tratado na página, sem derrubar a rota

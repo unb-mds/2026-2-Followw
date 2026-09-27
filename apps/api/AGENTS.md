@@ -185,7 +185,11 @@ automáticos. Enums do banco são `str, enum.Enum` com
 **Settings.** `Settings` (`core/config.py`) lê `.env` via
 `pydantic-settings`. `cors_origins` (JSON, padrão `["https://followw.app"]`)
 lista as origens do front liberadas no CORS com credenciais; não use `*`, o
-browser recusa com cookies. É instanciado no import do módulo — qualquer coisa que
+browser recusa com cookies. `cookie_domain` (padrão `None`, host-only) é o
+`Domain` dos cookies de sessão; em produção é `followw.app`, para os cookies
+chegarem ao SSR do front. Gravação e remoção usam o mesmo valor, senão o logout
+não apaga o cookie; a remoção apaga também a variante host-only, de sessões
+gravadas antes do `cookie_domain`. É instanciado no import do módulo — qualquer coisa que
 precise de uma variável de ambiente diferente (como os testes) precisa setá-la
 **antes** do primeiro import de `api.core.config` (veja `tests/conftest.py`).
 

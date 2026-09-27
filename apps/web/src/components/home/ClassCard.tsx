@@ -1,3 +1,5 @@
+import { MapIcon, MapPin } from 'lucide-react';
+
 import { Card } from '#/components/ui/Card';
 
 export interface ClassCardProps {
@@ -63,9 +65,7 @@ export const ClassCard: React.FC<ClassCardProps> = ({
 
             <div className="flex items-center justify-between border-t border-line/60 pt-2 pl-1">
                 <div className="flex items-center gap-1.5 text-xs font-medium text-muted">
-                    <span className="material-symbols-outlined text-lg text-primary">
-                        location_on
-                    </span>
+                    <MapPin className="size-4 text-primary" />
                     <span>{location}</span>
                 </div>
                 {onLocationClick && (
@@ -78,7 +78,7 @@ export const ClassCard: React.FC<ClassCardProps> = ({
                         className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-line bg-surface text-muted transition hover:text-primary active:scale-95"
                         title="Ver mapa da sala"
                     >
-                        <span className="material-symbols-outlined text-lg">map</span>
+                        <MapIcon className="size-4" />
                     </button>
                 )}
             </div>

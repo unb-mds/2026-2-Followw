@@ -1,5 +1,6 @@
 import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
+import { ChevronDown } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import type { Day } from '#/lib/schedule';
@@ -27,12 +28,9 @@ const WEEKDAYS = [
 const MONTHS = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
 
 export const Route = createFileRoute('/')({
-    ssr: false,
     loader: async ({ context: { queryClient } }) => {
         const now = nowInBrasilia();
-        // o cardápio depende do campus do usuário
         const user = await queryClient.query(meQueryOptions);
-        // .catch(noop): falha nas turmas não derruba o cardápio
         await Promise.all([
             queryClient.query(menuQueryOptions({ date: now.date, user })).catch(noop),
             user && queryClient.query(classroomsQueryOptions).catch(noop)
@@ -43,7 +41,6 @@ export const Route = createFileRoute('/')({
     component: HomePage
 });
 
-// Parte do horário do loader e segue atualizando.
 function useNow() {
     const [now, setNow] = useState(Route.useLoaderData().now);
     useEffect(() => {
@@ -78,18 +75,15 @@ function HomePage() {
                     type="button"
                     onClick={() => setShowDaysSelector(!showDaysSelector)}
                     className="group flex cursor-pointer items-center gap-1 text-left select-none focus:outline-none"
-                    title={showDaysSelector ? 'Ocultar seletor de dias' : 'Exibir dias da semana'}
-                >
+                    title={showDaysSelector ? 'Ocultar seletor de dias' : 'Exibir dias da semana'}>
                     <h1 className="text-3xl leading-none font-bold tracking-tight text-ink transition-colors group-hover:text-primary">
                         {isToday ? 'Hoje' : WEEKDAYS[selectedDay.weekday]}
                     </h1>
-                    <span
-                        className={`material-symbols-outlined text-2xl text-muted transition-transform duration-200 group-hover:text-primary ${
+                    <ChevronDown
+                        className={`size-4 text-muted transition-transform duration-200 group-hover:text-primary ${
                             showDaysSelector ? 'rotate-180 text-primary' : ''
                         }`}
-                    >
-                        expand_more
-                    </span>
+                    />
                 </button>
             </HeaderBar>
 
@@ -106,20 +100,17 @@ function HomePage() {
                                     isActive
                                         ? 'bg-primary text-white shadow-md shadow-primary/30'
                                         : 'border border-line bg-white/80 text-muted hover:bg-white'
-                                }`}
-                            >
+                                }`}>
                                 <span
                                     className={`text-xs font-bold tracking-wider uppercase ${
                                         isActive ? 'text-white/90' : 'text-subtle'
-                                    }`}
-                                >
+                                    }`}>
                                     {MONTHS[Number(item.date.slice(5, 7)) - 1]}
                                 </span>
                                 <span
                                     className={`text-lg font-extrabold ${
                                         isActive ? 'text-white' : 'text-ink'
-                                    }`}
-                                >
+                                    }`}>
                                     {Number(item.date.slice(8))}
                                 </span>
                             </button>

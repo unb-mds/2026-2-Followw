@@ -1,5 +1,6 @@
 import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
+import { Coffee, Soup, UtensilsCrossed, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 
 import type { MenuSection } from '#/queries/restaurant';
@@ -13,13 +14,12 @@ import { meQueryOptions } from '#/queries/me';
 import { menuQueryOptions } from '#/queries/restaurant';
 
 const MEALS = [
-    { key: 'breakfast', label: 'Café da manhã', icon: 'coffee' },
-    { key: 'lunch', label: 'Almoço', icon: 'lunch_dining' },
-    { key: 'dinner', label: 'Jantar', icon: 'dinner_dining' }
+    { key: 'breakfast', label: 'Café da manhã', icon: Coffee },
+    { key: 'lunch', label: 'Almoço', icon: UtensilsCrossed },
+    { key: 'dinner', label: 'Jantar', icon: Soup }
 ] as const;
 
 export const Route = createFileRoute('/ru')({
-    ssr: false,
     loader: async ({ context: { queryClient } }) => {
         const user = await queryClient.query(meQueryOptions);
         await queryClient.query(menuQueryOptions({ date: nowInBrasilia().date, user })).catch(noop);
@@ -74,12 +74,12 @@ function RUPage() {
     );
 }
 
-function MealCard({ icon, sections }: { icon: string; sections: MenuSection[] }) {
+function MealCard({ icon: Icon, sections }: { icon: LucideIcon; sections: MenuSection[] }) {
     return (
         <Card>
             <div className="flex gap-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary-light text-primary">
-                    <span className="material-symbols-outlined text-xl">{icon}</span>
+                    <Icon className="size-5" />
                 </div>
                 <dl className="flex-1 space-y-1.5">
                     {sections.map((section) => (

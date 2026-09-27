@@ -59,8 +59,10 @@ def read_refresh_cookie(request: Request) -> Credentials | None:
 
 
 def clear_cookies(response: Response) -> None:
-    response.delete_cookie(ACCESS_COOKIE_NAME)
-    response.delete_cookie(REFRESH_COOKIE_NAME)
+    domains = {settings.cookie_domain, None}
+    for name in (ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME):
+        for domain in domains:
+            response.delete_cookie(name, domain=domain)
 
 
 def clear_cookies_headers() -> Headers:
@@ -126,6 +128,7 @@ def _set_cookie(
         secure=settings.environment == "production",
         samesite="lax",
         max_age=expire_minutes * 60,
+        domain=settings.cookie_domain,
     )
 
 
