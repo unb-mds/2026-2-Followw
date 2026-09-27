@@ -20,6 +20,9 @@ dependencies = [
 sigaa-client = { workspace = true }
 unb-browser = { workspace = true }
 
+[tool.vercel]
+entrypoint = "api.main:app"
+
 [project.scripts]
 api = "api:main"
 db-init = "api.db.main:db_init"

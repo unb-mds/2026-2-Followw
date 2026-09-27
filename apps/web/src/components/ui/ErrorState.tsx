@@ -1,4 +1,5 @@
 import { type ErrorComponentProps, useRouter } from '@tanstack/react-router';
+import { CloudOff } from 'lucide-react';
 
 import { ApiError } from '#/queries/errors';
 import { Card } from '#/components/ui/Card';
@@ -13,7 +14,7 @@ interface ErrorCardProps {
 
 export const ErrorCard: React.FC<ErrorCardProps> = ({ message, onRetry }) => (
     <Card className="p-6 text-center">
-        <span className="material-symbols-outlined text-3xl text-warning">cloud_off</span>
+        <CloudOff className="mx-auto size-8 text-warning" />
         <p className="mt-2 text-sm font-semibold text-ink">{message}</p>
         <button
             type="button"

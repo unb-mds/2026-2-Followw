@@ -1,7 +1,6 @@
+.env*
+!.env.example
 __pycache__/
-*.pyc
-.env
-.venv/
-.coverage
 *.local
 .playwright-mcp
+.vercel

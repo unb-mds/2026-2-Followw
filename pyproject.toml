@@ -1,8 +1,22 @@
+[project]
+name = "followw"
+version = "0.0.1"
+description = "O Followw é uma nova forma de usar o SIGAA UnB."
+requires-python = ">=3.14"
+dependencies = ["api", "unb-browser"]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+api = { workspace = true }
+unb-browser = { workspace = true }
+
 [tool.uv.workspace]
 members = ["apps/api", "packages/sigaa-client", "packages/unb-browser"]
 
 [dependency-groups]
-dev = ["pytest-cov>=7.0.0", "ruff>=0.16.6"]
+dev = ["pytest>=9.1.1", "pytest-asyncio>=1.4.0", "ruff>=0.16.6"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -11,11 +25,3 @@ testpaths = ["apps", "packages"]
 # viram o mesmo módulo `test_auth` no modo de import padrão.
 addopts = ["--import-mode=importlib"]
 
-[tool.coverage.run]
-branch = true
-source = ["apps/api/api", "packages/sigaa-client/sigaa_client", "packages/unb-browser/unb_browser"]
-
-[tool.coverage.report]
-skip_covered = false
-show_missing = true
-exclude_also = ["if TYPE_CHECKING:", "raise NotImplementedError"]

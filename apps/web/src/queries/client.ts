@@ -7,12 +7,6 @@ import { toApiError } from '#/queries/errors.ts';
 
 const baseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
 
-let requestCookies: string | undefined;
-
-export function setRequestCookies(cookies: string | undefined) {
-    requestCookies = cookies;
-}
-
 const getSsrCookie = createIsomorphicFn()
     .client(() => undefined)
     .server(async () => {
@@ -24,15 +18,24 @@ const getSsrCookie = createIsomorphicFn()
         }
     });
 
+const forwardSsrSetCookie = createIsomorphicFn()
+    .client((_cookies: string[]) => {})
+    .server(async (cookies: string[]) => {
+        const { setResponseHeader } = await import('@tanstack/react-start/server');
+        try {
+            setResponseHeader('set-cookie', cookies);
+        } catch {}
+    });
+
 const ssrCookiesMiddleware: Middleware = {
     async onRequest({ request }) {
-        if (typeof document === 'undefined') {
-            const cookie = requestCookies ?? (await getSsrCookie());
-            if (cookie) {
-                request.headers.set('cookie', cookie);
-            }
-        }
+        const cookie = await getSsrCookie();
+        if (cookie) request.headers.set('cookie', cookie);
         return request;
+    },
+    async onResponse({ response }) {
+        const cookies = response.headers.getSetCookie();
+        if (cookies.length) await forwardSsrSetCookie(cookies);
     }
 };
 
@@ -53,5 +56,5 @@ export const apiClient = createClient<paths>({
     credentials: 'include'
 });
 
-apiClient.use(ssrCookiesMiddleware);
 apiClient.use(errorHandlingMiddleware);
+apiClient.use(ssrCookiesMiddleware);

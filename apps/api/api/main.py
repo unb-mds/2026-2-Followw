@@ -1,4 +1,7 @@
+import logging
+
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.responses import HTMLResponse
 
@@ -9,6 +12,10 @@ from api.modules.jobs.main import router as jobs_router
 from api.modules.me.main import router as me_router
 from api.modules.news.main import router as news_router
 from api.modules.restaurant.main import router as restaurant_router
+
+# desativa logs "HTTP Request: ..." que o httpx emite pra cada chamada ao SIGAA
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 tags_metadata = [
     {
@@ -70,6 +77,14 @@ async def scalar_docs() -> HTMLResponse:
 
 if settings.environment == "production":
     app.add_middleware(HTTPSRedirectMiddleware)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 app.include_router(classrooms_router, prefix="/classrooms", tags=["Classrooms"])

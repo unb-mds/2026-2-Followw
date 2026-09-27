@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router';
+import { Utensils } from 'lucide-react';
 
 import type { Campus, DailyMenu, MenuSection } from '#/queries/restaurant';
 
@@ -35,9 +36,7 @@ export const PublicInfoSection: React.FC<PublicInfoSectionProps> = ({
                     <Card className="cursor-pointer transition-all hover:border-primary">
                         <div className="mb-2 flex items-center gap-3">
                             <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-primary/20 bg-primary-light text-primary">
-                                <span className="material-symbols-outlined text-xl">
-                                    restaurant
-                                </span>
+                                <Utensils className="size-5" />
                             </div>
                             <div>
                                 <h3 className="text-sm font-bold text-ink">Prato Principal Hoje</h3>

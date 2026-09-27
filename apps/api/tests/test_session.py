@@ -177,6 +177,45 @@ def test_clear_cookies_apaga_os_dois(ler_cookies):
     }
 
 
+def test_cookie_sem_domain_por_padrao(ler_cookies):
+    response = Response()
+    set_access_cookie(response, "app14~TOKEN1")
+    assert not ler_cookies(response)[ACCESS_COOKIE_NAME]["domain"]
+
+
+def test_cookie_domain_vale_para_os_dois_cookies(
+    ler_cookies, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setattr(settings, "cookie_domain", "followw.app")
+
+    response = Response()
+    set_access_cookie(response, "app14~TOKEN1")
+    set_refresh_cookie(response, CREDENCIAIS)
+    assert {m["domain"] for m in ler_cookies(response).values()} == {"followw.app"}
+
+
+def test_clear_cookies_com_domain_apaga_tambem_os_host_only(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Sessões anteriores ao `cookie_domain` não podem sobreviver ao logout."""
+    monkeypatch.setattr(settings, "cookie_domain", "followw.app")
+
+    response = Response()
+    clear_cookies(response)
+
+    apagados = {
+        (valor.split("=", 1)[0], "Domain=followw.app" in valor)
+        for chave, valor in response.headers.items()
+        if chave == "set-cookie"
+    }
+    assert apagados == {
+        (ACCESS_COOKIE_NAME, True),
+        (ACCESS_COOKIE_NAME, False),
+        (REFRESH_COOKIE_NAME, True),
+        (REFRESH_COOKIE_NAME, False),
+    }
+
+
 # Chaves
 
 
