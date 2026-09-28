@@ -1,0 +1,30 @@
+/* Espaçamento personalizado para as abas de navegação do Scalar Docs */
+
+.scalar-header-tabs,
+.scalar-tabs,
+[role="tablist"],
+nav.tabs,
+header nav {
+  display: flex !important;
+  gap: 1.5rem !important;
+  align-items: center !important;
+}
+
+[role="tab"],
+.scalar-tabs-item,
+.scalar-tab,
+.scalar-header-tab,
+header nav a {
+  margin-left: 0.25rem !important;
+  margin-right: 0.25rem !important;
+  padding-left: 0.75rem !important;
+  padding-right: 0.75rem !important;
+}
+
+/* Espaço entre o título/logo "Followw UnB API" e a primeira aba */
+.scalar-header-brand,
+.brand,
+header > a:first-child,
+.scalar-logo {
+  margin-right: 2rem !important;
+}

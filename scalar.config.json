@@ -3,19 +3,86 @@
   "scalar": "2.0.0",
   "info": {
     "title": "Followw UnB API",
-    "description": "API alternativa e cliente assíncrono para o ecossistema da UnB / SIGAA"
+    "description": "Cliente alternativo e open-source para o ecossistema de sistemas da Universidade de Brasília (UnB), com autenticação segura e stateless no SIGAA/CAS, sincronização assíncrona inteligente e integração com serviços do campus."
   },
   "siteConfig": {
-    "theme": "purple"
+    "theme": "purple",
+    "head": {
+      "styles": [
+        {
+          "path": "docs/assets/custom.css",
+          "tagPosition": "head"
+        }
+      ]
+    },
+    "routing": {
+      "redirects": [
+        {
+          "from": "/",
+          "to": "/docs"
+        },
+        {
+          "from": "/api",
+          "to": "/docs"
+        }
+      ]
+    }
   },
+  "assetsDir": "docs",
   "navigation": {
+    "tabs": [
+      {
+        "title": "API",
+        "to": "/docs",
+        "icon": "phosphor/regular/plug"
+      },
+      {
+        "title": "Arquitetura",
+        "to": "/arquitetura",
+        "icon": "phosphor/regular/buildings"
+      },
+      {
+        "title": "Requisitos Ágeis",
+        "to": "/requisitos",
+        "icon": "phosphor/regular/clipboard-text"
+      },
+      {
+        "title": "Segurança",
+        "to": "/seguranca",
+        "icon": "phosphor/regular/shield-check"
+      },
+      {
+        "title": "Sprints",
+        "to": "/sprints",
+        "icon": "phosphor/regular/kanban"
+      }
+    ],
     "routes": {
-      "/": {
+      "/docs": {
         "type": "openapi",
-        "title": "API Reference",
-        "url": "http://localhost:8000/openapi.json"
+        "title": "API",
+        "filepath": "docs/openapi.json"
+      },
+      "/arquitetura": {
+        "type": "page",
+        "title": "Arquitetura",
+        "filepath": "docs/arquitetura.md"
+      },
+      "/requisitos": {
+        "type": "page",
+        "title": "Requisitos Ágeis",
+        "filepath": "docs/requisitos.md"
+      },
+      "/seguranca": {
+        "type": "page",
+        "title": "Segurança",
+        "filepath": "docs/segurança.md"
+      },
+      "/sprints": {
+        "type": "page",
+        "title": "Sprints",
+        "filepath": "docs/assets/sprints.md"
       }
     }
   }
 }
-

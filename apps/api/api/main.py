@@ -42,7 +42,13 @@ tags_metadata = [
 
 app = FastAPI(
     title="Followw UnB API",
-    description="API pública e client assíncrono para o SIGAA / ecossistema UnB.",
+    description=(
+        "Cliente alternativo e open-source para o ecossistema de sistemas da Universidade "
+        "de Brasília (UnB). Agrega em uma experiência unificada e performática dados do "
+        "SIGAA, Restaurante Universitário (RU) e calendário oficial, com autenticação "
+        "stateless delegada ao CAS da UnB, credenciais cifradas em cookies JWE (AES-256-GCM), "
+        "sincronização assíncrona inteligente e cache resiliente via Stale-While-Revalidate."
+    ),
     version="0.1.0",
     docs_url=None,
     redoc_url=None,
