@@ -7,225 +7,142 @@ sigaa_client e guarda dados próprios em Postgres via SQLAlchemy assíncrono.
 
 ```
 api/
-  core/
-    config.py       # Settings (pydantic-settings), lido de .env
+  core/config.py        # Settings (pydantic-settings), lido de .env
   db/
-    base.py          # Base, UUIDPrimaryKeyMixin, TimestampMixin
-    enums.py          # enums do banco (str Enum)
-    models.py         # modelos SQLAlchemy
-    main.py           # engine, async_session, get_sessionmaker, get_db, db-init
+    base.py             # Base, UUIDPrimaryKeyMixin, TimestampMixin
+    enums.py            # enums do banco (str Enum)
+    models.py           # modelos SQLAlchemy
+    main.py             # engine, async_session, get_sessionmaker, get_db, db-init
   dependencies/
-    sigaa.py           # SigaaConnectionDep (preguiçosa) e SigaaClientDep
-    sigaa_public.py     # SigaaPublicClientDep — cliente público
-    unb_browser.py      # UnbBrowserDep — abre o UnbBrowser só quando a rota precisa do site
-    refresh.py          # RefreshQuery — `?refresh=true` que ignora o cache
+    sigaa.py            # SigaaConnectionDep (preguiçosa) e SigaaClientDep
+    sigaa_public.py     # SigaaPublicClientDep
+    unb_browser.py      # UnbBrowserDep, aberto só quando a rota precisa do site
+    refresh.py          # RefreshQuery (`?refresh=true` ignora o cache)
     qstash.py           # QStashQueue (JobQueueDep) e o job recebido (JobDep)
     sync.py             # SyncEngineDep e JobEngineDep
-  repositories/
-    user.py             # UserRepository e UserRepositoryDep
-    classroom.py        # ClassroomRepository e ClassroomRepositoryDep
-    restaurant.py       # RestaurantRepository (cache do cardápio do RU)
+  repositories/         # user, classroom, restaurant (cache do cardápio)
   services/
-    sync.py             # SyncEngine, Task, Job e JobQueue: cache e jobs do sync
+    sync.py             # SyncEngine, Task, Job, JobQueue e TTLs
     profile.py          # ProfileService (GET /me)
-    classroom.py        # ClassroomService (turmas, participantes, estatísticas)
+    classroom.py        # ClassroomService (turmas, participantes, estatísticas, frequência)
+    news.py             # NewsService
     restaurant.py       # RestaurantService (cardápio) e RestaurantAccountService (extrato e token)
-  modules/
-    <feature>/
-      main.py            # router da feature
-  utils/
-    session.py           # cookies de sessão criptografados (JWE) e derive_key (HKDF, também usada pelos jobs)
-  main.py                 # monta a FastAPI, registra os routers
+  modules/<feature>/main.py  # router da feature
+  utils/session.py      # cookies de sessão cifrados (JWE) e derive_key (HKDF)
+  main.py               # monta a FastAPI e registra os routers
 tests/
 ```
 
 ## Padrões
 
-**Módulos.** Uma pasta por feature em `modules/<feature>/main.py`, expondo um
-`APIRouter` chamado `router`. Registrado em `api/main.py` com
-`app.include_router(router, prefix="/<feature>", tags=["<feature>"])`. Não
-compartilhe router entre features.
+**Módulos.** Uma pasta por feature em `modules/<feature>/main.py`, com um
+`APIRouter` chamado `router`, registrado em `api/main.py`. Não compartilhe
+router entre features.
 
-**Sessão do SIGAA.** Não existe tabela de sessão: o token do SIGAA e as
-credenciais vivem em cookies `httponly` criptografados com JWE (`utils/session.py`):
-`dir` + `A256GCM`, uma chave por cookie derivada (HKDF) do `jwt_secret_key`, que
-precisa de 32+ caracteres. Quem copia o cookie do navegador não lê a senha nem o
-token. Na leitura só esse perfil passa: JWS, `zip`, outro `alg`/`enc` ou um
-cookie no lugar do outro viram `None`. `exp` vai cifrado e é obrigatório. Os testes de segurança dessa etapa ficam em `tests/test_session.py`.
-O client vem por `Depends` (`dependencies/`):
+**Sessão do SIGAA.** Não há tabela de sessão: token e credenciais vivem em
+cookies `httponly` cifrados com JWE (`dir` + `A256GCM`), uma chave por cookie
+derivada via HKDF do `jwt_secret_key` (32+ caracteres). `exp` vai cifrado e é
+obrigatório; qualquer outro formato (JWS, `zip`, outro `alg`/`enc`, cookie
+trocado) vira `None`. Testes em `tests/test_session.py`. Dependências:
 
-- `SigaaConnectionDep` — exige refresh cookie, mas só abre o `SigaaClient` em
-  `client()`. É um client só por requisição.
-- `SigaaClientDep` — o client já aberto, para rotas sem cache.
-- `SigaaPublicClientDep` — sem cookie, sem login.
+- `SigaaConnectionDep` — exige o refresh cookie, mas só abre o `SigaaClient` em
+  `client()` (um client por requisição).
+- `SigaaClientDep` — client já aberto, para rotas sem cache.
+- `SigaaPublicClientDep` — sem cookie nem login.
 
-Os dois cookies só renovam quando a requisição usa o SIGAA: cada
-`connection.client()` e cada relogin os regravam (substituindo, sem repetir o
-`Set-Cookie`), e se a chamada falhar a `HTTPException` os descarta. Resposta que
-sai do cache não renova nada, e o cache só é servido com um access_token válido;
-sem ele, o `SyncEngine` loga no SIGAA antes. Assim uma senha trocada desloga o
-usuário em até `access_token_expire_minutes`. `AuthenticationFailed` (senha
-recusada) vira 401 e apaga os dois cookies via `clear_cookies_headers()`;
-`SessionExpired` também é 401, mas mantém os cookies, porque a credencial ainda
-pode valer.
+Os cookies só renovam quando a requisição usa o SIGAA (`connection.client()` ou
+relogin os regravam, sem `Set-Cookie` duplicado; falha descarta). Resposta do
+cache não renova nada, e o cache só é servido com access_token válido — sem ele,
+o `SyncEngine` loga antes. Assim uma senha trocada desloga em até
+`access_token_expire_minutes`.
 
-**Erros do SIGAA viram `HTTPException`** (401 para credencial/sessão, 502 para o
-resto) nas próprias dependências. Nunca deixe exceção do `sigaa_client` vazar da
-rota.
+**Erros do SIGAA viram `HTTPException`** nas próprias dependências; nunca deixe
+exceção do `sigaa_client` vazar da rota. `AuthenticationFailed` → 401 e apaga os
+cookies (`clear_cookies_headers()`); `SessionExpired` → 401 mantendo os cookies;
+resto → 502.
 
 **Services e cache.** Rota não fala com repository nem com SIGAA: chama um
-service (`services/`), que resolve o dado por `SyncEngine.resolve(task, load)`
-(stale-while-revalidate). O cache é lido pelo `load` (ou `SyncEngine.read`),
-numa sessão própria que fecha antes de ir ao SIGAA: services não usam a sessão
-`get_db` da requisição. Sem cache ou com `refresh`, a `Task` roda antes da
-resposta e o `load` relê o cache; vencido, o cache sai na hora e a `Task` vira
-um `Job` na fila. Se outro sync vencer todas as tentativas de gravar, o `load`
-relê o que ele gravou; sem nada no cache ainda, a resposta é 503. Nas telas de
-turma, o service passa o vínculo já lido (`link=`) para o engine não relê-lo.
-Cada `Task` busca e grava no engine, então as regras de
-revalidação e os TTLs ficam em `services/sync.py`. Todo dado novo do SIGAA que
-vale cache segue esse caminho: uma `Task` no engine e um `load` no service.
+service, que resolve o dado com `SyncEngine.resolve(task, load)`
+(stale-while-revalidate). O `load` (ou `SyncEngine.read`) lê o cache numa sessão
+própria, fechada antes de ir ao SIGAA; services não usam o `get_db` da
+requisição.
+- Sem cache ou com `refresh`: a `Task` roda antes da resposta e o `load` relê.
+- Cache vencido: sai na hora e a `Task` vira um `Job` na fila.
+- Se outro sync vencer todas as tentativas de gravar, relê o que ele gravou;
+  sem nada no cache, 503.
 
-**Notícias.** `/news`, `/classrooms/{id}/news` e `/classrooms/{id}/news/{news_id}` usam `NewsService` com
-`SigaaClientDep`, sem banco, fila ou cache (`Cache-Control: no-store`). A rota
-por turma lê só o portal (`list_current_classrooms`) para traduzir o `sigaa_id`
-e preencher `classroom_sigaa_id`; quem confere se a turma é do usuário é o
-próprio client, com `ClassroomNotFound` (404) quando ela não está no histórico.
-As respostas são
-as listagens do scraper: notícias recentes da home ou títulos e datas da turma;
-texto completo em Markdown, horário e anexos vêm da rota de detalhe, que
-confere também se a notícia está na listagem da turma antes de abri-la.
+Cada `Task` busca e grava no engine; regras de revalidação e TTLs ficam em
+`services/sync.py`. Nas telas de turma, o service passa o vínculo já lido
+(`link=`). Todo dado novo do SIGAA que vale cache segue esse caminho.
 
-**Frequência.** Como `/members` e `/statistics`,
-`/classrooms/{classroom_id}/frequency` aceita o hash `id` ou o `sigaa_id`
-(`ClassroomService._link`), sempre conferindo o vínculo do usuário. `/classrooms/frequency`
-reúne as turmas atuais (mesma seleção de `/classrooms`), em ordem de disciplina,
-com `classroom`, `progress` e `frequency`. Sem lançamentos, `frequency` é `null`;
-`frequency_status` informa se não há lançamentos, se são parciais ou se todas
-as entradas publicadas estão registradas. O `frequency.summary` conta apenas
-as entradas do mapa e as faltas explícitas, sem reinterpretar os totais do SIGAA.
-Esses campos são calculados pelo client inclusive para dados já em cache.
-`classroom.subject.sigaa_id` pode ser `null`: a listagem privada não fornece
-o ID interno da disciplina. Para consultar a turma use `classroom.sigaa_id` ou `id`.
-sem turmas atuais, a lista é vazia. Uma falha não omite silenciosamente a turma:
-o agregado retorna erro. As leituras do SIGAA são sequenciais na mesma sessão.
-O cache é individual: `classroom_frequencies` referencia `user_classrooms.id`,
-nunca só a turma, e é removido com o vínculo. `Task.FREQUENCY` usa o SyncEngine,
-TTL de detalhes (24h nas atuais, sem vencimento nas antigas) e `refresh=true`.
-O refresh agregado também atualiza a lista de turmas. A frequência é buscada
-sob demanda, sem novos jobs no login. As respostas têm `Cache-Control: no-store`
-para impedir cache HTTP compartilhado; o cache interno continua ativo.
-Crie a nova tabela com `uv run db-init`; não é preciso recriar o banco.
+**Jobs (QStash).** Nada roda depois da resposta (na Vercel a função pode parar).
+O `SyncEngine` só conhece a `JobQueue`; a `QStashQueue` publica cada `Job` no
+QStash, que entrega em `POST /jobs` (`modules/jobs`): confere `Upstash-Signature`,
+decifra e chama `SyncEngine.run`.
 
-**Restaurante.** `/restaurant/menu` é público, usa `UnbBrowserDep` e aceita
-`campus` (`Darcy`, `Gama`, `Ceilandia`, `Planaltina`, `Fazenda`, padrão `Darcy`)
-e `refresh`. Datas: `date` para um dia ou `start_date`/`end_date` para intervalo
-inclusivo, sem combinar os dois modos. Com só um limite, o outro completa 7
-dias; sem nenhuma data, devolve a semana atual (segunda a domingo, horário de
-Brasília). O banco só lê as linhas do intervalo, mas o cache mantém todos os
-dias publicados.
-`meal` aceita `breakfast`, `lunch` ou `dinner`: cada dia mantém a data e apenas
-a refeição escolhida (ou `null`, se ausente). Sem `meal`, mantém todas as refeições.
-`RestaurantService` guarda em
-`restaurant_menus` uma linha por campus e dia, com
-colunas JSON `breakfast`, `lunch` e `dinner` e o `synced_at`, válido por 24h.
-Cada sync atualiza a linha de cada dia (ou insere, se nova). A validade usa o `synced_at` mais
-recente do campus, e a resposta do sync é relida do que foi gravado. Grava antes
-de responder, sem jobs. Cardápio vazio não gera linha, então não fica em cache.
-Sessões do banco fecham antes da consulta ao site; erros
-de leitura/gravação não impedem servir o cardápio obtido do RU. Com o cache
-vencido e o RU fora do ar, serve o cache vencido do intervalo; sem linhas no
-intervalo (ou com `refresh`), 502. O `MENU_TTL` fica em `services/sync.py`.
-O browser só abre se o cache não resolver.
-`/restaurant/statement` e `/restaurant/token` usam `RestaurantAccountService`
-com `SigaaClientDep`, sem banco/fila e com `Cache-Control: no-store`. A API repassa
-o `RestaurantStatement` montado pelo `sigaa-client`, que infere saldo e grupo
-(1/2/3) pelas entradas mais recentes que os informam. Sem esses dados, devolve
-`null`, nunca presume grupo ou saldo.
-
-**Jobs (QStash).** Nada roda depois da resposta no processo da API (na Vercel a
-função pode parar): o `SyncEngine` só conhece a `JobQueue`, e a `QStashQueue`
-(`dependencies/qstash.py`) publica cada `Job` no QStash, que o entrega em
-`POST /jobs` (`modules/jobs`). A rota confere a assinatura (`Upstash-Signature`),
-decifra o job e chama `SyncEngine.run`. Decisões:
-
-- O job leva só o token da sessão do SIGAA, nunca a senha, e vai cifrado
-  (Fernet, chave de `derive_key`). Sem senha não há relogin:
-  `SessionExpired` descarta o job (204) e o próximo acesso agenda outro. Erro
-  passageiro do SIGAA devolve 502 e o QStash tenta de novo.
-- Um job por vez por usuário (flow control `sigaa-<matrícula>`, parallelism 1),
-  para os jobs não disputarem a sessão do SIGAA entre si. As requisições do
-  próprio usuário usam a mesma sessão e ficam fora do flow control: quem segura
-  a troca de turma é o `sigaa_client`, que reabre a turma se outro uso da sessão
-  a trocou no meio da leitura.
-- A mesma `Job.key` na mesma sessão, publicada em até 10 minutos, é descartada
-  (deduplicação do QStash, em hash: o QStash recusa ':'). O token entra na
-  chave para o job de uma sessão nova não cair na deduplicação do job que
-  morreu com a anterior.
+- O job leva só o token da sessão, nunca a senha, cifrado com Fernet
+  (`derive_key`). Sem relogin: `SessionExpired` → 204 (descarta; o próximo
+  acesso reagenda). Erro passageiro → 502 (QStash tenta de novo).
+- Um job por vez por usuário (flow control `sigaa-<matrícula>`, parallelism 1).
+  Requisições do usuário ficam fora; o `sigaa_client` reabre a turma se outro
+  uso da sessão a trocou no meio da leitura.
+- Deduplicação: mesma `Job.key` na mesma sessão em até 10 min é descartada. A
+  chave é hasheada (QStash recusa ':') e inclui o token, para sessão nova não
+  cair na dedup da anterior.
 - Um `AsyncQStash` por requisição (`get_job_queue`), fechado no fim: o pool do
-  httpx fica preso ao event loop que o abriu.
+  httpx fica preso ao event loop.
 - O sync do login (`Task.ACCOUNT`) grava perfil e turmas e publica um job por
-  tela de turma vencida: o sync inteiro não cabe numa requisição só.
-- Falhar ao publicar não derruba a requisição: só vai para o log.
+  tela de turma vencida.
+- Falha ao publicar só vai para o log.
 
-**Repositories.** Consultas e gravações ficam em `repositories/`, recebem
-`AsyncSession` e não fazem commit (quem faz é o `SyncEngine`). Como usuários,
-turmas e participantes são identificados e mesclados está em
+**Repositories.** Recebem `AsyncSession` e não fazem commit (o `SyncEngine`
+faz). Identificação e mescla de usuários, turmas e participantes estão em
 `repositories/classroom.py` e `repositories/user.py`. Não persista credenciais.
-Participantes são gravados em lote (`save_members`): uma turma pode ter milhares,
-então os usuários são lidos de uma vez e casados em memória (`_UserIndex`), sem
-consulta nem flush por participante.
+`save_members` grava em lote: usuários lidos de uma vez e casados em memória
+(`_UserIndex`), sem consulta nem flush por participante (turmas podem ter
+milhares).
 
-**Modelos SQLAlchemy.** Toda tabela herda `Base, UUIDPrimaryKeyMixin,
-TimestampMixin` (`db/base.py`): id é UUID, `created_at`/`updated_at`
-automáticos. Enums do banco são `str, enum.Enum` com
-`values_callable=lambda e: [m.value for m in e]`, para o valor do banco ser o
-`.value` do enum, não o nome do membro.
+**Modelos.** Toda tabela herda `Base, UUIDPrimaryKeyMixin, TimestampMixin`
+(id UUID, `created_at`/`updated_at` automáticos). Enums do banco são
+`str, enum.Enum` com `values_callable=lambda e: [m.value for m in e]`, para
+gravar o `.value`.
 
-**Settings.** `Settings` (`core/config.py`) lê `.env` via
-`pydantic-settings`. `cors_origins` (JSON, padrão `["https://followw.app"]`)
-lista as origens do front liberadas no CORS com credenciais; em desenvolvimento
-e testes, `http://localhost:3000` é incluído automaticamente. Não use `*`, o
-browser recusa com cookies. `cookie_domain` (padrão `None`, host-only) é o
-`Domain` dos cookies de sessão; em produção é `followw.app`, para os cookies
-chegarem ao SSR do front. Gravação e remoção usam o mesmo valor, senão o logout
-não apaga o cookie; a remoção apaga também a variante host-only, de sessões
-gravadas antes do `cookie_domain`. É instanciado no import do módulo — qualquer coisa que
-precise de uma variável de ambiente diferente (como os testes) precisa setá-la
-**antes** do primeiro import de `api.core.config` (veja `tests/conftest.py`).
+**Settings.** `core/config.py`, lido de `.env` e instanciado no import: env
+diferente (como nos testes) precisa ser setada **antes** do primeiro import de
+`api.core.config` (veja `tests/conftest.py`).
 
 ## Criando um novo módulo/rota
 
 1. Crie `api/modules/<feature>/main.py` com `router = APIRouter()`.
-2. Declare as rotas nele; use `SigaaClientDep`/`SigaaPublicClientDep` se
-   precisar do SIGAA, `Annotated[AsyncSession, Depends(get_db)]` se precisar
-   do banco.
+2. Use `SigaaClientDep`/`SigaaPublicClientDep` para o SIGAA e
+   `Annotated[AsyncSession, Depends(get_db)]` para o banco.
 3. Registre em `api/main.py`:
    `app.include_router(router, prefix="/<feature>", tags=["<feature>"])`.
-4. Se a feature usa tabela nova, modele em `db/models.py` (mixins acima) e
-   rode `db-init`. `create_tables` só cria o que falta: mudança em tabela
-   existente exige recriar o banco (ainda não há migrations).
-5. Dados do SIGAA que valem cache passam por um service com
-   `SyncEngine.resolve` (acima), não pela rota.
-6. Teste com `respx` mockando `sigaa.unb.br`/`autenticacao.unb.br` (abaixo).
+4. Tabela nova vai em `db/models.py` (mixins acima) e `uv run db-init`.
+   `create_tables` só cria o que falta: alterar tabela existente exige recriar o
+   banco (não há migrations).
+5. Dados do SIGAA que valem cache passam por um service com `SyncEngine.resolve`.
+6. Teste com `respx` mockando `sigaa.unb.br`/`autenticacao.unb.br`.
 
 ## Testes
 
-Fixtures em `tests/conftest.py`: `client` já usa um SQLite por teste
-(`database` para preparar/conferir o banco), `sigaa` simula o SIGAA via respx e
-`stub_sigaa` troca só o `SigaaClient` por `AsyncMock`s (`created` conta os
-clients abertos). `qstash` intercepta a API do QStash e guarda o que foi
-publicado (`published`); o `client` entrega esses jobs em `POST /jobs`,
-assinados, antes de devolver a resposta (`deliveries` guarda o resultado).
+Fixtures em `tests/conftest.py`:
+- `client` — usa um SQLite por teste (`database` prepara/confere o banco) e
+  entrega os jobs publicados em `POST /jobs`, assinados, antes de devolver a
+  resposta (`deliveries` guarda o resultado).
+- `sigaa` — simula o SIGAA via respx.
+- `stub_sigaa` — troca só o `SigaaClient` por `AsyncMock`s (`created` conta os
+  clients abertos).
+- `qstash` — intercepta a API do QStash (`published`).
 
 ## Comandos
 
 ```fish
-uv run pytest apps/api      # só os testes da api (da raiz do monorepo)
-docker compose up -d db      # sobe o Postgres local (compose.yml da raiz)
-npx --allow-scripts=@upstash/qstash-cli @upstash/qstash-cli dev   # QStash local (o npm 12 só baixa o binário com --allow-scripts)
-uv run db-init                # cria as tabelas (schema mudou? recrie o banco)
-uv run api                     # sobe a api em dev (reload on)
+uv run pytest apps/api       # testes da api (da raiz do monorepo)
+docker compose up -d db      # Postgres local (compose.yml da raiz)
+bunx @upstash/qstash-cli dev # QStash local
+uv run db-init               # cria as tabelas
+uv run api                   # api em dev (reload on)
 ```
 
 Requer `apps/api/.env` com `database_url`, `jwt_secret_key`, `public_url` e as
