@@ -30,7 +30,9 @@ export const BottomNavigation: React.FC = () => {
     const location = useLocation();
     // Ignora a barra final (`/turmas/`); fora das abas a bolha some em vez de sair da barra.
     const pathname = location.pathname.replace(/(.)\/$/, '$1');
-    const activeIndex = navItems.findIndex((item) => item.to === pathname);
+    const activeIndex = navItems.findIndex(
+        (item) => item.to === pathname || (item.to === '/turmas' && pathname.startsWith('/turmas/'))
+    );
 
     return (
         <nav

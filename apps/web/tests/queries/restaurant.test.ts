@@ -38,4 +38,12 @@ describe('menuQueryOptions', () => {
             params: { query: { campus: 'Darcy', date } }
         });
     });
+
+    test('separa o cache por dia e campus selecionados', () => {
+        const current = menuQueryOptions({ campus: 'Darcy', date }).queryKey;
+        expect(menuQueryOptions({ campus: 'Gama', date }).queryKey).not.toEqual(current);
+        expect(menuQueryOptions({ campus: 'Darcy', date: '2026-09-27' }).queryKey).not.toEqual(
+            current
+        );
+    });
 });

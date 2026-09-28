@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as RuRouteImport } from './routes/ru'
 import { Route as TurmasRouteImport } from './routes/turmas'
+import { Route as TurmasIdRouteImport } from './routes/turmas_.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,18 +35,25 @@ const TurmasRoute = TurmasRouteImport.update({
   path: '/turmas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TurmasIdRoute = TurmasIdRouteImport.update({
+  id: '/turmas_/$id',
+  path: '/turmas/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/perfil': typeof PerfilRoute
   '/ru': typeof RuRoute
   '/turmas': typeof TurmasRoute
+  '/turmas/$id': typeof TurmasIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/perfil': typeof PerfilRoute
   '/ru': typeof RuRoute
   '/turmas': typeof TurmasRoute
+  '/turmas/$id': typeof TurmasIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +61,14 @@ export interface FileRoutesById {
   '/perfil': typeof PerfilRoute
   '/ru': typeof RuRoute
   '/turmas': typeof TurmasRoute
+  '/turmas_/$id': typeof TurmasIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/perfil' | '/ru' | '/turmas'
+  fullPaths: '/' | '/perfil' | '/ru' | '/turmas' | '/turmas/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/perfil' | '/ru' | '/turmas'
-  id: '__root__' | '/' | '/perfil' | '/ru' | '/turmas'
+  to: '/' | '/perfil' | '/ru' | '/turmas' | '/turmas/$id'
+  id: '__root__' | '/' | '/perfil' | '/ru' | '/turmas' | '/turmas_/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,6 +76,7 @@ export interface RootRouteChildren {
   PerfilRoute: typeof PerfilRoute
   RuRoute: typeof RuRoute
   TurmasRoute: typeof TurmasRoute
+  TurmasIdRoute: typeof TurmasIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -99,6 +109,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TurmasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/turmas_/$id': {
+      id: '/turmas_/$id'
+      path: '/turmas/$id'
+      fullPath: '/turmas/$id'
+      preLoaderRoute: typeof TurmasIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -107,6 +124,7 @@ const rootRouteChildren: RootRouteChildren = {
   PerfilRoute: PerfilRoute,
   RuRoute: RuRoute,
   TurmasRoute: TurmasRoute,
+  TurmasIdRoute: TurmasIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

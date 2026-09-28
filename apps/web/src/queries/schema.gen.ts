@@ -74,6 +74,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    '/classrooms/frequency': {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Consultar frequência de todas as turmas atuais
+         * @description Turmas atuais com identificação, andamento, frequência, frequency_status e resumo das entradas. Falha em uma turma retorna erro, sem omiti-la da lista.
+         */
+        get: operations['get_current_frequencies_classrooms_frequency_get'];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    '/classrooms/{classroom_id}/frequency': {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Consultar frequência e andamento de uma turma
+         * @description Aceita Classroom.id (hash) ou sigaa_id numérico. frequency_status indica not_registered, partially_registered ou registered nas entradas publicadas.
+         */
+        get: operations['get_classroom_frequency_classrooms__classroom_id__frequency_get'];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     '/classrooms/{classroom_id}/members': {
         parameters: {
             query?: never;
@@ -204,6 +244,44 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
+         * AttendanceEntry
+         * @description Uma aula do mapa de frequências. `absences` é 0 fora da situação de falta.
+         */
+        AttendanceEntry: {
+            /**
+             * Occurred On
+             * Format: date
+             */
+            occurred_on: string;
+            status: components['schemas']['AttendanceStatus'];
+            /**
+             * Absences
+             * @default 0
+             */
+            absences: number;
+        };
+        /**
+         * AttendanceStatus
+         * @enum {string}
+         */
+        AttendanceStatus: 'presente' | 'falta' | 'nao_registrada';
+        /**
+         * AttendanceSummary
+         * @description Contagens das entradas publicadas, sem presumir duração de cada aula.
+         */
+        AttendanceSummary: {
+            /** Total Entries */
+            total_entries: number;
+            /** Recorded Entries */
+            recorded_entries: number;
+            /** Unrecorded Entries */
+            unrecorded_entries: number;
+            /** Absence Entries */
+            absence_entries: number;
+            /** Total Absences */
+            total_absences: number;
+        };
+        /**
          * Classroom
          * @description Turma, nos campos da tabela `classrooms`.
          *
@@ -233,6 +311,60 @@ export interface components {
             subject: components['schemas']['Subject'];
         };
         /**
+         * ClassroomAttendance
+         * @description Mapa de frequências da turma, com os totais que o próprio SIGAA calcula.
+         *
+         *     Totais e porcentagens são os valores exibidos pelo SIGAA; eles podem
+         *     incluir aulas ainda não registradas. `summary` conta apenas as entradas
+         *     publicadas, sem confundir quantidade de datas com carga horária.
+         */
+        ClassroomAttendance: {
+            /**
+             * Entries
+             * @default []
+             */
+            entries: components['schemas']['AttendanceEntry'][];
+            /** Attended */
+            attended: number;
+            /** Registered */
+            registered: number;
+            /** Registered Percentage */
+            registered_percentage: number;
+            /** Total */
+            total: number;
+            /** Total Percentage */
+            total_percentage: number;
+            readonly summary: components['schemas']['AttendanceSummary'];
+        };
+        /**
+         * ClassroomFrequency
+         * @description A tela de frequência da turma virtual.
+         *
+         *     `frequency` é `None` quando o docente não lançou frequência — nesse caso o
+         *     SIGAA ainda mostra totais na tela, mas eles são fictícios (100% de presença
+         *     em toda a carga horária), então não são devolvidos.
+         */
+        ClassroomFrequency: {
+            progress: components['schemas']['ClassroomProgress'];
+            frequency?: components['schemas']['ClassroomAttendance'] | null;
+            /**
+             * Frequency Status
+             * @enum {string}
+             */
+            readonly frequency_status: 'not_registered' | 'partially_registered' | 'registered';
+        };
+        /** ClassroomFrequencyResult */
+        ClassroomFrequencyResult: {
+            progress: components['schemas']['ClassroomProgress'];
+            frequency?: components['schemas']['ClassroomAttendance'] | null;
+            classroom: components['schemas']['Classroom'];
+            /**
+             * Frequency Status
+             * @enum {string}
+             */
+            readonly frequency_status: 'not_registered' | 'partially_registered' | 'registered';
+        };
+        /**
          * ClassroomMember
          * @description Participante de uma turma, nos campos da tabela `users` que a tela expõe.
          */
@@ -252,6 +384,18 @@ export interface components {
             unity?: string | null;
             /** Person Id */
             person_id?: number | null;
+        };
+        /**
+         * ClassroomProgress
+         * @description O "Andamento das Aulas" da turma virtual: quanto da CH já foi ministrada.
+         */
+        ClassroomProgress: {
+            /** Taught */
+            taught: number;
+            /** Total */
+            total: number;
+            /** Percentage */
+            percentage: number;
         };
         /**
          * ClassroomRole
@@ -689,6 +833,129 @@ export interface operations {
             };
         };
     };
+    get_current_frequencies_classrooms_frequency_get: {
+        parameters: {
+            query?: {
+                /** @description Ignora o cache: busca no SIGAA e atualiza o cache antes de responder. */
+                refresh?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['ClassroomFrequencyResult'][];
+                };
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Turma não encontrada entre as turmas do usuário. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['HTTPValidationError'];
+                };
+            };
+            /** @description SIGAA indisponível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Cache em atualização. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_classroom_frequency_classrooms__classroom_id__frequency_get: {
+        parameters: {
+            query?: {
+                /** @description Ignora o cache: busca no SIGAA e atualiza o cache antes de responder. */
+                refresh?: boolean;
+            };
+            header?: never;
+            path: {
+                /** @description Classroom.id ou Classroom.sigaa_id. */
+                classroom_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['ClassroomFrequency'];
+                };
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Turma não encontrada entre as turmas do usuário. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['HTTPValidationError'];
+                };
+            };
+            /** @description SIGAA indisponível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Cache em atualização. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     get_classroom_members_classrooms__classroom_id__members_get: {
         parameters: {
             query?: {
@@ -697,6 +964,7 @@ export interface operations {
             };
             header?: never;
             path: {
+                /** @description Classroom.id ou Classroom.sigaa_id. */
                 classroom_id: string;
             };
             cookie?: never;
@@ -752,6 +1020,7 @@ export interface operations {
             };
             header?: never;
             path: {
+                /** @description Classroom.id ou Classroom.sigaa_id. */
                 classroom_id: string;
             };
             cookie?: never;
