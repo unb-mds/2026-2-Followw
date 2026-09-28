@@ -75,7 +75,8 @@ function HomePage() {
                     type="button"
                     onClick={() => setShowDaysSelector(!showDaysSelector)}
                     className="group flex cursor-pointer items-center gap-1 text-left select-none focus:outline-none"
-                    title={showDaysSelector ? 'Ocultar seletor de dias' : 'Exibir dias da semana'}>
+                    title={showDaysSelector ? 'Ocultar seletor de dias' : 'Exibir dias da semana'}
+                >
                     <h1 className="text-3xl leading-none font-bold tracking-tight text-ink transition-colors group-hover:text-primary">
                         {isToday ? 'Hoje' : WEEKDAYS[selectedDay.weekday]}
                     </h1>
@@ -100,17 +101,20 @@ function HomePage() {
                                     isActive
                                         ? 'bg-primary text-white shadow-md shadow-primary/30'
                                         : 'border border-line bg-white/80 text-muted hover:bg-white'
-                                }`}>
+                                }`}
+                            >
                                 <span
                                     className={`text-xs font-bold tracking-wider uppercase ${
                                         isActive ? 'text-white/90' : 'text-subtle'
-                                    }`}>
+                                    }`}
+                                >
                                     {MONTHS[Number(item.date.slice(5, 7)) - 1]}
                                 </span>
                                 <span
                                     className={`text-lg font-extrabold ${
                                         isActive ? 'text-white' : 'text-ink'
-                                    }`}>
+                                    }`}
+                                >
                                     {Number(item.date.slice(8))}
                                 </span>
                             </button>

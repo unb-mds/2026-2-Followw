@@ -22,7 +22,8 @@ export const LoginPromptCard: React.FC = () => {
                     <div className="mt-4 flex items-center gap-3">
                         <Link
                             to="/perfil"
-                            className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-primary-dark active:scale-95">
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-primary-dark active:scale-95"
+                        >
                             <span>Entrar com SIGAA</span>
                             <ArrowRight className="size-4" />
                         </Link>
