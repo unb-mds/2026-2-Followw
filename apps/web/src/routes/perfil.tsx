@@ -1,6 +1,6 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { Check, Copy, LogOut, User } from 'lucide-react';
+import { Check, Copy, Eye, EyeOff, LogOut, User } from 'lucide-react';
 import { useState } from 'react';
 
 import type { components } from '#/queries/schema.gen';
@@ -139,6 +139,7 @@ function LoginForm() {
     const login = useLogin();
     const [registration, setRegistration] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
 
     const error =
         login.error instanceof ApiError && login.error.isUnauthorized
@@ -187,18 +188,34 @@ function LoginForm() {
                     <label htmlFor="password" className="mb-1 block text-xs font-bold text-ink">
                         Senha do SIGAA
                     </label>
-                    <input
-                        id="password"
-                        type="password"
-                        autoComplete="current-password"
-                        required
-                        minLength={6}
-                        maxLength={64}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className="w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm text-ink placeholder-subtle transition focus:border-primary focus:outline-none"
-                    />
+                    <div className="relative">
+                        <input
+                            id="password"
+                            type={showPassword ? 'text' : 'password'}
+                            autoComplete="current-password"
+                            required
+                            minLength={6}
+                            maxLength={64}
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="••••••••"
+                            className="w-full rounded-xl border border-line bg-white py-2.5 pr-12 pl-3.5 text-sm text-ink placeholder-subtle transition focus:border-primary focus:outline-none"
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword((visible) => !visible)}
+                            aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                            aria-controls="password"
+                            title={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                            className="absolute inset-y-0 right-0 flex w-11 cursor-pointer items-center justify-center rounded-r-xl text-muted transition hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                        >
+                            {showPassword ? (
+                                <Eye className="size-4" aria-hidden="true" />
+                            ) : (
+                                <EyeOff className="size-4" aria-hidden="true" />
+                            )}
+                        </button>
+                    </div>
                 </div>
 
                 {error && (
