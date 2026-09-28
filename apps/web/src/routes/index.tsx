@@ -1,5 +1,5 @@
 import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { ChevronDown } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -11,6 +11,7 @@ import { PublicInfoSection } from '#/components/home/PublicInfoSection';
 import { ErrorCard, ErrorState, SIGAA_DOWN_MESSAGE } from '#/components/ui/ErrorState';
 import { HeaderBar } from '#/components/ui/HeaderBar';
 import { SectionHeader } from '#/components/ui/SectionHeader';
+import { WeekDayPicker } from '#/components/ui/WeekDayPicker';
 import { classesOn, nowInBrasilia, weekDays } from '#/lib/schedule';
 import { classroomsQueryOptions } from '#/queries/classrooms';
 import { meQueryOptions } from '#/queries/me';
@@ -25,7 +26,6 @@ const WEEKDAYS = [
     'Sexta-feira',
     'Sábado'
 ];
-const MONTHS = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
 
 export const Route = createFileRoute('/')({
     loader: async ({ context: { queryClient } }) => {
@@ -51,6 +51,7 @@ function useNow() {
 }
 
 function HomePage() {
+    const navigate = useNavigate();
     const now = useNow();
     const days = weekDays(now.date);
     const [pickedDay, setPickedDay] = useState<Day | null>(null);
@@ -89,38 +90,11 @@ function HomePage() {
             </HeaderBar>
 
             {showDaysSelector && (
-                <div className="no-scrollbar mb-5 flex items-center gap-2 overflow-x-auto py-1">
-                    {days.map((item) => {
-                        const isActive = item.date === selectedDay.date;
-                        return (
-                            <button
-                                key={item.date}
-                                type="button"
-                                onClick={() => setPickedDay(item.date === now.date ? null : item)}
-                                className={`flex h-16.5 w-13.5 min-w-13.5 shrink-0 cursor-pointer flex-col items-center justify-center rounded-2xl transition-all active:scale-95 ${
-                                    isActive
-                                        ? 'bg-primary text-white shadow-md shadow-primary/30'
-                                        : 'border border-line bg-white/80 text-muted hover:bg-white'
-                                }`}
-                            >
-                                <span
-                                    className={`text-xs font-bold tracking-wider uppercase ${
-                                        isActive ? 'text-white/90' : 'text-subtle'
-                                    }`}
-                                >
-                                    {MONTHS[Number(item.date.slice(5, 7)) - 1]}
-                                </span>
-                                <span
-                                    className={`text-lg font-extrabold ${
-                                        isActive ? 'text-white' : 'text-ink'
-                                    }`}
-                                >
-                                    {Number(item.date.slice(8))}
-                                </span>
-                            </button>
-                        );
-                    })}
-                </div>
+                <WeekDayPicker
+                    days={days}
+                    selectedDate={selectedDay.date}
+                    onSelect={(day) => setPickedDay(day.date === now.date ? null : day)}
+                />
             )}
 
             {user ? (
@@ -152,6 +126,9 @@ function HomePage() {
                                             status === 'in_progress'
                                                 ? 'var(--color-live)'
                                                 : undefined
+                                        }
+                                        onClick={() =>
+                                            navigate({ to: '/turmas/$id', params: { id: item.id } })
                                         }
                                     />
                                 ))}

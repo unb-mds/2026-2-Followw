@@ -1,12 +1,11 @@
 import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 
 import { ClassCard } from '#/components/home/ClassCard';
 import { LoginPromptCard } from '#/components/home/LoginPromptCard';
 import { Card } from '#/components/ui/Card';
 import { ErrorCard, ErrorState, SIGAA_DOWN_MESSAGE } from '#/components/ui/ErrorState';
 import { HeaderBar } from '#/components/ui/HeaderBar';
-import { SectionHeader } from '#/components/ui/SectionHeader';
 import { describeSchedule } from '#/lib/schedule';
 import { classroomsQueryOptions } from '#/queries/classrooms';
 import { meQueryOptions } from '#/queries/me';
@@ -26,23 +25,24 @@ function TurmasPage() {
 
     return (
         <>
-            <HeaderBar />
+            <HeaderBar>
+                <h1 className="text-3xl leading-none font-bold tracking-tight text-ink">
+                    Minhas Turmas
+                </h1>
+            </HeaderBar>
             {user ? <Classrooms /> : <LoginPromptCard />}
         </>
     );
 }
 
 function Classrooms() {
+    const navigate = useNavigate();
     const { data: classrooms, isPending, isError, refetch } = useQuery(classroomsQueryOptions);
 
     if (isError) return <ErrorCard message={SIGAA_DOWN_MESSAGE} onRetry={() => refetch()} />;
 
     return (
         <>
-            <SectionHeader
-                title="Minhas Turmas"
-                badge={classrooms && `${classrooms.length} disciplinas`}
-            />
             {classrooms?.map((classroom) => (
                 <ClassCard
                     key={classroom.id}
@@ -51,6 +51,7 @@ function Classrooms() {
                     time={describeSchedule(classroom.schedule) ?? 'Horário a definir'}
                     location={classroom.room ?? 'Local não informado'}
                     professor={`Turma ${classroom.number} • ${classroom.semester}`}
+                    onClick={() => navigate({ to: '/turmas/$id', params: { id: classroom.id } })}
                 />
             ))}
             {(isPending || classrooms.length === 0) && (

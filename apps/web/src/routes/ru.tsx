@@ -1,17 +1,16 @@
 import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { Coffee, Soup, UtensilsCrossed, type LucideIcon } from 'lucide-react';
+import { ChevronDown, Coffee, Soup, UtensilsCrossed } from 'lucide-react';
 import { useState } from 'react';
 
-import type { MenuSection } from '#/queries/restaurant';
+import type { Campus, MenuSection } from '#/queries/restaurant';
 
-import { Card } from '#/components/ui/Card';
 import { ErrorState } from '#/components/ui/ErrorState';
 import { HeaderBar } from '#/components/ui/HeaderBar';
-import { SectionHeader } from '#/components/ui/SectionHeader';
-import { nowInBrasilia } from '#/lib/schedule';
+import { WeekDayPicker } from '#/components/ui/WeekDayPicker';
+import { nowInBrasilia, weekDays } from '#/lib/schedule';
 import { meQueryOptions } from '#/queries/me';
-import { menuQueryOptions } from '#/queries/restaurant';
+import { CAMPUS_LABELS, campusOf, menuQueryOptions } from '#/queries/restaurant';
 
 const MEALS = [
     { key: 'breakfast', label: 'Café da manhã', icon: Coffee },
@@ -19,40 +18,121 @@ const MEALS = [
     { key: 'dinner', label: 'Jantar', icon: Soup }
 ] as const;
 
+type MealKey = (typeof MEALS)[number]['key'];
+const CAMPUS_OPTIONS: Campus[] = ['Darcy', 'Gama', 'Ceilandia', 'Planaltina', 'Fazenda'];
+
 export const Route = createFileRoute('/ru')({
     loader: async ({ context: { queryClient } }) => {
+        const today = nowInBrasilia().date;
         const user = await queryClient.query(meQueryOptions);
-        await queryClient.query(menuQueryOptions({ date: nowInBrasilia().date, user })).catch(noop);
+        await queryClient.query(menuQueryOptions({ date: today, user })).catch(noop);
+        return { today };
     },
     errorComponent: ErrorState,
     component: RUPage
 });
 
 function RUPage() {
-    const [today] = useState(() => nowInBrasilia().date);
+    const { today } = Route.useLoaderData();
+    const [selectedDate, setSelectedDate] = useState(today);
+    const [showFilters, setShowFilters] = useState(false);
+    const [selectedMeal, setSelectedMeal] = useState<MealKey>('lunch');
     const { data: user } = useSuspenseQuery(meQueryOptions);
-    const { data, isPending, isError, refetch } = useQuery(menuQueryOptions({ date: today, user }));
+    const [pickedCampus, setPickedCampus] = useState<Campus | null>(null);
+    const campus = pickedCampus ?? campusOf(user?.unity);
+    const { data, isPending, isError, refetch } = useQuery(
+        menuQueryOptions({ date: selectedDate, campus })
+    );
     const menu = data?.[0];
-    const meals = MEALS.filter((meal) => menu?.[meal.key]?.length);
+    const meal = MEALS.find((item) => item.key === selectedMeal) ?? MEALS[1];
+    const sections = menu?.[selectedMeal] ?? [];
 
     return (
         <>
             <HeaderBar>
-                <h1 className="text-3xl leading-none font-bold tracking-tight text-ink">
-                    Cardápio
-                </h1>
+                <button
+                    type="button"
+                    onClick={() => setShowFilters(!showFilters)}
+                    aria-expanded={showFilters}
+                    className="group flex cursor-pointer items-center gap-1 text-left select-none focus:outline-none"
+                    title={showFilters ? 'Ocultar dia e campus' : 'Escolher dia e campus'}
+                >
+                    <h1 className="text-3xl leading-none font-bold tracking-tight text-ink transition-colors group-hover:text-primary">
+                        Cardápio
+                    </h1>
+                    <ChevronDown
+                        className={`size-4 text-muted transition-transform duration-200 group-hover:text-primary ${
+                            showFilters ? 'rotate-180 text-primary' : ''
+                        }`}
+                    />
+                </button>
             </HeaderBar>
 
-            <div className="space-y-5">
-                {meals.map((meal) => (
-                    <div key={meal.key}>
-                        <SectionHeader title={meal.label} />
-                        <MealCard icon={meal.icon} sections={menu?.[meal.key] ?? []} />
-                    </div>
-                ))}
+            {showFilters && (
+                <div>
+                    <WeekDayPicker
+                        days={weekDays(today)}
+                        selectedDate={selectedDate}
+                        onSelect={(day) => setSelectedDate(day.date)}
+                    />
 
-                {meals.length === 0 && (
-                    <Card className="p-6 text-center text-sm text-muted">
+                    <div className="relative mb-5">
+                        <label
+                            htmlFor="menu-campus"
+                            className="mb-1 block px-1 text-xs font-bold text-muted"
+                        >
+                            Campus
+                        </label>
+                        <select
+                            id="menu-campus"
+                            value={campus}
+                            onChange={(event) => {
+                                const selected = CAMPUS_OPTIONS.find(
+                                    (option) => option === event.target.value
+                                );
+                                if (selected) setPickedCampus(selected);
+                            }}
+                            className="w-full cursor-pointer appearance-none rounded-xl border border-line bg-white/80 px-4 py-3 pr-10 text-sm font-bold text-ink shadow-sm outline-none focus:border-primary"
+                        >
+                            {CAMPUS_OPTIONS.map((option) => (
+                                <option key={option} value={option}>
+                                    {CAMPUS_LABELS[option]}
+                                </option>
+                            ))}
+                        </select>
+                        <ChevronDown
+                            className="pointer-events-none absolute top-9 right-3 size-4 text-muted"
+                            aria-hidden="true"
+                        />
+                    </div>
+                </div>
+            )}
+
+            <div className="grid grid-cols-3 gap-2" aria-label="Escolher refeição">
+                {MEALS.map((item) => (
+                    <button
+                        key={item.key}
+                        type="button"
+                        aria-pressed={selectedMeal === item.key}
+                        onClick={() => setSelectedMeal(item.key)}
+                        className={[
+                            'flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border px-1 py-3 text-xs font-bold transition-colors',
+                            selectedMeal === item.key
+                                ? 'border-primary bg-primary text-white shadow-sm'
+                                : 'border-line bg-white/80 text-muted hover:border-primary hover:text-primary-dark'
+                        ].join(' ')}
+                    >
+                        <item.icon className="size-5" aria-hidden="true" />
+                        {item.label}
+                    </button>
+                ))}
+            </div>
+
+            <section className="mt-6" aria-label={meal.label}>
+                {sections.length > 0 ? (
+                    <MealDetails sections={sections} />
+                ) : (
+                    <p className="px-1 text-sm text-muted">
                         {isPending && 'Carregando cardápio...'}
                         {isError && (
                             <>
@@ -66,30 +146,38 @@ function RUPage() {
                                 </button>
                             </>
                         )}
-                        {!isPending && !isError && 'Cardápio de hoje não publicado.'}
-                    </Card>
+                        {!isPending &&
+                            !isError &&
+                            'Cardápio de hoje não publicado para esta refeição.'}
+                    </p>
                 )}
-            </div>
+            </section>
         </>
     );
 }
 
-function MealCard({ icon: Icon, sections }: { icon: LucideIcon; sections: MenuSection[] }) {
+function MealDetails({ sections }: { sections: MenuSection[] }) {
     return (
-        <Card>
-            <div className="flex gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary-light text-primary">
-                    <Icon className="size-5" />
+        <dl className="divide-y divide-line/80 px-1">
+            {sections.map((section) => (
+                <div key={section.name} className="py-3 first:pt-0">
+                    <dt className="text-xs font-extrabold tracking-wide text-primary-dark uppercase">
+                        {section.name}
+                    </dt>
+                    <dd className="mt-1">
+                        <ul className="space-y-1">
+                            {section.items.map((item) => (
+                                <li
+                                    key={item}
+                                    className="text-base leading-snug font-semibold text-ink"
+                                >
+                                    {item}
+                                </li>
+                            ))}
+                        </ul>
+                    </dd>
                 </div>
-                <dl className="flex-1 space-y-1.5">
-                    {sections.map((section) => (
-                        <div key={section.name} className="text-xs">
-                            <dt className="font-bold text-primary-dark">{section.name}</dt>
-                            <dd className="text-ink">{section.items.join(', ')}</dd>
-                        </div>
-                    ))}
-                </dl>
-            </div>
-        </Card>
+            ))}
+        </dl>
     );
 }

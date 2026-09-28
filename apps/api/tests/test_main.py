@@ -1,6 +1,7 @@
 import importlib
 import logging
 
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 
 import api.main as main_module
@@ -21,6 +22,10 @@ def test_redireciona_https_em_producao(monkeypatch):
         assert any(
             m.cls is HTTPSRedirectMiddleware for m in main_module.app.user_middleware
         )
+        cors = next(
+            m for m in main_module.app.user_middleware if m.cls is CORSMiddleware
+        )
+        assert "http://localhost:3000" not in cors.kwargs["allow_origins"]
     finally:
         monkeypatch.setattr(settings, "environment", original)
         importlib.reload(main_module)
@@ -34,17 +39,18 @@ def test_scalar_docs_retorna_html_com_referencia_openapi(client):
     assert "/openapi.json" in response.text
 
 
-def test_cors_libera_origem_do_front_com_credenciais(client):
-    response = client.options(
-        "/me",
-        headers={
-            "Origin": "https://followw.app",
-            "Access-Control-Request-Method": "GET",
-        },
-    )
-    assert response.status_code == 200
-    assert response.headers["access-control-allow-origin"] == "https://followw.app"
-    assert response.headers["access-control-allow-credentials"] == "true"
+def test_cors_libera_origens_do_front_com_credenciais(client):
+    for origin in ("https://followw.app", "http://localhost:3000"):
+        response = client.options(
+            "/me",
+            headers={
+                "Origin": origin,
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+        assert response.status_code == 200
+        assert response.headers["access-control-allow-origin"] == origin
+        assert response.headers["access-control-allow-credentials"] == "true"
 
 
 def test_cors_nao_libera_origem_desconhecida(client):
