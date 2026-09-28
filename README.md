@@ -1,12 +1,77 @@
 # Followw UnB
 
-## Sobre o projeto
+O Followw é um client alternativo e open-source para o SIGAA da UnB. Ele reúne
+numa experiência só as informações que hoje ficam espalhadas em sistemas
+diferentes (SIGAA, RU, calendário, etc.), com cache para deixar tudo mais
+rápido do que no SIGAA.
 
-O Followw é uma nova forma de usar o SIGAA UnB.
+Não existe conta própria: o login é feito com a matrícula e senha do SIGAA,
+pelo CAS da UnB. Suas credenciais ficam sempre no seu navegador e nunca são
+guardadas no nosso servidor.
 
 > O Followw UnB é um projeto independente, sem qualquer vínculo oficial com a UnB ou com o SIGAA. Parte do trabalho envolve o estudo do comportamento de sistemas legados e não documentados oficialmente, com fins educacionais e de melhoria da experiência dos próprios alunos que optarem por usar o projeto. O uso do Followw UnB é de responsabilidade de cada usuário.
 
-Link do Figma: https://www.figma.com/board/JqtNZhLBFlsVIbthMYOdzB/Template-MDS--c%C3%B3pia-limpa-?node-id=0-1&p=f&t=PFwLBexPkq3KOM8L-0
+## Estrutura
+
+```
+apps/
+  api/              # API em FastAPI
+  web/              # front-end em TanStack Start
+packages/
+  sigaa-client/     # biblioteca async que fala com o SIGAA
+  unb-browser/      # biblioteca async dos sites públicos da UnB (RU, calendário, editais)
+docs/               # requisitos, arquitetura e notas de sprint
+```
+
+## Como executar
+
+### Pré-requisitos
+
+- [Python 3.14+](https://www.python.org/) e [uv](https://docs.astral.sh/uv/)
+- [Bun](https://bun.sh/)
+- [Docker](https://www.docker.com/) (para o Postgres local)
+
+### API
+
+```sh
+uv sync                           # instala as dependências do workspace
+docker compose up -d db           # sobe o Postgres local
+
+cd apps/api
+cp .env.example .env              # preencha JWT_SECRET_KEY (openssl rand -base64 32)
+
+# QStash local (fila dos jobs de sincronização), em outro terminal.
+# Copie o token e as signing keys exibidos para o .env.
+bunx --allow-scripts=@upstash/qstash-cli @upstash/qstash-cli dev
+
+uv run db-init                    # cria as tabelas
+uv run api                        # sobe a API em http://localhost:8000
+```
+
+A documentação interativa fica em `http://localhost:8000/docs`.
+
+### Web
+
+Com a API rodando:
+
+```sh
+cd apps/web
+bun install
+bun dev                           # sobe o front em http://localhost:3000
+```
+
+O front usa `http://localhost:8000` como API por padrão; para outra URL, defina
+`VITE_API_URL`.
+
+### Testes e lint
+
+```sh
+uv run pytest                     # testes de todos os apps e pacotes Python
+uv run ruff check .
+uv run ruff format .
+
+cd apps/web && bun check          # formatação e lint do front
+```
 
 ## Criadores
 
