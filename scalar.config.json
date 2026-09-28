@@ -81,7 +81,7 @@
       "/sprints": {
         "type": "page",
         "title": "Sprints",
-        "filepath": "docs/sprints.md"
+        "filepath": "docs/assets/sprints.md"
       }
     }
   }
