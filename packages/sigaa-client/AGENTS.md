@@ -1,93 +1,58 @@
 # `sigaa-client` — guia para agentes
 
-O pacote raspa o SIGAA da UnB (HTML + JSF) e devolve modelos Pydantic. Este
-client tem o intuito de desacoplar a API da complexidade do SIGAA e de requests HTTP.
+Raspa o SIGAA da UnB (HTML + JSF) e devolve modelos Pydantic, desacoplando a
+API da complexidade do SIGAA e das requests HTTP.
 
 ## Layout
 
-O pacote usa flat layout: o módulo importável `sigaa_client` fica na raiz, sem
-`src/` no meio (`[tool.uv.build-backend] module-root = ""`).
-
 ```
 sigaa_client/
-  client.py       # _BaseClient, SigaaClient, SigaaPublicClient — só monta resources
-  config.py       # URLs, paths, timeout, User-Agent — nenhuma URL literal fora daqui
-  exceptions.py   # SigaaError e derivadas
-  models.py       # modelos Pydantic (frozen) devolvidos ao chamador
+  client.py         # _BaseClient, SigaaClient, SigaaPublicClient — só monta resources
+  config.py         # URLs, paths, timeout, User-Agent — nenhuma URL literal fora daqui
+  exceptions.py     # SigaaError e derivados
+  models.py         # modelos Pydantic (frozen) devolvidos ao chamador
   utils/
-    jsf.py        # ViewState, postback `jsfcljs`, submit de form e menu lateral
-    parsing.py    # helpers de leitura de HTML compartilhados
-    pdf.py        # texto e QR code dos PDFs que o SIGAA devolve
-  private/        # resources que exigem sessão autenticada
-    session.py    # login CAS, relogin transparente, request/get/post
-    profile.py    # perfil e outros dados gerais
-    classrooms.py  # turmas, participantes, frequência, estatísticas e notícias da turma
-    restaurant.py # extrato do RU e carteirinha estudantil
-  public/         # resources sem login
-    session.py    # aquecimento da sessão anônima
-    classrooms.py
+    jsf.py          # ViewState, postback `jsfcljs`, submit de form e menu lateral
+    parsing.py      # helpers de leitura de HTML compartilhados
+    pdf.py          # texto e QR code dos PDFs que o SIGAA devolve
+  private/          # resources que exigem sessão autenticada
+    session.py      # login CAS, relogin transparente, request/get/post
+    profile.py      # perfil e outros dados gerais
+    classrooms.py   # turmas, participantes, frequência, estatísticas e notícias da turma
+    restaurant.py   # extrato do RU e carteirinha estudantil
+  public/           # resources sem login
+    session.py      # aquecimento da sessão anônima
+    classrooms.py   # lista pública de turmas
 tests/
 ```
 
 ## Padrões
 
-**Camadas.** `Session` (ou `PublicSession`) é a **única** passagem para a rede.
-Um resource nunca toca em `httpx` nem em cookie: recebe a sessão no `__init__` e
-chama `self._session.get/post` (privado) ou `self._session.open/submit`
-(público). O client só instancia resources e os expõe como atributo
-(`client.classrooms`).
-
-**Resource.** Uma classe por área do SIGAA, com métodos `async` públicos e
-verbos explícitos (`list_classrooms`, `get_profile`, `search`). Toda a lógica de
-parse fica em funções de módulo privadas (`_parse_*`, `_classroom`, `_member`) —
-sem método privado de parse na classe. Facilita testar e ler.
-
-**Modelos.** Pydantic, `ConfigDict(frozen=True)`, campos opcionais com default
-`None`. Os nomes seguem as colunas do banco do Followw quando houver
-equivalente. Um dado que o SIGAA não expõe naquela tela vem `None` — nunca
-string vazia.
-
-**Erros.** Tudo deriva de `SigaaError`:
-
-| Exceção                | Quando                                             |
-| ---------------------- | -------------------------------------------------- |
-| `AuthenticationFailed` | CAS rejeitou a credencial                          |
-| `SessionExpired`       | sessão morreu e não há como reautenticar           |
-| `SigaaParseError`      | o HTML não tem a estrutura esperada (layout mudou) |
-| `SigaaSearchError`     | o SIGAA recusou os filtros e disse o porquê        |
-| `ClassroomNotFound`    | a turma pedida não está no histórico do usuário    |
-| `NewsNotFound`         | a notícia não está na listagem da turma            |
-
-`NewsNotFound` só sai quando a listagem da turma foi lida e não traz o `id`;
-sem a listagem, continua sendo `SigaaParseError`.
-
-Estrutura ausente é `SigaaParseError`, não `None` silencioso: o pacote é
-desenhado para ser barulhento quando o SIGAA muda. Toda mensagem diz o que
-faltou e onde.
-
-**Constantes.** URLs, paths e nomes de campo do SIGAA ficam em `config.py` ou em
-constantes de módulo no topo do resource (`FORM_ID`, `UNIT_FIELD`,
-`CLASSROOM_ID_FIELD`). Regex sempre compilada em constante `_ALGO_RE`.
-
-**Texto.** Não escreva parse de texto na mão: `clean_text` (normaliza espaços),
-`visible_text` (remove os balões `.popUp` que o SIGAA embute nas células),
-`split_course`, `split_location`, `schedule_code`, `lookup_key` (minúscula e
-sem acento, para bater com as chaves de um dict), `parse_datetime` (data do
-SIGAA, sem timezone, com `SigaaParseError` no formato inesperado), `to_markdown`
-(texto rico do editor do SIGAA, como o de notícias, em markdown limpo — nunca
-devolva o HTML cru). Se precisar de outro, ele vai
-para `utils/parsing.py`.
-
-**Comentários.** Só onde o SIGAA faz algo contraintuitivo (HTML malformado,
-campo gerado, ritual de sessão). Comportamento óbvio não se comenta.
+- **Camadas.** `Session`/`PublicSession` é a **única** passagem para a rede. O
+  resource recebe a sessão no `__init__` e só chama `self._session.get/post`
+  (privado) ou `open/submit` (público), nunca `httpx` ou cookie. O client só
+  instancia resources e os expõe como atributo (`client.classrooms`).
+- **Resource.** Uma classe por área do SIGAA, métodos `async` públicos com
+  verbos explícitos (`list_classrooms`, `get_profile`, `search`). O parse fica
+  em funções privadas de módulo (`_parse_*`, `_classroom`), nunca em métodos da
+  classe.
+- **Modelos.** Pydantic `frozen=True`, opcionais com default `None` — dado que
+  a tela não expõe vem `None`, nunca string vazia. Nomes seguem as colunas do
+  banco do Followw quando houver equivalente.
+- **Erros.** Seja barulhento quando o SIGAA muda: toda exceção diz o que faltou
+  e onde.
+- **Constantes.** URLs e paths em `config.py`; nomes de campo no topo do
+  resource (`FORM_ID`, `UNIT_FIELD`); regex compilada em `_ALGO_RE`. Parsing
+  sempre pelas `utils`, nunca inline.
+- **Comentários.** Só onde o SIGAA é contraintuitivo (HTML malformado, campo
+  gerado, ritual de sessão).
 
 ## Criando um novo scraper
 
-1. **Levante o fluxo no navegador** com o DevTools aberto: que request devolve a
-   tela, se é GET ou postback, quais campos vão no corpo. Anote o path em
-   `config.py`.
+1. **Levante o fluxo pelo Playwright** (DevTools): qual request devolve a tela,
+   GET ou postback, quais campos vão no corpo. Path em `config.py`.
 2. **Escolha a camada**: exige login → `private/`; anônimo → `public/`.
-3. **Crie o resource** em um módulo próprio:
+3. **Crie o resource** em módulo próprio:
 
     ```python
     class Grades:
@@ -99,102 +64,65 @@ campo gerado, ritual de sessão). Comportamento óbvio não se comenta.
             return _parse_grades(BeautifulSoup(page.text, "lxml"))
     ```
 
-4. **Modele o retorno** em `models.py` (frozen, opcionais com `None`).
+4. **Modele o retorno** em `models.py`.
 5. **Exponha** no `client.py` (`self.grades = Grades(self._session)`) e exporte
-   modelos/exceções novos em `sigaa_client/__init__.py` (`__all__` em ordem alfabética).
+   modelos/exceções novos em `sigaa_client/__init__.py` (`__all__` em ordem
+   alfabética).
 6. **Teste** com `httpx.MockTransport` (abaixo).
-7. **Documente** no README se muda a superfície pública.
+7. **Documente no README** se mudar a superfície pública.
 
-### Se a tela exigir postback JSF
+### Postback JSF
 
-O SIGAA usa JSF: links que parecem `<a href="#">` na verdade disparam
-`jsfcljs(...)` com um payload. `utils/jsf.py` cobre os três casos:
+Links `<a href="#">` do SIGAA disparam `jsfcljs(...)`. `utils/jsf.py` cobre:
 
-- **Clique em link** (`build_postback`): `link_params(anchor)` lê os pares do
-  `onclick`, `read_viewstate(soup)` pega o `ViewState` da resposta **mais
-  recente** e `build_postback(form, params, viewstate)` devolve `(action,
-payload)`.
-- **Submit de form** (`build_submit`): envia o form inteiro a partir do estado
-  que a página trouxe, sobrescrevendo só os campos que você passa. O `name` do
-  botão é gerado pelo JSF (`j_id_jsp_...`), então é achado pelo rótulo visível.
-- **Item do menu lateral** (`build_menu_action`): o menu (`jscookMenu`) não usa
-  `jsfcljs` — cada item só sobrescreve o hidden `jscook_action` do form com a
-  expressão do managed bean (ex.: `algumForm:algumMenu:A]#{ bean.metodo }`,
-  lida direto do array JS que desenha o menu) e submete o resto do form como
-  veio. Sem botão, sem parâmetros de link.
+- **Clique em link** (`build_postback`): `link_params(anchor)` lê o `onclick`,
+  `read_viewstate(soup)` pega o `ViewState` da resposta **mais recente**, e
+  `build_postback(form, params, viewstate)` devolve `(action, payload)`.
+- **Submit de form** (`build_submit`): reenvia o form como veio, sobrescrevendo
+  só os campos passados. O botão (`j_id_jsp_...`, gerado) é achado pelo rótulo.
+- **Menu lateral** (`build_menu_action`): o `jscookMenu` não usa `jsfcljs`; só
+  sobrescreve o hidden `jscook_action` com a expressão do bean (ex.:
+  `algumForm:algumMenu:A]#{ bean.metodo }`, lida do array JS do menu) e submete
+  o form. Sem botão nem parâmetros de link.
 
-Regras que não dá para burlar:
+Regras:
 
-- **O `ViewState` morre a cada postback.** Releia a página antes de cada
-  postback; nunca guarde `ViewState` entre chamadas.
-- **Contexto vive na sessão, não na URL.** Em `ava/participantes.jsf`, por
-  exemplo, a turma é a que foi aberta pelo último postback de "Acessar Turma
-  Virtual". Depois de trocar de contexto, **confirme na resposta** que o SIGAA
-  foi para onde se pediu (veja `_assert_context` em `private/classrooms.py`).
+- **`ViewState` morre a cada postback.** Releia a página antes de cada um;
+  nunca guarde entre chamadas.
+- **Contexto vive na sessão, não na URL.** Ex.: `ava/participantes.jsf` mostra
+  a turma do último "Acessar Turma Virtual". Após trocar de contexto, **confirme
+  na resposta** que o SIGAA foi para onde se pediu (`_assert_context` em
+  `private/classrooms.py`).
 - **Nem toda tela da turma abre por GET.** `participantes.jsf` abre; o mapa de
-  frequências (`FrequenciaAluno/mapa.jsf`) devolve "Comportamento Inesperado" e
-  só aparece pelo postback do item **Frequência** do `formMenu` de
-  `ava/index.jsf`. Telas da turma passam por `_read_screen`, que segura o lock
-  do contexto, abre a turma, lê a tela e confere o contexto — uma operação só.
-  O lock só vale dentro do client: outro client na mesma sessão (a api e um job
-  do mesmo usuário) pode trocar a turma no meio, então turma trocada
-  (`_ContextSwitched`) reabre a turma até `_SCREEN_ATTEMPTS` vezes. Telas em
-  dois passos (notícias: item **Notícias** do menu → **Visualizar** da
-  listagem) fazem os dois postbacks dentro do mesmo `open_screen`.
-- **A sessão anônima precisa de aquecimento.** O JSF só aceita a view de volta
-  se ela passou pela home pública; `PublicSession` faz isso na primeira request
-  e refaz em `restart()`. Como o `ViewState` morre junto, retry significa reler
-  o form e reenviar do zero — uma vez só.
-- **O HTML do SIGAA é malformado.** Tags fecham no lugar errado (`</fieldset>`
-  antes da tabela), então às vezes `find_next` é a única saída em vez de
-  navegar pela árvore.
-
-### Frequência
-
-`ClassroomFrequency.frequency_status` descreve os lançamentos nas entradas
-publicadas (`not_registered`, `partially_registered`, `registered`). Não mede
-o término do semestre. `ClassroomAttendance.summary` conta entradas registradas,
-pendentes e com faltas, além de somar as faltas explicitamente lançadas.
-São campos calculados no client, também ao ler modelos de caches antigos.
-Totais do SIGAA são preservados: podem indicar 100% mesmo com datas pendentes.
-Nunca substitua `frequency=None` por presença total ou zero faltas.
-
-### Extrato do RU
-
-`restaurant.get_restaurant_statement()` retorna `RestaurantStatement` (saldo,
-grupo e entradas). O próprio resource infere saldo/grupo pelas entradas mais
-recentes, preservando a ordem original do extrato e `None` para dados ausentes.
-O portal pode manter a tabela aberta na sessão: leia-a antes de procurar o
-formulário de expansão, evitando fechar o extrato ou retornar vazio em chamadas
-seguintes. Cada chamada faz um novo GET; não há cache local. Após o postback,
-extrato ausente é `SigaaParseError`.
-
-### Se a tela devolver PDF
-
-Alguns postbacks (ex.: emissão de documentos) não devolvem HTML: a resposta já
-é o PDF (`content-type: application/pdf`). `utils/pdf.py` lê esse conteúdo:
-`extract_text` para o texto e `find_qr_code` para o QR code embutido (tenta
-decodificar cada imagem da página até achar um `BarcodeFormat.QRCode` — não dá
-para contar com a ordem/nome das imagens extraídas).
+  frequências (`FrequenciaAluno/mapa.jsf`) dá "Comportamento Inesperado" e só
+  vem pelo item **Frequência** do `formMenu` de `ava/index.jsf`.
+- **Telas da turma passam por `_read_screen`**: segura o lock do contexto, abre
+  a turma, lê a tela e confere o contexto numa operação só. O lock é só do
+  client — outro client na mesma sessão (api e job do mesmo usuário) pode
+  trocar a turma, então `_ContextSwitched` reabre até `_SCREEN_ATTEMPTS` vezes.
+  Telas em dois passos (notícias: menu **Notícias** → **Visualizar**) fazem os
+  dois postbacks no mesmo `open_screen`.
+- **Sessão anônima precisa de aquecimento.** O JSF só aceita a view se ela
+  passou pela home pública; `PublicSession` faz isso na primeira request e em
+  `restart()`. Retry = reler o form e reenviar do zero, uma vez só.
+- **HTML malformado.** Tags fecham no lugar errado (`</fieldset>` antes da
+  tabela); às vezes `find_next` é a única saída.
 
 ## Testes
 
-Sem rede: um SIGAA de mentira via `httpx.MockTransport`, injetado pelo parâmetro
-`transport` do client. O padrão é uma classe `FakeSigaa` que é chamável
-(`__call__(request) -> Response`), guarda o que recebeu (`paths`, `payloads`) e
-expõe `transport` como property.
+Sem rede: um `FakeSigaa` chamável (`__call__(request) -> Response`) que guarda
+o que recebeu (`paths`, `payloads`) e expõe `transport` (`httpx.MockTransport`),
+injetado no client:
 
 ```python
 async with SigaaClient(CREDENTIALS, transport=sigaa.transport) as client:
     turmas = await client.classrooms.list_classrooms()
 ```
 
-O fake deve **simular o ritual**, não só devolver HTML: exigir o cookie, invalidar
-sessão, descartar submit que não passou pela home. É assim que relogin e retry
-ficam cobertos. Os fixtures de HTML são strings no topo do arquivo de teste,
-recortadas da página real e reduzidas ao que o parser usa. Nomes dos testes em
-português, descrevendo o comportamento (`test_unidade_pode_vir_pelo_nome`).
+- O fake **simula o ritual** (exige cookie, invalida sessão, descarta submit
+  sem home), cobrindo relogin e retry.
+- Fixtures de HTML são strings no topo do teste, recortadas da página real e
+  reduzidas ao que o parser usa.
+- Fixtures de PDF ficam em `tests/fixtures/`, geradas com dados sintéticos —
+  nunca um PDF real (carrega CPF, foto e matrícula).
 
-Fixtures de PDF vão em `tests/fixtures/` (binário, não string) — geradas com
-dados sintéticos, nunca um documento real exportado de uma conta de verdade
-(o PDF carrega CPF, foto e matrícula de quem gerou).

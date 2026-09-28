@@ -1,151 +1,45 @@
 # Web — instruções para agentes
 
-## Stack
-
-| Camada          | Ferramenta                              |
-| --------------- | --------------------------------------- |
-| Meta‑framework  | TanStack Start                          |
-| Roteamento      | TanStack Router (file‑based)            |
-| Estado servidor | TanStack Query                          |
-| API Client      | `openapi-fetch` + `openapi-react-query` |
-| Estilos         | Tailwind CSS v4                         |
-| Lint & Formato  | oxlint + oxfmt                          |
-| Package Manager | bun                                     |
+TanStack Start + Router (file-based) + Query, `openapi-fetch`/`openapi-react-query`,
+Tailwind v4, oxlint/oxfmt. Use sempre **bun**.
 
 ## Comandos
 
 ```fish
-bun dev             # dev server na porta 3000
-bun build           # build de produção
-bun preview         # preview do build
-bun generate-api    # gera src/queries/schema.gen.ts a partir do OpenAPI
-bun generate-routes # gera routeTree.gen.ts
-bun check           # roda verificação de formatação e lint
-bun lint            # oxlint
-bun fmt             # oxfmt
+bun dev                    # porta 3000
+bun fmt && bun lint        # formata e corrige lint
+bun check                  # verifica formatação + lint (sem alterar)
+bun test                   # testes em tests/
+bun generate-routes        # gera routeTree.gen.ts
+bun generate-api [url]     # gera src/queries/schema.gen.ts (default: localhost:8000/openapi.json, ou OPENAPI_URL)
 ```
 
-## Estilos
+## Convenções
 
-- A paleta de cores vive no `@theme` de `src/styles.css` (`primary`, `ink`, `muted`, `line`, ...). Use as classes geradas (`text-ink`, `bg-primary/10`) ou `var(--color-*)` em `style`; nunca hex solto no JSX.
-- Não use valores arbitrários (`text-[13px]`, `w-[54px]`); use a escala padrão do Tailwind (`text-sm`, `w-12`).
+- Imports internos sempre absolutos via `#/` (`src/`), nunca relativos.
+- Tipos `React` são globais: use `React.FC`, `React.ReactNode`, etc. sem importar. imports nomeados (`useState`) são ok.
+- Sempre use import type quando estiver importando definições de tipos.
+- O `AppLayout` (com `BottomNavigation`) é renderizado só no `__root.tsx`; rotas e `errorComponent`s não o envolvem de novo, senão a navbar remonta e perde a animação.
+- Cores só pelo `@theme` de `src/styles.css` (`text-ink`, `bg-primary/10` ou `var(--color-*)`), nunca hex solto. Sem valores arbitrários (`text-[13px]`); use a escala do Tailwind e, preferencialmente, valores pares.
+- Testes em `tests/` espelhando `src/` (`src/lib/schedule.ts` → `tests/lib/schedule.test.ts`).
+- Arquivos `*.gen.ts` são gerados: nunca edite à mão.
 
-## Camada de Acesso à API (`src/queries`)
+## Acesso à API (`src/queries`)
 
-Todo acesso HTTP à API do Followw UnB é centralizado em `src/queries/`.
-É expressamente proibido usar `fetch` nativo fora de `src/queries/**` (regra `no-restricted-globals` no oxlint).
+`fetch` nativo é proibido fora de `src/queries/**`. Tudo passa por:
 
-### Arquivos estruturais
+- `client.ts`: `openapi-fetch` com base `VITE_API_URL` e `credentials: 'include'`. No SSR, um middleware repassa o `cookie` da requisição original e devolve os `Set-Cookie` da API ao navegador — sempre lidos do contexto da requisição, nunca de variável de módulo (vazaria sessão entre usuários). Status `>= 400` vira `ApiError`.
+- `errors.ts`: `ApiError` com `status`, `detail` e `isUnauthorized`/`isForbidden`/`isNotFound`/`isServerError`.
+- `api.ts`: adaptador `openapi-react-query`.
 
-- `schema.gen.ts`: Tipos TypeScript gerados automaticamente a partir do `/openapi.json` da API FastAPI. **Nunca edite à mão.**
-- `client.ts`: Cliente único do `openapi-fetch` com:
-    - Base URL vinda de `VITE_API_URL` (default: `http://localhost:8000`);
-    - `credentials: 'include'` para envio automático dos cookies de sessão `httponly`;
-    - Middleware de SSR que repassa o header `cookie` da requisição original para a API e devolve ao navegador os `Set-Cookie` dela (renovação da sessão). Ambos são lidos do contexto da requisição, nunca de variável de módulo, que vazaria a sessão entre usuários;
-    - Middleware de tratamento de erro que lança instâncias previsíveis de `ApiError` quando o status for `>= 400`.
-- `api.ts`: Adaptador `openapi-react-query` gerado a partir do `apiClient`.
-- `errors.ts`: Classe `ApiError` contendo `status`, `detail` e getters utilitários (`isUnauthorized`, `isForbidden`, `isNotFound`, `isServerError`).
-
-### Geração de Tipos da API
-
-```fish
-# Com backend local padrão (http://localhost:8000/openapi.json)
-bun run generate-api
-
-# Com URL personalizada via argumento
-bun run generate-api https://api.staging.followw.app/openapi.json
-
-# Ou via variável de ambiente
-OPENAPI_URL=https://api.followw.app/openapi.json bun run generate-api
-```
-
-### Padrão de Definição de Queries
-
-Defina cada recurso em um arquivo próprio dentro de `src/queries/`:
-
-```ts
-// src/queries/me.ts
-import { api } from '#/queries/api.ts';
-
-export const meQueryOptions = api.queryOptions('get', '/me');
-```
-
-Para queries com parâmetros:
+Um arquivo por recurso exportando `queryOptions`:
 
 ```ts
 // src/queries/classrooms.ts
-import { api } from '#/queries/api.ts';
-
 export const classroomsQueryOptions = (semester?: string) =>
-    api.queryOptions('get', '/classrooms', {
-        params: {
-            query: { semester }
-        }
-    });
+    api.queryOptions('get', '/classrooms', { params: { query: { semester } } });
 ```
 
-### Uso em Rotas (Loaders e Componentes)
+No loader, pré-carregue com `context.queryClient.query(...)` (tratando `ApiError.isUnauthorized`); no componente, consuma com `useSuspenseQuery`.
 
-Em loaders de rotas, use `query` para pré-carregar os dados tanto no SSR quanto na navegação client-side. Em componentes, consuma com `useSuspenseQuery`.
-
-O SSR só autentica porque a API grava os cookies de sessão com `Domain=followw.app` (`COOKIE_DOMAIN` da API em produção): sem isso eles ficam presos a `api.followw.app`, não chegam ao servidor do front e o `/me` hidrata como `null` após o reload. Em dev não precisa, cookies de `localhost` valem para todas as portas.
-
-```tsx
-import { useSuspenseQuery } from '@tanstack/react-query';
-import { createFileRoute, redirect } from '@tanstack/react-router';
-
-import { ApiError } from '#/queries/errors.ts';
-import { meQueryOptions } from '#/queries/me.ts';
-
-export const Route = createFileRoute('/')({
-    loader: async ({ context }) => {
-        try {
-            await context.queryClient.query(meQueryOptions);
-        } catch (error) {
-            if (error instanceof ApiError && error.isUnauthorized) {
-                // Sessão expirada ou ausente — redireciona para login se necessário
-                // throw redirect({ to: '/login' });
-            }
-            throw error;
-        }
-    },
-    errorComponent: ({ error }) => {
-        if (error instanceof ApiError && error.isUnauthorized) {
-            return <p>Sessão expirada. Faça login novamente.</p>;
-        }
-        return <p>Erro inesperado ao carregar dados.</p>;
-    },
-    component: HomePage
-});
-
-function HomePage() {
-    const { data: user } = useSuspenseQuery(meQueryOptions);
-    return <h1>Olá, {user.name}!</h1>;
-}
-```
-
-## Convenções
-
-- Imports internos são sempre absolutos via `#/` (aponta para `src/`), nunca `./` ou `../`.
-- O namespace `React` é global (via `@types/react`): use `React.FC`, `React.ReactNode` etc. sem importar. `import React from 'react'` é proibido (`no-restricted-imports`); imports nomeados como `useState` continuam permitidos.
-- Rotas seguem a convenção _file-based_ do TanStack Router (`routeTree.gen.ts`).
-- O `AppLayout` (com a `BottomNavigation`) é renderizado uma vez no `__root.tsx` em volta do `<Outlet />`; rotas e `errorComponent`s não devem envolvê-lo de novo, senão a navbar remonta e perde a animação entre abas.
-- Estilos usam Tailwind CSS v4 direto nas classes JSX.
-- Arquivos gerados (`routeTree.gen.ts`, `schema.gen.ts`) são ignorados no `.oxlintrc.json`.
-
-## agents paizao(gabzera)
-
-# apps/web — instruções para agentes
-
-## Stack & Tecnologias
-
-- **Runtime & Package Manager**: Bun (`bun run dev` para iniciar o servidor do front-end web)
-- **Framework**: TanStack Start (`@tanstack/react-start`)
-- **Build Tool**: Vite
-- **Styling**: Tailwind CSS
-
-## Convenções
-
-- Utilize Bun (`bun run dev`, `bun install`, `bun test`, etc.) ao interagir com a aplicação web em `apps/web/`.
-- Siga as especificações do TanStack Start e Tailwind CSS para construção de rotas, componentes e estilização.
-- Testes (`bun test`) ficam em `tests/`, espelhando a estrutura de `src/` (ex.: `src/lib/schedule.ts` → `tests/lib/schedule.test.ts`) e importando via `#/`.
+O SSR só autentica em produção porque a API grava os cookies com `Domain=followw.app` (`COOKIE_DOMAIN`); sem isso eles ficam presos a `api.followw.app` e o `/me` hidrata como `null` após reload. Em dev não precisa.
