@@ -37,6 +37,19 @@ def test_scalar_docs_retorna_html_com_referencia_openapi(client):
     assert "text/html" in response.headers["content-type"]
     assert "api-reference" in response.text
     assert "/openapi.json" in response.text
+    assert "Arquitetura" in response.text
+    assert "Requisitos Ágeis" in response.text
+    assert "Segurança" in response.text
+    assert "Sprints" in response.text
+
+    # Garante que as rotas de abas e assets respondem com sucesso
+    for route in ("/arquitetura", "/requisitos", "/seguranca", "/sprints"):
+        tab_res = client.get(route)
+        assert tab_res.status_code == 200
+
+    asset_res = client.get("/assets/diagrama-contexto.png")
+    assert asset_res.status_code == 200
+    assert asset_res.headers["content-type"] == "image/png"
 
 
 def test_cors_libera_origens_do_front_com_credenciais(client):

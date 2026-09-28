@@ -1,5 +1,6 @@
 {
     "$schema": "https://openapi.vercel.sh/vercel.json",
     "framework": "fastapi",
-    "installCommand": "uv sync --frozen --no-dev --no-editable"
+    "installCommand": "uv sync --frozen --no-dev --no-editable",
+    "includeFiles": ["../../docs/**"]
 }
