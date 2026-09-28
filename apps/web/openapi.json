@@ -250,6 +250,133 @@
                 }
             }
         },
+        "/classrooms/frequency": {
+            "get": {
+                "tags": ["Classrooms"],
+                "summary": "Consultar frequência de todas as turmas atuais",
+                "description": "Turmas atuais com identificação, andamento, frequência, frequency_status e resumo das entradas. Falha em uma turma retorna erro, sem omiti-la da lista.",
+                "operationId": "get_current_frequencies_classrooms_frequency_get",
+                "parameters": [
+                    {
+                        "name": "refresh",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "description": "Ignora o cache: busca no SIGAA e atualiza o cache antes de responder.",
+                            "default": false,
+                            "title": "Refresh"
+                        },
+                        "description": "Ignora o cache: busca no SIGAA e atualiza o cache antes de responder."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ClassroomFrequencyResult"
+                                    },
+                                    "title": "Response Get Current Frequencies Classrooms Frequency Get"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Credenciais ausentes ou inválidas."
+                    },
+                    "502": {
+                        "description": "SIGAA indisponível."
+                    },
+                    "404": {
+                        "description": "Turma não encontrada entre as turmas do usuário."
+                    },
+                    "503": {
+                        "description": "Cache em atualização."
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/classrooms/{classroom_id}/frequency": {
+            "get": {
+                "tags": ["Classrooms"],
+                "summary": "Consultar frequência e andamento de uma turma",
+                "description": "Aceita Classroom.id (hash) ou sigaa_id numérico. frequency_status indica not_registered, partially_registered ou registered nas entradas publicadas.",
+                "operationId": "get_classroom_frequency_classrooms__classroom_id__frequency_get",
+                "parameters": [
+                    {
+                        "name": "classroom_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "description": "Classroom.id ou Classroom.sigaa_id.",
+                            "title": "Classroom Id"
+                        },
+                        "description": "Classroom.id ou Classroom.sigaa_id."
+                    },
+                    {
+                        "name": "refresh",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "description": "Ignora o cache: busca no SIGAA e atualiza o cache antes de responder.",
+                            "default": false,
+                            "title": "Refresh"
+                        },
+                        "description": "Ignora o cache: busca no SIGAA e atualiza o cache antes de responder."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClassroomFrequency"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Credenciais ausentes ou inválidas."
+                    },
+                    "502": {
+                        "description": "SIGAA indisponível."
+                    },
+                    "404": {
+                        "description": "Turma não encontrada entre as turmas do usuário."
+                    },
+                    "503": {
+                        "description": "Cache em atualização."
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/classrooms/{classroom_id}/members": {
             "get": {
                 "tags": ["Classrooms"],
@@ -262,8 +389,10 @@
                         "required": true,
                         "schema": {
                             "type": "string",
+                            "description": "Classroom.id ou Classroom.sigaa_id.",
                             "title": "Classroom Id"
-                        }
+                        },
+                        "description": "Classroom.id ou Classroom.sigaa_id."
                     },
                     {
                         "name": "refresh",
@@ -327,8 +456,10 @@
                         "required": true,
                         "schema": {
                             "type": "string",
+                            "description": "Classroom.id ou Classroom.sigaa_id.",
                             "title": "Classroom Id"
-                        }
+                        },
+                        "description": "Classroom.id ou Classroom.sigaa_id."
                     },
                     {
                         "name": "refresh",
@@ -676,6 +807,66 @@
     },
     "components": {
         "schemas": {
+            "AttendanceEntry": {
+                "properties": {
+                    "occurred_on": {
+                        "type": "string",
+                        "format": "date",
+                        "title": "Occurred On"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/AttendanceStatus"
+                    },
+                    "absences": {
+                        "type": "integer",
+                        "title": "Absences",
+                        "default": 0
+                    }
+                },
+                "type": "object",
+                "required": ["occurred_on", "status"],
+                "title": "AttendanceEntry",
+                "description": "Uma aula do mapa de frequências. `absences` é 0 fora da situação de falta."
+            },
+            "AttendanceStatus": {
+                "type": "string",
+                "enum": ["presente", "falta", "nao_registrada"],
+                "title": "AttendanceStatus"
+            },
+            "AttendanceSummary": {
+                "properties": {
+                    "total_entries": {
+                        "type": "integer",
+                        "title": "Total Entries"
+                    },
+                    "recorded_entries": {
+                        "type": "integer",
+                        "title": "Recorded Entries"
+                    },
+                    "unrecorded_entries": {
+                        "type": "integer",
+                        "title": "Unrecorded Entries"
+                    },
+                    "absence_entries": {
+                        "type": "integer",
+                        "title": "Absence Entries"
+                    },
+                    "total_absences": {
+                        "type": "integer",
+                        "title": "Total Absences"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "total_entries",
+                    "recorded_entries",
+                    "unrecorded_entries",
+                    "absence_entries",
+                    "total_absences"
+                ],
+                "title": "AttendanceSummary",
+                "description": "Contagens das entradas publicadas, sem presumir duração de cada aula."
+            },
             "Classroom": {
                 "properties": {
                     "id": {
@@ -736,6 +927,109 @@
                 "required": ["id", "number", "semester", "subject"],
                 "title": "Classroom",
                 "description": "Turma, nos campos da tabela `classrooms`.\n\n`id` é o `frontEndIdTurma` do SIGAA — o único identificador presente tanto\nnas turmas do semestre quanto no histórico. `sigaa_id` é o id numérico\ninterno, que só o portal do semestre expõe. `current` marca as turmas que o\nportal lista como atuais."
+            },
+            "ClassroomAttendance": {
+                "properties": {
+                    "entries": {
+                        "items": {
+                            "$ref": "#/components/schemas/AttendanceEntry"
+                        },
+                        "type": "array",
+                        "title": "Entries",
+                        "default": []
+                    },
+                    "attended": {
+                        "type": "integer",
+                        "title": "Attended"
+                    },
+                    "registered": {
+                        "type": "integer",
+                        "title": "Registered"
+                    },
+                    "registered_percentage": {
+                        "type": "integer",
+                        "title": "Registered Percentage"
+                    },
+                    "total": {
+                        "type": "integer",
+                        "title": "Total"
+                    },
+                    "total_percentage": {
+                        "type": "integer",
+                        "title": "Total Percentage"
+                    },
+                    "summary": {
+                        "$ref": "#/components/schemas/AttendanceSummary",
+                        "readOnly": true
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "attended",
+                    "registered",
+                    "registered_percentage",
+                    "total",
+                    "total_percentage",
+                    "summary"
+                ],
+                "title": "ClassroomAttendance",
+                "description": "Mapa de frequências da turma, com os totais que o próprio SIGAA calcula.\n\nTotais e porcentagens são os valores exibidos pelo SIGAA; eles podem\nincluir aulas ainda não registradas. `summary` conta apenas as entradas\npublicadas, sem confundir quantidade de datas com carga horária."
+            },
+            "ClassroomFrequency": {
+                "properties": {
+                    "progress": {
+                        "$ref": "#/components/schemas/ClassroomProgress"
+                    },
+                    "frequency": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/ClassroomAttendance"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "frequency_status": {
+                        "type": "string",
+                        "enum": ["not_registered", "partially_registered", "registered"],
+                        "title": "Frequency Status",
+                        "readOnly": true
+                    }
+                },
+                "type": "object",
+                "required": ["progress", "frequency_status"],
+                "title": "ClassroomFrequency",
+                "description": "A tela de frequência da turma virtual.\n\n`frequency` é `None` quando o docente não lançou frequência — nesse caso o\nSIGAA ainda mostra totais na tela, mas eles são fictícios (100% de presença\nem toda a carga horária), então não são devolvidos."
+            },
+            "ClassroomFrequencyResult": {
+                "properties": {
+                    "progress": {
+                        "$ref": "#/components/schemas/ClassroomProgress"
+                    },
+                    "frequency": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/ClassroomAttendance"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "classroom": {
+                        "$ref": "#/components/schemas/Classroom"
+                    },
+                    "frequency_status": {
+                        "type": "string",
+                        "enum": ["not_registered", "partially_registered", "registered"],
+                        "title": "Frequency Status",
+                        "readOnly": true
+                    }
+                },
+                "type": "object",
+                "required": ["progress", "classroom", "frequency_status"],
+                "title": "ClassroomFrequencyResult"
             },
             "ClassroomMember": {
                 "properties": {
@@ -817,6 +1111,26 @@
                 "required": ["name", "role"],
                 "title": "ClassroomMember",
                 "description": "Participante de uma turma, nos campos da tabela `users` que a tela expõe."
+            },
+            "ClassroomProgress": {
+                "properties": {
+                    "taught": {
+                        "type": "integer",
+                        "title": "Taught"
+                    },
+                    "total": {
+                        "type": "integer",
+                        "title": "Total"
+                    },
+                    "percentage": {
+                        "type": "integer",
+                        "title": "Percentage"
+                    }
+                },
+                "type": "object",
+                "required": ["taught", "total", "percentage"],
+                "title": "ClassroomProgress",
+                "description": "O \"Andamento das Aulas\" da turma virtual: quanto da CH já foi ministrada."
             },
             "ClassroomRole": {
                 "type": "string",
@@ -1363,7 +1677,7 @@
         },
         {
             "name": "Classrooms",
-            "description": "Turmas do semestre e histórico, participantes e estatísticas de aprovação."
+            "description": "Turmas do semestre e histórico, participantes, frequência e estatísticas de aprovação."
         },
         {
             "name": "Me",
