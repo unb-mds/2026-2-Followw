@@ -1,5 +1,6 @@
 import json
 import mimetypes
+import shutil
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
@@ -11,8 +12,16 @@ router = APIRouter()
 DOCS_DIR = Path(__file__).resolve().parents[3] / "docs"
 
 PAGES = {
-    "arquitetura": {"title": "Arquitetura", "file": "arquitetura.md", "path": "/arquitetura"},
-    "requisitos": {"title": "Requisitos Ágeis", "file": "requisitos.md", "path": "/requisitos"},
+    "arquitetura": {
+        "title": "Arquitetura",
+        "file": "arquitetura.md",
+        "path": "/arquitetura",
+    },
+    "requisitos": {
+        "title": "Requisitos Ágeis",
+        "file": "requisitos.md",
+        "path": "/requisitos",
+    },
     "seguranca": {"title": "Segurança", "file": "segurança.md", "path": "/seguranca"},
     "sprints": {"title": "Sprints", "file": "assets/sprints.md", "path": "/sprints"},
 }
@@ -23,7 +32,16 @@ def _read_markdown(filename: str) -> str:
     return path.read_text(encoding="utf-8") if path.exists() else ""
 
 
-def _render_shell(active_tab: str = "api") -> HTMLResponse:
+# Links da API; o build estático (`apps/docs`) usa caminhos relativos.
+API_LINKS = {
+    "tabs": {"api": "/docs", **{key: cfg["path"] for key, cfg in PAGES.items()}},
+    "openapi": "/openapi.json",
+    "assets": "/assets/",
+}
+
+
+def render_page(active_tab: str = "api", links: dict = API_LINKS) -> str:
+    tabs = links["tabs"]
     docs_payload = {key: _read_markdown(cfg["file"]) for key, cfg in PAGES.items()}
     docs_json = json.dumps(docs_payload).replace("</script>", "<\\/script>")
 
@@ -205,14 +223,14 @@ def _render_shell(active_tab: str = "api") -> HTMLResponse:
   <body>
     <header class="site-header">
       <div class="header-left">
-        <a href="/docs" class="brand" onclick="navigateTab(event, 'api')">
+        <a href="{tabs["api"]}" class="brand" onclick="navigateTab(event, 'api')">
           <span>Followw UnB API</span>
           <span class="brand-badge">v0.1.0</span>
         </a>
         <nav>
           <ul class="nav-tabs" role="tablist">
             <li class="nav-tab-item">
-              <a href="/docs" id="tab-btn-api" onclick="navigateTab(event, 'api')">
+              <a href="{tabs["api"]}" id="tab-btn-api" onclick="navigateTab(event, 'api')">
                 <svg width="16" height="16" viewBox="0 0 256 256" fill="currentColor">
                   <path d="M229.66,101.66l-75.32,75.31a8,8,0,0,1-11.31,0L112,146l-58.34,58.34a8,8,0,0,1-11.32-11.31L100.69,134.7,69.66,103.66a8,8,0,0,1,0-11.32l75.31-75.31a8,8,0,0,1,11.32,0l73.37,73.31A8,8,0,0,1,229.66,101.66Z" opacity="0.2"></path>
                   <path d="M235.31,96,160,20.69a16,16,0,0,0-22.62,0L96,62.06a16,16,0,0,0-4.69,11.31v.63L65,100.34,26.34,139a8,8,0,0,0,0,11.32l24,24a8,8,0,0,0,11.32,0L100.34,135l26.34,26.34a16,16,0,0,0,11.94,4.66h.63L181.94,142a16,16,0,0,0,11.31-4.69l42.06-42.06A16,16,0,0,0,235.31,96Z"></path>
@@ -221,7 +239,7 @@ def _render_shell(active_tab: str = "api") -> HTMLResponse:
               </a>
             </li>
             <li class="nav-tab-item">
-              <a href="/arquitetura" id="tab-btn-arquitetura" onclick="navigateTab(event, 'arquitetura')">
+              <a href="{tabs["arquitetura"]}" id="tab-btn-arquitetura" onclick="navigateTab(event, 'arquitetura')">
                 <svg width="16" height="16" viewBox="0 0 256 256" fill="currentColor">
                   <path d="M240,208H224V96a16,16,0,0,0-16-16H144V40a16,16,0,0,0-16-16H40A16,16,0,0,0,24,40V208H16a8,8,0,0,0,0,16H240a8,8,0,0,0,0-16ZM40,40h88V208H40ZM144,96h64V208H144Z"></path>
                 </svg>
@@ -229,7 +247,7 @@ def _render_shell(active_tab: str = "api") -> HTMLResponse:
               </a>
             </li>
             <li class="nav-tab-item">
-              <a href="/requisitos" id="tab-btn-requisitos" onclick="navigateTab(event, 'requisitos')">
+              <a href="{tabs["requisitos"]}" id="tab-btn-requisitos" onclick="navigateTab(event, 'requisitos')">
                 <svg width="16" height="16" viewBox="0 0 256 256" fill="currentColor">
                   <path d="M200,32H163.74a47.92,47.92,0,0,0-71.48,0H56A16,16,0,0,0,40,48V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V48A16,16,0,0,0,200,32Zm-72,0a32,32,0,0,1,32,32H96A32,32,0,0,1,128,32Zm72,184H56V48H82.75A47.93,47.93,0,0,0,80,64v8a8,8,0,0,0,8,8h80a8,8,0,0,0,8-8V64a47.93,47.93,0,0,0-2.75-16H200ZM160,112a8,8,0,0,1-8,8H104a8,8,0,0,1,0-16h48A8,8,0,0,1,160,112Zm0,32a8,8,0,0,1-8,8H104a8,8,0,0,1,0-16h48A8,8,0,0,1,160,144Zm0,32a8,8,0,0,1-8,8H104a8,8,0,0,1,0-16h48A8,8,0,0,1,160,176Z"></path>
                 </svg>
@@ -237,7 +255,7 @@ def _render_shell(active_tab: str = "api") -> HTMLResponse:
               </a>
             </li>
             <li class="nav-tab-item">
-              <a href="/seguranca" id="tab-btn-seguranca" onclick="navigateTab(event, 'seguranca')">
+              <a href="{tabs["seguranca"]}" id="tab-btn-seguranca" onclick="navigateTab(event, 'seguranca')">
                 <svg width="16" height="16" viewBox="0 0 256 256" fill="currentColor">
                   <path d="M208,40H48A16,16,0,0,0,32,56v58.78c0,89.61,75.82,119.34,91,124.39a15.53,15.53,0,0,0,10,0c15.2-5.05,91-34.78,91-124.39V56A16,16,0,0,0,208,40Zm-34.34,77.66-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,156.69l50.34-50.35a8,8,0,0,1,11.32,11.32Z"></path>
                 </svg>
@@ -245,7 +263,7 @@ def _render_shell(active_tab: str = "api") -> HTMLResponse:
               </a>
             </li>
             <li class="nav-tab-item">
-              <a href="/sprints" id="tab-btn-sprints" onclick="navigateTab(event, 'sprints')">
+              <a href="{tabs["sprints"]}" id="tab-btn-sprints" onclick="navigateTab(event, 'sprints')">
                 <svg width="16" height="16" viewBox="0 0 256 256" fill="currentColor">
                   <path d="M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM96,192H48V64H96Zm56,0H112V64h40Zm56,0H168V64h40Z"></path>
                 </svg>
@@ -269,7 +287,7 @@ def _render_shell(active_tab: str = "api") -> HTMLResponse:
       <section id="view-api">
         <script
           id="api-reference"
-          data-url="/openapi.json"
+          data-url="{links["openapi"]}"
           data-configuration='{{"theme":"purple","layout":"modern","darkMode":true}}'
         ></script>
         <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
@@ -286,13 +304,8 @@ def _render_shell(active_tab: str = "api") -> HTMLResponse:
 
     <script>
       const docsData = JSON.parse(document.getElementById('docs-data').textContent);
-      const tabPaths = {{
-        api: '/docs',
-        arquitetura: '/arquitetura',
-        requisitos: '/requisitos',
-        seguranca: '/seguranca',
-        sprints: '/sprints'
-      }};
+      const tabPaths = {json.dumps(tabs)};
+      const assetsUrl = {json.dumps(links["assets"])};
 
       function updateActiveTabState(tabId) {{
         document.querySelectorAll('.nav-tab-item a').forEach(el => el.classList.remove('active'));
@@ -321,8 +334,8 @@ def _render_shell(active_tab: str = "api") -> HTMLResponse:
           viewMd.style.display = 'block';
 
           let mdText = docsData[tabId] || '# Documento não encontrado';
-          mdText = mdText.replace(/\\(assets\\//g, '(/assets/');
-          mdText = mdText.replace(/src=["']assets\\//g, 'src="/assets/');
+          mdText = mdText.replace(/\\(assets\\//g, '(' + assetsUrl);
+          mdText = mdText.replace(/src=["']assets\\//g, 'src="' + assetsUrl);
 
           if (window.marked) {{
             mdContainer.innerHTML = marked.parse(mdText);
@@ -346,16 +359,7 @@ def _render_shell(active_tab: str = "api") -> HTMLResponse:
         showTab(tabId, true);
       }}
 
-      window.addEventListener('popstate', () => {{
-        const path = window.location.pathname;
-        for (const [tab, p] of Object.entries(tabPaths)) {{
-          if (path === p) {{
-            showTab(tab, false);
-            return;
-          }}
-        }}
-        showTab('api', false);
-      }});
+      window.addEventListener('popstate', (e) => showTab(e.state?.tab || initialTab, false));
 
       const initialTab = "{active_tab}";
       document.addEventListener('DOMContentLoaded', () => {{
@@ -365,7 +369,29 @@ def _render_shell(active_tab: str = "api") -> HTMLResponse:
   </body>
 </html>
 """
-    return HTMLResponse(content=html)
+    return html
+
+
+def build_static(out: Path) -> None:
+    from api.main import app
+
+    links = {
+        "tabs": {"api": "./", **{key: f"{key}.html" for key in PAGES}},
+        "openapi": "openapi.json",
+        "assets": "assets/",
+    }
+    shutil.rmtree(out, ignore_errors=True)
+    shutil.copytree(DOCS_DIR / "assets", out / "assets")
+    (out / "openapi.json").write_text(json.dumps(app.openapi(), ensure_ascii=False))
+    (out / "index.html").write_text(render_page("api", links))
+    for key in PAGES:
+        (out / f"{key}.html").write_text(render_page(key, links))
+    # sem Jekyll, o GitHub Pages serve os arquivos como estão
+    (out / ".nojekyll").touch()
+
+
+def _render_shell(active_tab: str) -> HTMLResponse:
+    return HTMLResponse(render_page(active_tab))
 
 
 @router.get("/docs", include_in_schema=False)
