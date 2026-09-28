@@ -3,9 +3,9 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
-from fastapi.responses import HTMLResponse
 
 from api.core.config import settings
+from api.docs import router as docs_router
 from api.modules.auth.main import router as auth_router
 from api.modules.classrooms.main import router as classrooms_router
 from api.modules.jobs.main import router as jobs_router
@@ -56,31 +56,6 @@ app = FastAPI(
 )
 
 
-@app.get("/docs", include_in_schema=False)
-async def scalar_docs() -> HTMLResponse:
-    return HTMLResponse(
-        f"""
-        <!doctype html>
-        <html lang="pt-BR">
-          <head>
-            <title>{app.title} — Documentação</title>
-            <meta charset="utf-8" />
-            <meta name="viewport" content="width=device-width, initial-scale=1" />
-            <link rel="icon" type="image/svg+xml" href="https://scalar.com/favicon.svg" />
-          </head>
-          <body>
-            <script
-              id="api-reference"
-              data-url="{app.openapi_url}"
-              data-configuration='{{"theme":"purple","layout":"modern","darkMode":true}}'
-            ></script>
-            <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
-          </body>
-        </html>
-        """
-    )
-
-
 if settings.environment == "production":
     app.add_middleware(HTTPSRedirectMiddleware)
 
@@ -102,3 +77,4 @@ app.include_router(me_router, prefix="/me", tags=["Me"])
 app.include_router(news_router, prefix="/news", tags=["News"])
 app.include_router(restaurant_router, prefix="/restaurant", tags=["Restaurant"])
 app.include_router(jobs_router, prefix="/jobs", tags=["Jobs"])
+app.include_router(docs_router)
