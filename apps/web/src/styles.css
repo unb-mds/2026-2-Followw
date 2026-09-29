@@ -72,12 +72,6 @@ body {
     transition: transform 50ms ease-out;
 }
 
-@media (max-height: 760px) {
-    .login-content {
-        padding-top: 5rem;
-    }
-}
-
 @media (prefers-reduced-motion: reduce) {
     .login-submit-progress {
         transform: scaleX(0.75) !important;

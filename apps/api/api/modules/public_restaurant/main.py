@@ -4,7 +4,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Query
 from unb_browser import Campus, DailyMenu
 
-from api.dependencies.refresh import RefreshQuery
+from api.dependencies.cache import CacheControlDep
 from api.services.restaurant import Meal, RestaurantServiceDep
 
 router = APIRouter()
@@ -27,10 +27,10 @@ _CAMPUSES = {
 )
 async def get_menu(
     service: RestaurantServiceDep,
+    cache: CacheControlDep,
     campus: Annotated[
         Literal[*_CAMPUSES], Query(description="Campus do restaurante.")
     ] = "Darcy",
-    refresh: RefreshQuery = False,
     day: Annotated[
         date | None, Query(alias="date", description="Dia específico (AAAA-MM-DD).")
     ] = None,
@@ -49,7 +49,7 @@ async def get_menu(
 ) -> tuple[DailyMenu, ...]:
     return await service.get_menu(
         _CAMPUSES[campus],
-        refresh=refresh,
+        cache,
         day=day,
         start_date=start_date,
         end_date=end_date,

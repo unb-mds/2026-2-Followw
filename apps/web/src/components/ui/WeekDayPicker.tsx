@@ -10,7 +10,7 @@ interface WeekDayPickerProps {
 
 export function WeekDayPicker({ days, selectedDate, onSelect }: WeekDayPickerProps) {
     return (
-        <div className="no-scrollbar mb-5 flex items-center gap-2 overflow-x-auto py-1" aria-label="Escolher dia">
+        <div className="mb-4 flex items-center gap-2 overflow-x-auto py-1" aria-label="Escolher dia">
             {days.map((day) => {
                 const isActive = day.date === selectedDate;
                 return (
@@ -20,10 +20,10 @@ export function WeekDayPicker({ days, selectedDate, onSelect }: WeekDayPickerPro
                         onClick={() => onSelect(day)}
                         aria-label={day.date}
                         aria-pressed={isActive}
-                        className={`flex h-16.5 w-13.5 min-w-13.5 shrink-0 cursor-pointer flex-col items-center justify-center rounded-2xl transition-all active:scale-95 ${
+                        className={`flex h-16 flex-1 cursor-pointer flex-col items-center justify-center rounded-2xl border transition-all ${
                             isActive
-                                ? 'bg-primary text-white shadow-md shadow-primary/30'
-                                : 'border border-line bg-white/80 text-muted hover:bg-white'
+                                ? 'border-transparent bg-primary text-white shadow-md shadow-primary/30'
+                                : 'border-line bg-white/80 text-muted hover:bg-white'
                         }`}
                     >
                         <span

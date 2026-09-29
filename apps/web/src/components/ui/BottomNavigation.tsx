@@ -28,7 +28,6 @@ const BUBBLE_TOP = (BAR_H - BUBBLE_H) / 2; // 7
 
 export const BottomNavigation: React.FC = () => {
     const location = useLocation();
-    // Ignora a barra final (`/turmas/`); fora das abas a bolha some em vez de sair da barra.
     const pathname = location.pathname.replace(/(.)\/$/, '$1');
     const activeIndex = navItems.findIndex(
         (item) => item.to === pathname || (item.to === '/turmas' && pathname.startsWith('/turmas/'))
@@ -39,7 +38,6 @@ export const BottomNavigation: React.FC = () => {
             className="fixed bottom-5 left-1/2 z-100 -translate-x-1/2 select-none"
             aria-label="Navegação principal do aplicativo"
         >
-            {/* box-shadow em vez de filter no <nav>: filter no ancestral isola o backdrop-filter do glass */}
             <LiquidGlass
                 width={BAR_W}
                 height={BAR_H}
@@ -48,7 +46,6 @@ export const BottomNavigation: React.FC = () => {
                 tint="rgba(30,166,169,0.08)"
                 style={{ boxShadow: '0 12px 28px rgba(0,36,40,0.28), 0 4px 8px rgba(0,0,0,0.12)' }}
             >
-                {/* Sliding glass bubble — single element, translates to active slot */}
                 <div
                     aria-hidden="true"
                     style={{
@@ -66,7 +63,6 @@ export const BottomNavigation: React.FC = () => {
                         zIndex: 1,
                     }}
                 >
-                    {/* Nested glass layers — lighter blur, bright tint (glass-on-glass) */}
                     <div
                         style={{
                             position: 'absolute',
@@ -99,7 +95,6 @@ export const BottomNavigation: React.FC = () => {
                     />
                 </div>
 
-                {/* Tab items */}
                 <div className="relative flex h-full w-full items-center justify-around px-2.5" style={{ zIndex: 2 }}>
                     {navItems.map((item, index) => {
                         const isActive = index === activeIndex;

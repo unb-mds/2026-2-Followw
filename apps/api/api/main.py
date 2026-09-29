@@ -126,6 +126,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Age"],
 )
 
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])

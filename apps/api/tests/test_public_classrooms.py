@@ -167,6 +167,7 @@ def test_busca_sem_resultados_retorna_lista_vazia(client, public_sigaa):
     response = client.get("/public/classrooms?unit=gama")
     assert response.status_code == 200
     assert response.json() == []
+    assert response.headers["cache-control"] == "no-store"
 
 
 @pytest.mark.parametrize(
@@ -176,6 +177,7 @@ def test_unidades_vem_do_formulario_sem_login(client, public_sigaa, contains, ex
     params = {"contains": contains} if contains is not None else {}
     response = client.get("/public/classrooms/units", params=params)
     assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
     assert [unit["id"] for unit in response.json()] == expected
     assert public_sigaa.payloads == []
 

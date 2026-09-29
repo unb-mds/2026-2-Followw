@@ -19,6 +19,7 @@ from api.db.models import RestaurantMenu
 from api.repositories.restaurant import RestaurantRepository
 
 CREDENTIALS = Credentials(registration="251000000", password=SecretStr("senha"))
+NO_CACHE = {"Cache-Control": "no-cache"}
 DAY = DailyMenu(
     date=date(2026, 9, 25),
     lunch=(MenuSection(key="main_dish", name="Prato principal", items=("Frango",)),),
@@ -76,7 +77,7 @@ def test_menu_cache_separado_por_campus_e_refresh(client, browser, database):
         client.get("/public/restaurant", params={"campus": "Gama"}).json() == expected
     )
     assert client.get("/public/restaurant").json() == [DAY.model_dump(mode="json")]
-    assert client.get("/public/restaurant?refresh=true").json() == expected
+    assert client.get("/public/restaurant", headers=NO_CACHE).json() == expected
     assert client.get("/public/restaurant").json() == expected
     assert browser.restaurant.get_menu.await_count == 3
     with database() as session:
@@ -147,7 +148,7 @@ def test_menu_grava_uma_linha_por_dia_e_atualiza_no_refresh(client, browser, dat
         DAY.model_copy(update={"lunch": None}),
         DAY.model_copy(update={"date": date(2026, 9, 27)}),
     )
-    response = client.get("/public/restaurant?refresh=true").json()
+    response = client.get("/public/restaurant", headers=NO_CACHE).json()
     assert [(item["date"], item.get("lunch")) for item in response] == [
         ("2026-09-25", None),
         ("2026-09-26", DAY.model_dump(mode="json")["lunch"]),
@@ -295,7 +296,7 @@ def test_falha_no_commit_preserva_cache_e_retorna_menu_novo(
         "commit",
         AsyncMock(side_effect=SQLAlchemyError("falha no commit")),
     )
-    assert client.get("/public/restaurant?refresh=true").json() == []
+    assert client.get("/public/restaurant", headers=NO_CACHE).json() == []
     with database() as session:
         assert _cached_days(session) == original
 
@@ -324,8 +325,65 @@ def test_menu_em_cache_invalido_e_refeito(client, browser, database):
 def test_refresh_com_erro_no_ru_preserva_cache(client, browser, error):
     original = client.get("/public/restaurant").json()
     browser.restaurant.get_menu.side_effect = error
-    assert client.get("/public/restaurant?refresh=true").status_code == 502
+    assert client.get("/public/restaurant", headers=NO_CACHE).status_code == 502
     assert client.get("/public/restaurant").json() == original
+
+
+def test_menu_informa_a_idade_do_cache(client, browser, database):
+    primeira = client.get("/public/restaurant")
+    _age_cache(database, 2)
+
+    segunda = client.get("/public/restaurant")
+
+    assert primeira.headers["cache-control"] == "private, no-cache"
+    assert int(primeira.headers["age"]) < 5
+    assert 7200 <= int(segunda.headers["age"]) < 7205
+
+
+@pytest.mark.parametrize("max_age,consultas", [(3600, 2), (86400, 1)])
+def test_menu_max_age_revalida_cache_mais_velho_que_o_pedido(
+    client, browser, database, max_age, consultas
+):
+    client.get("/public/restaurant")
+    _age_cache(database, 2)
+
+    client.get("/public/restaurant", headers={"Cache-Control": f"max-age={max_age}"})
+
+    assert browser.restaurant.get_menu.await_count == consultas
+
+
+@pytest.mark.parametrize(
+    "header,status",
+    [("no-cache, stale-if-error", 200), ("no-cache, stale-if-error=60", 502)],
+)
+def test_menu_stale_if_error_serve_cache_se_o_ru_falhar(
+    client, browser, database, header, status
+):
+    original = client.get("/public/restaurant").json()
+    _age_cache(database, 2)
+    browser.restaurant.get_menu.side_effect = UnbParseError("layout mudou")
+
+    response = client.get("/public/restaurant", headers={"Cache-Control": header})
+
+    assert response.status_code == status
+    if status == 200:
+        assert response.json() == original
+
+
+def test_menu_only_if_cached_nunca_consulta_o_ru(client, browser, database):
+    vazio = client.get(
+        "/public/restaurant", headers={"Cache-Control": "only-if-cached"}
+    )
+    original = client.get("/public/restaurant").json()
+    _age_cache(database, 25)
+
+    vencido = client.get(
+        "/public/restaurant", headers={"Cache-Control": "only-if-cached"}
+    )
+
+    assert vazio.status_code == 504
+    assert vencido.json() == original
+    assert browser.restaurant.get_menu.await_count == 1
 
 
 def test_menu_rejeita_campus_invalido(client, browser):
@@ -342,8 +400,8 @@ def test_openapi_documenta_restaurante(client):
     assert "/restaurant/token" not in paths
     assert menu["tags"] == ["Public Restaurant"]
     assert {p["name"] for p in menu["parameters"]} == {
+        "Cache-Control",
         "campus",
-        "refresh",
         "date",
         "start_date",
         "end_date",
@@ -444,7 +502,7 @@ def test_refresh_com_data_atualiza_cache_completo(client, browser):
         DAY,
         DAY.model_copy(update={"date": date(2026, 9, 26)}),
     )
-    response = client.get("/public/restaurant?refresh=true&date=2026-09-26")
+    response = client.get("/public/restaurant?date=2026-09-26", headers=NO_CACHE)
     assert response.status_code == 200
     assert [item["date"] for item in response.json()] == ["2026-09-26"]
     assert len(client.get("/public/restaurant").json()) == 2
