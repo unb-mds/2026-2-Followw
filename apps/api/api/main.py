@@ -11,6 +11,7 @@ from api.modules.classrooms.main import router as classrooms_router
 from api.modules.jobs.main import router as jobs_router
 from api.modules.me.main import router as me_router
 from api.modules.news.main import router as news_router
+from api.modules.public_classrooms.main import router as public_classrooms_router
 from api.modules.restaurant.main import router as restaurant_router
 
 # desativa logs "HTTP Request: ..." que o httpx emite pra cada chamada ao SIGAA
@@ -29,6 +30,10 @@ tags_metadata = [
     {
         "name": "Me",
         "description": "Perfil acadêmico do estudante autenticado.",
+    },
+    {
+        "name": "Public Classrooms",
+        "description": "Busca pública de turmas e unidades do SIGAA, sem autenticação.",
     },
     {
         "name": "News",
@@ -73,6 +78,9 @@ app.add_middleware(
 
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 app.include_router(classrooms_router, prefix="/classrooms", tags=["Classrooms"])
+app.include_router(
+    public_classrooms_router, prefix="/public/classrooms", tags=["Public Classrooms"]
+)
 app.include_router(me_router, prefix="/me", tags=["Me"])
 app.include_router(news_router, prefix="/news", tags=["News"])
 app.include_router(restaurant_router, prefix="/restaurant", tags=["Restaurant"])

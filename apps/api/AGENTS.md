@@ -50,6 +50,18 @@ trocado) vira `None`. Testes em `tests/test_session.py`. Dependências:
 - `SigaaClientDep` — client já aberto, para rotas sem cache.
 - `SigaaPublicClientDep` — sem cookie nem login.
 
+**Turmas públicas.** `/public/classrooms` usa `PublicClassroomService` e
+`SigaaPublicClientDep`, sem banco ou fila. `unit` é obrigatório (ID ou nome
+parcial); `semester=AAAA.P` é opcional. `contains` filtra o resultado recebido
+pelo nome/código da disciplina ou nome de qualquer docente, ignorando acentos,
+maiúsculas e espaços extras; vazio não filtra. `local` aplica a mesma busca parcial
+ao local (unidade e sala) e combina com `contains` usando AND. Ambos filtram após
+consultar o SIGAA. Sem semestre, preserva ano/período do
+formulário do SIGAA e não seleciona nível de ensino. `/public/classrooms/units`
+lista as unidades do SIGAA, com filtro opcional `contains`. Filtros recusados
+(`SigaaSearchError`) retornam 422 na dependência pública; demais falhas, 502.
+`/classrooms` continua sendo exclusivamente a lista do usuário autenticado.
+
 Os cookies só renovam quando a requisição usa o SIGAA (`connection.client()` ou
 relogin os regravam, sem `Set-Cookie` duplicado; falha descarta). Resposta do
 cache não renova nada, e o cache só é servido com access_token válido — sem ele,

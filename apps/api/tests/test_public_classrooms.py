@@ -1,0 +1,335 @@
+import httpx
+import pytest
+import respx
+from sigaa_client.config import PUBLIC_CLASSROOMS_PATH, PUBLIC_HOME_PATH
+
+from api.db.main import get_sessionmaker
+from api.dependencies.qstash import get_job_queue
+
+SEARCH_FORM = """
+<form id="formTurma" method="post" action="/sigaa/public/turmas/listar.jsf">
+  <input name="formTurma" value="formTurma" type="hidden" />
+  <select name="formTurma:inputNivel">
+    <option value="">-- SELECIONE --</option><option value="G">GRADUAÇÃO</option>
+  </select>
+  <select name="formTurma:inputDepto">
+    <option value="0">-- SELECIONE --</option>
+    <option value="672">CAMPUS UNB CEILÂNDIA</option>
+    <option value="673">CAMPUS UNB GAMA</option>
+  </select>
+  <input name="formTurma:inputAno" value="2031" />
+  <select name="formTurma:inputPeriodo">
+    <option value="1">1</option><option value="2">2</option>
+    <option value="4" selected="selected">4</option>
+  </select>
+  <input type="submit" name="formTurma:buscar" value="Buscar" />
+  <input name="javax.faces.ViewState" value="view-publica" type="hidden" />
+</form>
+"""
+RESULTS = """
+<table class="listagem">
+  <tr class="agrupador"><td colspan="8">
+    <span class="tituloDisciplina">FGA0030 - ESTRUTURAS DE DADOS 2</span>
+  </td></tr>
+  <tr class="linhaPar">
+    <td>01</td><td>2031.4</td><td>DOCENTE (60h)</td><td>24T23</td>
+    <td></td><td>50</td><td>30</td><td>FCTE - S3</td>
+  </tr>
+</table>
+"""
+
+
+class FakePublicSigaa:
+    def __init__(self):
+        self.form = SEARCH_FORM
+        self.result = RESULTS
+        self.paths = []
+        self.payloads = []
+        self.warm = False
+        self.status = 200
+
+    def __call__(self, request):
+        self.paths.append(request.url.path)
+        if request.url.path == PUBLIC_HOME_PATH:
+            self.warm = True
+            return httpx.Response(self.status, text="home")
+        assert request.url.path == PUBLIC_CLASSROOMS_PATH
+        if request.method == "GET":
+            return httpx.Response(self.status, text=self.form)
+        assert self.warm
+        payload = dict(httpx.QueryParams(request.content.decode()))
+        assert payload["javax.faces.ViewState"] == "view-publica"
+        self.payloads.append(payload)
+        return httpx.Response(self.status, text=self.result)
+
+
+@pytest.fixture
+def public_sigaa():
+    fake = FakePublicSigaa()
+    with respx.mock:
+        respx.route(host="sigaa.unb.br").mock(side_effect=fake)
+        yield fake
+
+
+@pytest.mark.parametrize("unit", ["673", "gama", "  GAMA  "])
+def test_busca_publica_sem_login_preserva_defaults_do_sigaa(client, public_sigaa, unit):
+    def dependency_proibida():
+        pytest.fail("Busca pública não deve usar banco ou fila")
+
+    client.app.dependency_overrides[get_sessionmaker] = dependency_proibida
+    client.app.dependency_overrides[get_job_queue] = dependency_proibida
+    response = client.get("/public/classrooms", params={"unit": unit})
+
+    assert response.status_code == 200
+    assert "set-cookie" not in response.headers
+    payload = public_sigaa.payloads[0]
+    assert payload["formTurma:inputDepto"] == "673"
+    assert payload["formTurma:inputAno"] == "2031"
+    assert payload["formTurma:inputPeriodo"] == "4"
+    assert payload["formTurma:inputNivel"] == ""
+    assert response.json() == [
+        {
+            "number": "01",
+            "semester": "2031.4",
+            "schedule": "24T23",
+            "schedule_description": None,
+            "room": "S3",
+            "vacancies": 50,
+            "occupied": 30,
+            "teachers": [{"name": "DOCENTE", "hours": 60}],
+            "subject": {
+                "code": "FGA0030",
+                "sigaa_id": None,
+                "name": "ESTRUTURAS DE DADOS 2",
+                "hours": 60,
+                "unity": "FCTE",
+            },
+        }
+    ]
+
+
+@pytest.mark.parametrize("semester", ["2026.2", "2027.1", "2026.4"])
+def test_semestre_explicito_sobrescreve_ano_e_periodo(client, public_sigaa, semester):
+    response = client.get(
+        "/public/classrooms", params={"unit": "gama", "semester": semester}
+    )
+
+    assert response.status_code == 200
+    year, period = semester.split(".")
+    payload = public_sigaa.payloads[0]
+    assert payload["formTurma:inputAno"] == year
+    assert payload["formTurma:inputPeriodo"] == period
+    assert payload["formTurma:inputNivel"] == ""
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {},
+        {"unit": ""},
+        {"unit": "   "},
+        *(
+            {"unit": "gama", "semester": value}
+            for value in ("", "all", "2026", "2026.12", "26.2", "2026-2", "abcd.2")
+        ),
+    ],
+)
+def test_filtros_invalidos_nao_consultam_sigaa(client, public_sigaa, params):
+    assert client.get("/public/classrooms", params=params).status_code == 422
+    assert public_sigaa.paths == []
+
+
+@pytest.mark.parametrize(
+    "unit,message",
+    [("campus", "casa com 2 unidades"), ("inexistente", "Nenhuma unidade")],
+)
+def test_unidade_ambigua_ou_inexistente_informa_erro(
+    client, public_sigaa, unit, message
+):
+    response = client.get("/public/classrooms", params={"unit": unit})
+
+    assert response.status_code == 422
+    assert message in response.json()["detail"]
+    assert public_sigaa.payloads == []
+
+
+def test_filtro_recusado_pelo_sigaa_retorna_422(client, public_sigaa):
+    public_sigaa.result = '<ul class="erros"><li>Unidade inválida.</li></ul>'
+    response = client.get("/public/classrooms?unit=999999")
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Unidade inválida."
+
+
+def test_busca_sem_resultados_retorna_lista_vazia(client, public_sigaa):
+    public_sigaa.result = (
+        '<ul class="erros"><li>Não foram encontrados resultados.</li></ul>'
+    )
+    response = client.get("/public/classrooms?unit=gama")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+@pytest.mark.parametrize(
+    "contains,expected", [(None, [672, 673]), ("ceilandia", [672])]
+)
+def test_unidades_vem_do_formulario_sem_login(client, public_sigaa, contains, expected):
+    params = {"contains": contains} if contains is not None else {}
+    response = client.get("/public/classrooms/units", params=params)
+    assert response.status_code == 200
+    assert [unit["id"] for unit in response.json()] == expected
+    assert public_sigaa.payloads == []
+
+
+@pytest.mark.parametrize(
+    "path", ["/public/classrooms?unit=gama", "/public/classrooms/units"]
+)
+@pytest.mark.parametrize("error", ["http", "html"])
+def test_falha_do_sigaa_publico_retorna_502(client, public_sigaa, path, error):
+    if error == "http":
+        public_sigaa.status = 503
+    else:
+        public_sigaa.form = "<html>layout mudou</html>"
+    assert client.get(path).status_code == 502
+
+
+def test_classrooms_continua_privado(client, public_sigaa):
+    assert client.get("/classrooms", params={"unit": "gama"}).status_code == 401
+    assert public_sigaa.paths == []
+
+
+def test_openapi_publico_documenta_filtros(client):
+    paths = client.get("/openapi.json").json()["paths"]
+    route = paths["/public/classrooms"]["get"]
+    params = {p["name"]: p for p in route["parameters"]}
+    assert set(params) == {"unit", "semester", "contains", "local"}
+    assert params["unit"]["required"] is True
+    assert params["semester"]["required"] is False
+    assert params["contains"]["required"] is False
+    assert params["local"]["required"] is False
+    assert {"422", "502"} <= route["responses"].keys()
+    assert "401" not in route["responses"]
+    assert "/public/classrooms/units" in paths
+
+
+@pytest.mark.parametrize(
+    "contains,expected",
+    [
+        (None, ["01", "02", "03"]),
+        ("", ["01", "02", "03"]),
+        ("   ", ["01", "02", "03"]),
+        ("matematica", ["01", "03"]),
+        ("MATEMÁTICA", ["01", "03"]),
+        ("  matemática   aplicada  ", ["01"]),
+        ("edson", ["01"]),
+        ("  JOAO   DA SILVA ", ["02"]),
+        ("mat001", ["01"]),
+        ("inexistente", []),
+        ("FCTE", []),
+    ],
+)
+def test_contains_filtra_disciplina_codigo_ou_docente(
+    client, public_sigaa, contains, expected
+):
+    public_sigaa.result = """
+    <table class="listagem">
+      <tr class="agrupador"><td colspan="8">
+        <span class="tituloDisciplina">MAT001 - MATEMÁTICA APLICADA</span>
+      </td></tr>
+      <tr class="linhaPar">
+        <td>01</td><td>2026.4</td><td>ANA MATEMÁTICA (30h)<br/>EDSON (30h)</td>
+        <td>24T23</td><td></td><td>50</td><td>30</td><td>FCTE - S3</td>
+      </tr>
+      <tr class="agrupador"><td colspan="8">
+        <span class="tituloDisciplina">CIC001 - COMPUTAÇÃO</span>
+      </td></tr>
+      <tr class="linhaPar">
+        <td>02</td><td>2026.4</td><td>JOÃO DA SILVA (60h)</td>
+        <td>24T23</td><td></td><td>50</td><td>30</td><td>FCTE - S3</td>
+      </tr>
+      <tr class="agrupador"><td colspan="8">
+        <span class="tituloDisciplina">MAT002 - MATEMÁTICA DISCRETA</span>
+      </td></tr>
+      <tr class="linhaPar">
+        <td>03</td><td>2026.4</td><td></td>
+        <td>24T23</td><td></td><td>50</td><td>30</td><td>FCTE - S3</td>
+      </tr>
+    </table>
+    """
+    params = {"unit": "gama", "semester": "2026.4"}
+    if contains is not None:
+        params["contains"] = contains
+    response = client.get("/public/classrooms", params=params)
+
+    assert response.status_code == 200
+    assert [classroom["number"] for classroom in response.json()] == expected
+    assert len(public_sigaa.payloads) == 1
+    payload = public_sigaa.payloads[0]
+    assert "contains" not in payload
+    assert payload["formTurma:inputDepto"] == "673"
+    assert payload["formTurma:inputAno"] == "2026"
+    assert payload["formTurma:inputPeriodo"] == "4"
+
+
+@pytest.mark.parametrize(
+    "local,contains,expected",
+    [
+        (None, None, ["01", "02", "03", "04"]),
+        ("", None, ["01", "02", "03", "04"]),
+        ("   ", None, ["01", "02", "03", "04"]),
+        ("s3", None, ["01", "03"]),
+        ("  fcte   -   S3  ", None, ["01", "03"]),
+        ("auditorio", None, ["02"]),
+        ("AUDITÓRIO", None, ["02"]),
+        ("fcte", None, ["01", "03"]),
+        ("inexistente", None, []),
+        ("FGA0030", None, []),
+        ("S3", "FGA0030", ["01"]),
+        ("auditorio", "matematica", []),
+        ("", "matematica", ["03", "04"]),
+    ],
+)
+def test_local_filtra_local_completo_e_combina_com_contains(
+    client, public_sigaa, local, contains, expected
+):
+    public_sigaa.result = """
+    <table class="listagem">
+      <tr class="agrupador"><td colspan="8">
+        <span class="tituloDisciplina">FGA0030 - ESTRUTURAS DE DADOS 2</span>
+      </td></tr>
+      <tr class="linhaPar">
+        <td>01</td><td>2026.2</td><td>DOCENTE (60h)</td>
+        <td>24T23</td><td></td><td>50</td><td>30</td><td>FCTE - S3</td>
+      </tr>
+      <tr class="linhaPar">
+        <td>02</td><td>2026.2</td><td>DOCENTE (60h)</td>
+        <td>24T23</td><td></td><td>50</td><td>30</td><td>AUDITÓRIO</td>
+      </tr>
+      <tr class="agrupador"><td colspan="8">
+        <span class="tituloDisciplina">MAT001 - MATEMÁTICA</span>
+      </td></tr>
+      <tr class="linhaPar">
+        <td>03</td><td>2026.2</td><td>DOCENTE (60h)</td>
+        <td>24T23</td><td></td><td>50</td><td>30</td><td>FCTE - S3</td>
+      </tr>
+      <tr class="linhaPar">
+        <td>04</td><td>2026.2</td><td>DOCENTE (60h)</td>
+        <td>24T23</td><td></td><td>50</td><td>30</td><td></td>
+      </tr>
+    </table>
+    """
+    params = {"unit": "gama", "semester": "2026.2"}
+    if local is not None:
+        params["local"] = local
+    if contains is not None:
+        params["contains"] = contains
+    response = client.get("/public/classrooms", params=params)
+
+    assert response.status_code == 200
+    assert [classroom["number"] for classroom in response.json()] == expected
+    assert len(public_sigaa.payloads) == 1
+    payload = public_sigaa.payloads[0]
+    assert "local" not in payload
+    assert "contains" not in payload
+    assert payload["formTurma:inputDepto"] == "673"
+    assert payload["formTurma:inputAno"] == "2026"
+    assert payload["formTurma:inputPeriodo"] == "2"
