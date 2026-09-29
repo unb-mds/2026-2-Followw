@@ -1,13 +1,13 @@
 ## Descrição
 
+O que esta PR faz
+
 ### Detalhes das mudanças
 
-## Issues relacionadas
-
-- Closes #000
-
-## Como testar
+- Lista de alterações
 
 ## Contexto adicional
 
 (opcional)
+
+- Closes #

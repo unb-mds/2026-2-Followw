@@ -9,7 +9,9 @@ devolve modelos Pydantic. Hoje estão cobertos o cardápio do RU e o calendário
 from unb_browser import Campus, UnbBrowser
 
 async with UnbBrowser() as browser:
-    menu = await browser.restaurant.get_menu(Campus.DARCY_RIBEIRO)  # tuple[DailyMenu, ...]
+    menu = await browser.restaurant.get_menu(
+        Campus.DARCY_RIBEIRO
+    )  # tuple[DailyMenu, ...]
     semester = browser.calendar.get_semester("2026.1")
 ```
 
