@@ -1,8 +1,10 @@
 import logging
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import HTMLResponse
 
 from api.core.config import settings
@@ -12,7 +14,7 @@ from api.modules.jobs.main import router as jobs_router
 from api.modules.me.main import router as me_router
 from api.modules.news.main import router as news_router
 from api.modules.public_classrooms.main import router as public_classrooms_router
-from api.modules.restaurant.main import router as restaurant_router
+from api.modules.public_restaurant.main import router as public_restaurant_router
 
 # desativa logs "HTTP Request: ..." que o httpx emite pra cada chamada ao SIGAA
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -29,19 +31,21 @@ tags_metadata = [
     },
     {
         "name": "Me",
-        "description": "Perfil acadêmico do estudante autenticado.",
+        "description": "Perfil acadêmico, extrato/saldo do RU e carteirinha do estudante autenticado.",
     },
     {
         "name": "Public Classrooms",
+        "x-displayName": "Classrooms",
         "description": "Busca pública de turmas e unidades do SIGAA, sem autenticação.",
+    },
+    {
+        "name": "Public Restaurant",
+        "x-displayName": "Restaurant",
+        "description": "Cardápio público do RU, sem autenticação.",
     },
     {
         "name": "News",
         "description": "Notícias recentes das turmas, consultadas diretamente no SIGAA.",
-    },
-    {
-        "name": "Restaurant",
-        "description": "Cardápio público do RU, extrato e carteirinha do estudante autenticado.",
     },
 ]
 
@@ -59,6 +63,29 @@ app = FastAPI(
     redoc_url=None,
     openapi_tags=tags_metadata,
 )
+
+
+def custom_openapi() -> dict[str, Any]:
+    if app.openapi_schema is None:
+        app.openapi_schema = get_openapi(
+            title=app.title,
+            version=app.version,
+            openapi_version=app.openapi_version,
+            description=app.description,
+            routes=app.routes,
+            tags=app.openapi_tags,
+        )
+        app.openapi_schema["x-tagGroups"] = [
+            {"name": "Public", "tags": ["Public Classrooms", "Public Restaurant"]},
+            {
+                "name": "SIGAA",
+                "tags": ["Auth", "Classrooms", "Me", "News"],
+            },
+        ]
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi
 
 
 @app.get("/docs", include_in_schema=False)
@@ -106,7 +133,9 @@ app.include_router(classrooms_router, prefix="/classrooms", tags=["Classrooms"])
 app.include_router(
     public_classrooms_router, prefix="/public/classrooms", tags=["Public Classrooms"]
 )
+app.include_router(
+    public_restaurant_router, prefix="/public/restaurant", tags=["Public Restaurant"]
+)
 app.include_router(me_router, prefix="/me", tags=["Me"])
 app.include_router(news_router, prefix="/news", tags=["News"])
-app.include_router(restaurant_router, prefix="/restaurant", tags=["Restaurant"])
 app.include_router(jobs_router, prefix="/jobs", tags=["Jobs"])

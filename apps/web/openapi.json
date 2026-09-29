@@ -2,7 +2,7 @@
     "openapi": "3.1.0",
     "info": {
         "title": "Followw UnB API",
-        "description": "API pública e client assíncrono para o SIGAA / ecossistema UnB.",
+        "description": "Cliente alternativo e open-source para o ecossistema de sistemas da Universidade de Brasília (UnB). Agrega em uma experiência unificada e performática dados do SIGAA, Restaurante Universitário (RU) e calendário oficial, com autenticação stateless delegada ao CAS da UnB, credenciais cifradas em cookies JWE (AES-256-GCM), sincronização assíncrona inteligente e cache resiliente via Stale-While-Revalidate.",
         "version": "0.1.0"
     },
     "paths": {
@@ -511,73 +511,80 @@
                 }
             }
         },
-        "/me": {
+        "/public/classrooms": {
             "get": {
-                "tags": ["Me"],
-                "summary": "Consultar o perfil do usuário autenticado",
-                "operationId": "get_me_me_get",
+                "tags": ["Public Classrooms"],
+                "summary": "Buscar turmas públicas do SIGAA, sem login",
+                "description": "Consulta diretamente o SIGAA por unidade, sem filtrar o nível de ensino.",
+                "operationId": "search_classrooms_public_classrooms_get",
                 "parameters": [
                     {
-                        "name": "refresh",
+                        "name": "unit",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "pattern": "\\S",
+                            "description": "ID da unidade ou parte do nome, como 'gama'. Consulte /public/classrooms/units para obter os IDs.",
+                            "title": "Unit"
+                        },
+                        "description": "ID da unidade ou parte do nome, como 'gama'. Consulte /public/classrooms/units para obter os IDs."
+                    },
+                    {
+                        "name": "semester",
                         "in": "query",
                         "required": false,
                         "schema": {
-                            "type": "boolean",
-                            "description": "Ignora o cache: busca no SIGAA e atualiza o cache antes de responder.",
-                            "default": false,
-                            "title": "Refresh"
+                            "anyOf": [
+                                {
+                                    "type": "string",
+                                    "pattern": "^[0-9]{4}\\.[0-9]$"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Opcional, no formato AAAA.P: 2026.2, 2027.1 ou 2026.4. Sem filtro, usa os valores do SIGAA.",
+                            "title": "Semester"
                         },
-                        "description": "Ignora o cache: busca no SIGAA e atualiza o cache antes de responder."
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Successful Response",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/UserProfile"
-                                }
-                            }
-                        }
+                        "description": "Opcional, no formato AAAA.P: 2026.2, 2027.1 ou 2026.4. Sem filtro, usa os valores do SIGAA."
                     },
-                    "401": {
-                        "description": "Credenciais ausentes ou inválidas."
-                    },
-                    "502": {
-                        "description": "SIGAA indisponível."
-                    },
-                    "422": {
-                        "description": "Validation Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/news": {
-            "get": {
-                "tags": ["News"],
-                "summary": "Consultar notícias recentes das turmas na home do SIGAA",
-                "description": "Notícias recentes da home, sem cache.",
-                "operationId": "get_news_news_get",
-                "parameters": [
                     {
-                        "name": "resolve_ids",
+                        "name": "contains",
                         "in": "query",
                         "required": false,
                         "schema": {
-                            "type": "boolean",
-                            "description": "Resolve os IDs com uma consulta adicional à listagem de notícias por turma.",
-                            "default": false,
-                            "title": "Resolve Ids"
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Trecho do nome ou código da disciplina, ou do nome de qualquer docente. Ignora acentos, maiúsculas e espaços extras. Filtra o resultado da unidade/semestre após consultar o SIGAA; vazio não filtra.",
+                            "title": "Contains"
                         },
-                        "description": "Resolve os IDs com uma consulta adicional à listagem de notícias por turma."
+                        "description": "Trecho do nome ou código da disciplina, ou do nome de qualquer docente. Ignora acentos, maiúsculas e espaços extras. Filtra o resultado da unidade/semestre após consultar o SIGAA; vazio não filtra."
+                    },
+                    {
+                        "name": "local",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Trecho do local da turma, incluindo unidade e sala, como 'S3', 'FCTE - S3' ou 'auditorio'. Ignora acentos, maiúsculas e espaços extras; vazio não filtra. Com contains, exige correspondência nos dois filtros.",
+                            "title": "Local"
+                        },
+                        "description": "Trecho do local da turma, incluindo unidade e sala, como 'S3', 'FCTE - S3' ou 'auditorio'. Ignora acentos, maiúsculas e espaços extras; vazio não filtra. Com contains, exige correspondência nos dois filtros."
                     }
                 ],
                 "responses": {
@@ -588,18 +595,64 @@
                                 "schema": {
                                     "type": "array",
                                     "items": {
-                                        "$ref": "#/components/schemas/News"
+                                        "$ref": "#/components/schemas/PublicClassroom"
                                     },
-                                    "title": "Response Get News News Get"
+                                    "title": "Response Search Classrooms Public Classrooms Get"
                                 }
                             }
                         }
                     },
-                    "401": {
-                        "description": "Credenciais ausentes ou inválidas."
+                    "422": {
+                        "description": "Filtro inválido, unidade inexistente ou nome ambíguo."
                     },
                     "502": {
-                        "description": "SIGAA indisponível."
+                        "description": "SIGAA indisponível ou resposta ilegível."
+                    }
+                }
+            }
+        },
+        "/public/classrooms/units": {
+            "get": {
+                "tags": ["Public Classrooms"],
+                "summary": "Consultar unidades disponíveis na busca pública de turmas",
+                "operationId": "list_units_public_classrooms_units_get",
+                "parameters": [
+                    {
+                        "name": "contains",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Filtra pelo nome, ignorando acentos e maiúsculas.",
+                            "title": "Contains"
+                        },
+                        "description": "Filtra pelo nome, ignorando acentos e maiúsculas."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Unit"
+                                    },
+                                    "title": "Response List Units Public Classrooms Units Get"
+                                }
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "SIGAA indisponível ou resposta ilegível."
                     },
                     "422": {
                         "description": "Validation Error",
@@ -614,11 +667,11 @@
                 }
             }
         },
-        "/restaurant/menu": {
+        "/public/restaurant": {
             "get": {
-                "tags": ["Restaurant"],
+                "tags": ["Public Restaurant"],
                 "summary": "Consultar o cardápio público do RU",
-                "operationId": "get_menu_restaurant_menu_get",
+                "operationId": "get_menu_public_restaurant_get",
                 "parameters": [
                     {
                         "name": "campus",
@@ -732,13 +785,116 @@
                                     "items": {
                                         "$ref": "#/components/schemas/DailyMenu"
                                     },
-                                    "title": "Response Get Menu Restaurant Menu Get"
+                                    "title": "Response Get Menu Public Restaurant Get"
                                 }
                             }
                         }
                     },
                     "502": {
                         "description": "Site do RU indisponível ou cardápio ilegível."
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/me": {
+            "get": {
+                "tags": ["Me"],
+                "summary": "Consultar o perfil do usuário autenticado",
+                "operationId": "get_me_me_get",
+                "parameters": [
+                    {
+                        "name": "refresh",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "description": "Ignora o cache: busca no SIGAA e atualiza o cache antes de responder.",
+                            "default": false,
+                            "title": "Refresh"
+                        },
+                        "description": "Ignora o cache: busca no SIGAA e atualiza o cache antes de responder."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserProfile"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Credenciais ausentes ou inválidas."
+                    },
+                    "502": {
+                        "description": "SIGAA indisponível."
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/news": {
+            "get": {
+                "tags": ["News"],
+                "summary": "Consultar notícias recentes das turmas na home do SIGAA",
+                "description": "Notícias recentes da home, sem cache.",
+                "operationId": "get_news_news_get",
+                "parameters": [
+                    {
+                        "name": "resolve_ids",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "description": "Resolve os IDs com uma consulta adicional à listagem de notícias por turma.",
+                            "default": false,
+                            "title": "Resolve Ids"
+                        },
+                        "description": "Resolve os IDs com uma consulta adicional à listagem de notícias por turma."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/News"
+                                    },
+                                    "title": "Response Get News News Get"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Credenciais ausentes ou inválidas."
+                    },
+                    "502": {
+                        "description": "SIGAA indisponível."
                     },
                     "422": {
                         "description": "Validation Error",
@@ -1343,6 +1499,88 @@
                 "required": ["name", "url"],
                 "title": "NewsAttachment"
             },
+            "PublicClassroom": {
+                "properties": {
+                    "number": {
+                        "type": "string",
+                        "title": "Number"
+                    },
+                    "semester": {
+                        "type": "string",
+                        "title": "Semester"
+                    },
+                    "schedule": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Schedule"
+                    },
+                    "schedule_description": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Schedule Description"
+                    },
+                    "room": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Room"
+                    },
+                    "vacancies": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Vacancies"
+                    },
+                    "occupied": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Occupied"
+                    },
+                    "teachers": {
+                        "items": {
+                            "$ref": "#/components/schemas/Teacher"
+                        },
+                        "type": "array",
+                        "title": "Teachers",
+                        "default": []
+                    },
+                    "subject": {
+                        "$ref": "#/components/schemas/Subject"
+                    }
+                },
+                "type": "object",
+                "required": ["number", "semester", "subject"],
+                "title": "PublicClassroom",
+                "description": "Turma da busca pública.\n\nNão tem `id`: a área pública não expõe o `frontEndIdTurma`, então a\nidentidade aqui é a chave natural `(subject.code, number, semester)`."
+            },
             "RestaurantCredentials": {
                 "properties": {
                     "token": {
@@ -1524,6 +1762,45 @@
                 "title": "Subject",
                 "description": "Componente curricular, nos campos da tabela `subjects`."
             },
+            "Teacher": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "hours": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Hours"
+                    }
+                },
+                "type": "object",
+                "required": ["name"],
+                "title": "Teacher",
+                "description": "Docente de uma turma. `hours` é a carga horária dele naquela turma."
+            },
+            "Unit": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "title": "Id"
+                    },
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    }
+                },
+                "type": "object",
+                "required": ["id", "name"],
+                "title": "Unit",
+                "description": "Unidade acadêmica ofertante — o filtro obrigatório da busca pública."
+            },
             "UserLevel": {
                 "type": "string",
                 "enum": ["Graduação", "Pós-graduação", "Mestrado"],
@@ -1684,12 +1961,32 @@
             "description": "Perfil acadêmico do estudante autenticado."
         },
         {
+            "name": "Public Classrooms",
+            "description": "Busca pública de turmas e unidades do SIGAA, sem autenticação.",
+            "x-displayName": "Classrooms"
+        },
+        {
+            "name": "Public Restaurant",
+            "description": "Cardápio público do RU, sem autenticação.",
+            "x-displayName": "Restaurant"
+        },
+        {
             "name": "News",
             "description": "Notícias recentes das turmas, consultadas diretamente no SIGAA."
         },
         {
             "name": "Restaurant",
-            "description": "Cardápio público do RU, extrato e carteirinha do estudante autenticado."
+            "description": "Extrato, saldo e carteirinha do estudante autenticado."
+        }
+    ],
+    "x-tagGroups": [
+        {
+            "name": "Public",
+            "tags": ["Public Classrooms", "Public Restaurant"]
+        },
+        {
+            "name": "SIGAA",
+            "tags": ["Auth", "Classrooms", "Me", "News", "Restaurant"]
         }
     ]
 }

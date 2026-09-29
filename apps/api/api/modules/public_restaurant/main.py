@@ -1,16 +1,11 @@
 from datetime import date
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Query, Response
-from sigaa_client import RestaurantCredentials, RestaurantStatement
+from fastapi import APIRouter, Query
 from unb_browser import Campus, DailyMenu
 
 from api.dependencies.refresh import RefreshQuery
-from api.services.restaurant import (
-    Meal,
-    RestaurantAccountServiceDep,
-    RestaurantServiceDep,
-)
+from api.services.restaurant import Meal, RestaurantServiceDep
 
 router = APIRouter()
 _CAMPUSES = {
@@ -20,14 +15,10 @@ _CAMPUSES = {
     "Planaltina": Campus.PLANALTINA,
     "Fazenda": Campus.FAZENDA_AGUA_LIMPA,
 }
-PRIVATE_ERRORS = {
-    401: {"description": "Credenciais ausentes ou inválidas."},
-    502: {"description": "SIGAA indisponível."},
-}
 
 
 @router.get(
-    "/menu",
+    "",
     response_model=tuple[DailyMenu, ...],
     response_model_exclude_unset=True,
     summary="Consultar o cardápio público do RU",
@@ -64,31 +55,3 @@ async def get_menu(
         end_date=end_date,
         meal=meal,
     )
-
-
-@router.get(
-    "/statement",
-    response_model=RestaurantStatement,
-    summary="Consultar extrato, saldo e grupo do estudante no RU",
-    description="",
-    responses=PRIVATE_ERRORS,
-)
-async def get_statement(
-    service: RestaurantAccountServiceDep, response: Response
-) -> RestaurantStatement:
-    response.headers["Cache-Control"] = "no-store"
-    return await service.get_statement()
-
-
-@router.get(
-    "/token",
-    response_model=RestaurantCredentials,
-    summary="Consultar o token da carteirinha estudantil",
-    description="Lê o QR code da carteirinha no SIGAA a cada acesso, sem persistência. Retorna token e valid_until; a validade informa mês/ano e o scraper representa o mês pelo dia 1.",
-    responses=PRIVATE_ERRORS,
-)
-async def get_token(
-    service: RestaurantAccountServiceDep, response: Response
-) -> RestaurantCredentials:
-    response.headers["Cache-Control"] = "no-store"
-    return await service.get_token()

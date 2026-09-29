@@ -2,7 +2,7 @@ import type { components, operations } from '#/queries/schema.gen.ts';
 
 import { api } from '#/queries/api.ts';
 
-type MenuQuery = NonNullable<operations['get_menu_restaurant_menu_get']['parameters']['query']>;
+type MenuQuery = NonNullable<operations['get_menu_public_restaurant_get']['parameters']['query']>;
 type UserProfile = components['schemas']['UserProfile'];
 
 export type Campus = NonNullable<MenuQuery['campus']>;
@@ -36,6 +36,6 @@ export const menuQueryOptions = ({
     date,
     user
 }: Pick<MenuQuery, 'campus' | 'date'> & { user?: Pick<UserProfile, 'unity'> | null }) =>
-    api.queryOptions('get', '/restaurant/menu', {
+    api.queryOptions('get', '/public/restaurant', {
         params: { query: { campus: campus ?? campusOf(user?.unity), date } }
     });

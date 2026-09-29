@@ -1,5 +1,5 @@
 export interface paths {
-    '/auth/sigaa': {
+    "/auth/sigaa": {
         parameters: {
             query?: never;
             header?: never;
@@ -9,15 +9,15 @@ export interface paths {
         get?: never;
         put?: never;
         /** Sigaa Login */
-        post: operations['sigaa_login_auth_sigaa_post'];
+        post: operations["sigaa_login_auth_sigaa_post"];
         /** Sigaa Logout */
-        delete: operations['sigaa_logout_auth_sigaa_delete'];
+        delete: operations["sigaa_logout_auth_sigaa_delete"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    '/classrooms/{classroom_id}/news': {
+    "/classrooms/{classroom_id}/news": {
         parameters: {
             query?: never;
             header?: never;
@@ -28,7 +28,7 @@ export interface paths {
          * Consultar notícias de uma turma do usuário
          * @description ID, título e dia das notícias da turma, sem cache.
          */
-        get: operations['get_classroom_news_classrooms__classroom_id__news_get'];
+        get: operations["get_classroom_news_classrooms__classroom_id__news_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -37,7 +37,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    '/classrooms/{classroom_id}/news/{news_id}': {
+    "/classrooms/{classroom_id}/news/{news_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -48,7 +48,7 @@ export interface paths {
          * Consultar conteúdo e anexos de uma notícia da turma
          * @description Texto em Markdown, data e hora e anexos da notícia, sem cache.
          */
-        get: operations['get_classroom_news_detail_classrooms__classroom_id__news__news_id__get'];
+        get: operations["get_classroom_news_detail_classrooms__classroom_id__news__news_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -57,7 +57,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    '/classrooms': {
+    "/classrooms": {
         parameters: {
             query?: never;
             header?: never;
@@ -65,7 +65,7 @@ export interface paths {
             cookie?: never;
         };
         /** Consultar as turmas do usuário autenticado */
-        get: operations['get_classrooms_classrooms_get'];
+        get: operations["get_classrooms_classrooms_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -74,7 +74,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    '/classrooms/frequency': {
+    "/classrooms/frequency": {
         parameters: {
             query?: never;
             header?: never;
@@ -85,7 +85,7 @@ export interface paths {
          * Consultar frequência de todas as turmas atuais
          * @description Turmas atuais com identificação, andamento, frequência, frequency_status e resumo das entradas. Falha em uma turma retorna erro, sem omiti-la da lista.
          */
-        get: operations['get_current_frequencies_classrooms_frequency_get'];
+        get: operations["get_current_frequencies_classrooms_frequency_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -94,7 +94,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    '/classrooms/{classroom_id}/frequency': {
+    "/classrooms/{classroom_id}/frequency": {
         parameters: {
             query?: never;
             header?: never;
@@ -105,7 +105,7 @@ export interface paths {
          * Consultar frequência e andamento de uma turma
          * @description Aceita Classroom.id (hash) ou sigaa_id numérico. frequency_status indica not_registered, partially_registered ou registered nas entradas publicadas.
          */
-        get: operations['get_classroom_frequency_classrooms__classroom_id__frequency_get'];
+        get: operations["get_classroom_frequency_classrooms__classroom_id__frequency_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -114,7 +114,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    '/classrooms/{classroom_id}/members': {
+    "/classrooms/{classroom_id}/members": {
         parameters: {
             query?: never;
             header?: never;
@@ -122,7 +122,7 @@ export interface paths {
             cookie?: never;
         };
         /** Consultar docentes e discentes de uma turma do usuário */
-        get: operations['get_classroom_members_classrooms__classroom_id__members_get'];
+        get: operations["get_classroom_members_classrooms__classroom_id__members_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -131,7 +131,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    '/classrooms/{classroom_id}/statistics': {
+    "/classrooms/{classroom_id}/statistics": {
         parameters: {
             query?: never;
             header?: never;
@@ -139,7 +139,7 @@ export interface paths {
             cookie?: never;
         };
         /** Consultar a situação dos discentes de uma turma do usuário */
-        get: operations['get_classroom_statistics_classrooms__classroom_id__statistics_get'];
+        get: operations["get_classroom_statistics_classrooms__classroom_id__statistics_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -148,24 +148,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    '/me': {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Consultar o perfil do usuário autenticado */
-        get: operations['get_me_me_get'];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    '/news': {
+    "/public/classrooms": {
         parameters: {
             query?: never;
             header?: never;
@@ -173,10 +156,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Consultar notícias recentes das turmas na home do SIGAA
-         * @description Notícias recentes da home, sem cache.
+         * Buscar turmas públicas do SIGAA, sem login
+         * @description Consulta diretamente o SIGAA por unidade, sem filtrar o nível de ensino.
          */
-        get: operations['get_news_news_get'];
+        get: operations["search_classrooms_public_classrooms_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -185,7 +168,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    '/restaurant/menu': {
+    "/public/classrooms/units": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Consultar unidades disponíveis na busca pública de turmas */
+        get: operations["list_units_public_classrooms_units_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/restaurant": {
         parameters: {
             query?: never;
             header?: never;
@@ -193,7 +193,7 @@ export interface paths {
             cookie?: never;
         };
         /** Consultar o cardápio público do RU */
-        get: operations['get_menu_restaurant_menu_get'];
+        get: operations["get_menu_public_restaurant_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -202,15 +202,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    '/restaurant/statement': {
+    "/me": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Consultar extrato, saldo e grupo do estudante no RU */
-        get: operations['get_statement_restaurant_statement_get'];
+        /** Consultar o perfil do usuário autenticado */
+        get: operations["get_me_me_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -219,7 +219,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    '/restaurant/token': {
+    "/me/ru-statement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Consultar extrato, saldo e grupo do RU */
+        get: operations["get_statement_me_ru_statement_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/ru-token": {
         parameters: {
             query?: never;
             header?: never;
@@ -230,7 +247,27 @@ export interface paths {
          * Consultar o token da carteirinha estudantil
          * @description Lê o QR code da carteirinha no SIGAA a cada acesso, sem persistência. Retorna token e valid_until; a validade informa mês/ano e o scraper representa o mês pelo dia 1.
          */
-        get: operations['get_token_restaurant_token_get'];
+        get: operations["get_token_me_ru_token_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/news": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Consultar notícias recentes das turmas na home do SIGAA
+         * @description Notícias recentes da home, sem cache.
+         */
+        get: operations["get_news_news_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -253,7 +290,7 @@ export interface components {
              * Format: date
              */
             occurred_on: string;
-            status: components['schemas']['AttendanceStatus'];
+            status: components["schemas"]["AttendanceStatus"];
             /**
              * Absences
              * @default 0
@@ -264,7 +301,7 @@ export interface components {
          * AttendanceStatus
          * @enum {string}
          */
-        AttendanceStatus: 'presente' | 'falta' | 'nao_registrada';
+        AttendanceStatus: "presente" | "falta" | "nao_registrada";
         /**
          * AttendanceSummary
          * @description Contagens das entradas publicadas, sem presumir duração de cada aula.
@@ -308,7 +345,7 @@ export interface components {
              * @default false
              */
             current: boolean;
-            subject: components['schemas']['Subject'];
+            subject: components["schemas"]["Subject"];
         };
         /**
          * ClassroomAttendance
@@ -323,7 +360,7 @@ export interface components {
              * Entries
              * @default []
              */
-            entries: components['schemas']['AttendanceEntry'][];
+            entries: components["schemas"]["AttendanceEntry"][];
             /** Attended */
             attended: number;
             /** Registered */
@@ -334,7 +371,7 @@ export interface components {
             total: number;
             /** Total Percentage */
             total_percentage: number;
-            readonly summary: components['schemas']['AttendanceSummary'];
+            readonly summary: components["schemas"]["AttendanceSummary"];
         };
         /**
          * ClassroomFrequency
@@ -345,24 +382,24 @@ export interface components {
          *     em toda a carga horária), então não são devolvidos.
          */
         ClassroomFrequency: {
-            progress: components['schemas']['ClassroomProgress'];
-            frequency?: components['schemas']['ClassroomAttendance'] | null;
+            progress: components["schemas"]["ClassroomProgress"];
+            frequency?: components["schemas"]["ClassroomAttendance"] | null;
             /**
              * Frequency Status
              * @enum {string}
              */
-            readonly frequency_status: 'not_registered' | 'partially_registered' | 'registered';
+            readonly frequency_status: "not_registered" | "partially_registered" | "registered";
         };
         /** ClassroomFrequencyResult */
         ClassroomFrequencyResult: {
-            progress: components['schemas']['ClassroomProgress'];
-            frequency?: components['schemas']['ClassroomAttendance'] | null;
-            classroom: components['schemas']['Classroom'];
+            progress: components["schemas"]["ClassroomProgress"];
+            frequency?: components["schemas"]["ClassroomAttendance"] | null;
+            classroom: components["schemas"]["Classroom"];
             /**
              * Frequency Status
              * @enum {string}
              */
-            readonly frequency_status: 'not_registered' | 'partially_registered' | 'registered';
+            readonly frequency_status: "not_registered" | "partially_registered" | "registered";
         };
         /**
          * ClassroomMember
@@ -371,7 +408,7 @@ export interface components {
         ClassroomMember: {
             /** Name */
             name: string;
-            role: components['schemas']['ClassroomRole'];
+            role: components["schemas"]["ClassroomRole"];
             /** Registration */
             registration?: string | null;
             /** Photo */
@@ -401,7 +438,7 @@ export interface components {
          * ClassroomRole
          * @enum {string}
          */
-        ClassroomRole: 'aluno' | 'professor' | 'monitor';
+        ClassroomRole: "aluno" | "professor" | "monitor";
         /**
          * DailyMenu
          * @description Refeição que o campus não serve (ou não publicou) no dia vem `None`.
@@ -413,20 +450,20 @@ export interface components {
              */
             date: string;
             /** Breakfast */
-            breakfast?: components['schemas']['MenuSection'][] | null;
+            breakfast?: components["schemas"]["MenuSection"][] | null;
             /** Lunch */
-            lunch?: components['schemas']['MenuSection'][] | null;
+            lunch?: components["schemas"]["MenuSection"][] | null;
             /** Dinner */
-            dinner?: components['schemas']['MenuSection'][] | null;
+            dinner?: components["schemas"]["MenuSection"][] | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
-            detail?: components['schemas']['ValidationError'][];
+            detail?: components["schemas"]["ValidationError"][];
         };
         /** MenuSection */
         MenuSection: {
-            key?: components['schemas']['MenuSectionKey'] | null;
+            key?: components["schemas"]["MenuSectionKey"] | null;
             /** Name */
             name: string;
             /** Items */
@@ -436,26 +473,7 @@ export interface components {
          * MenuSectionKey
          * @enum {string}
          */
-        MenuSectionKey:
-            | 'drink'
-            | 'bread'
-            | 'extra'
-            | 'spread'
-            | 'complement'
-            | 'complement_vegetarian'
-            | 'complement_vegan'
-            | 'fruit'
-            | 'salad_1'
-            | 'salad_2'
-            | 'salad_dressing'
-            | 'main_dish'
-            | 'main_dish_vegetarian'
-            | 'main_dish_vegan'
-            | 'side_dish'
-            | 'accompaniments'
-            | 'soup'
-            | 'toast'
-            | 'dessert';
+        MenuSectionKey: "drink" | "bread" | "extra" | "spread" | "complement" | "complement_vegetarian" | "complement_vegan" | "fruit" | "salad_1" | "salad_2" | "salad_dressing" | "main_dish" | "main_dish_vegetarian" | "main_dish_vegan" | "side_dish" | "accompaniments" | "soup" | "toast" | "dessert";
         /**
          * News
          * @description A home não traz `id`; hora, texto e anexos só vêm de `get_classroom_news`.
@@ -480,7 +498,7 @@ export interface components {
              * Attachments
              * @default []
              */
-            attachments: components['schemas']['NewsAttachment'][];
+            attachments: components["schemas"]["NewsAttachment"][];
         };
         /** NewsAttachment */
         NewsAttachment: {
@@ -488,6 +506,35 @@ export interface components {
             name: string;
             /** Url */
             url: string;
+        };
+        /**
+         * PublicClassroom
+         * @description Turma da busca pública.
+         *
+         *     Não tem `id`: a área pública não expõe o `frontEndIdTurma`, então a
+         *     identidade aqui é a chave natural `(subject.code, number, semester)`.
+         */
+        PublicClassroom: {
+            /** Number */
+            number: string;
+            /** Semester */
+            semester: string;
+            /** Schedule */
+            schedule?: string | null;
+            /** Schedule Description */
+            schedule_description?: string | null;
+            /** Room */
+            room?: string | null;
+            /** Vacancies */
+            vacancies?: number | null;
+            /** Occupied */
+            occupied?: number | null;
+            /**
+             * Teachers
+             * @default []
+             */
+            teachers: components["schemas"]["Teacher"][];
+            subject: components["schemas"]["Subject"];
         };
         /** RestaurantCredentials */
         RestaurantCredentials: {
@@ -509,7 +556,7 @@ export interface components {
              * Entries
              * @default []
              */
-            entries: components['schemas']['RestaurantStatementEntry'][];
+            entries: components["schemas"]["RestaurantStatementEntry"][];
         };
         /** RestaurantStatementEntry */
         RestaurantStatementEntry: {
@@ -538,7 +585,7 @@ export interface components {
          *     ou 100.1. O gráfico não expõe a contagem de alunos, só a porcentagem.
          */
         StatisticsShare: {
-            situation: components['schemas']['StudentSituation'];
+            situation: components["schemas"]["StudentSituation"];
             /** Percentage */
             percentage: number;
         };
@@ -547,16 +594,7 @@ export interface components {
          * @description As situações do gráfico "Situação dos Discentes", na ordem da legenda.
          * @enum {string}
          */
-        StudentSituation:
-            | 'aprovado'
-            | 'reprovado'
-            | 'reprovado_por_faltas'
-            | 'reprovado_por_media_e_por_faltas'
-            | 'aprovado_por_nota'
-            | 'reprovado_por_nota'
-            | 'reprovado_por_nota_e_faltas'
-            | 'trancado'
-            | 'matriculado';
+        StudentSituation: "aprovado" | "reprovado" | "reprovado_por_faltas" | "reprovado_por_media_e_por_faltas" | "aprovado_por_nota" | "reprovado_por_nota" | "reprovado_por_nota_e_faltas" | "trancado" | "matriculado";
         /**
          * Subject
          * @description Componente curricular, nos campos da tabela `subjects`.
@@ -574,10 +612,30 @@ export interface components {
             unity?: string | null;
         };
         /**
+         * Teacher
+         * @description Docente de uma turma. `hours` é a carga horária dele naquela turma.
+         */
+        Teacher: {
+            /** Name */
+            name: string;
+            /** Hours */
+            hours?: number | null;
+        };
+        /**
+         * Unit
+         * @description Unidade acadêmica ofertante — o filtro obrigatório da busca pública.
+         */
+        Unit: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+        };
+        /**
          * UserLevel
          * @enum {string}
          */
-        UserLevel: 'Graduação' | 'Pós-graduação' | 'Mestrado';
+        UserLevel: "Graduação" | "Pós-graduação" | "Mestrado";
         /** UserProfile */
         UserProfile: {
             /** Name */
@@ -600,7 +658,7 @@ export interface components {
             ira: number | null;
             /** Mp */
             mp: number | null;
-            level: components['schemas']['UserLevel'];
+            level: components["schemas"]["UserLevel"];
         };
         /** ValidationError */
         ValidationError: {
@@ -633,7 +691,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                'application/json': components['schemas']['SigaaLoginRequest'];
+                "application/json": components["schemas"]["SigaaLoginRequest"];
             };
         };
         responses: {
@@ -643,7 +701,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': unknown;
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -652,7 +710,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['HTTPValidationError'];
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -672,7 +730,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': unknown;
+                    "application/json": unknown;
                 };
             };
         };
@@ -695,7 +753,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['News'][];
+                    "application/json": components["schemas"]["News"][];
                 };
             };
             /** @description Credenciais ausentes ou inválidas. */
@@ -718,7 +776,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['HTTPValidationError'];
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
             /** @description SIGAA indisponível. */
@@ -750,7 +808,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['News'];
+                    "application/json": components["schemas"]["News"];
                 };
             };
             /** @description Credenciais ausentes ou inválidas. */
@@ -773,7 +831,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['HTTPValidationError'];
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
             /** @description SIGAA indisponível. */
@@ -805,7 +863,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['Classroom'][];
+                    "application/json": components["schemas"]["Classroom"][];
                 };
             };
             /** @description Credenciais ausentes ou inválidas. */
@@ -821,7 +879,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['HTTPValidationError'];
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
             /** @description SIGAA indisponível. */
@@ -851,7 +909,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['ClassroomFrequencyResult'][];
+                    "application/json": components["schemas"]["ClassroomFrequencyResult"][];
                 };
             };
             /** @description Credenciais ausentes ou inválidas. */
@@ -874,7 +932,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['HTTPValidationError'];
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
             /** @description SIGAA indisponível. */
@@ -914,7 +972,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['ClassroomFrequency'];
+                    "application/json": components["schemas"]["ClassroomFrequency"];
                 };
             };
             /** @description Credenciais ausentes ou inválidas. */
@@ -937,7 +995,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['HTTPValidationError'];
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
             /** @description SIGAA indisponível. */
@@ -977,7 +1035,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['ClassroomMember'][];
+                    "application/json": components["schemas"]["ClassroomMember"][];
                 };
             };
             /** @description Credenciais ausentes ou inválidas. */
@@ -1000,7 +1058,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['HTTPValidationError'];
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
             /** @description SIGAA indisponível. */
@@ -1033,7 +1091,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['StatisticsShare'][];
+                    "application/json": components["schemas"]["StatisticsShare"][];
                 };
             };
             /** @description Credenciais ausentes ou inválidas. */
@@ -1056,10 +1114,141 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['HTTPValidationError'];
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
             /** @description SIGAA indisponível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    search_classrooms_public_classrooms_get: {
+        parameters: {
+            query: {
+                /** @description ID da unidade ou parte do nome, como 'gama'. Consulte /public/classrooms/units para obter os IDs. */
+                unit: string;
+                /** @description Opcional, no formato AAAA.P: 2026.2, 2027.1 ou 2026.4. Sem filtro, usa os valores do SIGAA. */
+                semester?: string | null;
+                /** @description Trecho do nome ou código da disciplina, ou do nome de qualquer docente. Ignora acentos, maiúsculas e espaços extras. Filtra o resultado da unidade/semestre após consultar o SIGAA; vazio não filtra. */
+                contains?: string | null;
+                /** @description Trecho do local da turma, incluindo unidade e sala, como 'S3', 'FCTE - S3' ou 'auditorio'. Ignora acentos, maiúsculas e espaços extras; vazio não filtra. Com contains, exige correspondência nos dois filtros. */
+                local?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicClassroom"][];
+                };
+            };
+            /** @description Filtro inválido, unidade inexistente ou nome ambíguo. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description SIGAA indisponível ou resposta ilegível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_units_public_classrooms_units_get: {
+        parameters: {
+            query?: {
+                /** @description Filtra pelo nome, ignorando acentos e maiúsculas. */
+                contains?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Unit"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description SIGAA indisponível ou resposta ilegível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_menu_public_restaurant_get: {
+        parameters: {
+            query?: {
+                /** @description Campus do restaurante. */
+                campus?: "Darcy" | "Gama" | "Ceilandia" | "Planaltina" | "Fazenda";
+                /** @description Ignora o cache: busca no SIGAA e atualiza o cache antes de responder. */
+                refresh?: boolean;
+                /** @description Dia específico (AAAA-MM-DD). */
+                date?: string | null;
+                /** @description Início do intervalo (AAAA-MM-DD). */
+                start_date?: string | null;
+                /** @description Fim do intervalo (AAAA-MM-DD). */
+                end_date?: string | null;
+                /** @description Retorna apenas a refeição escolhida e a data. Se não publicada no dia, a refeição é null. Sem filtro, retorna todas. */
+                meal?: ("breakfast" | "lunch" | "dinner") | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DailyMenu"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Site do RU indisponível ou cardápio ilegível. */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -1086,7 +1275,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['UserProfile'];
+                    "application/json": components["schemas"]["UserProfile"];
                 };
             };
             /** @description Credenciais ausentes ou inválidas. */
@@ -1102,8 +1291,76 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['HTTPValidationError'];
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description SIGAA indisponível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_statement_me_ru_statement_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestaurantStatement"];
+                };
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description SIGAA indisponível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_token_me_ru_token_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestaurantCredentials"];
+                };
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description SIGAA indisponível. */
             502: {
@@ -1132,7 +1389,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['News'][];
+                    "application/json": components["schemas"]["News"][];
                 };
             };
             /** @description Credenciais ausentes ou inválidas. */
@@ -1148,125 +1405,8 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['HTTPValidationError'];
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
-            };
-            /** @description SIGAA indisponível. */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    get_menu_restaurant_menu_get: {
-        parameters: {
-            query?: {
-                /** @description Campus do restaurante. */
-                campus?: 'Darcy' | 'Gama' | 'Ceilandia' | 'Planaltina' | 'Fazenda';
-                /** @description Ignora o cache: busca no SIGAA e atualiza o cache antes de responder. */
-                refresh?: boolean;
-                /** @description Dia específico (AAAA-MM-DD). */
-                date?: string | null;
-                /** @description Início do intervalo (AAAA-MM-DD). */
-                start_date?: string | null;
-                /** @description Fim do intervalo (AAAA-MM-DD). */
-                end_date?: string | null;
-                /** @description Retorna apenas a refeição escolhida e a data. Se não publicada no dia, a refeição é null. Sem filtro, retorna todas. */
-                meal?: ('breakfast' | 'lunch' | 'dinner') | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    'application/json': components['schemas']['DailyMenu'][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    'application/json': components['schemas']['HTTPValidationError'];
-                };
-            };
-            /** @description Site do RU indisponível ou cardápio ilegível. */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    get_statement_restaurant_statement_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    'application/json': components['schemas']['RestaurantStatement'];
-                };
-            };
-            /** @description Credenciais ausentes ou inválidas. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description SIGAA indisponível. */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    get_token_restaurant_token_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    'application/json': components['schemas']['RestaurantCredentials'];
-                };
-            };
-            /** @description Credenciais ausentes ou inválidas. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
             /** @description SIGAA indisponível. */
             502: {
