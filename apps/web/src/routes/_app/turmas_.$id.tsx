@@ -1,4 +1,9 @@
-import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import {
+    type QueryClient,
+    useQuery,
+    useQueryClient,
+    useSuspenseQuery
+} from '@tanstack/react-query';
 import { Link, createFileRoute } from '@tanstack/react-router';
 import {
     ArrowLeft,
@@ -21,6 +26,7 @@ import { LoginPromptCard } from '#/components/home/LoginPromptCard';
 import { Card } from '#/components/ui/Card';
 import { ErrorCard, ErrorState, SIGAA_DOWN_MESSAGE } from '#/components/ui/ErrorState';
 import { HeaderBar } from '#/components/ui/HeaderBar';
+import { PullToRefresh } from '#/components/ui/PullToRefresh';
 import { SectionHeader } from '#/components/ui/SectionHeader';
 import { formatClassroomDate, groupMembers } from '#/lib/classroom-details';
 import { describeSchedule } from '#/lib/schedule';
@@ -32,6 +38,7 @@ import {
     classroomNewsQueryOptions
 } from '#/queries/classrooms';
 import { meQueryOptions } from '#/queries/me';
+import { refreshQuery } from '#/queries/refresh';
 
 type Tab = 'news' | 'frequency' | 'members';
 type News = components['schemas']['News'];
@@ -39,39 +46,51 @@ type Member = components['schemas']['ClassroomMember'];
 type Frequency = components['schemas']['ClassroomFrequency'];
 
 const tabs: { id: Tab; label: string; icon: LucideIcon }[] = [
-    { id: 'news', label: 'Notícias', icon: Newspaper },
     { id: 'frequency', label: 'Frequência', icon: CalendarCheck2 },
+    { id: 'news', label: 'Notícias', icon: Newspaper },
     { id: 'members', label: 'Participantes', icon: UsersRound }
 ];
 
-export const Route = createFileRoute('/turmas_/$id')({
+function refreshTab(queryClient: QueryClient, tab: Tab, id: string) {
+    if (tab === 'news') return refreshQuery(queryClient, classroomNewsQueryOptions(id));
+    if (tab === 'frequency') return refreshQuery(queryClient, classroomFrequencyQueryOptions(id));
+    return refreshQuery(queryClient, classroomMembersQueryOptions(id));
+}
+
+export const Route = createFileRoute('/_app/turmas_/$id')({
     loader: async ({ context: { queryClient } }) => {
         const user = await queryClient.query(meQueryOptions);
         if (user) await queryClient.query(allClassroomsQueryOptions).catch(() => undefined);
     },
+    staticData: { header: ClassroomHeader },
     errorComponent: ErrorState,
     component: ClassroomPage
 });
 
+function ClassroomHeader() {
+    return (
+        <HeaderBar showLogo={false}>
+            <Link
+                to="/turmas"
+                className="inline-flex items-center gap-2 rounded-xl px-2 py-2 text-sm font-bold text-ink transition hover:bg-white/70 hover:text-primary-dark"
+            >
+                <ArrowLeft className="size-5" />
+                Turmas
+            </Link>
+        </HeaderBar>
+    );
+}
+
 function ClassroomPage() {
     const { id } = Route.useParams();
+    const queryClient = useQueryClient();
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const classrooms = useQuery({ ...allClassroomsQueryOptions, enabled: Boolean(user) });
-    const [tab, setTab] = useState<Tab>('news');
+    const [tab, setTab] = useState<Tab>(tabs[0].id);
     const classroom = classrooms.data?.find((item) => item.id === id);
 
     return (
-        <>
-            <HeaderBar showLogo={false}>
-                <Link
-                    to="/turmas"
-                    className="inline-flex items-center gap-2 rounded-xl px-2 py-2 text-sm font-bold text-ink transition hover:bg-white/70 hover:text-primary-dark"
-                >
-                    <ArrowLeft className="size-5" />
-                    Turmas
-                </Link>
-            </HeaderBar>
-
+        <PullToRefresh disabled={!classroom} onRefresh={() => refreshTab(queryClient, tab, id)}>
             {!user ? (
                 <LoginPromptCard />
             ) : classrooms.isError ? (
@@ -122,7 +141,7 @@ function ClassroomPage() {
                     </section>
                 </>
             )}
-        </>
+        </PullToRefresh>
     );
 }
 

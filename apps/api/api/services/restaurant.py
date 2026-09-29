@@ -3,7 +3,7 @@ from datetime import UTC, date, datetime, timedelta, timezone
 from typing import Annotated, Literal
 
 import httpx
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, status
 from pydantic import TypeAdapter, ValidationError
 from sigaa_client import RestaurantCredentials, RestaurantStatement
 from sqlalchemy.exc import SQLAlchemyError
@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from unb_browser import Campus, DailyMenu, UnbBrowserError
 
 from api.db.main import get_sessionmaker
+from api.dependencies.cache import NO_DIRECTIVES, CacheControl
 from api.dependencies.sigaa import SigaaClientDep
 from api.dependencies.unb_browser import UnbBrowserDep
 from api.repositories.restaurant import RestaurantRepository
@@ -40,8 +41,8 @@ class RestaurantService:
     async def get_menu(
         self,
         campus: Campus,
+        cache: CacheControl = NO_DIRECTIVES,
         *,
-        refresh: bool = False,
         day: date | None = None,
         start_date: date | None = None,
         end_date: date | None = None,
@@ -66,7 +67,7 @@ class RestaurantService:
             end_date = start_date + timedelta(days=6)
         elif start_date is None:
             start_date = end_date - timedelta(days=6)
-        days = await self._load_menu(campus, start_date, end_date, refresh=refresh)
+        days = await self._load_menu(campus, start_date, end_date, cache)
         if meal is None:
             return days
         return tuple(
@@ -74,34 +75,50 @@ class RestaurantService:
         )
 
     async def _load_menu(
-        self, campus: Campus, start: date, end: date, *, refresh: bool = False
+        self, campus: Campus, start: date, end: date, cache: CacheControl
     ) -> tuple[DailyMenu, ...]:
         cached: tuple[DailyMenu, ...] = ()
-        if not refresh:
-            try:
-                async with self._sessionmaker() as session:
-                    repository = RestaurantRepository(session)
-                    rows = await repository.get(campus, start, end)
-                    cached = _MENU.validate_python(rows, from_attributes=True)
-                    if not is_stale(await repository.synced_at(campus), MENU_TTL):
-                        return cached
-            except SQLAlchemyError, OSError, TimeoutError, ValidationError:
-                log.warning("Não foi possível ler o cache do cardápio", exc_info=True)
+        synced_at: datetime | None = None
+        try:
+            async with self._sessionmaker() as session:
+                repository = RestaurantRepository(session)
+                rows = await repository.get(campus, start, end)
+                cached = _MENU.validate_python(rows, from_attributes=True)
+                synced_at = await repository.synced_at(campus)
+        except SQLAlchemyError, OSError, TimeoutError, ValidationError:
+            log.warning("Não foi possível ler o cache do cardápio", exc_info=True)
+
+        if synced_at is not None and (
+            cache.only_if_cached
+            or not (is_stale(synced_at, MENU_TTL) or cache.revalidate(synced_at))
+        ):
+            cache.served(synced_at)
+            return cached
+        if cache.only_if_cached:
+            raise HTTPException(
+                status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail="Not cached"
+            )
 
         try:
             browser = await self._browser.browser()
             days = await browser.restaurant.get_menu(campus)
         except UnbBrowserError, httpx.HTTPError:
             # Cache vencido de outras datas não serve: sem o intervalo pedido, 502.
-            if not cached:
+            if not cached or synced_at is None:
+                raise
+            # Se foi o cliente quem pediu a revalidação, só o `stale-if-error` libera o cache.
+            if cache.revalidate(synced_at) and not cache.accepts_stale(synced_at):
                 raise
             log.warning("RU indisponível, servindo cardápio vencido", exc_info=True)
+            cache.served(synced_at)
             return cached
 
+        now = datetime.now(UTC)
+        cache.served(now)
         try:
             async with self._sessionmaker() as session:
                 repository = RestaurantRepository(session)
-                await repository.save(campus, days, datetime.now(UTC))
+                await repository.save(campus, days, now)
                 await session.commit()
                 rows = await repository.get(campus, start, end)
                 return _MENU.validate_python(rows, from_attributes=True)

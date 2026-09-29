@@ -1,3 +1,4 @@
+import { LoaderCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { loginProgressAt } from '#/lib/login-progress';
@@ -14,10 +15,17 @@ export function LoginSubmitButton({ pending }: LoginSubmitButtonProps) {
             aria-busy={pending}
             className="relative mt-4 flex h-12 w-full cursor-pointer items-center justify-center overflow-hidden rounded-full bg-login-blue text-sm font-bold text-white shadow-md transition hover:bg-login-blue-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-login-blue disabled:cursor-wait"
         >
-            {pending && <LoginProgressBar />}
-            <span className="relative z-10" aria-live="polite">
-                {pending ? 'Entrando...' : 'Entrar'}
-            </span>
+            {pending ? (
+                <>
+                    <LoginProgressBar />
+                    <span className="relative z-10 flex items-center gap-2">
+                        <LoaderCircle className="size-4 animate-spin" />
+                        Entrando...
+                    </span>
+                </>
+            ) : (
+                'Entrar'
+            )}
         </button>
     );
 }

@@ -1,7 +1,10 @@
-import { type QueryClient, useQueryClient } from '@tanstack/react-query';
+import { type QueryClient, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 
 import { api } from '#/queries/api.ts';
 import { classroomsQueryOptions } from '#/queries/classrooms.ts';
+import { apiClient } from '#/queries/client.ts';
+import { ApiError } from '#/queries/errors.ts';
 import { meQueryOptions } from '#/queries/me.ts';
 
 function clearUserData(queryClient: QueryClient) {
@@ -32,4 +35,19 @@ export function useLogout(onLoggedOut?: () => void) {
             onLoggedOut?.();
         }
     });
+}
+
+let sessionRefreshed = false;
+
+export function useSessionRefresh() {
+    const queryClient = useQueryClient();
+    const { data: user } = useQuery(meQueryOptions);
+
+    useEffect(() => {
+        if (!user || sessionRefreshed) return;
+        sessionRefreshed = true;
+        apiClient.POST('/auth/sigaa/refresh').catch((error: unknown) => {
+            if (error instanceof ApiError && error.isUnauthorized) clearSession(queryClient);
+        });
+    }, [user, queryClient]);
 }

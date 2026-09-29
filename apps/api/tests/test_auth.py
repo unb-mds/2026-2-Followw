@@ -2,9 +2,12 @@ import pytest
 from pydantic import SecretStr
 from sigaa_client import Credentials
 
+from api.dependencies.qstash import decode_job
+from api.services.sync import Task
 from api.utils.session import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME, decrypt_cookie
 
 CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha123"))
+LOGIN = {"registration": "251000000", "password": "senha123"}
 
 
 def _expirados(jar) -> set[str]:
@@ -134,3 +137,57 @@ def test_logout_com_sigaa_fora_do_ar_ainda_desloga(client, sigaa, cookies, ler_c
 
     assert response.status_code == 200
     assert ACCESS_COOKIE_NAME in _expirados(ler_cookies(response))
+
+
+def test_refresh_com_access_token_valido_nao_vai_ao_sigaa(
+    client, sigaa, cookies, qstash
+):
+    client.cookies.update(cookies(access="app14~VIVO", refresh=CREDENCIAIS))
+
+    response = client.post("/auth/sigaa/refresh")
+
+    assert response.status_code == 204
+    assert sigaa.logins == 0
+    assert "set-cookie" not in response.headers
+    assert qstash.published == []
+
+
+def test_refresh_sem_access_token_loga_e_agenda_o_sync(client, sigaa, cookies, qstash):
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+
+    response = client.post("/auth/sigaa/refresh")
+
+    assert response.status_code == 204
+    assert sigaa.logins == 1
+    assert _payload(response, ACCESS_COOKIE_NAME)["session_token"] == "app14~TOKEN1"
+    job = decode_job(qstash.published[0]["body"].encode())
+    assert (job.task, job.session_token) == (Task.ACCOUNT, "app14~TOKEN1")
+
+
+def test_refresh_com_senha_trocada_desloga(client, sigaa, ler_cookies):
+    client.post("/auth/sigaa", json=LOGIN)
+    client.cookies.delete(ACCESS_COOKIE_NAME)
+    sigaa.password = "senha-nova"
+
+    response = client.post("/auth/sigaa/refresh")
+
+    assert response.status_code == 401
+    assert _expirados(ler_cookies(response)) == {
+        ACCESS_COOKIE_NAME,
+        REFRESH_COOKIE_NAME,
+    }
+
+
+def test_refresh_sem_sessao_e_401(client, sigaa):
+    assert client.post("/auth/sigaa/refresh").status_code == 401
+    assert sigaa.logins == 0
+
+
+def test_refresh_com_sigaa_fora_do_ar_e_502(client, sigaa, cookies, ler_cookies):
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+    sigaa.unavailable = True
+
+    response = client.post("/auth/sigaa/refresh")
+
+    assert response.status_code == 502
+    assert "set-cookie" not in response.headers

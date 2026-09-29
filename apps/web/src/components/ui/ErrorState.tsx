@@ -3,7 +3,6 @@ import { CloudOff } from 'lucide-react';
 
 import { ApiError } from '#/queries/errors';
 import { Card } from '#/components/ui/Card';
-import { HeaderBar } from '#/components/ui/HeaderBar';
 
 export const SIGAA_DOWN_MESSAGE = 'O SIGAA está com problemas. Tente novamente em instantes.';
 
@@ -33,10 +32,5 @@ export const ErrorState: React.FC<ErrorComponentProps> = ({ error }) => {
             ? SIGAA_DOWN_MESSAGE
             : 'Erro inesperado ao carregar os dados.';
 
-    return (
-        <>
-            <HeaderBar />
-            <ErrorCard message={message} onRetry={() => router.invalidate()} />
-        </>
-    );
+    return <ErrorCard message={message} onRetry={() => router.invalidate()} />;
 };

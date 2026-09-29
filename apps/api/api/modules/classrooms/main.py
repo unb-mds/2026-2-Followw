@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Path, Query, Response
+from fastapi import APIRouter, Path, Query
 from sigaa_client import (
     Classroom,
     ClassroomFrequency,
@@ -9,7 +9,7 @@ from sigaa_client import (
     StatisticsShare,
 )
 
-from api.dependencies.refresh import RefreshQuery
+from api.dependencies.cache import CacheControlDep, NoStore
 from api.dependencies.sigaa import SIGAA_ERRORS
 from api.services.classroom import ClassroomFrequencyResult, ClassroomServiceDep
 from api.services.news import NewsServiceDep
@@ -32,11 +32,11 @@ ClassroomId = Annotated[str, Path(description="Classroom.id ou Classroom.sigaa_i
     summary="Consultar notícias de uma turma do usuário",
     description="ID, título e dia das notícias da turma, sem cache.",
     responses=CLASSROOM_ERRORS,
+    dependencies=[NoStore],
 )
 async def get_classroom_news(
-    service: NewsServiceDep, classroom_id: NewsClassroomId, response: Response
+    service: NewsServiceDep, classroom_id: NewsClassroomId
 ) -> list[News]:
-    response.headers["Cache-Control"] = "no-store"
     return await service.list_classroom_news(classroom_id)
 
 
@@ -51,6 +51,7 @@ async def get_classroom_news(
             "description": "Turma fora da lista do usuário ou notícia ausente na turma."
         },
     },
+    dependencies=[NoStore],
 )
 async def get_classroom_news_detail(
     service: NewsServiceDep,
@@ -58,9 +59,7 @@ async def get_classroom_news_detail(
     news_id: Annotated[
         int, Path(gt=0, description="ID da notícia na listagem da turma.")
     ],
-    response: Response,
 ) -> News:
-    response.headers["Cache-Control"] = "no-store"
     return await service.get_classroom_news(classroom_id, news_id)
 
 
@@ -72,6 +71,7 @@ async def get_classroom_news_detail(
 )
 async def get_classrooms(
     service: ClassroomServiceDep,
+    cache: CacheControlDep,
     semester: Annotated[
         str | None,
         Query(
@@ -79,9 +79,8 @@ async def get_classrooms(
             description="Sem filtro: turmas atuais. Use 'all' ou um semestre no formato AAAA.P, como 2026.2.",
         ),
     ] = None,
-    refresh: RefreshQuery = False,
 ) -> list[Classroom]:
-    return await service.list_classrooms(semester, refresh=refresh)
+    return await service.list_classrooms(semester, cache)
 
 
 @router.get(
@@ -92,10 +91,9 @@ async def get_classrooms(
     responses={**CLASSROOM_ERRORS, 503: {"description": "Cache em atualização."}},
 )
 async def get_current_frequencies(
-    service: ClassroomServiceDep, response: Response, refresh: RefreshQuery = False
+    service: ClassroomServiceDep, cache: CacheControlDep
 ) -> list[ClassroomFrequencyResult]:
-    response.headers["Cache-Control"] = "no-store"
-    return await service.list_frequencies(refresh=refresh)
+    return await service.list_frequencies(cache)
 
 
 @router.get(
@@ -108,11 +106,9 @@ async def get_current_frequencies(
 async def get_classroom_frequency(
     service: ClassroomServiceDep,
     classroom_id: ClassroomId,
-    response: Response,
-    refresh: RefreshQuery = False,
+    cache: CacheControlDep,
 ) -> ClassroomFrequency:
-    response.headers["Cache-Control"] = "no-store"
-    return await service.get_frequency(classroom_id, refresh=refresh)
+    return await service.get_frequency(classroom_id, cache)
 
 
 @router.get(
@@ -124,9 +120,9 @@ async def get_classroom_frequency(
 async def get_classroom_members(
     service: ClassroomServiceDep,
     classroom_id: ClassroomId,
-    refresh: RefreshQuery = False,
+    cache: CacheControlDep,
 ) -> list[ClassroomMember]:
-    return await service.list_members(classroom_id, refresh=refresh)
+    return await service.list_members(classroom_id, cache)
 
 
 @router.get(
@@ -138,6 +134,6 @@ async def get_classroom_members(
 async def get_classroom_statistics(
     service: ClassroomServiceDep,
     classroom_id: ClassroomId,
-    refresh: RefreshQuery = False,
+    cache: CacheControlDep,
 ) -> list[StatisticsShare]:
-    return await service.list_statistics(classroom_id, refresh=refresh)
+    return await service.list_statistics(classroom_id, cache)

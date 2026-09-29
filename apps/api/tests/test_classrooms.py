@@ -34,6 +34,7 @@ from api.utils.session import (
 )
 
 CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha123"))
+NO_CACHE = {"Cache-Control": "no-cache"}
 DASHBOARD = """
 <table>
   <tr><td colspan="5">2026.2</td></tr>
@@ -115,7 +116,7 @@ def test_refresh_reflete_alteracoes_no_sigaa(client, classrooms_sigaa, cookies):
     classrooms_sigaa.profile = classrooms_sigaa.profile.replace("MOCAP", "SALA 02")
     assert client.get("/classrooms").json()[0]["room"] == "MOCAP"
 
-    response = client.get("/classrooms", params={"refresh": "true"})
+    response = client.get("/classrooms", headers=NO_CACHE)
 
     assert response.status_code == 200
     assert response.json()[0]["room"] == "SALA 02"
@@ -466,7 +467,7 @@ def test_refresh_dos_participantes_busca_no_sigaa(client, sigaa, turmas):
     )
     turmas.classrooms.list_classroom_members.return_value = PARTICIPANTES[:1]
 
-    response = client.get("/classrooms/AAA/members", params={"refresh": "true"})
+    response = client.get("/classrooms/AAA/members", headers=NO_CACHE)
 
     assert [m["name"] for m in response.json()] == ["ZECA"]
     assert [m["name"] for m in client.get("/classrooms/AAA/members").json()] == ["ZECA"]
@@ -503,7 +504,7 @@ def test_openapi_documenta_participantes_e_estatisticas(client):
     for screen in ("members", "statistics"):
         route = paths[f"/classrooms/{{classroom_id}}/{screen}"]["get"]
         assert {"401", "404", "502"} <= route["responses"].keys()
-        assert any(p["name"] == "refresh" for p in route["parameters"])
+        assert any(p["name"] == "Cache-Control" for p in route["parameters"])
 
 
 def test_refresh_atualiza_turmas_antigas(client, sigaa, turmas):
@@ -513,7 +514,7 @@ def test_refresh_atualiza_turmas_antigas(client, sigaa, turmas):
     antiga = ANTIGA.model_copy(update={"schedule": "24T45", "room": "SALA 07"})
     turmas.classrooms.list_classrooms.return_value = [ATUAL, antiga]
 
-    response = client.get("/classrooms?semester=2025.2&refresh=true")
+    response = client.get("/classrooms?semester=2025.2", headers=NO_CACHE)
 
     assert response.json()[0]["schedule"] == "24T45"
     assert response.json()[0]["room"] == "SALA 07"
@@ -632,7 +633,7 @@ def test_ids_numerico_e_hash_retornam_todos_os_campos_e_usam_o_mesmo_cache(
         response = logged.get(f"/classrooms/{identifier}/frequency")
         assert response.status_code == 200
         assert response.json() == FREQUENCY.model_dump(mode="json")
-        assert response.headers["cache-control"] == "no-store"
+        assert response.headers["cache-control"] == "private, no-cache"
     account.classrooms.get_classroom_frequency.assert_awaited_once_with("HASH-A")
     assert qstash.published == []
     with database() as session:
@@ -685,7 +686,7 @@ def test_refresh_reconsulta_sigaa_e_atualiza_mesmo_cache(logged, account):
     logged.get("/classrooms/HASH-A/frequency")
     account.classrooms.get_classroom_frequency.return_value = NOT_REGISTERED
     assert logged.get(
-        "/classrooms/1614141/frequency?refresh=true"
+        "/classrooms/1614141/frequency", headers=NO_CACHE
     ).json() == NOT_REGISTERED.model_dump(mode="json")
     assert logged.get(
         "/classrooms/HASH-A/frequency"
@@ -699,7 +700,7 @@ def test_refresh_agregado_atualiza_lista_e_so_consulta_turmas_que_continuam_ativ
     logged.get("/classrooms/frequency")
     account.classrooms.list_classrooms.return_value = [OLD, SECOND]
     account.classrooms.get_classroom_frequency.reset_mock()
-    response = logged.get("/classrooms/frequency?refresh=true")
+    response = logged.get("/classrooms/frequency", headers=NO_CACHE)
     assert response.status_code == 200
     assert [item["classroom"]["id"] for item in response.json()] == ["HASH-B"]
     account.classrooms.get_classroom_frequency.assert_awaited_once_with("HASH-B")
@@ -851,6 +852,26 @@ def test_erros_de_consulta_nao_viram_frequencia_vazia(logged, account, error, st
     assert logged.get("/classrooms/HASH-A/frequency").status_code == status
 
 
+@pytest.mark.parametrize(
+    "error,status",
+    [
+        (SessionExpired(), 401),
+        (ClassroomNotFound(), 404),
+        (SigaaParseError("fora"), 200),
+    ],
+)
+def test_stale_if_error_so_cobre_falha_da_origem(logged, account, error, status):
+    logged.get("/classrooms/HASH-A/frequency")
+    account.classrooms.get_classroom_frequency.side_effect = error
+
+    response = logged.get(
+        "/classrooms/HASH-A/frequency",
+        headers={"Cache-Control": "no-cache, stale-if-error"},
+    )
+
+    assert response.status_code == status
+
+
 def test_agregado_nao_omite_turma_com_erro(logged, account):
     account.classrooms.get_classroom_frequency.side_effect = [
         FREQUENCY,
@@ -863,7 +884,9 @@ def test_agregado_nao_omite_turma_com_erro(logged, account):
 def test_falha_de_refresh_preserva_cache_anterior(logged, account):
     logged.get("/classrooms/HASH-A/frequency")
     account.classrooms.get_classroom_frequency.side_effect = SigaaParseError("fora")
-    assert logged.get("/classrooms/HASH-A/frequency?refresh=true").status_code == 502
+    assert (
+        logged.get("/classrooms/HASH-A/frequency", headers=NO_CACHE).status_code == 502
+    )
     assert logged.get("/classrooms/HASH-A/frequency").json() == FREQUENCY.model_dump(
         mode="json"
     )
@@ -872,7 +895,7 @@ def test_falha_de_refresh_preserva_cache_anterior(logged, account):
 def test_remover_vinculo_remove_cache_individual(logged, account, database):
     logged.get("/classrooms/HASH-A/frequency")
     account.classrooms.list_classrooms.return_value = [SECOND]
-    logged.get("/classrooms?refresh=true")
+    logged.get("/classrooms", headers=NO_CACHE)
     with database() as session:
         assert session.scalar(select(ClassroomFrequencyCache)) is None
         assert (
@@ -888,4 +911,4 @@ def test_openapi_documenta_frequencia_individual_e_agregada(client):
     for path in ("/classrooms/frequency", "/classrooms/{classroom_id}/frequency"):
         route = paths[path]["get"]
         assert {"401", "404", "502", "503"} <= route["responses"].keys()
-        assert any(p["name"] == "refresh" for p in route["parameters"])
+        assert any(p["name"] == "Cache-Control" for p in route["parameters"])

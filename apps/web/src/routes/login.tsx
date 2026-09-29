@@ -39,7 +39,7 @@ function LoginPage() {
               : undefined;
 
     return (
-        <div className="flex flex-1 flex-col items-center">
+        <main className="login-page flex min-h-dvh w-full flex-col items-center shadow-2xl">
             <div className="login-content flex w-full flex-col items-center px-10 pt-42">
                 <header className="flex flex-col items-center text-center">
                     <FollowwLogo className="h-auto w-20 drop-shadow-sm" />
@@ -129,6 +129,6 @@ function LoginPage() {
 
                 <LoginPrivacyInfo />
             </div>
-        </div>
+        </main>
     );
 }

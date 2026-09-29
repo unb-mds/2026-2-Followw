@@ -1,8 +1,9 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Query, Response
+from fastapi import APIRouter, Query
 from sigaa_client import News
 
+from api.dependencies.cache import NoStore
 from api.dependencies.sigaa import SIGAA_ERRORS
 from api.services.news import NewsServiceDep
 
@@ -15,10 +16,10 @@ router = APIRouter()
     summary="Consultar notícias recentes das turmas na home do SIGAA",
     description=("Notícias recentes da home, sem cache."),
     responses=SIGAA_ERRORS,
+    dependencies=[NoStore],
 )
 async def get_news(
     service: NewsServiceDep,
-    response: Response,
     resolve_ids: Annotated[
         bool,
         Query(
@@ -26,5 +27,4 @@ async def get_news(
         ),
     ] = False,
 ) -> list[News]:
-    response.headers["Cache-Control"] = "no-store"
     return await service.list_news(resolve_ids=resolve_ids)

@@ -9,16 +9,22 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as SplatRouteImport } from './routes/$'
+import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as PerfilRouteImport } from './routes/perfil'
-import { Route as RuRouteImport } from './routes/ru'
-import { Route as TurmasRouteImport } from './routes/turmas'
-import { Route as TurmasIdRouteImport } from './routes/turmas_.$id'
+import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppPerfilRouteImport } from './routes/_app/perfil'
+import { Route as AppRuRouteImport } from './routes/_app/ru'
+import { Route as AppTurmasRouteImport } from './routes/_app/turmas'
+import { Route as AppTurmasIdRouteImport } from './routes/_app/turmas_.$id'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const SplatRoute = SplatRouteImport.update({
+  id: '/$',
+  path: '/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -26,77 +32,99 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PerfilRoute = PerfilRouteImport.update({
+const AppIndexRoute = AppIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPerfilRoute = AppPerfilRouteImport.update({
   id: '/perfil',
   path: '/perfil',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AppRoute,
 } as any)
-const RuRoute = RuRouteImport.update({
+const AppRuRoute = AppRuRouteImport.update({
   id: '/ru',
   path: '/ru',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AppRoute,
 } as any)
-const TurmasRoute = TurmasRouteImport.update({
+const AppTurmasRoute = AppTurmasRouteImport.update({
   id: '/turmas',
   path: '/turmas',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AppRoute,
 } as any)
-const TurmasIdRoute = TurmasIdRouteImport.update({
+const AppTurmasIdRoute = AppTurmasIdRouteImport.update({
   id: '/turmas_/$id',
   path: '/turmas/$id',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AppRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/$': typeof SplatRoute
+  '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
-  '/perfil': typeof PerfilRoute
-  '/ru': typeof RuRoute
-  '/turmas': typeof TurmasRoute
-  '/turmas/$id': typeof TurmasIdRoute
+  '/perfil': typeof AppPerfilRoute
+  '/ru': typeof AppRuRoute
+  '/turmas': typeof AppTurmasRoute
+  '/turmas/$id': typeof AppTurmasIdRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
+  '/$': typeof SplatRoute
   '/login': typeof LoginRoute
-  '/perfil': typeof PerfilRoute
-  '/ru': typeof RuRoute
-  '/turmas': typeof TurmasRoute
-  '/turmas/$id': typeof TurmasIdRoute
+  '/perfil': typeof AppPerfilRoute
+  '/ru': typeof AppRuRoute
+  '/turmas': typeof AppTurmasRoute
+  '/': typeof AppIndexRoute
+  '/turmas/$id': typeof AppTurmasIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/$': typeof SplatRoute
+  '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
-  '/perfil': typeof PerfilRoute
-  '/ru': typeof RuRoute
-  '/turmas': typeof TurmasRoute
-  '/turmas_/$id': typeof TurmasIdRoute
+  '/_app/perfil': typeof AppPerfilRoute
+  '/_app/ru': typeof AppRuRoute
+  '/_app/turmas': typeof AppTurmasRoute
+  '/_app/': typeof AppIndexRoute
+  '/_app/turmas_/$id': typeof AppTurmasIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/perfil' | '/ru' | '/turmas' | '/turmas/$id'
+  fullPaths:
+    '/$' | '/' | '/login' | '/perfil' | '/ru' | '/turmas' | '/turmas/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/perfil' | '/ru' | '/turmas' | '/turmas/$id'
+  to: '/$' | '/login' | '/perfil' | '/ru' | '/turmas' | '/' | '/turmas/$id'
   id:
-    '__root__' | '/' | '/login' | '/perfil' | '/ru' | '/turmas' | '/turmas_/$id'
+    | '__root__'
+    | '/$'
+    | '/_app'
+    | '/login'
+    | '/_app/perfil'
+    | '/_app/ru'
+    | '/_app/turmas'
+    | '/_app/'
+    | '/_app/turmas_/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  SplatRoute: typeof SplatRoute
+  AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
-  PerfilRoute: typeof PerfilRoute
-  RuRoute: typeof RuRoute
-  TurmasRoute: typeof TurmasRoute
-  TurmasIdRoute: typeof TurmasIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
+    '/$': {
+      id: '/$'
+      path: '/$'
+      fullPath: '/$'
+      preLoaderRoute: typeof SplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app': {
+      id: '/_app'
+      path: ''
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -106,44 +134,66 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/perfil': {
-      id: '/perfil'
+    '/_app/': {
+      id: '/_app/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/perfil': {
+      id: '/_app/perfil'
       path: '/perfil'
       fullPath: '/perfil'
-      preLoaderRoute: typeof PerfilRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AppPerfilRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/ru': {
-      id: '/ru'
+    '/_app/ru': {
+      id: '/_app/ru'
       path: '/ru'
       fullPath: '/ru'
-      preLoaderRoute: typeof RuRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AppRuRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/turmas': {
-      id: '/turmas'
+    '/_app/turmas': {
+      id: '/_app/turmas'
       path: '/turmas'
       fullPath: '/turmas'
-      preLoaderRoute: typeof TurmasRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AppTurmasRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/turmas_/$id': {
-      id: '/turmas_/$id'
+    '/_app/turmas_/$id': {
+      id: '/_app/turmas_/$id'
       path: '/turmas/$id'
       fullPath: '/turmas/$id'
-      preLoaderRoute: typeof TurmasIdRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AppTurmasIdRouteImport
+      parentRoute: typeof AppRoute
     }
   }
 }
 
+interface AppRouteChildren {
+  AppPerfilRoute: typeof AppPerfilRoute
+  AppRuRoute: typeof AppRuRoute
+  AppTurmasRoute: typeof AppTurmasRoute
+  AppIndexRoute: typeof AppIndexRoute
+  AppTurmasIdRoute: typeof AppTurmasIdRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppPerfilRoute: AppPerfilRoute,
+  AppRuRoute: AppRuRoute,
+  AppTurmasRoute: AppTurmasRoute,
+  AppIndexRoute: AppIndexRoute,
+  AppTurmasIdRoute: AppTurmasIdRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  SplatRoute: SplatRoute,
+  AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
-  PerfilRoute: PerfilRoute,
-  RuRoute: RuRoute,
-  TurmasRoute: TurmasRoute,
-  TurmasIdRoute: TurmasIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

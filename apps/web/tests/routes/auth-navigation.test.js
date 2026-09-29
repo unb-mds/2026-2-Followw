@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 
+import { Route as ProfileRoute } from '#/routes/_app/perfil';
 import { Route as LoginRoute } from '#/routes/login';
-import { Route as ProfileRoute } from '#/routes/perfil';
 
 function contextWithUser(user) {
     return {

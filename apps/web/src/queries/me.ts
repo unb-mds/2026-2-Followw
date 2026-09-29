@@ -1,14 +1,15 @@
 import { queryOptions } from '@tanstack/react-query';
 
-import { apiClient } from '#/queries/client.ts';
+import { api } from '#/queries/api.ts';
 import { ApiError } from '#/queries/errors.ts';
 
+const { queryKey, queryFn } = api.queryOptions('get', '/me');
+
 export const meQueryOptions = queryOptions({
-    queryKey: ['get', '/me'],
-    queryFn: async ({ signal }) => {
+    queryKey,
+    queryFn: async (context) => {
         try {
-            const { data } = await apiClient.GET('/me', { signal });
-            return data ?? null;
+            return (await queryFn(context)) ?? null;
         } catch (error) {
             if (error instanceof ApiError && error.isUnauthorized) return null;
             throw error;
