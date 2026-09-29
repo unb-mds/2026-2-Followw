@@ -118,6 +118,9 @@ diferente (como nos testes) precisa ser setada **antes** do primeiro import de
    `Annotated[AsyncSession, Depends(get_db)]` para o banco.
 3. Registre em `api/main.py`:
    `app.include_router(router, prefix="/<feature>", tags=["<feature>"])`.
+   Rotas sem login ficam em `modules/public_<feature>`, prefixo
+   `/public/<feature>` e tag `Public <Feature>`. Toda tag nova entra em
+   `x-tagGroups` (`custom_openapi`), senão some do `/docs`.
 4. Tabela nova vai em `db/models.py` (mixins acima) e `uv run db-init`.
    `create_tables` só cria o que falta: alterar tabela existente exige recriar o
    banco (não há migrations).
