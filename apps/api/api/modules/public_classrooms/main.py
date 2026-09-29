@@ -12,7 +12,7 @@ router = APIRouter()
     "",
     response_model=list[PublicClassroom],
     summary="Buscar turmas públicas do SIGAA, sem login",
-    description="Consulta diretamente o SIGAA por unidade, sem filtrar o nível de ensino. Sem semester, mantém o ano e o período preenchidos no formulário do SIGAA. A busca pública não fornece o frontEndIdTurma usado nas rotas autenticadas.",
+    description="Consulta diretamente o SIGAA por unidade, sem filtrar o nível de ensino.",
     responses={
         422: {"description": "Filtro inválido, unidade inexistente ou nome ambíguo."},
         502: {"description": "SIGAA indisponível ou resposta ilegível."},
