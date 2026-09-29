@@ -23,6 +23,7 @@ bun generate-api [url]     # gera src/queries/schema.gen.ts (default: localhost:
 - Cores só pelo `@theme` de `src/styles.css` (`text-ink`, `bg-primary/10` ou `var(--color-*)`), nunca hex solto. Sem valores arbitrários (`text-[13px]`); use a escala do Tailwind e, preferencialmente, valores pares.
 - Testes em `tests/` espelhando `src/` (`src/lib/schedule.ts` → `tests/lib/schedule.test.ts`).
 - Arquivos `*.gen.ts` são gerados: nunca edite à mão.
+- O login sem sessão fica em `/login`; `/perfil` redireciona para lá quando não há usuário autenticado. Após entrar, navegue para `/`; após sair, para `/login`. O `AppLayout` oculta a navegação inferior na rota de login.
 
 ## Acesso à API (`src/queries`)
 
