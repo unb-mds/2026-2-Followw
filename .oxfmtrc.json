@@ -1,5 +1,5 @@
 {
-    "$schema": "./node_modules/oxfmt/configuration_schema.json",
+    "$schema": "./apps/web/node_modules/oxfmt/configuration_schema.json",
     "ignorePatterns": ["**.gen.ts", "**/components/ui/**"],
     "printWidth": 100,
     "proseWrap": "always",
@@ -18,7 +18,7 @@
         ]
     },
     "sortTailwindcss": {
-        "stylesheet": "./src/styles.css",
+        "stylesheet": "./apps/web/src/styles.css",
         "functions": ["clsx", "cn", "tv"]
     }
 }
