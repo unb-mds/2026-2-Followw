@@ -1,5 +1,21 @@
 {
     "files.exclude": {
         "**/__pycache__": true,
+    },
+    "files.watcherExclude": {
+        "**/**.gen.ts": true
+    },
+    "search.exclude": {
+        "**/**.gen.ts": true
+    },
+    "files.readonlyInclude": {
+        "**/**.gen.ts": true
+    },
+    "[javascript][javascriptreact][typescript][typescriptreact][json][jsonc][css][markdown]": {
+        "editor.defaultFormatter": "oxc.oxc-vscode",
+        "editor.formatOnSave": true
+    },
+    "editor.codeActionsOnSave": {
+        "source.fixAll.oxc": "always"
     }
 }
