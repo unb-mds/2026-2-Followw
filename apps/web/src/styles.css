@@ -25,6 +25,14 @@
 
     --color-logo-teal: #006f80;
     --color-logo-green: #2ea275;
+
+    --color-login-blue: #0665e8;
+    --color-login-blue-dark: #004bb5;
+    --color-login-border: #d5dce2;
+    --color-login-muted: #68778c;
+    --color-login-blush: #fff4f5;
+    --color-login-sky: #edf7ff;
+    --color-login-white: #ffffff;
 }
 
 * {
@@ -44,6 +52,37 @@ body,
 body {
     margin: 0;
     overflow-x: hidden;
+}
+
+.login-page {
+    background-color: var(--color-surface);
+    background-image:
+        radial-gradient(ellipse at 3% 0%, var(--color-login-blush), transparent 60%),
+        radial-gradient(ellipse at 100% 12%, var(--color-login-sky), transparent 65%),
+        linear-gradient(to bottom, var(--color-login-white) 42%, var(--color-surface));
+}
+
+.login-submit-progress {
+    position: absolute;
+    inset-block: 0;
+    left: 0;
+    width: 100%;
+    background: var(--color-login-blue-dark);
+    transform-origin: left;
+    transition: transform 50ms ease-out;
+}
+
+@media (max-height: 760px) {
+    .login-content {
+        padding-top: 5rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .login-submit-progress {
+        transform: scaleX(0.75) !important;
+        transition: none;
+    }
 }
 
 /* Custom scrollbar */
