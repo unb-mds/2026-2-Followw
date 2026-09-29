@@ -4,5 +4,4 @@ __pycache__/
 *.local
 .playwright-mcp
 .vercel
-
 apps/docs/dist
