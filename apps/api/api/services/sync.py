@@ -144,12 +144,10 @@ class SyncEngine:
         except _CLIENT_ERRORS:
             raise
         except _ORIGIN_ERRORS:
-            # `stale-if-error` só libera o cache com a senha já conferida (access_token).
             if (
                 cached.value is None
                 or cached.synced_at is None
                 or not cache.accepts_stale(cached.synced_at)
-                or not self._sigaa.authenticated
             ):
                 raise
             log.warning("SIGAA falhou, servindo %s vencido", task, exc_info=True)
@@ -172,9 +170,9 @@ class SyncEngine:
         cache: CacheControl,
     ) -> T:
         assert cached.value is not None and cached.synced_at is not None
-        # Sem access_token válido, o cache só sai depois de o SIGAA aceitar a senha.
-        await self._sigaa.token()
-        if is_stale(cached.synced_at, cached.ttl):
+        # Sem access_token, o job precisaria de um login: quem revalida é o
+        # `POST /auth/sigaa/refresh`, que o app chama ao abrir.
+        if self._sigaa.authenticated and is_stale(cached.synced_at, cached.ttl):
             await self.schedule(task, link.front_end_id if link else None)
         cache.served(cached.synced_at)
         return cached.value

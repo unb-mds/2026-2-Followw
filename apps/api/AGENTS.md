@@ -52,9 +52,9 @@ trocado) vira `None`. Testes em `tests/test_session.py`. Dependências:
 
 Os cookies só renovam quando a requisição usa o SIGAA (`connection.client()` ou
 relogin os regravam, sem `Set-Cookie` duplicado; falha descarta). Resposta do
-cache não renova nada, e o cache só é servido com access_token válido — sem ele,
-o `SyncEngine` loga antes. Assim uma senha trocada desloga em até
-`access_token_expire_minutes`.
+cache não renova nada e basta o refresh_token para servi-la: sem access_token, o
+`SyncEngine` não loga nem agenda job. Quem aquece a sessão é o
+`POST /auth/sigaa/refresh`. Assim uma senha trocada desloga na próxima abertura do app.
 
 **Erros do SIGAA viram `HTTPException`** nas próprias dependências; nunca deixe
 exceção do `sigaa_client` vazar da rota. `AuthenticationFailed` → 401 e apaga os
@@ -84,8 +84,8 @@ Diretivas da requisição:
   servidor continua agendando jobs.
 - `stale-if-error[=N]`: se a revalidação pedida falhar na origem (nunca erro de
   sessão, credencial ou 404), serve o cache de até N s (sem valor, qualquer
-  idade). Sem a diretiva, 502. Só com access_token válido.
-- `only-if-cached`: nunca busca o dado (relogin ainda vale); sem cache, 504.
+  idade). Sem a diretiva, 502.
+- `only-if-cached`: nunca busca o dado nem loga; sem cache, 504.
   O RU revalida por TTL de forma síncrona e, nesse caso, serve vencido se o site cair.
 
 Cada `Task` busca e grava no engine; regras de revalidação e TTLs ficam em

@@ -22,6 +22,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/sigaa/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sigaa Refresh
+         * @description Loga no SIGAA com o refresh_token se ainda não houver um access_token válido.
+         *
+         *     O cache sai só com o refresh_token, então o app chama esta rota ao abrir: ela
+         *     confere a senha, aquece o access_token e revalida o que venceu, como o login.
+         */
+        post: operations["sigaa_refresh_auth_sigaa_refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/classrooms/{classroom_id}/news": {
         parameters: {
             query?: never;
@@ -737,6 +760,38 @@ export interface operations {
                 content: {
                     "application/json": unknown;
                 };
+            };
+        };
+    };
+    sigaa_refresh_auth_sigaa_refresh_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description SIGAA indisponível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

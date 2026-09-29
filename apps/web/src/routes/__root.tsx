@@ -7,6 +7,7 @@ import { NuqsAdapter } from 'nuqs/adapters/tanstack-router';
 
 import PostHogProvider from '#/integrations/posthog/provider';
 import TanStackQueryDevtools from '#/integrations/tanstack-query/devtools';
+import { useSessionRefresh } from '#/queries/auth';
 import appCss from '#/styles.css?url';
 
 interface MyRouterContext {
@@ -34,12 +35,18 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
         ]
     }),
     shellComponent: RootDocument,
-    component: () => (
+    component: RootComponent
+});
+
+function RootComponent() {
+    useSessionRefresh();
+
+    return (
         <NuqsAdapter>
             <Outlet />
         </NuqsAdapter>
-    )
-});
+    );
+}
 
 function RootDocument({ children }: { children: React.ReactNode }) {
     return (

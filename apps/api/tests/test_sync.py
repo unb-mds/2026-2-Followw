@@ -203,14 +203,14 @@ def test_stale_if_error_serve_o_cache_se_o_sigaa_falhar(
         assert int(response.headers["age"]) >= 7200
 
 
-def test_stale_if_error_nao_serve_cache_sem_conferir_a_senha(logado, stub_sigaa):
+def test_stale_if_error_serve_cache_sem_access_token_com_o_cas_fora(logado, stub_sigaa):
     logado.get("/me")
     logado.cookies.delete(ACCESS_COOKIE_NAME)
     stub_sigaa.authenticate.side_effect = SigaaError("CAS fora do ar")
 
     response = logado.get("/me", headers={"Cache-Control": "no-cache, stale-if-error"})
 
-    assert response.status_code == 502
+    assert response.status_code == 200
 
 
 def test_stale_if_error_nao_mascara_credencial_invalida(logado, stub_sigaa):
@@ -296,31 +296,29 @@ def test_cache_com_access_token_valido_nao_renova_os_cookies(
     stub_sigaa.authenticate.assert_not_awaited()
 
 
-def test_cache_sem_access_token_so_sai_depois_do_login(logado, stub_sigaa, ler_cookies):
+def test_cache_sem_access_token_sai_sem_login(logado, stub_sigaa):
     logado.get("/me")
     logado.cookies.delete(ACCESS_COOKIE_NAME)
 
     response = logado.get("/me")
 
     assert response.status_code == 200
-    assert ler_cookies(response).keys() == {ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME}
-    assert stub_sigaa.authenticate.await_count == 2
-    assert stub_sigaa.profile.get_profile.await_count == 1
+    assert "set-cookie" not in response.headers
+    stub_sigaa.authenticate.assert_awaited_once()
 
 
-def test_senha_trocada_desloga_quando_o_access_token_vence(client, sigaa, ler_cookies):
-    client.post("/auth/sigaa", json=LOGIN)
-    client.cookies.delete(ACCESS_COOKIE_NAME)
-    sigaa.password = "senha-nova"
+def test_cache_vencido_sem_access_token_nao_agenda_revalidacao(
+    logado, stub_sigaa, database, qstash
+):
+    logado.get("/me")
+    _envelhecer(database, User.profile_synced_at, hours=25)
+    logado.cookies.delete(ACCESS_COOKIE_NAME)
 
-    response = client.get("/me")
+    response = logado.get("/me")
 
-    assert response.status_code == 401
-    jar = ler_cookies(response)
-    assert {nome: jar[nome].value for nome in jar} == {
-        ACCESS_COOKIE_NAME: "",
-        REFRESH_COOKIE_NAME: "",
-    }
+    assert response.status_code == 200
+    stub_sigaa.authenticate.assert_awaited_once()
+    assert qstash.published == []
 
 
 def test_requisicao_usa_um_so_client_do_sigaa(logado, conta):
