@@ -5,7 +5,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 
 from api.core.config import settings
-from api.docs import router as docs_router
 from api.modules.auth.main import router as auth_router
 from api.modules.classrooms.main import router as classrooms_router
 from api.modules.jobs.main import router as jobs_router
@@ -77,4 +76,3 @@ app.include_router(me_router, prefix="/me", tags=["Me"])
 app.include_router(news_router, prefix="/news", tags=["News"])
 app.include_router(restaurant_router, prefix="/restaurant", tags=["Restaurant"])
 app.include_router(jobs_router, prefix="/jobs", tags=["Jobs"])
-app.include_router(docs_router)
