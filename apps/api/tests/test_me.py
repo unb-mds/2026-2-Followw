@@ -27,6 +27,7 @@ from api.utils.session import (
 )
 
 CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha123"))
+NO_CACHE = {"Cache-Control": "no-cache"}
 PERFIL = """
 <html><body><div id="perfil-docente">
   <div class="foto"><img src="/arquivos/foto.jpg" /></div>
@@ -72,7 +73,7 @@ def test_login_seguido_de_me_responde_do_cache(client, sigaa):
     assert sigaa.profile_requests == requests_before
     sigaa.profile = PERFIL.replace("3.9524", "4.0")
     assert client.get("/me").json()["ira"] == 3.9524
-    assert client.get("/me", params={"refresh": "true"}).json()["ira"] == 4.0
+    assert client.get("/me", headers=NO_CACHE).json()["ira"] == 4.0
     assert client.get("/me").json()["ira"] == 4.0
     assert sigaa.profile_requests == requests_before + 1
     assert sigaa.logins == 1

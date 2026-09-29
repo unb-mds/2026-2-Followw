@@ -4,6 +4,8 @@ from pydantic import BaseModel, Field
 from sigaa_client import AuthenticationFailed, Credentials, SigaaClient, SigaaError
 
 from api.dependencies.qstash import JobQueueDep
+from api.dependencies.sigaa import SIGAA_ERRORS, SigaaConnectionDep
+from api.dependencies.sync import SyncEngineDep
 from api.services.sync import Job, Task
 from api.utils.session import (
     clear_cookies,
@@ -56,6 +58,21 @@ async def sigaa_login(
     )
 
     return {"message": "Login successful"}
+
+
+@router.post(
+    "/sigaa/refresh", status_code=status.HTTP_204_NO_CONTENT, responses=SIGAA_ERRORS
+)
+async def sigaa_refresh(connection: SigaaConnectionDep, engine: SyncEngineDep) -> None:
+    """Loga no SIGAA com o refresh_token se ainda não houver um access_token válido.
+
+    O cache sai só com o refresh_token, então o app chama esta rota ao abrir: ela
+    confere a senha, aquece o access_token e revalida o que venceu, como o login.
+    """
+    if connection.authenticated:
+        return
+    await connection.token()
+    await engine.schedule(Task.ACCOUNT)
 
 
 @router.delete("/sigaa")

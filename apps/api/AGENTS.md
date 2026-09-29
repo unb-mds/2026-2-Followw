@@ -17,7 +17,7 @@ api/
     sigaa.py            # SigaaConnectionDep (preguiçosa) e SigaaClientDep
     sigaa_public.py     # SigaaPublicClientDep
     unb_browser.py      # UnbBrowserDep, aberto só quando a rota precisa do site
-    refresh.py          # RefreshQuery (`?refresh=true` ignora o cache)
+    cache.py            # CacheControlDep (diretivas do Cache-Control) e NoStore
     qstash.py           # QStashQueue (JobQueueDep) e o job recebido (JobDep)
     sync.py             # SyncEngineDep e JobEngineDep
   repositories/         # user, classroom, restaurant (cache do cardápio)
@@ -52,9 +52,9 @@ trocado) vira `None`. Testes em `tests/test_session.py`. Dependências:
 
 Os cookies só renovam quando a requisição usa o SIGAA (`connection.client()` ou
 relogin os regravam, sem `Set-Cookie` duplicado; falha descarta). Resposta do
-cache não renova nada, e o cache só é servido com access_token válido — sem ele,
-o `SyncEngine` loga antes. Assim uma senha trocada desloga em até
-`access_token_expire_minutes`.
+cache não renova nada e basta o refresh_token para servi-la: sem access_token, o
+`SyncEngine` não loga nem agenda job. Quem aquece a sessão é o
+`POST /auth/sigaa/refresh`. Assim uma senha trocada desloga na próxima abertura do app.
 
 **Erros do SIGAA viram `HTTPException`** nas próprias dependências; nunca deixe
 exceção do `sigaa_client` vazar da rota. `AuthenticationFailed` → 401 e apaga os
@@ -62,14 +62,31 @@ cookies (`clear_cookies_headers()`); `SessionExpired` → 401 mantendo os cookie
 resto → 502.
 
 **Services e cache.** Rota não fala com repository nem com SIGAA: chama um
-service, que resolve o dado com `SyncEngine.resolve(task, load)`
+service, que resolve o dado com `SyncEngine.resolve(task, load, cache=...)`
 (stale-while-revalidate). O `load` (ou `SyncEngine.read`) lê o cache numa sessão
-própria, fechada antes de ir ao SIGAA; services não usam o `get_db` da
-requisição.
-- Sem cache ou com `refresh`: a `Task` roda antes da resposta e o `load` relê.
-- Cache vencido: sai na hora e a `Task` vira um `Job` na fila.
+própria, fechada antes de ir ao SIGAA, e devolve `Cached(valor, synced_at, ttl)`;
+services não usam o `get_db` da requisição.
+
+- Sem cache ou quando o cliente pede (`no-cache`, `max-age` estourado): a `Task`
+  roda antes da resposta e o `load` relê.
+- Cache vencido pelo TTL: sai na hora e a `Task` vira um `Job` na fila.
 - Se outro sync vencer todas as tentativas de gravar, relê o que ele gravou;
   sem nada no cache, 503.
+
+**Cache-Control.** Toda rota GET declara a política em
+`dependencies/cache.py`. Rota com cache recebe `cache: CacheControlDep` e o
+repassa ao service; responde `private, no-cache` com `Age` (idade do dado mais
+velho servido). Rota sem cache usa `dependencies=[NoStore]` (`no-store`).
+Diretivas da requisição:
+
+- `no-cache`/`max-age=0`: revalida antes de responder.
+- `max-age=N`: revalida se o cache tiver N s ou mais. Só aperta: o TTL do
+  servidor continua agendando jobs.
+- `stale-if-error[=N]`: se a revalidação pedida falhar na origem (nunca erro de
+  sessão, credencial ou 404), serve o cache de até N s (sem valor, qualquer
+  idade). Sem a diretiva, 502.
+- `only-if-cached`: nunca busca o dado nem loga; sem cache, 504.
+  O RU revalida por TTL de forma síncrona e, nesse caso, serve vencido se o site cair.
 
 Cada `Task` busca e grava no engine; regras de revalidação e TTLs ficam em
 `services/sync.py`. Nas telas de turma, o service passa o vínculo já lido
@@ -130,6 +147,7 @@ diferente (como nos testes) precisa ser setada **antes** do primeiro import de
 ## Testes
 
 Fixtures em `tests/conftest.py`:
+
 - `client` — usa um SQLite por teste (`database` prepara/confere o banco) e
   entrega os jobs publicados em `POST /jobs`, assinados, antes de devolver a
   resposta (`deliveries` guarda o resultado).
