@@ -188,7 +188,9 @@ def test_openapi_documenta_noticias_sem_parametro_de_cache(client):
     for path in ("/news", "/classrooms/{classroom_id}/news"):
         route = paths[path]["get"]
         assert {"401", "502"} <= route["responses"].keys()
-        assert not any(p["name"] == "refresh" for p in route.get("parameters", []))
+        assert not any(
+            p["name"] == "Cache-Control" for p in route.get("parameters", [])
+        )
         schema = route["responses"]["200"]["content"]["application/json"]["schema"]
         assert schema["items"]["$ref"] == "#/components/schemas/News"
     assert "404" in paths["/classrooms/{classroom_id}/news"]["get"]["responses"]

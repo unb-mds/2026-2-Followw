@@ -3,16 +3,20 @@ from collections.abc import Awaitable, Callable, Sequence
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from functools import partial
-from typing import Protocol
+from typing import NamedTuple, Protocol
 from uuid import UUID
 
+import httpx
 from fastapi import HTTPException, status
 from pydantic import BaseModel, ConfigDict
 from sigaa_client import (
+    AuthenticationFailed,
     Classroom,
     ClassroomMember,
+    ClassroomNotFound,
     SessionExpired,
     SigaaClient,
+    SigaaError,
     StatisticsShare,
     UserProfile,
 )
@@ -20,6 +24,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from api.db.models import ClassroomUser, User
+from api.dependencies.cache import NO_DIRECTIVES, CacheControl, age
 from api.dependencies.sigaa import SigaaConnection
 from api.repositories.classroom import ClassroomRepository
 from api.repositories.user import UserRepository
@@ -33,6 +38,9 @@ MENU_TTL = timedelta(hours=24)
 CLASSROOM_DETAILS_TTL = timedelta(hours=24)
 
 _WRITE_ATTEMPTS = 3
+# Falhas da origem que o `stale-if-error` cobre; as de sessão e de acesso, não.
+_ORIGIN_ERRORS = (SigaaError, httpx.HTTPError)
+_CLIENT_ERRORS = (AuthenticationFailed, SessionExpired, ClassroomNotFound)
 
 
 class Task(StrEnum):
@@ -67,17 +75,22 @@ class JobQueue(Protocol):
         ...
 
 
+class Cached[T](NamedTuple):
+    """O que um `load` leu do cache; sem `value`, não há cache."""
+
+    value: T | None
+    synced_at: datetime | None = None
+    ttl: timedelta | None = None
+
+
 def is_stale(synced_at: datetime | None, ttl: timedelta | None) -> bool:
     """Sem `synced_at` nunca foi sincronizado; sem `ttl` não vence nunca."""
     if synced_at is None:
         return True
     if ttl is None:
         return False
-    # O SQLite (usado nos testes) devolve datetime sem fuso.
-    if synced_at.tzinfo is None:
-        synced_at = synced_at.replace(tzinfo=UTC)
 
-    return datetime.now(UTC) - synced_at > ttl
+    return age(synced_at) > ttl
 
 
 def details_ttl(current: bool) -> timedelta | None:
@@ -102,39 +115,69 @@ class SyncEngine:
     async def resolve[T](
         self,
         task: Task,
-        load: Callable[[AsyncSession], Awaitable[tuple[T | None, bool]]],
+        load: Callable[[AsyncSession], Awaitable[Cached[T]]],
         *,
         link: ClassroomUser | None = None,
-        refresh: bool = False,
+        cache: CacheControl = NO_DIRECTIVES,
     ) -> T:
         """Devolve o cache na hora e, se vencido, agenda a revalidação.
 
-        `load` lê o cache e se ele venceu, numa sessão fechada antes de ir ao
-        SIGAA. Sem cache ou com `refresh`, roda a tarefa antes de responder e
+        `load` lê o cache numa sessão fechada antes de ir ao SIGAA. Sem cache ou
+        quando o `cache` da requisição pede, roda a tarefa antes de responder e
         relê o cache; se o SIGAA falhar, o cache fica intacto. `link` é o
         vínculo com a turma, nas tarefas de participantes, estatísticas e frequência.
         """
-        if not refresh:
-            cached, stale = await self.read(load)
-            if cached is not None:
-                # Sem access_token válido, o cache só sai depois de o SIGAA aceitar a senha.
-                await self._sigaa.token()
-                if stale:
-                    await self.schedule(task, link.front_end_id if link else None)
-                return cached
+        cached = await self.read(load)
+        if cached.value is not None and cached.synced_at is not None:
+            if cache.only_if_cached or not cache.revalidate(cached.synced_at):
+                return await self._serve(task, link, cached, cache)
+        elif cache.only_if_cached:
+            raise HTTPException(
+                status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail="Not cached"
+            )
 
         try:
-            await self._perform(task, link, refresh=refresh)
+            await self._perform(task, link, refresh=cached.value is not None)
         except IntegrityError:
             # Outro sync ganhou todas as tentativas de gravar: o que ele gravou serve.
             log.warning("Gravação concorrente em %s", task, exc_info=True)
-        cached, _ = await self.read(load)
-        if cached is None:
+        except _CLIENT_ERRORS:
+            raise
+        except _ORIGIN_ERRORS:
+            # `stale-if-error` só libera o cache com a senha já conferida (access_token).
+            if (
+                cached.value is None
+                or cached.synced_at is None
+                or not cache.accepts_stale(cached.synced_at)
+                or not self._sigaa.authenticated
+            ):
+                raise
+            log.warning("SIGAA falhou, servindo %s vencido", task, exc_info=True)
+            return await self._serve(task, link, cached, cache)
+
+        fresh = await self.read(load)
+        if fresh.value is None or fresh.synced_at is None:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Cache is being updated, try again",
             )
-        return cached
+        cache.served(fresh.synced_at)
+        return fresh.value
+
+    async def _serve[T](
+        self,
+        task: Task,
+        link: ClassroomUser | None,
+        cached: Cached[T],
+        cache: CacheControl,
+    ) -> T:
+        assert cached.value is not None and cached.synced_at is not None
+        # Sem access_token válido, o cache só sai depois de o SIGAA aceitar a senha.
+        await self._sigaa.token()
+        if is_stale(cached.synced_at, cached.ttl):
+            await self.schedule(task, link.front_end_id if link else None)
+        cache.served(cached.synced_at)
+        return cached.value
 
     async def schedule(self, task: Task, classroom_id: str | None = None) -> None:
         """Agenda a tarefa na fila, para rodar fora desta requisição."""

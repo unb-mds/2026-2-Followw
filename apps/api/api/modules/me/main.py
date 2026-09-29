@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Response
+from fastapi import APIRouter
 from sigaa_client import RestaurantCredentials, RestaurantStatement, UserProfile
 
-from api.dependencies.refresh import RefreshQuery
+from api.dependencies.cache import CacheControlDep, NoStore
 from api.dependencies.sigaa import SIGAA_ERRORS
 from api.services.profile import ProfileServiceDep
 from api.services.restaurant import RestaurantAccountServiceDep
@@ -15,10 +15,8 @@ router = APIRouter()
     summary="Consultar o perfil do usuário autenticado",
     responses=SIGAA_ERRORS,
 )
-async def get_me(
-    service: ProfileServiceDep, refresh: RefreshQuery = False
-) -> UserProfile:
-    return await service.get_profile(refresh=refresh)
+async def get_me(service: ProfileServiceDep, cache: CacheControlDep) -> UserProfile:
+    return await service.get_profile(cache)
 
 
 @router.get(
@@ -26,11 +24,9 @@ async def get_me(
     response_model=RestaurantStatement,
     summary="Consultar extrato, saldo e grupo do RU",
     responses=SIGAA_ERRORS,
+    dependencies=[NoStore],
 )
-async def get_statement(
-    service: RestaurantAccountServiceDep, response: Response
-) -> RestaurantStatement:
-    response.headers["Cache-Control"] = "no-store"
+async def get_statement(service: RestaurantAccountServiceDep) -> RestaurantStatement:
     return await service.get_statement()
 
 
@@ -40,9 +36,7 @@ async def get_statement(
     summary="Consultar o token da carteirinha estudantil",
     description="Lê o QR code da carteirinha no SIGAA a cada acesso, sem persistência. Retorna token e valid_until; a validade informa mês/ano e o scraper representa o mês pelo dia 1.",
     responses=SIGAA_ERRORS,
+    dependencies=[NoStore],
 )
-async def get_token(
-    service: RestaurantAccountServiceDep, response: Response
-) -> RestaurantCredentials:
-    response.headers["Cache-Control"] = "no-store"
+async def get_token(service: RestaurantAccountServiceDep) -> RestaurantCredentials:
     return await service.get_token()

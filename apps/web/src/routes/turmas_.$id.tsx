@@ -1,4 +1,9 @@
-import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import {
+    type QueryClient,
+    useQuery,
+    useQueryClient,
+    useSuspenseQuery
+} from '@tanstack/react-query';
 import { Link, createFileRoute } from '@tanstack/react-router';
 import {
     ArrowLeft,
@@ -21,6 +26,7 @@ import { LoginPromptCard } from '#/components/home/LoginPromptCard';
 import { Card } from '#/components/ui/Card';
 import { ErrorCard, ErrorState, SIGAA_DOWN_MESSAGE } from '#/components/ui/ErrorState';
 import { HeaderBar } from '#/components/ui/HeaderBar';
+import { PullToRefresh } from '#/components/ui/PullToRefresh';
 import { SectionHeader } from '#/components/ui/SectionHeader';
 import { formatClassroomDate, groupMembers } from '#/lib/classroom-details';
 import { describeSchedule } from '#/lib/schedule';
@@ -32,6 +38,7 @@ import {
     classroomNewsQueryOptions
 } from '#/queries/classrooms';
 import { meQueryOptions } from '#/queries/me';
+import { refreshQuery } from '#/queries/refresh';
 
 type Tab = 'news' | 'frequency' | 'members';
 type News = components['schemas']['News'];
@@ -44,6 +51,12 @@ const tabs: { id: Tab; label: string; icon: LucideIcon }[] = [
     { id: 'members', label: 'Participantes', icon: UsersRound }
 ];
 
+function refreshTab(queryClient: QueryClient, tab: Tab, id: string) {
+    if (tab === 'news') return refreshQuery(queryClient, classroomNewsQueryOptions(id));
+    if (tab === 'frequency') return refreshQuery(queryClient, classroomFrequencyQueryOptions(id));
+    return refreshQuery(queryClient, classroomMembersQueryOptions(id));
+}
+
 export const Route = createFileRoute('/turmas_/$id')({
     loader: async ({ context: { queryClient } }) => {
         const user = await queryClient.query(meQueryOptions);
@@ -55,13 +68,14 @@ export const Route = createFileRoute('/turmas_/$id')({
 
 function ClassroomPage() {
     const { id } = Route.useParams();
+    const queryClient = useQueryClient();
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const classrooms = useQuery({ ...allClassroomsQueryOptions, enabled: Boolean(user) });
     const [tab, setTab] = useState<Tab>('news');
     const classroom = classrooms.data?.find((item) => item.id === id);
 
     return (
-        <>
+        <PullToRefresh disabled={!classroom} onRefresh={() => refreshTab(queryClient, tab, id)}>
             <HeaderBar showLogo={false}>
                 <Link
                     to="/turmas"
@@ -122,7 +136,7 @@ function ClassroomPage() {
                     </section>
                 </>
             )}
-        </>
+        </PullToRefresh>
     );
 }
 

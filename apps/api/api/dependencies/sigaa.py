@@ -48,6 +48,11 @@ class SigaaConnection:
         self._response = response
         self._client: SigaaClient | None = None
 
+    @property
+    def authenticated(self) -> bool:
+        """Há um access_token válido, lido do cookie ou renovado nesta requisição."""
+        return self._session_token is not None
+
     async def token(self) -> str:
         """O access_token, logando no SIGAA antes se ainda não houver um válido."""
         if self._session_token is None:

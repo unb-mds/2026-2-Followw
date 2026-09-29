@@ -1,4 +1,4 @@
-import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import { noop, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { ChevronDown, Coffee, Soup, UtensilsCrossed } from 'lucide-react';
 import { useState } from 'react';
@@ -7,9 +7,11 @@ import type { Campus, MenuSection } from '#/queries/restaurant';
 
 import { ErrorState } from '#/components/ui/ErrorState';
 import { HeaderBar } from '#/components/ui/HeaderBar';
+import { PullToRefresh } from '#/components/ui/PullToRefresh';
 import { WeekDayPicker } from '#/components/ui/WeekDayPicker';
 import { nowInBrasilia, weekDays } from '#/lib/schedule';
 import { meQueryOptions } from '#/queries/me';
+import { refreshQuery } from '#/queries/refresh';
 import { CAMPUS_LABELS, campusOf, menuQueryOptions } from '#/queries/restaurant';
 
 const MEALS = [
@@ -40,15 +42,15 @@ function RUPage() {
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const [pickedCampus, setPickedCampus] = useState<Campus | null>(null);
     const campus = pickedCampus ?? campusOf(user?.unity);
-    const { data, isPending, isError, refetch } = useQuery(
-        menuQueryOptions({ date: selectedDate, campus })
-    );
+    const queryClient = useQueryClient();
+    const menuQuery = menuQueryOptions({ date: selectedDate, campus });
+    const { data, isPending, isError, refetch } = useQuery(menuQuery);
     const menu = data?.[0];
     const meal = MEALS.find((item) => item.key === selectedMeal) ?? MEALS[1];
     const sections = menu?.[selectedMeal] ?? [];
 
     return (
-        <>
+        <PullToRefresh onRefresh={() => refreshQuery(queryClient, menuQuery)}>
             <HeaderBar>
                 <button
                     type="button"
@@ -152,7 +154,7 @@ function RUPage() {
                     </p>
                 )}
             </section>
-        </>
+        </PullToRefresh>
     );
 }
 

@@ -1,4 +1,4 @@
-import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import { noop, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 
 import { ClassCard } from '#/components/home/ClassCard';
@@ -6,9 +6,11 @@ import { LoginPromptCard } from '#/components/home/LoginPromptCard';
 import { Card } from '#/components/ui/Card';
 import { ErrorCard, ErrorState, SIGAA_DOWN_MESSAGE } from '#/components/ui/ErrorState';
 import { HeaderBar } from '#/components/ui/HeaderBar';
+import { PullToRefresh } from '#/components/ui/PullToRefresh';
 import { describeSchedule } from '#/lib/schedule';
 import { classroomsQueryOptions } from '#/queries/classrooms';
 import { meQueryOptions } from '#/queries/me';
+import { refreshQuery } from '#/queries/refresh';
 
 export const Route = createFileRoute('/turmas')({
     loader: async ({ context: { queryClient } }) => {
@@ -21,17 +23,21 @@ export const Route = createFileRoute('/turmas')({
 });
 
 function TurmasPage() {
+    const queryClient = useQueryClient();
     const { data: user } = useSuspenseQuery(meQueryOptions);
 
     return (
-        <>
+        <PullToRefresh
+            disabled={!user}
+            onRefresh={() => refreshQuery(queryClient, classroomsQueryOptions)}
+        >
             <HeaderBar>
                 <h1 className="text-3xl leading-none font-bold tracking-tight text-ink">
                     Minhas Turmas
                 </h1>
             </HeaderBar>
             {user ? <Classrooms /> : <LoginPromptCard />}
-        </>
+        </PullToRefresh>
     );
 }
 

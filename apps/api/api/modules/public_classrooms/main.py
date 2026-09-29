@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 from sigaa_client import PublicClassroom, Unit
 
+from api.dependencies.cache import NoStore
 from api.services.public_classroom import PublicClassroomServiceDep
 
 router = APIRouter()
@@ -17,6 +18,7 @@ router = APIRouter()
         422: {"description": "Filtro inválido, unidade inexistente ou nome ambíguo."},
         502: {"description": "SIGAA indisponível ou resposta ilegível."},
     },
+    dependencies=[NoStore],
 )
 async def search_classrooms(
     service: PublicClassroomServiceDep,
@@ -56,6 +58,7 @@ async def search_classrooms(
     response_model=list[Unit],
     summary="Consultar unidades disponíveis na busca pública de turmas",
     responses={502: {"description": "SIGAA indisponível ou resposta ilegível."}},
+    dependencies=[NoStore],
 )
 async def list_units(
     service: PublicClassroomServiceDep,
