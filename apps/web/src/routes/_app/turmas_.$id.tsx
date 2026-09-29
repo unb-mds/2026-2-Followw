@@ -46,8 +46,8 @@ type Member = components['schemas']['ClassroomMember'];
 type Frequency = components['schemas']['ClassroomFrequency'];
 
 const tabs: { id: Tab; label: string; icon: LucideIcon }[] = [
-    { id: 'news', label: 'Notícias', icon: Newspaper },
     { id: 'frequency', label: 'Frequência', icon: CalendarCheck2 },
+    { id: 'news', label: 'Notícias', icon: Newspaper },
     { id: 'members', label: 'Participantes', icon: UsersRound }
 ];
 
@@ -57,14 +57,29 @@ function refreshTab(queryClient: QueryClient, tab: Tab, id: string) {
     return refreshQuery(queryClient, classroomMembersQueryOptions(id));
 }
 
-export const Route = createFileRoute('/turmas_/$id')({
+export const Route = createFileRoute('/_app/turmas_/$id')({
     loader: async ({ context: { queryClient } }) => {
         const user = await queryClient.query(meQueryOptions);
         if (user) await queryClient.query(allClassroomsQueryOptions).catch(() => undefined);
     },
+    staticData: { header: ClassroomHeader },
     errorComponent: ErrorState,
     component: ClassroomPage
 });
+
+function ClassroomHeader() {
+    return (
+        <HeaderBar showLogo={false}>
+            <Link
+                to="/turmas"
+                className="inline-flex items-center gap-2 rounded-xl px-2 py-2 text-sm font-bold text-ink transition hover:bg-white/70 hover:text-primary-dark"
+            >
+                <ArrowLeft className="size-5" />
+                Turmas
+            </Link>
+        </HeaderBar>
+    );
+}
 
 function ClassroomPage() {
     const { id } = Route.useParams();
@@ -76,16 +91,6 @@ function ClassroomPage() {
 
     return (
         <PullToRefresh disabled={!classroom} onRefresh={() => refreshTab(queryClient, tab, id)}>
-            <HeaderBar showLogo={false}>
-                <Link
-                    to="/turmas"
-                    className="inline-flex items-center gap-2 rounded-xl px-2 py-2 text-sm font-bold text-ink transition hover:bg-white/70 hover:text-primary-dark"
-                >
-                    <ArrowLeft className="size-5" />
-                    Turmas
-                </Link>
-            </HeaderBar>
-
             {!user ? (
                 <LoginPromptCard />
             ) : classrooms.isError ? (

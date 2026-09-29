@@ -1,12 +1,13 @@
 import { noop, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { ChevronDown, Coffee, Soup, UtensilsCrossed } from 'lucide-react';
+import { parseAsBoolean, useQueryState } from 'nuqs';
 import { useState } from 'react';
 
 import type { Campus, MenuSection } from '#/queries/restaurant';
 
 import { ErrorState } from '#/components/ui/ErrorState';
-import { HeaderBar } from '#/components/ui/HeaderBar';
+import { HeaderBar, HeaderToggle } from '#/components/ui/HeaderBar';
 import { PullToRefresh } from '#/components/ui/PullToRefresh';
 import { WeekDayPicker } from '#/components/ui/WeekDayPicker';
 import { nowInBrasilia, weekDays } from '#/lib/schedule';
@@ -23,21 +24,40 @@ const MEALS = [
 type MealKey = (typeof MEALS)[number]['key'];
 const CAMPUS_OPTIONS: Campus[] = ['Darcy', 'Gama', 'Ceilandia', 'Planaltina', 'Fazenda'];
 
-export const Route = createFileRoute('/ru')({
+export const Route = createFileRoute('/_app/ru')({
     loader: async ({ context: { queryClient } }) => {
         const today = nowInBrasilia().date;
         const user = await queryClient.query(meQueryOptions);
         await queryClient.query(menuQueryOptions({ date: today, user })).catch(noop);
         return { today };
     },
+    staticData: { header: RUHeader },
     errorComponent: ErrorState,
     component: RUPage
 });
 
+const useFiltersOpen = () => useQueryState('filtros', parseAsBoolean.withDefault(false));
+
+function RUHeader() {
+    const [filtersOpen, setFiltersOpen] = useFiltersOpen();
+
+    return (
+        <HeaderBar>
+            <HeaderToggle
+                open={filtersOpen}
+                onToggle={() => setFiltersOpen(!filtersOpen)}
+                title={filtersOpen ? 'Ocultar dia e campus' : 'Escolher dia e campus'}
+            >
+                Cardápio
+            </HeaderToggle>
+        </HeaderBar>
+    );
+}
+
 function RUPage() {
     const { today } = Route.useLoaderData();
     const [selectedDate, setSelectedDate] = useState(today);
-    const [showFilters, setShowFilters] = useState(false);
+    const [filtersOpen] = useFiltersOpen();
     const [selectedMeal, setSelectedMeal] = useState<MealKey>('lunch');
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const [pickedCampus, setPickedCampus] = useState<Campus | null>(null);
@@ -51,26 +71,7 @@ function RUPage() {
 
     return (
         <PullToRefresh onRefresh={() => refreshQuery(queryClient, menuQuery)}>
-            <HeaderBar>
-                <button
-                    type="button"
-                    onClick={() => setShowFilters(!showFilters)}
-                    aria-expanded={showFilters}
-                    className="group flex cursor-pointer items-center gap-1 text-left select-none focus:outline-none"
-                    title={showFilters ? 'Ocultar dia e campus' : 'Escolher dia e campus'}
-                >
-                    <h1 className="text-3xl leading-none font-bold tracking-tight text-ink transition-colors group-hover:text-primary">
-                        Cardápio
-                    </h1>
-                    <ChevronDown
-                        className={`size-4 text-muted transition-transform duration-200 group-hover:text-primary ${
-                            showFilters ? 'rotate-180 text-primary' : ''
-                        }`}
-                    />
-                </button>
-            </HeaderBar>
-
-            {showFilters && (
+            {filtersOpen && (
                 <div>
                     <WeekDayPicker
                         days={weekDays(today)}

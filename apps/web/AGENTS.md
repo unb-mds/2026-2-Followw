@@ -20,16 +20,19 @@ bun generate-api [url]     # gera src/queries/schema.gen.ts (default: localhost:
 - Tipos `React` são globais: use `React.FC`, `React.ReactNode`, etc. sem importar. imports nomeados
   (`useState`) são ok.
 - Sempre use import type quando estiver importando definições de tipos.
-- O `AppLayout` (com `BottomNavigation`) é renderizado só no `__root.tsx`; rotas e `errorComponent`s
-  não o envolvem de novo, senão a navbar remonta e perde a animação.
+- Páginas do app ficam em `src/routes/_app/` (layout sem path em `_app.tsx`, que renderiza o
+  `AppLayout` com `BottomNavigation`); rotas e `errorComponent`s não o envolvem de novo, senão a
+  navbar remonta e perde a animação. O header também vive no `AppLayout`: cada rota passa o seu em
+  `staticData: { header }` (sem ele, só o logo). Estado que o header divide com a página vai para
+  search params via `nuqs` (`useQueryState`), nunca `useState`. Páginas fora do app (como `/login`)
+  ficam na raiz de `routes/` e definem o próprio container.
 - Cores só pelo `@theme` de `src/styles.css` (`text-ink`, `bg-primary/10` ou `var(--color-*)`),
   nunca hex solto. Sem valores arbitrários (`text-[13px]`); use a escala do Tailwind e,
   preferencialmente, valores pares.
 - Testes em `tests/` espelhando `src/` (`src/lib/schedule.ts` → `tests/lib/schedule.test.ts`).
 - Arquivos `*.gen.ts` são gerados: nunca edite à mão.
 - O login sem sessão fica em `/login`; `/perfil` redireciona para lá quando não há usuário
-  autenticado. Após entrar, navegue para `/`; após sair, para `/login`. O `AppLayout` oculta a
-  navegação inferior na rota de login.
+  autenticado. Após entrar, navegue para `/`; após sair, para `/login`.
 
 ## Acesso à API (`src/queries`)
 

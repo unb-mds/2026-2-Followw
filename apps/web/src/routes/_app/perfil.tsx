@@ -6,13 +6,12 @@ import { useState } from 'react';
 import type { components } from '#/queries/schema.gen';
 
 import { ErrorState } from '#/components/ui/ErrorState';
-import { HeaderBar } from '#/components/ui/HeaderBar';
 import { PullToRefresh } from '#/components/ui/PullToRefresh';
 import { useLogout } from '#/queries/auth';
 import { meQueryOptions } from '#/queries/me';
 import { refreshQuery } from '#/queries/refresh';
 
-export const Route = createFileRoute('/perfil')({
+export const Route = createFileRoute('/_app/perfil')({
     loader: async ({ context }) => {
         const user = await context.queryClient.query(meQueryOptions);
         if (!user) throw redirect({ to: '/login' });
@@ -28,7 +27,6 @@ function PerfilPage() {
 
     return (
         <PullToRefresh onRefresh={() => refreshQuery(queryClient, meQueryOptions)}>
-            <HeaderBar />
             {user && <Profile user={user} />}
         </PullToRefresh>
     );

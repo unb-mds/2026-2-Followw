@@ -28,7 +28,7 @@ export const ClassCard: React.FC<ClassCardProps> = ({
     onClick
 }) => {
     return (
-        <Card accentColor={accentColor} onClick={onClick} className="mb-3">
+        <Card accentColor={accentColor} onClick={onClick}>
             <div className="mb-1 flex items-start justify-between gap-2 pl-1">
                 <div className="flex items-center gap-2">
                     <span className="text-sm font-bold text-success">{time}</span>
