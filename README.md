@@ -50,6 +50,23 @@ uv run api                        # sobe a API em http://localhost:8000
 
 A documentação interativa fica em `http://localhost:8000/docs`.
 
+Recursos públicos, consultáveis sem login, usam o prefixo `/public`:
+
+- `GET /public/restaurant`: cardápio do RU, com os filtros `campus`, `date`,
+  `start_date`, `end_date`, `meal` e `refresh`. Substitui `/restaurant/menu`,
+  preservando o comportamento do cache.
+- `GET /public/classrooms`: busca pública de turmas por unidade, semestre,
+  disciplina/professor (`contains`) e local.
+- `GET /public/classrooms/units`: unidades disponíveis na busca pública.
+
+Extrato/saldo e token exigem autenticação e ficam em `GET /me/ru-statement`
+e `GET /me/ru-token`, substituindo `/restaurant/statement` e `/restaurant/token`.
+`/classrooms` lista somente turmas do usuário
+autenticado, sem lógica de busca pública. Rotas de autenticação, documentação
+e callbacks mantêm seus caminhos próprios.
+
+Na documentação, a categoria **Public** reúne **Classrooms** e **Restaurant**.
+
 ### Web
 
 Com a API rodando:

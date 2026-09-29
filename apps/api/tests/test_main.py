@@ -39,6 +39,22 @@ def test_scalar_docs_retorna_html_com_referencia_openapi(client):
     assert "/openapi.json" in response.text
 
 
+def test_openapi_agrupa_recursos_publicos_sem_ocultar_rotas_privadas(client):
+    schema = client.get("/openapi.json").json()
+    groups = {group["name"]: group["tags"] for group in schema["x-tagGroups"]}
+    assert groups["Public"] == ["Public Classrooms", "Public Restaurant"]
+    tags = {tag["name"]: tag for tag in schema["tags"]}
+    assert tags["Public Classrooms"]["x-displayName"] == "Classrooms"
+    assert tags["Public Restaurant"]["x-displayName"] == "Restaurant"
+    grouped_tags = {tag for group in groups.values() for tag in group}
+    for path, methods in schema["paths"].items():
+        for operation in methods.values():
+            assert set(operation["tags"]) <= grouped_tags
+            assert bool(
+                set(operation["tags"]) & set(groups["Public"])
+            ) == path.startswith("/public/")
+
+
 def test_cors_libera_origens_do_front_com_credenciais(client):
     for origin in ("https://followw.app", "http://localhost:3000"):
         response = client.options(
