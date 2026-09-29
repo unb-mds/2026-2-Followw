@@ -21,6 +21,14 @@ describe('campusOf', () => {
 });
 
 describe('menuQueryOptions', () => {
+    test('consulta o cardápio pela rota pública sem usuário', () => {
+        expect(menuQueryOptions({ date }).queryKey).toEqual([
+            'get',
+            '/public/restaurant',
+            { params: { query: { campus: 'Darcy', date } } }
+        ]);
+    });
+
     test('usa o campus do usuário logado quando nenhum é especificado', () => {
         expect(paramsOf(menuQueryOptions({ date, user }))).toEqual({
             params: { query: { campus: 'Gama', date } }

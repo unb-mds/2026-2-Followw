@@ -19,6 +19,12 @@ from api.utils.session import (
     set_refresh_cookie,
 )
 
+# respostas documentadas pelas rotas autenticadas no SIGAA
+SIGAA_ERRORS = {
+    401: {"description": "Credenciais ausentes ou inválidas."},
+    502: {"description": "SIGAA indisponível."},
+}
+
 
 class SigaaConnection:
     """Abre um único `SigaaClient` por conexão, e só quando alguém precisa do SIGAA.

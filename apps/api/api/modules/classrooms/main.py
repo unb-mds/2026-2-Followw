@@ -10,17 +10,14 @@ from sigaa_client import (
 )
 
 from api.dependencies.refresh import RefreshQuery
+from api.dependencies.sigaa import SIGAA_ERRORS
 from api.services.classroom import ClassroomFrequencyResult, ClassroomServiceDep
 from api.services.news import NewsServiceDep
 
 router = APIRouter()
 
-ERRORS = {
-    401: {"description": "Credenciais ausentes ou inválidas."},
-    502: {"description": "SIGAA indisponível."},
-}
 CLASSROOM_ERRORS = {
-    **ERRORS,
+    **SIGAA_ERRORS,
     404: {"description": "Turma não encontrada entre as turmas do usuário."},
 }
 NewsClassroomId = Annotated[
@@ -49,7 +46,7 @@ async def get_classroom_news(
     summary="Consultar conteúdo e anexos de uma notícia da turma",
     description="Texto em Markdown, data e hora e anexos da notícia, sem cache.",
     responses={
-        **ERRORS,
+        **SIGAA_ERRORS,
         404: {
             "description": "Turma fora da lista do usuário ou notícia ausente na turma."
         },
@@ -71,7 +68,7 @@ async def get_classroom_news_detail(
     "",
     response_model=list[Classroom],
     summary="Consultar as turmas do usuário autenticado",
-    responses=ERRORS,
+    responses=SIGAA_ERRORS,
 )
 async def get_classrooms(
     service: ClassroomServiceDep,

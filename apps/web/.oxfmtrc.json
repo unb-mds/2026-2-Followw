@@ -1,6 +1,6 @@
 {
     "$schema": "./node_modules/oxfmt/configuration_schema.json",
-    "ignorePatterns": ["routeTree.gen.ts", "**/components/ui/**"],
+    "ignorePatterns": ["**.gen.ts", "**/components/ui/**"],
     "printWidth": 100,
     "tabWidth": 4,
     "singleQuote": true,

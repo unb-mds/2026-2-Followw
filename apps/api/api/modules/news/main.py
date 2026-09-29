@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query, Response
 from sigaa_client import News
 
+from api.dependencies.sigaa import SIGAA_ERRORS
 from api.services.news import NewsServiceDep
 
 router = APIRouter()
@@ -13,10 +14,7 @@ router = APIRouter()
     response_model=list[News],
     summary="Consultar notícias recentes das turmas na home do SIGAA",
     description=("Notícias recentes da home, sem cache."),
-    responses={
-        401: {"description": "Credenciais ausentes ou inválidas."},
-        502: {"description": "SIGAA indisponível."},
-    },
+    responses=SIGAA_ERRORS,
 )
 async def get_news(
     service: NewsServiceDep,

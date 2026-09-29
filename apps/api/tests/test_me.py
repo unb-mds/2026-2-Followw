@@ -1,10 +1,24 @@
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
+import httpx
 import pytest
+import respx
 from pydantic import SecretStr
-from sigaa_client import Credentials
+from sigaa_client import (
+    AuthenticationFailed,
+    Credentials,
+    RestaurantCredentials,
+    RestaurantStatement,
+    RestaurantStatementEntry,
+    SessionExpired,
+    SigaaParseError,
+)
 from sigaa_client.config import SIGAA_BASE_URL
 
+from api.db.main import get_sessionmaker
 from api.utils.session import (
     ACCESS_COOKIE_NAME,
     REFRESH_COOKIE_NAME,
@@ -202,3 +216,198 @@ def test_me_documenta_campos_e_erros(client):
     } <= fields.keys()
     assert "password" not in fields
     assert "session_token" not in fields
+
+
+def _entry(description, amount="0.00", *, day=25):
+    return RestaurantStatementEntry(
+        occurred_at=datetime.fromisoformat(f"2026-09-{day}T12:00:00"),
+        description=description,
+        amount=Decimal(amount),
+    )
+
+
+@pytest.fixture
+def restaurant(stub_sigaa):
+    stub_sigaa.restaurant = SimpleNamespace(
+        get_restaurant_statement=AsyncMock(
+            return_value=RestaurantStatement(
+                balance=Decimal("12.50"),
+                group=2,
+                entries=(
+                    _entry("Saldo", "12.50"),
+                    _entry("Grupo 2 Almoço", "6.10"),
+                ),
+            )
+        ),
+        get_restaurant_credentials=AsyncMock(
+            return_value=RestaurantCredentials(
+                token="TOKEN-TESTE",
+                valid_until=date(2027, 3, 1),
+            )
+        ),
+    )
+    return stub_sigaa.restaurant
+
+
+@pytest.mark.parametrize(
+    "path,method",
+    [
+        ("statement", "get_restaurant_statement"),
+        ("token", "get_restaurant_credentials"),
+    ],
+)
+def test_dados_privados_sem_banco_fila_ou_cache(
+    client, cookies, restaurant, qstash, path, method
+):
+    def banco_proibido():
+        pytest.fail("Dados privados do RU não devem usar banco")
+
+    client.app.dependency_overrides[get_sessionmaker] = banco_proibido
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+    response = client.get(f"/me/ru-{path}")
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    if path == "statement":
+        assert response.json()["balance"] == "12.50"
+        assert response.json()["group"] == 2
+        assert len(response.json()["entries"]) == 2
+        restaurant.get_restaurant_statement.return_value = RestaurantStatement()
+        assert client.get(f"/me/ru-{path}").json() == {
+            "balance": None,
+            "group": None,
+            "entries": [],
+        }
+    else:
+        assert response.json() == {"token": "TOKEN-TESTE", "valid_until": "2027-03-01"}
+        restaurant.get_restaurant_credentials.return_value = RestaurantCredentials(
+            token="NOVO", valid_until=date(2027, 4, 1)
+        )
+        assert client.get(f"/me/ru-{path}").json()["token"] == "NOVO"
+    assert getattr(restaurant, method).await_count == 2
+    assert qstash.published == []
+
+
+@pytest.mark.parametrize("group", [1, 2, 3])
+def test_extrato_repassa_grupo_saldo_e_movimentos_do_client(
+    client, cookies, restaurant, group
+):
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+    restaurant.get_restaurant_statement.return_value = RestaurantStatement(
+        balance=Decimal("-1.50"),
+        group=group,
+        entries=(
+            _entry("Grupo 2 Almoço", "6.10", day=20),
+            _entry(f"Grupo {group} Jantar", "6.10", day=24),
+            _entry("Saldo", "-1.50", day=25),
+            _entry("Saldo", "100.00", day=20),
+        ),
+    )
+    response = client.get("/me/ru-statement")
+    assert response.status_code == 200
+    assert response.json()["group"] == group
+    assert response.json()["balance"] == "-1.50"
+    assert len(response.json()["entries"]) == 4
+
+
+def test_extrato_sem_saldo_ou_grupo_nao_presume_valores(client, cookies, restaurant):
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+    restaurant.get_restaurant_statement.return_value = RestaurantStatement(
+        entries=(_entry("Compra de créditos", "20.00"),),
+    )
+    response = client.get("/me/ru-statement")
+    assert response.json()["balance"] is None
+    assert response.json()["group"] is None
+
+
+def test_extrato_repetido_na_api_preserva_sessao_e_consulta_saldo_atual(
+    client, cookies
+):
+    client.cookies.update(cookies(access="tok", refresh=CREDENCIAIS))
+    opened = False
+    amount = "49,50"
+    methods = []
+
+    def dashboard(request):
+        nonlocal opened
+        assert "JSESSIONID=tok" in request.headers["cookie"]
+        methods.append(request.method)
+        if request.method == "POST":
+            assert not opened
+            opened = True
+        if opened:
+            return httpx.Response(
+                200,
+                text=f"""
+                <h4>Extrato no Restaurante Universitário</h4><table>
+                <tr><td>25/09/2026 22:15</td><td>Saldo</td><td>{amount}</td></tr>
+                <tr><td>18/09/2026 22:15</td><td>Saldo Anterior</td><td>49,50</td></tr>
+                </table>
+            """,
+            )
+        return httpx.Response(
+            200,
+            text="""
+            <form id="formExibirExtrato" name="formExibirExtrato"
+                action="/sigaa/portais/discente/discente.jsf">
+              <input type="hidden" name="formExibirExtrato" value="formExibirExtrato">
+              <input type="hidden" name="javax.faces.ViewState" value="VS1">
+              <a onclick="jsfcljs(document.getElementById('formExibirExtrato'),
+                {'formExibirExtrato:botao':'formExibirExtrato:botao'},'');">
+                Mostrar Extrato</a>
+            </form>
+        """,
+        )
+
+    with respx.mock as network:
+        network.route(
+            host="sigaa.unb.br", path="/sigaa/portais/discente/discente.jsf"
+        ).mock(side_effect=dashboard)
+        for amount in ("49,50", "51,00", "40,00"):
+            response = client.get("/me/ru-statement")
+            assert response.status_code == 200
+            assert response.headers["cache-control"] == "no-store"
+            assert response.json()["balance"] == amount.replace(",", ".")
+            assert response.json()["group"] is None
+            assert len(response.json()["entries"]) == 2
+    assert methods == ["GET", "POST", "GET", "GET"]
+
+
+@pytest.mark.parametrize("path", ["statement", "token"])
+def test_dados_privados_exigem_login(client, stub_sigaa, restaurant, path):
+    assert client.get(f"/me/ru-{path}").status_code == 401
+    stub_sigaa.created.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "path,method",
+    [
+        ("statement", "get_restaurant_statement"),
+        ("token", "get_restaurant_credentials"),
+    ],
+)
+@pytest.mark.parametrize(
+    "error,status",
+    [
+        (AuthenticationFailed(), 401),
+        (SessionExpired(), 401),
+        (SigaaParseError("layout mudou"), 502),
+        (httpx.ReadTimeout("fora"), 502),
+    ],
+)
+def test_erros_do_sigaa_sao_traduzidos(
+    client, cookies, restaurant, path, method, error, status
+):
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+    getattr(restaurant, method).side_effect = error
+    assert client.get(f"/me/ru-{path}").status_code == status
+
+
+def test_openapi_documenta_dados_privados_do_restaurante(client):
+    schema = client.get("/openapi.json").json()
+    paths = schema["paths"]
+    for path in ("statement", "token"):
+        assert paths[f"/me/ru-{path}"]["get"]["tags"] == ["Me"]
+        assert {"401", "502"} <= paths[f"/me/ru-{path}"]["get"]["responses"].keys()
+    assert {"balance", "group", "entries"} <= schema["components"]["schemas"][
+        "RestaurantStatement"
+    ]["properties"].keys()
