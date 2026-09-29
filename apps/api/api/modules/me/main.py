@@ -27,7 +27,7 @@ async def get_me(
 @router.get(
     "/ru-statement",
     response_model=RestaurantStatement,
-    summary="Consultar extrato, saldo e grupo do estudante no RU",
+    summary="Consultar extrato, saldo e grupo do RU",
     description="",
     responses=ERRORS,
 )
