@@ -1,19 +1,21 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
-import { Check, Copy, Eye, EyeOff, LogOut, User } from 'lucide-react';
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
+import { Check, Copy, LogOut, User } from 'lucide-react';
 import { useState } from 'react';
 
 import type { components } from '#/queries/schema.gen';
 
-import { Card } from '#/components/ui/Card';
 import { ErrorState } from '#/components/ui/ErrorState';
 import { HeaderBar } from '#/components/ui/HeaderBar';
-import { useLogin, useLogout } from '#/queries/auth';
-import { ApiError } from '#/queries/errors';
+import { useLogout } from '#/queries/auth';
 import { meQueryOptions } from '#/queries/me';
 
 export const Route = createFileRoute('/perfil')({
-    loader: ({ context }) => context.queryClient.query(meQueryOptions),
+    loader: async ({ context }) => {
+        const user = await context.queryClient.query(meQueryOptions);
+        if (!user) throw redirect({ to: '/login' });
+        return user;
+    },
     errorComponent: ErrorState,
     component: PerfilPage
 });
@@ -24,13 +26,14 @@ function PerfilPage() {
     return (
         <>
             <HeaderBar />
-            <div className="space-y-4">{user ? <Profile user={user} /> : <LoginForm />}</div>
+            {user && <Profile user={user} />}
         </>
     );
 }
 
 function Profile({ user }: { user: components['schemas']['UserProfile'] }) {
-    const logout = useLogout();
+    const navigate = useNavigate();
+    const logout = useLogout(() => void navigate({ to: '/login', replace: true }));
 
     const indexes = [
         { label: 'IRA', value: user.ira?.toFixed(4) },
@@ -132,106 +135,5 @@ function CopyRegistration({ registration }: { registration: string }) {
             {registration}
             {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
         </button>
-    );
-}
-
-function LoginForm() {
-    const login = useLogin();
-    const [registration, setRegistration] = useState('');
-    const [password, setPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
-
-    const error =
-        login.error instanceof ApiError && login.error.isUnauthorized
-            ? 'Matrícula ou senha incorretas.'
-            : login.error
-              ? 'Não foi possível conectar ao SIGAA. Tente novamente.'
-              : undefined;
-
-    return (
-        <Card className="p-6">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-primary/20 bg-primary-light text-primary">
-                <User className="size-7" />
-            </div>
-            <h3 className="mb-1 text-center text-lg font-bold text-ink">Entrar no Followw</h3>
-            <p className="mb-5 text-center text-xs text-muted">
-                Utilize sua matrícula e senha do SIGAA. Sua sessão é protegida por cookies cifrados.
-            </p>
-
-            <form
-                onSubmit={(e) => {
-                    e.preventDefault();
-                    login.mutate({ body: { registration, password } });
-                }}
-                className="space-y-3"
-            >
-                <div>
-                    <label htmlFor="registration" className="mb-1 block text-xs font-bold text-ink">
-                        Matrícula
-                    </label>
-                    <input
-                        id="registration"
-                        type="text"
-                        inputMode="numeric"
-                        autoComplete="username"
-                        required
-                        pattern="\d{9}"
-                        maxLength={9}
-                        value={registration}
-                        onChange={(e) => setRegistration(e.target.value)}
-                        placeholder="251000000"
-                        className="w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm text-ink placeholder-subtle transition focus:border-primary focus:outline-none"
-                    />
-                </div>
-
-                <div>
-                    <label htmlFor="password" className="mb-1 block text-xs font-bold text-ink">
-                        Senha do SIGAA
-                    </label>
-                    <div className="relative">
-                        <input
-                            id="password"
-                            type={showPassword ? 'text' : 'password'}
-                            autoComplete="current-password"
-                            required
-                            minLength={6}
-                            maxLength={64}
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="••••••••"
-                            className="w-full rounded-xl border border-line bg-white py-2.5 pr-12 pl-3.5 text-sm text-ink placeholder-subtle transition focus:border-primary focus:outline-none"
-                        />
-                        <button
-                            type="button"
-                            onClick={() => setShowPassword((visible) => !visible)}
-                            aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
-                            aria-controls="password"
-                            title={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
-                            className="absolute inset-y-0 right-0 flex w-11 cursor-pointer items-center justify-center rounded-r-xl text-muted transition hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                        >
-                            {showPassword ? (
-                                <Eye className="size-4" aria-hidden="true" />
-                            ) : (
-                                <EyeOff className="size-4" aria-hidden="true" />
-                            )}
-                        </button>
-                    </div>
-                </div>
-
-                {error && (
-                    <p role="alert" className="text-xs font-semibold text-red-600">
-                        {error}
-                    </p>
-                )}
-
-                <button
-                    type="submit"
-                    disabled={login.isPending}
-                    className="mt-2 w-full cursor-pointer rounded-xl bg-primary py-3 text-sm font-bold text-white shadow-md transition hover:bg-primary-dark active:scale-95 disabled:opacity-60"
-                >
-                    {login.isPending ? 'Conectando...' : 'Conectar Conta'}
-                </button>
-            </form>
-        </Card>
     );
 }

@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as RuRouteImport } from './routes/ru'
 import { Route as TurmasRouteImport } from './routes/turmas'
@@ -18,6 +19,11 @@ import { Route as TurmasIdRouteImport } from './routes/turmas_.$id'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PerfilRoute = PerfilRouteImport.update({
@@ -43,6 +49,7 @@ const TurmasIdRoute = TurmasIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
   '/perfil': typeof PerfilRoute
   '/ru': typeof RuRoute
   '/turmas': typeof TurmasRoute
@@ -50,6 +57,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
   '/perfil': typeof PerfilRoute
   '/ru': typeof RuRoute
   '/turmas': typeof TurmasRoute
@@ -58,6 +66,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
   '/perfil': typeof PerfilRoute
   '/ru': typeof RuRoute
   '/turmas': typeof TurmasRoute
@@ -65,14 +74,16 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/perfil' | '/ru' | '/turmas' | '/turmas/$id'
+  fullPaths: '/' | '/login' | '/perfil' | '/ru' | '/turmas' | '/turmas/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/perfil' | '/ru' | '/turmas' | '/turmas/$id'
-  id: '__root__' | '/' | '/perfil' | '/ru' | '/turmas' | '/turmas_/$id'
+  to: '/' | '/login' | '/perfil' | '/ru' | '/turmas' | '/turmas/$id'
+  id:
+    '__root__' | '/' | '/login' | '/perfil' | '/ru' | '/turmas' | '/turmas_/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  LoginRoute: typeof LoginRoute
   PerfilRoute: typeof PerfilRoute
   RuRoute: typeof RuRoute
   TurmasRoute: typeof TurmasRoute
@@ -86,6 +97,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/perfil': {
@@ -121,6 +139,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  LoginRoute: LoginRoute,
   PerfilRoute: PerfilRoute,
   RuRoute: RuRoute,
   TurmasRoute: TurmasRoute,

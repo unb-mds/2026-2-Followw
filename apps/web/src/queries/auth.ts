@@ -24,9 +24,12 @@ export function useLogin() {
     });
 }
 
-export function useLogout() {
+export function useLogout(onLoggedOut?: () => void) {
     const queryClient = useQueryClient();
     return api.useMutation('delete', '/auth/sigaa', {
-        onSuccess: () => clearSession(queryClient)
+        onSuccess: () => {
+            clearSession(queryClient);
+            onLoggedOut?.();
+        }
     });
 }
