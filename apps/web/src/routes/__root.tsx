@@ -3,7 +3,6 @@ import type { QueryClient } from '@tanstack/react-query';
 import { TanStackDevtools } from '@tanstack/react-devtools';
 import { HeadContent, Outlet, Scripts, createRootRouteWithContext } from '@tanstack/react-router';
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools';
-import { NuqsAdapter } from 'nuqs/adapters/tanstack-router';
 
 import PostHogProvider from '#/integrations/posthog/provider';
 import TanStackQueryDevtools from '#/integrations/tanstack-query/devtools';
