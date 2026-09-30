@@ -4,16 +4,19 @@ import { FollowwLogo } from '#/components/ui/FollowwLogo';
 
 interface HeaderBarProps {
     children?: React.ReactNode;
+    // ações alinhadas à direita
+    actions?: React.ReactNode;
     showLogo?: boolean;
 }
 
-export const HeaderBar: React.FC<HeaderBarProps> = ({ children, showLogo = true }) => {
+export const HeaderBar: React.FC<HeaderBarProps> = ({ children, actions, showLogo = true }) => {
     return (
         <header className="mb-2 flex items-center justify-between py-4 pb-2">
             <div className="flex items-center gap-2">
                 {showLogo && <FollowwLogo className="h-6 w-10 shrink-0" />}
                 {children}
             </div>
+            {actions && <div className="flex items-center gap-2">{actions}</div>}
         </header>
     );
 };

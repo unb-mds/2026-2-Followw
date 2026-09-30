@@ -1,6 +1,7 @@
-import { useMatches } from '@tanstack/react-router';
+import { useLocation, useMatches } from '@tanstack/react-router';
 import { createElement } from 'react';
 
+import { PageStateProvider } from '#/components/PageState';
 import { BottomNavigation } from '#/components/ui/BottomNavigation';
 import { HeaderBar } from '#/components/ui/HeaderBar';
 
@@ -18,6 +19,7 @@ interface AppLayoutProps {
 export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     const header =
         useMatches({ select: (matches) => matches.at(-1)?.staticData.header }) ?? HeaderBar;
+    const pathname = useLocation({ select: (location) => location.pathname });
 
     return (
         <div
@@ -28,8 +30,10 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                 backgroundRepeat: 'no-repeat'
             }}
         >
-            {createElement(header)}
-            <main className="flex-1 pb-24">{children}</main>
+            <PageStateProvider page={pathname}>
+                {createElement(header)}
+                <main className="flex-1 pb-24">{children}</main>
+            </PageStateProvider>
             <BottomNavigation />
         </div>
     );

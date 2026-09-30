@@ -16,49 +16,27 @@ bun generate-api [url]     # gera src/queries/schema.gen.ts (default: localhost:
 
 ## Convenções
 
-- Imports internos sempre absolutos via `#/` (`src/`), nunca relativos.
-- Tipos `React` são globais: use `React.FC`, `React.ReactNode`, etc. sem importar. imports nomeados
-  (`useState`) são ok.
-- Sempre use import type quando estiver importando definições de tipos.
-- Páginas do app ficam em `src/routes/_app/` (layout sem path em `_app.tsx`, que renderiza o
-  `AppLayout` com `BottomNavigation`); rotas e `errorComponent`s não o envolvem de novo, senão a
-  navbar remonta e perde a animação. O header também vive no `AppLayout`: cada rota passa o seu em
-  `staticData: { header }` (sem ele, só o logo). Estado que o header divide com a página vai para
-  search params via `nuqs` (`useQueryState`), nunca `useState`. Páginas fora do app (como `/login`)
-  ficam na raiz de `routes/` e definem o próprio container.
-- Cores só pelo `@theme` de `src/styles.css` (`text-ink`, `bg-primary/10` ou `var(--color-*)`),
-  nunca hex solto. Sem valores arbitrários (`text-[13px]`); use a escala do Tailwind e,
-  preferencialmente, valores pares.
-- Testes em `tests/` espelhando `src/` (`src/lib/schedule.ts` → `tests/lib/schedule.test.ts`).
+- Imports internos sempre absolutos via `#/` (`src/`), nunca relativos. Use `import type` para
+  tipos.
+- Tipos `React` são globais: use `React.FC`, `React.ReactNode` etc. sem importar.
+- Páginas do app ficam em `src/routes/_app/`, cujo layout (`_app.tsx`) já renderiza o `AppLayout`
+  com header e navbar. Cada rota passa o header em `staticData: { header }`; estado dividido entre
+  header e página vai para `usePageState`. Páginas fora do app (como `/login`) ficam na raiz de
+  `routes/`.
+- Cores só pelo `@theme` de `src/styles.css`, nunca hex solto. Sem valores arbitrários
+  (`text-[13px]`): use a escala do Tailwind, preferencialmente valores pares.
+- Testes em `tests/` espelhando `src/`.
 - Arquivos `*.gen.ts` são gerados: nunca edite à mão.
 
 ## Acesso à API (`src/queries`)
 
-`fetch` nativo é proibido fora de `src/queries/**`. Tudo passa por:
+`fetch` nativo é proibido fora de `src/queries/**`. Um arquivo por recurso exportando `queryOptions`
+via `api.queryOptions(...)`; o loader pré-carrega (tratando `ApiError.isUnauthorized`) e o
+componente consome com `useSuspenseQuery`.
 
-- `client.ts`: `openapi-fetch` com base `VITE_API_URL` e `credentials: 'include'`. No SSR, um
-  middleware repassa o `cookie` da requisição original e devolve os `Set-Cookie` da API ao navegador
-  — sempre lidos do contexto da requisição, nunca de variável de módulo (vazaria sessão entre
-  usuários). Status `>= 400` vira `ApiError`.
-- `errors.ts`: `ApiError` com `status`, `detail` e
-  `isUnauthorized`/`isForbidden`/`isNotFound`/`isServerError`.
-- `api.ts`: adaptador `openapi-react-query`.
+No SSR, os cookies são repassados pelo contexto da requisição, nunca por variável de módulo (vazaria
+sessão entre usuários). Em produção o SSR só autentica porque a API grava os cookies com
+`Domain=followw.app` (`COOKIE_DOMAIN`).
 
-Um arquivo por recurso exportando `queryOptions`:
-
-```ts
-// src/queries/classrooms.ts
-export const classroomsQueryOptions = (semester?: string) =>
-    api.queryOptions('get', '/classrooms', { params: { query: { semester } } });
-```
-
-No loader, pré-carregue com `context.queryClient.query(...)` (tratando `ApiError.isUnauthorized`);
-no componente, consuma com `useSuspenseQuery`.
-
-Para pedir dado novo à API (que tem cache próprio), use `refreshQuery(queryClient, options)` O
-`queryFn` precisa montar a requisição a partir da `queryKey` (como os de `api.queryOptions`). Telas
-com dado em cache envolvem o conteúdo em `PullToRefresh` apontando para a query principal.
-
-O SSR só autentica em produção porque a API grava os cookies com `Domain=followw.app`
-(`COOKIE_DOMAIN`); sem isso eles ficam presos a `api.followw.app` e o `/me` hidrata como `null` após
-reload. Em dev não precisa.
+Para pedir dado novo à API, use `refreshQuery(queryClient, options)`. Telas com dado em cache
+envolvem o conteúdo em `PullToRefresh` apontando para a query principal.

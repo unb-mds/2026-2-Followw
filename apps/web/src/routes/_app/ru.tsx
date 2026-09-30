@@ -1,14 +1,15 @@
 import { noop, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { ChevronDown, Coffee, Soup, UtensilsCrossed } from 'lucide-react';
-import { parseAsBoolean, useQueryState } from 'nuqs';
 import { useState } from 'react';
 
 import type { Campus, MenuSection } from '#/queries/restaurant';
 
+import { usePageState } from '#/components/PageState';
 import { ErrorState } from '#/components/ui/ErrorState';
 import { HeaderBar, HeaderToggle } from '#/components/ui/HeaderBar';
 import { PullToRefresh } from '#/components/ui/PullToRefresh';
+import { ShareButton } from '#/components/ui/ShareButton';
 import { WeekDayPicker } from '#/components/ui/WeekDayPicker';
 import { nowInBrasilia, weekDays } from '#/lib/schedule';
 import { meQueryOptions } from '#/queries/me';
@@ -36,13 +37,13 @@ export const Route = createFileRoute('/_app/ru')({
     component: RUPage
 });
 
-const useFiltersOpen = () => useQueryState('filtros', parseAsBoolean.withDefault(false));
+const useFiltersOpen = () => usePageState('filters', false);
 
 function RUHeader() {
     const [filtersOpen, setFiltersOpen] = useFiltersOpen();
 
     return (
-        <HeaderBar>
+        <HeaderBar actions={<ShareButton title="Cardápio do RU" />}>
             <HeaderToggle
                 open={filtersOpen}
                 onToggle={() => setFiltersOpen(!filtersOpen)}

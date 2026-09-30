@@ -86,7 +86,7 @@ function ClassroomPage() {
     const queryClient = useQueryClient();
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const classrooms = useQuery({ ...allClassroomsQueryOptions, enabled: Boolean(user) });
-    const [tab, setTab] = useState<Tab>('news');
+    const [tab, setTab] = useState<Tab>(tabs[0].id);
     const classroom = classrooms.data?.find((item) => item.id === id);
 
     return (

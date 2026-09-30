@@ -1,11 +1,11 @@
 import { noop, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { parseAsBoolean, useQueryState } from 'nuqs';
 import { useEffect, useState } from 'react';
 
 import { ClassCard } from '#/components/home/ClassCard';
 import { LoginPromptCard } from '#/components/home/LoginPromptCard';
 import { PublicInfoSection } from '#/components/home/PublicInfoSection';
+import { usePageState } from '#/components/PageState';
 import { ErrorCard, ErrorState, SIGAA_DOWN_MESSAGE } from '#/components/ui/ErrorState';
 import { HeaderBar, HeaderToggle } from '#/components/ui/HeaderBar';
 import { PullToRefresh } from '#/components/ui/PullToRefresh';
@@ -53,11 +53,11 @@ function useNow() {
     return now;
 }
 
-const useWeekOpen = () => useQueryState('semana', parseAsBoolean.withDefault(false));
+const useWeekOpen = () => usePageState('week', false);
 
 function useSelectedDay() {
     const now = useNow();
-    const [picked, setPicked] = useQueryState('dia');
+    const [picked, setPicked] = usePageState('date', null);
     const days = weekDays(now.date);
     const selectedDay = days.find((day) => day.date === picked) ?? now;
     const isToday = selectedDay.date === now.date;

@@ -41,11 +41,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 function RootComponent() {
     useSessionRefresh();
 
-    return (
-        <NuqsAdapter>
-            <Outlet />
-        </NuqsAdapter>
-    );
+    return <Outlet />;
 }
 
 function RootDocument({ children }: { children: React.ReactNode }) {
