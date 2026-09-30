@@ -21,11 +21,17 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
                 name: 'viewport',
                 content: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no'
             },
+            { name: 'theme-color', content: '#1ea6a9' },
+            { name: 'apple-mobile-web-app-capable', content: 'yes' },
+            { name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
+            { name: 'apple-mobile-web-app-title', content: 'Followw' },
             { name: 'description', content: 'O Followw é uma nova forma de usar o SIGAA UnB.' },
             { title: 'Followw' }
         ],
         links: [
             { rel: 'icon', href: '/favicon.svg' },
+            { rel: 'apple-touch-icon', href: '/favicon.svg' },
+            { rel: 'manifest', href: '/manifest.json' },
             {
                 rel: 'stylesheet',
                 href: 'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap'

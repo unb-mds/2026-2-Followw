@@ -1,0 +1,24 @@
+{
+    "name": "Followw",
+    "short_name": "Followw",
+    "description": "O Followw é uma nova forma de usar o SIGAA UnB.",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "background_color": "#f5faff",
+    "theme_color": "#1ea6a9",
+    "icons": [
+        {
+            "src": "/favicon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any"
+        },
+        {
+            "src": "/favicon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "maskable"
+        }
+    ]
+}
