@@ -64,16 +64,16 @@ describe('localStorageRepository', () => {
     });
 
     test('armazena e recupera valores do tipo string', () => {
-        localStorageRepository.set(STORAGE_KEYS.CARD_TOKEN, 'token-123456');
-        const retrieved = localStorageRepository.get<string>(STORAGE_KEYS.CARD_TOKEN);
+        localStorageRepository.set(STORAGE_KEYS.RU_TOKEN, 'token-123456');
+        const retrieved = localStorageRepository.get<string>(STORAGE_KEYS.RU_TOKEN);
 
         expect(retrieved).toBe('token-123456');
         expect(memoryStorage.getItem('followw:ru-token')).toBe('"token-123456"');
     });
 
     test('armazena e recupera valores do tipo número', () => {
-        localStorageRepository.set(STORAGE_KEYS.BALANCE, 42.5);
-        const retrieved = localStorageRepository.get<number>(STORAGE_KEYS.BALANCE);
+        localStorageRepository.set(STORAGE_KEYS.RU_BALANCE, 42.5);
+        const retrieved = localStorageRepository.get<number>(STORAGE_KEYS.RU_BALANCE);
 
         expect(retrieved).toBe(42.5);
         expect(memoryStorage.getItem('followw:ru_balance')).toBe('42.5');
