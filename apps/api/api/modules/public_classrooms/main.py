@@ -13,9 +13,11 @@ router = APIRouter()
     "",
     response_model=list[PublicClassroom],
     summary="Buscar turmas públicas do SIGAA, sem login",
-    description="Consulta diretamente o SIGAA por unidade, sem filtrar o nível de ensino.",
+    description="Consulta diretamente o SIGAA, sem filtrar o nível de ensino. Informe unit ou code. Sem unit, o prefixo de letras do código determina as unidades consultadas pelo índice local; o código completo deve corresponder exatamente. Sem semester, preserva o ano/período do formulário do SIGAA.",
     responses={
-        422: {"description": "Filtro inválido, unidade inexistente ou nome ambíguo."},
+        422: {
+            "description": "Informe unit ou code. Filtro inválido, prefixo não mapeado, unidade inexistente ou nome ambíguo."
+        },
         502: {"description": "SIGAA indisponível ou resposta ilegível."},
     },
     dependencies=[NoStore],
@@ -23,13 +25,13 @@ router = APIRouter()
 async def search_classrooms(
     service: PublicClassroomServiceDep,
     unit: Annotated[
-        str,
+        str | None,
         Query(
             min_length=1,
             pattern=r"\S",
-            description="ID da unidade ou parte do nome, como 'gama'. Consulte /public/classrooms/units para obter os IDs.",
+            description="ID da unidade ou parte do nome, como 'gama'. Obrigatório quando code não for informado. Com code, restringe a busca a esta unidade. Consulte /public/classrooms/units para obter os IDs.",
         ),
-    ],
+    ] = None,
     semester: Annotated[
         str | None,
         Query(
@@ -49,8 +51,17 @@ async def search_classrooms(
             description="Trecho do local da turma, incluindo unidade e sala, como 'S3', 'FCTE - S3' ou 'auditorio'. Ignora acentos, maiúsculas e espaços extras; vazio não filtra. Com contains, exige correspondência nos dois filtros.",
         ),
     ] = None,
+    code: Annotated[
+        str | None,
+        Query(
+            pattern=r"^\s*[A-Za-z]+[0-9]+\s*$",
+            description="Código completo da disciplina, como MAT0031 ou FGA0132. Ignora maiúsculas e espaços nas extremidades; preserva zeros. Sem unit, consulta todas as unidades mapeadas para o prefixo. Combina com semester, contains e local.",
+        ),
+    ] = None,
 ) -> list[PublicClassroom]:
-    return await service.search(unit, semester, contains=contains, local=local)
+    return await service.search(
+        unit, semester, contains=contains, local=local, code=code
+    )
 
 
 @router.get(

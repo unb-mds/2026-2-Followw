@@ -185,7 +185,7 @@ export interface paths {
         };
         /**
          * Buscar turmas públicas do SIGAA, sem login
-         * @description Consulta diretamente o SIGAA por unidade, sem filtrar o nível de ensino.
+         * @description Consulta diretamente o SIGAA, sem filtrar o nível de ensino. Informe unit ou code. Sem unit, o prefixo de letras do código determina as unidades consultadas pelo índice local; o código completo deve corresponder exatamente. Sem semester, preserva o ano/período do formulário do SIGAA.
          */
         get: operations["search_classrooms_public_classrooms_get"];
         put?: never;
@@ -1189,15 +1189,17 @@ export interface operations {
     };
     search_classrooms_public_classrooms_get: {
         parameters: {
-            query: {
-                /** @description ID da unidade ou parte do nome, como 'gama'. Consulte /public/classrooms/units para obter os IDs. */
-                unit: string;
+            query?: {
+                /** @description ID da unidade ou parte do nome, como 'gama'. Obrigatório quando code não for informado. Com code, restringe a busca a esta unidade. Consulte /public/classrooms/units para obter os IDs. */
+                unit?: string | null;
                 /** @description Opcional, no formato AAAA.P: 2026.2, 2027.1 ou 2026.4. Sem filtro, usa os valores do SIGAA. */
                 semester?: string | null;
                 /** @description Trecho do nome ou código da disciplina, ou do nome de qualquer docente. Ignora acentos, maiúsculas e espaços extras. Filtra o resultado da unidade/semestre após consultar o SIGAA; vazio não filtra. */
                 contains?: string | null;
                 /** @description Trecho do local da turma, incluindo unidade e sala, como 'S3', 'FCTE - S3' ou 'auditorio'. Ignora acentos, maiúsculas e espaços extras; vazio não filtra. Com contains, exige correspondência nos dois filtros. */
                 local?: string | null;
+                /** @description Código completo da disciplina, como MAT0031 ou FGA0132. Ignora maiúsculas e espaços nas extremidades; preserva zeros. Sem unit, consulta todas as unidades mapeadas para o prefixo. Combina com semester, contains e local. */
+                code?: string | null;
             };
             header?: never;
             path?: never;
@@ -1214,7 +1216,7 @@ export interface operations {
                     "application/json": components["schemas"]["PublicClassroom"][];
                 };
             };
-            /** @description Filtro inválido, unidade inexistente ou nome ambíguo. */
+            /** @description Informe unit ou code. Filtro inválido, prefixo não mapeado, unidade inexistente ou nome ambíguo. */
             422: {
                 headers: {
                     [name: string]: unknown;
