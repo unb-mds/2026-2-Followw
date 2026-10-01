@@ -1,8 +1,8 @@
 const STORAGE_PREFIX = 'followw:';
 
 export const STORAGE_KEYS = {
-    CARD_TOKEN: 'ru-token',
-    BALANCE: 'ru_balance'
+    RU_TOKEN: 'ru-token',
+    RU_BALANCE: 'ru_balance'
 } as const;
 
 function getStorage(): Storage | null {
