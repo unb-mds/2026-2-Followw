@@ -23,18 +23,20 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
     return (
         <div
-            className="flex min-h-screen w-full flex-col overflow-x-hidden bg-surface px-4 shadow-2xl"
+            className="flex min-h-screen flex-col overflow-x-hidden bg-surface shadow-2xl"
             style={{
                 backgroundImage:
                     'radial-gradient(circle at 50% -15%, rgba(4, 241, 236, 0.45) 0%, rgba(120, 218, 198, 0.38) 25%, rgba(30, 166, 169, 0.22) 55%, rgba(245, 250, 255, 0) 85%)',
                 backgroundRepeat: 'no-repeat'
             }}
         >
-            <PageStateProvider page={pathname}>
-                {createElement(header)}
-                <main className="flex-1 pb-24">{children}</main>
-            </PageStateProvider>
-            <BottomNavigation />
+            <div className="max-w-2xl w-full mx-auto px-4">
+                <PageStateProvider page={pathname}>
+                    {createElement(header)}
+                    <main className="flex-1 pb-24">{children}</main>
+                </PageStateProvider>
+                <BottomNavigation />
+            </div>
         </div>
     );
 };
