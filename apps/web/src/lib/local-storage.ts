@@ -1,8 +1,8 @@
 const STORAGE_PREFIX = 'followw:';
 
 export const STORAGE_KEYS = {
-    CARD_TOKEN: 'card-token',
-    BALANCE: 'balance'
+    CARD_TOKEN: 'ru-token',
+    BALANCE: 'ru_balance'
 } as const;
 
 function getStorage(): Storage | null {
@@ -20,28 +20,33 @@ function formatKey(key: string): string {
     return `${STORAGE_PREFIX}${key}`;
 }
 
-export const localStorageRepository = {
-    // oxlint-disable-next-line typescript/no-unnecessary-type-parameters -- T especifica o tipo retornado ao ler o storage
-    get<T = unknown>(key: string): T | null {
+export interface LocalStorageRepository {
+    get<T = unknown>(key: string, fallback?: T): T | null;
+    set(key: string, value: unknown): void;
+    remove(key: string): void;
+    clear(): void;
+}
+
+export const localStorageRepository: LocalStorageRepository = {
+    get<T = unknown>(key: string, fallback?: T): T | null {
         const storage = getStorage();
         if (!storage) {
-            return null;
+            return fallback ?? null;
         }
 
         try {
             const item = storage.getItem(formatKey(key));
             if (item === null) {
-                return null;
+                return fallback ?? null;
             }
-            // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- o retorno do JSON.parse é tipado como T pelo consumidor
-            return JSON.parse(item) as T;
+            const parsed: T = JSON.parse(item);
+            return parsed;
         } catch {
-            return null;
+            return fallback ?? null;
         }
     },
 
-    // oxlint-disable-next-line typescript/no-unnecessary-type-parameters -- T especifica o tipo aceito para serialização
-    set<T>(key: string, value: T): void {
+    set(key: string, value: unknown): void {
         const storage = getStorage();
         if (!storage) {
             return;

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 
-import { STORAGE_KEYS, localStorageRepository } from '#/repositories/local-storage';
+import { STORAGE_KEYS, localStorageRepository } from '#/lib/local-storage';
 
 class MemoryStorage implements Storage {
     private store = new Map<string, string>();
@@ -38,23 +38,28 @@ describe('localStorageRepository', () => {
         originalWindow = globalThis.window;
         memoryStorage = new MemoryStorage();
 
-        const windowMock = {
-            localStorage: memoryStorage
-        };
-
-        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- mock de window para o ambiente de testes do Bun
-        globalThis.window = windowMock as unknown as Window & typeof globalThis;
-        globalThis.localStorage = memoryStorage;
+        Object.defineProperty(globalThis, 'window', {
+            value: { localStorage: memoryStorage },
+            writable: true,
+            configurable: true
+        });
+        Object.defineProperty(globalThis, 'localStorage', {
+            value: memoryStorage,
+            writable: true,
+            configurable: true
+        });
     });
 
     afterEach(() => {
         if (originalWindow === undefined) {
-            // @ts-expect-error restaurando estado original
-            delete globalThis.window;
-            // @ts-expect-error restaurando estado original
-            delete globalThis.localStorage;
+            Reflect.deleteProperty(globalThis, 'window');
+            Reflect.deleteProperty(globalThis, 'localStorage');
         } else {
-            globalThis.window = originalWindow;
+            Object.defineProperty(globalThis, 'window', {
+                value: originalWindow,
+                writable: true,
+                configurable: true
+            });
         }
     });
 
@@ -63,7 +68,7 @@ describe('localStorageRepository', () => {
         const retrieved = localStorageRepository.get<string>(STORAGE_KEYS.CARD_TOKEN);
 
         expect(retrieved).toBe('token-123456');
-        expect(memoryStorage.getItem('followw:card-token')).toBe('"token-123456"');
+        expect(memoryStorage.getItem('followw:ru-token')).toBe('"token-123456"');
     });
 
     test('armazena e recupera valores do tipo número', () => {
@@ -71,7 +76,7 @@ describe('localStorageRepository', () => {
         const retrieved = localStorageRepository.get<number>(STORAGE_KEYS.BALANCE);
 
         expect(retrieved).toBe(42.5);
-        expect(memoryStorage.getItem('followw:balance')).toBe('42.5');
+        expect(memoryStorage.getItem('followw:ru_balance')).toBe('42.5');
     });
 
     test('armazena e recupera objetos complexos', () => {
@@ -141,10 +146,8 @@ describe('localStorageRepository', () => {
     });
 
     test('funciona com resiliência se window ou localStorage estiver ausente ou indisponível', () => {
-        // @ts-expect-error simulação de ambiente SSR sem window
-        delete globalThis.window;
-        // @ts-expect-error simulação de ambiente SSR sem localStorage
-        delete globalThis.localStorage;
+        Reflect.deleteProperty(globalThis, 'window');
+        Reflect.deleteProperty(globalThis, 'localStorage');
 
         expect(localStorageRepository.get('test')).toBeNull();
         expect(() => localStorageRepository.set('test', 123)).not.toThrow();
