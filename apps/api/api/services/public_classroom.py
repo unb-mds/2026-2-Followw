@@ -1,16 +1,14 @@
 import json
-import re
 import unicodedata
 from functools import cache
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
 from sigaa_client import PublicClassroom, SigaaSearchError, Unit
 
 from api.dependencies.sigaa_public import SigaaPublicClientDep
-
-_CODE_RE = re.compile(r"([A-Z]+)[0-9]+")
+from api.utils.classroom_code import classroom_code_prefix
 
 
 class PublicClassroomService:
@@ -25,23 +23,25 @@ class PublicClassroomService:
         contains: str | None = None,
         local: str | None = None,
         code: str | None = None,
+        number: int | None = None,
     ) -> list[PublicClassroom]:
         prefix = None
         if code is not None:
             code = code.strip().upper()
-            match = _CODE_RE.fullmatch(code)
-            if match is None:
+            prefix = classroom_code_prefix(code)
+            if prefix is None:
                 raise SigaaSearchError(
                     "Código inválido; use letras seguidas de números, como MAT0031."
                 )
-            prefix = match[1]
         if unit is not None:
             units = [unit.strip()]
         elif prefix is not None:
-            units = _code_units().get(prefix, [])
+            units = _code_index()["prefixes"].get(prefix, [])
             if not units:
                 raise SigaaSearchError(
-                    f"Prefixo `{prefix}` não mapeado. Informe `unit` junto de `code` para buscar nessa unidade."
+                    f"Prefixo `{prefix}` não encontrado no índice. "
+                    "Ele pode não existir no SIGAA ou ainda não ter sido mapeado. "
+                    "Informe `unit` junto de `code` para buscar diretamente nessa unidade."
                 )
         else:
             raise SigaaSearchError(
@@ -64,6 +64,36 @@ class PublicClassroomService:
                     if (classroom.subject.code or "").strip().upper() == code
                 )
             )
+            if not classrooms:
+                if unit is not None:
+                    scope = f"na unidade `{unit.strip()}`"
+                else:
+                    names = _code_index()["units"]
+                    labels = "; ".join(
+                        f"`{names.get(str(selected), 'Unidade')}` (ID {selected})"
+                        for selected in units
+                    )
+                    scope = f"nas unidades mapeadas para o prefixo `{prefix}`: {labels}"
+                term = (
+                    f"no semestre `{semester}`"
+                    if semester is not None
+                    else "no semestre padrão do SIGAA"
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=(
+                        f"Nenhuma turma encontrada para o código `{code}` {scope} {term}. "
+                        "A disciplina pode não existir ou não ter oferta nessas condições. "
+                        "Confira `code`, `unit` e `semester`."
+                    ),
+                    headers={"Cache-Control": "no-store"},
+                )
+        if number is not None:
+            classrooms = [
+                classroom
+                for classroom in classrooms
+                if classroom.number.strip().lstrip("0") == str(number)
+            ]
         needle = _normalize_search(contains or "")
         if needle:
             classrooms = [
@@ -104,9 +134,9 @@ def _normalize_search(value: str) -> str:
 
 
 @cache
-def _code_units() -> dict[str, list[int]]:
+def _code_index() -> dict:
     path = Path(__file__).resolve().parents[1] / "data/classroom_code_units.json"
-    return json.loads(path.read_text(encoding="utf-8"))["prefixes"]
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 PublicClassroomServiceDep = Annotated[PublicClassroomService, Depends()]

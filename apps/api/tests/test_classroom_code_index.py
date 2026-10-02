@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import runpy
 from pathlib import Path
 from types import SimpleNamespace
@@ -8,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from sigaa_client import PublicClassroom, SigaaParseError, Subject, Unit
 
-from api.services.public_classroom import _code_units
+from api.services.public_classroom import _code_index
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts/update_classroom_code_units.py"
 
@@ -70,6 +71,43 @@ async def test_indice_nao_aceita_coleta_parcial(updater):
     assert client.classrooms.search.await_count == 9
 
 
+@pytest.mark.parametrize("code", [None, "", "FGA-0132", "FGA", "FGA００３０"])
+async def test_indice_avisa_sobre_codigo_invalido_e_continua_coleta(
+    updater, caplog, code
+):
+    collect, client = updater
+    client.classrooms.list_units.return_value = [Unit(id=1, name="Unidade A")]
+    client.classrooms.search = AsyncMock(
+        return_value=[
+            PublicClassroom(
+                number="01",
+                semester="2026.2",
+                subject=Subject(name="Válida", code="  fga0132  "),
+            ),
+            PublicClassroom(
+                number="02",
+                semester="2026.2",
+                subject=Subject(name="Inválida", code=code),
+            ),
+        ]
+    )
+
+    with caplog.at_level(logging.WARNING):
+        index = await collect()
+
+    assert index["prefixes"] == {"FGA": [1]}
+    assert len(caplog.records) == 1
+    record = caplog.records[0]
+    assert record.levelno == logging.WARNING
+    message = record.getMessage()
+    assert "Turma ignorada" in message
+    assert "unidade=1 (Unidade A)" in message
+    assert "turma=02" in message
+    assert "semestre=2026.2" in message
+    assert "disciplina='Inválida'" in message
+    assert f"código={code!r} fora do padrão" in message
+
+
 async def test_indice_repete_falha_transitoria_e_mantem_semestre_do_formulario(updater):
     collect, client = updater
     client.classrooms.list_units.return_value = [Unit(id=1, name="Unidade A")]
@@ -100,7 +138,7 @@ def test_indice_distribuido_tem_origem_e_unidades_validas():
     assert index["prefixes"]["FGA"] == [673]
     assert index["prefixes"]["FCTE"] == [673]
     assert index["prefixes"]["MAT"] == [518]
-    assert _code_units() == index["prefixes"]
+    assert _code_index() == index
     for prefix, units in index["prefixes"].items():
         assert prefix.isascii() and prefix.isalpha() and prefix.isupper()
         assert units == sorted(set(units))

@@ -133,6 +133,9 @@ def test_semestre_explicito_sobrescreve_ano_e_periodo(client, public_sigaa, seme
         {},
         {"unit": ""},
         {"unit": "   "},
+        {"unit": "gama", "number": ""},
+        {"unit": "gama", "number": "   "},
+        {"number": "01"},
         *(
             {"unit": "gama", "semester": value}
             for value in ("", "all", "2026", "2026.12", "26.2", "2026-2", "abcd.2")
@@ -208,13 +211,18 @@ def test_openapi_publico_documenta_filtros(client):
     paths = client.get("/openapi.json").json()["paths"]
     route = paths["/public/classrooms"]["get"]
     params = {p["name"]: p for p in route["parameters"]}
-    assert set(params) == {"unit", "semester", "contains", "local", "code"}
+    assert set(params) == {"unit", "semester", "contains", "local", "code", "number"}
     assert params["unit"]["required"] is False
     assert params["code"]["required"] is False
     assert params["semester"]["required"] is False
     assert params["contains"]["required"] is False
     assert params["local"]["required"] is False
-    assert {"422", "502"} <= route["responses"].keys()
+    assert params["number"]["required"] is False
+    number_schema = params["number"]["schema"]["anyOf"][0]
+    assert number_schema["type"] == "integer"
+    assert number_schema["minimum"] == 1
+    assert number_schema["maximum"] == 99
+    assert {"404", "422", "502"} <= route["responses"].keys()
     assert "401" not in route["responses"]
     assert "/public/classrooms/units" in paths
 
@@ -345,9 +353,16 @@ def test_local_filtra_local_completo_e_combina_com_contains(
 
 @pytest.fixture
 def code_index(monkeypatch):
-    index = {"FGA": [673], "FCTE": [673], "MAT": [518]}
-    monkeypatch.setattr(public_classroom, "_code_units", lambda: index)
-    return index
+    index = {
+        "prefixes": {"FGA": [673], "FCTE": [673], "MAT": [518]},
+        "units": {
+            "673": "CAMPUS UNB GAMA",
+            "672": "CAMPUS UNB CEILÂNDIA",
+            "518": "DEPTO MATEMÁTICA",
+        },
+    }
+    monkeypatch.setattr(public_classroom, "_code_index", lambda: index)
+    return index["prefixes"]
 
 
 @pytest.mark.parametrize("code", ["FGA0030", "fga0030", "  FgA0030  "])
@@ -414,7 +429,11 @@ def test_prefixo_desconhecido_pede_unidade_sem_varrer_sigaa(
 ):
     response = client.get("/public/classrooms?code=NOVO0001")
     assert response.status_code == 422
-    assert "unit" in response.json()["detail"]
+    assert response.json()["detail"] == (
+        "Prefixo `NOVO` não encontrado no índice. "
+        "Ele pode não existir no SIGAA ou ainda não ter sido mapeado. "
+        "Informe `unit` junto de `code` para buscar diretamente nessa unidade."
+    )
     assert public_sigaa.paths == []
 
 
@@ -424,7 +443,7 @@ def test_unit_explicita_dispensa_indice_e_restringe_busca(
     def index_proibido():
         pytest.fail("Unidade explícita não deve depender do índice")
 
-    monkeypatch.setattr(public_classroom, "_code_units", index_proibido)
+    monkeypatch.setattr(public_classroom, "_code_index", index_proibido)
     public_sigaa.result = RESULTS.replace("FGA0030", "NOVO0001")
     response = client.get("/public/classrooms?unit=gama&code=NOVO0001")
     assert response.status_code == 200
@@ -454,7 +473,168 @@ def test_code_combina_semestre_contains_e_local(
     assert public_sigaa.payloads[0]["formTurma:inputPeriodo"] == "4"
 
 
-def test_code_sem_oferta_retorna_lista_vazia(client, public_sigaa, code_index):
-    response = client.get("/public/classrooms?code=FGA9999")
+@pytest.mark.parametrize("semester", [None, "2026.2"])
+@pytest.mark.parametrize("code", ["FGA0029", "FGA0031", "FGA30", "FGA9999"])
+def test_codigo_ausente_nao_e_inferido_por_intervalo_ou_prefixo(
+    client, public_sigaa, code_index, semester, code
+):
+    public_sigaa.result = RESULTS.strip().removesuffix("</table>") + RESULTS.replace(
+        "FGA0030", "FGA0132"
+    ).strip().removeprefix('<table class="listagem">')
+    params = {"code": code}
+    if semester is not None:
+        params["semester"] = semester
+    response = client.get("/public/classrooms", params=params)
+    term = (
+        f"no semestre `{semester}`"
+        if semester is not None
+        else "no semestre padrão do SIGAA"
+    )
+    assert response.status_code == 404
+    assert response.json()["detail"] == (
+        f"Nenhuma turma encontrada para o código `{code}` "
+        "nas unidades mapeadas para o prefixo `FGA`: "
+        f"`CAMPUS UNB GAMA` (ID 673) {term}. "
+        "A disciplina pode não existir ou não ter oferta nessas condições. "
+        "Confira `code`, `unit` e `semester`."
+    )
+    assert response.headers["cache-control"] == "no-store"
+
+
+def test_codigo_sem_oferta_na_unidade_explicita_informa_escopo(
+    client, public_sigaa, code_index
+):
+    response = client.get("/public/classrooms?unit=gama&code=NOVO0001&semester=2026.4")
+    assert response.status_code == 404
+    assert response.json()["detail"] == (
+        "Nenhuma turma encontrada para o código `NOVO0001` na unidade `gama` "
+        "no semestre `2026.4`. A disciplina pode não existir ou não ter oferta "
+        "nessas condições. Confira `code`, `unit` e `semester`."
+    )
+
+
+@pytest.mark.parametrize("found_in_second_unit", [False, True])
+def test_codigo_sem_oferta_na_primeira_unidade_consulta_as_demais(
+    client, public_sigaa, code_index, found_in_second_unit
+):
+    code_index["FGA"] = [673, 672]
+    public_sigaa.result = (
+        '<ul class="erros"><li>Não foram encontrados resultados.</li></ul>'
+    )
+    if found_in_second_unit:
+        public_sigaa.results_by_unit["672"] = RESULTS
+    response = client.get("/public/classrooms?code=FGA0030")
+    assert response.status_code == (200 if found_in_second_unit else 404)
+    assert [p["formTurma:inputDepto"] for p in public_sigaa.payloads] == ["673", "672"]
+    if not found_in_second_unit:
+        detail = response.json()["detail"]
+        assert "`CAMPUS UNB GAMA` (ID 673); `CAMPUS UNB CEILÂNDIA` (ID 672)" in detail
+        assert "DEPTO MATEMÁTICA" not in detail
+
+
+def test_codigo_sem_oferta_nao_oculta_falha_do_sigaa(client, public_sigaa, code_index):
+    code_index["FGA"] = [673, 672]
+    public_sigaa.results_by_unit["672"] = "<html>layout mudou</html>"
+    assert client.get("/public/classrooms?code=FGA9999").status_code == 502
+
+
+def test_contains_com_codigo_ausente_continua_lista_vazia(client, public_sigaa):
+    response = client.get("/public/classrooms?unit=gama&contains=FGA9999")
     assert response.status_code == 200
     assert response.json() == []
+
+
+@pytest.mark.parametrize("selector", [{"unit": "gama"}, {"code": "FGA0030"}])
+@pytest.mark.parametrize(
+    "number,expected",
+    [
+        (None, ["01", "02", "10", "99"]),
+        ("01", ["01"]),
+        (" 01 ", ["01"]),
+        ("1", ["01"]),
+        ("02", ["02"]),
+        ("2", ["02"]),
+        ("10", ["10"]),
+        ("99", ["99"]),
+        ("98", []),
+    ],
+)
+def test_number_com_e_sem_zero_seleciona_a_mesma_turma(
+    client, public_sigaa, code_index, selector, number, expected
+):
+    public_sigaa.result = (
+        '<table class="listagem">'
+        + "".join(
+            RESULTS.replace("<td>01</td>", f"<td>{value}</td>")
+            .strip()
+            .removeprefix('<table class="listagem">')
+            .removesuffix("</table>")
+            for value in ("01", "02", "10", "99")
+        )
+        + "</table>"
+    )
+    params = dict(selector)
+    if number is not None:
+        params["number"] = number
+    response = client.get("/public/classrooms", params=params)
+
+    assert response.status_code == 200
+    assert [row["number"] for row in response.json()] == expected
+    assert response.headers["cache-control"] == "no-store"
+    assert len(public_sigaa.payloads) == 1
+    assert "number" not in public_sigaa.payloads[0]
+
+
+@pytest.mark.parametrize("number", ["A", "1A", "0", "00", "100", "-1", "1.5"])
+def test_number_invalido_nao_consulta_sigaa(client, public_sigaa, number):
+    response = client.get(
+        "/public/classrooms", params={"unit": "gama", "number": number}
+    )
+    assert response.status_code == 422
+    assert public_sigaa.paths == []
+
+
+@pytest.mark.parametrize("number", ["1", "01"])
+def test_number_aceita_turma_sem_zero_no_sigaa(client, public_sigaa, number):
+    public_sigaa.result = RESULTS.replace("<td>01</td>", "<td>1</td>")
+    response = client.get(
+        "/public/classrooms", params={"unit": "gama", "number": number}
+    )
+    assert response.status_code == 200
+    assert [row["number"] for row in response.json()] == ["1"]
+
+
+@pytest.mark.parametrize(
+    "number,contains,local,expected",
+    [
+        ("01", "dados", "s3", ["01"]),
+        ("1", "dados", "s3", ["01"]),
+        ("02", "dados", "s3", []),
+        ("01", "inexistente", "s3", []),
+        ("01", "dados", "auditorio", []),
+    ],
+)
+def test_number_combina_com_codigo_semestre_contains_e_local(
+    client, public_sigaa, code_index, number, contains, local, expected
+):
+    response = client.get(
+        "/public/classrooms",
+        params={
+            "unit": "gama",
+            "code": "FGA0030",
+            "semester": "2026.2",
+            "number": number,
+            "contains": contains,
+            "local": local,
+        },
+    )
+    assert response.status_code == 200
+    assert [row["number"] for row in response.json()] == expected
+    assert public_sigaa.payloads[0]["formTurma:inputAno"] == "2026"
+    assert public_sigaa.payloads[0]["formTurma:inputPeriodo"] == "2"
+
+
+def test_number_nao_oculta_codigo_sem_oferta(client, public_sigaa, code_index):
+    response = client.get("/public/classrooms?code=FGA9999&number=01")
+    assert response.status_code == 404
+    assert "FGA9999" in response.json()["detail"]

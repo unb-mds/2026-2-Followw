@@ -185,7 +185,7 @@ export interface paths {
         };
         /**
          * Buscar turmas públicas do SIGAA, sem login
-         * @description Consulta diretamente o SIGAA, sem filtrar o nível de ensino. Informe unit ou code. Sem unit, o prefixo de letras do código determina as unidades consultadas pelo índice local; o código completo deve corresponder exatamente. Sem semester, preserva o ano/período do formulário do SIGAA.
+         * @description Consulta diretamente o SIGAA, sem filtrar o nível de ensino. Informe unit ou code. Sem unit, o prefixo de letras do código determina as unidades consultadas pelo índice local; o código completo deve corresponder exatamente. Sem semester, preserva o ano/período do formulário do SIGAA. Com code, retorna 404 se não houver oferta nas unidades e no semestre consultados; isso não confirma que a disciplina inexiste. Se apenas number, contains ou local excluir as turmas encontradas, retorna uma lista vazia (200).
          */
         get: operations["search_classrooms_public_classrooms_get"];
         put?: never;
@@ -1198,8 +1198,10 @@ export interface operations {
                 contains?: string | null;
                 /** @description Trecho do local da turma, incluindo unidade e sala, como 'S3', 'FCTE - S3' ou 'auditorio'. Ignora acentos, maiúsculas e espaços extras; vazio não filtra. Com contains, exige correspondência nos dois filtros. */
                 local?: string | null;
-                /** @description Código completo da disciplina, como MAT0031 ou FGA0132. Ignora maiúsculas e espaços nas extremidades; preserva zeros. Sem unit, consulta todas as unidades mapeadas para o prefixo. Combina com semester, contains e local. */
+                /** @description Código completo da disciplina, como MAT0031 ou FGA0132. Ignora maiúsculas e espaços nas extremidades; preserva zeros. Sem unit, consulta todas as unidades mapeadas para o prefixo. Combina com semester, number, contains e local. */
                 code?: string | null;
+                /** @description Número da turma, de 1 a 99. Aceita com ou sem zero à esquerda: '1' e '01' selecionam a mesma turma. Combina com os demais filtros; use code e semester para identificar a disciplina e o semestre. Sem correspondência, retorna lista vazia. */
+                number?: number | null;
             };
             header?: never;
             path?: never;
@@ -1216,7 +1218,14 @@ export interface operations {
                     "application/json": components["schemas"]["PublicClassroom"][];
                 };
             };
-            /** @description Informe unit ou code. Filtro inválido, prefixo não mapeado, unidade inexistente ou nome ambíguo. */
+            /** @description Nenhuma turma do código completo nas unidades e no semestre consultados. A disciplina pode não existir ou não ter oferta nessas condições. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Informe unit ou code. Filtro inválido, unidade inexistente ou nome ambíguo. Prefixo ausente do índice pode não existir no SIGAA ou ainda não estar mapeado; informe unit para buscar diretamente. */
             422: {
                 headers: {
                     [name: string]: unknown;

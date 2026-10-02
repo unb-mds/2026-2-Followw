@@ -3,6 +3,7 @@
 import argparse
 import asyncio
 import json
+import logging
 import re
 from datetime import UTC, datetime
 from pathlib import Path
@@ -11,8 +12,10 @@ import httpx
 from sigaa_client import SigaaError, SigaaPublicClient
 from sigaa_client.config import PUBLIC_CLASSROOMS_PATH, SIGAA_BASE_URL
 
+from api.utils.classroom_code import classroom_code_prefix
+
 OUTPUT = Path(__file__).resolve().parents[1] / "api/data/classroom_code_units.json"
-CODE = re.compile(r"([A-Z]+)[0-9]+")
+logger = logging.getLogger(__name__)
 
 
 async def collect_index(semester: str | None = None) -> dict:
@@ -50,11 +53,21 @@ async def collect_index(semester: str | None = None) -> dict:
                     continue
                 found = set()
                 for row in rows:
-                    match = CODE.fullmatch((row.subject.code or "").strip().upper())
-                    if match:
-                        prefix = match[1]
+                    prefix = classroom_code_prefix(row.subject.code)
+                    if prefix is not None:
                         prefixes.setdefault(prefix, set()).add(unit.id)
                         found.add(prefix)
+                    else:
+                        logger.warning(
+                            "Turma ignorada no índice: unidade=%s (%s), turma=%s, "
+                            "semestre=%s, disciplina=%r, código=%r fora do padrão.",
+                            unit.id,
+                            unit.name,
+                            row.number,
+                            row.semester,
+                            row.subject.name,
+                            row.subject.code,
+                        )
                     semesters.add(row.semester)
                 if not rows:
                     empty_units.append(unit.id)
