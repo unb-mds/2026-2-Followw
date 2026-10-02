@@ -1,10 +1,14 @@
+import json
 import unicodedata
+from functools import cache
+from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends
-from sigaa_client import PublicClassroom, Unit
+from fastapi import Depends, HTTPException, status
+from sigaa_client import PublicClassroom, SigaaSearchError, Unit
 
 from api.dependencies.sigaa_public import SigaaPublicClientDep
+from api.utils.classroom_code import classroom_code_prefix
 
 
 class PublicClassroomService:
@@ -13,18 +17,83 @@ class PublicClassroomService:
 
     async def search(
         self,
-        unit: str,
+        unit: str | None = None,
         semester: str | None = None,
         *,
         contains: str | None = None,
         local: str | None = None,
+        code: str | None = None,
+        number: int | None = None,
     ) -> list[PublicClassroom]:
+        prefix = None
+        if code is not None:
+            code = code.strip().upper()
+            prefix = classroom_code_prefix(code)
+            if prefix is None:
+                raise SigaaSearchError(
+                    "Código inválido; use letras seguidas de números, como MAT0031."
+                )
+        if unit is not None:
+            units = [unit.strip()]
+        elif prefix is not None:
+            units = _code_index()["prefixes"].get(prefix, [])
+            if not units:
+                raise SigaaSearchError(
+                    f"Prefixo `{prefix}` não encontrado no índice. "
+                    "Ele pode não existir no SIGAA ou ainda não ter sido mapeado. "
+                    "Informe `unit` junto de `code` para buscar diretamente nessa unidade."
+                )
+        else:
+            raise SigaaSearchError(
+                "Informe `unit` ou o código completo da disciplina em `code`."
+            )
+
         year = period = None
         if semester is not None:
             year, period = map(int, semester.split("."))
-        classrooms = await self._client.classrooms.search(
-            unit.strip(), year=year, period=period
-        )
+        classrooms = []
+        for selected in units:
+            classrooms.extend(
+                await self._client.classrooms.search(selected, year=year, period=period)
+            )
+        if code is not None:
+            classrooms = list(
+                dict.fromkeys(
+                    classroom
+                    for classroom in classrooms
+                    if (classroom.subject.code or "").strip().upper() == code
+                )
+            )
+            if not classrooms:
+                if unit is not None:
+                    scope = f"na unidade `{unit.strip()}`"
+                else:
+                    names = _code_index()["units"]
+                    labels = "; ".join(
+                        f"`{names.get(str(selected), 'Unidade')}` (ID {selected})"
+                        for selected in units
+                    )
+                    scope = f"nas unidades mapeadas para o prefixo `{prefix}`: {labels}"
+                term = (
+                    f"no semestre `{semester}`"
+                    if semester is not None
+                    else "no semestre padrão do SIGAA"
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=(
+                        f"Nenhuma turma encontrada para o código `{code}` {scope} {term}. "
+                        "A disciplina pode não existir ou não ter oferta nessas condições. "
+                        "Confira `code`, `unit` e `semester`."
+                    ),
+                    headers={"Cache-Control": "no-store"},
+                )
+        if number is not None:
+            classrooms = [
+                classroom
+                for classroom in classrooms
+                if classroom.number.strip().lstrip("0") == str(number)
+            ]
         needle = _normalize_search(contains or "")
         if needle:
             classrooms = [
@@ -62,6 +131,12 @@ def _normalize_search(value: str) -> str:
     return " ".join(
         "".join(char for char in normalized if not unicodedata.combining(char)).split()
     )
+
+
+@cache
+def _code_index() -> dict:
+    path = Path(__file__).resolve().parents[1] / "data/classroom_code_units.json"
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 PublicClassroomServiceDep = Annotated[PublicClassroomService, Depends()]

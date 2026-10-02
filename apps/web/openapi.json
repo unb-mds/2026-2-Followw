@@ -58,6 +58,25 @@
                 }
             }
         },
+        "/auth/sigaa/refresh": {
+            "post": {
+                "tags": ["Auth"],
+                "summary": "Sigaa Refresh",
+                "description": "Loga no SIGAA com o refresh_token se ainda não houver um access_token válido.\n\nO cache sai só com o refresh_token, então o app chama esta rota ao abrir: ela\nconfere a senha, aquece o access_token e revalida o que venceu, como o login.",
+                "operationId": "sigaa_refresh_auth_sigaa_refresh_post",
+                "responses": {
+                    "204": {
+                        "description": "Successful Response"
+                    },
+                    "401": {
+                        "description": "Credenciais ausentes ou inválidas."
+                    },
+                    "502": {
+                        "description": "SIGAA indisponível."
+                    }
+                }
+            }
+        },
         "/classrooms/{classroom_id}/news": {
             "get": {
                 "tags": ["Classrooms"],
@@ -204,16 +223,22 @@
                         "description": "Sem filtro: turmas atuais. Use 'all' ou um semestre no formato AAAA.P, como 2026.2."
                     },
                     {
-                        "name": "refresh",
-                        "in": "query",
+                        "name": "Cache-Control",
+                        "in": "header",
                         "required": false,
                         "schema": {
-                            "type": "boolean",
-                            "description": "Ignora o cache: busca no SIGAA e atualiza o cache antes de responder.",
-                            "default": false,
-                            "title": "Refresh"
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
+                            "title": "Cache-Control"
                         },
-                        "description": "Ignora o cache: busca no SIGAA e atualiza o cache antes de responder."
+                        "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache)."
                     }
                 ],
                 "responses": {
@@ -258,16 +283,22 @@
                 "operationId": "get_current_frequencies_classrooms_frequency_get",
                 "parameters": [
                     {
-                        "name": "refresh",
-                        "in": "query",
+                        "name": "Cache-Control",
+                        "in": "header",
                         "required": false,
                         "schema": {
-                            "type": "boolean",
-                            "description": "Ignora o cache: busca no SIGAA e atualiza o cache antes de responder.",
-                            "default": false,
-                            "title": "Refresh"
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
+                            "title": "Cache-Control"
                         },
-                        "description": "Ignora o cache: busca no SIGAA e atualiza o cache antes de responder."
+                        "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache)."
                     }
                 ],
                 "responses": {
@@ -329,16 +360,22 @@
                         "description": "Classroom.id ou Classroom.sigaa_id."
                     },
                     {
-                        "name": "refresh",
-                        "in": "query",
+                        "name": "Cache-Control",
+                        "in": "header",
                         "required": false,
                         "schema": {
-                            "type": "boolean",
-                            "description": "Ignora o cache: busca no SIGAA e atualiza o cache antes de responder.",
-                            "default": false,
-                            "title": "Refresh"
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
+                            "title": "Cache-Control"
                         },
-                        "description": "Ignora o cache: busca no SIGAA e atualiza o cache antes de responder."
+                        "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache)."
                     }
                 ],
                 "responses": {
@@ -395,16 +432,22 @@
                         "description": "Classroom.id ou Classroom.sigaa_id."
                     },
                     {
-                        "name": "refresh",
-                        "in": "query",
+                        "name": "Cache-Control",
+                        "in": "header",
                         "required": false,
                         "schema": {
-                            "type": "boolean",
-                            "description": "Ignora o cache: busca no SIGAA e atualiza o cache antes de responder.",
-                            "default": false,
-                            "title": "Refresh"
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
+                            "title": "Cache-Control"
                         },
-                        "description": "Ignora o cache: busca no SIGAA e atualiza o cache antes de responder."
+                        "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache)."
                     }
                 ],
                 "responses": {
@@ -462,16 +505,22 @@
                         "description": "Classroom.id ou Classroom.sigaa_id."
                     },
                     {
-                        "name": "refresh",
-                        "in": "query",
+                        "name": "Cache-Control",
+                        "in": "header",
                         "required": false,
                         "schema": {
-                            "type": "boolean",
-                            "description": "Ignora o cache: busca no SIGAA e atualiza o cache antes de responder.",
-                            "default": false,
-                            "title": "Refresh"
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
+                            "title": "Cache-Control"
                         },
-                        "description": "Ignora o cache: busca no SIGAA e atualiza o cache antes de responder."
+                        "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache)."
                     }
                 ],
                 "responses": {
@@ -515,21 +564,28 @@
             "get": {
                 "tags": ["Public Classrooms"],
                 "summary": "Buscar turmas públicas do SIGAA, sem login",
-                "description": "Consulta diretamente o SIGAA por unidade, sem filtrar o nível de ensino.",
+                "description": "Consulta diretamente o SIGAA, sem filtrar o nível de ensino. Informe unit ou code. Sem unit, o prefixo de letras do código determina as unidades consultadas pelo índice local; o código completo deve corresponder exatamente. Sem semester, preserva o ano/período do formulário do SIGAA. Com code, retorna 404 se não houver oferta nas unidades e no semestre consultados; isso não confirma que a disciplina inexiste. Se apenas number, contains ou local excluir as turmas encontradas, retorna uma lista vazia (200).",
                 "operationId": "search_classrooms_public_classrooms_get",
                 "parameters": [
                     {
                         "name": "unit",
                         "in": "query",
-                        "required": true,
+                        "required": false,
                         "schema": {
-                            "type": "string",
-                            "minLength": 1,
-                            "pattern": "\\S",
-                            "description": "ID da unidade ou parte do nome, como 'gama'. Consulte /public/classrooms/units para obter os IDs.",
+                            "anyOf": [
+                                {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "pattern": "\\S"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "ID da unidade ou parte do nome, como 'gama'. Obrigatório quando code não for informado. Com code, restringe a busca a esta unidade. Consulte /public/classrooms/units para obter os IDs.",
                             "title": "Unit"
                         },
-                        "description": "ID da unidade ou parte do nome, como 'gama'. Consulte /public/classrooms/units para obter os IDs."
+                        "description": "ID da unidade ou parte do nome, como 'gama'. Obrigatório quando code não for informado. Com code, restringe a busca a esta unidade. Consulte /public/classrooms/units para obter os IDs."
                     },
                     {
                         "name": "semester",
@@ -585,6 +641,45 @@
                             "title": "Local"
                         },
                         "description": "Trecho do local da turma, incluindo unidade e sala, como 'S3', 'FCTE - S3' ou 'auditorio'. Ignora acentos, maiúsculas e espaços extras; vazio não filtra. Com contains, exige correspondência nos dois filtros."
+                    },
+                    {
+                        "name": "code",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string",
+                                    "pattern": "^\\s*[A-Za-z]+[0-9]+\\s*$"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Código completo da disciplina, como MAT0031 ou FGA0132. Ignora maiúsculas e espaços nas extremidades; preserva zeros. Sem unit, consulta todas as unidades mapeadas para o prefixo. Combina com semester, number, contains e local.",
+                            "title": "Code"
+                        },
+                        "description": "Código completo da disciplina, como MAT0031 ou FGA0132. Ignora maiúsculas e espaços nas extremidades; preserva zeros. Sem unit, consulta todas as unidades mapeadas para o prefixo. Combina com semester, number, contains e local."
+                    },
+                    {
+                        "name": "number",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "integer",
+                                    "maximum": 99,
+                                    "minimum": 1
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Número da turma, de 1 a 99. Aceita com ou sem zero à esquerda: '1' e '01' selecionam a mesma turma. Combina com os demais filtros; use code e semester para identificar a disciplina e o semestre. Sem correspondência, retorna lista vazia.",
+                            "title": "Number"
+                        },
+                        "description": "Número da turma, de 1 a 99. Aceita com ou sem zero à esquerda: '1' e '01' selecionam a mesma turma. Combina com os demais filtros; use code e semester para identificar a disciplina e o semestre. Sem correspondência, retorna lista vazia."
                     }
                 ],
                 "responses": {
@@ -602,8 +697,11 @@
                             }
                         }
                     },
+                    "404": {
+                        "description": "Nenhuma turma do código completo nas unidades e no semestre consultados. A disciplina pode não existir ou não ter oferta nessas condições."
+                    },
                     "422": {
-                        "description": "Filtro inválido, unidade inexistente ou nome ambíguo."
+                        "description": "Informe unit ou code. Filtro inválido, unidade inexistente ou nome ambíguo. Prefixo ausente do índice pode não existir no SIGAA ou ainda não estar mapeado; informe unit para buscar diretamente."
                     },
                     "502": {
                         "description": "SIGAA indisponível ou resposta ilegível."
@@ -687,18 +785,6 @@
                         "description": "Campus do restaurante."
                     },
                     {
-                        "name": "refresh",
-                        "in": "query",
-                        "required": false,
-                        "schema": {
-                            "type": "boolean",
-                            "description": "Ignora o cache: busca no SIGAA e atualiza o cache antes de responder.",
-                            "default": false,
-                            "title": "Refresh"
-                        },
-                        "description": "Ignora o cache: busca no SIGAA e atualiza o cache antes de responder."
-                    },
-                    {
                         "name": "date",
                         "in": "query",
                         "required": false,
@@ -773,6 +859,24 @@
                             "title": "Meal"
                         },
                         "description": "Retorna apenas a refeição escolhida e a data. Se não publicada no dia, a refeição é null. Sem filtro, retorna todas."
+                    },
+                    {
+                        "name": "Cache-Control",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
+                            "title": "Cache-Control"
+                        },
+                        "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache)."
                     }
                 ],
                 "responses": {
@@ -813,16 +917,22 @@
                 "operationId": "get_me_me_get",
                 "parameters": [
                     {
-                        "name": "refresh",
-                        "in": "query",
+                        "name": "Cache-Control",
+                        "in": "header",
                         "required": false,
                         "schema": {
-                            "type": "boolean",
-                            "description": "Ignora o cache: busca no SIGAA e atualiza o cache antes de responder.",
-                            "default": false,
-                            "title": "Refresh"
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
+                            "title": "Cache-Control"
                         },
-                        "description": "Ignora o cache: busca no SIGAA e atualiza o cache antes de responder."
+                        "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache)."
                     }
                 ],
                 "responses": {
@@ -851,6 +961,57 @@
                                 }
                             }
                         }
+                    }
+                }
+            }
+        },
+        "/me/ru-statement": {
+            "get": {
+                "tags": ["Me"],
+                "summary": "Consultar extrato, saldo e grupo do RU",
+                "operationId": "get_statement_me_ru_statement_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RestaurantStatement"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Credenciais ausentes ou inválidas."
+                    },
+                    "502": {
+                        "description": "SIGAA indisponível."
+                    }
+                }
+            }
+        },
+        "/me/ru-token": {
+            "get": {
+                "tags": ["Me"],
+                "summary": "Consultar o token da carteirinha estudantil",
+                "description": "Lê o QR code da carteirinha no SIGAA a cada acesso, sem persistência. Retorna token e valid_until; a validade informa mês/ano e o scraper representa o mês pelo dia 1.",
+                "operationId": "get_token_me_ru_token_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RestaurantCredentials"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Credenciais ausentes ou inválidas."
+                    },
+                    "502": {
+                        "description": "SIGAA indisponível."
                     }
                 }
             }
@@ -905,57 +1066,6 @@
                                 }
                             }
                         }
-                    }
-                }
-            }
-        },
-        "/restaurant/statement": {
-            "get": {
-                "tags": ["Restaurant"],
-                "summary": "Consultar extrato, saldo e grupo do estudante no RU",
-                "operationId": "get_statement_restaurant_statement_get",
-                "responses": {
-                    "200": {
-                        "description": "Successful Response",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/RestaurantStatement"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Credenciais ausentes ou inválidas."
-                    },
-                    "502": {
-                        "description": "SIGAA indisponível."
-                    }
-                }
-            }
-        },
-        "/restaurant/token": {
-            "get": {
-                "tags": ["Restaurant"],
-                "summary": "Consultar o token da carteirinha estudantil",
-                "description": "Lê o QR code da carteirinha no SIGAA a cada acesso, sem persistência. Retorna token e valid_until; a validade informa mês/ano e o scraper representa o mês pelo dia 1.",
-                "operationId": "get_token_restaurant_token_get",
-                "responses": {
-                    "200": {
-                        "description": "Successful Response",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/RestaurantCredentials"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Credenciais ausentes ou inválidas."
-                    },
-                    "502": {
-                        "description": "SIGAA indisponível."
                     }
                 }
             }
@@ -1958,7 +2068,7 @@
         },
         {
             "name": "Me",
-            "description": "Perfil acadêmico do estudante autenticado."
+            "description": "Perfil acadêmico, extrato/saldo do RU e carteirinha do estudante autenticado."
         },
         {
             "name": "Public Classrooms",
@@ -1973,10 +2083,6 @@
         {
             "name": "News",
             "description": "Notícias recentes das turmas, consultadas diretamente no SIGAA."
-        },
-        {
-            "name": "Restaurant",
-            "description": "Extrato, saldo e carteirinha do estudante autenticado."
         }
     ],
     "x-tagGroups": [
@@ -1986,7 +2092,7 @@
         },
         {
             "name": "SIGAA",
-            "tags": ["Auth", "Classrooms", "Me", "News", "Restaurant"]
+            "tags": ["Auth", "Classrooms", "Me", "News"]
         }
     ]
 }

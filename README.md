@@ -56,7 +56,7 @@ Recursos públicos, consultáveis sem login, usam o prefixo `/public`:
   `start_date`, `end_date`, `meal` e `refresh`. Substitui `/restaurant/menu`,
   preservando o comportamento do cache.
 - `GET /public/classrooms`: busca pública de turmas por unidade, semestre,
-  disciplina/professor (`contains`) e local.
+  código (`code`), número da turma (`number`), disciplina/professor (`contains`) e local.
 - `GET /public/classrooms/units`: unidades disponíveis na busca pública.
 
 Extrato/saldo e token exigem autenticação e ficam em `GET /me/ru-statement`
