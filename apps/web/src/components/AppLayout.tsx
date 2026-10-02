@@ -30,7 +30,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                 backgroundRepeat: 'no-repeat'
             }}
         >
-            <div className="max-w-2xl w-full mx-auto px-4">
+            <div className="mx-auto w-full max-w-2xl px-4">
                 <PageStateProvider page={pathname}>
                     {createElement(header)}
                     <main className="flex-1 pb-24">{children}</main>
