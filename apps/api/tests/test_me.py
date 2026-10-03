@@ -427,37 +427,62 @@ def test_settings_get_e_patch_ciclo_completo(client, cookies):
     # Inicialmente vazio
     get_res = client.get("/me/settings")
     assert get_res.status_code == 200
-    assert get_res.json() == {"displayName": None, "defaultRuCampus": None}
+    assert get_res.json() == {
+        "displayName": None,
+        "defaultRuCampus": None,
+        "defaultRuMeal": None,
+        "hideRuBalance": None,
+        "scheduleView": None,
+        "compactMode": None,
+        "theme": None,
+    }
 
     # Atualiza apenas displayName
     patch1 = client.patch("/me/settings", json={"displayName": "Nome Customizado"})
     assert patch1.status_code == 200
-    assert patch1.json() == {
-        "displayName": "Nome Customizado",
-        "defaultRuCampus": None,
-    }
+    assert patch1.json()["displayName"] == "Nome Customizado"
+    assert patch1.json()["defaultRuCampus"] is None
 
     # Confere persistência no GET
     assert client.get("/me/settings").json()["displayName"] == "Nome Customizado"
 
-    # Atualiza incrementalmente defaultRuCampus sem perder displayName
-    patch2 = client.patch("/me/settings", json={"defaultRuCampus": "Gama"})
+    # Atualiza incrementalmente configurações sem perder displayName
+    patch2 = client.patch(
+        "/me/settings",
+        json={
+            "defaultRuCampus": "Gama",
+            "defaultRuMeal": "lunch",
+            "hideRuBalance": True,
+            "scheduleView": "week",
+            "compactMode": False,
+            "theme": "dark",
+        },
+    )
     assert patch2.status_code == 200
-    assert patch2.json() == {
-        "displayName": "Nome Customizado",
-        "defaultRuCampus": "Gama",
-    }
+    data2 = patch2.json()
+    assert data2["displayName"] == "Nome Customizado"
+    assert data2["defaultRuCampus"] == "Gama"
+    assert data2["defaultRuMeal"] == "lunch"
+    assert data2["hideRuBalance"] is True
+    assert data2["scheduleView"] == "week"
+    assert data2["compactMode"] is False
+    assert data2["theme"] == "dark"
 
     # Limpa displayName passando null
     patch3 = client.patch("/me/settings", json={"displayName": None})
     assert patch3.status_code == 200
-    assert patch3.json() == {"displayName": None, "defaultRuCampus": "Gama"}
+    assert patch3.json()["displayName"] is None
+    assert patch3.json()["defaultRuCampus"] == "Gama"
 
-    # Rejeita campus inválido
-    invalid = client.patch(
-        "/me/settings", json={"defaultRuCampus": "CampusInexistente"}
-    )
-    assert invalid.status_code == 422
+    # Rejeita campos com valores inválidos
+    for invalid_payload in [
+        {"defaultRuCampus": "CampusInexistente"},
+        {"defaultRuMeal": "snack"},
+        {"scheduleView": "month"},
+        {"theme": "neon"},
+    ]:
+        invalid = client.patch("/me/settings", json=invalid_payload)
+        assert invalid.status_code == 422
 
 
 def test_settings_aceita_campos_adicionais_e_snake_case(client, cookies):
