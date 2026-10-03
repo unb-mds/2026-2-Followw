@@ -412,3 +412,102 @@ def test_openapi_documenta_dados_privados_do_restaurante(client):
     assert {"balance", "group", "entries"} <= schema["components"]["schemas"][
         "RestaurantStatement"
     ]["properties"].keys()
+
+
+def test_settings_sem_autenticacao_retorna_401(client):
+    assert client.get("/me/settings").status_code == 401
+    assert (
+        client.patch("/me/settings", json={"displayName": "Teste"}).status_code == 401
+    )
+
+
+def test_settings_get_e_patch_ciclo_completo(client, cookies):
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+
+    # Inicialmente vazio
+    get_res = client.get("/me/settings")
+    assert get_res.status_code == 200
+    assert get_res.json() == {
+        "displayName": None,
+        "defaultRuCampus": None,
+        "defaultRuMeal": None,
+        "hideRuBalance": None,
+        "scheduleView": None,
+        "compactMode": None,
+        "theme": None,
+    }
+
+    # Atualiza apenas displayName
+    patch1 = client.patch("/me/settings", json={"displayName": "Nome Customizado"})
+    assert patch1.status_code == 200
+    assert patch1.json()["displayName"] == "Nome Customizado"
+    assert patch1.json()["defaultRuCampus"] is None
+
+    # Confere persistência no GET
+    assert client.get("/me/settings").json()["displayName"] == "Nome Customizado"
+
+    # Atualiza incrementalmente configurações sem perder displayName
+    patch2 = client.patch(
+        "/me/settings",
+        json={
+            "defaultRuCampus": "Gama",
+            "defaultRuMeal": "lunch",
+            "hideRuBalance": True,
+            "scheduleView": "week",
+            "compactMode": False,
+            "theme": "dark",
+        },
+    )
+    assert patch2.status_code == 200
+    data2 = patch2.json()
+    assert data2["displayName"] == "Nome Customizado"
+    assert data2["defaultRuCampus"] == "Gama"
+    assert data2["defaultRuMeal"] == "lunch"
+    assert data2["hideRuBalance"] is True
+    assert data2["scheduleView"] == "week"
+    assert data2["compactMode"] is False
+    assert data2["theme"] == "dark"
+
+    # Limpa displayName passando null
+    patch3 = client.patch("/me/settings", json={"displayName": None})
+    assert patch3.status_code == 200
+    assert patch3.json()["displayName"] is None
+    assert patch3.json()["defaultRuCampus"] == "Gama"
+
+    # Rejeita campos com valores inválidos
+    for invalid_payload in [
+        {"defaultRuCampus": "CampusInexistente"},
+        {"defaultRuMeal": "snack"},
+        {"scheduleView": "month"},
+        {"theme": "neon"},
+    ]:
+        invalid = client.patch("/me/settings", json=invalid_payload)
+        assert invalid.status_code == 422
+
+
+def test_settings_aceita_campos_adicionais_e_snake_case(client, cookies):
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+
+    patch = client.patch(
+        "/me/settings",
+        json={
+            "display_name": "Snake",
+            "default_ru_campus": "Ceilandia",
+            "customPreference": True,
+        },
+    )
+    assert patch.status_code == 200
+    data = patch.json()
+    assert data["displayName"] == "Snake"
+    assert data["defaultRuCampus"] == "Ceilandia"
+    assert data["customPreference"] is True
+
+
+def test_openapi_documenta_settings(client):
+    schema = client.get("/openapi.json").json()
+    paths = schema["paths"]
+    assert "/me/settings" in paths
+    assert "get" in paths["/me/settings"]
+    assert "patch" in paths["/me/settings"]
+    assert paths["/me/settings"]["get"]["tags"] == ["Me"]
+    assert paths["/me/settings"]["patch"]["tags"] == ["Me"]

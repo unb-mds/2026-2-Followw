@@ -42,6 +42,25 @@ class UserRepository:
 
         return user
 
+    async def get_settings(self, registration: str) -> dict[str, object]:
+        user = await self.get_by_registration(registration)
+        if user is None or not user.settings:
+            return {}
+        return dict(user.settings)
+
+    async def update_settings(
+        self, registration: str, patch: dict[str, object]
+    ) -> dict[str, object]:
+        user = await self.get_by_registration(registration)
+        if user is None:
+            user = User(registration=registration, name="", settings={})
+            self._session.add(user)
+        current = dict(user.settings or {})
+        current.update(patch)
+        user.settings = current
+        await self._session.flush()
+        return user.settings
+
 
 def get_user_repository(
     session: Annotated[AsyncSession, Depends(get_db)],

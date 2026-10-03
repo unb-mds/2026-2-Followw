@@ -79,6 +79,15 @@ describe('localStorageRepository', () => {
         expect(memoryStorage.getItem('followw:ru_balance')).toBe('42.5');
     });
 
+    test('armazena e recupera configurações usando STORAGE_KEYS.SETTINGS', () => {
+        const settings = { displayName: 'Estudante UnB', defaultRuCampus: 'Gama' };
+        localStorageRepository.set(STORAGE_KEYS.SETTINGS, settings);
+        const retrieved = localStorageRepository.get(STORAGE_KEYS.SETTINGS);
+
+        expect(retrieved).toEqual(settings);
+        expect(memoryStorage.getItem('followw:settings')).toBe(JSON.stringify(settings));
+    });
+
     test('armazena e recupera objetos complexos', () => {
         const payload = { id: 1, active: true, items: ['a', 'b'] };
         localStorageRepository.set('user-data', payload);
