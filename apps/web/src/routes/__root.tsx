@@ -7,6 +7,7 @@ import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools';
 import PostHogProvider from '#/integrations/posthog/provider';
 import TanStackQueryDevtools from '#/integrations/tanstack-query/devtools';
 import { useSessionRefresh } from '#/queries/auth';
+import { useSyncSettings } from '#/queries/settings';
 import appCss from '#/styles.css?url';
 
 interface MyRouterContext {
@@ -45,6 +46,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 
 function RootComponent() {
     useSessionRefresh();
+    useSyncSettings();
 
     return <Outlet />;
 }

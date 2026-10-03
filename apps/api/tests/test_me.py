@@ -412,3 +412,77 @@ def test_openapi_documenta_dados_privados_do_restaurante(client):
     assert {"balance", "group", "entries"} <= schema["components"]["schemas"][
         "RestaurantStatement"
     ]["properties"].keys()
+
+
+def test_settings_sem_autenticacao_retorna_401(client):
+    assert client.get("/me/settings").status_code == 401
+    assert (
+        client.patch("/me/settings", json={"displayName": "Teste"}).status_code == 401
+    )
+
+
+def test_settings_get_e_patch_ciclo_completo(client, cookies):
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+
+    # Inicialmente vazio
+    get_res = client.get("/me/settings")
+    assert get_res.status_code == 200
+    assert get_res.json() == {"displayName": None, "defaultRuCampus": None}
+
+    # Atualiza apenas displayName
+    patch1 = client.patch("/me/settings", json={"displayName": "Nome Customizado"})
+    assert patch1.status_code == 200
+    assert patch1.json() == {
+        "displayName": "Nome Customizado",
+        "defaultRuCampus": None,
+    }
+
+    # Confere persistência no GET
+    assert client.get("/me/settings").json()["displayName"] == "Nome Customizado"
+
+    # Atualiza incrementalmente defaultRuCampus sem perder displayName
+    patch2 = client.patch("/me/settings", json={"defaultRuCampus": "Gama"})
+    assert patch2.status_code == 200
+    assert patch2.json() == {
+        "displayName": "Nome Customizado",
+        "defaultRuCampus": "Gama",
+    }
+
+    # Limpa displayName passando null
+    patch3 = client.patch("/me/settings", json={"displayName": None})
+    assert patch3.status_code == 200
+    assert patch3.json() == {"displayName": None, "defaultRuCampus": "Gama"}
+
+    # Rejeita campus inválido
+    invalid = client.patch(
+        "/me/settings", json={"defaultRuCampus": "CampusInexistente"}
+    )
+    assert invalid.status_code == 422
+
+
+def test_settings_aceita_campos_adicionais_e_snake_case(client, cookies):
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+
+    patch = client.patch(
+        "/me/settings",
+        json={
+            "display_name": "Snake",
+            "default_ru_campus": "Ceilandia",
+            "customPreference": True,
+        },
+    )
+    assert patch.status_code == 200
+    data = patch.json()
+    assert data["displayName"] == "Snake"
+    assert data["defaultRuCampus"] == "Ceilandia"
+    assert data["customPreference"] is True
+
+
+def test_openapi_documenta_settings(client):
+    schema = client.get("/openapi.json").json()
+    paths = schema["paths"]
+    assert "/me/settings" in paths
+    assert "get" in paths["/me/settings"]
+    assert "patch" in paths["/me/settings"]
+    assert paths["/me/settings"]["get"]["tags"] == ["Me"]
+    assert paths["/me/settings"]["patch"]["tags"] == ["Me"]

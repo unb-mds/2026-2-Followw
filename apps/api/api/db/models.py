@@ -34,6 +34,7 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     classrooms_synced_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True)
     )
+    settings: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
 
     classroom_links: Mapped[list[ClassroomUser]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
