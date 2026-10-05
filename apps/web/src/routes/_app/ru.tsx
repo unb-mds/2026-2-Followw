@@ -1,20 +1,28 @@
 import { noop, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { ChevronDown, Coffee, Soup, UtensilsCrossed } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 
+import type { MealKey } from '#/lib/restaurant';
 import type { Campus, MenuSection } from '#/queries/restaurant';
 
 import { usePageState } from '#/components/PageState';
+import { RestaurantAccount } from '#/components/ru/RestaurantAccount';
 import { ErrorState } from '#/components/ui/ErrorState';
 import { HeaderBar, HeaderToggle } from '#/components/ui/HeaderBar';
 import { PullToRefresh } from '#/components/ui/PullToRefresh';
 import { ShareButton } from '#/components/ui/ShareButton';
 import { WeekDayPicker } from '#/components/ui/WeekDayPicker';
+import { currentOrNextMeal, MEAL_TIMES } from '#/lib/restaurant';
 import { nowInBrasilia, weekDays } from '#/lib/schedule';
 import { meQueryOptions } from '#/queries/me';
 import { refreshQuery } from '#/queries/refresh';
 import { CAMPUS_LABELS, campusOf, menuQueryOptions } from '#/queries/restaurant';
+import {
+    credentialsQueryOptions,
+    restoreRestaurantAccount,
+    statementQueryOptions
+} from '#/queries/restaurant-account';
 
 const MEALS = [
     { key: 'breakfast', label: 'Café da manhã', icon: Coffee },
@@ -22,15 +30,21 @@ const MEALS = [
     { key: 'dinner', label: 'Jantar', icon: Soup }
 ] as const;
 
-type MealKey = (typeof MEALS)[number]['key'];
 const CAMPUS_OPTIONS: Campus[] = ['Darcy', 'Gama', 'Ceilandia', 'Planaltina', 'Fazenda'];
+const subscribe = () => () => {};
 
 export const Route = createFileRoute('/_app/ru')({
     loader: async ({ context: { queryClient } }) => {
-        const today = nowInBrasilia().date;
+        const now = nowInBrasilia();
+        const initial = currentOrNextMeal(now);
         const user = await queryClient.query(meQueryOptions);
-        await queryClient.query(menuQueryOptions({ date: today, user })).catch(noop);
-        return { today };
+        if (user) restoreRestaurantAccount(queryClient, user.registration);
+        await Promise.all([
+            queryClient.query(menuQueryOptions({ date: initial.date, user })).catch(noop),
+            user && queryClient.query(statementQueryOptions(user.registration)).catch(noop),
+            user && queryClient.query(credentialsQueryOptions(user.registration)).catch(noop)
+        ]);
+        return { today: now.date, initialDate: initial.date, initialMeal: initial.meal.key };
     },
     staticData: { header: RUHeader },
     errorComponent: ErrorState,
@@ -56,10 +70,18 @@ function RUHeader() {
 }
 
 function RUPage() {
-    const { today } = Route.useLoaderData();
-    const [selectedDate, setSelectedDate] = useState(today);
+    const { today, initialDate, initialMeal } = Route.useLoaderData();
+    const hydrated = useSyncExternalStore(
+        subscribe,
+        () => true,
+        () => false
+    );
+    const opening = hydrated ? currentOrNextMeal(nowInBrasilia()) : null;
+    const [pickedDate, setSelectedDate] = useState<string | null>(null);
+    const selectedDate = pickedDate ?? opening?.date ?? initialDate;
     const [filtersOpen] = useFiltersOpen();
-    const [selectedMeal, setSelectedMeal] = useState<MealKey>('lunch');
+    const [pickedMeal, setSelectedMeal] = useState<MealKey | null>(null);
+    const selectedMeal = pickedMeal ?? opening?.meal.key ?? initialMeal;
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const [pickedCampus, setPickedCampus] = useState<Campus | null>(null);
     const campus = pickedCampus ?? campusOf(user?.unity);
@@ -69,9 +91,17 @@ function RUPage() {
     const menu = data?.[0];
     const meal = MEALS.find((item) => item.key === selectedMeal) ?? MEALS[1];
     const sections = menu?.[selectedMeal] ?? [];
+    const mealTime = MEAL_TIMES.find((item) => item.key === selectedMeal)!;
+
+    const refresh = () =>
+        Promise.all([
+            refreshQuery(queryClient, menuQuery),
+            user && refreshQuery(queryClient, statementQueryOptions(user.registration)),
+            user && refreshQuery(queryClient, credentialsQueryOptions(user.registration))
+        ]);
 
     return (
-        <PullToRefresh onRefresh={() => refreshQuery(queryClient, menuQuery)}>
+        <PullToRefresh onRefresh={refresh}>
             {filtersOpen && (
                 <div>
                     <WeekDayPicker
@@ -133,6 +163,10 @@ function RUPage() {
             </div>
 
             <section className="mt-6" aria-label={meal.label}>
+                <p className="mb-4 px-1 text-xs font-bold text-muted">
+                    {mealTime.start}–{mealTime.end} ·{' '}
+                    {selectedDate.split('-').toReversed().join('/')}
+                </p>
                 {sections.length > 0 ? (
                     <MealDetails sections={sections} />
                 ) : (
@@ -152,10 +186,21 @@ function RUPage() {
                         )}
                         {!isPending &&
                             !isError &&
-                            'Cardápio de hoje não publicado para esta refeição.'}
+                            'Cardápio não publicado para esta refeição neste dia.'}
                     </p>
                 )}
             </section>
+
+            {user ? (
+                <RestaurantAccount key={user.registration} registration={user.registration} />
+            ) : (
+                <p className="mt-8 rounded-2xl border border-line bg-white p-4 text-sm text-muted">
+                    <Link to="/login" className="font-bold text-primary-dark">
+                        Entre com o SIGAA
+                    </Link>{' '}
+                    para ver seu saldo, extrato e carteirinha do RU.
+                </p>
+            )}
         </PullToRefresh>
     );
 }
