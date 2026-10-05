@@ -5,9 +5,10 @@ import { QrCode, RefreshCw, Wallet } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
+import type { Day } from '#/lib/schedule';
 import type { RestaurantCredentials, RestaurantStatement } from '#/queries/restaurant-account';
 
-import { cardIsExpired } from '#/lib/restaurant';
+import { cardIsExpired, insufficientMealBalance } from '#/lib/restaurant';
 import { nowInBrasilia } from '#/lib/schedule';
 import { refreshQuery } from '#/queries/refresh';
 import {
@@ -102,7 +103,14 @@ export function RestaurantAccount({ registration }: { registration: string }) {
     );
 }
 
-export function StatementDetails({ statement }: { statement: RestaurantStatement }) {
+export function StatementDetails({
+    statement,
+    now = nowInBrasilia()
+}: {
+    statement: RestaurantStatement;
+    now?: Day & { time: string };
+}) {
+    const warning = insufficientMealBalance(statement.balance, statement.group, now);
     return (
         <>
             <p className="text-3xl font-extrabold text-primary-dark tabular-nums">
@@ -110,6 +118,16 @@ export function StatementDetails({ statement }: { statement: RestaurantStatement
                     ? 'Saldo não informado'
                     : currency.format(Number(statement.balance))}
             </p>
+            {warning && (
+                <p
+                    aria-live="polite"
+                    className="mt-3 rounded-xl border border-warning/40 bg-warning/10 p-3 text-sm font-semibold text-ink"
+                >
+                    Saldo insuficiente para o {warning.meal.label.toLocaleLowerCase('pt-BR')}. A
+                    refeição custa {currency.format(warning.price)} e faltam{' '}
+                    {currency.format(warning.shortfall)}.
+                </p>
+            )}
             <details className="mt-4 border-t border-line pt-3">
                 <summary className="cursor-pointer text-sm font-bold text-primary-dark">
                     Extrato do RU

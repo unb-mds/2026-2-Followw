@@ -152,7 +152,7 @@ def test_extrato_com_titulo_sem_tabela_e_barulhento():
         )
 
 
-@pytest.mark.parametrize("group", [1, 2, 3])
+@pytest.mark.parametrize("group", [1, 2, 3, 4])
 def test_extrato_infere_grupo_e_saldo_mais_recentes_sem_somar_movimentos(group):
     page = BeautifulSoup(
         f"""

@@ -4,6 +4,46 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { StatementDetails, StudentCard } from '#/components/ru/RestaurantAccount';
 
 describe('StatementDetails', () => {
+    test('avisa sobre o preço e o valor faltante para a refeição atual ou próxima', () => {
+        const markup = renderToStaticMarkup(
+            <StatementDetails
+                now={{ date: '2026-10-05', weekday: 1, time: '09:30' }}
+                statement={{ balance: '4.49', group: 2, entries: [] }}
+            />
+        );
+        expect(markup).toContain('Saldo insuficiente para o almoço.');
+        expect(markup).toContain('4,50');
+        expect(markup).toContain('0,01');
+    });
+
+    test('usa os preços do Grupo 4 no aviso', () => {
+        const markup = renderToStaticMarkup(
+            <StatementDetails
+                now={{ date: '2026-10-05', weekday: 1, time: '08:00' }}
+                statement={{ balance: '1.00', group: 4, entries: [] }}
+            />
+        );
+        expect(markup).toContain('Saldo insuficiente para o café da manhã.');
+        expect(markup).toContain('1,50');
+        expect(markup).toContain('0,50');
+    });
+
+    test.each([
+        { balance: '-1.00', group: 1 },
+        { balance: '4.50', group: 2 },
+        { balance: '2.50', group: 4 },
+        { balance: null, group: 2 },
+        { balance: '0.00', group: null }
+    ] as const)('não avisa com isenção, saldo suficiente ou dados ausentes: %j', (account) => {
+        const markup = renderToStaticMarkup(
+            <StatementDetails
+                now={{ date: '2026-10-05', weekday: 1, time: '12:00' }}
+                statement={{ ...account, entries: [] }}
+            />
+        );
+        expect(markup).not.toContain('Saldo insuficiente');
+    });
+
     test.each([
         ['Grupo 1 Almoço', 'Almoço'],
         ['Grupo2 Jantar', 'Jantar'],

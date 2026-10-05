@@ -288,7 +288,7 @@ def test_dados_privados_sem_banco_fila_ou_cache(
     assert qstash.published == []
 
 
-@pytest.mark.parametrize("group", [1, 2, 3])
+@pytest.mark.parametrize("group", [1, 2, 3, 4])
 def test_extrato_repassa_grupo_saldo_e_movimentos_do_client(
     client, cookies, restaurant, group
 ):
@@ -412,3 +412,6 @@ def test_openapi_documenta_dados_privados_do_restaurante(client):
     assert {"balance", "group", "entries"} <= schema["components"]["schemas"][
         "RestaurantStatement"
     ]["properties"].keys()
+    assert schema["components"]["schemas"]["RestaurantStatement"]["properties"][
+        "group"
+    ]["anyOf"][0]["enum"] == [1, 2, 3, 4]

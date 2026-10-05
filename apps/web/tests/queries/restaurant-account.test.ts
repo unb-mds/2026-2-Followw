@@ -123,6 +123,23 @@ describe('cache da conta do RU', () => {
         ).toBe(1);
     });
 
+    test('restaura o saldo e o grupo 4 do local storage', () => {
+        seed({ ...statement, group: 4 });
+        restoreRestaurantAccount(client, registration);
+        expect(
+            client.getQueryData<RestaurantStatement>(statementQueryOptions(registration).queryKey)
+                ?.group
+        ).toBe(4);
+    });
+
+    test.each(['4', 0, 5, {}, true])('ignora cache com grupo inválido: %p', (group) => {
+        seed({ ...statement, group });
+        restoreRestaurantAccount(client, registration);
+        expect(
+            client.getQueryData<RestaurantStatement>(statementQueryOptions(registration).queryKey)
+        ).toBeUndefined();
+    });
+
     test('não restaura dados de outra matrícula e isola o cache de queries por conta', () => {
         seed();
         restoreRestaurantAccount(client, 'outra-matricula');

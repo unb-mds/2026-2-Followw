@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { cardIsExpired, currentOrNextMeal } from '#/lib/restaurant';
+import { cardIsExpired, currentOrNextMeal, insufficientMealBalance } from '#/lib/restaurant';
 import { nowInBrasilia } from '#/lib/schedule';
 
 describe('currentOrNextMeal', () => {
@@ -31,6 +31,41 @@ describe('currentOrNextMeal', () => {
     test('usa o horário de Brasília, independentemente do fuso do navegador', () => {
         const selected = currentOrNextMeal(nowInBrasilia(new Date('2026-10-05T12:29:00Z')));
         expect(selected.meal.key).toBe('breakfast');
+    });
+});
+
+describe('insufficientMealBalance', () => {
+    const now = { date: '2026-10-05', weekday: 1, time: '12:00' };
+
+    test.each([
+        [2, '08:00', 'breakfast', 2],
+        [2, '09:30', 'lunch', 4.5],
+        [2, '14:30', 'dinner', 4.5],
+        [2, '19:30', 'breakfast', 2],
+        [4, '08:00', 'breakfast', 1.5],
+        [4, '09:30', 'lunch', 2.5],
+        [4, '14:30', 'dinner', 2.5],
+        [4, '19:30', 'breakfast', 1.5]
+    ] as const)('grupo %s às %s compara o saldo com %s a R$ %s', (group, time, meal, price) => {
+        const warning = insufficientMealBalance('0.00', group, { ...now, time });
+        expect(warning?.meal.key).toBe(meal);
+        expect(warning?.price).toBe(price);
+        expect(warning?.shortfall).toBe(price);
+        expect(insufficientMealBalance(price.toFixed(2), group, { ...now, time })).toBeNull();
+    });
+
+    test('calcula a diferença em centavos, inclusive para saldo negativo', () => {
+        expect(insufficientMealBalance('4.49', 2, now)?.shortfall).toBe(0.01);
+        expect(insufficientMealBalance('-1.00', 4, now)?.shortfall).toBe(3.5);
+        expect(insufficientMealBalance('5.00', 2, now)).toBeNull();
+    });
+
+    test.each([1, 3, null, undefined])('não presume preço para o grupo %s', (group) => {
+        expect(insufficientMealBalance('-10.00', group, now)).toBeNull();
+    });
+
+    test.each([null, undefined, '', 'NaN'])('não avisa sem saldo conhecido: %s', (balance) => {
+        expect(insufficientMealBalance(balance, 2, now)).toBeNull();
     });
 });
 

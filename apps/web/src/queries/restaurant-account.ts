@@ -25,7 +25,8 @@ function isStatement(value: unknown): value is RestaurantStatement {
     return (
         isRecord(value) &&
         (value.balance == null || isAmount(value.balance)) &&
-        (value.group == null || value.group === 1 || value.group === 2 || value.group === 3) &&
+        (value.group == null ||
+            (typeof value.group === 'number' && [1, 2, 3, 4].includes(value.group))) &&
         Array.isArray(value.entries) &&
         value.entries.every(
             (entry: unknown) =>

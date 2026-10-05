@@ -24,11 +24,14 @@ import {
     statementQueryOptions
 } from '#/queries/restaurant-account';
 
-const MEALS = [
-    { key: 'breakfast', label: 'Café da manhã', icon: Coffee },
-    { key: 'lunch', label: 'Almoço', icon: UtensilsCrossed },
-    { key: 'dinner', label: 'Jantar', icon: Soup }
-] as const;
+const MEAL_ICONS = { breakfast: Coffee, lunch: UtensilsCrossed, dinner: Soup };
+const MEALS = MEAL_TIMES.map(({ key, label, start, end }) => ({
+    key,
+    label,
+    start,
+    end,
+    icon: MEAL_ICONS[key]
+}));
 
 const CAMPUS_OPTIONS: Campus[] = ['Darcy', 'Gama', 'Ceilandia', 'Planaltina', 'Fazenda'];
 const subscribe = () => () => {};
@@ -91,7 +94,6 @@ function RUPage() {
     const menu = data?.[0];
     const meal = MEALS.find((item) => item.key === selectedMeal) ?? MEALS[1];
     const sections = menu?.[selectedMeal] ?? [];
-    const mealTime = MEAL_TIMES.find((item) => item.key === selectedMeal)!;
 
     const refresh = () =>
         Promise.all([
@@ -164,8 +166,7 @@ function RUPage() {
 
             <section className="mt-6" aria-label={meal.label}>
                 <p className="mb-4 px-1 text-xs font-bold text-muted">
-                    {mealTime.start}–{mealTime.end} ·{' '}
-                    {selectedDate.split('-').toReversed().join('/')}
+                    {meal.start}–{meal.end} · {selectedDate.split('-').toReversed().join('/')}
                 </p>
                 {sections.length > 0 ? (
                     <MealDetails sections={sections} />

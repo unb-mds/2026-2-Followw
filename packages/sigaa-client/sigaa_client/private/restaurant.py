@@ -28,7 +28,7 @@ _STUDENT_CARD_MENU_ACTION = (
 )
 
 _VALIDITY_RE = re.compile(r"VALIDADE\s+(\w+)\s+(\d{4})", re.IGNORECASE)
-_GROUP_RE = re.compile(r"\bgrupo\s*([123])\b", re.IGNORECASE)
+_GROUP_RE = re.compile(r"\bgrupo\s*([1234])\b", re.IGNORECASE)
 
 _MONTHS = {
     "janeiro": 1,
