@@ -35,6 +35,72 @@
     --color-login-white: #ffffff;
 }
 
+.markdown {
+    & > * + * {
+        @apply mt-3;
+    }
+
+    & :is(h1, h2, h3, h4, h5, h6) {
+        @apply font-bold text-ink;
+    }
+
+    & h1 {
+        @apply text-xl;
+    }
+
+    & h2 {
+        @apply text-lg;
+    }
+
+    & :is(h3, h4, h5, h6) {
+        @apply text-base;
+    }
+
+    & a {
+        @apply text-primary-dark underline;
+    }
+
+    & :is(ul, ol) {
+        @apply space-y-1 pl-6;
+    }
+
+    & ul {
+        @apply list-disc;
+    }
+
+    & ol {
+        @apply list-decimal;
+    }
+
+    & blockquote {
+        @apply border-l-2 border-primary pl-4 text-muted;
+    }
+
+    & pre {
+        @apply overflow-x-auto rounded-lg bg-surface p-3;
+    }
+
+    & code {
+        @apply rounded bg-surface px-1 font-mono;
+    }
+
+    & table {
+        @apply block max-w-full border-collapse overflow-x-auto;
+    }
+
+    & :is(th, td) {
+        @apply border border-line px-3 py-2 text-left;
+    }
+
+    & hr {
+        @apply border-line;
+    }
+
+    & img {
+        @apply h-auto max-w-full rounded-lg;
+    }
+}
+
 * {
     box-sizing: border-box;
     -webkit-tap-highlight-color: transparent;
