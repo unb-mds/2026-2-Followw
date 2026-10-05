@@ -29,6 +29,7 @@ import { HeaderBar } from '#/components/ui/HeaderBar';
 import { PullToRefresh } from '#/components/ui/PullToRefresh';
 import { SectionHeader } from '#/components/ui/SectionHeader';
 import { formatClassroomDate, groupMembers } from '#/lib/classroom-details';
+import { Markdown } from '#/lib/markdown';
 import { describeSchedule } from '#/lib/schedule';
 import {
     allClassroomsQueryOptions,
@@ -278,11 +279,7 @@ function NewsDetail({ classroomId, newsId }: { classroomId: string; newsId: numb
             {detail.data.published_at && (
                 <p className="mb-2 text-xs text-muted">{detail.data.published_at}</p>
             )}
-            {detail.data.content && (
-                <p className="text-sm leading-relaxed whitespace-pre-wrap text-ink-soft">
-                    {detail.data.content}
-                </p>
-            )}
+            {detail.data.content && <Markdown>{detail.data.content}</Markdown>}
             {detail.data.attachments.length > 0 && (
                 <div className="mt-4 space-y-2">
                     <p className="text-xs font-bold tracking-wider text-muted uppercase">Anexos</p>
@@ -291,7 +288,7 @@ function NewsDetail({ classroomId, newsId }: { classroomId: string; newsId: numb
                             key={attachment.url}
                             href={attachment.url}
                             target="_blank"
-                            rel="noopener noreferrer"
+                            rel="external noopener noreferrer"
                             className="block text-sm font-bold text-primary-dark underline decoration-primary/30"
                         >
                             {attachment.name}
