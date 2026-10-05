@@ -29,3 +29,5 @@ reutilizado com `SigaaClient(session_token=...)`: sem credenciais, uma sessão
 expirada levanta `SessionExpired`.
 
 Todos os erros derivam de `SigaaError`.
+
+`client.restaurant.get_restaurant_statement()` retorna saldo, extrato e grupo (1 a 4), com saldo e grupo ausentes representados por `None`.

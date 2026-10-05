@@ -183,6 +183,26 @@ def test_cookie_sem_domain_por_padrao(ler_cookies):
     assert not ler_cookies(response)[ACCESS_COOKIE_NAME]["domain"]
 
 
+@pytest.mark.parametrize("domain", ["", "followw.app", ".followw.app", "localhost"])
+def test_cookie_domain_lido_do_env(tmp_path, monkeypatch, domain):
+    monkeypatch.delenv("COOKIE_DOMAIN", raising=False)
+    env = tmp_path / ".env"
+    env.write_text(f'COOKIE_DOMAIN="{domain}" # em produção: followw.app\n')
+
+    assert Settings(_env_file=env).cookie_domain == (domain or None)
+
+
+@pytest.mark.parametrize(
+    "domain",
+    ["# em produção: followw.app", "https://followw.app", "localhost:8000"],
+)
+def test_cookie_domain_invalido_e_recusado(monkeypatch, domain):
+    monkeypatch.setenv("COOKIE_DOMAIN", domain)
+
+    with pytest.raises(ValidationError, match="cookie_domain"):
+        Settings(_env_file=None)
+
+
 def test_cookie_domain_vale_para_os_dois_cookies(
     ler_cookies, monkeypatch: pytest.MonkeyPatch
 ):

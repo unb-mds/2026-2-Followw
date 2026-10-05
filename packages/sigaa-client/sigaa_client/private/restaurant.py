@@ -28,7 +28,7 @@ _STUDENT_CARD_MENU_ACTION = (
 )
 
 _VALIDITY_RE = re.compile(r"VALIDADE\s+(\w+)\s+(\d{4})", re.IGNORECASE)
-_GROUP_RE = re.compile(r"\bgrupo\s*([123])\b", re.IGNORECASE)
+_GROUP_RE = re.compile(r"\bgrupo\s*([1234])\b", re.IGNORECASE)
 
 _MONTHS = {
     "janeiro": 1,
@@ -141,9 +141,8 @@ def _statement(page: BeautifulSoup) -> RestaurantStatement | None:
 
 def _parse_amount(value: str) -> Decimal:
     try:
-        return Decimal(
-            value.removeprefix("R$").strip().replace(".", "").replace(",", ".")
-        )
+        amount = "".join(value.replace("R$", "").split())
+        return Decimal(amount.replace(".", "").replace(",", "."))
     except ArithmeticError as error:
         raise SigaaParseError(
             f"Valor `{value}` do extrato do RU em formato inesperado."
