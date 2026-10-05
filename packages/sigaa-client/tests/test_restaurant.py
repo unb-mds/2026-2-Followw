@@ -105,6 +105,17 @@ async def test_get_restaurant_statement_faz_get_e_postback():
     assert statement.entries[1].amount == Decimal("8.50")
 
 
+async def test_extrato_com_debito_antes_do_simbolo_da_moeda():
+    sigaa = FakeDashboard()
+    sigaa.statement = EXTRATO_TABLE.replace("R$ 8,50", "-R$ 4,50")
+    async with SigaaClient(session_token="tok", transport=sigaa.transport) as client:
+        statement = await client.restaurant.get_restaurant_statement()
+
+    assert statement.balance == Decimal("0.00")
+    assert statement.group == 1
+    assert statement.entries[1].amount == Decimal("-4.50")
+
+
 async def test_get_restaurant_statement_sem_link_devolve_vazio_e_nao_faz_postback():
     sigaa = FakeDashboard(initial=DASHBOARD_SEM_NADA)
     async with SigaaClient(session_token="tok", transport=sigaa.transport) as client:
@@ -152,7 +163,7 @@ def test_extrato_com_titulo_sem_tabela_e_barulhento():
         )
 
 
-@pytest.mark.parametrize("group", [1, 2, 3])
+@pytest.mark.parametrize("group", [1, 2, 3, 4])
 def test_extrato_infere_grupo_e_saldo_mais_recentes_sem_somar_movimentos(group):
     page = BeautifulSoup(
         f"""
@@ -239,8 +250,21 @@ def test_statement_parseia_data_descricao_e_valor():
     assert entries[1].amount == Decimal("8.50")
 
 
-def test_parse_amount_le_formato_brasileiro():
-    assert _parse_amount("R$ 1.234,56") == Decimal("1234.56")
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ("R$ 1.234,56", "1234.56"),
+        ("-R$ 4,50", "-4.50"),
+        ("-R$ 1.234,56", "-1234.56"),
+        ("R$ -4,50", "-4.50"),
+        ("-4,50", "-4.50"),
+        ("+R$ 4,50", "4.50"),
+        ("-R$\u00a04,50", "-4.50"),
+        ("R$ 0,00", "0.00"),
+    ],
+)
+def test_parse_amount_le_formato_brasileiro(value, expected):
+    assert _parse_amount(value) == Decimal(expected)
 
 
 def test_parse_amount_invalido_e_barulhento():

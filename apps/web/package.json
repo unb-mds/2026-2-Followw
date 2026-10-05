@@ -30,6 +30,7 @@
         "openapi-fetch": "^0.17.0",
         "openapi-react-query": "^0.5.4",
         "posthog-js": "^1.435.6",
+        "qrcode.react": "^4.2.0",
         "react": "^19.2.0",
         "react-dom": "^19.2.0",
         "react-markdown": "^10.1.0",

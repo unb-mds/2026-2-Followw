@@ -120,6 +120,13 @@ export interface ScheduledClass<T> extends ClassTime {
     status: 'in_progress' | 'next' | 'normal';
 }
 
+export function currentAndNext<T extends { start: string; end: string }>(items: T[], time: string) {
+    return {
+        current: items.find((item) => item.start <= time && time < item.end),
+        next: items.find((item) => item.start > time)
+    };
+}
+
 /** Aulas do dia em ordem; `time` (HH:MM) marca a aula em andamento e a próxima. */
 export function classesOn<T extends { schedule?: string | null }>(
     items: T[],
@@ -141,9 +148,8 @@ export function classesOn<T extends { schedule?: string | null }>(
         .toSorted((a, b) => a.start.localeCompare(b.start));
 
     if (time) {
-        const current = classes.find((c) => c.start <= time && time < c.end);
+        const { current, next } = currentAndNext(classes, time);
         if (current) current.status = 'in_progress';
-        const next = classes.find((c) => c.start > time);
         if (next) next.status = 'next';
     }
     return classes;

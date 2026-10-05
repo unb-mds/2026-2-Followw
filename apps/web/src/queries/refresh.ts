@@ -3,7 +3,7 @@ import type { QueryClient, QueryFunction, SkipToken } from '@tanstack/react-quer
 import { createIsomorphicFn } from '@tanstack/react-start';
 
 // Chave dos queryOptions de `api.ts`: o queryFn monta a requisição a partir dela.
-type ApiQueryKey = readonly [method: string, path: string, init?: object];
+type ApiQueryKey = readonly [method: string, path: string, init?: object, ...scope: unknown[]];
 
 interface ApiQueryOptions<TQueryFnData, TQueryKey extends ApiQueryKey> {
     queryKey: TQueryKey;
@@ -23,9 +23,9 @@ export function refreshQuery<TQueryFnData, TQueryKey extends ApiQueryKey>(
 ): Promise<TQueryFnData> {
     if (typeof queryFn !== 'function') throw new Error('refreshQuery precisa de um queryFn');
 
-    const [method, path, init] = queryKey;
+    const [method, path, init, ...scope] = queryKey;
     // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- mesma chave, só com o init fresco
-    const freshKey = [method, path, { ...init, ...freshInit() }] as unknown as TQueryKey;
+    const freshKey = [method, path, { ...init, ...freshInit() }, ...scope] as unknown as TQueryKey;
     return queryClient.query({
         queryKey,
         queryFn: (context) => queryFn({ ...context, queryKey: freshKey }),

@@ -288,7 +288,7 @@ def test_dados_privados_sem_banco_fila_ou_cache(
     assert qstash.published == []
 
 
-@pytest.mark.parametrize("group", [1, 2, 3])
+@pytest.mark.parametrize("group", [1, 2, 3, 4])
 def test_extrato_repassa_grupo_saldo_e_movimentos_do_client(
     client, cookies, restaurant, group
 ):
@@ -341,6 +341,7 @@ def test_extrato_repetido_na_api_preserva_sessao_e_consulta_saldo_atual(
                 text=f"""
                 <h4>Extrato no Restaurante Universitário</h4><table>
                 <tr><td>25/09/2026 22:15</td><td>Saldo</td><td>{amount}</td></tr>
+                <tr><td>25/09/2026 12:00</td><td>Grupo 3 Almoço</td><td>-R$ 4,50</td></tr>
                 <tr><td>18/09/2026 22:15</td><td>Saldo Anterior</td><td>49,50</td></tr>
                 </table>
             """,
@@ -368,8 +369,9 @@ def test_extrato_repetido_na_api_preserva_sessao_e_consulta_saldo_atual(
             assert response.status_code == 200
             assert response.headers["cache-control"] == "no-store"
             assert response.json()["balance"] == amount.replace(",", ".")
-            assert response.json()["group"] is None
-            assert len(response.json()["entries"]) == 2
+            assert response.json()["group"] == 3
+            assert len(response.json()["entries"]) == 3
+            assert response.json()["entries"][1]["amount"] == "-4.50"
     assert methods == ["GET", "POST", "GET", "GET"]
 
 
@@ -412,3 +414,6 @@ def test_openapi_documenta_dados_privados_do_restaurante(client):
     assert {"balance", "group", "entries"} <= schema["components"]["schemas"][
         "RestaurantStatement"
     ]["properties"].keys()
+    assert schema["components"]["schemas"]["RestaurantStatement"]["properties"][
+        "group"
+    ]["anyOf"][0]["enum"] == [1, 2, 3, 4]
