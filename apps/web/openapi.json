@@ -2113,7 +2113,6 @@
                         "title": "Defaultrucampus"
                     }
                 },
-                "additionalProperties": true,
                 "type": "object",
                 "title": "UserSettings"
             },
@@ -2122,7 +2121,8 @@
                     "displayName": {
                         "anyOf": [
                             {
-                                "type": "string"
+                                "type": "string",
+                                "maxLength": 24
                             },
                             {
                                 "type": "null"
@@ -2143,7 +2143,7 @@
                         "title": "Defaultrucampus"
                     }
                 },
-                "additionalProperties": true,
+                "additionalProperties": false,
                 "type": "object",
                 "title": "UserSettingsPatch"
             },

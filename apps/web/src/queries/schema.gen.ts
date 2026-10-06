@@ -703,15 +703,17 @@ export interface components {
         };
         /** UserSettings */
         UserSettings: {
+            /** Displayname */
             displayName?: string | null;
-            defaultRuCampus?: "Darcy" | "Gama" | "Ceilandia" | "Planaltina" | "Fazenda" | null;
-            [key: string]: unknown;
+            /** Defaultrucampus */
+            defaultRuCampus?: ("Darcy" | "Gama" | "Ceilandia" | "Planaltina" | "Fazenda") | null;
         };
         /** UserSettingsPatch */
         UserSettingsPatch: {
+            /** Displayname */
             displayName?: string | null;
-            defaultRuCampus?: "Darcy" | "Gama" | "Ceilandia" | "Planaltina" | "Fazenda" | null;
-            [key: string]: unknown;
+            /** Defaultrucampus */
+            defaultRuCampus?: ("Darcy" | "Gama" | "Ceilandia" | "Planaltina" | "Fazenda") | null;
         };
         /** ValidationError */
         ValidationError: {

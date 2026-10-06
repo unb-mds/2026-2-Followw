@@ -417,3 +417,36 @@ def test_openapi_documenta_dados_privados_do_restaurante(client):
     assert schema["components"]["schemas"]["RestaurantStatement"]["properties"][
         "group"
     ]["anyOf"][0]["enum"] == [1, 2, 3, 4]
+
+
+def test_configuracoes_aceitam_display_name_no_limite(client, cookies):
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+    nome = "a" * 24
+
+    response = client.patch(
+        "/me/settings", json={"displayName": nome, "defaultRuCampus": "Gama"}
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"displayName": nome, "defaultRuCampus": "Gama"}
+    assert client.get("/me/settings").json() == response.json()
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"displayName": "a" * 25},
+        {"defaultRuCampus": "Asa Norte"},
+        {"theme": "dark"},
+    ],
+)
+def test_configuracoes_rejeitam_input_invalido(client, cookies, body):
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+
+    response = client.patch("/me/settings", json=body)
+
+    assert response.status_code == 422
+    assert client.get("/me/settings").json() == {
+        "displayName": None,
+        "defaultRuCampus": None,
+    }
