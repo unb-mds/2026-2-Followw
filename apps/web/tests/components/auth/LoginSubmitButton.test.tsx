@@ -7,7 +7,7 @@ describe('LoginSubmitButton', () => {
     test('mostra a ação de entrada quando está livre', () => {
         const markup = renderToStaticMarkup(<LoginSubmitButton pending={false} />);
 
-        expect(markup).toContain('>Entrar</button>');
+        expect(markup).toContain('>Entrar</span></button>');
         expect(markup).toContain('aria-busy="false"');
         expect(markup).not.toContain('scaleX');
         expect(markup).not.toContain('disabled=""');
