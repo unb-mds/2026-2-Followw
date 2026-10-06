@@ -1,6 +1,4 @@
-import re
-
-from pydantic import Field, field_validator
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -25,22 +23,6 @@ class Settings(BaseSettings):
     qstash_token: str
     qstash_current_signing_key: str
     qstash_next_signing_key: str
-
-    @field_validator("cookie_domain")
-    @classmethod
-    def validate_cookie_domain(cls, value: str | None) -> str | None:
-        if value is None or not (value := value.strip()):
-            return None
-        domain = value.removeprefix(".")
-        if len(domain) > 253 or any(
-            re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?", label)
-            is None
-            for label in domain.split(".")
-        ):
-            raise ValueError(
-                "Use apenas o domínio, sem URL, porta, caminho ou comentário."
-            )
-        return value
 
 
 settings = Settings()
