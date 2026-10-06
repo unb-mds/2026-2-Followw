@@ -9,10 +9,10 @@ from sigaa_client import (
     StatisticsShare,
 )
 
-from api.dependencies.cache import CacheControlDep, NoStore
+from api.dependencies.cache import CacheControlDep
 from api.dependencies.sigaa import SIGAA_ERRORS
 from api.services.classroom import ClassroomFrequencyResult, ClassroomServiceDep
-from api.services.news import NewsServiceDep
+from api.services.news import ClassroomNewsServiceDep
 
 router = APIRouter()
 
@@ -30,37 +30,44 @@ ClassroomId = Annotated[str, Path(description="Classroom.id ou Classroom.sigaa_i
     "/{classroom_id}/news",
     response_model=list[News],
     summary="Consultar notícias de uma turma do usuário",
-    description="ID, título e dia das notícias da turma, sem cache.",
-    responses=CLASSROOM_ERRORS,
-    dependencies=[NoStore],
+    description="ID, título e dia das notícias da turma. Cache de 60 minutos, atualizado em segundo plano após vencer; notícias removidas no SIGAA são preservadas.",
+    responses={
+        **CLASSROOM_ERRORS,
+        503: {"description": "Cache em atualização."},
+        504: {"description": "Notícias ainda não disponíveis no cache."},
+    },
 )
 async def get_classroom_news(
-    service: NewsServiceDep, classroom_id: NewsClassroomId
+    service: ClassroomNewsServiceDep,
+    classroom_id: NewsClassroomId,
+    cache: CacheControlDep,
 ) -> list[News]:
-    return await service.list_classroom_news(classroom_id)
+    return await service.list_classroom_news(classroom_id, cache)
 
 
 @router.get(
     "/{classroom_id}/news/{news_id}",
     response_model=News,
     summary="Consultar conteúdo e anexos de uma notícia da turma",
-    description="Texto em Markdown, data e hora e anexos da notícia, sem cache.",
+    description="Texto em Markdown, data e hora e anexos. Conteúdo salvo no primeiro acesso, sem revalidação automática. Cache-Control: no-cache força uma nova consulta.",
     responses={
         **SIGAA_ERRORS,
         404: {
             "description": "Turma fora da lista do usuário ou notícia ausente na turma."
         },
+        503: {"description": "Cache em atualização."},
+        504: {"description": "Conteúdo ainda não disponível no cache."},
     },
-    dependencies=[NoStore],
 )
 async def get_classroom_news_detail(
-    service: NewsServiceDep,
+    service: ClassroomNewsServiceDep,
+    cache: CacheControlDep,
     classroom_id: NewsClassroomId,
     news_id: Annotated[
         int, Path(gt=0, description="ID da notícia na listagem da turma.")
     ],
 ) -> News:
-    return await service.get_classroom_news(classroom_id, news_id)
+    return await service.get_classroom_news(classroom_id, news_id, cache)
 
 
 @router.get(

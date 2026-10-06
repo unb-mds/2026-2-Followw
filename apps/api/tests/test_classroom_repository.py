@@ -344,14 +344,21 @@ async def test_estatisticas_substituem_as_anteriores(async_database, usuarios):
             await session.commit()
 
     async with async_database() as session:
-        statistics = await ClassroomRepository(session).list_statistics(classroom_id)
+        statistics = await ClassroomRepository(session).get_statistics(classroom_id)
         classroom = await session.get_one(Classroom, classroom_id)
-    assert sorted((s.situation.value, s.percentage) for s in statistics) == [
+    assert sorted((s["situation"], s["percentage"]) for s in statistics.data) == [
         ("aprovado", 90),
         ("matriculado", 10),
     ]
     assert classroom.statistics_synced_at is not None
-    assert await _contar(async_database, ClassroomStatistic) == 2
+    assert await _contar(async_database, ClassroomStatistic) == 1
+
+    async with async_database() as session:
+        await ClassroomRepository(session).save_statistics(classroom_id, [], AGORA)
+        await session.commit()
+        cached = await ClassroomRepository(session).get_statistics(classroom_id)
+        assert cached.data == []
+    assert await _contar(async_database, ClassroomStatistic) == 1
 
 
 def test_repository_aceita_sessao_injetada(probe_app):

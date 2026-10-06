@@ -3,9 +3,16 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from sigaa_client import ClassroomNotFound, News, NewsNotFound
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.db.models import ClassroomNews
+from api.dependencies.cache import NO_DIRECTIVES, CacheControl
 from api.dependencies.sigaa import SigaaClientDep
-from api.services.classroom import classroom_not_found
+from api.dependencies.sync import SyncEngineDep
+from api.repositories.classroom import ClassroomRepository
+from api.repositories.news import NewsRepository
+from api.services.classroom import ClassroomServiceDep, classroom_not_found
+from api.services.sync import NEWS_CONTENT_TTL, NEWS_LIST_TTL, Cached, Task
 
 
 class NewsService:
@@ -50,21 +57,51 @@ class NewsService:
             )
         return result
 
-    async def list_classroom_news(self, classroom_id: str) -> list[News]:
-        classroom_id, sigaa_id = await self._resolve(classroom_id)
+
+class ClassroomNewsService:
+    def __init__(self, engine: SyncEngineDep, classrooms: ClassroomServiceDep) -> None:
+        self._engine = engine
+        self._classrooms = classrooms
+
+    async def list_classroom_news(
+        self, classroom_id: str, cache: CacheControl = NO_DIRECTIVES
+    ) -> list[News]:
+        link = await self._classrooms.get_link(classroom_id, cache)
+
+        async def load(session: AsyncSession) -> Cached[list[News]]:
+            classroom = await ClassroomRepository(session).get(link.classroom_id)
+            if classroom is None or classroom.news_synced_at is None:
+                return Cached(None)
+            news = await NewsRepository(session).list_by_classroom(link.classroom_id)
+            return Cached(
+                [_to_news(item, classroom.sigaa_id) for item in news],
+                classroom.news_synced_at,
+                NEWS_LIST_TTL,
+            )
+
         try:
-            news = await self._client.classrooms.list_classroom_news(classroom_id)
+            return await self._engine.resolve(Task.NEWS, load, link=link, cache=cache)
         except ClassroomNotFound:
             raise classroom_not_found()
-        return [
-            item.model_copy(update={"classroom_sigaa_id": sigaa_id}) for item in news
-        ]
 
-    async def get_classroom_news(self, classroom_id: str, news_id: int) -> News:
-        classroom_id, sigaa_id = await self._resolve(classroom_id)
+    async def get_classroom_news(
+        self, classroom_id: str, news_id: int, cache: CacheControl = NO_DIRECTIVES
+    ) -> News:
+        link = await self._classrooms.get_link(classroom_id, cache)
+
+        async def load(session: AsyncSession) -> Cached[News]:
+            item = await NewsRepository(session).get(link.classroom_id, news_id)
+            if item is None or item.content_synced_at is None:
+                return Cached(None)
+            return Cached(
+                _to_news(item, link.classroom.sigaa_id, detail=True),
+                item.content_synced_at,
+                NEWS_CONTENT_TTL,
+            )
+
         try:
-            news = await self._client.classrooms.get_classroom_news(
-                classroom_id, news_id
+            return await self._engine.resolve(
+                Task.NEWS_CONTENT, load, link=link, news_id=news_id, cache=cache
             )
         except ClassroomNotFound:
             raise classroom_not_found()
@@ -72,17 +109,20 @@ class NewsService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="News not found"
             )
-        return news.model_copy(update={"classroom_sigaa_id": sigaa_id})
 
-    async def _resolve(self, classroom_id: str) -> tuple[str, int | None]:
-        """`Classroom.id` e `sigaa_id` da turma; quem confere o histórico é o client."""
-        current = await self._client.classrooms.list_current_classrooms()
-        match = next((c for c in current if c.id == classroom_id), None) or next(
-            (c for c in current if c.sigaa_id and str(c.sigaa_id) == classroom_id),
-            None,
-        )
-        # Fora do portal, só pode ser um `Classroom.id` de semestre passado.
-        return (match.id, match.sigaa_id) if match else (classroom_id, None)
+
+def _to_news(
+    item: ClassroomNews, sigaa_id: int | None, *, detail: bool = False
+) -> News:
+    return News(
+        id=item.sigaa_id,
+        classroom_sigaa_id=sigaa_id,
+        title=item.title,
+        published_on=item.published_on,
+        published_at=item.published_at if detail else None,
+        content=item.content if detail else None,
+        attachments=tuple(item.attachments) if detail else (),
+    )
 
 
 def _title(title: str) -> str:
@@ -90,3 +130,5 @@ def _title(title: str) -> str:
 
 
 NewsServiceDep = Annotated[NewsService, Depends()]
+
+ClassroomNewsServiceDep = Annotated[ClassroomNewsService, Depends()]
