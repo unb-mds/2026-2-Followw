@@ -2111,64 +2111,6 @@
                             }
                         ],
                         "title": "Defaultrucampus"
-                    },
-                    "defaultRuMeal": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "enum": ["breakfast", "lunch", "dinner", "all"]
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Defaultrumeal"
-                    },
-                    "hideRuBalance": {
-                        "anyOf": [
-                            {
-                                "type": "boolean"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Hiderubalance"
-                    },
-                    "scheduleView": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "enum": ["day", "week"]
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Scheduleview"
-                    },
-                    "compactMode": {
-                        "anyOf": [
-                            {
-                                "type": "boolean"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Compactmode"
-                    },
-                    "theme": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "enum": ["system", "light", "dark"]
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Theme"
                     }
                 },
                 "additionalProperties": true,
@@ -2199,64 +2141,6 @@
                             }
                         ],
                         "title": "Defaultrucampus"
-                    },
-                    "defaultRuMeal": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "enum": ["breakfast", "lunch", "dinner", "all"]
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Defaultrumeal"
-                    },
-                    "hideRuBalance": {
-                        "anyOf": [
-                            {
-                                "type": "boolean"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Hiderubalance"
-                    },
-                    "scheduleView": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "enum": ["day", "week"]
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Scheduleview"
-                    },
-                    "compactMode": {
-                        "anyOf": [
-                            {
-                                "type": "boolean"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Compactmode"
-                    },
-                    "theme": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "enum": ["system", "light", "dark"]
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Theme"
                     }
                 },
                 "additionalProperties": true,

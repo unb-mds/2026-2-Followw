@@ -67,15 +67,7 @@ describe('configurações do usuário (settings)', () => {
     test('getStoredSettings lê exclusivamente do localStorage com fallback para vazio', () => {
         expect(getStoredSettings()).toEqual({});
 
-        const saved: UserSettings = {
-            displayName: 'Mendez',
-            defaultRuCampus: 'Darcy',
-            defaultRuMeal: 'lunch',
-            hideRuBalance: true,
-            scheduleView: 'week',
-            compactMode: false,
-            theme: 'dark'
-        };
+        const saved: UserSettings = { displayName: 'Mendez', defaultRuCampus: 'Darcy' };
         localStorageRepository.set(STORAGE_KEYS.SETTINGS, saved);
 
         expect(getStoredSettings()).toEqual(saved);
@@ -88,9 +80,7 @@ describe('configurações do usuário (settings)', () => {
 
         const doBanco: UserSettings = {
             displayName: 'Atualizado no Banco',
-            defaultRuCampus: 'Darcy',
-            defaultRuMeal: 'dinner',
-            theme: 'system'
+            defaultRuCampus: 'Darcy'
         };
         localStorageRepository.set(STORAGE_KEYS.SETTINGS, doBanco);
 

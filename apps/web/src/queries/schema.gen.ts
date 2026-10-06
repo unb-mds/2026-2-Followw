@@ -705,22 +705,12 @@ export interface components {
         UserSettings: {
             displayName?: string | null;
             defaultRuCampus?: "Darcy" | "Gama" | "Ceilandia" | "Planaltina" | "Fazenda" | null;
-            defaultRuMeal?: "breakfast" | "lunch" | "dinner" | "all" | null;
-            hideRuBalance?: boolean | null;
-            scheduleView?: "day" | "week" | null;
-            compactMode?: boolean | null;
-            theme?: "system" | "light" | "dark" | null;
             [key: string]: unknown;
         };
         /** UserSettingsPatch */
         UserSettingsPatch: {
             displayName?: string | null;
             defaultRuCampus?: "Darcy" | "Gama" | "Ceilandia" | "Planaltina" | "Fazenda" | null;
-            defaultRuMeal?: "breakfast" | "lunch" | "dinner" | "all" | null;
-            hideRuBalance?: boolean | null;
-            scheduleView?: "day" | "week" | null;
-            compactMode?: boolean | null;
-            theme?: "system" | "light" | "dark" | null;
             [key: string]: unknown;
         };
         /** ValidationError */
