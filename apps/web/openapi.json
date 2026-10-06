@@ -2122,7 +2122,8 @@
                         "anyOf": [
                             {
                                 "type": "string",
-                                "maxLength": 24
+                                "maxLength": 24,
+                                "minLength": 1
                             },
                             {
                                 "type": "null"

@@ -7,9 +7,11 @@ import { apiClient } from '#/queries/client.ts';
 import { ApiError } from '#/queries/errors.ts';
 import { meQueryOptions } from '#/queries/me.ts';
 import { clearRestaurantAccount } from '#/queries/restaurant-account';
+import { clearSettings } from '#/queries/settings';
 
 function clearUserData(queryClient: QueryClient) {
     clearRestaurantAccount(queryClient);
+    clearSettings(queryClient);
     queryClient.removeQueries({ queryKey: classroomsQueryOptions.queryKey });
 }
 

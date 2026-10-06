@@ -19,6 +19,7 @@ from sigaa_client import (
 from sigaa_client.config import SIGAA_BASE_URL
 
 from api.db.main import get_sessionmaker
+from api.repositories.user import UserRepository
 from api.utils.session import (
     ACCESS_COOKIE_NAME,
     REFRESH_COOKIE_NAME,
@@ -436,6 +437,8 @@ def test_configuracoes_aceitam_display_name_no_limite(client, cookies):
     "body",
     [
         {"displayName": "a" * 25},
+        {"displayName": ""},
+        {"displayName": "   "},
         {"defaultRuCampus": "Asa Norte"},
         {"theme": "dark"},
     ],
@@ -450,3 +453,33 @@ def test_configuracoes_rejeitam_input_invalido(client, cookies, body):
         "displayName": None,
         "defaultRuCampus": None,
     }
+
+
+def test_configuracoes_removem_espacos_do_display_name(client, cookies):
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+
+    response = client.patch("/me/settings", json={"displayName": "  Ana  "})
+
+    assert response.json()["displayName"] == "Ana"
+
+
+def test_configuracoes_sobrevivem_ao_sync_criando_o_usuario_ao_mesmo_tempo(
+    client, cookies, monkeypatch
+):
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+    client.patch("/me/settings", json={"displayName": "Ana"})
+    original = UserRepository.get_by_registration
+    calls = 0
+
+    # Simula o sync do perfil gravando o usuário entre a leitura e o insert.
+    async def get_by_registration(self, registration):
+        nonlocal calls
+        calls += 1
+        return None if calls == 1 else await original(self, registration)
+
+    monkeypatch.setattr(UserRepository, "get_by_registration", get_by_registration)
+
+    response = client.patch("/me/settings", json={"defaultRuCampus": "Gama"})
+
+    assert response.status_code == 200
+    assert response.json() == {"displayName": "Ana", "defaultRuCampus": "Gama"}
