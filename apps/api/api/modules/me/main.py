@@ -2,9 +2,11 @@ from fastapi import APIRouter
 from sigaa_client import RestaurantCredentials, RestaurantStatement, UserProfile
 
 from api.dependencies.cache import CacheControlDep, NoStore
-from api.dependencies.sigaa import SIGAA_ERRORS
+from api.dependencies.sigaa import SIGAA_ERRORS, SigaaConnectionDep
+from api.modules.me.models import UserSettings, UserSettingsPatch
 from api.services.profile import ProfileServiceDep
 from api.services.restaurant import RestaurantAccountServiceDep
+from api.services.settings import SettingsServiceDep
 
 router = APIRouter()
 
@@ -40,3 +42,31 @@ async def get_statement(service: RestaurantAccountServiceDep) -> RestaurantState
 )
 async def get_token(service: RestaurantAccountServiceDep) -> RestaurantCredentials:
     return await service.get_token()
+
+
+@router.get(
+    "/settings",
+    response_model=UserSettings,
+    summary="Consultar as configurações pessoais do usuário",
+    responses=SIGAA_ERRORS,
+    dependencies=[NoStore],
+)
+async def get_settings(
+    connection: SigaaConnectionDep,
+    service: SettingsServiceDep,
+) -> UserSettings:
+    return await service.get_settings(connection.registration)
+
+
+@router.patch(
+    "/settings",
+    response_model=UserSettings,
+    summary="Atualizar as configurações pessoais do usuário",
+    responses=SIGAA_ERRORS,
+)
+async def update_settings(
+    body: UserSettingsPatch,
+    connection: SigaaConnectionDep,
+    service: SettingsServiceDep,
+) -> UserSettings:
+    return await service.update_settings(connection.registration, body)
