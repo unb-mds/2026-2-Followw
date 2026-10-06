@@ -1,11 +1,11 @@
 export const STORAGE_PREFIX = 'followw:';
 
 export const STORAGE_KEYS = {
-    RU_TOKEN: 'ru-token',
-    RU_BALANCE: 'ru_balance',
-    SETTINGS: 'settings',
     THEME: 'theme'
 } as const;
+
+// chaves da persistência manual que o cache do Query substituiu; pode sair a partir de 2026-12
+const LEGACY_KEYS = ['ru-token', 'ru_balance', 'settings'];
 
 function getStorage(): Storage | null {
     if (typeof window === 'undefined') {
@@ -98,3 +98,7 @@ export const localStorageRepository: LocalStorageRepository = {
         }
     }
 };
+
+export function removeLegacyStorage() {
+    for (const key of LEGACY_KEYS) localStorageRepository.remove(key);
+}

@@ -5,7 +5,7 @@ import { Route as LoginRoute } from '#/routes/login';
 
 function contextWithUser(user) {
     return {
-        context: { queryClient: { query: async () => user } }
+        context: { queryClient: { getQueryData: () => undefined, query: async () => user } }
     };
 }
 

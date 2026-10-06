@@ -51,4 +51,11 @@ describe('PublicInfoSection', () => {
 
         expect(markup).toContain(message);
     });
+
+    test('exibe o dia selecionado quando não é hoje', async () => {
+        const markup = await renderSection({ campus: 'Darcy', day: 'Quarta-feira' });
+
+        expect(markup).toContain('Prato principal · Quarta-feira');
+        expect(markup).toContain('Cardápio de quarta-feira não publicado.');
+    });
 });

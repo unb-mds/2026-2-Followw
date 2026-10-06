@@ -3,6 +3,7 @@ import { createElement } from 'react';
 
 import { BottomNavigation } from '#/components/BottomNavigation';
 import { HeaderBar } from '#/components/HeaderBar';
+import { OfflineBanner } from '#/components/OfflineBanner';
 import { PageStateProvider } from '#/components/PageState';
 
 declare module '@tanstack/react-router' {
@@ -26,6 +27,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             <div className="mx-auto w-full max-w-2xl px-4">
                 <PageStateProvider page={pathname}>
                     {createElement(header)}
+                    <OfflineBanner />
                     <main className="flex-1 pb-24">{children}</main>
                 </PageStateProvider>
                 <BottomNavigation />

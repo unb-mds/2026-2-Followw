@@ -12,6 +12,7 @@ import { SectionHeader } from '#/components/SectionHeader';
 import { WeekDayPicker } from '#/components/WeekDayPicker';
 import { classesOn, nowInBrasilia, weekDays } from '#/lib/schedule';
 import { classroomsQueryOptions } from '#/queries/classrooms';
+import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
 import { campusOf, menuQueryOptions } from '#/queries/restaurant';
 
@@ -28,10 +29,10 @@ const WEEKDAYS = [
 export const Route = createFileRoute('/_app/')({
     loader: async ({ context: { queryClient } }) => {
         const now = nowInBrasilia();
-        const user = await queryClient.query(meQueryOptions);
+        const user = await loadQuery(queryClient, meQueryOptions);
         await Promise.all([
-            queryClient.query(menuQueryOptions({ date: now.date, user })).catch(noop),
-            user && queryClient.query(classroomsQueryOptions).catch(noop)
+            loadQuery(queryClient, menuQueryOptions({ date: now.date, user })).catch(noop),
+            user && loadQuery(queryClient, classroomsQueryOptions).catch(noop)
         ]);
         return { now };
     },
@@ -90,7 +91,7 @@ function HomePage() {
         enabled: Boolean(user)
     });
     const classrooms = classroomsQuery.data ?? [];
-    const menu = useQuery(menuQueryOptions({ date: now.date, user }));
+    const menu = useQuery(menuQueryOptions({ date: selectedDay.date, user }));
 
     const classes = classesOn(classrooms, selectedDay.weekday, isToday ? now.time : undefined);
 
@@ -105,7 +106,7 @@ function HomePage() {
             )}
 
             {user ? (
-                classroomsQuery.isError ? (
+                classroomsQuery.isLoadingError ? (
                     <section>
                         <SectionHeader title="Aulas do dia" />
                         <ErrorCard
@@ -116,10 +117,7 @@ function HomePage() {
                 ) : (
                     classes.length > 0 && (
                         <section>
-                            <SectionHeader
-                                title="Aulas do dia"
-                                badge={`${classes.length} ${classes.length === 1 ? 'aula' : 'aulas'}`}
-                            />
+                            <SectionHeader title="Aulas do dia" />
                             <div className="flex flex-col gap-2">
                                 {classes.map(({ item, start, end, status }) => (
                                     <ClassCard
@@ -151,6 +149,7 @@ function HomePage() {
                 campus={campusOf(user?.unity)}
                 menu={menu.data?.[0]}
                 isLoading={menu.isPending}
+                day={isToday ? undefined : WEEKDAYS[selectedDay.weekday]}
             />
         </>
     );

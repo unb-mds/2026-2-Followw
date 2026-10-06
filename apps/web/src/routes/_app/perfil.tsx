@@ -24,12 +24,14 @@ import {
     AlertDialogTrigger
 } from '#/components/ui/alert-dialog';
 import { Button } from '#/components/ui/button';
+import { useOnline } from '#/lib/online';
 import { useLogout } from '#/queries/auth';
+import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
 
 export const Route = createFileRoute('/_app/perfil')({
     loader: async ({ context }) => {
-        const user = await context.queryClient.query(meQueryOptions);
+        const user = await loadQuery(context.queryClient, meQueryOptions);
         if (!user) throw redirect({ to: '/login' });
         return user;
     },
@@ -74,10 +76,12 @@ function AccountSection() {
 function LogoutButton() {
     const navigate = useNavigate();
     const logout = useLogout(() => void navigate({ to: '/login', replace: true }));
+    const online = useOnline();
 
     return (
         <AlertDialog>
             <AlertDialogTrigger
+                disabled={!online}
                 render={
                     <Button
                         variant="ghost"
@@ -88,7 +92,12 @@ function LogoutButton() {
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-destructive/10">
                     <LogOut className="size-4" />
                 </span>
-                <span className="flex-1 text-left">Desconectar</span>
+                <span className="flex-1 text-left">
+                    Desconectar
+                    {!online && (
+                        <span className="block text-xs text-muted-foreground">Sem conexão</span>
+                    )}
+                </span>
                 <ChevronRight className="text-muted-foreground" />
             </AlertDialogTrigger>
             <AlertDialogContent size="sm">

@@ -5,16 +5,11 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 
 import type { RestaurantStatement, RestaurantCredentials } from '#/queries/restaurant-account';
 
-import { STORAGE_KEYS, localStorageRepository } from '#/lib/local-storage';
 import { clearSession } from '#/queries/auth';
 import { apiClient } from '#/queries/client';
 import { ApiError } from '#/queries/errors';
 import { refreshQuery } from '#/queries/refresh';
-import {
-    credentialsQueryOptions,
-    restoreRestaurantAccount,
-    statementQueryOptions
-} from '#/queries/restaurant-account';
+import { credentialsQueryOptions, statementQueryOptions } from '#/queries/restaurant-account';
 
 const registration = '251000000';
 const statement: RestaurantStatement = {
@@ -27,46 +22,13 @@ const credentials: RestaurantCredentials = {
     valid_until: '2026-12-01'
 };
 
-function seed(data: unknown = statement, owner = registration) {
-    localStorageRepository.set(STORAGE_KEYS.RU_BALANCE, {
-        registration: owner,
-        data,
-        updatedAt: 1
-    });
-    localStorageRepository.set(STORAGE_KEYS.RU_TOKEN, {
-        registration: owner,
-        data: credentials,
-        updatedAt: 1
-    });
-}
-
-describe('cache da conta do RU', () => {
-    const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+describe('conta do RU', () => {
     let middleware: Middleware;
     let requests: Request[];
     let response: (request: Request) => Response | Promise<Response>;
     let client: QueryClient;
 
     beforeEach(() => {
-        const values = new Map<string, string>();
-        const storage: Storage = {
-            get length() {
-                return values.size;
-            },
-            key: (index) => [...values.keys()][index] ?? null,
-            getItem: (key) => values.get(key) ?? null,
-            setItem: (key, value) => {
-                values.set(key, value);
-            },
-            removeItem: (key) => {
-                values.delete(key);
-            },
-            clear: () => values.clear()
-        };
-        Object.defineProperty(globalThis, 'window', {
-            configurable: true,
-            value: { localStorage: storage }
-        });
         requests = [];
         response = (request) =>
             Response.json(
@@ -85,21 +47,11 @@ describe('cache da conta do RU', () => {
     afterEach(() => {
         client.clear();
         apiClient.eject(middleware);
-        if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow);
-        else Reflect.deleteProperty(globalThis, 'window');
     });
 
-    test('salva o saldo, grupo, extrato, token e validade com escopo da matrícula', async () => {
-        await client.query(statementQueryOptions(registration));
-        await client.query(credentialsQueryOptions(registration));
-        expect(localStorageRepository.get(STORAGE_KEYS.RU_BALANCE)).toMatchObject({
-            registration,
-            data: statement
-        });
-        expect(localStorageRepository.get(STORAGE_KEYS.RU_TOKEN)).toMatchObject({
-            registration,
-            data: credentials
-        });
+    test('consulta saldo e carteirinha sem mandar a matrícula para a API', async () => {
+        expect(await client.query(statementQueryOptions(registration))).toEqual(statement);
+        expect(await client.query(credentialsQueryOptions(registration))).toEqual(credentials);
         expect(requests.map((request) => new URL(request.url).pathname)).toEqual([
             '/me/ru-statement',
             '/me/ru-token'
@@ -107,115 +59,28 @@ describe('cache da conta do RU', () => {
         expect(requests.every((request) => new URL(request.url).search === '')).toBe(true);
     });
 
-    test('restaura os dados salvos e sua data ao reabrir a página', () => {
-        seed();
-        restoreRestaurantAccount(client, registration);
-        expect(
-            client.getQueryData<RestaurantStatement>(statementQueryOptions(registration).queryKey)
-        ).toEqual(statement);
-        expect(
-            client.getQueryData<RestaurantCredentials>(
-                credentialsQueryOptions(registration).queryKey
-            )
-        ).toEqual(credentials);
-        expect(
-            client.getQueryState(statementQueryOptions(registration).queryKey)?.dataUpdatedAt
-        ).toBe(1);
-    });
-
-    test('restaura o saldo e o grupo 4 do local storage', () => {
-        seed({ ...statement, group: 4 });
-        restoreRestaurantAccount(client, registration);
-        expect(
-            client.getQueryData<RestaurantStatement>(statementQueryOptions(registration).queryKey)
-                ?.group
-        ).toBe(4);
-    });
-
-    test.each(['4', 0, 5, {}, true])('ignora cache com grupo inválido: %p', (group) => {
-        seed({ ...statement, group });
-        restoreRestaurantAccount(client, registration);
-        expect(
-            client.getQueryData<RestaurantStatement>(statementQueryOptions(registration).queryKey)
-        ).toBeUndefined();
-    });
-
-    test('não restaura dados de outra matrícula e isola o cache de queries por conta', () => {
-        seed();
-        restoreRestaurantAccount(client, 'outra-matricula');
-        expect(
-            client.getQueryData<RestaurantStatement>(
-                statementQueryOptions('outra-matricula').queryKey
-            )
-        ).toBeUndefined();
-        expect(
-            client.getQueryData<RestaurantCredentials>(
-                credentialsQueryOptions('outra-matricula').queryKey
-            )
-        ).toBeUndefined();
+    test('isola o cache de cada conta pela matrícula', () => {
         expect(statementQueryOptions(registration).queryKey).not.toEqual(
             statementQueryOptions('outra-matricula').queryKey
         );
+        expect(credentialsQueryOptions(registration).queryKey).not.toEqual(
+            credentialsQueryOptions('outra-matricula').queryKey
+        );
     });
 
-    test('ignora cache legado ou dados malformados', () => {
-        localStorageRepository.set(STORAGE_KEYS.RU_BALANCE, 42.5);
-        localStorageRepository.set(STORAGE_KEYS.RU_TOKEN, 'token-legado');
-        restoreRestaurantAccount(client, registration);
-        expect(
-            client.getQueryData<RestaurantStatement>(statementQueryOptions(registration).queryKey)
-        ).toBeUndefined();
-        expect(
-            client.getQueryData<RestaurantCredentials>(
-                credentialsQueryOptions(registration).queryKey
-            )
-        ).toBeUndefined();
-
-        seed({ balance: 'NaN', group: 2, entries: [] });
-        localStorageRepository.set(STORAGE_KEYS.RU_TOKEN, {
-            registration,
-            data: { token: 'token', valid_until: '2026-99-99' },
-            updatedAt: 1
-        });
-        restoreRestaurantAccount(client, registration);
-        expect(
-            client.getQueryData<RestaurantStatement>(statementQueryOptions(registration).queryKey)
-        ).toBeUndefined();
-        expect(
-            client.getQueryData<RestaurantCredentials>(
-                credentialsQueryOptions(registration).queryKey
-            )
-        ).toBeUndefined();
-    });
-
-    test('persiste dados carregados no SSR sem sobrescrevê-los com o cache antigo', () => {
-        seed();
-        const fresh = { ...statement, balance: '20.00' };
-        client.setQueryData(statementQueryOptions(registration).queryKey, fresh);
-        client.setQueryData(credentialsQueryOptions(registration).queryKey, credentials);
-        restoreRestaurantAccount(client, registration);
-        expect(localStorageRepository.get(STORAGE_KEYS.RU_BALANCE)).toMatchObject({ data: fresh });
-    });
-
-    test('atualiza pela API preservando a matrícula e substitui o cache local', async () => {
-        seed();
-        restoreRestaurantAccount(client, registration);
+    test('atualiza pela API pedindo dado novo', async () => {
+        client.setQueryData(statementQueryOptions(registration).queryKey, statement);
         const fresh = { ...statement, balance: '30.00' };
         response = () => Response.json(fresh);
         await refreshQuery(client, statementQueryOptions(registration));
         expect(
             client.getQueryData<RestaurantStatement>(statementQueryOptions(registration).queryKey)
         ).toEqual(fresh);
-        expect(localStorageRepository.get(STORAGE_KEYS.RU_BALANCE)).toMatchObject({
-            registration,
-            data: fresh
-        });
         expect(requests[0].headers.get('cache-control')).toBe('no-cache');
     });
 
     test('uma falha na atualização mantém os dados salvos e expõe o erro', async () => {
-        seed();
-        restoreRestaurantAccount(client, registration);
+        client.setQueryData(statementQueryOptions(registration).queryKey, statement);
         response = () => {
             throw new ApiError(503, 'SIGAA indisponível');
         };
@@ -229,23 +94,16 @@ describe('cache da conta do RU', () => {
         expect(client.getQueryState(statementQueryOptions(registration).queryKey)?.status).toBe(
             'error'
         );
-        expect(localStorageRepository.get(STORAGE_KEYS.RU_BALANCE)).toMatchObject({
-            data: statement
-        });
     });
 
-    test('o logout apaga as queries e os dados pessoais do RU', () => {
-        seed();
-        localStorageRepository.set('preferencia', 'manter');
-        restoreRestaurantAccount(client, registration);
-        clearSession(client);
+    test('o logout apaga as queries do RU', async () => {
+        client.setQueryData(statementQueryOptions(registration).queryKey, statement);
+        client.setQueryData(credentialsQueryOptions(registration).queryKey, credentials);
+        await clearSession(client);
         expect(client.getQueryState(statementQueryOptions(registration).queryKey)).toBeUndefined();
         expect(
             client.getQueryState(credentialsQueryOptions(registration).queryKey)
         ).toBeUndefined();
-        expect(localStorageRepository.get(STORAGE_KEYS.RU_BALANCE)).toBeNull();
-        expect(localStorageRepository.get(STORAGE_KEYS.RU_TOKEN)).toBeNull();
-        expect(localStorageRepository.get<string>('preferencia')).toBe('manter');
     });
 
     test('uma resposta após o logout não recria os dados removidos', async () => {
@@ -256,17 +114,9 @@ describe('cache da conta do RU', () => {
             });
         const pending = client.query(statementQueryOptions(registration)).catch(() => null);
         await Promise.resolve();
-        clearSession(client);
+        await clearSession(client);
         complete(Response.json(statement));
         await pending;
-        await new Promise((resolve) => setTimeout(resolve, 0));
-        expect(localStorageRepository.get(STORAGE_KEYS.RU_BALANCE)).toBeNull();
         expect(client.getQueryState(statementQueryOptions(registration).queryKey)).toBeUndefined();
-    });
-
-    test('a consulta no servidor funciona sem local storage', async () => {
-        Reflect.deleteProperty(globalThis, 'window');
-        expect(await client.query(statementQueryOptions(registration))).toEqual(statement);
-        expect(localStorageRepository.get(STORAGE_KEYS.RU_BALANCE)).toBeNull();
     });
 });

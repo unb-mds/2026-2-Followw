@@ -12,6 +12,7 @@ interface PublicInfoSectionProps {
     campus: Campus;
     menu?: DailyMenu;
     isLoading?: boolean;
+    day?: string;
 }
 
 function mainDish(sections: MenuSection[] | null | undefined) {
@@ -22,7 +23,8 @@ function mainDish(sections: MenuSection[] | null | undefined) {
 export const PublicInfoSection: React.FC<PublicInfoSectionProps> = ({
     campus,
     menu,
-    isLoading
+    isLoading,
+    day
 }) => {
     const meals = [
         { label: 'Almoço', icon: UtensilsCrossed, dish: mainDish(menu?.lunch) },
@@ -39,7 +41,9 @@ export const PublicInfoSection: React.FC<PublicInfoSectionProps> = ({
                     className="absolute inset-0 rounded-2xl transition-colors hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-ring"
                 />
                 <div className="pointer-events-none relative flex items-baseline gap-2 text-xs">
-                    <span className="font-semibold text-primary">Prato principal hoje</span>
+                    <span className="font-semibold text-primary">
+                        Prato principal {day ? `· ${day}` : 'hoje'}
+                    </span>
                     <span className="ml-auto truncate font-medium text-muted-foreground">
                         Campus {CAMPUS_LABELS[campus]}
                     </span>
@@ -66,7 +70,7 @@ export const PublicInfoSection: React.FC<PublicInfoSectionProps> = ({
                         {isLoading ? (
                             <LoadingText>Carregando cardápio...</LoadingText>
                         ) : (
-                            'Cardápio de hoje não publicado.'
+                            `Cardápio de ${day?.toLowerCase() ?? 'hoje'} não publicado.`
                         )}
                     </p>
                 )}

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 
-import { STORAGE_KEYS, localStorageRepository } from '#/lib/local-storage';
+import { localStorageRepository, removeLegacyStorage } from '#/lib/local-storage';
 
 import { MemoryStorage } from '../helpers/memory-storage';
 
@@ -38,25 +38,25 @@ describe('localStorageRepository', () => {
     });
 
     test('armazena e recupera valores do tipo string', () => {
-        localStorageRepository.set(STORAGE_KEYS.RU_TOKEN, 'token-123456');
-        const retrieved = localStorageRepository.get<string>(STORAGE_KEYS.RU_TOKEN);
+        localStorageRepository.set('ru-token', 'token-123456');
+        const retrieved = localStorageRepository.get<string>('ru-token');
 
         expect(retrieved).toBe('token-123456');
         expect(memoryStorage.getItem('followw:ru-token')).toBe('"token-123456"');
     });
 
     test('armazena e recupera valores do tipo número', () => {
-        localStorageRepository.set(STORAGE_KEYS.RU_BALANCE, 42.5);
-        const retrieved = localStorageRepository.get<number>(STORAGE_KEYS.RU_BALANCE);
+        localStorageRepository.set('ru_balance', 42.5);
+        const retrieved = localStorageRepository.get<number>('ru_balance');
 
         expect(retrieved).toBe(42.5);
         expect(memoryStorage.getItem('followw:ru_balance')).toBe('42.5');
     });
 
-    test('armazena e recupera configurações usando STORAGE_KEYS.SETTINGS', () => {
+    test('armazena e recupera configurações', () => {
         const settings = { displayName: 'Estudante UnB', defaultRuCampus: 'Gama' };
-        localStorageRepository.set(STORAGE_KEYS.SETTINGS, settings);
-        const retrieved = localStorageRepository.get(STORAGE_KEYS.SETTINGS);
+        localStorageRepository.set('settings', settings);
+        const retrieved = localStorageRepository.get('settings');
 
         expect(retrieved).toEqual(settings);
         expect(memoryStorage.getItem('followw:settings')).toBe(JSON.stringify(settings));
@@ -136,5 +136,19 @@ describe('localStorageRepository', () => {
         expect(() => localStorageRepository.set('test', 123)).not.toThrow();
         expect(() => localStorageRepository.remove('test')).not.toThrow();
         expect(() => localStorageRepository.clear()).not.toThrow();
+    });
+
+    test('removeLegacyStorage apaga só as chaves da persistência antiga', () => {
+        localStorageRepository.set('ru-token', 'x');
+        localStorageRepository.set('ru_balance', 1);
+        localStorageRepository.set('settings', {});
+        localStorageRepository.set('theme', 'dark');
+
+        removeLegacyStorage();
+
+        expect(localStorageRepository.get('ru-token')).toBeNull();
+        expect(localStorageRepository.get('ru_balance')).toBeNull();
+        expect(localStorageRepository.get('settings')).toBeNull();
+        expect(localStorageRepository.get<string>('theme')).toBe('dark');
     });
 });

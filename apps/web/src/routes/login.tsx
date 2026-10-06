@@ -15,15 +15,18 @@ import {
     InputGroupInput
 } from '#/components/ui/input-group';
 import { Label } from '#/components/ui/label';
+import { loginErrorMessage } from '#/lib/login-error';
+import { useOnline } from '#/lib/online';
 import { cn } from '#/lib/shadcn';
 import { useLogin } from '#/queries/auth';
 import { ApiError } from '#/queries/errors';
+import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
 
 export const Route = createFileRoute('/login')({
     loader: async ({ context }) => {
         try {
-            const user = await context.queryClient.query(meQueryOptions);
+            const user = await loadQuery(context.queryClient, meQueryOptions);
             if (user) throw redirect({ to: '/' });
         } catch (error) {
             if (error instanceof ApiError || error instanceof TypeError) return;
@@ -37,16 +40,12 @@ export const Route = createFileRoute('/login')({
 function LoginPage() {
     const navigate = useNavigate();
     const login = useLogin();
+    const online = useOnline();
     const [registration, setRegistration] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
 
-    const error =
-        login.error instanceof ApiError && login.error.isUnauthorized
-            ? 'Matrícula ou senha incorretas.'
-            : login.error
-              ? 'Não foi possível conectar ao SIGAA. Tente novamente.'
-              : undefined;
+    const error = loginErrorMessage(online, login.error);
 
     return (
         <main className="flex min-h-dvh w-full flex-col items-center bg-background text-foreground shadow-2xl">
@@ -63,7 +62,7 @@ function LoginPage() {
                     className="mt-11 w-full max-w-90"
                     onSubmit={(event) => {
                         event.preventDefault();
-                        if (login.isPending) return;
+                        if (login.isPending || !online) return;
                         login.mutate(
                             { body: { registration, password } },
                             { onSuccess: () => void navigate({ to: '/', replace: true }) }
