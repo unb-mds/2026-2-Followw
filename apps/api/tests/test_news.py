@@ -300,6 +300,24 @@ def test_lista_vencida_retorna_cache_e_atualiza_pela_fila(
     assert news_sigaa.classrooms.list_classroom_news.await_count == 2
 
 
+def test_lista_de_turma_do_historico_nao_vence(
+    client, cookies, news_sigaa, database, qstash
+):
+    client.cookies.update(cookies(refresh=CREDENTIALS))
+    historical = news_sigaa.classrooms.list_classrooms.return_value[0].model_copy(
+        update={"id": "BBB", "sigaa_id": None, "current": False}
+    )
+    news_sigaa.classrooms.list_classrooms.return_value = [historical]
+    original = client.get("/classrooms/BBB/news").json()
+    with database() as session:
+        classroom = session.scalar(select(DBClassroom))
+        classroom.news_synced_at = datetime.now(UTC) - timedelta(days=365)
+        session.commit()
+    assert client.get("/classrooms/BBB/news").json() == original
+    assert qstash.published == []
+    news_sigaa.classrooms.list_classroom_news.assert_awaited_once()
+
+
 @pytest.mark.parametrize("remaining", [True, False])
 def test_atualizar_lista_preserva_conteudo_e_noticias_removidas(
     client, cookies, news_sigaa, database, remaining
@@ -394,9 +412,9 @@ def test_jobs_de_conteudos_distintos_nao_sao_deduplicados():
         registration="251000000",
         session_token="token",
         classroom_id="AAA",
-        news_id=1,
+        item_id=1,
     )
-    assert job.key != job.model_copy(update={"news_id": 2}).key
+    assert job.key != job.model_copy(update={"item_id": 2}).key
 
 
 def test_lista_nao_busca_conteudo_ate_primeira_abertura(client, cookies, news_sigaa):

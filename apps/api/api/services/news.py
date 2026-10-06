@@ -76,7 +76,7 @@ class ClassroomNewsService:
             return Cached(
                 [_to_news(item, classroom.sigaa_id) for item in news],
                 classroom.news_synced_at,
-                NEWS_LIST_TTL,
+                NEWS_LIST_TTL if link.current else None,
             )
 
         try:
@@ -101,7 +101,7 @@ class ClassroomNewsService:
 
         try:
             return await self._engine.resolve(
-                Task.NEWS_CONTENT, load, link=link, news_id=news_id, cache=cache
+                Task.NEWS_CONTENT, load, link=link, item_id=news_id, cache=cache
             )
         except ClassroomNotFound:
             raise classroom_not_found()

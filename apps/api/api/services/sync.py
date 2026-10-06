@@ -38,6 +38,7 @@ CLASSROOMS_TTL = timedelta(hours=72)
 MENU_TTL = timedelta(hours=24)
 # Detalhes das turmas atuais; os de semestres passados não mudam.
 CLASSROOM_DETAILS_TTL = timedelta(hours=24)
+# Lista de notícias das turmas atuais; a de semestres passados não muda.
 NEWS_LIST_TTL = timedelta(minutes=60)
 # None mantém o conteúdo salvo; use timedelta para revalidá-lo periodicamente.
 NEWS_CONTENT_TTL: timedelta | None = None
@@ -69,14 +70,15 @@ class Job(BaseModel):
     session_token: str
     # `front_end_id` da turma nas tarefas de telas acadêmicas.
     classroom_id: str | None = None
-    news_id: int | None = None
+    # ID no SIGAA do item da turma nas tarefas de um item só (ex.: uma notícia).
+    item_id: int | None = None
 
     @property
     def key(self) -> str:
         """A mesma tarefa do mesmo usuário tem a mesma chave, seja qual for a sessão."""
         return ":".join(
             str(part)
-            for part in (self.registration, self.task, self.classroom_id, self.news_id)
+            for part in (self.registration, self.task, self.classroom_id, self.item_id)
             if part is not None
         )
 
@@ -130,7 +132,7 @@ class SyncEngine:
         load: Callable[[AsyncSession], Awaitable[Cached[T]]],
         *,
         link: ClassroomUser | None = None,
-        news_id: int | None = None,
+        item_id: int | None = None,
         cache: CacheControl = NO_DIRECTIVES,
     ) -> T:
         """Devolve o cache na hora e, se vencido, agenda a revalidação.
@@ -143,7 +145,7 @@ class SyncEngine:
         cached = await self.read(load)
         if cached.value is not None and cached.synced_at is not None:
             if cache.only_if_cached or not cache.revalidate(cached.synced_at):
-                return await self._serve(task, link, cached, cache, news_id)
+                return await self._serve(task, link, cached, cache, item_id)
         elif cache.only_if_cached:
             raise HTTPException(
                 status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail="Not cached"
@@ -151,7 +153,7 @@ class SyncEngine:
 
         try:
             await self._perform(
-                task, link, refresh=cached.value is not None, news_id=news_id
+                task, link, refresh=cached.value is not None, item_id=item_id
             )
         except IntegrityError:
             # Outro sync ganhou todas as tentativas de gravar: o que ele gravou serve.
@@ -166,7 +168,7 @@ class SyncEngine:
             ):
                 raise
             log.warning("SIGAA falhou, servindo %s vencido", task, exc_info=True)
-            return await self._serve(task, link, cached, cache, news_id)
+            return await self._serve(task, link, cached, cache, item_id)
 
         fresh = await self.read(load)
         if fresh.value is None or fresh.synced_at is None:
@@ -183,23 +185,23 @@ class SyncEngine:
         link: ClassroomUser | None,
         cached: Cached[T],
         cache: CacheControl,
-        news_id: int | None = None,
+        item_id: int | None = None,
     ) -> T:
         assert cached.value is not None and cached.synced_at is not None
         # Sem access_token, o job precisaria de um login: quem revalida é o
         # `POST /auth/sigaa/refresh`, que o app chama ao abrir.
         if self._sigaa.authenticated and is_stale(cached.synced_at, cached.ttl):
             await self.schedule(
-                task, link.front_end_id if link else None, news_id=news_id
+                task, link.front_end_id if link else None, item_id=item_id
             )
         cache.served(cached.synced_at)
         return cached.value
 
     async def schedule(
-        self, task: Task, classroom_id: str | None = None, *, news_id: int | None = None
+        self, task: Task, classroom_id: str | None = None, *, item_id: int | None = None
     ) -> None:
         """Agenda a tarefa na fila, para rodar fora desta requisição."""
-        await self._queue.enqueue(await self._job(task, classroom_id, news_id=news_id))
+        await self._queue.enqueue(await self._job(task, classroom_id, item_id=item_id))
 
     async def run(self, job: Job) -> None:
         """Roda um job que voltou da fila, com a sessão do SIGAA que veio nele."""
@@ -210,7 +212,7 @@ class SyncEngine:
             if link is None:
                 return
         try:
-            await self._perform(job.task, link, news_id=job.news_id)
+            await self._perform(job.task, link, item_id=job.item_id)
         except SessionExpired:
             # Sem a senha não há relogin: o job acaba aqui e o próximo acesso agenda outro.
             log.info("Sessão do SIGAA expirou antes do job %s", job.key)
@@ -225,7 +227,7 @@ class SyncEngine:
         link: ClassroomUser | None = None,
         *,
         refresh: bool = False,
-        news_id: int | None = None,
+        item_id: int | None = None,
     ) -> None:
         client = await self._sigaa.client()
         match task:
@@ -239,27 +241,25 @@ class SyncEngine:
             case Task.MEMBERS | Task.STATISTICS | Task.FREQUENCY:
                 assert link is not None
                 await self._sync_screen(client, task, link)
-            case Task.NEWS | Task.NEWS_CONTENT:
+            case Task.NEWS:
                 assert link is not None and link.front_end_id is not None
-                if task is Task.NEWS:
-                    news = await client.classrooms.list_classroom_news(
-                        link.front_end_id
+                news = await client.classrooms.list_classroom_news(link.front_end_id)
+                await self._write(
+                    lambda session: NewsRepository(session).save_list(
+                        link.classroom_id, news, _now()
                     )
-                    await self._write(
-                        lambda session: NewsRepository(session).save_list(
-                            link.classroom_id, news, _now()
-                        )
+                )
+            case Task.NEWS_CONTENT:
+                assert link is not None and link.front_end_id is not None
+                assert item_id is not None
+                content = await client.classrooms.get_classroom_news(
+                    link.front_end_id, item_id
+                )
+                await self._write(
+                    lambda session: NewsRepository(session).save_content(
+                        link.classroom_id, content, _now()
                     )
-                else:
-                    assert news_id is not None
-                    content = await client.classrooms.get_classroom_news(
-                        link.front_end_id, news_id
-                    )
-                    await self._write(
-                        lambda session: NewsRepository(session).save_content(
-                            link.classroom_id, content, _now()
-                        )
-                    )
+                )
 
     async def _sync_account(self, client: SigaaClient) -> None:
         """O sync do login: perfil, turmas e as telas das turmas que venceram."""
@@ -303,14 +303,14 @@ class SyncEngine:
             await self._save_statistics(link.classroom_id, shares)
 
     async def _job(
-        self, task: Task, classroom_id: str | None = None, *, news_id: int | None = None
+        self, task: Task, classroom_id: str | None = None, *, item_id: int | None = None
     ) -> Job:
         return Job(
             task=task,
             registration=self.registration,
             session_token=await self._sigaa.token(),
             classroom_id=classroom_id,
-            news_id=news_id,
+            item_id=item_id,
         )
 
     async def _save_profile(self, profile: UserProfile) -> None:
