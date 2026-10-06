@@ -81,7 +81,7 @@
             "get": {
                 "tags": ["Classrooms"],
                 "summary": "Consultar notícias de uma turma do usuário",
-                "description": "ID, título e dia das notícias da turma, sem cache.",
+                "description": "ID, título e dia das notícias da turma. Cache de 60 minutos, atualizado em segundo plano após vencer; notícias removidas no SIGAA são preservadas.",
                 "operationId": "get_classroom_news_classrooms__classroom_id__news_get",
                 "parameters": [
                     {
@@ -94,6 +94,24 @@
                             "title": "Classroom Id"
                         },
                         "description": "Classroom.id ou o classroom_sigaa_id de /news."
+                    },
+                    {
+                        "name": "Cache-Control",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
+                            "title": "Cache-Control"
+                        },
+                        "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache)."
                     }
                 ],
                 "responses": {
@@ -120,6 +138,12 @@
                     "404": {
                         "description": "Turma não encontrada entre as turmas do usuário."
                     },
+                    "503": {
+                        "description": "Cache em atualização."
+                    },
+                    "504": {
+                        "description": "Notícias ainda não disponíveis no cache."
+                    },
                     "422": {
                         "description": "Validation Error",
                         "content": {
@@ -137,7 +161,7 @@
             "get": {
                 "tags": ["Classrooms"],
                 "summary": "Consultar conteúdo e anexos de uma notícia da turma",
-                "description": "Texto em Markdown, data e hora e anexos da notícia, sem cache.",
+                "description": "Texto em Markdown, data e hora e anexos. Conteúdo salvo no primeiro acesso, sem revalidação automática. Cache-Control: no-cache força uma nova consulta.",
                 "operationId": "get_classroom_news_detail_classrooms__classroom_id__news__news_id__get",
                 "parameters": [
                     {
@@ -162,6 +186,24 @@
                             "title": "News Id"
                         },
                         "description": "ID da notícia na listagem da turma."
+                    },
+                    {
+                        "name": "Cache-Control",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
+                            "title": "Cache-Control"
+                        },
+                        "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache)."
                     }
                 ],
                 "responses": {
@@ -183,6 +225,12 @@
                     },
                     "404": {
                         "description": "Turma fora da lista do usuário ou notícia ausente na turma."
+                    },
+                    "503": {
+                        "description": "Cache em atualização."
+                    },
+                    "504": {
+                        "description": "Conteúdo ainda não disponível no cache."
                     },
                     "422": {
                         "description": "Validation Error",

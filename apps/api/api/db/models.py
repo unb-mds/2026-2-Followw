@@ -7,7 +7,7 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from api.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
-from api.db.enums import ClassroomRole, ClassroomStatus, StudentSituation, UserLevel
+from api.db.enums import ClassroomRole, ClassroomStatus, UserLevel
 
 
 def _enum(enum: type, name: str) -> SAEnum:
@@ -78,6 +78,7 @@ class Classroom(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     room: Mapped[str | None] = mapped_column()
     subject_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("subjects.id"))
     members_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    news_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     statistics_synced_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True)
     )
@@ -86,7 +87,7 @@ class Classroom(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     user_links: Mapped[list[ClassroomUser]] = relationship(
         back_populates="classroom", cascade="all, delete-orphan"
     )
-    statistics: Mapped[list[ClassroomStatistic]] = relationship(
+    statistics: Mapped[ClassroomStatistic | None] = relationship(
         back_populates="classroom", cascade="all, delete-orphan"
     )
 
@@ -133,21 +134,31 @@ class ClassroomFrequencyCache(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
 class ClassroomStatistic(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "classroom_statistics"
+
+    classroom_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("classrooms.id", ondelete="CASCADE"), unique=True
+    )
+    data: Mapped[list[dict[str, object]]] = mapped_column(JSON)
+
+    classroom: Mapped[Classroom] = relationship(back_populates="statistics")
+
+
+class ClassroomNews(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "classroom_news"
     __table_args__ = (
-        UniqueConstraint(
-            "classroom_id", "situation", name="uq_classroom_statistic_situation"
-        ),
+        UniqueConstraint("classroom_id", "sigaa_id", name="uq_classroom_news_sigaa_id"),
     )
 
     classroom_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("classrooms.id", ondelete="CASCADE")
     )
-    situation: Mapped[StudentSituation] = mapped_column(
-        _enum(StudentSituation, "student_situation")
-    )
-    percentage: Mapped[float] = mapped_column()
-
-    classroom: Mapped[Classroom] = relationship(back_populates="statistics")
+    sigaa_id: Mapped[int] = mapped_column()
+    title: Mapped[str] = mapped_column()
+    published_on: Mapped[dt.date] = mapped_column()
+    published_at: Mapped[datetime | None] = mapped_column()
+    content: Mapped[str | None] = mapped_column(Text)
+    attachments: Mapped[list[dict[str, str]]] = mapped_column(JSON, default=list)
+    content_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class RestaurantMenu(Base, UUIDPrimaryKeyMixin, TimestampMixin):

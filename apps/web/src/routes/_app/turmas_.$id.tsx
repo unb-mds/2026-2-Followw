@@ -9,6 +9,7 @@ import type { components } from '#/queries/schema.gen';
 import { ErrorCard, ErrorState, SIGAA_DOWN_MESSAGE } from '#/components/ErrorState';
 import { HeaderBar } from '#/components/HeaderBar';
 import { LoginPromptCard } from '#/components/home/LoginPromptCard';
+import { ListCard, Meter } from '#/components/ListCard';
 import { LoadingText } from '#/components/LoadingText';
 import {
     Accordion,
@@ -18,7 +19,6 @@ import {
 } from '#/components/ui/accordion';
 import { buttonVariants } from '#/components/ui/button';
 import { Card, CardContent } from '#/components/ui/card';
-import { Progress } from '#/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
 import { formatClassroomDate, groupMembers } from '#/lib/classroom-details';
 import { Markdown } from '#/lib/markdown';
@@ -190,14 +190,6 @@ function InformationCard({ children }: { children: React.ReactNode }) {
     );
 }
 
-function ListCard({ className, children }: { className?: string; children: React.ReactNode }) {
-    return (
-        <Card size="sm" className={cn('gap-0 px-3 py-0', className)}>
-            {children}
-        </Card>
-    );
-}
-
 function TabError({ onRetry }: { onRetry: () => void }) {
     return <ErrorCard message={SIGAA_DOWN_MESSAGE} onRetry={onRetry} />;
 }
@@ -300,23 +292,6 @@ function FrequencyTab({ id }: { id: string }) {
     return <FrequencyContent data={frequency.data} />;
 }
 
-function Meter({ label, value, detail }: { label: string; value: number; detail: string }) {
-    return (
-        <div className="py-3">
-            <div className="flex items-baseline justify-between gap-2">
-                <h3 className="text-sm font-medium">{label}</h3>
-                <span className="text-sm font-semibold text-primary tabular-nums">{value}%</span>
-            </div>
-            <Progress
-                className="mt-2"
-                value={Math.min(100, Math.max(0, value))}
-                aria-label={label}
-            />
-            <p className="mt-1.5 text-xs text-muted-foreground">{detail}</p>
-        </div>
-    );
-}
-
 const ENTRY_STATUS: Record<components['schemas']['AttendanceStatus'], string> = {
     presente: 'text-primary',
     falta: 'text-destructive',
@@ -336,7 +311,7 @@ function FrequencyContent({ data }: { data: Frequency }) {
 
     return (
         <div className="space-y-3">
-            <ListCard className="divide-y divide-border">
+            <ListCard>
                 <Meter
                     label="Andamento das aulas"
                     value={data.progress.percentage}
@@ -364,7 +339,7 @@ function FrequencyContent({ data }: { data: Frequency }) {
                     {entries && entries.length > 0 && (
                         <section>
                             <GroupTitle title="Aulas" count={entries.length} />
-                            <ListCard className="divide-y divide-border">
+                            <ListCard>
                                 {entries.map(({ entry, key }) => (
                                     <div
                                         key={key}
@@ -427,7 +402,7 @@ function MemberGroup({ title, members }: { title: string; members: Member[] }) {
     return (
         <section>
             <GroupTitle title={title} count={members.length} />
-            <ListCard className="divide-y divide-border">
+            <ListCard>
                 {members.map((member, index) => (
                     <div
                         key={member.person_id ?? member.registration ?? index}

@@ -24,7 +24,7 @@ describe('rota raiz e manifest PWA', () => {
         expect(manifest.short_name).toBe('Followw');
         expect(manifest.start_url).toBe('/');
         expect(manifest.display).toBe('standalone');
-        expect(manifest.theme_color).toBe('#15803d');
+        expect(manifest.theme_color).toBe('#007c5d');
         expect(manifest.background_color).toBe('#ffffff');
 
         // reutiliza favicon.svg como ícone da aplicação

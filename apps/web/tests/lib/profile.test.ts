@@ -8,7 +8,11 @@ describe('titleCase', () => {
         ['JOÃO DOS SANTOS E SILVA', 'João dos Santos e Silva'],
         ['CIÊNCIA DA COMPUTAÇÃO', 'Ciência da Computação'],
         ['  ENGENHARIA   DE SOFTWARE ', 'Engenharia de Software'],
-        ['DE ASSIS', 'De Assis']
+        ['DE ASSIS', 'De Assis'],
+        ["MARIA-JOSÉ D'ÁVILA", "Maria-José D'Ávila"],
+        ['CIÊNCIAS AMBIENTAIS (PROFISSIONAL)', 'Ciências Ambientais (Profissional)'],
+        ['PEDRO DE ALCÂNTARA II', 'Pedro de Alcântara II'],
+        ['VIVIANE XAVIER', 'Viviane Xavier']
     ])('formata %s', (text, expected) => {
         expect(titleCase(text)).toBe(expected);
     });

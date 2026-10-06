@@ -49,8 +49,8 @@ function LoginPage() {
               : undefined;
 
     return (
-        <main className="login-page flex min-h-dvh w-full flex-col items-center bg-background text-foreground shadow-2xl">
-            <div className="login-content flex w-full flex-col items-center px-10 pt-42">
+        <main className="flex min-h-dvh w-full flex-col items-center bg-background text-foreground shadow-2xl">
+            <div className="flex w-full flex-col items-center px-10 pt-42">
                 <header className="flex flex-col items-center text-center">
                     <FollowwLogo className="h-auto w-20 drop-shadow-sm" />
                     <h1 className="mt-2 text-3xl leading-tight font-extrabold tracking-tight">

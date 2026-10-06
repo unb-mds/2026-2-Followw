@@ -8,6 +8,9 @@ const indexFormat = new Intl.NumberFormat('pt-BR', {
 });
 
 const LOWERCASE_WORDS = new Set(['a', 'as', 'da', 'das', 'de', 'do', 'dos', 'e', 'em', 'o', 'os']);
+const ROMAN_NUMERAL = /^[ivx]+$/;
+// início de palavra, inclusive após hífen, apóstrofo, parêntese ou barra
+const WORD_START = /(^|[-'’(/])(\p{L})/gu;
 
 // o SIGAA devolve nomes e cursos em caixa alta
 export function titleCase(text: string) {
@@ -15,12 +18,20 @@ export function titleCase(text: string) {
         .toLocaleLowerCase('pt-BR')
         .split(/\s+/)
         .filter(Boolean)
-        .map((word, index) =>
-            index > 0 && LOWERCASE_WORDS.has(word)
-                ? word
-                : word.charAt(0).toLocaleUpperCase('pt-BR') + word.slice(1)
-        )
+        .map((word, index) => {
+            if (index === 0) return capitalize(word);
+            if (LOWERCASE_WORDS.has(word)) return word;
+            if (ROMAN_NUMERAL.test(word)) return word.toLocaleUpperCase('pt-BR');
+            return capitalize(word);
+        })
         .join(' ');
+}
+
+function capitalize(word: string) {
+    return word.replace(
+        WORD_START,
+        (_, start, letter) => start + letter.toLocaleUpperCase('pt-BR')
+    );
 }
 
 export interface AcademicIndex {
