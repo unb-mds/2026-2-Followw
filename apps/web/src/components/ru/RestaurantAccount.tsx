@@ -139,7 +139,7 @@ function StudentCardDrawer({
             >
                 <QrCode className="size-6" aria-hidden="true" />
             </DrawerTrigger>
-            <DrawerContent className="mx-auto max-w-lg">
+            <DrawerContent data-theme="light" className="mx-auto max-w-lg">
                 <DrawerHeader className="md:text-center">
                     <DrawerTitle>Carteirinha estudantil</DrawerTitle>
                     <DrawerDescription>
