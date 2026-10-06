@@ -80,10 +80,7 @@ export const ClassCard: React.FC<ClassCardProps> = ({
                     <Button
                         variant="ghost"
                         size="icon-xs"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onLocationClick();
-                        }}
+                        onClick={onLocationClick}
                         className="pointer-events-auto ml-auto text-muted-foreground"
                         title="Ver mapa da sala"
                         aria-label="Ver mapa da sala"

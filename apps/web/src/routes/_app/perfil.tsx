@@ -4,11 +4,11 @@ import { ChevronRight, LogOut } from 'lucide-react';
 
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
+import { ListCard } from '#/components/ListCard';
 import {
     AcademicPerformance,
     EnrollmentDetails,
     ProfileIdentity,
-    ProfileList,
     ProfileSection
 } from '#/components/profile/ProfileOverview';
 import { ThemeToggle } from '#/components/ThemeToggle';
@@ -64,9 +64,9 @@ function PerfilPage() {
 function AccountSection() {
     return (
         <ProfileSection title="Conta">
-            <ProfileList>
+            <ListCard>
                 <LogoutButton />
-            </ProfileList>
+            </ListCard>
         </ProfileSection>
     );
 }

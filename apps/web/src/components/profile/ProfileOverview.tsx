@@ -3,9 +3,9 @@ import { useState } from 'react';
 
 import type { components } from '#/queries/schema.gen';
 
+import { ListCard, Meter } from '#/components/ListCard';
 import { Button } from '#/components/ui/button';
 import { Card } from '#/components/ui/card';
-import { Progress } from '#/components/ui/progress';
 import { academicIndexes, titleCase } from '#/lib/profile';
 import { cn } from '#/lib/shadcn';
 
@@ -74,19 +74,11 @@ export function AcademicPerformance({ user }: { user: UserProfile }) {
                     </dl>
                 )}
                 {user.integralization != null && (
-                    <div className="border-t border-border px-3 py-3 first:border-t-0">
-                        <div className="flex items-baseline justify-between gap-2">
-                            <h3 className="text-sm font-medium">Integralização</h3>
-                            <span className="text-sm font-semibold text-primary tabular-nums">
-                                {user.integralization.toLocaleString('pt-BR')}%
-                            </span>
-                        </div>
-                        <Progress
-                            className="mt-2"
-                            value={Math.min(100, Math.max(0, user.integralization))}
-                            aria-label="Integralização"
-                        />
-                    </div>
+                    <Meter
+                        label="Integralização"
+                        value={user.integralization}
+                        className="border-t border-border px-3 first:border-t-0"
+                    />
                 )}
             </Card>
         </ProfileSection>
@@ -96,7 +88,7 @@ export function AcademicPerformance({ user }: { user: UserProfile }) {
 export function EnrollmentDetails({ user }: { user: UserProfile }) {
     return (
         <ProfileSection title="Vínculo">
-            <ProfileList>
+            <ListCard>
                 <ProfileRow icon={IdCard} label="Matrícula">
                     <span className="tabular-nums">{user.registration}</span>
                     <CopyButton value={user.registration} label="matrícula" />
@@ -109,7 +101,7 @@ export function EnrollmentDetails({ user }: { user: UserProfile }) {
                         <CopyButton value={user.email} label="e-mail" />
                     </ProfileRow>
                 )}
-            </ProfileList>
+            </ListCard>
         </ProfileSection>
     );
 }
@@ -120,14 +112,6 @@ export function ProfileSection({ title, children }: { title: string; children: R
             <h2 className="mb-2 px-1 text-sm font-semibold">{title}</h2>
             {children}
         </section>
-    );
-}
-
-export function ProfileList({ children }: { children: React.ReactNode }) {
-    return (
-        <Card size="sm" className="gap-0 divide-y divide-border px-3 py-0">
-            {children}
-        </Card>
     );
 }
 
