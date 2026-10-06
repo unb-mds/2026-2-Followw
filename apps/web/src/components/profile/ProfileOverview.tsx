@@ -7,7 +7,7 @@ import { Button } from '#/components/ui/button';
 import { Card } from '#/components/ui/card';
 import { Progress } from '#/components/ui/progress';
 import { academicIndexes, titleCase } from '#/lib/profile';
-import { cn } from '#/lib/utils';
+import { cn } from '#/lib/shadcn';
 
 type UserProfile = components['schemas']['UserProfile'];
 

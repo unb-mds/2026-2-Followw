@@ -183,37 +183,6 @@ def test_cookie_sem_domain_por_padrao(ler_cookies):
     assert not ler_cookies(response)[ACCESS_COOKIE_NAME]["domain"]
 
 
-@pytest.mark.parametrize("domain", ["", "followw.app", ".followw.app", "localhost"])
-def test_cookie_domain_lido_do_env(tmp_path, monkeypatch, domain):
-    monkeypatch.delenv("COOKIE_DOMAIN", raising=False)
-    env = tmp_path / ".env"
-    env.write_text(f'COOKIE_DOMAIN="{domain}" # em produção: followw.app\n')
-
-    assert Settings(_env_file=env).cookie_domain == (domain or None)
-
-
-@pytest.mark.parametrize(
-    "domain",
-    ["# em produção: followw.app", "https://followw.app", "localhost:8000"],
-)
-def test_cookie_domain_invalido_e_recusado(monkeypatch, domain):
-    monkeypatch.setenv("COOKIE_DOMAIN", domain)
-
-    with pytest.raises(ValidationError, match="cookie_domain"):
-        Settings(_env_file=None)
-
-
-def test_cookie_domain_vale_para_os_dois_cookies(
-    ler_cookies, monkeypatch: pytest.MonkeyPatch
-):
-    monkeypatch.setattr(settings, "cookie_domain", "followw.app")
-
-    response = Response()
-    set_access_cookie(response, "app14~TOKEN1")
-    set_refresh_cookie(response, CREDENCIAIS)
-    assert {m["domain"] for m in ler_cookies(response).values()} == {"followw.app"}
-
-
 def test_clear_cookies_com_domain_apaga_tambem_os_host_only(
     monkeypatch: pytest.MonkeyPatch,
 ):

@@ -2,7 +2,7 @@ import { MapIcon, MapPin } from 'lucide-react';
 
 import { Button } from '#/components/ui/button';
 import { Card } from '#/components/ui/card';
-import { cn } from '#/lib/utils';
+import { cn } from '#/lib/shadcn';
 
 export interface ClassCardProps {
     title: string;

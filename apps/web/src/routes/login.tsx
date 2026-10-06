@@ -15,7 +15,7 @@ import {
     InputGroupInput
 } from '#/components/ui/input-group';
 import { Label } from '#/components/ui/label';
-import { cn } from '#/lib/utils';
+import { cn } from '#/lib/shadcn';
 import { useLogin } from '#/queries/auth';
 import { ApiError } from '#/queries/errors';
 import { meQueryOptions } from '#/queries/me';

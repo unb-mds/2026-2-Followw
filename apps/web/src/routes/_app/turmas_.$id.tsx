@@ -23,7 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
 import { formatClassroomDate, groupMembers } from '#/lib/classroom-details';
 import { Markdown } from '#/lib/markdown';
 import { describeSchedule } from '#/lib/schedule';
-import { cn } from '#/lib/utils';
+import { cn } from '#/lib/shadcn';
 import {
     allClassroomsQueryOptions,
     classroomFrequencyQueryOptions,
