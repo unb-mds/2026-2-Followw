@@ -15,7 +15,7 @@ describe('rota raiz e manifest PWA', () => {
         expect(links).toContainEqual({ rel: 'apple-touch-icon', href: '/favicon.svg' });
 
         const meta = head?.meta ?? [];
-        expect(meta).toContainEqual({ name: 'theme-color', content: '#1ea6a9' });
+        expect(meta).toContainEqual({ name: 'theme-color', content: manifest.theme_color });
         expect(meta).toContainEqual({ name: 'apple-mobile-web-app-capable', content: 'yes' });
     });
 
@@ -24,8 +24,8 @@ describe('rota raiz e manifest PWA', () => {
         expect(manifest.short_name).toBe('Followw');
         expect(manifest.start_url).toBe('/');
         expect(manifest.display).toBe('standalone');
-        expect(manifest.theme_color).toBe('#1ea6a9');
-        expect(manifest.background_color).toBe('#f5faff');
+        expect(manifest.theme_color).toBe('#15803d');
+        expect(manifest.background_color).toBe('#ffffff');
 
         // reutiliza favicon.svg como ícone da aplicação
         expect(manifest.icons).toEqual(

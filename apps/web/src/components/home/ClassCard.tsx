@@ -1,19 +1,26 @@
 import { MapIcon, MapPin } from 'lucide-react';
 
-import { Card } from '#/components/ui/Card';
+import { Button } from '#/components/ui/button';
+import { Card } from '#/components/ui/card';
+import { cn } from '#/lib/shadcn';
 
 export interface ClassCardProps {
     title: string;
     code?: string;
     time: string;
-    location: string;
+    location?: string;
     professor?: string;
     status?: 'in_progress' | 'next' | 'normal' | 'warning';
     statusText?: string;
-    accentColor?: string;
     onLocationClick?: () => void;
     onClick?: () => void;
 }
+
+const STATUS = {
+    in_progress: { label: 'Em andamento', className: 'text-primary' },
+    next: { label: 'Próxima', className: 'text-muted-foreground' },
+    warning: { label: 'Atenção', className: 'text-destructive' }
+} as const;
 
 export const ClassCard: React.FC<ClassCardProps> = ({
     title,
@@ -23,63 +30,66 @@ export const ClassCard: React.FC<ClassCardProps> = ({
     professor,
     status = 'normal',
     statusText,
-    accentColor = 'var(--color-primary)',
     onLocationClick,
     onClick
 }) => {
+    const statusInfo = status === 'normal' ? undefined : STATUS[status];
+    const active = status === 'in_progress';
+
     return (
-        <Card accentColor={accentColor} onClick={onClick}>
-            <div className="mb-1 flex items-start justify-between gap-2 pl-1">
-                <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-success">{time}</span>
-                    {status === 'in_progress' && (
-                        <span className="flex items-center gap-1 rounded-full bg-mint-light/50 px-2 py-0.5 text-xs font-bold tracking-wider text-success uppercase">
-                            <span className="h-1.5 w-1.5 animate-ping rounded-full bg-live" />
-                            {statusText || 'Em andamento'}
-                        </span>
-                    )}
-                    {status === 'next' && (
-                        <span className="text-xs font-semibold text-muted">
-                            {statusText || 'Próxima'}
-                        </span>
-                    )}
-                    {status === 'warning' && (
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold tracking-wider text-amber-800 uppercase">
-                            {statusText || 'Atenção'}
-                        </span>
-                    )}
-                </div>
+        <Card
+            size="sm"
+            className={cn('relative gap-1 px-3', active && 'bg-primary/5 ring-primary/30')}
+        >
+            {onClick && (
+                <Button
+                    variant="ghost"
+                    onClick={onClick}
+                    aria-label={title}
+                    className="absolute inset-0 h-full w-full rounded-2xl hover:bg-primary/5"
+                />
+            )}
+            <div className="pointer-events-none relative flex items-baseline gap-2 text-xs">
+                <span className="min-w-0 font-semibold text-primary tabular-nums">{time}</span>
+                {statusInfo && (
+                    <span
+                        className={cn(
+                            'flex shrink-0 items-center gap-1 font-medium',
+                            statusInfo.className
+                        )}
+                    >
+                        {active && <span className="size-1.5 rounded-full bg-primary" />}
+                        {statusText || statusInfo.label}
+                    </span>
+                )}
                 {code && (
-                    <span className="text-xs font-semibold tracking-wider text-muted uppercase">
+                    <span className="ml-auto shrink-0 font-medium tracking-wide text-muted-foreground">
                         {code}
                     </span>
                 )}
             </div>
-
-            <div className="mb-2 pl-1">
-                <h3 className="cursor-pointer text-base font-bold text-ink transition-colors hover:text-primary">
-                    {title}
-                </h3>
-                {professor && <p className="mt-0.5 text-xs text-muted">{professor}</p>}
-            </div>
-
-            <div className="flex items-center justify-between border-t border-line/60 pt-2 pl-1">
-                <div className="flex items-center gap-1.5 text-xs font-medium text-muted">
-                    <MapPin className="size-4 text-primary" />
-                    <span>{location}</span>
-                </div>
+            <h3 className="pointer-events-none relative line-clamp-2 text-sm leading-snug font-semibold">
+                {title}
+            </h3>
+            <div className="pointer-events-none relative flex items-center gap-2 text-xs text-muted-foreground">
+                {location && <MapPin className="size-3 shrink-0" />}
+                <span className="min-w-0 truncate">
+                    {[location, professor].filter(Boolean).join(' · ')}
+                </span>
                 {onLocationClick && (
-                    <button
-                        type="button"
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
                         onClick={(e) => {
                             e.stopPropagation();
                             onLocationClick();
                         }}
-                        className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-line bg-surface text-muted transition hover:text-primary active:scale-95"
+                        className="pointer-events-auto ml-auto text-muted-foreground"
                         title="Ver mapa da sala"
+                        aria-label="Ver mapa da sala"
                     >
-                        <MapIcon className="size-4" />
-                    </button>
+                        <MapIcon />
+                    </Button>
                 )}
             </div>
         </Card>

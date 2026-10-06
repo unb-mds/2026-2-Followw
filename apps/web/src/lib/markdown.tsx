@@ -23,7 +23,7 @@ const components: Components = {
 
 export function Markdown({ children }: { children: string }) {
     return (
-        <div className="markdown text-sm leading-relaxed wrap-break-word text-ink-soft">
+        <div className="markdown text-sm leading-relaxed wrap-break-word text-muted-foreground">
             <ReactMarkdown skipHtml remarkPlugins={[remarkGfm]} components={components}>
                 {children}
             </ReactMarkdown>

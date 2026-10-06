@@ -1,10 +1,11 @@
 import { Link } from '@tanstack/react-router';
-import { Utensils } from 'lucide-react';
+import { Soup, UtensilsCrossed } from 'lucide-react';
 
 import type { Campus, DailyMenu, MenuSection } from '#/queries/restaurant';
 
-import { Card } from '#/components/ui/Card';
-import { SectionHeader } from '#/components/ui/SectionHeader';
+import { LoadingText } from '#/components/LoadingText';
+import { SectionHeader } from '#/components/SectionHeader';
+import { Card } from '#/components/ui/card';
 import { CAMPUS_LABELS } from '#/queries/restaurant';
 
 interface PublicInfoSectionProps {
@@ -24,49 +25,52 @@ export const PublicInfoSection: React.FC<PublicInfoSectionProps> = ({
     isLoading
 }) => {
     const meals = [
-        { label: 'Almoço', color: 'var(--color-primary)', dish: mainDish(menu?.lunch) },
-        { label: 'Jantar', color: 'var(--color-primary-dark)', dish: mainDish(menu?.dinner) }
+        { label: 'Almoço', icon: UtensilsCrossed, dish: mainDish(menu?.lunch) },
+        { label: 'Jantar', icon: Soup, dish: mainDish(menu?.dinner) }
     ].filter((meal) => meal.dish);
 
     return (
-        <div className="mt-6 flex flex-col gap-4">
-            <div>
-                <SectionHeader title="RU" actionLabel="Ver Cardápio" actionTo="/ru" />
-                <Link to="/ru">
-                    <Card className="cursor-pointer transition-all hover:border-primary">
-                        <div className="mb-2 flex items-center gap-3">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-primary/20 bg-primary-light text-primary">
-                                <Utensils className="size-5" />
+        <section className="mt-6" aria-label="RU">
+            <SectionHeader title="RU" actionLabel="Ver Cardápio" actionTo="/ru" />
+            <Card size="sm" className="relative gap-2 px-3">
+                <Link
+                    to="/ru"
+                    aria-label="Ver cardápio do RU"
+                    className="absolute inset-0 rounded-2xl transition-colors hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-ring"
+                />
+                <div className="pointer-events-none relative flex items-baseline gap-2 text-xs">
+                    <span className="font-semibold text-primary">Prato principal hoje</span>
+                    <span className="ml-auto truncate font-medium text-muted-foreground">
+                        Campus {CAMPUS_LABELS[campus]}
+                    </span>
+                </div>
+                {meals.length > 0 ? (
+                    <dl className="pointer-events-none relative space-y-1.5">
+                        {meals.map((meal) => (
+                            <div key={meal.label} className="flex items-center gap-2">
+                                <meal.icon
+                                    className="size-3.5 shrink-0 text-muted-foreground"
+                                    aria-hidden="true"
+                                />
+                                <dt className="w-12 shrink-0 text-xs text-muted-foreground">
+                                    {meal.label}
+                                </dt>
+                                <dd className="min-w-0 truncate text-sm font-semibold">
+                                    {meal.dish}
+                                </dd>
                             </div>
-                            <div>
-                                <h3 className="text-sm font-bold text-ink">Prato Principal Hoje</h3>
-                                <p className="text-xs text-muted">Campus {CAMPUS_LABELS[campus]}</p>
-                            </div>
-                        </div>
-
-                        <div className="space-y-1.5 border-t border-line/60 pt-2">
-                            {meals.map((meal) => (
-                                <div key={meal.label} className="flex items-start gap-2 text-xs">
-                                    <span
-                                        className="shrink-0 font-bold"
-                                        style={{ color: meal.color }}
-                                    >
-                                        {meal.label}:
-                                    </span>
-                                    <span className="line-clamp-1 text-ink">{meal.dish}</span>
-                                </div>
-                            ))}
-                            {meals.length === 0 && (
-                                <p className="text-xs text-muted">
-                                    {isLoading
-                                        ? 'Carregando cardápio...'
-                                        : 'Cardápio de hoje não publicado.'}
-                                </p>
-                            )}
-                        </div>
-                    </Card>
-                </Link>
-            </div>
-        </div>
+                        ))}
+                    </dl>
+                ) : (
+                    <p className="pointer-events-none relative text-xs text-muted-foreground">
+                        {isLoading ? (
+                            <LoadingText>Carregando cardápio...</LoadingText>
+                        ) : (
+                            'Cardápio de hoje não publicado.'
+                        )}
+                    </p>
+                )}
+            </Card>
+        </section>
     );
 };

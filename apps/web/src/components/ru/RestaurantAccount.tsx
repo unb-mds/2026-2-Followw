@@ -8,6 +8,25 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { Day } from '#/lib/schedule';
 import type { RestaurantCredentials, RestaurantStatement } from '#/queries/restaurant-account';
 
+import { LoadingText } from '#/components/LoadingText';
+import {
+    Accordion,
+    AccordionContent,
+    AccordionItem,
+    AccordionTrigger
+} from '#/components/ui/accordion';
+import { Button } from '#/components/ui/button';
+import { Card, CardContent } from '#/components/ui/card';
+import {
+    Drawer,
+    DrawerClose,
+    DrawerContent,
+    DrawerDescription,
+    DrawerFooter,
+    DrawerHeader,
+    DrawerTitle,
+    DrawerTrigger
+} from '#/components/ui/drawer';
 import { cardIsExpired, insufficientMealBalance } from '#/lib/restaurant';
 import { nowInBrasilia } from '#/lib/schedule';
 import { refreshQuery } from '#/queries/refresh';
@@ -56,107 +75,156 @@ export function RestaurantAccount({ registration }: { registration: string }) {
         setRefreshing(false);
     };
 
+    const cardDrawer = <StudentCardDrawer credentials={credentials} />;
+
     return (
-        <section className="mt-8 space-y-3" aria-label="Minha conta do RU">
+        <section className="mt-8 space-y-3" aria-label="Minha conta">
             <div className="flex items-center justify-between px-1">
-                <h2 className="text-lg font-extrabold text-ink">Minha conta do RU</h2>
-                <button
-                    type="button"
+                <h2 className="text-lg font-extrabold text-foreground">Minha conta</h2>
+                <Button
+                    variant="ghost"
+                    size="xs"
                     onClick={refresh}
                     disabled={refreshing || statement.isFetching || credentials.isFetching}
-                    className="flex cursor-pointer items-center gap-1 text-xs font-bold text-primary-dark disabled:opacity-60"
+                    className="text-primary"
                 >
                     <RefreshCw
                         className={refreshing ? 'size-4 animate-spin' : 'size-4'}
                         aria-hidden="true"
                     />
                     {refreshing ? 'Atualizando...' : 'Atualizar'}
-                </button>
+                </Button>
             </div>
 
-            <div className="rounded-2xl border border-line bg-white p-4 shadow-sm">
-                <div className="mb-2 flex items-center gap-2 text-sm font-bold text-muted">
-                    <Wallet className="size-5" aria-hidden="true" />
-                    Saldo disponível
-                </div>
-                {statement.data && <StatementDetails statement={statement.data} />}
-                <AccountStatus
-                    query={statement}
-                    hasData={Boolean(statement.data)}
-                    label="saldo e extrato"
-                />
-            </div>
-
-            <details className="rounded-2xl border border-line bg-white p-4 shadow-sm">
-                <summary className="cursor-pointer text-sm font-bold text-ink">
-                    <QrCode className="mr-2 inline size-5 text-primary-dark" aria-hidden="true" />
-                    Carteirinha estudantil
-                </summary>
-                {credentials.data && <StudentCard credentials={credentials.data} />}
-                <AccountStatus
-                    query={credentials}
-                    hasData={Boolean(credentials.data)}
-                    label="carteirinha"
-                />
-            </details>
+            <Card>
+                <CardContent>
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 text-sm font-bold text-muted-foreground">
+                            <Wallet className="size-4" aria-hidden="true" />
+                            Saldo disponível
+                        </div>
+                        {!statement.data && cardDrawer}
+                    </div>
+                    {statement.data && (
+                        <StatementDetails statement={statement.data} action={cardDrawer} />
+                    )}
+                    <AccountStatus
+                        query={statement}
+                        hasData={Boolean(statement.data)}
+                        label="saldo e extrato"
+                    />
+                </CardContent>
+            </Card>
         </section>
+    );
+}
+
+function StudentCardDrawer({
+    credentials
+}: {
+    credentials: UseQueryResult<RestaurantCredentials>;
+}) {
+    return (
+        <Drawer showSwipeHandle>
+            <DrawerTrigger
+                render={
+                    <Button
+                        variant="outline"
+                        size="icon-sm"
+                        className="size-10 rounded-xl"
+                        aria-label="Ver QR code da carteirinha"
+                        title="Ver QR code da carteirinha"
+                    />
+                }
+            >
+                <QrCode className="size-6" aria-hidden="true" />
+            </DrawerTrigger>
+            <DrawerContent className="mx-auto max-w-lg">
+                <DrawerHeader className="md:text-center">
+                    <DrawerTitle>Carteirinha estudantil</DrawerTitle>
+                    <DrawerDescription>
+                        QR code para acesso ao Restaurante Universitário.
+                    </DrawerDescription>
+                </DrawerHeader>
+                <div className="overflow-y-auto p-4">
+                    {credentials.data && <StudentCard credentials={credentials.data} />}
+                    <AccountStatus
+                        query={credentials}
+                        hasData={Boolean(credentials.data)}
+                        label="carteirinha"
+                    />
+                </div>
+                <DrawerFooter>
+                    <DrawerClose render={<Button variant="outline" />}>Fechar</DrawerClose>
+                </DrawerFooter>
+            </DrawerContent>
+        </Drawer>
     );
 }
 
 export function StatementDetails({
     statement,
+    action,
     now = nowInBrasilia()
 }: {
     statement: RestaurantStatement;
+    action?: React.ReactNode;
     now?: Day & { time: string };
 }) {
     const warning = insufficientMealBalance(statement.balance, statement.group, now);
     return (
         <>
-            <p className="text-3xl font-extrabold text-primary-dark tabular-nums">
-                {statement.balance == null
-                    ? 'Saldo não informado'
-                    : currency.format(Number(statement.balance))}
-            </p>
+            <div className="flex items-center justify-between gap-3">
+                <p className="text-3xl font-extrabold text-primary tabular-nums">
+                    {statement.balance == null
+                        ? 'Saldo não informado'
+                        : currency.format(Number(statement.balance))}
+                </p>
+                {action}
+            </div>
             {warning && (
                 <p
                     aria-live="polite"
-                    className="mt-3 rounded-xl border border-warning/40 bg-warning/10 p-3 text-sm font-semibold text-ink"
+                    className="mt-3 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm font-semibold text-foreground"
                 >
                     Saldo insuficiente para o {warning.meal.label.toLocaleLowerCase('pt-BR')}. A
                     refeição custa {currency.format(warning.price)} e faltam{' '}
                     {currency.format(warning.shortfall)}.
                 </p>
             )}
-            <details className="mt-4 border-t border-line pt-3">
-                <summary className="cursor-pointer text-sm font-bold text-primary-dark">
-                    Extrato do RU
-                </summary>
-                {statement.entries.length === 0 ? (
-                    <p className="mt-3 text-sm text-muted">Nenhuma movimentação no extrato.</p>
-                ) : (
-                    <ul className="mt-2 max-h-64 divide-y divide-line overflow-y-auto">
-                        {statement.entries.map((entry) => (
-                            <li
-                                key={`${entry.occurred_at}-${entry.description}-${entry.amount}`}
-                                className="flex items-center justify-between gap-3 py-3"
-                            >
-                                <div className="min-w-0">
-                                    <p className="text-sm font-semibold text-ink">
-                                        {entry.description.replace(/^grupo\s*\d+\s+/i, '')}
-                                    </p>
-                                    <p className="mt-1 text-xs text-muted">
-                                        {dateTime.format(new Date(entry.occurred_at))}
-                                    </p>
-                                </div>
-                                <span className="shrink-0 text-sm font-bold text-ink tabular-nums">
-                                    {currency.format(Number(entry.amount))}
-                                </span>
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </details>
+            <Accordion className="mt-4 border-t border-border pt-3">
+                <AccordionItem value="statement">
+                    <AccordionTrigger className="py-0 text-primary">Extrato do RU</AccordionTrigger>
+                    <AccordionContent keepMounted>
+                        {statement.entries.length === 0 ? (
+                            <p className="mt-3 text-sm text-muted-foreground">
+                                Nenhuma movimentação no extrato.
+                            </p>
+                        ) : (
+                            <ul className="mt-2 max-h-64 divide-y divide-border overflow-y-auto">
+                                {statement.entries.map((entry) => (
+                                    <li
+                                        key={`${entry.occurred_at}-${entry.description}-${entry.amount}`}
+                                        className="flex items-center justify-between gap-3 py-3"
+                                    >
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-semibold text-foreground">
+                                                {entry.description.replace(/^grupo\s*\d+\s+/i, '')}
+                                            </p>
+                                            <p className="mt-1 text-xs text-muted-foreground">
+                                                {dateTime.format(new Date(entry.occurred_at))}
+                                            </p>
+                                        </div>
+                                        <span className="shrink-0 text-sm font-bold text-foreground tabular-nums">
+                                            {currency.format(Number(entry.amount))}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </AccordionContent>
+                </AccordionItem>
+            </Accordion>
         </>
     );
 }
@@ -172,7 +240,7 @@ export function StudentCard({
     return (
         <div className="mt-4 text-center">
             {expired ? (
-                <p className="text-sm font-semibold text-warning">
+                <p className="text-sm font-semibold text-destructive">
                     Carteirinha vencida. Atualize para consultar uma nova carteirinha no SIGAA.
                 </p>
             ) : (
@@ -182,17 +250,17 @@ export function StudentCard({
                         size={256}
                         marginSize={4}
                         level="M"
-                        fgColor="var(--color-night)"
-                        bgColor="var(--color-login-white)"
+                        fgColor="var(--foreground)"
+                        bgColor="var(--background)"
                         title="QR code da carteirinha estudantil"
                         className="mx-auto h-auto w-64 max-w-full"
                     />
-                    <p className="mt-2 text-sm text-muted">
+                    <p className="mt-2 text-sm text-muted-foreground">
                         Apresente este QR code na entrada do RU.
                     </p>
                 </>
             )}
-            <p className="mt-2 text-xs font-bold text-muted">
+            <p className="mt-2 text-xs font-bold text-muted-foreground">
                 Validade: {validity.format(new Date(`${credentials.valid_until}T00:00:00Z`))}
             </p>
         </div>
@@ -209,20 +277,21 @@ function AccountStatus({
     label: string;
 }) {
     return (
-        <div className="mt-3 text-xs text-muted" aria-live="polite">
-            {query.isPending && !hasData && <p>Carregando {label}...</p>}
+        <div className="mt-3 text-xs text-muted-foreground" aria-live="polite">
+            {query.isPending && !hasData && <LoadingText>Carregando {label}...</LoadingText>}
             {query.isError && (
                 <p>
                     {hasData
                         ? 'Não foi possível atualizar. Exibindo os últimos dados salvos.'
                         : `Não foi possível carregar ${label}.`}{' '}
-                    <button
-                        type="button"
+                    <Button
+                        variant="link"
+                        size="xs"
                         onClick={() => query.refetch()}
-                        className="cursor-pointer font-bold text-primary-dark"
+                        className="h-auto p-0"
                     >
                         Tentar novamente
-                    </button>
+                    </Button>
                 </p>
             )}
             {hasData && query.dataUpdatedAt > 0 && (
