@@ -4,8 +4,18 @@ import { useState } from 'react';
 
 import { LoginPrivacyInfo } from '#/components/auth/LoginPrivacyInfo';
 import { LoginSubmitButton } from '#/components/auth/LoginSubmitButton';
-import { ErrorState } from '#/components/ui/ErrorState';
-import { FollowwLogo } from '#/components/ui/FollowwLogo';
+import { ErrorState } from '#/components/ErrorState';
+import { FollowwLogo } from '#/components/FollowwLogo';
+import { buttonVariants } from '#/components/ui/button';
+import { Input } from '#/components/ui/input';
+import {
+    InputGroup,
+    InputGroupAddon,
+    InputGroupButton,
+    InputGroupInput
+} from '#/components/ui/input-group';
+import { Label } from '#/components/ui/label';
+import { cn } from '#/lib/shadcn';
 import { useLogin } from '#/queries/auth';
 import { ApiError } from '#/queries/errors';
 import { meQueryOptions } from '#/queries/me';
@@ -39,14 +49,14 @@ function LoginPage() {
               : undefined;
 
     return (
-        <main className="login-page flex min-h-dvh w-full flex-col items-center shadow-2xl">
+        <main className="login-page flex min-h-dvh w-full flex-col items-center bg-background text-foreground shadow-2xl">
             <div className="login-content flex w-full flex-col items-center px-10 pt-42">
                 <header className="flex flex-col items-center text-center">
                     <FollowwLogo className="h-auto w-20 drop-shadow-sm" />
-                    <h1 className="mt-2 text-3xl leading-tight font-extrabold tracking-tight text-ink">
+                    <h1 className="mt-2 text-3xl leading-tight font-extrabold tracking-tight">
                         Followw
                     </h1>
-                    <p className="text-xs text-login-muted">Universidade de Brasília</p>
+                    <p className="text-xs text-muted-foreground">Universidade de Brasília</p>
                 </header>
 
                 <form
@@ -60,10 +70,10 @@ function LoginPage() {
                         );
                     }}
                 >
-                    <label htmlFor="registration" className="sr-only">
+                    <Label htmlFor="registration" className="sr-only">
                         Matrícula
-                    </label>
-                    <input
+                    </Label>
+                    <Input
                         id="registration"
                         type="text"
                         inputMode="numeric"
@@ -74,14 +84,14 @@ function LoginPage() {
                         value={registration}
                         onChange={(event) => setRegistration(event.target.value)}
                         placeholder="Matrícula"
-                        className="h-12 w-full rounded-2xl border border-login-border bg-white/90 px-4 text-sm text-ink shadow-sm outline-none placeholder:text-login-muted focus:border-login-blue focus:ring-2 focus:ring-login-blue/15"
+                        className="h-12 rounded-2xl bg-background px-4 shadow-sm"
                     />
 
-                    <div className="relative mt-3">
-                        <label htmlFor="password" className="sr-only">
-                            Senha do SIGAA
-                        </label>
-                        <input
+                    <Label htmlFor="password" className="sr-only">
+                        Senha do SIGAA
+                    </Label>
+                    <InputGroup className="mt-3 h-12 rounded-2xl bg-background shadow-sm">
+                        <InputGroupInput
                             id="password"
                             type={showPassword ? 'text' : 'password'}
                             autoComplete="current-password"
@@ -91,27 +101,29 @@ function LoginPage() {
                             value={password}
                             onChange={(event) => setPassword(event.target.value)}
                             placeholder="Senha do SIGAA"
-                            className="h-12 w-full rounded-2xl border border-login-border bg-white/90 py-2 pr-12 pl-4 text-sm text-ink shadow-sm outline-none placeholder:text-login-muted focus:border-login-blue focus:ring-2 focus:ring-login-blue/15"
+                            className="h-full pl-4"
                         />
-                        <button
-                            type="button"
-                            onClick={() => setShowPassword((visible) => !visible)}
-                            aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
-                            aria-controls="password"
-                            className="absolute inset-y-0 right-0 flex w-12 cursor-pointer items-center justify-center rounded-r-2xl text-login-muted transition hover:text-ink focus-visible:outline-2 focus-visible:outline-login-blue"
-                        >
-                            {showPassword ? (
-                                <EyeOff className="size-5" aria-hidden="true" />
-                            ) : (
-                                <Eye className="size-5" aria-hidden="true" />
-                            )}
-                        </button>
-                    </div>
+                        <InputGroupAddon align="inline-end">
+                            <InputGroupButton
+                                size="icon-sm"
+                                onClick={() => setShowPassword((visible) => !visible)}
+                                aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                                aria-controls="password"
+                                aria-pressed={showPassword}
+                            >
+                                {showPassword ? (
+                                    <EyeOff className="size-5" aria-hidden="true" />
+                                ) : (
+                                    <Eye className="size-5" aria-hidden="true" />
+                                )}
+                            </InputGroupButton>
+                        </InputGroupAddon>
+                    </InputGroup>
 
                     {error && (
                         <p
                             role="alert"
-                            className="mt-3 text-center text-xs font-semibold text-red-600"
+                            className="mt-3 text-center text-xs font-semibold text-destructive"
                         >
                             {error}
                         </p>
@@ -122,7 +134,10 @@ function LoginPage() {
 
                 <Link
                     to="/"
-                    className="mt-5 text-center text-xs font-semibold text-login-blue hover:underline"
+                    className={cn(
+                        buttonVariants({ variant: 'link' }),
+                        'mt-5 text-xs font-semibold'
+                    )}
                 >
                     Continuar sem entrar
                 </Link>

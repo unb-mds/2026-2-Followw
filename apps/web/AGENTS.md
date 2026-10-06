@@ -38,5 +38,4 @@ No SSR, os cookies são repassados pelo contexto da requisição, nunca por vari
 sessão entre usuários). Em produção o SSR só autentica porque a API grava os cookies com
 `Domain=followw.app` (`COOKIE_DOMAIN`).
 
-Para pedir dado novo à API, use `refreshQuery(queryClient, options)`. Telas com dado em cache
-envolvem o conteúdo em `PullToRefresh` apontando para a query principal.
+Para pedir dado novo à API, use `refreshQuery(queryClient, options)`.

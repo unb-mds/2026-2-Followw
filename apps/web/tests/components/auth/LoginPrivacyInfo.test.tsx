@@ -9,8 +9,8 @@ describe('LoginPrivacyInfo', () => {
 
         expect(markup).toContain('não são armazenadas');
         expect(markup).toContain('>Saiba mais</button>');
-        expect(markup).toContain('<dialog');
-        expect(markup).toContain('aria-labelledby="login-privacy-title"');
-        expect(markup).toContain('aria-label="Fechar informações de privacidade"');
+        expect(markup).toContain('aria-haspopup="dialog"');
+        expect(markup).toContain('aria-expanded="false"');
+        expect(markup).toContain('data-slot="dialog-trigger"');
     });
 });

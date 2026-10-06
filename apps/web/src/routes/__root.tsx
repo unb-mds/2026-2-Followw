@@ -6,6 +6,7 @@ import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools';
 
 import PostHogProvider from '#/integrations/posthog/provider';
 import TanStackQueryDevtools from '#/integrations/tanstack-query/devtools';
+import { themeScript } from '#/lib/theme';
 import { useSessionRefresh } from '#/queries/auth';
 import appCss from '#/styles.css?url';
 
@@ -21,7 +22,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
                 name: 'viewport',
                 content: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no'
             },
-            { name: 'theme-color', content: '#1ea6a9' },
+            { name: 'theme-color', content: '#15803d' },
             { name: 'apple-mobile-web-app-capable', content: 'yes' },
             { name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
             { name: 'apple-mobile-web-app-title', content: 'Followw' },
@@ -32,10 +33,6 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
             { rel: 'icon', href: '/favicon.svg' },
             { rel: 'apple-touch-icon', href: '/favicon.svg' },
             { rel: 'manifest', href: '/manifest.json' },
-            {
-                rel: 'stylesheet',
-                href: 'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap'
-            },
             { rel: 'stylesheet', href: appCss }
         ]
     }),
@@ -51,8 +48,9 @@ function RootComponent() {
 
 function RootDocument({ children }: { children: React.ReactNode }) {
     return (
-        <html lang="pt-BR">
+        <html lang="pt-BR" suppressHydrationWarning>
             <head>
+                <script dangerouslySetInnerHTML={{ __html: themeScript }} />
                 <HeadContent />
             </head>
             <body>

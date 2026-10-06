@@ -1,4 +1,5 @@
 import type { Day } from '#/lib/schedule';
+import type { MenuSection } from '#/queries/restaurant';
 
 import { currentAndNext, nextDays } from '#/lib/schedule';
 
@@ -39,4 +40,26 @@ export function insufficientMealBalance(
 export function cardIsExpired(validUntil: string, date: string): boolean {
     // O SIGAA informa mês/ano; a API representa o mês pelo dia 1.
     return validUntil.slice(0, 7) < date.slice(0, 7);
+}
+
+type SectionKey = NonNullable<MenuSection['key']>;
+
+const HIGHLIGHTS: { key: SectionKey; alternatives: SectionKey[] }[] = [
+    { key: 'main_dish', alternatives: ['main_dish_vegetarian', 'main_dish_vegan'] },
+    { key: 'complement', alternatives: ['complement_vegetarian', 'complement_vegan'] }
+];
+
+// Separa o prato principal (ou complemento, no café) e suas opções vegetarianas do resto.
+export function highlightMenu(sections: MenuSection[]) {
+    for (const { key, alternatives } of HIGHLIGHTS) {
+        const main = sections.find((section) => section.key === key);
+        if (!main) continue;
+        const grouped = new Set([key, ...alternatives]);
+        return {
+            main,
+            alternatives: sections.filter((s) => s.key && alternatives.includes(s.key)),
+            others: sections.filter((s) => !s.key || !grouped.has(s.key))
+        };
+    }
+    return { main: null, alternatives: [], others: sections };
 }

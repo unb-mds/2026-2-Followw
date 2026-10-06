@@ -1,6 +1,7 @@
 import { ChevronDown } from 'lucide-react';
 
-import { FollowwLogo } from '#/components/ui/FollowwLogo';
+import { FollowwLogo } from '#/components/FollowwLogo';
+import { Button } from '#/components/ui/button';
 
 interface HeaderBarProps {
     children?: React.ReactNode;
@@ -13,7 +14,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({ children, actions, showLog
     return (
         <header className="mb-2 flex items-center justify-between py-4 pb-2">
             <div className="flex items-center gap-2">
-                {showLogo && <FollowwLogo className="h-6 w-10 shrink-0" />}
+                {showLogo && <FollowwLogo className="size-10 shrink-0" />}
                 {children}
             </div>
             {actions && <div className="flex items-center gap-2">{actions}</div>}
@@ -22,9 +23,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({ children, actions, showLog
 };
 
 export const HeaderTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <h1 className="text-2xl leading-none font-bold tracking-tight text-ink transition-colors group-hover:text-primary">
-        {children}
-    </h1>
+    <h1 className="text-2xl leading-none font-bold tracking-tight text-foreground">{children}</h1>
 );
 
 interface HeaderToggleProps {
@@ -35,18 +34,19 @@ interface HeaderToggleProps {
 }
 
 export const HeaderToggle: React.FC<HeaderToggleProps> = ({ children, open, onToggle, title }) => (
-    <button
+    <Button
+        variant="ghost"
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        className="group flex cursor-pointer items-center gap-1 text-left select-none focus:outline-none"
+        className="group h-auto justify-start gap-1 px-0 text-left"
         title={title}
     >
         <HeaderTitle>{children}</HeaderTitle>
         <ChevronDown
-            className={`size-4 text-muted transition-transform duration-200 group-hover:text-primary ${
+            className={`size-4 text-muted-foreground transition-transform duration-200 group-hover:text-primary ${
                 open ? 'rotate-180 text-primary' : ''
             }`}
         />
-    </button>
+    </Button>
 );
