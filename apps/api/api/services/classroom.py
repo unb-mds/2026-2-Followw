@@ -17,7 +17,7 @@ from sigaa_client import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.db.models import ClassroomStatistic, ClassroomUser
+from api.db.models import ClassroomUser
 from api.dependencies.cache import NO_DIRECTIVES, CacheControl
 from api.dependencies.sync import SyncEngineDep
 from api.repositories.classroom import ClassroomRepository
@@ -58,7 +58,7 @@ class ClassroomService:
     async def list_members(
         self, classroom_id: str, cache: CacheControl = NO_DIRECTIVES
     ) -> list[ClassroomMember]:
-        link = await self._link(classroom_id, cache)
+        link = await self.get_link(classroom_id, cache)
 
         async def load(session: AsyncSession) -> Cached[list[ClassroomMember]]:
             repository = ClassroomRepository(session)
@@ -82,7 +82,7 @@ class ClassroomService:
     async def list_statistics(
         self, classroom_id: str, cache: CacheControl = NO_DIRECTIVES
     ) -> list[StatisticsShare]:
-        link = await self._link(classroom_id, cache)
+        link = await self.get_link(classroom_id, cache)
 
         async def load(session: AsyncSession) -> Cached[list[StatisticsShare]]:
             repository = ClassroomRepository(session)
@@ -90,9 +90,11 @@ class ClassroomService:
             synced_at = classroom.statistics_synced_at if classroom else None
             if synced_at is None:
                 return Cached(None)
-            statistics = await repository.list_statistics(link.classroom_id)
+            statistics = await repository.get_statistics(link.classroom_id)
+            if statistics is None:
+                return Cached(None)
             return Cached(
-                [_to_share(statistic) for statistic in statistics],
+                [StatisticsShare.model_validate(share) for share in statistics.data],
                 synced_at,
                 details_ttl(link.current),
             )
@@ -106,7 +108,7 @@ class ClassroomService:
     async def get_frequency(
         self, classroom_id: str, cache: CacheControl = NO_DIRECTIVES
     ) -> ClassroomFrequency:
-        link = await self._link(classroom_id, cache)
+        link = await self.get_link(classroom_id, cache)
 
         async def load(session: AsyncSession) -> Cached[ClassroomFrequency]:
             cached = await ClassroomRepository(session).get_frequency(link.id)
@@ -141,7 +143,7 @@ class ClassroomService:
             )
         return result
 
-    async def _link(self, classroom_id: str, cache: CacheControl) -> ClassroomUser:
+    async def get_link(self, classroom_id: str, cache: CacheControl) -> ClassroomUser:
         """O vínculo pelo `Classroom.id` ou pelo `sigaa_id` da turma."""
         find = partial(self._find_link, classroom_id)
         link, synced_at = await self._engine.read(find)
@@ -217,13 +219,6 @@ def _to_member(link: ClassroomUser) -> ClassroomMember:
         course=user.course,
         unity=user.unity,
         person_id=user.person_id,
-    )
-
-
-def _to_share(statistic: ClassroomStatistic) -> StatisticsShare:
-    return StatisticsShare(
-        situation=StudentSituation(statistic.situation.value),
-        percentage=statistic.percentage,
     )
 
 

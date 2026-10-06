@@ -5,11 +5,11 @@ from uuid import UUID, uuid4
 
 import sigaa_client
 from fastapi import Depends
-from sqlalchemy import ColumnElement, String, cast, delete, select
+from sqlalchemy import ColumnElement, String, cast, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from api.db.enums import ClassroomRole, StudentSituation
+from api.db.enums import ClassroomRole
 from api.db.main import get_db
 from api.db.models import (
     USER_WITHOUT_IDS,
@@ -168,12 +168,10 @@ class ClassroomRepository:
         classroom.members_synced_at = synced_at
         await self._session.flush()
 
-    async def list_statistics(self, classroom_id: UUID) -> list[ClassroomStatistic]:
-        return list(
-            await self._session.scalars(
-                select(ClassroomStatistic).where(
-                    ClassroomStatistic.classroom_id == classroom_id
-                )
+    async def get_statistics(self, classroom_id: UUID) -> ClassroomStatistic | None:
+        return await self._session.scalar(
+            select(ClassroomStatistic).where(
+                ClassroomStatistic.classroom_id == classroom_id
             )
         )
 
@@ -183,19 +181,11 @@ class ClassroomRepository:
         shares: Sequence[sigaa_client.StatisticsShare],
         synced_at: datetime,
     ) -> None:
-        await self._session.execute(
-            delete(ClassroomStatistic).where(
-                ClassroomStatistic.classroom_id == classroom_id
-            )
-        )
-        self._session.add_all(
-            ClassroomStatistic(
-                classroom_id=classroom_id,
-                situation=StudentSituation(share.situation.value),
-                percentage=share.percentage,
-            )
-            for share in shares
-        )
+        cached = await self.get_statistics(classroom_id)
+        if cached is None:
+            cached = ClassroomStatistic(classroom_id=classroom_id)
+            self._session.add(cached)
+        cached.data = [share.model_dump(mode="json") for share in shares]
         classroom = await self._session.get_one(Classroom, classroom_id)
         classroom.statistics_synced_at = synced_at
         await self._session.flush()
