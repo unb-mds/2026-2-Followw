@@ -1,12 +1,12 @@
 import { noop, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 
+import { ErrorCard, ErrorState, SIGAA_DOWN_MESSAGE } from '#/components/ErrorState';
+import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
 import { ClassCard } from '#/components/home/ClassCard';
 import { LoginPromptCard } from '#/components/home/LoginPromptCard';
-import { Card } from '#/components/ui/Card';
-import { ErrorCard, ErrorState, SIGAA_DOWN_MESSAGE } from '#/components/ui/ErrorState';
-import { HeaderBar, HeaderTitle } from '#/components/ui/HeaderBar';
-import { PullToRefresh } from '#/components/ui/PullToRefresh';
+import { PullToRefresh } from '#/components/PullToRefresh';
+import { Card, CardContent } from '#/components/ui/card';
 import { describeSchedule } from '#/lib/schedule';
 import { classroomsQueryOptions } from '#/queries/classrooms';
 import { meQueryOptions } from '#/queries/me';
@@ -67,8 +67,10 @@ function Classrooms() {
                 ))}
             </div>
             {(isPending || classrooms.length === 0) && (
-                <Card className="text-center text-sm text-muted">
-                    {isPending ? 'Carregando turmas...' : 'Nenhuma turma no semestre atual.'}
+                <Card>
+                    <CardContent className="text-center text-sm text-muted-foreground">
+                        {isPending ? 'Carregando turmas...' : 'Nenhuma turma no semestre atual.'}
+                    </CardContent>
                 </Card>
             )}
         </>

@@ -60,7 +60,7 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({ onRefresh, disable
             onTouchCancel={onTouchEnd}
         >
             <output
-                className="flex items-center justify-center overflow-hidden text-primary-dark"
+                className="flex items-center justify-center overflow-hidden text-primary"
                 style={{ height: pull, transition: dragging ? 'none' : 'height 200ms ease-out' }}
             >
                 <RefreshCw

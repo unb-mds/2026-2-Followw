@@ -2,15 +2,15 @@ import { noop, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/reac
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 
+import { ErrorCard, ErrorState, SIGAA_DOWN_MESSAGE } from '#/components/ErrorState';
+import { HeaderBar, HeaderToggle } from '#/components/HeaderBar';
 import { ClassCard } from '#/components/home/ClassCard';
 import { LoginPromptCard } from '#/components/home/LoginPromptCard';
 import { PublicInfoSection } from '#/components/home/PublicInfoSection';
 import { usePageState } from '#/components/PageState';
-import { ErrorCard, ErrorState, SIGAA_DOWN_MESSAGE } from '#/components/ui/ErrorState';
-import { HeaderBar, HeaderToggle } from '#/components/ui/HeaderBar';
-import { PullToRefresh } from '#/components/ui/PullToRefresh';
-import { SectionHeader } from '#/components/ui/SectionHeader';
-import { WeekDayPicker } from '#/components/ui/WeekDayPicker';
+import { PullToRefresh } from '#/components/PullToRefresh';
+import { SectionHeader } from '#/components/SectionHeader';
+import { WeekDayPicker } from '#/components/WeekDayPicker';
 import { classesOn, nowInBrasilia, weekDays } from '#/lib/schedule';
 import { classroomsQueryOptions } from '#/queries/classrooms';
 import { meQueryOptions } from '#/queries/me';
@@ -139,11 +139,6 @@ function HomePage() {
                                         time={`${start} - ${end}`}
                                         location={item.room ?? 'Local não informado'}
                                         status={status}
-                                        accentColor={
-                                            status === 'in_progress'
-                                                ? 'var(--color-live)'
-                                                : undefined
-                                        }
                                         onClick={() =>
                                             navigate({ to: '/turmas/$id', params: { id: item.id } })
                                         }

@@ -1,7 +1,37 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import { StatementDetails, StudentCard } from '#/components/ru/RestaurantAccount';
+import {
+    RestaurantAccount,
+    StatementDetails,
+    StudentCard
+} from '#/components/ru/RestaurantAccount';
+import { credentialsQueryOptions } from '#/queries/restaurant-account';
+
+describe('RestaurantAccount', () => {
+    test('oferece botão para abrir o QR code em um drawer sem exibi-lo na página', () => {
+        const queryClient = new QueryClient();
+        const registration = '202600001';
+        queryClient.setQueryData(credentialsQueryOptions(registration).queryKey, {
+            token: 'carteirinha-token',
+            valid_until: '2026-10-01'
+        });
+
+        const markup = renderToStaticMarkup(
+            <QueryClientProvider client={queryClient}>
+                <RestaurantAccount registration={registration} />
+            </QueryClientProvider>
+        );
+
+        expect(markup).toMatch(
+            /<button\b[^>]*aria-haspopup="dialog"[^>]*>[^]*Ver QR code da carteirinha<\/button>/
+        );
+        expect(markup).toContain('aria-expanded="false"');
+        expect(markup).not.toContain('QR code da carteirinha estudantil');
+        expect(markup).not.toContain('carteirinha-token');
+    });
+});
 
 describe('StatementDetails', () => {
     test('avisa sobre o preço e o valor faltante para a refeição atual ou próxima', () => {

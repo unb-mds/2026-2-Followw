@@ -1,35 +1,33 @@
 import { Link } from '@tanstack/react-router';
 import { ArrowRight, Lock } from 'lucide-react';
 
-import { Card } from '#/components/ui/Card';
+import { buttonVariants } from '#/components/ui/button';
+import { Card, CardContent } from '#/components/ui/card';
 
 export const LoginPromptCard: React.FC = () => {
     return (
-        <Card className="border-line bg-white p-5 shadow-sm">
-            <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-primary/30 bg-primary-light p-0.5 text-primary shadow-sm">
+        <Card>
+            <CardContent className="flex items-start gap-4">
+                <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 p-0.5 text-primary">
                     <Lock className="size-6" />
                 </div>
 
                 <div className="flex-1">
-                    <h3 className="text-lg font-bold tracking-tight text-ink">
+                    <h3 className="text-lg font-bold tracking-tight text-foreground">
                         Acesse com sua Matrícula UnB
                     </h3>
-                    <p className="mt-1 text-xs leading-relaxed text-muted">
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                         Conecte-se sua conta do SIGAA para visualizar suas turmas, horários e notas.
                     </p>
 
                     <div className="mt-4 flex items-center gap-3">
-                        <Link
-                            to="/login"
-                            className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-primary-dark active:scale-95"
-                        >
+                        <Link to="/login" className={buttonVariants({ size: 'lg' })}>
                             <span>Entrar com SIGAA</span>
                             <ArrowRight className="size-4" />
                         </Link>
                     </div>
                 </div>
-            </div>
+            </CardContent>
         </Card>
     );
 };

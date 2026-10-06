@@ -1,6 +1,8 @@
 import { LoaderCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import { Button } from '#/components/ui/button';
+import { Progress } from '#/components/ui/progress';
 import { loginProgressAt } from '#/lib/login-progress';
 
 interface LoginSubmitButtonProps {
@@ -9,24 +11,27 @@ interface LoginSubmitButtonProps {
 
 export function LoginSubmitButton({ pending }: LoginSubmitButtonProps) {
     return (
-        <button
-            type="submit"
-            disabled={pending}
-            aria-busy={pending}
-            className="relative mt-4 flex h-12 w-full cursor-pointer items-center justify-center overflow-hidden rounded-full bg-login-blue text-sm font-bold text-white shadow-md transition hover:bg-login-blue-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-login-blue disabled:cursor-wait"
-        >
-            {pending ? (
-                <>
-                    <LoginProgressBar />
-                    <span className="relative z-10 flex items-center gap-2">
-                        <LoaderCircle className="size-4 animate-spin" />
+        <div className="relative mt-4">
+            <Button
+                type="submit"
+                disabled={pending}
+                aria-busy={pending}
+                className="h-12 w-full rounded-full font-bold shadow-md"
+            >
+                {pending ? (
+                    <span className="flex items-center gap-2">
+                        <LoaderCircle
+                            className="size-4 animate-spin motion-reduce:animate-none"
+                            aria-hidden="true"
+                        />
                         Entrando...
                     </span>
-                </>
-            ) : (
-                'Entrar'
-            )}
-        </button>
+                ) : (
+                    'Entrar'
+                )}
+            </Button>
+            {pending && <LoginProgressBar />}
+        </div>
     );
 }
 
@@ -43,9 +48,9 @@ function LoginProgressBar() {
     }, []);
 
     return (
-        <span
-            className="login-submit-progress"
-            style={{ transform: `scaleX(${progress / 100})` }}
+        <Progress
+            value={progress}
+            className="pointer-events-none absolute inset-x-4 bottom-1 [&_[data-slot=progress-indicator]]:bg-primary-foreground motion-reduce:[&_[data-slot=progress-indicator]]:w-3/4! motion-reduce:[&_[data-slot=progress-indicator]]:transition-none [&_[data-slot=progress-track]]:bg-primary-foreground/20"
             aria-hidden="true"
         />
     );

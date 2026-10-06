@@ -1,6 +1,8 @@
 import { MapIcon, MapPin } from 'lucide-react';
 
-import { Card } from '#/components/ui/Card';
+import { Badge } from '#/components/ui/badge';
+import { Button } from '#/components/ui/button';
+import { Card, CardContent, CardHeader } from '#/components/ui/card';
 
 export interface ClassCardProps {
     title: string;
@@ -10,7 +12,6 @@ export interface ClassCardProps {
     professor?: string;
     status?: 'in_progress' | 'next' | 'normal' | 'warning';
     statusText?: string;
-    accentColor?: string;
     onLocationClick?: () => void;
     onClick?: () => void;
 }
@@ -23,65 +24,68 @@ export const ClassCard: React.FC<ClassCardProps> = ({
     professor,
     status = 'normal',
     statusText,
-    accentColor = 'var(--color-primary)',
     onLocationClick,
     onClick
 }) => {
     return (
-        <Card accentColor={accentColor} onClick={onClick}>
-            <div className="mb-1 flex items-start justify-between gap-2 pl-1">
-                <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-success">{time}</span>
-                    {status === 'in_progress' && (
-                        <span className="flex items-center gap-1 rounded-full bg-mint-light/50 px-2 py-0.5 text-xs font-bold tracking-wider text-success uppercase">
-                            <span className="h-1.5 w-1.5 animate-ping rounded-full bg-live" />
-                            {statusText || 'Em andamento'}
-                        </span>
-                    )}
-                    {status === 'next' && (
-                        <span className="text-xs font-semibold text-muted">
-                            {statusText || 'Próxima'}
-                        </span>
-                    )}
-                    {status === 'warning' && (
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold tracking-wider text-amber-800 uppercase">
-                            {statusText || 'Atenção'}
+        <Card className="relative border-l-4 border-l-primary">
+            {onClick && (
+                <Button
+                    variant="ghost"
+                    onClick={onClick}
+                    aria-label={title}
+                    className="absolute inset-0 h-full w-full rounded-xl hover:bg-primary/5"
+                />
+            )}
+            <CardHeader className="pointer-events-none relative">
+                <div className="flex items-start justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-bold text-primary">{time}</span>
+                        {status === 'in_progress' && (
+                            <Badge variant="secondary">
+                                <span className="size-1.5 animate-pulse rounded-full bg-primary" />
+                                {statusText || 'Em andamento'}
+                            </Badge>
+                        )}
+                        {status === 'next' && (
+                            <Badge variant="outline">{statusText || 'Próxima'}</Badge>
+                        )}
+                        {status === 'warning' && (
+                            <Badge variant="destructive">{statusText || 'Atenção'}</Badge>
+                        )}
+                    </div>
+                    {code && (
+                        <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                            {code}
                         </span>
                     )}
                 </div>
-                {code && (
-                    <span className="text-xs font-semibold tracking-wider text-muted uppercase">
-                        {code}
-                    </span>
-                )}
-            </div>
-
-            <div className="mb-2 pl-1">
-                <h3 className="cursor-pointer text-base font-bold text-ink transition-colors hover:text-primary">
-                    {title}
-                </h3>
-                {professor && <p className="mt-0.5 text-xs text-muted">{professor}</p>}
-            </div>
-
-            <div className="flex items-center justify-between border-t border-line/60 pt-2 pl-1">
-                <div className="flex items-center gap-1.5 text-xs font-medium text-muted">
-                    <MapPin className="size-4 text-primary" />
-                    <span>{location}</span>
+                <h3 className="text-base font-bold text-foreground">{title}</h3>
+                {professor && <p className="text-xs text-muted-foreground">{professor}</p>}
+            </CardHeader>
+            <CardContent className="pointer-events-none relative">
+                <div className="flex items-center justify-between border-t border-border pt-2">
+                    <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                        <MapPin className="size-4 text-primary" />
+                        <span>{location}</span>
+                    </div>
+                    {onLocationClick && (
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onLocationClick();
+                            }}
+                            className="pointer-events-auto text-muted-foreground"
+                            title="Ver mapa da sala"
+                            aria-label="Ver mapa da sala"
+                        >
+                            <MapIcon className="size-4" />
+                        </Button>
+                    )}
                 </div>
-                {onLocationClick && (
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onLocationClick();
-                        }}
-                        className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-line bg-surface text-muted transition hover:text-primary active:scale-95"
-                        title="Ver mapa da sala"
-                    >
-                        <MapIcon className="size-4" />
-                    </button>
-                )}
-            </div>
+            </CardContent>
         </Card>
     );
 };
