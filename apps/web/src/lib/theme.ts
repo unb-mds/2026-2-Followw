@@ -43,7 +43,7 @@ export function saveTheme(theme: Theme): void {
 
 export function applyTheme(theme: Theme): void {
     const dark = isDarkTheme(theme, window.matchMedia(DARK_QUERY).matches);
-    document.documentElement.classList.toggle('dark', dark);
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
     document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
 }
 
@@ -54,7 +54,7 @@ export const themeScript = `(() => {
         let theme;
         try { theme = JSON.parse(localStorage.getItem('${STORAGE_PREFIX}${STORAGE_KEYS.THEME}')); } catch {}
         const dark = theme === 'dark' || (theme !== 'light' && media.matches);
-        document.documentElement.classList.toggle('dark', dark);
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
         document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
     };
     apply();

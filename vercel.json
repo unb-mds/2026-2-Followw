@@ -1,0 +1,35 @@
+{
+    "$schema": "https://openapi.vercel.sh/vercel.json",
+    "services": {
+        "web": {
+            "root": "apps/web/"
+        },
+        "api": {
+            "root": "apps/api/",
+            "framework": "fastapi",
+            "entrypoint": "api.main:app",
+            "installCommand": "UV_LINK_MODE=copy uv sync --frozen --no-dev --no-editable",
+            "routes": [
+                {
+                    "src": "/api/(.*)",
+                    "transforms": [{ "type": "request.path", "op": "set", "args": "/$1" }]
+                }
+            ]
+        }
+    },
+    "rewrites": [
+        {
+            "source": "/(.*)",
+            "has": [{ "type": "host", "value": { "pre": "api." } }],
+            "destination": { "service": "api" }
+        },
+        {
+            "source": "/api/(.*)",
+            "destination": { "service": "api" }
+        },
+        {
+            "source": "/(.*)",
+            "destination": { "service": "web" }
+        }
+    ]
+}

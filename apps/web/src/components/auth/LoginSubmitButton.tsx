@@ -2,7 +2,6 @@ import { LoaderCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { Button } from '#/components/ui/button';
-import { Progress } from '#/components/ui/progress';
 import { loginProgressAt } from '#/lib/login-progress';
 
 interface LoginSubmitButtonProps {
@@ -11,27 +10,27 @@ interface LoginSubmitButtonProps {
 
 export function LoginSubmitButton({ pending }: LoginSubmitButtonProps) {
     return (
-        <div className="relative mt-4">
-            <Button
-                type="submit"
-                disabled={pending}
-                aria-busy={pending}
-                className="h-12 w-full rounded-full font-bold shadow-md"
-            >
-                {pending ? (
-                    <span className="flex items-center gap-2">
+        <Button
+            type="submit"
+            disabled={pending}
+            aria-busy={pending}
+            className="relative mt-4 h-12 w-full overflow-hidden rounded-full font-bold shadow-md disabled:cursor-wait"
+        >
+            {pending ? (
+                <>
+                    <LoginProgressBar />
+                    <span className="relative z-10 flex items-center gap-2">
                         <LoaderCircle
                             className="size-4 animate-spin motion-reduce:animate-none"
                             aria-hidden="true"
                         />
                         Entrando...
                     </span>
-                ) : (
-                    'Entrar'
-                )}
-            </Button>
-            {pending && <LoginProgressBar />}
-        </div>
+                </>
+            ) : (
+                'Entrar'
+            )}
+        </Button>
     );
 }
 
@@ -48,9 +47,9 @@ function LoginProgressBar() {
     }, []);
 
     return (
-        <Progress
-            value={progress}
-            className="pointer-events-none absolute inset-x-4 bottom-1 [&_[data-slot=progress-indicator]]:bg-primary-foreground motion-reduce:[&_[data-slot=progress-indicator]]:w-3/4! motion-reduce:[&_[data-slot=progress-indicator]]:transition-none [&_[data-slot=progress-track]]:bg-primary-foreground/20"
+        <span
+            className="pointer-events-none absolute inset-y-0 left-0 w-full origin-left bg-[color-mix(in_oklch,var(--primary),black_25%)] transition-transform duration-50 ease-out motion-reduce:transition-none"
+            style={{ transform: `scaleX(${progress / 100})` }}
             aria-hidden="true"
         />
     );
