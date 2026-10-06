@@ -284,6 +284,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Consultar as configurações pessoais do usuário */
+        get: operations["get_settings_me_settings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Atualizar as configurações pessoais do usuário */
+        patch: operations["update_settings_me_settings_patch"];
+        trace?: never;
+    };
     "/news": {
         parameters: {
             query?: never;
@@ -687,6 +705,20 @@ export interface components {
             /** Mp */
             mp: number | null;
             level: components["schemas"]["UserLevel"];
+        };
+        /** UserSettings */
+        UserSettings: {
+            /** Displayname */
+            displayName?: string | null;
+            /** Defaultrucampus */
+            defaultRuCampus?: ("Darcy" | "Gama" | "Ceilandia" | "Planaltina" | "Fazenda") | null;
+        };
+        /** UserSettingsPatch */
+        UserSettingsPatch: {
+            /** Displayname */
+            displayName?: string | null;
+            /** Defaultrucampus */
+            defaultRuCampus?: ("Darcy" | "Gama" | "Ceilandia" | "Planaltina" | "Fazenda") | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -1468,6 +1500,87 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description SIGAA indisponível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_settings_me_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserSettings"];
+                };
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description SIGAA indisponível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    update_settings_me_settings_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserSettingsPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserSettings"];
+                };
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
             /** @description SIGAA indisponível. */
             502: {

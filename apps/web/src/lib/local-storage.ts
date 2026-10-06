@@ -3,6 +3,7 @@ export const STORAGE_PREFIX = 'followw:';
 export const STORAGE_KEYS = {
     RU_TOKEN: 'ru-token',
     RU_BALANCE: 'ru_balance',
+    SETTINGS: 'settings',
     THEME: 'theme'
 } as const;
 

@@ -111,3 +111,32 @@ def test_repository_permite_injetar_sessao_mockada(probe_app):
         session.scalar.assert_awaited_once()
     finally:
         client.app.dependency_overrides.clear()
+
+
+async def test_settings_retorna_vazio_quando_usuario_nao_tem_configuracoes(
+    async_database,
+):
+    async with async_database() as session:
+        settings = await UserRepository(session).get_settings("251000000")
+        assert settings == {}
+
+
+async def test_settings_salva_e_atualiza_preferencias_incrementalmente(async_database):
+    async with async_database() as session:
+        repo = UserRepository(session)
+        updated = await repo.update_settings(
+            "251000000", {"displayName": "Discente Teste"}
+        )
+        assert updated == {"displayName": "Discente Teste"}
+        await session.commit()
+
+    async with async_database() as session:
+        repo = UserRepository(session)
+        updated = await repo.update_settings("251000000", {"defaultRuCampus": "Gama"})
+        assert updated == {"displayName": "Discente Teste", "defaultRuCampus": "Gama"}
+        await session.commit()
+
+    async with async_database() as session:
+        repo = UserRepository(session)
+        settings = await repo.get_settings("251000000")
+        assert settings == {"displayName": "Discente Teste", "defaultRuCampus": "Gama"}

@@ -1064,6 +1064,74 @@
                 }
             }
         },
+        "/me/settings": {
+            "get": {
+                "tags": ["Me"],
+                "summary": "Consultar as configurações pessoais do usuário",
+                "operationId": "get_settings_me_settings_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserSettings"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Credenciais ausentes ou inválidas."
+                    },
+                    "502": {
+                        "description": "SIGAA indisponível."
+                    }
+                }
+            },
+            "patch": {
+                "tags": ["Me"],
+                "summary": "Atualizar as configurações pessoais do usuário",
+                "operationId": "update_settings_me_settings_patch",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UserSettingsPatch"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserSettings"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Credenciais ausentes ou inválidas."
+                    },
+                    "502": {
+                        "description": "SIGAA indisponível."
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/news": {
             "get": {
                 "tags": ["News"],
@@ -2066,6 +2134,67 @@
                     "level"
                 ],
                 "title": "UserProfile"
+            },
+            "UserSettings": {
+                "properties": {
+                    "displayName": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Displayname"
+                    },
+                    "defaultRuCampus": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "enum": ["Darcy", "Gama", "Ceilandia", "Planaltina", "Fazenda"]
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Defaultrucampus"
+                    }
+                },
+                "type": "object",
+                "title": "UserSettings"
+            },
+            "UserSettingsPatch": {
+                "properties": {
+                    "displayName": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 24,
+                                "minLength": 1
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Displayname"
+                    },
+                    "defaultRuCampus": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "enum": ["Darcy", "Gama", "Ceilandia", "Planaltina", "Fazenda"]
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Defaultrucampus"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "title": "UserSettingsPatch"
             },
             "ValidationError": {
                 "properties": {
