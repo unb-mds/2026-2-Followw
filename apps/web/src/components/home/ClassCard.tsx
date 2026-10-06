@@ -1,20 +1,26 @@
 import { MapIcon, MapPin } from 'lucide-react';
 
-import { Badge } from '#/components/ui/badge';
 import { Button } from '#/components/ui/button';
-import { Card, CardContent, CardHeader } from '#/components/ui/card';
+import { Card } from '#/components/ui/card';
+import { cn } from '#/lib/utils';
 
 export interface ClassCardProps {
     title: string;
     code?: string;
     time: string;
-    location: string;
+    location?: string;
     professor?: string;
     status?: 'in_progress' | 'next' | 'normal' | 'warning';
     statusText?: string;
     onLocationClick?: () => void;
     onClick?: () => void;
 }
+
+const STATUS = {
+    in_progress: { label: 'Em andamento', className: 'text-primary' },
+    next: { label: 'Próxima', className: 'text-muted-foreground' },
+    warning: { label: 'Atenção', className: 'text-destructive' }
+} as const;
 
 export const ClassCard: React.FC<ClassCardProps> = ({
     title,
@@ -27,65 +33,65 @@ export const ClassCard: React.FC<ClassCardProps> = ({
     onLocationClick,
     onClick
 }) => {
+    const statusInfo = status === 'normal' ? undefined : STATUS[status];
+    const active = status === 'in_progress';
+
     return (
-        <Card className="relative border-l-4 border-l-primary">
+        <Card
+            size="sm"
+            className={cn('relative gap-1 px-3', active && 'bg-primary/5 ring-primary/30')}
+        >
             {onClick && (
                 <Button
                     variant="ghost"
                     onClick={onClick}
                     aria-label={title}
-                    className="absolute inset-0 h-full w-full rounded-xl hover:bg-primary/5"
+                    className="absolute inset-0 h-full w-full rounded-2xl hover:bg-primary/5"
                 />
             )}
-            <CardHeader className="pointer-events-none relative">
-                <div className="flex items-start justify-between gap-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-bold text-primary">{time}</span>
-                        {status === 'in_progress' && (
-                            <Badge variant="secondary">
-                                <span className="size-1.5 animate-pulse rounded-full bg-primary" />
-                                {statusText || 'Em andamento'}
-                            </Badge>
+            <div className="pointer-events-none relative flex items-baseline gap-2 text-xs">
+                <span className="min-w-0 font-semibold text-primary tabular-nums">{time}</span>
+                {statusInfo && (
+                    <span
+                        className={cn(
+                            'flex shrink-0 items-center gap-1 font-medium',
+                            statusInfo.className
                         )}
-                        {status === 'next' && (
-                            <Badge variant="outline">{statusText || 'Próxima'}</Badge>
-                        )}
-                        {status === 'warning' && (
-                            <Badge variant="destructive">{statusText || 'Atenção'}</Badge>
-                        )}
-                    </div>
-                    {code && (
-                        <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                            {code}
-                        </span>
-                    )}
-                </div>
-                <h3 className="text-base font-bold text-foreground">{title}</h3>
-                {professor && <p className="text-xs text-muted-foreground">{professor}</p>}
-            </CardHeader>
-            <CardContent className="pointer-events-none relative">
-                <div className="flex items-center justify-between border-t border-border pt-2">
-                    <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                        <MapPin className="size-4 text-primary" />
-                        <span>{location}</span>
-                    </div>
-                    {onLocationClick && (
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onLocationClick();
-                            }}
-                            className="pointer-events-auto text-muted-foreground"
-                            title="Ver mapa da sala"
-                            aria-label="Ver mapa da sala"
-                        >
-                            <MapIcon className="size-4" />
-                        </Button>
-                    )}
-                </div>
-            </CardContent>
+                    >
+                        {active && <span className="size-1.5 rounded-full bg-primary" />}
+                        {statusText || statusInfo.label}
+                    </span>
+                )}
+                {code && (
+                    <span className="ml-auto shrink-0 font-medium tracking-wide text-muted-foreground">
+                        {code}
+                    </span>
+                )}
+            </div>
+            <h3 className="pointer-events-none relative line-clamp-2 text-sm leading-snug font-semibold">
+                {title}
+            </h3>
+            <div className="pointer-events-none relative flex items-center gap-2 text-xs text-muted-foreground">
+                {location && <MapPin className="size-3 shrink-0" />}
+                <span className="min-w-0 truncate">
+                    {[location, professor].filter(Boolean).join(' · ')}
+                </span>
+                {onLocationClick && (
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onLocationClick();
+                        }}
+                        className="pointer-events-auto ml-auto text-muted-foreground"
+                        title="Ver mapa da sala"
+                        aria-label="Ver mapa da sala"
+                    >
+                        <MapIcon />
+                    </Button>
+                )}
+            </div>
         </Card>
     );
 };

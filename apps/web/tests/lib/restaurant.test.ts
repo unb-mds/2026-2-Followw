@@ -1,6 +1,13 @@
 import { describe, expect, test } from 'bun:test';
 
-import { cardIsExpired, currentOrNextMeal, insufficientMealBalance } from '#/lib/restaurant';
+import type { MenuSection } from '#/queries/restaurant';
+
+import {
+    cardIsExpired,
+    currentOrNextMeal,
+    highlightMenu,
+    insufficientMealBalance
+} from '#/lib/restaurant';
 import { nowInBrasilia } from '#/lib/schedule';
 
 describe('currentOrNextMeal', () => {
@@ -75,5 +82,38 @@ describe('cardIsExpired', () => {
         expect(cardIsExpired('2026-10-01', '2026-10-31')).toBe(false);
         expect(cardIsExpired('2026-10-01', '2026-11-01')).toBe(true);
         expect(cardIsExpired('2026-12-01', '2027-01-01')).toBe(true);
+    });
+});
+
+function section(key: MenuSection['key'], name = key ?? 'Sem chave'): MenuSection {
+    return { key, name, items: [name] };
+}
+
+describe('highlightMenu', () => {
+    test('destaca o prato principal com as opções vegetarianas', () => {
+        const sections = [
+            section('salad_1'),
+            section('main_dish'),
+            section('main_dish_vegetarian'),
+            section('main_dish_vegan'),
+            section(null)
+        ];
+        const { main, alternatives, others } = highlightMenu(sections);
+        expect(main?.key).toBe('main_dish');
+        expect(alternatives.map((s) => s.key)).toEqual(['main_dish_vegetarian', 'main_dish_vegan']);
+        expect(others.map((s) => s.key)).toEqual(['salad_1', null]);
+    });
+
+    test('no café destaca o complemento padrão', () => {
+        const sections = [section('drink'), section('complement'), section('complement_vegan')];
+        const { main, alternatives, others } = highlightMenu(sections);
+        expect(main?.key).toBe('complement');
+        expect(alternatives.map((s) => s.key)).toEqual(['complement_vegan']);
+        expect(others.map((s) => s.key)).toEqual(['drink']);
+    });
+
+    test('sem prato principal nem complemento mantém tudo na lista', () => {
+        const sections = [section('drink'), section('main_dish_vegan')];
+        expect(highlightMenu(sections)).toEqual({ main: null, alternatives: [], others: sections });
     });
 });

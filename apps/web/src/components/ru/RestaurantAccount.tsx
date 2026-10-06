@@ -8,6 +8,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { Day } from '#/lib/schedule';
 import type { RestaurantCredentials, RestaurantStatement } from '#/queries/restaurant-account';
 
+import { LoadingText } from '#/components/LoadingText';
 import {
     Accordion,
     AccordionContent,
@@ -74,10 +75,12 @@ export function RestaurantAccount({ registration }: { registration: string }) {
         setRefreshing(false);
     };
 
+    const cardDrawer = <StudentCardDrawer credentials={credentials} />;
+
     return (
-        <section className="mt-8 space-y-3" aria-label="Minha conta do RU">
+        <section className="mt-8 space-y-3" aria-label="Minha conta">
             <div className="flex items-center justify-between px-1">
-                <h2 className="text-lg font-extrabold text-foreground">Minha conta do RU</h2>
+                <h2 className="text-lg font-extrabold text-foreground">Minha conta</h2>
                 <Button
                     variant="ghost"
                     size="xs"
@@ -95,11 +98,16 @@ export function RestaurantAccount({ registration }: { registration: string }) {
 
             <Card>
                 <CardContent>
-                    <div className="mb-2 flex items-center gap-2 text-sm font-bold text-muted-foreground">
-                        <Wallet className="size-5" aria-hidden="true" />
-                        Saldo disponível
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 text-sm font-bold text-muted-foreground">
+                            <Wallet className="size-4" aria-hidden="true" />
+                            Saldo disponível
+                        </div>
+                        {!statement.data && cardDrawer}
                     </div>
-                    {statement.data && <StatementDetails statement={statement.data} />}
+                    {statement.data && (
+                        <StatementDetails statement={statement.data} action={cardDrawer} />
+                    )}
                     <AccountStatus
                         query={statement}
                         hasData={Boolean(statement.data)}
@@ -107,51 +115,73 @@ export function RestaurantAccount({ registration }: { registration: string }) {
                     />
                 </CardContent>
             </Card>
-
-            <Drawer showSwipeHandle>
-                <DrawerTrigger render={<Button variant="outline" size="lg" className="w-full" />}>
-                    <QrCode className="size-5" aria-hidden="true" />
-                    Ver QR code da carteirinha
-                </DrawerTrigger>
-                <DrawerContent className="mx-auto max-w-lg">
-                    <DrawerHeader className="md:text-center">
-                        <DrawerTitle>Carteirinha estudantil</DrawerTitle>
-                        <DrawerDescription>
-                            QR code para acesso ao Restaurante Universitário.
-                        </DrawerDescription>
-                    </DrawerHeader>
-                    <div className="overflow-y-auto p-4">
-                        {credentials.data && <StudentCard credentials={credentials.data} />}
-                        <AccountStatus
-                            query={credentials}
-                            hasData={Boolean(credentials.data)}
-                            label="carteirinha"
-                        />
-                    </div>
-                    <DrawerFooter>
-                        <DrawerClose render={<Button variant="outline" />}>Fechar</DrawerClose>
-                    </DrawerFooter>
-                </DrawerContent>
-            </Drawer>
         </section>
+    );
+}
+
+function StudentCardDrawer({
+    credentials
+}: {
+    credentials: UseQueryResult<RestaurantCredentials>;
+}) {
+    return (
+        <Drawer showSwipeHandle>
+            <DrawerTrigger
+                render={
+                    <Button
+                        variant="outline"
+                        size="icon-sm"
+                        className="size-10 rounded-xl"
+                        aria-label="Ver QR code da carteirinha"
+                        title="Ver QR code da carteirinha"
+                    />
+                }
+            >
+                <QrCode className="size-6" aria-hidden="true" />
+            </DrawerTrigger>
+            <DrawerContent className="mx-auto max-w-lg">
+                <DrawerHeader className="md:text-center">
+                    <DrawerTitle>Carteirinha estudantil</DrawerTitle>
+                    <DrawerDescription>
+                        QR code para acesso ao Restaurante Universitário.
+                    </DrawerDescription>
+                </DrawerHeader>
+                <div className="overflow-y-auto p-4">
+                    {credentials.data && <StudentCard credentials={credentials.data} />}
+                    <AccountStatus
+                        query={credentials}
+                        hasData={Boolean(credentials.data)}
+                        label="carteirinha"
+                    />
+                </div>
+                <DrawerFooter>
+                    <DrawerClose render={<Button variant="outline" />}>Fechar</DrawerClose>
+                </DrawerFooter>
+            </DrawerContent>
+        </Drawer>
     );
 }
 
 export function StatementDetails({
     statement,
+    action,
     now = nowInBrasilia()
 }: {
     statement: RestaurantStatement;
+    action?: React.ReactNode;
     now?: Day & { time: string };
 }) {
     const warning = insufficientMealBalance(statement.balance, statement.group, now);
     return (
         <>
-            <p className="text-3xl font-extrabold text-primary tabular-nums">
-                {statement.balance == null
-                    ? 'Saldo não informado'
-                    : currency.format(Number(statement.balance))}
-            </p>
+            <div className="flex items-center justify-between gap-3">
+                <p className="text-3xl font-extrabold text-primary tabular-nums">
+                    {statement.balance == null
+                        ? 'Saldo não informado'
+                        : currency.format(Number(statement.balance))}
+                </p>
+                {action}
+            </div>
             {warning && (
                 <p
                     aria-live="polite"
@@ -248,7 +278,7 @@ function AccountStatus({
 }) {
     return (
         <div className="mt-3 text-xs text-muted-foreground" aria-live="polite">
-            {query.isPending && !hasData && <p>Carregando {label}...</p>}
+            {query.isPending && !hasData && <LoadingText>Carregando {label}...</LoadingText>}
             {query.isError && (
                 <p>
                     {hasData

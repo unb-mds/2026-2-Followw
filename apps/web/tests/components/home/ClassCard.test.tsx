@@ -19,6 +19,14 @@ describe('ClassCard', () => {
         expect(markup).not.toContain('<button');
     });
 
+    test('omite local e ícone quando não há local', () => {
+        const markup = renderToStaticMarkup(<ClassCard {...classroom} location={undefined} />);
+
+        expect(markup).not.toContain('ICC Norte');
+        expect(markup).not.toContain('lucide-map-pin');
+        expect(markup).toContain(classroom.professor);
+    });
+
     test.each([
         ['in_progress', 'Em andamento'],
         ['next', 'Próxima'],

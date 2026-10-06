@@ -8,7 +8,7 @@ export const LoginPromptCard: React.FC = () => {
     return (
         <Card>
             <CardContent className="flex items-start gap-4">
-                <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 p-0.5 text-primary">
+                <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                     <Lock className="size-6" />
                 </div>
 

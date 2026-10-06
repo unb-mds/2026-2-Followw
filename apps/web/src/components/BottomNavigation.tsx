@@ -1,5 +1,5 @@
 import { Link, useLocation } from '@tanstack/react-router';
-import { House, Search, User, type LucideIcon, Utensils } from 'lucide-react';
+import { House, User, type LucideIcon, Utensils, UserRoundGroup } from 'lucide-react';
 
 import { buttonVariants } from '#/components/ui/button';
 import { cn } from '#/lib/utils';
@@ -12,7 +12,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
     { to: '/', label: 'Início', icon: House },
-    { to: '/turmas', label: 'Turmas', icon: Search },
+    { to: '/turmas', label: 'Turmas', icon: UserRoundGroup },
     { to: '/ru', label: 'RU', icon: Utensils },
     { to: '/perfil', label: 'Perfil', icon: User }
 ];

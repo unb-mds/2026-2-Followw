@@ -6,6 +6,7 @@ import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools';
 
 import PostHogProvider from '#/integrations/posthog/provider';
 import TanStackQueryDevtools from '#/integrations/tanstack-query/devtools';
+import { themeScript } from '#/lib/theme';
 import { useSessionRefresh } from '#/queries/auth';
 import appCss from '#/styles.css?url';
 
@@ -47,8 +48,9 @@ function RootComponent() {
 
 function RootDocument({ children }: { children: React.ReactNode }) {
     return (
-        <html lang="pt-BR">
+        <html lang="pt-BR" suppressHydrationWarning>
             <head>
+                <script dangerouslySetInnerHTML={{ __html: themeScript }} />
                 <HeadContent />
             </head>
             <body>

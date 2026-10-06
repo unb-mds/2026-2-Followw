@@ -1,4 +1,4 @@
-import { noop, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 
@@ -8,13 +8,11 @@ import { ClassCard } from '#/components/home/ClassCard';
 import { LoginPromptCard } from '#/components/home/LoginPromptCard';
 import { PublicInfoSection } from '#/components/home/PublicInfoSection';
 import { usePageState } from '#/components/PageState';
-import { PullToRefresh } from '#/components/PullToRefresh';
 import { SectionHeader } from '#/components/SectionHeader';
 import { WeekDayPicker } from '#/components/WeekDayPicker';
 import { classesOn, nowInBrasilia, weekDays } from '#/lib/schedule';
 import { classroomsQueryOptions } from '#/queries/classrooms';
 import { meQueryOptions } from '#/queries/me';
-import { refreshQuery } from '#/queries/refresh';
 import { campusOf, menuQueryOptions } from '#/queries/restaurant';
 
 const WEEKDAYS = [
@@ -86,26 +84,18 @@ function HomePage() {
     const { now, days, selectedDay, isToday, setPicked } = useSelectedDay();
     const [weekOpen] = useWeekOpen();
 
-    const queryClient = useQueryClient();
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const classroomsQuery = useQuery({
         ...classroomsQueryOptions,
         enabled: Boolean(user)
     });
     const classrooms = classroomsQuery.data ?? [];
-    const menuQuery = menuQueryOptions({ date: now.date, user });
-    const menu = useQuery(menuQuery);
-
-    const refresh = () =>
-        Promise.all([
-            user && refreshQuery(queryClient, classroomsQueryOptions),
-            refreshQuery(queryClient, menuQuery)
-        ]);
+    const menu = useQuery(menuQueryOptions({ date: now.date, user }));
 
     const classes = classesOn(classrooms, selectedDay.weekday, isToday ? now.time : undefined);
 
     return (
-        <PullToRefresh onRefresh={refresh}>
+        <>
             {weekOpen && (
                 <WeekDayPicker
                     days={days}
@@ -162,6 +152,6 @@ function HomePage() {
                 menu={menu.data?.[0]}
                 isLoading={menu.isPending}
             />
-        </PullToRefresh>
+        </>
     );
 }

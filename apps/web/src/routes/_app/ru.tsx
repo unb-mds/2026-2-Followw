@@ -1,6 +1,6 @@
-import { noop, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { Coffee, Soup, UtensilsCrossed } from 'lucide-react';
+import { Coffee, Egg, Leaf, Soup, UtensilsCrossed } from 'lucide-react';
 import { useState, useSyncExternalStore } from 'react';
 
 import type { MealKey } from '#/lib/restaurant';
@@ -8,8 +8,8 @@ import type { Campus, MenuSection } from '#/queries/restaurant';
 
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderToggle } from '#/components/HeaderBar';
+import { LoadingText } from '#/components/LoadingText';
 import { usePageState } from '#/components/PageState';
-import { PullToRefresh } from '#/components/PullToRefresh';
 import { RestaurantAccount } from '#/components/ru/RestaurantAccount';
 import { ShareButton } from '#/components/ShareButton';
 import { Button } from '#/components/ui/button';
@@ -24,10 +24,9 @@ import {
 } from '#/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
 import { WeekDayPicker } from '#/components/WeekDayPicker';
-import { currentOrNextMeal, MEAL_TIMES } from '#/lib/restaurant';
+import { currentOrNextMeal, highlightMenu, MEAL_TIMES } from '#/lib/restaurant';
 import { nowInBrasilia, weekDays } from '#/lib/schedule';
 import { meQueryOptions } from '#/queries/me';
-import { refreshQuery } from '#/queries/refresh';
 import { CAMPUS_LABELS, campusOf, menuQueryOptions } from '#/queries/restaurant';
 import {
     credentialsQueryOptions,
@@ -43,6 +42,18 @@ const MEALS = MEAL_TIMES.map(({ key, label, start, end }) => ({
     end,
     icon: MEAL_ICONS[key]
 }));
+
+interface AlternativeInfo {
+    label: string;
+    icon: React.FC<{ className?: string }>;
+}
+
+const ALTERNATIVES: Partial<Record<NonNullable<MenuSection['key']>, AlternativeInfo>> = {
+    main_dish_vegetarian: { label: 'Ovolactovegetariano', icon: Egg },
+    main_dish_vegan: { label: 'Vegetariano estrito', icon: Leaf },
+    complement_vegetarian: { label: 'Ovolactovegetariano', icon: Egg },
+    complement_vegan: { label: 'Vegetariano estrito', icon: Leaf }
+};
 
 const CAMPUS_OPTIONS: Campus[] = ['Darcy', 'Gama', 'Ceilandia', 'Planaltina', 'Fazenda'];
 const subscribe = () => () => {};
@@ -99,22 +110,15 @@ function RUPage() {
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const [pickedCampus, setPickedCampus] = useState<Campus | null>(null);
     const campus = pickedCampus ?? campusOf(user?.unity);
-    const queryClient = useQueryClient();
-    const menuQuery = menuQueryOptions({ date: selectedDate, campus });
-    const { data, isPending, isError, refetch } = useQuery(menuQuery);
+    const { data, isPending, isError, refetch } = useQuery(
+        menuQueryOptions({ date: selectedDate, campus })
+    );
     const menu = data?.[0];
     const meal = MEALS.find((item) => item.key === selectedMeal) ?? MEALS[1];
     const sections = menu?.[selectedMeal] ?? [];
 
-    const refresh = () =>
-        Promise.all([
-            refreshQuery(queryClient, menuQuery),
-            user && refreshQuery(queryClient, statementQueryOptions(user.registration)),
-            user && refreshQuery(queryClient, credentialsQueryOptions(user.registration))
-        ]);
-
     return (
-        <PullToRefresh onRefresh={refresh}>
+        <>
             {filtersOpen && (
                 <div>
                     <WeekDayPicker
@@ -187,7 +191,7 @@ function RUPage() {
                         <MealDetails sections={sections} />
                     ) : (
                         <p className="px-1 text-sm text-muted-foreground">
-                            {isPending && 'Carregando cardápio...'}
+                            {isPending && <LoadingText>Carregando cardápio...</LoadingText>}
                             {isError && (
                                 <>
                                     O site do RU não respondeu.{' '}
@@ -221,32 +225,85 @@ function RUPage() {
                     </CardContent>
                 </Card>
             )}
-        </PullToRefresh>
+        </>
     );
 }
 
 function MealDetails({ sections }: { sections: MenuSection[] }) {
+    const { main, alternatives, others } = highlightMenu(sections);
+
     return (
-        <dl className="divide-y divide-border px-1">
-            {sections.map((section) => (
-                <div key={section.name} className="py-3 first:pt-0">
-                    <dt className="text-xs font-extrabold tracking-wide text-primary uppercase">
-                        {section.name}
-                    </dt>
-                    <dd className="mt-1">
-                        <ul className="space-y-1">
-                            {section.items.map((item) => (
-                                <li
-                                    key={item}
-                                    className="text-base leading-snug font-semibold text-foreground"
+        <div className="space-y-4">
+            {main && <MealHighlight main={main} alternatives={alternatives} />}
+            {others.length > 0 && (
+                <Card size="sm">
+                    <CardContent>
+                        <dl className="divide-y divide-border">
+                            {others.map((section) => (
+                                <div
+                                    key={section.name}
+                                    className="flex gap-4 py-3 first:pt-0 last:pb-0"
                                 >
-                                    {item}
-                                </li>
+                                    <dt className="w-28 shrink-0 pt-0.5 text-xs font-medium text-muted-foreground">
+                                        {section.name}
+                                    </dt>
+                                    <dd className="min-w-0 flex-1 space-y-1 text-sm leading-snug font-semibold text-foreground">
+                                        {section.items.map((item) => (
+                                            <p key={item}>{item}</p>
+                                        ))}
+                                    </dd>
+                                </div>
                             ))}
+                        </dl>
+                    </CardContent>
+                </Card>
+            )}
+        </div>
+    );
+}
+
+function MealHighlight({ main, alternatives }: { main: MenuSection; alternatives: MenuSection[] }) {
+    return (
+        <section aria-label={main.name}>
+            <Card className="bg-primary/5 ring-primary/30">
+                <CardContent>
+                    <p className="text-xs font-semibold text-primary">{main.name}</p>
+                    <div className="mt-1 space-y-1">
+                        {main.items.map((item) => (
+                            <p
+                                key={item}
+                                className="text-xl leading-tight font-bold tracking-tight"
+                            >
+                                {item}
+                            </p>
+                        ))}
+                    </div>
+
+                    {alternatives.length > 0 && (
+                        <ul className="mt-4 space-y-3 border-t border-primary/15 pt-4">
+                            {alternatives.map((section) => {
+                                const info = section.key ? ALTERNATIVES[section.key] : undefined;
+                                const Icon = info?.icon ?? Leaf;
+                                return (
+                                    <li key={section.name} className="flex items-center gap-3">
+                                        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                            <Icon className="size-4" aria-hidden="true" />
+                                        </span>
+                                        <div className="min-w-0">
+                                            <p className="text-xs text-muted-foreground">
+                                                {info?.label ?? section.name}
+                                            </p>
+                                            <p className="text-sm leading-snug font-semibold">
+                                                {section.items.join(', ')}
+                                            </p>
+                                        </div>
+                                    </li>
+                                );
+                            })}
                         </ul>
-                    </dd>
-                </div>
-            ))}
-        </dl>
+                    )}
+                </CardContent>
+            </Card>
+        </section>
     );
 }
