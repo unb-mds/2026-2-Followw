@@ -26,6 +26,9 @@
 ### 🚧 Pendências (Rollover)
 *O que não foi terminado e por quê?*
 - [#61/task] [documentação de arquitetura] 
+- [#75/feat] [configurações pessoais] 
+- [#78/task] [ criar cache de notícias de turma no banco] 
+
   - **Motivo:** [Membros muito atarefados durante a semana, não foi possível ser finalizado]
   - **Decisão:** [Mover para próxima sprint]
 
@@ -40,6 +43,11 @@
 | --- | --- | --- | --- | --- |
 | #83 | [padroniza interface] | 🟡 Média |  | [ratatta-na-nite] |
 | #61 | [documentação de arquitetura] | 🔴 Alta |  | [ratatta-na-nite e SamukaToned] |
+| #75 | [configurações pessoais] | 🔴 Alta |  | [Mendezalv] |
+| #78 | [criar cache de notícias de turma no banco] | 🟡 Média |  | [diegolxzz] |
+| #78 | [possibilitar o uso offline do site] | 🟡 Média |  | [eliabexp] |
+
+
 
 A decidir
 ---
