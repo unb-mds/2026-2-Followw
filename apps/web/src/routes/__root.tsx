@@ -4,6 +4,7 @@ import { TanStackDevtools } from '@tanstack/react-devtools';
 import { HeadContent, Outlet, Scripts, createRootRouteWithContext } from '@tanstack/react-router';
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools';
 
+import { ErrorPage } from '#/components/ErrorPage';
 import { useOfflineSupport } from '#/integrations/offline/use-offline-support';
 import PostHogProvider from '#/integrations/posthog/provider';
 import TanStackQueryDevtools from '#/integrations/tanstack-query/devtools';
@@ -40,6 +41,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
         ]
     }),
     shellComponent: RootDocument,
+    errorComponent: ErrorPage,
     component: RootComponent
 });
 
