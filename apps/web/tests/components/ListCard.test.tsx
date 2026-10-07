@@ -14,6 +14,20 @@ describe('ListCard', () => {
         expect(markup).toContain('mt-2');
         expect(markup).toContain('<p>Item</p>');
     });
+
+    test('renderiza como dl quando solicitado', () => {
+        const markup = renderToStaticMarkup(
+            <ListCard as="dl">
+                <div>
+                    <dt>Termo</dt>
+                    <dd>Valor</dd>
+                </div>
+            </ListCard>
+        );
+        expect(markup).toContain('<dl');
+        expect(markup).toContain('<dt>Termo</dt>');
+        expect(markup).toContain('<dd>Valor</dd>');
+    });
 });
 
 describe('Meter', () => {

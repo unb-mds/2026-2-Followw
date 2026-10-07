@@ -85,9 +85,39 @@ export function AcademicPerformance({ user }: { user: UserProfile }) {
     );
 }
 
+export function WorkloadSection({ user }: { user: UserProfile }) {
+    if (!user.workload) return null;
+    const { total, pending_mandatory, pending_optional, pending_complementary } = user.workload;
+
+    const items = [
+        { label: 'CH. Obrigatória Pendente', hours: pending_mandatory },
+        { label: 'CH. Optativa Pendente', hours: pending_optional },
+        { label: 'CH. Complementar Pendente', hours: pending_complementary },
+        { label: 'CH. Total Currículo', hours: total }
+    ];
+
+    return (
+        <ProfileSection title="Carga Horária">
+            <ListCard as="dl">
+                {items.map(({ label, hours }) => (
+                    <div
+                        key={label}
+                        className="flex min-h-12 items-center justify-between gap-2 py-2.5"
+                    >
+                        <dt className="text-sm font-medium">{label}</dt>
+                        <dd className="text-sm font-semibold tabular-nums text-primary">
+                            {hours} <span className="font-normal text-foreground">h</span>
+                        </dd>
+                    </div>
+                ))}
+            </ListCard>
+        </ProfileSection>
+    );
+}
+
 export function EnrollmentDetails({ user }: { user: UserProfile }) {
     return (
-        <ProfileSection title="Vínculo">
+        <ProfileSection title="">
             <ListCard>
                 <ProfileRow icon={IdCard} label="Matrícula">
                     <span className="tabular-nums">{user.registration}</span>

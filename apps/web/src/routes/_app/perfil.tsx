@@ -9,7 +9,8 @@ import {
     AcademicPerformance,
     EnrollmentDetails,
     ProfileIdentity,
-    ProfileSection
+    ProfileSection,
+    WorkloadSection
 } from '#/components/profile/ProfileOverview';
 import { ThemeToggle } from '#/components/ThemeToggle';
 import {
@@ -56,6 +57,7 @@ function PerfilPage() {
                     <ProfileIdentity user={user} />
                     <EnrollmentDetails user={user} />
                     <AcademicPerformance user={user} />
+                    <WorkloadSection user={user} />
                     <AccountSection />
                 </>
             )}

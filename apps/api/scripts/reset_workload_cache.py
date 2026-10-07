@@ -5,8 +5,8 @@ import asyncio
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from api.db.models import User
 from api.core.config import settings
+from api.db.models import User
 
 
 async def main() -> None:
