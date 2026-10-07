@@ -30,8 +30,7 @@ O sistema não possui contas proprietárias: a autenticação é delegada ao **C
 ---
 
 ## Diagramas da Arquitetura (Modelo C4)
-
-Os diagramas de arquitetura adotam o padrão de **Diagrams as Code** via **C4-PlantUML**, versionados como código em [`docs/diagrams/`](diagrams/) e renderizados em formato vetorial SVG pelo pipeline do GitHub Actions.
+Os diagramas de arquitetura adotam o padrão de **Diagrams as Code** via **C4-PlantUML**, versionados como código em [`docs/diagrams/`](diagrams/) e renderizados em formato vetorial SVG localmente através do script [`scripts/generate_diagrams.py`](../scripts/generate_diagrams.py).
 
 ### Diagrama de Contexto do Sistema (Nível 1)
 Apresenta o Followw UnB no seu ambiente operacional, seus usuários e as integrações com os sistemas da universidade e serviços externos.
@@ -120,5 +119,7 @@ Apresenta a organização interna dos componentes do Frontend (`apps/web`), do B
 ├── docs/                      # Documentação de arquitetura, requisitos e sprints
 │   ├── assets/                # Diagramas renderizados em SVG e imagens
 │   └── diagrams/              # Diagramas como código em C4-PlantUML (.puml)
+│
+├── scripts/                   # Scripts utilitários locais (ex: geração de diagramas)
 └── compose.yml                # Configuração do PostgreSQL local
 ```
