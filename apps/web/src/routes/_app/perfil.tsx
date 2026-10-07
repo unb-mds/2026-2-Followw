@@ -8,10 +8,9 @@ import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
 import { ListCard } from '#/components/ListCard';
 import {
     AcademicPerformance,
-    EnrollmentDetails,
     ProfileIdentity,
     ProfileSection,
-    WorkloadSection
+    ProgressSection
 } from '#/components/profile/ProfileOverview';
 import { ThemeToggle } from '#/components/ThemeToggle';
 import {
@@ -70,8 +69,8 @@ function PerfilPage() {
             {user && (
                 <>
                     <ProfileIdentity user={user} displayName={settings.displayName} />
-                    <EnrollmentDetails user={user} />
                     <AcademicPerformance user={user} />
+                    <ProgressSection user={user} />
                     <AccountSection
                         name={titleCase(user.name)}
                         displayName={settings.displayName}
