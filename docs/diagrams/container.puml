@@ -1,0 +1,28 @@
+@startuml container
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Diagrama de Containers — Followw UnB
+
+Person(estudante, "Estudante UnB", "Usuário final interagindo com a plataforma.")
+
+System_Boundary(c1, "Followw UnB") {
+    Container(web, "Frontend Web", "TanStack Start, React 19, Tailwind CSS", "Interface web reativa para consulta de turmas, frequência e cardápio.")
+    Container(api, "Backend API", "FastAPI, Python 3.14", "API REST assíncrona, orquestra cache, valida cookies JWE e executa scrapers.")
+    ContainerDb(db, "Banco de Dados", "PostgreSQL 16+", "Cache de turmas, participantes, estatísticas e cardápio do RU.")
+}
+
+System_Ext(sigaa, "SIGAA / CAS UnB", "Sistema Acadêmico Legado")
+System_Ext(portais, "Portais UnB", "PDFs do RU e editais")
+System_Ext(qstash, "Upstash QStash", "Fila de jobs assíncronos")
+
+Rel(estudante, web, "Utiliza", "HTTPS")
+Rel(web, api, "Consome endpoints REST (cookies JWE)", "HTTPS / JSON")
+Rel(api, db, "Lê/Grava cache (SWR)", "Asyncpg / SQLAlchemy")
+Rel(api, sigaa, "Scraping com ciclo de vida JSF", "HTTPS")
+Rel(api, portais, "Extrai cardápios (pdfplumber)", "HTTPS")
+Rel(api, qstash, "Publica tasks em segundo plano", "HTTPS")
+Rel(qstash, api, "Entrega webhooks autenticados", "HTTPS / POST /jobs")
+
+@enduml
