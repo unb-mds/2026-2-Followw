@@ -62,6 +62,23 @@ describe('indexação das páginas', () => {
         }
     );
 
+    test.each([
+        [LoginRoute, 'Entrar | Followw'],
+        [ProfileRoute, 'Perfil | Followw'],
+        [ClassroomsRoute, 'Minhas Turmas | Followw'],
+        [ClassroomRoute, 'Turma | Followw']
+    ])('telas não públicas têm título próprio', async (route, title) => {
+        const head = await route.options.head({});
+        expect(head.meta).toContainEqual({ title });
+    });
+
+    test('a turma usa o nome da disciplina no título quando conhecida', async () => {
+        const head = await ClassroomRoute.options.head({
+            loaderData: { subjectName: 'Cálculo 1' }
+        });
+        expect(head.meta).toContainEqual({ title: 'Cálculo 1 | Followw' });
+    });
+
     test('URLs inexistentes continuam redirecionando para a inicial', () => {
         let error;
         try {

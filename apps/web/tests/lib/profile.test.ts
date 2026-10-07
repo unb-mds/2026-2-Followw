@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { academicIndexes, titleCase } from '#/lib/profile';
+import { academicIndexes, creditsLabel, titleCase } from '#/lib/profile';
 
 describe('titleCase', () => {
     test.each([
@@ -19,17 +19,26 @@ describe('titleCase', () => {
 });
 
 describe('academicIndexes', () => {
-    test('formata IRA e MP com quatro casas no padrão brasileiro', () => {
+    test('formata IRA e MP com três casas no padrão brasileiro', () => {
         expect(academicIndexes({ ira: 3.5, mp: 4.12345 }).map((index) => index.value)).toEqual([
-            '3,5000',
-            '4,1235'
+            '3,500',
+            '4,123'
         ]);
     });
 
     test('omite índices ausentes mas mantém zero', () => {
         expect(academicIndexes({ ira: null, mp: 0 })).toEqual([
-            { label: 'MP', description: 'Média ponderada', value: '0,0000' }
+            { label: 'MP', description: 'Média ponderada', value: '0,000' }
         ]);
         expect(academicIndexes({ ira: null, mp: null })).toEqual([]);
+    });
+});
+
+describe('creditsLabel', () => {
+    test('converte horas em créditos (15 h = 1 crédito)', () => {
+        expect(creditsLabel(15)).toBe('1 crédito');
+        expect(creditsLabel(2175)).toBe('145 créditos');
+        expect(creditsLabel(0)).toBe('0 créditos');
+        expect(creditsLabel(20)).toBe('1,3 créditos');
     });
 });

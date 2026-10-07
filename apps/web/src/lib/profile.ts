@@ -3,9 +3,17 @@ import type { components } from '#/queries/schema.gen';
 type UserProfile = components['schemas']['UserProfile'];
 
 const indexFormat = new Intl.NumberFormat('pt-BR', {
-    minimumFractionDigits: 4,
-    maximumFractionDigits: 4
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3
 });
+
+const HOURS_PER_CREDIT = 15;
+const creditFormat = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 });
+
+export function creditsLabel(hours: number) {
+    const credits = hours / HOURS_PER_CREDIT;
+    return `${creditFormat.format(credits)} ${credits === 1 ? 'crédito' : 'créditos'}`;
+}
 
 const LOWERCASE_WORDS = new Set(['a', 'as', 'da', 'das', 'de', 'do', 'dos', 'e', 'em', 'o', 'os']);
 const ROMAN_NUMERAL = /^[ivx]+$/;

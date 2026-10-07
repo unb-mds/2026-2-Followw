@@ -2,7 +2,7 @@ import type { Day } from '#/lib/schedule';
 
 import { Button } from '#/components/ui/button';
 
-const MONTHS = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+const WEEKDAYS = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
 
 interface WeekDayPickerProps {
     days: Day[];
@@ -33,7 +33,7 @@ export function WeekDayPicker({ days, selectedDate, onSelect }: WeekDayPickerPro
                                 isActive ? 'text-primary-foreground/90' : 'text-muted-foreground'
                             }`}
                         >
-                            {MONTHS[Number(day.date.slice(5, 7)) - 1]}
+                            {WEEKDAYS[day.weekday]}
                         </span>
                         <span className="text-lg font-extrabold">{Number(day.date.slice(8))}</span>
                     </Button>

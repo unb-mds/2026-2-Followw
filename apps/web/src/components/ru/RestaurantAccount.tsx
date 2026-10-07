@@ -1,7 +1,7 @@
 import type { UseQueryResult } from '@tanstack/react-query';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { QrCode, RefreshCw, Wallet } from 'lucide-react';
+import { QrCode, RefreshCw } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useState } from 'react';
 
@@ -27,6 +27,7 @@ import {
     DrawerTitle,
     DrawerTrigger
 } from '#/components/ui/drawer';
+import { Spinner } from '#/components/ui/spinner';
 import { useFailureMessage, useOnline } from '#/lib/online';
 import { cardIsExpired, insufficientMealBalance } from '#/lib/restaurant';
 import { nowInBrasilia } from '#/lib/schedule';
@@ -64,7 +65,7 @@ export function RestaurantAccount({ registration }: { registration: string }) {
     const cardDrawer = <StudentCardDrawer credentials={credentials} />;
 
     return (
-        <section className="mt-8 space-y-3" aria-label="Minha conta">
+        <section className="mt-8 flex flex-col gap-3" aria-label="Minha conta">
             <div className="flex items-center justify-between px-1">
                 <h2 className="text-lg font-extrabold text-foreground">Minha conta</h2>
                 <Button
@@ -74,10 +75,11 @@ export function RestaurantAccount({ registration }: { registration: string }) {
                     disabled={refreshing || statement.isFetching || credentials.isFetching}
                     className="text-primary"
                 >
-                    <RefreshCw
-                        className={refreshing ? 'size-4 animate-spin' : 'size-4'}
-                        aria-hidden="true"
-                    />
+                    {refreshing ? (
+                        <Spinner aria-hidden="true" />
+                    ) : (
+                        <RefreshCw className="size-4" aria-hidden="true" />
+                    )}
                     {refreshing ? 'Atualizando...' : 'Atualizar'}
                 </Button>
             </div>
@@ -85,8 +87,7 @@ export function RestaurantAccount({ registration }: { registration: string }) {
             <Card>
                 <CardContent>
                     <div className="mb-2 flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 text-sm font-bold text-muted-foreground">
-                            <Wallet className="size-4" aria-hidden="true" />
+                        <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
                             Saldo disponível
                         </div>
                         {!statement.data && cardDrawer}
@@ -138,6 +139,7 @@ function StudentCardDrawer({
                         query={credentials}
                         hasData={Boolean(credentials.data)}
                         label="carteirinha"
+                        showUpdatedAt={false}
                     />
                 </div>
                 <DrawerFooter>
@@ -158,10 +160,12 @@ export function StatementDetails({
     now?: Day & { time: string };
 }) {
     const warning = insufficientMealBalance(statement.balance, statement.group, now);
+    const [first, ...rest] = statement.entries;
+    const entries = first && /^saldo\b/i.test(first.description.trim()) ? rest : statement.entries;
     return (
         <>
             <div className="flex items-center justify-between gap-3">
-                <p className="text-3xl font-extrabold text-primary tabular-nums">
+                <p className="ph-no-capture text-4xl font-extrabold text-primary tabular-nums">
                     {statement.balance == null
                         ? 'Saldo não informado'
                         : currency.format(Number(statement.balance))}
@@ -173,22 +177,21 @@ export function StatementDetails({
                     aria-live="polite"
                     className="mt-3 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm font-semibold text-foreground"
                 >
-                    Saldo insuficiente para o {warning.meal.label.toLocaleLowerCase('pt-BR')}. A
-                    refeição custa {currency.format(warning.price)} e faltam{' '}
-                    {currency.format(warning.shortfall)}.
+                    Saldo insuficiente para o {warning.meal.label.toLocaleLowerCase('pt-BR')}{' '}
+                    (faltam {currency.format(warning.shortfall)}).
                 </p>
             )}
             <Accordion className="mt-4 border-t border-border pt-3">
                 <AccordionItem value="statement">
                     <AccordionTrigger className="py-0 text-primary">Extrato do RU</AccordionTrigger>
                     <AccordionContent keepMounted>
-                        {statement.entries.length === 0 ? (
+                        {entries.length === 0 ? (
                             <p className="mt-3 text-sm text-muted-foreground">
                                 Nenhuma movimentação no extrato.
                             </p>
                         ) : (
                             <ul className="mt-2 max-h-64 divide-y divide-border overflow-y-auto">
-                                {statement.entries.map((entry) => (
+                                {entries.map((entry) => (
                                     <li
                                         key={`${entry.occurred_at}-${entry.description}-${entry.amount}`}
                                         className="flex items-center justify-between gap-3 py-3"
@@ -239,7 +242,7 @@ export function StudentCard({
                         fgColor="var(--foreground)"
                         bgColor="var(--background)"
                         title="QR code da carteirinha estudantil"
-                        className="mx-auto h-auto w-64 max-w-full"
+                        className="ph-no-capture mx-auto h-auto w-64 max-w-full"
                     />
                     <p className="mt-2 text-sm text-muted-foreground">
                         Apresente este QR code na entrada do RU.
@@ -256,11 +259,13 @@ export function StudentCard({
 function AccountStatus({
     query,
     hasData,
-    label
+    label,
+    showUpdatedAt = true
 }: {
     query: Pick<UseQueryResult, 'isPending' | 'isError' | 'dataUpdatedAt' | 'refetch'>;
     hasData: boolean;
     label: string;
+    showUpdatedAt?: boolean;
 }) {
     const online = useOnline();
     const failureMessage = useFailureMessage(
@@ -285,7 +290,7 @@ function AccountStatus({
                     </Button>
                 </p>
             )}
-            {hasData && query.dataUpdatedAt > 0 && (
+            {showUpdatedAt && hasData && query.dataUpdatedAt > 0 && (
                 <p className="mt-1">
                     Atualizado em {dateTime.format(new Date(query.dataUpdatedAt))}
                 </p>

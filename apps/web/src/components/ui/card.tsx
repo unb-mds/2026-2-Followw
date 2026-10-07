@@ -4,10 +4,11 @@ import { cn } from "cn"
 function Card({
   className,
   size = "default",
+  as: Component = "div",
   ...props
-}: React.ComponentProps<"div"> & { size?: "default" | "sm" }) {
+}: React.ComponentProps<"div"> & { size?: "default" | "sm"; as?: React.ElementType }) {
   return (
-    <div
+    <Component
       data-slot="card"
       data-size={size}
       className={cn(

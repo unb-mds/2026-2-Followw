@@ -6,14 +6,8 @@ import { LoginPrivacyInfo } from '#/components/auth/LoginPrivacyInfo';
 import { LoginSubmitButton } from '#/components/auth/LoginSubmitButton';
 import { ErrorState } from '#/components/ErrorState';
 import { FollowwLogo } from '#/components/FollowwLogo';
-import { buttonVariants } from '#/components/ui/button';
+import { Button, buttonVariants } from '#/components/ui/button';
 import { Input } from '#/components/ui/input';
-import {
-    InputGroup,
-    InputGroupAddon,
-    InputGroupButton,
-    InputGroupInput
-} from '#/components/ui/input-group';
 import { Label } from '#/components/ui/label';
 import { OFFLINE_MESSAGE, useOnline } from '#/lib/online';
 import { cn } from '#/lib/shadcn';
@@ -23,6 +17,7 @@ import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
 
 export const Route = createFileRoute('/login')({
+    head: () => ({ meta: [{ title: 'Entrar | Followw' }] }),
     loader: async ({ context }) => {
         try {
             const user = await loadQuery(context.queryClient, meQueryOptions);
@@ -92,8 +87,8 @@ function LoginPage() {
                     <Label htmlFor="password" className="sr-only">
                         Senha do SIGAA
                     </Label>
-                    <InputGroup className="mt-3 h-12 rounded-2xl bg-background shadow-sm">
-                        <InputGroupInput
+                    <div className="relative mt-3">
+                        <Input
                             id="password"
                             type={showPassword ? 'text' : 'password'}
                             autoComplete="current-password"
@@ -103,24 +98,25 @@ function LoginPage() {
                             value={password}
                             onChange={(event) => setPassword(event.target.value)}
                             placeholder="Senha do SIGAA"
-                            className="h-full pl-4"
+                            className="h-12 rounded-2xl bg-background px-4 pr-14 shadow-sm"
                         />
-                        <InputGroupAddon align="inline-end">
-                            <InputGroupButton
-                                size="icon-sm"
-                                onClick={() => setShowPassword((visible) => !visible)}
-                                aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
-                                aria-controls="password"
-                                aria-pressed={showPassword}
-                            >
-                                {showPassword ? (
-                                    <EyeOff className="size-5" aria-hidden="true" />
-                                ) : (
-                                    <Eye className="size-5" aria-hidden="true" />
-                                )}
-                            </InputGroupButton>
-                        </InputGroupAddon>
-                    </InputGroup>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => setShowPassword((visible) => !visible)}
+                            aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                            aria-controls="password"
+                            aria-pressed={showPassword}
+                            className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground"
+                        >
+                            {showPassword ? (
+                                <EyeOff className="size-5" aria-hidden="true" />
+                            ) : (
+                                <Eye className="size-5" aria-hidden="true" />
+                            )}
+                        </Button>
+                    </div>
 
                     {error && (
                         <p

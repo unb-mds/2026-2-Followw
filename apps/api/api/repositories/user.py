@@ -34,6 +34,7 @@ class UserRepository:
         user.unity = profile.unity
         user.course = profile.course
         user.integralization = profile.integralization
+        user.workload = profile.workload.model_dump() if profile.workload else None
         user.ira = profile.ira
         user.mp = profile.mp
         user.level = UserLevel(profile.level.value)

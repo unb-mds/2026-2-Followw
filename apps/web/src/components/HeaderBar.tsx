@@ -23,7 +23,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({ children, actions, showLog
 };
 
 export const HeaderTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <h1 className="text-2xl leading-none font-bold tracking-tight text-foreground">{children}</h1>
+    <h1 className="text-xl leading-none font-bold tracking-tight text-foreground">{children}</h1>
 );
 
 interface HeaderToggleProps {

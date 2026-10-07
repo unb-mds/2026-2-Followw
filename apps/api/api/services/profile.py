@@ -1,7 +1,7 @@
 from typing import Annotated
 
 from fastapi import Depends
-from sigaa_client import UserLevel, UserProfile
+from sigaa_client import CurriculumWorkload, UserLevel, UserProfile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.models import User
@@ -37,6 +37,9 @@ def _to_profile(user: User) -> UserProfile:
         unity=user.unity,
         course=user.course,
         integralization=user.integralization,
+        workload=CurriculumWorkload.model_validate(user.workload)
+        if user.workload
+        else None,
         ira=user.ira,
         mp=user.mp,
         level=UserLevel(user.level.value),

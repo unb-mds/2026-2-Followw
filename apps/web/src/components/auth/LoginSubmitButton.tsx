@@ -1,7 +1,7 @@
-import { LoaderCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { Button } from '#/components/ui/button';
+import { Spinner } from '#/components/ui/spinner';
 import { loginProgressAt } from '#/lib/login-progress';
 
 interface LoginSubmitButtonProps {
@@ -20,10 +20,7 @@ export function LoginSubmitButton({ pending }: LoginSubmitButtonProps) {
                 <>
                     <LoginProgressBar />
                     <span className="relative z-10 flex items-center gap-2">
-                        <LoaderCircle
-                            className="size-4 animate-spin motion-reduce:animate-none"
-                            aria-hidden="true"
-                        />
+                        <Spinner aria-hidden="true" />
                         Entrando...
                     </span>
                 </>

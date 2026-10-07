@@ -2,7 +2,13 @@ import { describe, expect, test } from 'bun:test';
 
 import type { components } from '#/queries/schema.gen';
 
-import { formatClassroomDate, groupBySemester, groupMembers } from '#/lib/classroom-details';
+import {
+    formatClassroomDate,
+    formatClassroomWeekday,
+    frequencyTone,
+    groupBySemester,
+    groupMembers
+} from '#/lib/classroom-details';
 
 type Member = components['schemas']['ClassroomMember'];
 
@@ -43,5 +49,22 @@ describe('detalhes da turma', () => {
                 ]
             ]
         ]);
+    });
+});
+
+describe('formatClassroomWeekday', () => {
+    test('abrevia o dia da semana sem ponto', () => {
+        expect(formatClassroomWeekday('2026-10-07')).toBe('qua');
+        expect(formatClassroomWeekday('2026-10-10T12:00:00')).toBe('sáb');
+    });
+});
+
+describe('frequencyTone', () => {
+    test('alerta até 80% e reprova abaixo de 75%', () => {
+        expect(frequencyTone(100)).toBe('ok');
+        expect(frequencyTone(80.1)).toBe('ok');
+        expect(frequencyTone(80)).toBe('warning');
+        expect(frequencyTone(75)).toBe('warning');
+        expect(frequencyTone(74.9)).toBe('danger');
     });
 });

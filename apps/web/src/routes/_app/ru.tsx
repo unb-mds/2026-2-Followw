@@ -239,7 +239,7 @@ function MealDetails({ sections }: { sections: MenuSection[] }) {
     const { main, alternatives, others } = highlightMenu(sections);
 
     return (
-        <div className="space-y-4">
+        <div className="flex flex-col gap-2">
             {main && <MealHighlight main={main} alternatives={alternatives} />}
             {others.length > 0 && (
                 <Card size="sm">
@@ -253,7 +253,7 @@ function MealDetails({ sections }: { sections: MenuSection[] }) {
                                     <dt className="w-28 shrink-0 pt-0.5 text-xs font-medium text-muted-foreground">
                                         {section.name}
                                     </dt>
-                                    <dd className="min-w-0 flex-1 space-y-1 text-sm leading-snug font-semibold text-foreground">
+                                    <dd className="flex min-w-0 flex-1 flex-col gap-1 text-sm leading-snug font-semibold text-foreground">
                                         {section.items.map((item) => (
                                             <p key={item}>{item}</p>
                                         ))}
@@ -274,7 +274,7 @@ function MealHighlight({ main, alternatives }: { main: MenuSection; alternatives
             <Card className="bg-primary/5 ring-primary/30">
                 <CardContent>
                     <p className="text-xs font-semibold text-primary">{main.name}</p>
-                    <div className="mt-1 space-y-1">
+                    <div className="mt-1 flex flex-col gap-1">
                         {main.items.map((item) => (
                             <p
                                 key={item}
@@ -286,7 +286,7 @@ function MealHighlight({ main, alternatives }: { main: MenuSection; alternatives
                     </div>
 
                     {alternatives.length > 0 && (
-                        <ul className="mt-4 space-y-3 border-t border-primary/15 pt-4">
+                        <ul className="mt-4 flex flex-col gap-3 border-t border-primary/15 pt-4">
                             {alternatives.map((section) => {
                                 const info = section.key ? ALTERNATIVES[section.key] : undefined;
                                 const Icon = info?.icon ?? Leaf;

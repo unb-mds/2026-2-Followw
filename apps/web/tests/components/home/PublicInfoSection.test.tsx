@@ -25,6 +25,7 @@ async function renderSection(props: React.ComponentProps<typeof PublicInfoSectio
 
 const menu: DailyMenu = {
     date: '2026-10-05',
+    breakfast: [{ key: 'complement', name: 'Complemento', items: ['Pão com ovos'] }],
     lunch: [
         { key: 'salad_1', name: 'Salada', items: ['Alface'] },
         { key: 'main_dish', name: 'Prato principal', items: ['Frango assado'] }
@@ -33,10 +34,11 @@ const menu: DailyMenu = {
 };
 
 describe('PublicInfoSection', () => {
-    test('mostra o prato principal de cada refeição e o campus', async () => {
+    test('mostra o prato principal de cada refeição, incluindo o café e o campus', async () => {
         const markup = await renderSection({ campus: 'Gama', menu, day: 'Hoje' });
 
         expect(markup).toContain('Campus Gama');
+        expect(markup).toContain('Pão com ovos');
         expect(markup).toContain('Frango assado');
         expect(markup).toContain('Lagarto ao molho');
         expect(markup).not.toContain('Alface');
@@ -55,7 +57,7 @@ describe('PublicInfoSection', () => {
     test('exibe o dia selecionado', async () => {
         const markup = await renderSection({ campus: 'Darcy', day: 'Quarta-feira' });
 
-        expect(markup).toContain('Prato principal · Quarta-feira');
+        expect(markup).toContain('Pratos principais · Quarta-feira');
         expect(markup).toContain('Cardápio de quarta-feira não publicado.');
     });
 });

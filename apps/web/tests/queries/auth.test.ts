@@ -18,6 +18,7 @@ const user: components['schemas']['UserProfile'] = {
     unity: 'FCTE',
     course: 'Engenharia de Software',
     integralization: null,
+    workload: null,
     ira: null,
     mp: null,
     level: 'Graduação'

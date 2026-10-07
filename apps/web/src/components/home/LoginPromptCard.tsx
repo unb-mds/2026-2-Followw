@@ -17,7 +17,8 @@ export const LoginPromptCard: React.FC = () => {
                         Acesse com sua Matrícula UnB
                     </h3>
                     <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                        Conecte-se sua conta do SIGAA para visualizar suas turmas, horários e notas.
+                        Conecte-se sua conta do SIGAA para visualizar suas turmas, horários e muito
+                        mais.
                     </p>
 
                     <div className="mt-4 flex items-center gap-3">

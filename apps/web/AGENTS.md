@@ -25,6 +25,7 @@ bun generate-api [url]     # gera src/queries/schema.gen.ts (default: localhost:
   `routes/`.
 - Cores só pelo `@theme` de `src/styles.css`, nunca hex solto. Sem valores arbitrários
   (`text-[13px]`): use a escala do Tailwind, preferencialmente valores pares.
+- Prefira flex + gap a space- do tailwind.
 - Testes em `tests/` espelhando `src/`.
 - Arquivos `*.gen.ts` são gerados: nunca edite à mão.
 

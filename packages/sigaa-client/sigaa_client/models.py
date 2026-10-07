@@ -43,6 +43,17 @@ class RestaurantCredentials(BaseModel):
     valid_until: date
 
 
+class CurriculumWorkload(BaseModel):
+    """Carga horária do currículo e o que falta integralizar, em horas."""
+
+    model_config = ConfigDict(frozen=True)
+
+    total: int
+    pending_mandatory: int
+    pending_optional: int
+    pending_complementary: int
+
+
 class UserProfile(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -54,6 +65,7 @@ class UserProfile(BaseModel):
     unity: str
     course: str
     integralization: int | None
+    workload: CurriculumWorkload | None
     ira: float | None
     mp: float | None
     level: UserLevel

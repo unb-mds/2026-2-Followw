@@ -41,6 +41,12 @@ PERFIL = """
       <tr><td><acronym>IRA:</acronym></td><td>3.9524</td></tr>
       <tr><td><acronym>MP:</acronym></td><td>4.1724</td></tr>
     </table></td></tr>
+    <tr><td colspan="2"><table>
+      <tr><td> CH. Obrigat&#243;ria Pendente </td><td> 2175 </td></tr>
+      <tr><td> CH. Optativa Pendente </td><td> 420 </td></tr>
+      <tr><td> CH. Total Curr&#237;culo </td><td> 3525 </td></tr>
+      <tr><td> CH. Complementar Pendente </td><td> 0 </td></tr>
+    </table></td></tr>
   </table>
   <span>35% Integralizado</span>
 </div></body></html>
@@ -67,6 +73,12 @@ def test_login_seguido_de_me_responde_do_cache(client, sigaa):
         "unity": "FCTE",
         "course": "ENGENHARIA DE SOFTWARE",
         "integralization": 35,
+        "workload": {
+            "total": 3525,
+            "pending_mandatory": 2175,
+            "pending_optional": 420,
+            "pending_complementary": 0,
+        },
         "ira": 3.9524,
         "mp": 4.1724,
         "level": "Graduação",
@@ -86,7 +98,7 @@ def test_me_sem_campos_opcionais_retorna_null(client, sigaa, cookies):
     response = client.get("/me")
 
     assert response.status_code == 200
-    for field in ("photo", "email", "bio", "integralization", "ira", "mp"):
+    for field in ("photo", "email", "bio", "integralization", "workload", "ira", "mp"):
         assert response.json()[field] is None
 
 
@@ -213,6 +225,7 @@ def test_me_documenta_campos_e_erros(client):
         "unity",
         "course",
         "integralization",
+        "workload",
         "ira",
         "mp",
     } <= fields.keys()

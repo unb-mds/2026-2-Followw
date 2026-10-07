@@ -12,7 +12,7 @@ describe('rota raiz e manifest PWA', () => {
         const links = head?.links ?? [];
         expect(links).toContainEqual({ rel: 'manifest', href: '/manifest.json' });
         expect(links).toContainEqual({ rel: 'icon', href: '/favicon.svg' });
-        expect(links).toContainEqual({ rel: 'apple-touch-icon', href: '/favicon.svg' });
+        expect(links).toContainEqual({ rel: 'apple-touch-icon', href: '/apple-touch-icon.png' });
 
         const meta = head?.meta ?? [];
         expect(meta).toContainEqual({ name: 'theme-color', content: manifest.theme_color });
@@ -27,11 +27,11 @@ describe('rota raiz e manifest PWA', () => {
         expect(manifest.theme_color).toBe('#007c5d');
         expect(manifest.background_color).toBe('#ffffff');
 
-        // reutiliza favicon.svg como ícone da aplicação
+        // ícone da aplicação instalada
         expect(manifest.icons).toEqual(
             expect.arrayContaining([
                 expect.objectContaining({
-                    src: '/favicon.svg',
+                    src: '/app-icon.svg',
                     type: 'image/svg+xml'
                 })
             ])

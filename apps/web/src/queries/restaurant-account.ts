@@ -34,5 +34,8 @@ function accountQuery<T, TKey extends ApiKey>(
 export const statementQueryOptions = (registration: string) =>
     accountQuery(api.queryOptions('get', '/me/ru-statement'), registration);
 
-export const credentialsQueryOptions = (registration: string) =>
-    accountQuery(api.queryOptions('get', '/me/ru-token'), registration);
+// A carteirinha salva nunca é refeita sozinha: só pelo botão de atualizar.
+export const credentialsQueryOptions = (registration: string) => ({
+    ...accountQuery(api.queryOptions('get', '/me/ru-token'), registration),
+    staleTime: Infinity
+});

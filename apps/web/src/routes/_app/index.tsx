@@ -34,7 +34,7 @@ export const Route = createFileRoute('/_app/')({
             path: '/',
             title: 'Followw — SIGAA UnB e cardápio do RU',
             description:
-                'Acompanhe suas turmas, horários e notícias do SIGAA UnB e consulte o cardápio do RU. Followw é um projeto independente feito por estudantes.'
+                'Acompanhe suas turmas, horários e notícias do SIGAA, consulte o cardápio do RU e muito mais.'
         }),
         scripts: [
             {
@@ -172,12 +172,6 @@ function HomePage() {
                 )
             ) : (
                 <section>
-                    <h2 className="text-lg font-bold text-foreground">Followw UnB</h2>
-                    <p className="mt-1 mb-4 text-sm text-muted-foreground">
-                        Suas turmas, horários e notícias do SIGAA UnB em um só lugar. Consulte
-                        também o cardápio do RU sem precisar entrar. Um projeto independente feito
-                        por estudantes, sem vínculo oficial com a Universidade de Brasília.
-                    </p>
                     <SectionHeader title="Aulas do dia" />
                     <div className="mb-4">
                         <LoginPromptCard />
