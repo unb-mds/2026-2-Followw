@@ -486,6 +486,20 @@ export interface components {
          */
         ClassroomRole: "aluno" | "professor" | "monitor";
         /**
+         * CurriculumWorkload
+         * @description Carga horária do currículo e o que falta integralizar, em horas.
+         */
+        CurriculumWorkload: {
+            /** Total */
+            total: number;
+            /** Pending Mandatory */
+            pending_mandatory: number;
+            /** Pending Optional */
+            pending_optional: number;
+            /** Pending Complementary */
+            pending_complementary: number;
+        };
+        /**
          * DailyMenu
          * @description Refeição que o campus não serve (ou não publicou) no dia vem `None`.
          */
@@ -700,6 +714,7 @@ export interface components {
             course: string;
             /** Integralization */
             integralization: number | null;
+            workload: components["schemas"]["CurriculumWorkload"] | null;
             /** Ira */
             ira: number | null;
             /** Mp */

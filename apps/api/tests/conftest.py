@@ -348,6 +348,7 @@ def stub_sigaa(monkeypatch):
                     unity="FCTE",
                     course="ENGENHARIA DE SOFTWARE",
                     integralization=35,
+                    workload=None,
                     ira=3.5,
                     mp=4.0,
                     level=UserLevel.GRADUACAO,
