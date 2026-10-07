@@ -28,6 +28,8 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
             { name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
             { name: 'apple-mobile-web-app-title', content: 'Followw' },
             { name: 'description', content: 'O Followw é uma nova forma de usar o SIGAA UnB.' },
+            // Apenas as páginas públicas sobrescrevem esta regra para permitir indexação.
+            { name: 'robots', content: 'noindex, follow' },
             { title: 'Followw' }
         ],
         links: [

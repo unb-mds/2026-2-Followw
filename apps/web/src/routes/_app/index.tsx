@@ -12,6 +12,7 @@ import { usePageState } from '#/components/PageState';
 import { SectionHeader } from '#/components/SectionHeader';
 import { WeekDayPicker } from '#/components/WeekDayPicker';
 import { classesOn, nowInBrasilia, weekDays } from '#/lib/schedule';
+import { publicPageHead } from '#/lib/seo';
 import { classroomsQueryOptions } from '#/queries/classrooms';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
@@ -28,6 +29,26 @@ const WEEKDAYS = [
 ];
 
 export const Route = createFileRoute('/_app/')({
+    head: () => ({
+        ...publicPageHead({
+            path: '/',
+            title: 'Followw — SIGAA UnB e cardápio do RU',
+            description:
+                'Acompanhe suas turmas, horários e notícias do SIGAA UnB e consulte o cardápio do RU. Followw é um projeto independente feito por estudantes.'
+        }),
+        scripts: [
+            {
+                type: 'application/ld+json',
+                children: JSON.stringify({
+                    '@context': 'https://schema.org',
+                    '@type': 'WebSite',
+                    name: 'Followw',
+                    alternateName: 'Followw UnB',
+                    url: 'https://followw.app/'
+                })
+            }
+        ]
+    }),
     loader: async ({ context: { queryClient } }) => {
         const now = nowInBrasilia();
         const user = await loadQuery(queryClient, meQueryOptions);
@@ -151,6 +172,12 @@ function HomePage() {
                 )
             ) : (
                 <section>
+                    <h2 className="text-lg font-bold text-foreground">Followw UnB</h2>
+                    <p className="mt-1 mb-4 text-sm text-muted-foreground">
+                        Suas turmas, horários e notícias do SIGAA UnB em um só lugar. Consulte
+                        também o cardápio do RU sem precisar entrar. Um projeto independente feito
+                        por estudantes, sem vínculo oficial com a Universidade de Brasília.
+                    </p>
                     <SectionHeader title="Aulas do dia" />
                     <div className="mb-4">
                         <LoginPromptCard />
