@@ -3,3 +3,5 @@ Allow: /
 
 Disallow: /api/
 Allow: /api/docs
+
+Sitemap: https://followw.app/sitemap.xml

@@ -27,6 +27,7 @@ import { WeekDayPicker } from '#/components/WeekDayPicker';
 import { useFailureMessage } from '#/lib/online';
 import { currentOrNextMeal, highlightMenu, MEAL_TIMES } from '#/lib/restaurant';
 import { nowInBrasilia, weekDays } from '#/lib/schedule';
+import { publicPageHead } from '#/lib/seo';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
 import { CAMPUS_LABELS, campusOf, menuQueryOptions } from '#/queries/restaurant';
@@ -57,6 +58,13 @@ const CAMPUS_OPTIONS: Campus[] = ['Darcy', 'Gama', 'Ceilandia', 'Planaltina', 'F
 const subscribe = () => () => {};
 
 export const Route = createFileRoute('/_app/ru')({
+    head: () =>
+        publicPageHead({
+            path: '/ru',
+            title: 'Cardápio do RU UnB | Followw',
+            description:
+                'Consulte o cardápio do Restaurante Universitário da UnB: café da manhã, almoço e jantar por dia e campus, sem precisar de login.'
+        }),
     loader: async ({ context: { queryClient } }) => {
         const now = nowInBrasilia();
         const initial = currentOrNextMeal(now);
