@@ -1,6 +1,7 @@
 import { createRouter as createTanStackRouter } from '@tanstack/react-router';
 import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query';
 
+import { ErrorPage } from '#/components/ErrorPage';
 import { getContext } from '#/integrations/tanstack-query/root-provider';
 import { routeTree } from '#/routeTree.gen';
 
@@ -10,6 +11,7 @@ export function getRouter() {
     const router = createTanStackRouter({
         routeTree,
         context,
+        defaultErrorComponent: ErrorPage,
         scrollRestoration: true,
         defaultPreload: 'intent',
         defaultPreloadStaleTime: 0

@@ -19,6 +19,10 @@ describe('rota raiz e manifest PWA', () => {
         expect(meta).toContainEqual({ name: 'apple-mobile-web-app-capable', content: 'yes' });
     });
 
+    test('configura errorComponent na rota raiz', () => {
+        expect(RootRoute.options.errorComponent).toBeDefined();
+    });
+
     test('manifest possui campos obrigatórios para instalação como PWA', () => {
         expect(manifest.name).toBe('Followw');
         expect(manifest.short_name).toBe('Followw');
