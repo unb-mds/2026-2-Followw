@@ -40,6 +40,38 @@ export interface AcademicCalendar {
 
 export const academicCalendar: AcademicCalendar = calendarData;
 
+const NO_CLASS_EVENT_CATEGORIES: ReadonlySet<string> = new Set<CalendarEventCategory>([
+    'holiday',
+    'optional_holiday',
+    'university_week'
+]);
+
+export function getNoClassEvents(date: string): CalendarEvent[] {
+    return listSemesters().flatMap(({ period, events }) =>
+        period.start <= date && date <= period.end
+            ? events.filter(
+                  (event) =>
+                      NO_CLASS_EVENT_CATEGORIES.has(event.category) &&
+                      event.start_date <= date &&
+                      date <= event.end_date
+              )
+            : []
+    );
+}
+
+export function getNoClassReason(date: string): string | undefined {
+    const event = getNoClassEvents(date)[0];
+    if (event) return event.name;
+
+    const semester = listSemesters().find(
+        ({ period }) => period.start <= date && date <= period.end
+    );
+    if (semester && (date < semester.classes.start || date > semester.classes.end)) {
+        return 'Fora do período de aulas';
+    }
+    return undefined;
+}
+
 export function getSemester(semester: string): SemesterCalendar | undefined {
     return academicCalendar.semesters[semester];
 }
