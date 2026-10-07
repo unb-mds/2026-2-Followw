@@ -4,9 +4,6 @@ export const STORAGE_KEYS = {
     THEME: 'theme'
 } as const;
 
-// chaves da persistência manual que o cache do Query substituiu; pode sair a partir de 2026-12
-const LEGACY_KEYS = ['ru-token', 'ru_balance', 'settings'];
-
 function getStorage(): Storage | null {
     if (typeof window === 'undefined') {
         return null;
@@ -98,7 +95,3 @@ export const localStorageRepository: LocalStorageRepository = {
         }
     }
 };
-
-export function removeLegacyStorage() {
-    for (const key of LEGACY_KEYS) localStorageRepository.remove(key);
-}

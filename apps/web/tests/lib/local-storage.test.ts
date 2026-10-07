@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 
-import { localStorageRepository, removeLegacyStorage } from '#/lib/local-storage';
+import { localStorageRepository } from '#/lib/local-storage';
 
 import { MemoryStorage } from '../helpers/memory-storage';
 
@@ -136,19 +136,5 @@ describe('localStorageRepository', () => {
         expect(() => localStorageRepository.set('test', 123)).not.toThrow();
         expect(() => localStorageRepository.remove('test')).not.toThrow();
         expect(() => localStorageRepository.clear()).not.toThrow();
-    });
-
-    test('removeLegacyStorage apaga só as chaves da persistência antiga', () => {
-        localStorageRepository.set('ru-token', 'x');
-        localStorageRepository.set('ru_balance', 1);
-        localStorageRepository.set('settings', {});
-        localStorageRepository.set('theme', 'dark');
-
-        removeLegacyStorage();
-
-        expect(localStorageRepository.get('ru-token')).toBeNull();
-        expect(localStorageRepository.get('ru_balance')).toBeNull();
-        expect(localStorageRepository.get('settings')).toBeNull();
-        expect(localStorageRepository.get<string>('theme')).toBe('dark');
     });
 });

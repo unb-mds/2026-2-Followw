@@ -2,7 +2,6 @@ import { noop, onlineManager, useQuery, useQueryClient } from '@tanstack/react-q
 import { useEffect } from 'react';
 
 import { persistQueryCache } from '#/integrations/tanstack-query/persister';
-import { removeLegacyStorage } from '#/lib/local-storage';
 import { useOnline } from '#/lib/online';
 import { nowInBrasilia } from '#/lib/schedule';
 import {
@@ -23,7 +22,6 @@ function useOfflineBootstrap() {
 
     useEffect(() => {
         onlineManager.setOnline(navigator.onLine);
-        removeLegacyStorage();
         registerServiceWorker();
         return persistQueryCache(queryClient);
     }, [queryClient]);
