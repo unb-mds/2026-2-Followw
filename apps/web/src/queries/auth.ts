@@ -54,7 +54,6 @@ let sessionRefreshed = false;
 export function useSessionRefresh() {
     const queryClient = useQueryClient();
     const { data: user } = useQuery(meQueryOptions);
-    // offline espera a conexão voltar para renovar
     const online = useOnline();
 
     useEffect(() => {

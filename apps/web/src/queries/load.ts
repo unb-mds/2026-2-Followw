@@ -6,8 +6,7 @@ import {
 } from '@tanstack/react-query';
 
 /**
- * Carregamento dos loaders: com dado em cache (inclusive o persistido) resolve na hora e revalida
- * em segundo plano; sem cache, espera a rede.
+ * Carregamento dos loaders: com dado em cache, resolve na hora e revalida em segundo plano;
  */
 export function loadQuery<TData, TError, TQueryKey extends QueryKey>(
     queryClient: QueryClient,

@@ -43,7 +43,6 @@ export const menuQueryOptions = ({
         params: { query: { campus: campus ?? campusOf(user?.unity), date } }
     });
 
-/** Busca o cardápio da semana numa requisição e o grava na query de cada dia. */
 export async function prefetchWeekMenus(queryClient: QueryClient, campus: Campus, today: string) {
     const dates = weekDays(today).map((day) => day.date);
     const menus = await queryClient.query({

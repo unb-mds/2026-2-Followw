@@ -15,7 +15,6 @@ import {
     InputGroupInput
 } from '#/components/ui/input-group';
 import { Label } from '#/components/ui/label';
-import { loginErrorMessage } from '#/lib/login-error';
 import { useOnline } from '#/lib/online';
 import { cn } from '#/lib/shadcn';
 import { useLogin } from '#/queries/auth';
@@ -45,7 +44,11 @@ function LoginPage() {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
 
-    const error = loginErrorMessage(online, login.error);
+    let error: string | undefined;
+    if (!online) error = 'Sem conexão. Conecte-se à internet para entrar.';
+    else if (login.error instanceof ApiError && login.error.isUnauthorized)
+        error = 'Matrícula ou senha incorretas.';
+    else if (login.error) error = 'Não foi possível conectar ao SIGAA. Tente novamente.';
 
     return (
         <main className="flex min-h-dvh w-full flex-col items-center bg-background text-foreground shadow-2xl">
