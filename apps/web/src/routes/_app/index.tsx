@@ -60,11 +60,12 @@ function useSelectedDay() {
     const days = weekDays(now.date);
     const selectedDay = days.find((day) => day.date === picked) ?? now;
     const isToday = selectedDay.date === now.date;
-    return { now, days, selectedDay, isToday, setPicked };
+    const label = isToday ? 'Hoje' : WEEKDAYS[selectedDay.weekday];
+    return { now, days, selectedDay, isToday, label, setPicked };
 }
 
 function HomeHeader() {
-    const { selectedDay, isToday } = useSelectedDay();
+    const { label } = useSelectedDay();
     const [weekOpen, setWeekOpen] = useWeekOpen();
 
     return (
@@ -74,7 +75,7 @@ function HomeHeader() {
                 onToggle={() => setWeekOpen(!weekOpen)}
                 title={weekOpen ? 'Ocultar seletor de dias' : 'Exibir dias da semana'}
             >
-                {isToday ? 'Hoje' : WEEKDAYS[selectedDay.weekday]}
+                {label}
             </HeaderToggle>
         </HeaderBar>
     );
@@ -82,7 +83,7 @@ function HomeHeader() {
 
 function HomePage() {
     const navigate = useNavigate();
-    const { now, days, selectedDay, isToday, setPicked } = useSelectedDay();
+    const { now, days, selectedDay, isToday, label, setPicked } = useSelectedDay();
     const [weekOpen] = useWeekOpen();
 
     const { data: user } = useSuspenseQuery(meQueryOptions);
@@ -149,7 +150,7 @@ function HomePage() {
                 campus={campusOf(user?.unity)}
                 menu={menu.data?.[0]}
                 isLoading={menu.isPending}
-                day={isToday ? undefined : WEEKDAYS[selectedDay.weekday]}
+                day={label}
             />
         </>
     );

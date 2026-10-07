@@ -27,7 +27,7 @@ import {
     DrawerTitle,
     DrawerTrigger
 } from '#/components/ui/drawer';
-import { useOnline } from '#/lib/online';
+import { useFailureMessage, useOnline } from '#/lib/online';
 import { cardIsExpired, insufficientMealBalance } from '#/lib/restaurant';
 import { nowInBrasilia } from '#/lib/schedule';
 import { refreshQuery } from '#/queries/refresh';
@@ -263,6 +263,9 @@ function AccountStatus({
     label: string;
 }) {
     const online = useOnline();
+    const failureMessage = useFailureMessage(
+        hasData ? 'Não foi possível atualizar.' : `Não foi possível carregar ${label}.`
+    );
     // offline com dado salvo já é dito pelo banner
     const showError = query.isError && (online || !hasData);
 
@@ -271,9 +274,7 @@ function AccountStatus({
             {query.isPending && !hasData && <LoadingText>Carregando {label}...</LoadingText>}
             {showError && (
                 <p>
-                    {hasData
-                        ? 'Não foi possível atualizar. Exibindo os últimos dados salvos.'
-                        : `Não foi possível carregar ${label}.`}{' '}
+                    {failureMessage}{' '}
                     <Button
                         variant="link"
                         size="xs"

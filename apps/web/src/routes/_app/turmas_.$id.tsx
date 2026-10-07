@@ -1,4 +1,4 @@
-import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { Link, createFileRoute } from '@tanstack/react-router';
 import { ArrowLeft, Clock3, Hourglass, MapPin, UserRound } from 'lucide-react';
 import { useState } from 'react';
@@ -48,7 +48,7 @@ const tabs: { id: Tab; label: string }[] = [
 export const Route = createFileRoute('/_app/turmas_/$id')({
     loader: async ({ context: { queryClient } }) => {
         const user = await loadQuery(queryClient, meQueryOptions);
-        if (user) await loadQuery(queryClient, allClassroomsQueryOptions).catch(() => undefined);
+        if (user) await loadQuery(queryClient, allClassroomsQueryOptions).catch(noop);
     },
     staticData: { header: ClassroomHeader },
     errorComponent: ErrorState,

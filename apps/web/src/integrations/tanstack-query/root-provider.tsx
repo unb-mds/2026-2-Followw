@@ -1,6 +1,6 @@
 import { QueryCache, QueryClient, environmentManager, onlineManager } from '@tanstack/react-query';
 
-import { PERSIST_MAX_AGE } from '#/integrations/tanstack-query/cache-age.ts';
+import { PERSIST_MAX_AGE } from '#/integrations/offline/storage.ts';
 import { clearSession } from '#/queries/auth.ts';
 import { ApiError } from '#/queries/errors.ts';
 
@@ -18,7 +18,7 @@ export function getContext() {
             queries: {
                 staleTime: 60_000,
                 gcTime: isServer ? undefined : PERSIST_MAX_AGE,
-                networkMode: 'offlineFirst',
+                networkMode: 'always',
                 retry: (failureCount, error) =>
                     !isServer &&
                     onlineManager.isOnline() &&

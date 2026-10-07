@@ -1,12 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 
-import { pagesCacheName } from '#/lib/pages-cache';
-import {
-    clearCachedPages,
-    currentPagesCacheName,
-    offlinePages,
-    warmPages
-} from '#/lib/service-worker';
+import { pagesCacheName } from '#/integrations/offline/pages-cache';
+import { clearOfflineData, warmPages } from '#/integrations/offline/storage';
+
+// sem o define do vite, o build é 'dev'
+const current = pagesCacheName('dev');
 
 // Cache Storage mínimo
 class FakeCache {
@@ -29,6 +27,7 @@ const realFetch = Object.getOwnPropertyDescriptor(globalThis, 'fetch');
 describe('cache de páginas offline', () => {
     let stores: Map<string, FakeCache>;
     let pages: Record<string, Response | undefined>;
+    const cached = () => [...(stores.get(current)?.entries.keys() ?? [])].toSorted();
 
     beforeEach(() => {
         stores = new Map();
@@ -61,13 +60,19 @@ describe('cache de páginas offline', () => {
         Reflect.deleteProperty(globalThis, 'caches');
     });
 
-    test('guarda as páginas principais conforme o login', () => {
-        expect(offlinePages(true)).toEqual(['/', '/ru', '/turmas', '/perfil']);
-        expect(offlinePages(false)).toEqual(['/', '/ru', '/turmas', '/login']);
+    test('guarda as páginas principais conforme o login', async () => {
+        for (const url of ['/', '/ru', '/turmas', '/perfil', '/login'])
+            pages[url] = new Response(url);
+
+        await warmPages(true);
+        expect(cached()).toEqual(['/', '/perfil', '/ru', '/turmas']);
+
+        stores.clear();
+        await warmPages(false);
+        expect(cached()).toEqual(['/', '/login', '/ru', '/turmas']);
     });
 
     test('baixa só as páginas que faltam e apaga caches de builds antigos', async () => {
-        const current = currentPagesCacheName();
         const home = new Response('home');
         stores.set('followw-pages-antigo', new FakeCache());
         stores.set('outro-cache', new FakeCache());
@@ -76,14 +81,12 @@ describe('cache de páginas offline', () => {
         pages['/'] = new Response('nova home');
         pages['/ru'] = new Response('ru');
 
-        await warmPages(['/', '/ru', '/turmas']);
+        await warmPages(true);
 
         expect([...stores.keys()].toSorted()).toEqual([current, 'outro-cache'].toSorted());
-        const entries = stores.get(current)?.entries;
-        expect(entries?.get('/')).toBe(home);
-        expect(entries?.has('/ru')).toBe(true);
+        expect(stores.get(current)?.entries.get('/')).toBe(home);
         // falha de rede numa página não impede as outras
-        expect(entries?.has('/turmas')).toBe(false);
+        expect(cached()).toEqual(['/', '/ru']);
     });
 
     test('o cache de páginas é versionado por build', () => {
@@ -92,24 +95,23 @@ describe('cache de páginas offline', () => {
 
     test('descarta respostas redirecionadas e com erro', async () => {
         pages['/perfil'] = redirected();
-        await warmPages(['/perfil']);
-        expect(stores.get(currentPagesCacheName())?.entries.has('/perfil')).toBe(false);
-
         pages['/ru'] = new Response('erro', { status: 500 });
-        await warmPages(['/ru']);
-        expect(stores.get(currentPagesCacheName())?.entries.has('/ru')).toBe(false);
+        pages['/turmas'] = new Response('turmas');
+
+        await warmPages(true);
+
+        expect(cached()).toEqual(['/turmas']);
     });
 
-    test('limpa todas as páginas guardadas', async () => {
-        stores.set(currentPagesCacheName(), new FakeCache());
+    test('clearOfflineData apaga todas as páginas guardadas', async () => {
+        stores.set(current, new FakeCache());
         stores.set('outro-cache', new FakeCache());
-        await clearCachedPages();
+        await clearOfflineData();
         expect([...stores.keys()]).toEqual(['outro-cache']);
     });
 
-    test('não quebra sem Cache Storage (SSR)', async () => {
+    test('clearOfflineData não quebra sem Cache Storage (SSR)', async () => {
         Reflect.deleteProperty(globalThis, 'caches');
-        await warmPages(['/']);
-        await clearCachedPages();
+        await clearOfflineData();
     });
 });

@@ -1,6 +1,8 @@
 import { onlineManager } from '@tanstack/react-query';
 import { useSyncExternalStore } from 'react';
 
+export const OFFLINE_MESSAGE = 'Você está sem conexão com a internet.';
+
 export function useOnline() {
     return useSyncExternalStore(
         (callback) => onlineManager.subscribe(callback),
@@ -8,8 +10,6 @@ export function useOnline() {
         () => true
     );
 }
-
-const OFFLINE_MESSAGE = 'Você está sem conexão com a internet.';
 
 /** Offline a falha é da conexão, não de quem deveria responder. */
 export function useFailureMessage(message: string) {

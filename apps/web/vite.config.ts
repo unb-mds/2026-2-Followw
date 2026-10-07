@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 
-import { pwaPlugins } from './src/integrations/vite/pwa';
+import { pwaPlugins } from './src/integrations/offline/pwa';
 
 const BUILD_ID = Date.now().toString(36);
 // o cache persistido do TanStack Query só é descartado quando o contrato da API muda

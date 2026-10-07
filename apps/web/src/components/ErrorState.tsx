@@ -9,6 +9,7 @@ import { ApiError } from '#/queries/errors';
 export const SIGAA_DOWN_MESSAGE = 'O SIGAA está com problemas. Tente novamente em instantes.';
 
 interface ErrorCardProps {
+    // sem conexão, dá lugar ao aviso de offline
     message: string;
     onRetry: () => void;
 }

@@ -70,6 +70,33 @@ describe('clearSession', () => {
         expect(cachedMenu).toEqual([]);
     });
 
+    test('remove também queries com chave fora do padrão da API', async () => {
+        const { queryClient } = getContext();
+        queryClient.setQueryData(['avulsa'], 'dado da conta');
+
+        await clearSession(queryClient);
+
+        expect(queryClient.getQueryState(['avulsa'])).toBeUndefined();
+    });
+
+    test('cancela o fetch em andamento das queries da conta', async () => {
+        const { queryClient } = getContext();
+        let signal: AbortSignal | undefined;
+        void queryClient
+            .query({
+                queryKey: classroomsQueryOptions.queryKey,
+                queryFn: (context) => {
+                    signal = context.signal;
+                    return new Promise(noop);
+                }
+            })
+            .catch(noop);
+
+        await clearSession(queryClient);
+
+        expect(signal?.aborted).toBe(true);
+    });
+
     test('roda quando uma query autenticada volta 401', async () => {
         const { queryClient } = getContext();
         queryClient.setQueryData(meQueryOptions.queryKey, user);

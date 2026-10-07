@@ -92,19 +92,14 @@ function LogoutButton() {
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-destructive/10">
                     <LogOut className="size-4" />
                 </span>
-                <span className="flex-1 text-left">
-                    Desconectar
-                    {!online && (
-                        <span className="block text-xs text-muted-foreground">Sem conexão</span>
-                    )}
-                </span>
+                <span className="flex-1 text-left">Desconectar</span>
                 <ChevronRight className="text-muted-foreground" />
             </AlertDialogTrigger>
             <AlertDialogContent size="sm">
                 <AlertDialogHeader>
                     <AlertDialogTitle>Desconectar?</AlertDialogTitle>
                     <AlertDialogDescription>
-                        Sua sessão e os dados salvos do RU serão apagados deste dispositivo.
+                        Sua sessão e os dados salvos da conta serão apagados deste dispositivo.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

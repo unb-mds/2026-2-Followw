@@ -1,24 +1,22 @@
 import { type Query, type QueryClient, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
-import { clearPersistedQueries } from '#/integrations/tanstack-query/persister';
+import { clearOfflineData } from '#/integrations/offline/storage';
 import { useOnline } from '#/lib/online';
-import { clearCachedPages } from '#/lib/service-worker';
 import { api } from '#/queries/api.ts';
 import { apiClient } from '#/queries/client.ts';
 import { ApiError } from '#/queries/errors.ts';
 import { meQueryOptions } from '#/queries/me.ts';
 
-// tudo fora de /public/* é da conta; o /me fica a cargo de quem chama
+// só o que é público sobrevive à troca de conta; o /me fica a cargo de quem chama
 const isAccountQuery = ({ queryKey: [, path] }: Query) =>
-    typeof path === 'string' && !path.startsWith('/public/') && path !== '/me';
+    !(typeof path === 'string' && (path.startsWith('/public/') || path === '/me'));
 
-// o persister só regrava após o throttle: apagar já evita dado da conta no disco nesse intervalo
+// remover também cancela o fetch em andamento; o persister só regrava após o throttle,
+// então apagar o disco já evita dado da conta salvo nesse intervalo
 async function clearUserData(queryClient: QueryClient) {
-    const cancelling = queryClient.cancelQueries({ predicate: isAccountQuery });
     queryClient.removeQueries({ predicate: isAccountQuery });
-    // o HTML em cache traz dados do SSR
-    await Promise.allSettled([cancelling, clearPersistedQueries(), clearCachedPages()]);
+    await clearOfflineData();
 }
 
 /** O estado em memória já sai na hora; a promise resolve quando o armazenamento local também saiu. */

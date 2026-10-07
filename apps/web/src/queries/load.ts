@@ -5,9 +5,7 @@ import {
     noop
 } from '@tanstack/react-query';
 
-/**
- * Carregamento dos loaders: com dado em cache, resolve na hora e revalida em segundo plano;
- */
+// loaders: com dado em cache resolve na hora e revalida em segundo plano; sem cache, espera a rede
 export function loadQuery<TData, TError, TQueryKey extends QueryKey>(
     queryClient: QueryClient,
     options: QueryExecuteOptions<TData, TError, TData, TData, TQueryKey>
