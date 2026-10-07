@@ -38,6 +38,15 @@ describe('ProfileIdentity', () => {
         expect(markup).toContain('src="https://foto"');
         expect(markup).toContain('Olá!');
     });
+
+    test('usa o nome de exibição sem alterar o nome do SIGAA', () => {
+        const markup = renderToStaticMarkup(<ProfileIdentity user={user} displayName="Ana" />);
+        expect(markup).toContain('>Ana</h1>');
+        expect(markup).not.toContain('Nome Discente');
+
+        const original = renderToStaticMarkup(<ProfileIdentity user={user} displayName={null} />);
+        expect(original).toContain('Nome Discente');
+    });
 });
 
 describe('AcademicPerformance', () => {

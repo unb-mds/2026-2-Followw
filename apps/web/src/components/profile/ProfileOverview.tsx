@@ -1,4 +1,4 @@
-import { Check, Copy, IdCard, Mail, UserRound } from 'lucide-react';
+import { Check, Copy, IdCard, Mail } from 'lucide-react';
 import { useState } from 'react';
 
 import type { components } from '#/queries/schema.gen';
@@ -6,34 +6,31 @@ import type { components } from '#/queries/schema.gen';
 import { ListCard, Meter } from '#/components/ListCard';
 import { Button } from '#/components/ui/button';
 import { Card } from '#/components/ui/card';
+import { PersonPhoto } from '#/components/ui/person-photo';
 import { academicIndexes, titleCase } from '#/lib/profile';
 import { cn } from '#/lib/shadcn';
 
 type UserProfile = components['schemas']['UserProfile'];
 
-export function ProfileIdentity({ user }: { user: UserProfile }) {
+export function ProfileIdentity({
+    user,
+    displayName
+}: {
+    user: UserProfile;
+    displayName?: string | null;
+}) {
     return (
         <header>
             <div className="flex items-center gap-4">
-                {user.photo ? (
-                    <img
-                        src={user.photo}
-                        alt=""
-                        className="aspect-3/4 w-20 shrink-0 rounded-2xl object-cover ring-1 ring-foreground/10"
-                    />
-                ) : (
-                    <div className="flex aspect-3/4 w-20 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                        <UserRound className="size-8" aria-hidden="true" />
-                    </div>
-                )}
+                <PersonPhoto src={user.photo} size="lg" />
                 <div className="min-w-0">
-                    <p className="text-xs font-medium text-primary">{user.level}</p>
                     <h1 className="mt-1 text-xl leading-tight font-semibold tracking-tight text-balance">
-                        {titleCase(user.name)}
+                        {displayName || titleCase(user.name)}
                     </h1>
-                    <p className="mt-1 text-sm text-muted-foreground">
+                    <p className="mt-1 text-sm text-primary">
                         {titleCase(user.course)} · {user.unity}
                     </p>
+                    <p className="text-xs font-medium text-muted-foreground">{user.level}</p>
                 </div>
             </div>
             {user.bio && (

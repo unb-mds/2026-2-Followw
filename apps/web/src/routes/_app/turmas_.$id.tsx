@@ -1,6 +1,6 @@
 import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { Link, createFileRoute } from '@tanstack/react-router';
-import { ArrowLeft, Clock3, Hourglass, MapPin, UserRound } from 'lucide-react';
+import { ArrowLeft, Clock3, Hourglass, MapPin } from 'lucide-react';
 import { useState } from 'react';
 
 import type { Classroom } from '#/queries/classrooms';
@@ -19,6 +19,7 @@ import {
 } from '#/components/ui/accordion';
 import { buttonVariants } from '#/components/ui/button';
 import { Card, CardContent } from '#/components/ui/card';
+import { PersonPhoto } from '#/components/ui/person-photo';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
 import { formatClassroomDate, groupMembers } from '#/lib/classroom-details';
 import { Markdown } from '#/lib/markdown';
@@ -409,17 +410,7 @@ function MemberGroup({ title, members }: { title: string; members: Member[] }) {
                         key={member.person_id ?? member.registration ?? index}
                         className="flex items-center gap-3 py-2.5"
                     >
-                        {member.photo ? (
-                            <img
-                                src={member.photo}
-                                alt=""
-                                className="size-9 shrink-0 rounded-full object-cover"
-                            />
-                        ) : (
-                            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                                <UserRound className="size-4" />
-                            </div>
-                        )}
+                        <PersonPhoto src={member.photo} />
                         <div className="min-w-0 text-xs text-muted-foreground">
                             <p className="truncate text-sm font-medium text-foreground">
                                 {member.name}
