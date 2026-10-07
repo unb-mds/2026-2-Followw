@@ -17,6 +17,14 @@
             ]
         }
     },
+    "redirects": [
+        {
+            "source": "/:path*",
+            "has": [{ "type": "host", "value": "www.followw.app" }],
+            "destination": "https://followw.app/:path*",
+            "permanent": true
+        }
+    ],
     "rewrites": [
         {
             "source": "/(.*)",
