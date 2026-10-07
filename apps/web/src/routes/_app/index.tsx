@@ -2,6 +2,7 @@ import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 
+import { getNoClassReason } from '#/calendar';
 import { ErrorCard, ErrorState, SIGAA_DOWN_MESSAGE } from '#/components/ErrorState';
 import { HeaderBar, HeaderToggle } from '#/components/HeaderBar';
 import { ClassCard } from '#/components/home/ClassCard';
@@ -94,7 +95,10 @@ function HomePage() {
     const classrooms = classroomsQuery.data ?? [];
     const menu = useQuery(menuQueryOptions({ date: selectedDay.date, user }));
 
-    const classes = classesOn(classrooms, selectedDay.weekday, isToday ? now.time : undefined);
+    const noClassReason = getNoClassReason(selectedDay.date);
+    const classes = noClassReason
+        ? []
+        : classesOn(classrooms, selectedDay.weekday, isToday ? now.time : undefined);
 
     return (
         <>
@@ -106,7 +110,15 @@ function HomePage() {
                 />
             )}
 
-            {user ? (
+            {noClassReason ? (
+                <section>
+                    <SectionHeader title="Aulas do dia" />
+                    <div className="rounded-2xl border bg-card p-4">
+                        <p className="font-semibold">Não há aulas hoje</p>
+                        <p className="text-sm text-muted-foreground">{noClassReason}</p>
+                    </div>
+                </section>
+            ) : user ? (
                 classroomsQuery.isLoadingError ? (
                     <section>
                         <SectionHeader title="Aulas do dia" />
