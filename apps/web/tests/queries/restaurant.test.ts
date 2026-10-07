@@ -65,10 +65,6 @@ describe('prefetchWeekMenus', () => {
         const client = new QueryClient();
         const monday = { date: '2026-10-05', lunch: [] };
         const tuesday = { date: '2026-10-06', lunch: [] };
-        const tuesdayKey = menuQueryOptions({ campus: 'Gama', date: tuesday.date }).queryKey;
-        client.setQueryData(tuesdayKey, [
-            { date: tuesday.date, lunch: [{ name: 'Velho', items: [] }] }
-        ]);
         const requests: URL[] = [];
         const middleware: Middleware = {
             onRequest: ({ request }) => {
@@ -87,12 +83,35 @@ describe('prefetchWeekMenus', () => {
         const cached = (day: string): unknown =>
             client.getQueryData(menuQueryOptions({ campus: 'Gama', date: day }).queryKey);
         expect(cached(monday.date)).toEqual([monday]);
-        // o dado da semana é o mais novo: substitui o que estava salvo
         expect(cached(tuesday.date)).toEqual([tuesday]);
         // a query da faixa não fica no cache (nem vai para o persister)
         await new Promise((resolve) => setTimeout(resolve, 0));
         expect(
             client.getQueryCache().findAll({ queryKey: ['get', '/public/restaurant'] })
         ).toHaveLength(2);
+    });
+
+    test('não busca de novo quando já há cardápio salvo da semana', async () => {
+        const client = new QueryClient();
+        const tuesday = { date: '2026-10-06', lunch: [] };
+        client.setQueryData(menuQueryOptions({ campus: 'Gama', date: tuesday.date }).queryKey, [
+            tuesday
+        ]);
+        const requests: URL[] = [];
+        const middleware: Middleware = {
+            onRequest: ({ request }) => {
+                requests.push(new URL(request.url));
+                return Response.json([]);
+            }
+        };
+        apiClient.use(middleware);
+
+        await prefetchWeekMenus(client, 'Gama', '2026-10-07');
+        await prefetchWeekMenus(client, 'Darcy', '2026-10-13');
+        apiClient.eject(middleware);
+
+        // o cardápio salvo é de outro campus/semana: só a segunda chamada vai à rede
+        expect(requests).toHaveLength(1);
+        expect(requests[0].searchParams.get('campus')).toBe('Darcy');
     });
 });

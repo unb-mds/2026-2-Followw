@@ -14,9 +14,7 @@
                 "requestBody": {
                     "content": {
                         "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/SigaaLoginRequest"
-                            }
+                            "schema": { "$ref": "#/components/schemas/SigaaLoginRequest" }
                         }
                     },
                     "required": true
@@ -24,19 +22,13 @@
                 "responses": {
                     "200": {
                         "description": "Successful Response",
-                        "content": {
-                            "application/json": {
-                                "schema": {}
-                            }
-                        }
+                        "content": { "application/json": { "schema": {} } }
                     },
                     "422": {
                         "description": "Validation Error",
                         "content": {
                             "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
+                                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
                             }
                         }
                     }
@@ -49,11 +41,7 @@
                 "responses": {
                     "200": {
                         "description": "Successful Response",
-                        "content": {
-                            "application/json": {
-                                "schema": {}
-                            }
-                        }
+                        "content": { "application/json": { "schema": {} } }
                     }
                 }
             }
@@ -65,15 +53,9 @@
                 "description": "Loga no SIGAA com o refresh_token se ainda não houver um access_token válido.\n\nO cache sai só com o refresh_token, então o app chama esta rota ao abrir: ela\nconfere a senha, aquece o access_token e revalida o que venceu, como o login.",
                 "operationId": "sigaa_refresh_auth_sigaa_refresh_post",
                 "responses": {
-                    "204": {
-                        "description": "Successful Response"
-                    },
-                    "401": {
-                        "description": "Credenciais ausentes ou inválidas."
-                    },
-                    "502": {
-                        "description": "SIGAA indisponível."
-                    }
+                    "204": { "description": "Successful Response" },
+                    "401": { "description": "Credenciais ausentes ou inválidas." },
+                    "502": { "description": "SIGAA indisponível." }
                 }
             }
         },
@@ -100,14 +82,7 @@
                         "in": "header",
                         "required": false,
                         "schema": {
-                            "anyOf": [
-                                {
-                                    "type": "string"
-                                },
-                                {
-                                    "type": "null"
-                                }
-                            ],
+                            "anyOf": [{ "type": "string" }, { "type": "null" }],
                             "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
                             "title": "Cache-Control"
                         },
@@ -121,36 +96,22 @@
                             "application/json": {
                                 "schema": {
                                     "type": "array",
-                                    "items": {
-                                        "$ref": "#/components/schemas/News"
-                                    },
+                                    "items": { "$ref": "#/components/schemas/News" },
                                     "title": "Response Get Classroom News Classrooms  Classroom Id  News Get"
                                 }
                             }
                         }
                     },
-                    "401": {
-                        "description": "Credenciais ausentes ou inválidas."
-                    },
-                    "502": {
-                        "description": "SIGAA indisponível."
-                    },
-                    "404": {
-                        "description": "Turma não encontrada entre as turmas do usuário."
-                    },
-                    "503": {
-                        "description": "Cache em atualização."
-                    },
-                    "504": {
-                        "description": "Notícias ainda não disponíveis no cache."
-                    },
+                    "401": { "description": "Credenciais ausentes ou inválidas." },
+                    "502": { "description": "SIGAA indisponível." },
+                    "404": { "description": "Turma não encontrada entre as turmas do usuário." },
+                    "503": { "description": "Cache em atualização." },
+                    "504": { "description": "Notícias ainda não disponíveis no cache." },
                     "422": {
                         "description": "Validation Error",
                         "content": {
                             "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
+                                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
                             }
                         }
                     }
@@ -192,14 +153,7 @@
                         "in": "header",
                         "required": false,
                         "schema": {
-                            "anyOf": [
-                                {
-                                    "type": "string"
-                                },
-                                {
-                                    "type": "null"
-                                }
-                            ],
+                            "anyOf": [{ "type": "string" }, { "type": "null" }],
                             "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
                             "title": "Cache-Control"
                         },
@@ -211,34 +165,22 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/News"
-                                }
+                                "schema": { "$ref": "#/components/schemas/News" }
                             }
                         }
                     },
-                    "401": {
-                        "description": "Credenciais ausentes ou inválidas."
-                    },
-                    "502": {
-                        "description": "SIGAA indisponível."
-                    },
+                    "401": { "description": "Credenciais ausentes ou inválidas." },
+                    "502": { "description": "SIGAA indisponível." },
                     "404": {
                         "description": "Turma fora da lista do usuário ou notícia ausente na turma."
                     },
-                    "503": {
-                        "description": "Cache em atualização."
-                    },
-                    "504": {
-                        "description": "Conteúdo ainda não disponível no cache."
-                    },
+                    "503": { "description": "Cache em atualização." },
+                    "504": { "description": "Conteúdo ainda não disponível no cache." },
                     "422": {
                         "description": "Validation Error",
                         "content": {
                             "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
+                                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
                             }
                         }
                     }
@@ -257,13 +199,8 @@
                         "required": false,
                         "schema": {
                             "anyOf": [
-                                {
-                                    "type": "string",
-                                    "pattern": "^(all|[0-9]{4}\\.[0-9])$"
-                                },
-                                {
-                                    "type": "null"
-                                }
+                                { "type": "string", "pattern": "^(all|[0-9]{4}\\.[0-9])$" },
+                                { "type": "null" }
                             ],
                             "description": "Sem filtro: turmas atuais. Use 'all' ou um semestre no formato AAAA.P, como 2026.2.",
                             "title": "Semester"
@@ -275,14 +212,7 @@
                         "in": "header",
                         "required": false,
                         "schema": {
-                            "anyOf": [
-                                {
-                                    "type": "string"
-                                },
-                                {
-                                    "type": "null"
-                                }
-                            ],
+                            "anyOf": [{ "type": "string" }, { "type": "null" }],
                             "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
                             "title": "Cache-Control"
                         },
@@ -296,27 +226,19 @@
                             "application/json": {
                                 "schema": {
                                     "type": "array",
-                                    "items": {
-                                        "$ref": "#/components/schemas/Classroom"
-                                    },
+                                    "items": { "$ref": "#/components/schemas/Classroom" },
                                     "title": "Response Get Classrooms Classrooms Get"
                                 }
                             }
                         }
                     },
-                    "401": {
-                        "description": "Credenciais ausentes ou inválidas."
-                    },
-                    "502": {
-                        "description": "SIGAA indisponível."
-                    },
+                    "401": { "description": "Credenciais ausentes ou inválidas." },
+                    "502": { "description": "SIGAA indisponível." },
                     "422": {
                         "description": "Validation Error",
                         "content": {
                             "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
+                                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
                             }
                         }
                     }
@@ -335,14 +257,7 @@
                         "in": "header",
                         "required": false,
                         "schema": {
-                            "anyOf": [
-                                {
-                                    "type": "string"
-                                },
-                                {
-                                    "type": "null"
-                                }
-                            ],
+                            "anyOf": [{ "type": "string" }, { "type": "null" }],
                             "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
                             "title": "Cache-Control"
                         },
@@ -364,25 +279,15 @@
                             }
                         }
                     },
-                    "401": {
-                        "description": "Credenciais ausentes ou inválidas."
-                    },
-                    "502": {
-                        "description": "SIGAA indisponível."
-                    },
-                    "404": {
-                        "description": "Turma não encontrada entre as turmas do usuário."
-                    },
-                    "503": {
-                        "description": "Cache em atualização."
-                    },
+                    "401": { "description": "Credenciais ausentes ou inválidas." },
+                    "502": { "description": "SIGAA indisponível." },
+                    "404": { "description": "Turma não encontrada entre as turmas do usuário." },
+                    "503": { "description": "Cache em atualização." },
                     "422": {
                         "description": "Validation Error",
                         "content": {
                             "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
+                                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
                             }
                         }
                     }
@@ -412,14 +317,7 @@
                         "in": "header",
                         "required": false,
                         "schema": {
-                            "anyOf": [
-                                {
-                                    "type": "string"
-                                },
-                                {
-                                    "type": "null"
-                                }
-                            ],
+                            "anyOf": [{ "type": "string" }, { "type": "null" }],
                             "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
                             "title": "Cache-Control"
                         },
@@ -431,31 +329,19 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ClassroomFrequency"
-                                }
+                                "schema": { "$ref": "#/components/schemas/ClassroomFrequency" }
                             }
                         }
                     },
-                    "401": {
-                        "description": "Credenciais ausentes ou inválidas."
-                    },
-                    "502": {
-                        "description": "SIGAA indisponível."
-                    },
-                    "404": {
-                        "description": "Turma não encontrada entre as turmas do usuário."
-                    },
-                    "503": {
-                        "description": "Cache em atualização."
-                    },
+                    "401": { "description": "Credenciais ausentes ou inválidas." },
+                    "502": { "description": "SIGAA indisponível." },
+                    "404": { "description": "Turma não encontrada entre as turmas do usuário." },
+                    "503": { "description": "Cache em atualização." },
                     "422": {
                         "description": "Validation Error",
                         "content": {
                             "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
+                                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
                             }
                         }
                     }
@@ -484,14 +370,7 @@
                         "in": "header",
                         "required": false,
                         "schema": {
-                            "anyOf": [
-                                {
-                                    "type": "string"
-                                },
-                                {
-                                    "type": "null"
-                                }
-                            ],
+                            "anyOf": [{ "type": "string" }, { "type": "null" }],
                             "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
                             "title": "Cache-Control"
                         },
@@ -505,30 +384,20 @@
                             "application/json": {
                                 "schema": {
                                     "type": "array",
-                                    "items": {
-                                        "$ref": "#/components/schemas/ClassroomMember"
-                                    },
+                                    "items": { "$ref": "#/components/schemas/ClassroomMember" },
                                     "title": "Response Get Classroom Members Classrooms  Classroom Id  Members Get"
                                 }
                             }
                         }
                     },
-                    "401": {
-                        "description": "Credenciais ausentes ou inválidas."
-                    },
-                    "502": {
-                        "description": "SIGAA indisponível."
-                    },
-                    "404": {
-                        "description": "Turma não encontrada entre as turmas do usuário."
-                    },
+                    "401": { "description": "Credenciais ausentes ou inválidas." },
+                    "502": { "description": "SIGAA indisponível." },
+                    "404": { "description": "Turma não encontrada entre as turmas do usuário." },
                     "422": {
                         "description": "Validation Error",
                         "content": {
                             "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
+                                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
                             }
                         }
                     }
@@ -557,14 +426,7 @@
                         "in": "header",
                         "required": false,
                         "schema": {
-                            "anyOf": [
-                                {
-                                    "type": "string"
-                                },
-                                {
-                                    "type": "null"
-                                }
-                            ],
+                            "anyOf": [{ "type": "string" }, { "type": "null" }],
                             "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
                             "title": "Cache-Control"
                         },
@@ -578,30 +440,20 @@
                             "application/json": {
                                 "schema": {
                                     "type": "array",
-                                    "items": {
-                                        "$ref": "#/components/schemas/StatisticsShare"
-                                    },
+                                    "items": { "$ref": "#/components/schemas/StatisticsShare" },
                                     "title": "Response Get Classroom Statistics Classrooms  Classroom Id  Statistics Get"
                                 }
                             }
                         }
                     },
-                    "401": {
-                        "description": "Credenciais ausentes ou inválidas."
-                    },
-                    "502": {
-                        "description": "SIGAA indisponível."
-                    },
-                    "404": {
-                        "description": "Turma não encontrada entre as turmas do usuário."
-                    },
+                    "401": { "description": "Credenciais ausentes ou inválidas." },
+                    "502": { "description": "SIGAA indisponível." },
+                    "404": { "description": "Turma não encontrada entre as turmas do usuário." },
                     "422": {
                         "description": "Validation Error",
                         "content": {
                             "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
+                                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
                             }
                         }
                     }
@@ -621,14 +473,8 @@
                         "required": false,
                         "schema": {
                             "anyOf": [
-                                {
-                                    "type": "string",
-                                    "minLength": 1,
-                                    "pattern": "\\S"
-                                },
-                                {
-                                    "type": "null"
-                                }
+                                { "type": "string", "minLength": 1, "pattern": "\\S" },
+                                { "type": "null" }
                             ],
                             "description": "ID da unidade ou parte do nome, como 'gama'. Obrigatório quando code não for informado. Com code, restringe a busca a esta unidade. Consulte /public/classrooms/units para obter os IDs.",
                             "title": "Unit"
@@ -641,13 +487,8 @@
                         "required": false,
                         "schema": {
                             "anyOf": [
-                                {
-                                    "type": "string",
-                                    "pattern": "^[0-9]{4}\\.[0-9]$"
-                                },
-                                {
-                                    "type": "null"
-                                }
+                                { "type": "string", "pattern": "^[0-9]{4}\\.[0-9]$" },
+                                { "type": "null" }
                             ],
                             "description": "Opcional, no formato AAAA.P: 2026.2, 2027.1 ou 2026.4. Sem filtro, usa os valores do SIGAA.",
                             "title": "Semester"
@@ -659,14 +500,7 @@
                         "in": "query",
                         "required": false,
                         "schema": {
-                            "anyOf": [
-                                {
-                                    "type": "string"
-                                },
-                                {
-                                    "type": "null"
-                                }
-                            ],
+                            "anyOf": [{ "type": "string" }, { "type": "null" }],
                             "description": "Trecho do nome ou código da disciplina, ou do nome de qualquer docente. Ignora acentos, maiúsculas e espaços extras. Filtra o resultado da unidade/semestre após consultar o SIGAA; vazio não filtra.",
                             "title": "Contains"
                         },
@@ -677,14 +511,7 @@
                         "in": "query",
                         "required": false,
                         "schema": {
-                            "anyOf": [
-                                {
-                                    "type": "string"
-                                },
-                                {
-                                    "type": "null"
-                                }
-                            ],
+                            "anyOf": [{ "type": "string" }, { "type": "null" }],
                             "description": "Trecho do local da turma, incluindo unidade e sala, como 'S3', 'FCTE - S3' ou 'auditorio'. Ignora acentos, maiúsculas e espaços extras; vazio não filtra. Com contains, exige correspondência nos dois filtros.",
                             "title": "Local"
                         },
@@ -696,13 +523,8 @@
                         "required": false,
                         "schema": {
                             "anyOf": [
-                                {
-                                    "type": "string",
-                                    "pattern": "^\\s*[A-Za-z]+[0-9]+\\s*$"
-                                },
-                                {
-                                    "type": "null"
-                                }
+                                { "type": "string", "pattern": "^\\s*[A-Za-z]+[0-9]+\\s*$" },
+                                { "type": "null" }
                             ],
                             "description": "Código completo da disciplina, como MAT0031 ou FGA0132. Ignora maiúsculas e espaços nas extremidades; preserva zeros. Sem unit, consulta todas as unidades mapeadas para o prefixo. Combina com semester, number, contains e local.",
                             "title": "Code"
@@ -715,14 +537,8 @@
                         "required": false,
                         "schema": {
                             "anyOf": [
-                                {
-                                    "type": "integer",
-                                    "maximum": 99,
-                                    "minimum": 1
-                                },
-                                {
-                                    "type": "null"
-                                }
+                                { "type": "integer", "maximum": 99, "minimum": 1 },
+                                { "type": "null" }
                             ],
                             "description": "Número da turma, de 1 a 99. Aceita com ou sem zero à esquerda: '1' e '01' selecionam a mesma turma. Combina com os demais filtros; use code e semester para identificar a disciplina e o semestre. Sem correspondência, retorna lista vazia.",
                             "title": "Number"
@@ -737,9 +553,7 @@
                             "application/json": {
                                 "schema": {
                                     "type": "array",
-                                    "items": {
-                                        "$ref": "#/components/schemas/PublicClassroom"
-                                    },
+                                    "items": { "$ref": "#/components/schemas/PublicClassroom" },
                                     "title": "Response Search Classrooms Public Classrooms Get"
                                 }
                             }
@@ -751,9 +565,7 @@
                     "422": {
                         "description": "Informe unit ou code. Filtro inválido, unidade inexistente ou nome ambíguo. Prefixo ausente do índice pode não existir no SIGAA ou ainda não estar mapeado; informe unit para buscar diretamente."
                     },
-                    "502": {
-                        "description": "SIGAA indisponível ou resposta ilegível."
-                    }
+                    "502": { "description": "SIGAA indisponível ou resposta ilegível." }
                 }
             }
         },
@@ -768,14 +580,7 @@
                         "in": "query",
                         "required": false,
                         "schema": {
-                            "anyOf": [
-                                {
-                                    "type": "string"
-                                },
-                                {
-                                    "type": "null"
-                                }
-                            ],
+                            "anyOf": [{ "type": "string" }, { "type": "null" }],
                             "description": "Filtra pelo nome, ignorando acentos e maiúsculas.",
                             "title": "Contains"
                         },
@@ -789,24 +594,18 @@
                             "application/json": {
                                 "schema": {
                                     "type": "array",
-                                    "items": {
-                                        "$ref": "#/components/schemas/Unit"
-                                    },
+                                    "items": { "$ref": "#/components/schemas/Unit" },
                                     "title": "Response List Units Public Classrooms Units Get"
                                 }
                             }
                         }
                     },
-                    "502": {
-                        "description": "SIGAA indisponível ou resposta ilegível."
-                    },
+                    "502": { "description": "SIGAA indisponível ou resposta ilegível." },
                     "422": {
                         "description": "Validation Error",
                         "content": {
                             "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
+                                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
                             }
                         }
                     }
@@ -837,15 +636,7 @@
                         "in": "query",
                         "required": false,
                         "schema": {
-                            "anyOf": [
-                                {
-                                    "type": "string",
-                                    "format": "date"
-                                },
-                                {
-                                    "type": "null"
-                                }
-                            ],
+                            "anyOf": [{ "type": "string", "format": "date" }, { "type": "null" }],
                             "description": "Dia específico (AAAA-MM-DD).",
                             "title": "Date"
                         },
@@ -856,15 +647,7 @@
                         "in": "query",
                         "required": false,
                         "schema": {
-                            "anyOf": [
-                                {
-                                    "type": "string",
-                                    "format": "date"
-                                },
-                                {
-                                    "type": "null"
-                                }
-                            ],
+                            "anyOf": [{ "type": "string", "format": "date" }, { "type": "null" }],
                             "description": "Início do intervalo (AAAA-MM-DD).",
                             "title": "Start Date"
                         },
@@ -875,15 +658,7 @@
                         "in": "query",
                         "required": false,
                         "schema": {
-                            "anyOf": [
-                                {
-                                    "type": "string",
-                                    "format": "date"
-                                },
-                                {
-                                    "type": "null"
-                                }
-                            ],
+                            "anyOf": [{ "type": "string", "format": "date" }, { "type": "null" }],
                             "description": "Fim do intervalo (AAAA-MM-DD).",
                             "title": "End Date"
                         },
@@ -895,13 +670,8 @@
                         "required": false,
                         "schema": {
                             "anyOf": [
-                                {
-                                    "enum": ["breakfast", "lunch", "dinner"],
-                                    "type": "string"
-                                },
-                                {
-                                    "type": "null"
-                                }
+                                { "enum": ["breakfast", "lunch", "dinner"], "type": "string" },
+                                { "type": "null" }
                             ],
                             "description": "Retorna apenas a refeição escolhida e a data. Se não publicada no dia, a refeição é null. Sem filtro, retorna todas.",
                             "title": "Meal"
@@ -913,14 +683,7 @@
                         "in": "header",
                         "required": false,
                         "schema": {
-                            "anyOf": [
-                                {
-                                    "type": "string"
-                                },
-                                {
-                                    "type": "null"
-                                }
-                            ],
+                            "anyOf": [{ "type": "string" }, { "type": "null" }],
                             "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
                             "title": "Cache-Control"
                         },
@@ -934,24 +697,18 @@
                             "application/json": {
                                 "schema": {
                                     "type": "array",
-                                    "items": {
-                                        "$ref": "#/components/schemas/DailyMenu"
-                                    },
+                                    "items": { "$ref": "#/components/schemas/DailyMenu" },
                                     "title": "Response Get Menu Public Restaurant Get"
                                 }
                             }
                         }
                     },
-                    "502": {
-                        "description": "Site do RU indisponível ou cardápio ilegível."
-                    },
+                    "502": { "description": "Site do RU indisponível ou cardápio ilegível." },
                     "422": {
                         "description": "Validation Error",
                         "content": {
                             "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
+                                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
                             }
                         }
                     }
@@ -969,14 +726,7 @@
                         "in": "header",
                         "required": false,
                         "schema": {
-                            "anyOf": [
-                                {
-                                    "type": "string"
-                                },
-                                {
-                                    "type": "null"
-                                }
-                            ],
+                            "anyOf": [{ "type": "string" }, { "type": "null" }],
                             "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
                             "title": "Cache-Control"
                         },
@@ -988,25 +738,17 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/UserProfile"
-                                }
+                                "schema": { "$ref": "#/components/schemas/UserProfile" }
                             }
                         }
                     },
-                    "401": {
-                        "description": "Credenciais ausentes ou inválidas."
-                    },
-                    "502": {
-                        "description": "SIGAA indisponível."
-                    },
+                    "401": { "description": "Credenciais ausentes ou inválidas." },
+                    "502": { "description": "SIGAA indisponível." },
                     "422": {
                         "description": "Validation Error",
                         "content": {
                             "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
+                                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
                             }
                         }
                     }
@@ -1023,18 +765,12 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/RestaurantStatement"
-                                }
+                                "schema": { "$ref": "#/components/schemas/RestaurantStatement" }
                             }
                         }
                     },
-                    "401": {
-                        "description": "Credenciais ausentes ou inválidas."
-                    },
-                    "502": {
-                        "description": "SIGAA indisponível."
-                    }
+                    "401": { "description": "Credenciais ausentes ou inválidas." },
+                    "502": { "description": "SIGAA indisponível." }
                 }
             }
         },
@@ -1049,18 +785,12 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/RestaurantCredentials"
-                                }
+                                "schema": { "$ref": "#/components/schemas/RestaurantCredentials" }
                             }
                         }
                     },
-                    "401": {
-                        "description": "Credenciais ausentes ou inválidas."
-                    },
-                    "502": {
-                        "description": "SIGAA indisponível."
-                    }
+                    "401": { "description": "Credenciais ausentes ou inválidas." },
+                    "502": { "description": "SIGAA indisponível." }
                 }
             }
         },
@@ -1074,18 +804,12 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/UserSettings"
-                                }
+                                "schema": { "$ref": "#/components/schemas/UserSettings" }
                             }
                         }
                     },
-                    "401": {
-                        "description": "Credenciais ausentes ou inválidas."
-                    },
-                    "502": {
-                        "description": "SIGAA indisponível."
-                    }
+                    "401": { "description": "Credenciais ausentes ou inválidas." },
+                    "502": { "description": "SIGAA indisponível." }
                 }
             },
             "patch": {
@@ -1095,9 +819,7 @@
                 "requestBody": {
                     "content": {
                         "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/UserSettingsPatch"
-                            }
+                            "schema": { "$ref": "#/components/schemas/UserSettingsPatch" }
                         }
                     },
                     "required": true
@@ -1107,25 +829,17 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/UserSettings"
-                                }
+                                "schema": { "$ref": "#/components/schemas/UserSettings" }
                             }
                         }
                     },
-                    "401": {
-                        "description": "Credenciais ausentes ou inválidas."
-                    },
-                    "502": {
-                        "description": "SIGAA indisponível."
-                    },
+                    "401": { "description": "Credenciais ausentes ou inválidas." },
+                    "502": { "description": "SIGAA indisponível." },
                     "422": {
                         "description": "Validation Error",
                         "content": {
                             "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
+                                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
                             }
                         }
                     }
@@ -1159,27 +873,19 @@
                             "application/json": {
                                 "schema": {
                                     "type": "array",
-                                    "items": {
-                                        "$ref": "#/components/schemas/News"
-                                    },
+                                    "items": { "$ref": "#/components/schemas/News" },
                                     "title": "Response Get News News Get"
                                 }
                             }
                         }
                     },
-                    "401": {
-                        "description": "Credenciais ausentes ou inválidas."
-                    },
-                    "502": {
-                        "description": "SIGAA indisponível."
-                    },
+                    "401": { "description": "Credenciais ausentes ou inválidas." },
+                    "502": { "description": "SIGAA indisponível." },
                     "422": {
                         "description": "Validation Error",
                         "content": {
                             "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
+                                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
                             }
                         }
                     }
@@ -1191,19 +897,9 @@
         "schemas": {
             "AttendanceEntry": {
                 "properties": {
-                    "occurred_on": {
-                        "type": "string",
-                        "format": "date",
-                        "title": "Occurred On"
-                    },
-                    "status": {
-                        "$ref": "#/components/schemas/AttendanceStatus"
-                    },
-                    "absences": {
-                        "type": "integer",
-                        "title": "Absences",
-                        "default": 0
-                    }
+                    "occurred_on": { "type": "string", "format": "date", "title": "Occurred On" },
+                    "status": { "$ref": "#/components/schemas/AttendanceStatus" },
+                    "absences": { "type": "integer", "title": "Absences", "default": 0 }
                 },
                 "type": "object",
                 "required": ["occurred_on", "status"],
@@ -1217,26 +913,11 @@
             },
             "AttendanceSummary": {
                 "properties": {
-                    "total_entries": {
-                        "type": "integer",
-                        "title": "Total Entries"
-                    },
-                    "recorded_entries": {
-                        "type": "integer",
-                        "title": "Recorded Entries"
-                    },
-                    "unrecorded_entries": {
-                        "type": "integer",
-                        "title": "Unrecorded Entries"
-                    },
-                    "absence_entries": {
-                        "type": "integer",
-                        "title": "Absence Entries"
-                    },
-                    "total_absences": {
-                        "type": "integer",
-                        "title": "Total Absences"
-                    }
+                    "total_entries": { "type": "integer", "title": "Total Entries" },
+                    "recorded_entries": { "type": "integer", "title": "Recorded Entries" },
+                    "unrecorded_entries": { "type": "integer", "title": "Unrecorded Entries" },
+                    "absence_entries": { "type": "integer", "title": "Absence Entries" },
+                    "total_absences": { "type": "integer", "title": "Total Absences" }
                 },
                 "type": "object",
                 "required": [
@@ -1251,59 +932,23 @@
             },
             "Classroom": {
                 "properties": {
-                    "id": {
-                        "type": "string",
-                        "title": "Id"
-                    },
+                    "id": { "type": "string", "title": "Id" },
                     "sigaa_id": {
-                        "anyOf": [
-                            {
-                                "type": "integer"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
+                        "anyOf": [{ "type": "integer" }, { "type": "null" }],
                         "title": "Sigaa Id"
                     },
-                    "number": {
-                        "type": "string",
-                        "title": "Number"
-                    },
-                    "semester": {
-                        "type": "string",
-                        "title": "Semester"
-                    },
+                    "number": { "type": "string", "title": "Number" },
+                    "semester": { "type": "string", "title": "Semester" },
                     "schedule": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
+                        "anyOf": [{ "type": "string" }, { "type": "null" }],
                         "title": "Schedule"
                     },
                     "room": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
+                        "anyOf": [{ "type": "string" }, { "type": "null" }],
                         "title": "Room"
                     },
-                    "current": {
-                        "type": "boolean",
-                        "title": "Current",
-                        "default": false
-                    },
-                    "subject": {
-                        "$ref": "#/components/schemas/Subject"
-                    }
+                    "current": { "type": "boolean", "title": "Current", "default": false },
+                    "subject": { "$ref": "#/components/schemas/Subject" }
                 },
                 "type": "object",
                 "required": ["id", "number", "semester", "subject"],
@@ -1313,33 +958,19 @@
             "ClassroomAttendance": {
                 "properties": {
                     "entries": {
-                        "items": {
-                            "$ref": "#/components/schemas/AttendanceEntry"
-                        },
+                        "items": { "$ref": "#/components/schemas/AttendanceEntry" },
                         "type": "array",
                         "title": "Entries",
                         "default": []
                     },
-                    "attended": {
-                        "type": "integer",
-                        "title": "Attended"
-                    },
-                    "registered": {
-                        "type": "integer",
-                        "title": "Registered"
-                    },
+                    "attended": { "type": "integer", "title": "Attended" },
+                    "registered": { "type": "integer", "title": "Registered" },
                     "registered_percentage": {
                         "type": "integer",
                         "title": "Registered Percentage"
                     },
-                    "total": {
-                        "type": "integer",
-                        "title": "Total"
-                    },
-                    "total_percentage": {
-                        "type": "integer",
-                        "title": "Total Percentage"
-                    },
+                    "total": { "type": "integer", "title": "Total" },
+                    "total_percentage": { "type": "integer", "title": "Total Percentage" },
                     "summary": {
                         "$ref": "#/components/schemas/AttendanceSummary",
                         "readOnly": true
@@ -1359,17 +990,11 @@
             },
             "ClassroomFrequency": {
                 "properties": {
-                    "progress": {
-                        "$ref": "#/components/schemas/ClassroomProgress"
-                    },
+                    "progress": { "$ref": "#/components/schemas/ClassroomProgress" },
                     "frequency": {
                         "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/ClassroomAttendance"
-                            },
-                            {
-                                "type": "null"
-                            }
+                            { "$ref": "#/components/schemas/ClassroomAttendance" },
+                            { "type": "null" }
                         ]
                     },
                     "frequency_status": {
@@ -1386,22 +1011,14 @@
             },
             "ClassroomFrequencyResult": {
                 "properties": {
-                    "progress": {
-                        "$ref": "#/components/schemas/ClassroomProgress"
-                    },
+                    "progress": { "$ref": "#/components/schemas/ClassroomProgress" },
                     "frequency": {
                         "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/ClassroomAttendance"
-                            },
-                            {
-                                "type": "null"
-                            }
+                            { "$ref": "#/components/schemas/ClassroomAttendance" },
+                            { "type": "null" }
                         ]
                     },
-                    "classroom": {
-                        "$ref": "#/components/schemas/Classroom"
-                    },
+                    "classroom": { "$ref": "#/components/schemas/Classroom" },
                     "frequency_status": {
                         "type": "string",
                         "enum": ["not_registered", "partially_registered", "registered"],
@@ -1415,77 +1032,30 @@
             },
             "ClassroomMember": {
                 "properties": {
-                    "name": {
-                        "type": "string",
-                        "title": "Name"
-                    },
-                    "role": {
-                        "$ref": "#/components/schemas/ClassroomRole"
-                    },
+                    "name": { "type": "string", "title": "Name" },
+                    "role": { "$ref": "#/components/schemas/ClassroomRole" },
                     "registration": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
+                        "anyOf": [{ "type": "string" }, { "type": "null" }],
                         "title": "Registration"
                     },
                     "photo": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
+                        "anyOf": [{ "type": "string" }, { "type": "null" }],
                         "title": "Photo"
                     },
                     "email": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
+                        "anyOf": [{ "type": "string" }, { "type": "null" }],
                         "title": "Email"
                     },
                     "course": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
+                        "anyOf": [{ "type": "string" }, { "type": "null" }],
                         "title": "Course"
                     },
                     "unity": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
+                        "anyOf": [{ "type": "string" }, { "type": "null" }],
                         "title": "Unity"
                     },
                     "person_id": {
-                        "anyOf": [
-                            {
-                                "type": "integer"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
+                        "anyOf": [{ "type": "integer" }, { "type": "null" }],
                         "title": "Person Id"
                     }
                 },
@@ -1496,18 +1066,9 @@
             },
             "ClassroomProgress": {
                 "properties": {
-                    "taught": {
-                        "type": "integer",
-                        "title": "Taught"
-                    },
-                    "total": {
-                        "type": "integer",
-                        "title": "Total"
-                    },
-                    "percentage": {
-                        "type": "integer",
-                        "title": "Percentage"
-                    }
+                    "taught": { "type": "integer", "title": "Taught" },
+                    "total": { "type": "integer", "title": "Total" },
+                    "percentage": { "type": "integer", "title": "Percentage" }
                 },
                 "type": "object",
                 "required": ["taught", "total", "percentage"],
@@ -1519,52 +1080,53 @@
                 "enum": ["aluno", "professor", "monitor"],
                 "title": "ClassroomRole"
             },
+            "CurriculumWorkload": {
+                "properties": {
+                    "total": { "type": "integer", "title": "Total" },
+                    "pending_mandatory": { "type": "integer", "title": "Pending Mandatory" },
+                    "pending_optional": { "type": "integer", "title": "Pending Optional" },
+                    "pending_complementary": { "type": "integer", "title": "Pending Complementary" }
+                },
+                "type": "object",
+                "required": [
+                    "total",
+                    "pending_mandatory",
+                    "pending_optional",
+                    "pending_complementary"
+                ],
+                "title": "CurriculumWorkload",
+                "description": "Carga horária do currículo e o que falta integralizar, em horas."
+            },
             "DailyMenu": {
                 "properties": {
-                    "date": {
-                        "type": "string",
-                        "format": "date",
-                        "title": "Date"
-                    },
+                    "date": { "type": "string", "format": "date", "title": "Date" },
                     "breakfast": {
                         "anyOf": [
                             {
-                                "items": {
-                                    "$ref": "#/components/schemas/MenuSection"
-                                },
+                                "items": { "$ref": "#/components/schemas/MenuSection" },
                                 "type": "array"
                             },
-                            {
-                                "type": "null"
-                            }
+                            { "type": "null" }
                         ],
                         "title": "Breakfast"
                     },
                     "lunch": {
                         "anyOf": [
                             {
-                                "items": {
-                                    "$ref": "#/components/schemas/MenuSection"
-                                },
+                                "items": { "$ref": "#/components/schemas/MenuSection" },
                                 "type": "array"
                             },
-                            {
-                                "type": "null"
-                            }
+                            { "type": "null" }
                         ],
                         "title": "Lunch"
                     },
                     "dinner": {
                         "anyOf": [
                             {
-                                "items": {
-                                    "$ref": "#/components/schemas/MenuSection"
-                                },
+                                "items": { "$ref": "#/components/schemas/MenuSection" },
                                 "type": "array"
                             },
-                            {
-                                "type": "null"
-                            }
+                            { "type": "null" }
                         ],
                         "title": "Dinner"
                     }
@@ -1577,9 +1139,7 @@
             "HTTPValidationError": {
                 "properties": {
                     "detail": {
-                        "items": {
-                            "$ref": "#/components/schemas/ValidationError"
-                        },
+                        "items": { "$ref": "#/components/schemas/ValidationError" },
                         "type": "array",
                         "title": "Detail"
                     }
@@ -1591,25 +1151,12 @@
                 "properties": {
                     "key": {
                         "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/MenuSectionKey"
-                            },
-                            {
-                                "type": "null"
-                            }
+                            { "$ref": "#/components/schemas/MenuSectionKey" },
+                            { "type": "null" }
                         ]
                     },
-                    "name": {
-                        "type": "string",
-                        "title": "Name"
-                    },
-                    "items": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "title": "Items"
-                    }
+                    "name": { "type": "string", "title": "Name" },
+                    "items": { "items": { "type": "string" }, "type": "array", "title": "Items" }
                 },
                 "type": "object",
                 "required": ["name", "items"],
@@ -1642,64 +1189,23 @@
             },
             "News": {
                 "properties": {
-                    "id": {
-                        "anyOf": [
-                            {
-                                "type": "integer"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Id"
-                    },
+                    "id": { "anyOf": [{ "type": "integer" }, { "type": "null" }], "title": "Id" },
                     "classroom_sigaa_id": {
-                        "anyOf": [
-                            {
-                                "type": "integer"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
+                        "anyOf": [{ "type": "integer" }, { "type": "null" }],
                         "title": "Classroom Sigaa Id"
                     },
-                    "title": {
-                        "type": "string",
-                        "title": "Title"
-                    },
-                    "published_on": {
-                        "type": "string",
-                        "format": "date",
-                        "title": "Published On"
-                    },
+                    "title": { "type": "string", "title": "Title" },
+                    "published_on": { "type": "string", "format": "date", "title": "Published On" },
                     "published_at": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "format": "date-time"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
+                        "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }],
                         "title": "Published At"
                     },
                     "content": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
+                        "anyOf": [{ "type": "string" }, { "type": "null" }],
                         "title": "Content"
                     },
                     "attachments": {
-                        "items": {
-                            "$ref": "#/components/schemas/NewsAttachment"
-                        },
+                        "items": { "$ref": "#/components/schemas/NewsAttachment" },
                         "type": "array",
                         "title": "Attachments",
                         "default": []
@@ -1712,14 +1218,8 @@
             },
             "NewsAttachment": {
                 "properties": {
-                    "name": {
-                        "type": "string",
-                        "title": "Name"
-                    },
-                    "url": {
-                        "type": "string",
-                        "title": "Url"
-                    }
+                    "name": { "type": "string", "title": "Name" },
+                    "url": { "type": "string", "title": "Url" }
                 },
                 "type": "object",
                 "required": ["name", "url"],
@@ -1727,80 +1227,35 @@
             },
             "PublicClassroom": {
                 "properties": {
-                    "number": {
-                        "type": "string",
-                        "title": "Number"
-                    },
-                    "semester": {
-                        "type": "string",
-                        "title": "Semester"
-                    },
+                    "number": { "type": "string", "title": "Number" },
+                    "semester": { "type": "string", "title": "Semester" },
                     "schedule": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
+                        "anyOf": [{ "type": "string" }, { "type": "null" }],
                         "title": "Schedule"
                     },
                     "schedule_description": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
+                        "anyOf": [{ "type": "string" }, { "type": "null" }],
                         "title": "Schedule Description"
                     },
                     "room": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
+                        "anyOf": [{ "type": "string" }, { "type": "null" }],
                         "title": "Room"
                     },
                     "vacancies": {
-                        "anyOf": [
-                            {
-                                "type": "integer"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
+                        "anyOf": [{ "type": "integer" }, { "type": "null" }],
                         "title": "Vacancies"
                     },
                     "occupied": {
-                        "anyOf": [
-                            {
-                                "type": "integer"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
+                        "anyOf": [{ "type": "integer" }, { "type": "null" }],
                         "title": "Occupied"
                     },
                     "teachers": {
-                        "items": {
-                            "$ref": "#/components/schemas/Teacher"
-                        },
+                        "items": { "$ref": "#/components/schemas/Teacher" },
                         "type": "array",
                         "title": "Teachers",
                         "default": []
                     },
-                    "subject": {
-                        "$ref": "#/components/schemas/Subject"
-                    }
+                    "subject": { "$ref": "#/components/schemas/Subject" }
                 },
                 "type": "object",
                 "required": ["number", "semester", "subject"],
@@ -1809,15 +1264,8 @@
             },
             "RestaurantCredentials": {
                 "properties": {
-                    "token": {
-                        "type": "string",
-                        "title": "Token"
-                    },
-                    "valid_until": {
-                        "type": "string",
-                        "format": "date",
-                        "title": "Valid Until"
-                    }
+                    "token": { "type": "string", "title": "Token" },
+                    "valid_until": { "type": "string", "format": "date", "title": "Valid Until" }
                 },
                 "type": "object",
                 "required": ["token", "valid_until"],
@@ -1827,32 +1275,17 @@
                 "properties": {
                     "balance": {
                         "anyOf": [
-                            {
-                                "type": "string",
-                                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-                            },
-                            {
-                                "type": "null"
-                            }
+                            { "type": "string", "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$" },
+                            { "type": "null" }
                         ],
                         "title": "Balance"
                     },
                     "group": {
-                        "anyOf": [
-                            {
-                                "type": "integer",
-                                "enum": [1, 2, 3, 4]
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
+                        "anyOf": [{ "type": "integer", "enum": [1, 2, 3, 4] }, { "type": "null" }],
                         "title": "Group"
                     },
                     "entries": {
-                        "items": {
-                            "$ref": "#/components/schemas/RestaurantStatementEntry"
-                        },
+                        "items": { "$ref": "#/components/schemas/RestaurantStatementEntry" },
                         "type": "array",
                         "title": "Entries",
                         "default": []
@@ -1868,10 +1301,7 @@
                         "format": "date-time",
                         "title": "Occurred At"
                     },
-                    "description": {
-                        "type": "string",
-                        "title": "Description"
-                    },
+                    "description": { "type": "string", "title": "Description" },
                     "amount": {
                         "type": "string",
                         "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
@@ -1903,13 +1333,8 @@
             },
             "StatisticsShare": {
                 "properties": {
-                    "situation": {
-                        "$ref": "#/components/schemas/StudentSituation"
-                    },
-                    "percentage": {
-                        "type": "number",
-                        "title": "Percentage"
-                    }
+                    "situation": { "$ref": "#/components/schemas/StudentSituation" },
+                    "percentage": { "type": "number", "title": "Percentage" }
                 },
                 "type": "object",
                 "required": ["situation", "percentage"],
@@ -1935,51 +1360,20 @@
             "Subject": {
                 "properties": {
                     "code": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
+                        "anyOf": [{ "type": "string" }, { "type": "null" }],
                         "title": "Code"
                     },
                     "sigaa_id": {
-                        "anyOf": [
-                            {
-                                "type": "integer"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
+                        "anyOf": [{ "type": "integer" }, { "type": "null" }],
                         "title": "Sigaa Id"
                     },
-                    "name": {
-                        "type": "string",
-                        "title": "Name"
-                    },
+                    "name": { "type": "string", "title": "Name" },
                     "hours": {
-                        "anyOf": [
-                            {
-                                "type": "integer"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
+                        "anyOf": [{ "type": "integer" }, { "type": "null" }],
                         "title": "Hours"
                     },
                     "unity": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
+                        "anyOf": [{ "type": "string" }, { "type": "null" }],
                         "title": "Unity"
                     }
                 },
@@ -1990,19 +1384,9 @@
             },
             "Teacher": {
                 "properties": {
-                    "name": {
-                        "type": "string",
-                        "title": "Name"
-                    },
+                    "name": { "type": "string", "title": "Name" },
                     "hours": {
-                        "anyOf": [
-                            {
-                                "type": "integer"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
+                        "anyOf": [{ "type": "integer" }, { "type": "null" }],
                         "title": "Hours"
                     }
                 },
@@ -2013,14 +1397,8 @@
             },
             "Unit": {
                 "properties": {
-                    "id": {
-                        "type": "integer",
-                        "title": "Id"
-                    },
-                    "name": {
-                        "type": "string",
-                        "title": "Name"
-                    }
+                    "id": { "type": "integer", "title": "Id" },
+                    "name": { "type": "string", "title": "Name" }
                 },
                 "type": "object",
                 "required": ["id", "name"],
@@ -2034,91 +1412,32 @@
             },
             "UserProfile": {
                 "properties": {
-                    "name": {
-                        "type": "string",
-                        "title": "Name"
-                    },
-                    "registration": {
-                        "type": "string",
-                        "title": "Registration"
-                    },
+                    "name": { "type": "string", "title": "Name" },
+                    "registration": { "type": "string", "title": "Registration" },
                     "photo": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
+                        "anyOf": [{ "type": "string" }, { "type": "null" }],
                         "title": "Photo"
                     },
                     "email": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
+                        "anyOf": [{ "type": "string" }, { "type": "null" }],
                         "title": "Email"
                     },
-                    "bio": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Bio"
-                    },
-                    "unity": {
-                        "type": "string",
-                        "title": "Unity"
-                    },
-                    "course": {
-                        "type": "string",
-                        "title": "Course"
-                    },
+                    "bio": { "anyOf": [{ "type": "string" }, { "type": "null" }], "title": "Bio" },
+                    "unity": { "type": "string", "title": "Unity" },
+                    "course": { "type": "string", "title": "Course" },
                     "integralization": {
-                        "anyOf": [
-                            {
-                                "type": "integer"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
+                        "anyOf": [{ "type": "integer" }, { "type": "null" }],
                         "title": "Integralization"
                     },
-                    "ira": {
+                    "workload": {
                         "anyOf": [
-                            {
-                                "type": "number"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Ira"
+                            { "$ref": "#/components/schemas/CurriculumWorkload" },
+                            { "type": "null" }
+                        ]
                     },
-                    "mp": {
-                        "anyOf": [
-                            {
-                                "type": "number"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Mp"
-                    },
-                    "level": {
-                        "$ref": "#/components/schemas/UserLevel"
-                    }
+                    "ira": { "anyOf": [{ "type": "number" }, { "type": "null" }], "title": "Ira" },
+                    "mp": { "anyOf": [{ "type": "number" }, { "type": "null" }], "title": "Mp" },
+                    "level": { "$ref": "#/components/schemas/UserLevel" }
                 },
                 "type": "object",
                 "required": [
@@ -2129,6 +1448,7 @@
                     "unity",
                     "course",
                     "integralization",
+                    "workload",
                     "ira",
                     "mp",
                     "level"
@@ -2138,14 +1458,7 @@
             "UserSettings": {
                 "properties": {
                     "displayName": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
+                        "anyOf": [{ "type": "string" }, { "type": "null" }],
                         "title": "Displayname"
                     },
                     "defaultRuCampus": {
@@ -2154,9 +1467,7 @@
                                 "type": "string",
                                 "enum": ["Darcy", "Gama", "Ceilandia", "Planaltina", "Fazenda"]
                             },
-                            {
-                                "type": "null"
-                            }
+                            { "type": "null" }
                         ],
                         "title": "Defaultrucampus"
                     }
@@ -2168,14 +1479,8 @@
                 "properties": {
                     "displayName": {
                         "anyOf": [
-                            {
-                                "type": "string",
-                                "maxLength": 24,
-                                "minLength": 1
-                            },
-                            {
-                                "type": "null"
-                            }
+                            { "type": "string", "maxLength": 24, "minLength": 1 },
+                            { "type": "null" }
                         ],
                         "title": "Displayname"
                     },
@@ -2185,9 +1490,7 @@
                                 "type": "string",
                                 "enum": ["Darcy", "Gama", "Ceilandia", "Planaltina", "Fazenda"]
                             },
-                            {
-                                "type": "null"
-                            }
+                            { "type": "null" }
                         ],
                         "title": "Defaultrucampus"
                     }
@@ -2199,34 +1502,14 @@
             "ValidationError": {
                 "properties": {
                     "loc": {
-                        "items": {
-                            "anyOf": [
-                                {
-                                    "type": "string"
-                                },
-                                {
-                                    "type": "integer"
-                                }
-                            ]
-                        },
+                        "items": { "anyOf": [{ "type": "string" }, { "type": "integer" }] },
                         "type": "array",
                         "title": "Location"
                     },
-                    "msg": {
-                        "type": "string",
-                        "title": "Message"
-                    },
-                    "type": {
-                        "type": "string",
-                        "title": "Error Type"
-                    },
-                    "input": {
-                        "title": "Input"
-                    },
-                    "ctx": {
-                        "type": "object",
-                        "title": "Context"
-                    }
+                    "msg": { "type": "string", "title": "Message" },
+                    "type": { "type": "string", "title": "Error Type" },
+                    "input": { "title": "Input" },
+                    "ctx": { "type": "object", "title": "Context" }
                 },
                 "type": "object",
                 "required": ["loc", "msg", "type"],
@@ -2263,13 +1546,7 @@
         }
     ],
     "x-tagGroups": [
-        {
-            "name": "Public",
-            "tags": ["Public Classrooms", "Public Restaurant"]
-        },
-        {
-            "name": "SIGAA",
-            "tags": ["Auth", "Classrooms", "Me", "News"]
-        }
+        { "name": "Public", "tags": ["Public Classrooms", "Public Restaurant"] },
+        { "name": "SIGAA", "tags": ["Auth", "Classrooms", "Me", "News"] }
     ]
 }

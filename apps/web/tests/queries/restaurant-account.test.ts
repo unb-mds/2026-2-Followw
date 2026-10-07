@@ -68,6 +68,12 @@ describe('conta do RU', () => {
         );
     });
 
+    test('a carteirinha salva não é refeita automaticamente', async () => {
+        client.setQueryData(credentialsQueryOptions(registration).queryKey, credentials);
+        await client.query(credentialsQueryOptions(registration));
+        expect(requests).toHaveLength(0);
+    });
+
     test('atualiza pela API pedindo dado novo', async () => {
         client.setQueryData(statementQueryOptions(registration).queryKey, statement);
         const fresh = { ...statement, balance: '30.00' };

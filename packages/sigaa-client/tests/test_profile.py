@@ -3,7 +3,7 @@ from datetime import date
 import httpx
 import pytest
 
-from sigaa_client import News, SigaaClient, SigaaParseError
+from sigaa_client import CurriculumWorkload, News, SigaaClient, SigaaParseError
 
 CARD = """
 <div id="perfil-docente">
@@ -20,6 +20,16 @@ CARD = """
       <table>
         <tr><td><acronym title="Índice de Rendimento Acadêmico">IRA:</acronym></td><td>3.9524</td></tr>
         <tr><td><acronym title="Média Ponderada">MP:</acronym></td><td>4.1724</td></tr>
+      </table>
+    </td></tr>
+    <tr><td colspan="2">
+      <i><center>Integraliza&#231;&#245;es:</center></i>
+      <table>
+        <tr><td> CH. Obrigat&#243;ria Pendente </td><td align="right"> 2175 </td></tr>
+        <tr><td> CH. Optativa Pendente </td><td align="right"> 420 </td></tr>
+        <tr><td> CH. Total Curr&#237;culo </td><td align="right"> 3525 </td></tr>
+        <tr><td> CH. Complementar Pendente </td><td align="right"> 0 </td></tr>
+        <tr><td colspan="2" align="center"> 26% Integralizado </td></tr>
       </table>
     </td></tr>
   </table>
@@ -69,6 +79,13 @@ async def test_get_profile_faz_um_unico_get():
     assert profile.bio == "Bio de teste."
     assert profile.ira == 3.9524
     assert profile.mp == 4.1724
+    assert profile.integralization == 26
+    assert profile.workload == CurriculumWorkload(
+        total=3525,
+        pending_mandatory=2175,
+        pending_optional=420,
+        pending_complementary=0,
+    )
 
 
 async def test_get_profile_sem_indices_academicos_vem_none():
@@ -78,6 +95,15 @@ async def test_get_profile_sem_indices_academicos_vem_none():
 
     assert profile.ira is None
     assert profile.mp is None
+    assert profile.workload is None
+
+
+async def test_carga_horaria_incompleta_e_barulhenta():
+    page = DASHBOARD.replace("CH. Optativa Pendente", "CH. Outra Coisa")
+    sigaa = FakeDashboard(page=page)
+    async with SigaaClient(session_token="tok", transport=sigaa.transport) as client:
+        with pytest.raises(SigaaParseError):
+            await client.profile.get_profile()
 
 
 UPDATES = """

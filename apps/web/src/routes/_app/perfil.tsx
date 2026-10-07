@@ -8,9 +8,9 @@ import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
 import { ListCard } from '#/components/ListCard';
 import {
     AcademicPerformance,
-    EnrollmentDetails,
     ProfileIdentity,
-    ProfileSection
+    ProfileSection,
+    ProgressSection
 } from '#/components/profile/ProfileOverview';
 import { ThemeToggle } from '#/components/ThemeToggle';
 import {
@@ -44,6 +44,7 @@ import { meQueryOptions } from '#/queries/me';
 import { useUpdateSettings, useUserSettings } from '#/queries/settings';
 
 export const Route = createFileRoute('/_app/perfil')({
+    head: () => ({ meta: [{ title: 'Perfil | Followw' }] }),
     loader: async ({ context }) => {
         const user = await loadQuery(context.queryClient, meQueryOptions);
         if (!user) throw redirect({ to: '/login' });
@@ -69,8 +70,8 @@ function PerfilPage() {
             {user && (
                 <>
                     <ProfileIdentity user={user} displayName={settings.displayName} />
-                    <EnrollmentDetails user={user} />
                     <AcademicPerformance user={user} />
+                    <ProgressSection user={user} />
                     <AccountSection
                         name={titleCase(user.name)}
                         displayName={settings.displayName}

@@ -3,14 +3,11 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import { FollowwLogo } from '#/components/FollowwLogo';
 
-import manifest from '../../public/manifest.json';
-
 describe('FollowwLogo', () => {
     test('usa o favicon da aplicação com um nome acessível', () => {
-        const favicon = manifest.icons[0];
         const markup = renderToStaticMarkup(<FollowwLogo />);
 
-        expect(markup).toContain(`src="${favicon.src}"`);
+        expect(markup).toContain('src="/favicon.svg"');
         expect(markup).toContain('alt="Logo Followw"');
     });
 

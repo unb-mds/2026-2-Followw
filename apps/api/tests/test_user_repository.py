@@ -2,8 +2,8 @@ from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
 import pytest
+from sigaa_client import CurriculumWorkload, UserProfile
 from sigaa_client import UserLevel as SigaaUserLevel
-from sigaa_client import UserProfile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +21,12 @@ PERFIL = UserProfile(
     unity="FCTE",
     course="ENGENHARIA DE SOFTWARE",
     integralization=35,
+    workload=CurriculumWorkload(
+        total=3525,
+        pending_mandatory=2175,
+        pending_optional=420,
+        pending_complementary=0,
+    ),
     ira=3.9,
     mp=4.1,
     level=SigaaUserLevel.GRADUACAO,
@@ -65,6 +71,7 @@ async def test_perfil_cria_usuario_com_data_de_sync(async_database):
         3.9,
         UserLevel.GRADUACAO,
     )
+    assert user.workload == PERFIL.workload.model_dump()
     assert user.profile_synced_at is not None
 
 

@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup, Tag
 
 from ..config import DASHBOARD_PATH, SIGAA_BASE_URL
 from ..exceptions import SigaaParseError
-from ..models import News, UserLevel, UserProfile
+from ..models import CurriculumWorkload, News, UserLevel, UserProfile
 from ..utils.jsf import link_params
 from ..utils.parsing import clean_text, lookup_key, parse_datetime, split_course
 from .session import Session
@@ -17,6 +17,13 @@ _INTEGRALIZATION_RE = re.compile(r"(\d+)\s*%\s*Integralizado")
 _UPDATE_DATE_RE = re.compile(r"(\d{2}/\d{2}/\d{4})")
 # As "Últimas Atualizações" misturam notícias com outros avisos da turma.
 _NEWS_RE = re.compile(r"^Nova Notícia:\s*(.+)$")
+
+_WORKLOAD_LABELS = {
+    "total": "ch. total currículo",
+    "pending_mandatory": "ch. obrigatória pendente",
+    "pending_optional": "ch. optativa pendente",
+    "pending_complementary": "ch. complementar pendente",
+}
 
 _LEVELS = {
     "graduacao": UserLevel.GRADUACAO,
@@ -51,6 +58,7 @@ class Profile:
             unity=unity,
             course=course,
             integralization=_integralization(card),
+            workload=_workload(fields),
             ira=_academic_index(fields, "ira"),
             mp=_academic_index(fields, "mp"),
             level=_level(_required(fields, "nível")),
@@ -144,6 +152,18 @@ def _photo(card: Tag) -> str | None:
 def _integralization(card: Tag) -> int | None:
     match = _INTEGRALIZATION_RE.search(clean_text(card))
     return int(match.group(1)) if match else None
+
+
+def _workload(fields: dict[str, str]) -> CurriculumWorkload | None:
+    values = {key: fields.get(label) for key, label in _WORKLOAD_LABELS.items()}
+    # Sem o bloco de integralizações (ex.: pós-graduação), não há o que agrupar.
+    if not any(values.values()):
+        return None
+    if not all(value and value.isdigit() for value in values.values()):
+        raise SigaaParseError(
+            "Cargas horárias incompletas ou fora do formato no perfil."
+        )
+    return CurriculumWorkload.model_validate(values)
 
 
 def _academic_index(fields: dict[str, str], label: str) -> float | None:

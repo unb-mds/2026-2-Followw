@@ -45,6 +45,12 @@ export const menuQueryOptions = ({
 
 export async function prefetchWeekMenus(queryClient: QueryClient, campus: Campus, today: string) {
     const dates = weekDays(today).map((day) => day.date);
+    // não busca de novo se já há cardápio salvo da semana
+    const saved = dates.some(
+        (date) =>
+            queryClient.getQueryData(menuQueryOptions({ campus, date }).queryKey) !== undefined
+    );
+    if (saved) return;
     const menus = await queryClient.query({
         ...api.queryOptions('get', '/public/restaurant', {
             params: { query: { campus, start_date: dates[0], end_date: dates.at(-1) } }

@@ -27,6 +27,7 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     unity: Mapped[str | None] = mapped_column()
     course: Mapped[str | None] = mapped_column()
     integralization: Mapped[int | None] = mapped_column()
+    workload: Mapped[dict[str, int] | None] = mapped_column(JSON)
     ira: Mapped[float | None] = mapped_column()
     mp: Mapped[float | None] = mapped_column()
     level: Mapped[UserLevel | None] = mapped_column(_enum(UserLevel, "user_level"))

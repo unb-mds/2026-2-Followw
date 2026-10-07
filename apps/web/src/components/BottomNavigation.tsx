@@ -1,7 +1,6 @@
 import { Link, useLocation } from '@tanstack/react-router';
 import { House, User, type LucideIcon, Utensils, UserRoundGroup } from 'lucide-react';
 
-import { buttonVariants } from '#/components/ui/button';
 import { cn } from '#/lib/shadcn';
 
 interface NavItem {
@@ -26,13 +25,13 @@ export const BottomNavigation: React.FC = () => {
 
     return (
         <nav
-            className="fixed bottom-5 left-1/2 z-50 w-74 -translate-x-1/2 rounded-full border bg-card/80 px-2.5 py-1.5 text-card-foreground shadow-lg backdrop-blur-xl"
+            className="fixed bottom-5 left-1/2 z-50 w-74 -translate-x-1/2 rounded-full border bg-card/80 px-1 py-1.5 text-card-foreground shadow-lg backdrop-blur-xl"
             aria-label="Navegação principal do aplicativo"
         >
             <div className="relative grid h-11 grid-cols-4">
                 <div
                     aria-hidden="true"
-                    className="pointer-events-none absolute inset-y-0 left-0 w-1/4 px-2 transition-all duration-400 motion-reduce:transition-none"
+                    className="pointer-events-none absolute inset-y-0 left-0 w-1/4 px-1 transition-all duration-400 motion-reduce:transition-none"
                     style={{
                         transform: `translateX(${Math.max(activeIndex, 0) * 100}%)`,
                         opacity: activeIndex === -1 ? 0 : 1,
@@ -50,16 +49,19 @@ export const BottomNavigation: React.FC = () => {
                             aria-label={item.label}
                             aria-current={isActive ? 'page' : undefined}
                             className={cn(
-                                buttonVariants({ variant: 'ghost', size: 'icon' }),
-                                'relative h-full w-full rounded-full bg-transparent p-0 transition-transform hover:bg-transparent active:scale-90 motion-reduce:transition-none',
+                                'group relative flex h-full w-full items-center justify-center rounded-full px-1 transition-transform outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-90 motion-reduce:transition-none',
                                 isActive ? 'text-primary' : 'text-muted-foreground'
                             )}
                         >
+                            <span
+                                aria-hidden="true"
+                                className="absolute inset-x-1 inset-y-0 rounded-full transition-colors group-hover:bg-muted"
+                            />
                             <item.icon
                                 aria-hidden="true"
                                 strokeWidth={isActive ? 2.5 : 2}
                                 className={cn(
-                                    'size-5 transition-transform duration-350 motion-reduce:transition-none',
+                                    'relative size-5 transition-transform duration-350 motion-reduce:transition-none',
                                     isActive && 'scale-110'
                                 )}
                             />

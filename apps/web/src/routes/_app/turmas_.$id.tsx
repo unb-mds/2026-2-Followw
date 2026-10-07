@@ -6,10 +6,11 @@ import { useState } from 'react';
 import type { Classroom } from '#/queries/classrooms';
 import type { components } from '#/queries/schema.gen';
 
+import { FrequencyContent } from '#/components/classroom/FrequencyContent';
 import { ErrorCard, ErrorState, SIGAA_DOWN_MESSAGE } from '#/components/ErrorState';
-import { HeaderBar } from '#/components/HeaderBar';
+import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
 import { LoginPromptCard } from '#/components/home/LoginPromptCard';
-import { ListCard, Meter } from '#/components/ListCard';
+import { ListCard } from '#/components/ListCard';
 import { LoadingText } from '#/components/LoadingText';
 import {
     Accordion,
@@ -23,8 +24,8 @@ import { PersonPhoto } from '#/components/ui/person-photo';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
 import { formatClassroomDate, groupMembers } from '#/lib/classroom-details';
 import { Markdown } from '#/lib/markdown';
+import { titleCase } from '#/lib/profile';
 import { describeSchedule } from '#/lib/schedule';
-import { cn } from '#/lib/shadcn';
 import {
     allClassroomsQueryOptions,
     classroomFrequencyQueryOptions,
@@ -38,7 +39,6 @@ import { meQueryOptions } from '#/queries/me';
 type Tab = 'news' | 'frequency' | 'members';
 type News = components['schemas']['News'];
 type Member = components['schemas']['ClassroomMember'];
-type Frequency = components['schemas']['ClassroomFrequency'];
 
 const tabs: { id: Tab; label: string }[] = [
     { id: 'frequency', label: 'Frequência' },
@@ -47,10 +47,16 @@ const tabs: { id: Tab; label: string }[] = [
 ];
 
 export const Route = createFileRoute('/_app/turmas_/$id')({
-    loader: async ({ context: { queryClient } }) => {
+    loader: async ({ context: { queryClient }, params }) => {
         const user = await loadQuery(queryClient, meQueryOptions);
-        if (user) await loadQuery(queryClient, allClassroomsQueryOptions).catch(noop);
+        const classrooms = user
+            ? await loadQuery(queryClient, allClassroomsQueryOptions).catch(noop)
+            : undefined;
+        return { subjectName: classrooms?.find(({ id }) => id === params.id)?.subject.name };
     },
+    head: ({ loaderData }) => ({
+        meta: [{ title: `${loaderData?.subjectName ?? 'Turma'} | Followw` }]
+    }),
     staticData: { header: ClassroomHeader },
     errorComponent: ErrorState,
     component: ClassroomPage
@@ -59,10 +65,14 @@ export const Route = createFileRoute('/_app/turmas_/$id')({
 function ClassroomHeader() {
     return (
         <HeaderBar showLogo={false}>
-            <Link to="/turmas" className={buttonVariants({ variant: 'ghost' })}>
+            <Link
+                to="/turmas"
+                aria-label="Voltar para as turmas"
+                className={buttonVariants({ variant: 'ghost', className: 'size-10' })}
+            >
                 <ArrowLeft className="size-5" />
-                Turmas
             </Link>
+            <HeaderTitle>Minhas Turmas</HeaderTitle>
         </HeaderBar>
     );
 }
@@ -142,7 +152,7 @@ function ClassroomSummary({ classroom }: { classroom: Classroom }) {
             <h1 className="mt-1 text-xl leading-tight font-semibold tracking-tight text-balance">
                 {classroom.subject.name}
             </h1>
-            <ul className="mt-3 space-y-1 text-sm text-muted-foreground">
+            <ul className="mt-3 flex flex-col gap-1 text-sm text-muted-foreground">
                 <SummaryItem icon={Clock3}>
                     <span className="font-medium text-primary tabular-nums">
                         {schedule ?? 'Horário a definir'}
@@ -150,9 +160,7 @@ function ClassroomSummary({ classroom }: { classroom: Classroom }) {
                 </SummaryItem>
                 <SummaryItem icon={MapPin}>{classroom.room ?? 'Local não informado'}</SummaryItem>
                 {classroom.subject.hours != null && (
-                    <SummaryItem icon={Hourglass}>
-                        {classroom.subject.hours}h de carga horária
-                    </SummaryItem>
+                    <SummaryItem icon={Hourglass}>{classroom.subject.hours}h</SummaryItem>
                 )}
             </ul>
         </header>
@@ -266,7 +274,7 @@ function NewsDetail({ classroomId, newsId }: { classroomId: string; newsId: numb
             )}
             {detail.data.content && <Markdown>{detail.data.content}</Markdown>}
             {detail.data.attachments.length > 0 && (
-                <div className="mt-4 space-y-1">
+                <div className="mt-4 flex flex-col gap-1">
                     <p className="text-xs font-medium text-muted-foreground">Anexos</p>
                     {detail.data.attachments.map((attachment) => (
                         <a
@@ -294,85 +302,6 @@ function FrequencyTab({ id }: { id: string }) {
     return <FrequencyContent data={frequency.data} />;
 }
 
-const ENTRY_STATUS: Record<components['schemas']['AttendanceStatus'], string> = {
-    presente: 'text-primary',
-    falta: 'text-destructive',
-    nao_registrada: 'text-muted-foreground'
-};
-
-function FrequencyContent({ data }: { data: Frequency }) {
-    const attendance = data.frequency;
-    const summary = attendance?.summary;
-    const occurrences = new Map<string, number>();
-    const entries = attendance?.entries.map((entry) => {
-        const signature = [entry.occurred_on, entry.status, entry.absences].join('-');
-        const occurrence = occurrences.get(signature) ?? 0;
-        occurrences.set(signature, occurrence + 1);
-        return { entry, key: signature + '-' + occurrence };
-    });
-
-    return (
-        <div className="space-y-3">
-            <ListCard>
-                <Meter
-                    label="Andamento das aulas"
-                    value={data.progress.percentage}
-                    detail={`${data.progress.taught}h ministradas de ${data.progress.total}h`}
-                />
-                {attendance && summary && data.frequency_status !== 'not_registered' && (
-                    <Meter
-                        label="Presença registrada"
-                        value={attendance.registered_percentage}
-                        detail={`${attendance.attended}h presentes de ${attendance.registered}h registradas · ${summary.total_absences} ${summary.total_absences === 1 ? 'falta' : 'faltas'} · ${summary.recorded_entries}/${summary.total_entries} aulas registradas`}
-                    />
-                )}
-            </ListCard>
-            {data.frequency_status === 'not_registered' ? (
-                <InformationCard>
-                    A frequência ainda não foi lançada pelo professor.
-                </InformationCard>
-            ) : (
-                <>
-                    {data.frequency_status === 'partially_registered' && (
-                        <p className="px-1 text-xs text-muted-foreground">
-                            Há aulas publicadas cuja frequência ainda não foi registrada.
-                        </p>
-                    )}
-                    {entries && entries.length > 0 && (
-                        <section>
-                            <GroupTitle title="Aulas" count={entries.length} />
-                            <ListCard>
-                                {entries.map(({ entry, key }) => (
-                                    <div
-                                        key={key}
-                                        className="flex items-center justify-between gap-3 py-2.5 text-sm"
-                                    >
-                                        <span className="tabular-nums">
-                                            {formatClassroomDate(entry.occurred_on)}
-                                        </span>
-                                        <span
-                                            className={cn(
-                                                'text-xs font-medium',
-                                                ENTRY_STATUS[entry.status]
-                                            )}
-                                        >
-                                            {entry.status === 'presente'
-                                                ? 'Presença'
-                                                : entry.status === 'falta'
-                                                  ? `${entry.absences} ${entry.absences === 1 ? 'falta' : 'faltas'}`
-                                                  : 'Não registrada'}
-                                        </span>
-                                    </div>
-                                ))}
-                            </ListCard>
-                        </section>
-                    )}
-                </>
-            )}
-        </div>
-    );
-}
-
 function GroupTitle({ title, count }: { title: string; count: number }) {
     return (
         <h3 className="mb-2 px-1 text-sm font-semibold">
@@ -391,7 +320,7 @@ function MembersTab({ id }: { id: string }) {
 
     const groups = groupMembers(members.data);
     return (
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
             <MemberGroup title="Professores" members={groups.professors} />
             <MemberGroup title="Monitores" members={groups.monitors} />
             <MemberGroup title="Estudantes" members={groups.students} />
@@ -413,11 +342,14 @@ function MemberGroup({ title, members }: { title: string; members: Member[] }) {
                         <PersonPhoto src={member.photo} />
                         <div className="min-w-0 text-xs text-muted-foreground">
                             <p className="truncate text-sm font-medium text-foreground">
-                                {member.name}
+                                {titleCase(member.name)}
                             </p>
                             {(member.course || member.registration) && (
                                 <p className="truncate">
-                                    {[member.course, member.registration]
+                                    {[
+                                        member.course && titleCase(member.course),
+                                        member.registration
+                                    ]
                                         .filter(Boolean)
                                         .join(' · ')}
                                 </p>

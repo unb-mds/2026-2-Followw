@@ -1,5 +1,6 @@
 import { MapIcon, MapPin } from 'lucide-react';
 
+import { Badge } from '#/components/ui/badge';
 import { Button } from '#/components/ui/button';
 import { Card } from '#/components/ui/card';
 import { cn } from '#/lib/shadcn';
@@ -17,9 +18,13 @@ export interface ClassCardProps {
 }
 
 const STATUS = {
-    in_progress: { label: 'Em andamento', className: 'text-primary' },
-    next: { label: 'Próxima', className: 'text-muted-foreground' },
-    warning: { label: 'Atenção', className: 'text-destructive' }
+    in_progress: {
+        label: 'Em andamento',
+        variant: 'default',
+        className: 'bg-primary/10 text-primary'
+    },
+    next: { label: 'Próxima', variant: 'secondary', className: 'text-muted-foreground' },
+    warning: { label: 'Atenção', variant: 'destructive', className: '' }
 } as const;
 
 export const ClassCard: React.FC<ClassCardProps> = ({
@@ -49,18 +54,18 @@ export const ClassCard: React.FC<ClassCardProps> = ({
                     className="absolute inset-0 h-full w-full rounded-2xl hover:bg-primary/5"
                 />
             )}
-            <div className="pointer-events-none relative flex items-baseline gap-2 text-xs">
+            <div className="pointer-events-none relative flex items-center gap-2 text-xs">
                 <span className="min-w-0 font-semibold text-primary tabular-nums">{time}</span>
                 {statusInfo && (
-                    <span
-                        className={cn(
-                            'flex shrink-0 items-center gap-1 font-medium',
-                            statusInfo.className
-                        )}
+                    <Badge
+                        variant={statusInfo.variant}
+                        className={cn('h-4 px-1.5 py-0', statusInfo.className)}
                     >
-                        {active && <span className="size-1.5 rounded-full bg-primary" />}
+                        {active && (
+                            <span className="size-1.5 animate-pulse rounded-full bg-primary" />
+                        )}
                         {statusText || statusInfo.label}
-                    </span>
+                    </Badge>
                 )}
                 {code && (
                     <span className="ml-auto shrink-0 font-medium tracking-wide text-muted-foreground">

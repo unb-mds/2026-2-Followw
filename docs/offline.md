@@ -33,7 +33,8 @@ sozinho (`autoUpdate`: `skipWaiting` + `clientsClaim`).
   navegador).
 - `buster`: hash de `schema.gen.ts`. Mudou o contrato da API, o cache salvo é descartado.
 - O cardápio da semana do campus do usuário é pré-carregado numa só requisição (`prefetchWeekMenus`)
-  e gravado na query de cada dia; a query da faixa não fica no cache.
+  e gravado na query de cada dia; a query da faixa não fica no cache. Se já houver cardápio salvo
+  de algum dia daquela semana (e campus), não busca de novo.
 
 ## Nenhuma rota trava
 
