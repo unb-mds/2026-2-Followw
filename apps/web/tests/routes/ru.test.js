@@ -8,7 +8,7 @@ function contextWith(user, failingPath) {
         paths,
         context: {
             queryClient: {
-                getQueryState: () => undefined,
+                getQueryData: () => undefined,
                 query: async ({ queryKey }) => {
                     const path = queryKey[1];
                     paths.push(path);

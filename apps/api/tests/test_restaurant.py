@@ -119,10 +119,10 @@ def _age_cache(database, hours):
 
 def test_menu_vencido_reconsulta_e_substitui_cache(client, browser, database):
     client.get("/public/restaurant")
-    _age_cache(database, 23)
+    _age_cache(database, 71)
     client.get("/public/restaurant")
     browser.restaurant.get_menu.assert_awaited_once()
-    _age_cache(database, 25)
+    _age_cache(database, 73)
     browser.restaurant.get_menu.return_value = (DAY.model_copy(update={"lunch": None}),)
     response = client.get("/public/restaurant")
     assert response.status_code == 200
@@ -164,7 +164,7 @@ def test_dia_antigo_fora_do_cardapio_nao_vence_o_cache(client, browser, database
         DAY.model_copy(update={"date": date(2026, 9, 24)}),
     )
     client.get("/public/restaurant")
-    _age_cache(database, 25)
+    _age_cache(database, 73)
     browser.restaurant.get_menu.return_value = (DAY,)
     assert len(client.get("/public/restaurant").json()) == 2
     assert len(client.get("/public/restaurant").json()) == 2
@@ -176,7 +176,7 @@ def test_dia_antigo_fora_do_cardapio_nao_vence_o_cache(client, browser, database
 )
 def test_ru_fora_do_ar_serve_cache_vencido(client, browser, database, error):
     original = client.get("/public/restaurant").json()
-    _age_cache(database, 25)
+    _age_cache(database, 73)
     browser.restaurant.get_menu.side_effect = error
     response = client.get("/public/restaurant")
     assert response.status_code == 200
@@ -196,10 +196,22 @@ def test_ru_fora_do_ar_com_cache_so_de_outras_datas_retorna_502(
         DAY.model_copy(update={"date": date(2026, 9, 18)}),
     )
     client.get("/public/restaurant?date=2026-09-18")
-    _age_cache(database, 25)
+    _age_cache(database, 73)
     browser.restaurant.get_menu.side_effect = UnbParseError("fora")
     assert client.get("/public/restaurant").status_code == 502
     assert client.get("/public/restaurant?date=2026-09-18").status_code == 200
+
+
+def test_cache_fresco_sem_dias_no_intervalo_sempre_consulta_o_ru(client, browser):
+    browser.restaurant.get_menu.return_value = (
+        DAY.model_copy(update={"date": date(2026, 9, 18)}),
+    )
+    client.get("/public/restaurant?date=2026-09-18")
+    only_if_cached = {"Cache-Control": "only-if-cached"}
+    assert client.get("/public/restaurant", headers=only_if_cached).status_code == 504
+    assert client.get("/public/restaurant").json() == []
+    assert client.get("/public/restaurant").json() == []
+    assert browser.restaurant.get_menu.await_count == 3
 
 
 def test_cache_le_so_o_intervalo_pedido(client, browser, monkeypatch):
@@ -214,7 +226,8 @@ def test_cache_le_so_o_intervalo_pedido(client, browser, monkeypatch):
     client.get("/public/restaurant", params={"start_date": "2026-09-01"})
     client.get("/public/restaurant", params={"end_date": "2026-09-01"})
     client.get("/public/restaurant")
-    assert ranges == [
+    # Intervalos sem dias no cache são relidos depois de consultar o RU.
+    assert list(dict.fromkeys(ranges)) == [
         (date(2026, 9, 1), date(2026, 9, 7)),
         (date(2026, 8, 26), date(2026, 9, 1)),
         (date(2026, 9, 21), date(2026, 9, 27)),
@@ -375,7 +388,7 @@ def test_menu_only_if_cached_nunca_consulta_o_ru(client, browser, database):
         "/public/restaurant", headers={"Cache-Control": "only-if-cached"}
     )
     original = client.get("/public/restaurant").json()
-    _age_cache(database, 25)
+    _age_cache(database, 73)
 
     vencido = client.get(
         "/public/restaurant", headers={"Cache-Control": "only-if-cached"}
@@ -478,7 +491,8 @@ def test_filtros_de_datas_preservam_cache_completo(
     assert len(client.get("/public/restaurant").json()) == 3
     with database() as session:
         assert len(_cached_days(session)) == 3
-    browser.restaurant.get_menu.assert_awaited_once()
+    # Intervalo sem dias no cache não vale: as duas requisições consultam o RU.
+    assert browser.restaurant.get_menu.await_count == (1 if expected else 2)
 
 
 @pytest.mark.parametrize(

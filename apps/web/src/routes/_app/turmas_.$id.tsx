@@ -1,4 +1,4 @@
-import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { Link, createFileRoute } from '@tanstack/react-router';
 import { ArrowLeft, Clock3, Hourglass, MapPin, UserRound } from 'lucide-react';
 import { useState } from 'react';
@@ -31,6 +31,7 @@ import {
     classroomNewsDetailQueryOptions,
     classroomNewsQueryOptions
 } from '#/queries/classrooms';
+import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
 
 type Tab = 'news' | 'frequency' | 'members';
@@ -46,8 +47,8 @@ const tabs: { id: Tab; label: string }[] = [
 
 export const Route = createFileRoute('/_app/turmas_/$id')({
     loader: async ({ context: { queryClient } }) => {
-        const user = await queryClient.query(meQueryOptions);
-        if (user) await queryClient.query(allClassroomsQueryOptions).catch(() => undefined);
+        const user = await loadQuery(queryClient, meQueryOptions);
+        if (user) await loadQuery(queryClient, allClassroomsQueryOptions).catch(noop);
     },
     staticData: { header: ClassroomHeader },
     errorComponent: ErrorState,
@@ -76,7 +77,7 @@ function ClassroomPage() {
         <>
             {!user ? (
                 <LoginPromptCard />
-            ) : classrooms.isError ? (
+            ) : classrooms.isLoadingError ? (
                 <ErrorCard message={SIGAA_DOWN_MESSAGE} onRetry={() => classrooms.refetch()} />
             ) : classrooms.isPending ? (
                 <InformationCard>
@@ -199,7 +200,7 @@ function NewsTab({ id }: { id: string }) {
     const [openedId, setOpenedId] = useState<number | null>(null);
 
     if (news.isPending) return <TabLoading />;
-    if (news.isError) return <TabError onRetry={() => news.refetch()} />;
+    if (news.isLoadingError) return <TabError onRetry={() => news.refetch()} />;
     if (news.data.length === 0)
         return <InformationCard>Nenhuma notícia publicada.</InformationCard>;
 
@@ -255,7 +256,7 @@ function NewsDetail({ classroomId, newsId }: { classroomId: string; newsId: numb
                 <LoadingText>Carregando notícia...</LoadingText>
             </p>
         );
-    if (detail.isError) return <TabError onRetry={() => detail.refetch()} />;
+    if (detail.isLoadingError) return <TabError onRetry={() => detail.refetch()} />;
 
     return (
         <div>
@@ -287,7 +288,7 @@ function FrequencyTab({ id }: { id: string }) {
     const frequency = useQuery(classroomFrequencyQueryOptions(id));
 
     if (frequency.isPending) return <TabLoading />;
-    if (frequency.isError) return <TabError onRetry={() => frequency.refetch()} />;
+    if (frequency.isLoadingError) return <TabError onRetry={() => frequency.refetch()} />;
 
     return <FrequencyContent data={frequency.data} />;
 }
@@ -383,7 +384,7 @@ function MembersTab({ id }: { id: string }) {
     const members = useQuery(classroomMembersQueryOptions(id));
 
     if (members.isPending) return <TabLoading />;
-    if (members.isError) return <TabError onRetry={() => members.refetch()} />;
+    if (members.isLoadingError) return <TabError onRetry={() => members.refetch()} />;
     if (members.data.length === 0)
         return <InformationCard>Nenhum participante encontrado.</InformationCard>;
 

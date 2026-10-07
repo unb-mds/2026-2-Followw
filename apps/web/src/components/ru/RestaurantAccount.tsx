@@ -3,7 +3,7 @@ import type { UseQueryResult } from '@tanstack/react-query';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { QrCode, RefreshCw, Wallet } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useState } from 'react';
 
 import type { Day } from '#/lib/schedule';
 import type { RestaurantCredentials, RestaurantStatement } from '#/queries/restaurant-account';
@@ -27,14 +27,11 @@ import {
     DrawerTitle,
     DrawerTrigger
 } from '#/components/ui/drawer';
+import { useFailureMessage, useOnline } from '#/lib/online';
 import { cardIsExpired, insufficientMealBalance } from '#/lib/restaurant';
 import { nowInBrasilia } from '#/lib/schedule';
 import { refreshQuery } from '#/queries/refresh';
-import {
-    credentialsQueryOptions,
-    restoreRestaurantAccount,
-    statementQueryOptions
-} from '#/queries/restaurant-account';
+import { credentialsQueryOptions, statementQueryOptions } from '#/queries/restaurant-account';
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const dateTime = new Intl.DateTimeFormat('pt-BR', {
@@ -48,23 +45,12 @@ const validity = new Intl.DateTimeFormat('pt-BR', {
     year: 'numeric'
 });
 
-const subscribe = () => () => {};
-
 export function RestaurantAccount({ registration }: { registration: string }) {
     const queryClient = useQueryClient();
-    const hydrated = useSyncExternalStore(
-        subscribe,
-        () => true,
-        () => false
-    );
-    useEffect(() => {
-        restoreRestaurantAccount(queryClient, registration);
-    }, [queryClient, registration]);
-
     const statementOptions = statementQueryOptions(registration);
     const credentialsOptions = credentialsQueryOptions(registration);
-    const statement = useQuery({ ...statementOptions, enabled: hydrated });
-    const credentials = useQuery({ ...credentialsOptions, enabled: hydrated });
+    const statement = useQuery(statementOptions);
+    const credentials = useQuery(credentialsOptions);
     const [refreshing, setRefreshing] = useState(false);
     const refresh = async () => {
         setRefreshing(true);
@@ -276,14 +262,19 @@ function AccountStatus({
     hasData: boolean;
     label: string;
 }) {
+    const online = useOnline();
+    const failureMessage = useFailureMessage(
+        hasData ? 'Não foi possível atualizar.' : `Não foi possível carregar ${label}.`
+    );
+    // offline com dado salvo já é dito pelo banner
+    const showError = query.isError && (online || !hasData);
+
     return (
         <div className="mt-3 text-xs text-muted-foreground" aria-live="polite">
             {query.isPending && !hasData && <LoadingText>Carregando {label}...</LoadingText>}
-            {query.isError && (
+            {showError && (
                 <p>
-                    {hasData
-                        ? 'Não foi possível atualizar. Exibindo os últimos dados salvos.'
-                        : `Não foi possível carregar ${label}.`}{' '}
+                    {failureMessage}{' '}
                     <Button
                         variant="link"
                         size="xs"

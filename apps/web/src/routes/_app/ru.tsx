@@ -24,15 +24,13 @@ import {
 } from '#/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
 import { WeekDayPicker } from '#/components/WeekDayPicker';
+import { useFailureMessage } from '#/lib/online';
 import { currentOrNextMeal, highlightMenu, MEAL_TIMES } from '#/lib/restaurant';
 import { nowInBrasilia, weekDays } from '#/lib/schedule';
+import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
 import { CAMPUS_LABELS, campusOf, menuQueryOptions } from '#/queries/restaurant';
-import {
-    credentialsQueryOptions,
-    restoreRestaurantAccount,
-    statementQueryOptions
-} from '#/queries/restaurant-account';
+import { credentialsQueryOptions, statementQueryOptions } from '#/queries/restaurant-account';
 
 const MEAL_ICONS = { breakfast: Coffee, lunch: UtensilsCrossed, dinner: Soup };
 const MEALS = MEAL_TIMES.map(({ key, label, start, end }) => ({
@@ -62,12 +60,11 @@ export const Route = createFileRoute('/_app/ru')({
     loader: async ({ context: { queryClient } }) => {
         const now = nowInBrasilia();
         const initial = currentOrNextMeal(now);
-        const user = await queryClient.query(meQueryOptions);
-        if (user) restoreRestaurantAccount(queryClient, user.registration);
+        const user = await loadQuery(queryClient, meQueryOptions);
         await Promise.all([
-            queryClient.query(menuQueryOptions({ date: initial.date, user })).catch(noop),
-            user && queryClient.query(statementQueryOptions(user.registration)).catch(noop),
-            user && queryClient.query(credentialsQueryOptions(user.registration)).catch(noop)
+            loadQuery(queryClient, menuQueryOptions({ date: initial.date, user })).catch(noop),
+            user && loadQuery(queryClient, statementQueryOptions(user.registration)).catch(noop),
+            user && loadQuery(queryClient, credentialsQueryOptions(user.registration)).catch(noop)
         ]);
         return { today: now.date, initialDate: initial.date, initialMeal: initial.meal.key };
     },
@@ -110,9 +107,10 @@ function RUPage() {
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const [pickedCampus, setPickedCampus] = useState<Campus | null>(null);
     const campus = pickedCampus ?? campusOf(user?.unity);
-    const { data, isPending, isError, refetch } = useQuery(
+    const { data, isPending, isLoadingError, refetch } = useQuery(
         menuQueryOptions({ date: selectedDate, campus })
     );
+    const failureMessage = useFailureMessage('O site do RU não respondeu.');
     const menu = data?.[0];
     const meal = MEALS.find((item) => item.key === selectedMeal) ?? MEALS[1];
     const sections = menu?.[selectedMeal] ?? [];
@@ -192,9 +190,9 @@ function RUPage() {
                     ) : (
                         <p className="px-1 text-sm text-muted-foreground">
                             {isPending && <LoadingText>Carregando cardápio...</LoadingText>}
-                            {isError && (
+                            {isLoadingError && (
                                 <>
-                                    O site do RU não respondeu.{' '}
+                                    {failureMessage}{' '}
                                     <Button
                                         variant="link"
                                         size="xs"
@@ -206,7 +204,7 @@ function RUPage() {
                                 </>
                             )}
                             {!isPending &&
-                                !isError &&
+                                !isLoadingError &&
                                 'Cardápio não publicado para esta refeição neste dia.'}
                         </p>
                     )}

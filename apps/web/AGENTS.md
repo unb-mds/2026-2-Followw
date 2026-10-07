@@ -31,8 +31,10 @@ bun generate-api [url]     # gera src/queries/schema.gen.ts (default: localhost:
 ## Acesso à API (`src/queries`)
 
 `fetch` nativo é proibido fora de `src/queries/**`. Um arquivo por recurso exportando `queryOptions`
-via `api.queryOptions(...)`; o loader pré-carrega (tratando `ApiError.isUnauthorized`) e o
-componente consome com `useSuspenseQuery`.
+via `api.queryOptions(...)`; o loader pré-carrega com `loadQuery` (cache primeiro, para nenhuma rota
+travar; tratando `ApiError.isUnauthorized`) e o componente consome com `useSuspenseQuery`. O cache é
+persistido para uso offline (veja `docs/offline.md`): tela de erro por falta de dado usa
+`isLoadingError`; `isError` só onde há dado salvo para exibir junto do aviso de falha.
 
 No SSR, os cookies são repassados pelo contexto da requisição, nunca por variável de módulo (vazaria
 sessão entre usuários). Em produção o SSR só autentica porque a API grava os cookies com
