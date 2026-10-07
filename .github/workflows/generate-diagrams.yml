@@ -11,14 +11,21 @@ permissions:
 
 jobs:
   build:
+    name: Gerar Diagramas PlantUML
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Generate PlantUML SVG
-        uses: cloudbees/plantuml-github-action@master
+      - name: Setup Java
+        uses: actions/setup-java@v4
         with:
-          args: -v -tsvg docs/diagrams/*.puml -o ../assets/
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Gerar SVGs via PlantUML
+        run: |
+          curl -sSL -o plantuml.jar https://github.com/plantuml/plantuml/releases/download/v1.2024.7/plantuml-1.2024.7.jar
+          java -jar plantuml.jar -tsvg docs/diagrams/*.puml -o ../assets/
 
       - name: Commit rendered diagrams
         uses: stefanzweifel/git-auto-commit-action@v5
