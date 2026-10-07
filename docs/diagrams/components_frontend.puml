@@ -1,0 +1,27 @@
+@startuml components_frontend
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Diagrama de Componentes — Frontend Web (apps/web)
+
+Person(estudante, "Estudante UnB", "Usuário final interagindo com a interface.")
+
+Container_Boundary(web_boundary, "Frontend Web (TanStack Start / React 19)") {
+    Component(navigation, "HeaderBar & Navigation", "React Component", "Cabeçalho superior, controle de navegação e alternador de tema.")
+    Component(pages, "Rotas / Páginas", "TanStack Router", "Páginas principais: Dashboard, Turmas, Cardápio do RU e Notícias.")
+    Component(ui, "UI Components", "React Components", "Componentes visuais reutilizáveis (ClassCard, PublicInfo, etc.).")
+    Component(queries, "State & Data Fetching", "TanStack Query", "Gerenciamento de cache no cliente, revalidação e loading/error.")
+    Component(client, "ApiClient", "openapi-fetch", "Cliente HTTP configurado com credenciais seguras (cookies HttpOnly JWE).")
+}
+
+Container(api, "Backend API", "FastAPI", "Endpoints RESTful consumidos pelo frontend")
+
+Rel(estudante, navigation, "Navega entre páginas")
+Rel(estudante, pages, "Visualiza dados e interage")
+Rel(pages, ui, "Renderiza componentes")
+Rel(pages, queries, "Solicita dados")
+Rel(queries, client, "Executa chamadas HTTP")
+Rel(client, api, "Consome endpoints REST", "HTTPS / JSON")
+
+@enduml

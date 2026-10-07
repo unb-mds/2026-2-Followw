@@ -1,0 +1,22 @@
+@startuml context
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Diagrama de Contexto — Followw UnB
+
+Person(estudante, "Estudante UnB", "Aluno de graduação ou pós-graduação consultando informações acadêmicas e serviços do campus.")
+
+System(followw, "Followw UnB", "Cliente alternativo e API que unifica dados do SIGAA, RU e calendários com sessão stateless.")
+
+System_Ext(sigaa, "SIGAA / CAS UnB", "Sistema acadêmico legado e Centro de Autenticação da UnB.")
+System_Ext(site_unb, "Portais da UnB (RU / Calendário)", "Páginas institucionais que publicam cardápios em PDF e calendários oficiais.")
+System_Ext(qstash, "Upstash QStash", "Serviço externo de mensageria e filas serverless para jobs assíncronos.")
+
+Rel(estudante, followw, "Acessa turmas, notas, frequência e cardápio", "HTTPS")
+Rel(followw, sigaa, "Autentica e extrai dados acadêmicos", "HTTPS / JSF")
+Rel(followw, site_unb, "Coleta cardápios do RU e calendários", "HTTPS")
+Rel(followw, qstash, "Enfileira jobs de sincronização", "HTTPS")
+Rel(qstash, followw, "Dispara webhooks de background sync", "HTTPS / POST /jobs")
+
+@enduml

@@ -30,30 +30,38 @@ O sistema não possui contas proprietárias: a autenticação é delegada ao **C
 ---
 
 ## Diagramas da Arquitetura (Modelo C4)
+Os diagramas de arquitetura adotam o padrão de **Diagrams as Code** via **C4-PlantUML**, versionados como código em [`docs/diagrams/`](diagrams/) e renderizados em formato vetorial SVG localmente através do script [`scripts/generate_diagrams.py`](../scripts/generate_diagrams.py).
 
-### Diagrama de Contexto do Sistema
+### Diagrama de Contexto do Sistema (Nível 1)
 Apresenta o Followw UnB no seu ambiente operacional, seus usuários e as integrações com os sistemas da universidade e serviços externos.
 
-![Diagrama de Contexto - Followw UnB](assets/diagrama-contexto.png)
+![Diagrama de Contexto - Followw UnB](assets/context.svg)
 
+> Código-fonte: [`docs/diagrams/context.puml`](diagrams/context.puml)
 
 ---
 
-### Diagrama de Containers
+### Diagrama de Containers (Nível 2)
 Detalha as aplicações executáveis, armazenamento de dados e fronteiras de comunicação entre componentes e serviços.
 
-![Diagrama de Container - Follow UnB](assets/Diagrama%20de%20container.png)
+![Diagrama de Containers - Followw UnB](assets/container.svg)
+
+> Código-fonte: [`docs/diagrams/container.puml`](diagrams/container.puml)
 
 ---
 
-### Diagrama de Componentes (Frontend e Backend)
+### Diagrama de Componentes (Nível 3)
 Apresenta a organização interna dos componentes do Frontend (`apps/web`), do Backend (`apps/api`) e suas interações com as bibliotecas do monorepo e dados.
 
 #### Componentes do Frontend
-![Diagrama de Componentes do Frontend](assets/diagrama-componentes-frontend.png)
+![Diagrama de Componentes do Frontend](assets/components_frontend.svg)
+
+> Código-fonte: [`docs/diagrams/components_frontend.puml`](diagrams/components_frontend.puml)
 
 #### Componentes do Backend
-![Diagrama de Componentes do Backend](assets/diagrama-componentes-backend.png)
+![Diagrama de Componentes do Backend](assets/components_backend.svg)
+
+> Código-fonte: [`docs/diagrams/components_backend.puml`](diagrams/components_backend.puml)
 
 
 ---
@@ -109,5 +117,9 @@ Apresenta a organização interna dos componentes do Frontend (`apps/web`), do B
 │   └── unb-browser/           # Scraper do RU e calendários acadêmicos
 │
 ├── docs/                      # Documentação de arquitetura, requisitos e sprints
+│   ├── assets/                # Diagramas renderizados em SVG e imagens
+│   └── diagrams/              # Diagramas como código em C4-PlantUML (.puml)
+│
+├── scripts/                   # Scripts utilitários locais (ex: geração de diagramas)
 └── compose.yml                # Configuração do PostgreSQL local
 ```
