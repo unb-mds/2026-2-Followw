@@ -42,6 +42,9 @@ uv run ruff format .    # sempre formate ao alterar o código
   coisas específicas de um escopo e que podem ser facilmente entendidas lendo o código.
 - Os princípios desse projeto são transparência e modularidade. Sempre evite complexidade e opte por
   abstrações quando for necessário.
+- O Followw atualmente segue um rolling release. Não precisa manter compatibilidade com
+  versões anteriores (migrações de dados, chaves legadas, aliases), a menos que seja solicitado
+  explicitamente
 - Crie testes ao implementar novas features/fixes. Se possível, centralize todos os testes
   pertencentes a um mesmo módulo em um único arquivo.
 - Evite longos blocos de comentários/documentação. Tente usar apenas uma linha e apenas onde for

@@ -1,5 +1,8 @@
+import type { QueryClient } from '@tanstack/react-query';
+
 import type { components, operations } from '#/queries/schema.gen.ts';
 
+import { weekDays } from '#/lib/schedule';
 import { api } from '#/queries/api.ts';
 
 type MenuQuery = NonNullable<operations['get_menu_public_restaurant_get']['parameters']['query']>;
@@ -39,3 +42,16 @@ export const menuQueryOptions = ({
     api.queryOptions('get', '/public/restaurant', {
         params: { query: { campus: campus ?? campusOf(user?.unity), date } }
     });
+
+export async function prefetchWeekMenus(queryClient: QueryClient, campus: Campus, today: string) {
+    const dates = weekDays(today).map((day) => day.date);
+    const menus = await queryClient.query({
+        ...api.queryOptions('get', '/public/restaurant', {
+            params: { query: { campus, start_date: dates[0], end_date: dates.at(-1) } }
+        }),
+        // a faixa só serve para preencher os dias; não fica (nem é persistida) no cache
+        gcTime: 0
+    });
+    for (const menu of menus ?? [])
+        queryClient.setQueryData(menuQueryOptions({ campus, date: menu.date }).queryKey, [menu]);
+}

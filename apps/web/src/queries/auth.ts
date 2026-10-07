@@ -1,32 +1,38 @@
-import { type QueryClient, useQuery, useQueryClient } from '@tanstack/react-query';
+import { type Query, type QueryClient, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
+import { clearOfflineData } from '#/integrations/offline/storage';
+import { useOnline } from '#/lib/online';
 import { api } from '#/queries/api.ts';
-import { classroomsQueryOptions } from '#/queries/classrooms.ts';
 import { apiClient } from '#/queries/client.ts';
 import { ApiError } from '#/queries/errors.ts';
 import { meQueryOptions } from '#/queries/me.ts';
-import { clearRestaurantAccount } from '#/queries/restaurant-account';
-import { clearSettings } from '#/queries/settings';
 
-function clearUserData(queryClient: QueryClient) {
-    clearRestaurantAccount(queryClient);
-    clearSettings(queryClient);
-    queryClient.removeQueries({ queryKey: classroomsQueryOptions.queryKey });
+// só o que é público sobrevive à troca de conta; o /me fica a cargo de quem chama
+const isAccountQuery = ({ queryKey: [, path] }: Query) =>
+    !(typeof path === 'string' && (path.startsWith('/public/') || path === '/me'));
+
+// remover também cancela o fetch em andamento; o persister só regrava após o throttle,
+// então apagar o disco já evita dado da conta salvo nesse intervalo
+async function clearUserData(queryClient: QueryClient) {
+    queryClient.removeQueries({ predicate: isAccountQuery });
+    await clearOfflineData();
 }
 
+/** O estado em memória já sai na hora; a promise resolve quando o armazenamento local também saiu. */
 export function clearSession(queryClient: QueryClient) {
-    clearUserData(queryClient);
+    const cleared = clearUserData(queryClient);
     queryClient.setQueryData(meQueryOptions.queryKey, null);
+    return cleared;
 }
 
 export function useLogin() {
     const queryClient = useQueryClient();
     // retorna a promise para o login seguir pendente até o perfil chegar
     return api.useMutation('post', '/auth/sigaa', {
-        onSuccess: () => {
-            clearUserData(queryClient);
-            return queryClient.invalidateQueries({ queryKey: meQueryOptions.queryKey });
+        onSuccess: async () => {
+            await clearUserData(queryClient);
+            await queryClient.invalidateQueries({ queryKey: meQueryOptions.queryKey });
         }
     });
 }
@@ -34,8 +40,8 @@ export function useLogin() {
 export function useLogout(onLoggedOut?: () => void) {
     const queryClient = useQueryClient();
     return api.useMutation('delete', '/auth/sigaa', {
-        onSuccess: () => {
-            clearSession(queryClient);
+        onSuccess: async () => {
+            await clearSession(queryClient);
             onLoggedOut?.();
         }
     });
@@ -46,12 +52,13 @@ let sessionRefreshed = false;
 export function useSessionRefresh() {
     const queryClient = useQueryClient();
     const { data: user } = useQuery(meQueryOptions);
+    const online = useOnline();
 
     useEffect(() => {
-        if (!user || sessionRefreshed) return;
+        if (!user || !online || sessionRefreshed) return;
         sessionRefreshed = true;
         apiClient.POST('/auth/sigaa/refresh').catch((error: unknown) => {
-            if (error instanceof ApiError && error.isUnauthorized) clearSession(queryClient);
+            if (error instanceof ApiError && error.isUnauthorized) void clearSession(queryClient);
         });
-    }, [user, queryClient]);
+    }, [user, online, queryClient]);
 }

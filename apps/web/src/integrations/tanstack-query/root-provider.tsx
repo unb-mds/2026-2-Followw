@@ -1,25 +1,31 @@
-import { QueryCache, QueryClient, environmentManager } from '@tanstack/react-query';
+import { QueryCache, QueryClient, environmentManager, onlineManager } from '@tanstack/react-query';
 
+import { PERSIST_MAX_AGE } from '#/integrations/offline/storage.ts';
 import { clearSession } from '#/queries/auth.ts';
 import { ApiError } from '#/queries/errors.ts';
 
 export function getContext() {
+    const isServer = environmentManager.isServer();
     const queryClient: QueryClient = new QueryClient({
         queryCache: new QueryCache({
             // sessão expirou enquanto o /me ainda estava em cache
             onError: (error) => {
-                if (error instanceof ApiError && error.isUnauthorized) clearSession(queryClient);
+                if (error instanceof ApiError && error.isUnauthorized)
+                    void clearSession(queryClient);
             }
         }),
         defaultOptions: {
             queries: {
                 staleTime: 60_000,
-                // no SSR falha rápido e deixa o retry pro client; 4xx não melhora tentando de novo
+                gcTime: isServer ? undefined : PERSIST_MAX_AGE,
+                networkMode: 'always',
                 retry: (failureCount, error) =>
-                    !environmentManager.isServer() &&
+                    !isServer &&
+                    onlineManager.isOnline() &&
                     !(error instanceof ApiError && error.status < 500) &&
                     failureCount < 2
-            }
+            },
+            mutations: { networkMode: 'always' }
         }
     });
 

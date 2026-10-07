@@ -35,7 +35,7 @@ log = logging.getLogger(__name__)
 
 PROFILE_TTL = timedelta(hours=24)
 CLASSROOMS_TTL = timedelta(hours=72)
-MENU_TTL = timedelta(hours=24)
+RESTAURANT_MENU_TTL = timedelta(hours=72)
 # Detalhes das turmas atuais; os de semestres passados não mudam.
 CLASSROOM_DETAILS_TTL = timedelta(hours=24)
 # Lista de notícias das turmas atuais; a de semestres passados não muda.

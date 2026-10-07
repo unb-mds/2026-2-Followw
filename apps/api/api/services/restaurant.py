@@ -15,7 +15,7 @@ from api.dependencies.cache import NO_DIRECTIVES, CacheControl
 from api.dependencies.sigaa import SigaaClientDep
 from api.dependencies.unb_browser import UnbBrowserDep
 from api.repositories.restaurant import RestaurantRepository
-from api.services.sync import MENU_TTL, is_stale
+from api.services.sync import RESTAURANT_MENU_TTL, is_stale
 
 log = logging.getLogger(__name__)
 BRASILIA = timezone(timedelta(hours=-3))
@@ -88,9 +88,16 @@ class RestaurantService:
         except SQLAlchemyError, OSError, TimeoutError, ValidationError:
             log.warning("Não foi possível ler o cache do cardápio", exc_info=True)
 
-        if synced_at is not None and (
-            cache.only_if_cached
-            or not (is_stale(synced_at, MENU_TTL) or cache.revalidate(synced_at))
+        if (
+            cached
+            and synced_at is not None
+            and (
+                cache.only_if_cached
+                or not (
+                    is_stale(synced_at, RESTAURANT_MENU_TTL)
+                    or cache.revalidate(synced_at)
+                )
+            )
         ):
             cache.served(synced_at)
             return cached

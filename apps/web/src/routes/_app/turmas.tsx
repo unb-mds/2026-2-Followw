@@ -11,13 +11,13 @@ import { Card, CardContent } from '#/components/ui/card';
 import { groupBySemester } from '#/lib/classroom-details';
 import { describeSchedule } from '#/lib/schedule';
 import { allClassroomsQueryOptions } from '#/queries/classrooms';
+import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
 
 export const Route = createFileRoute('/_app/turmas')({
     loader: async ({ context: { queryClient } }) => {
-        const user = await queryClient.query(meQueryOptions);
-        // erro das turmas é tratado na página, sem derrubar a rota
-        if (user) await queryClient.query(allClassroomsQueryOptions).catch(noop);
+        const user = await loadQuery(queryClient, meQueryOptions);
+        if (user) await loadQuery(queryClient, allClassroomsQueryOptions).catch(noop);
     },
     staticData: {
         header: () => (
@@ -38,9 +38,14 @@ function TurmasPage() {
 
 function Classrooms() {
     const navigate = useNavigate();
-    const { data: classrooms, isPending, isError, refetch } = useQuery(allClassroomsQueryOptions);
+    const {
+        data: classrooms,
+        isPending,
+        isLoadingError,
+        refetch
+    } = useQuery(allClassroomsQueryOptions);
 
-    if (isError) return <ErrorCard message={SIGAA_DOWN_MESSAGE} onRetry={() => refetch()} />;
+    if (isLoadingError) return <ErrorCard message={SIGAA_DOWN_MESSAGE} onRetry={() => refetch()} />;
 
     return (
         <>
