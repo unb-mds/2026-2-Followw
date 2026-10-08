@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import Depends
 from pydantic import ValidationError
 from sigaa_client import (
+    AttendanceEntry,
     Classroom,
     ClassroomFrequency,
     ClassroomMember,
@@ -21,6 +22,7 @@ from api import academic_calendar
 from api.cache import Freshness, freshness
 from api.db.models import ClassroomUser, OwnLink, User
 from api.modules.classrooms.repository import ClassroomRepository
+from api.modules.classrooms.scheduled_frequency import scheduled_entries
 from api.modules.me.profile import sync_profile
 from api.modules.me.repository import UserRepository
 from api.sync import Cached, Context, SyncDep
@@ -140,7 +142,13 @@ class UserClassroom(Classroom):
     grade: Grade | None = None
 
 
-class ClassroomFrequencyResult(ClassroomFrequency):
+class ClassroomFrequencyView(ClassroomFrequency):
+    """Frequência do SIGAA e aulas passadas previstas sem chamada publicada."""
+
+    unregistered_entries: tuple[AttendanceEntry, ...] = ()
+
+
+class ClassroomFrequencyResult(ClassroomFrequencyView):
     classroom: UserClassroom
 
 
@@ -212,7 +220,7 @@ class ClassroomService:
 
         return sorted(shares, key=lambda s: _SITUATIONS.index(s.situation))
 
-    async def get_frequency(self, classroom_id: str) -> ClassroomFrequency:
+    async def get_frequency(self, classroom_id: str) -> ClassroomFrequencyView:
         link = await self.get_link(classroom_id)
 
         async def load(session: AsyncSession) -> Cached[ClassroomFrequency] | None:
@@ -229,7 +237,17 @@ class ClassroomService:
                 freshness(cached.synced_at, details_ttl(link)),
             )
 
-        return await self._sync.resolve(sync_frequency, link, load)
+        frequency = await self._sync.resolve(sync_frequency, link, load)
+        classroom = link.row.classroom
+        return ClassroomFrequencyView(
+            progress=frequency.progress,
+            frequency=frequency.frequency,
+            unregistered_entries=scheduled_entries(
+                classroom.semester, classroom.schedule, frequency
+            )
+            if link.row.current
+            else (),
+        )
 
     async def list_frequencies(self) -> list[ClassroomFrequencyResult]:
         result = []
@@ -240,6 +258,7 @@ class ClassroomService:
                     classroom=classroom,
                     progress=frequency.progress,
                     frequency=frequency.frequency,
+                    unregistered_entries=frequency.unregistered_entries,
                 )
             )
         return result

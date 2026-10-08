@@ -12,6 +12,36 @@ const classroom = {
 };
 
 describe('ClassCard', () => {
+    test.each([
+        ['SS', 'info'],
+        ['MS', 'primary'],
+        ['MM', 'warning'],
+        ['MI', 'destructive'],
+        ['II', 'destructive'],
+        ['SR', 'destructive']
+    ] as const)('exibe apenas %s ao lado da turma com a cor %s', (grade, color) => {
+        const markup = renderToStaticMarkup(<ClassCard {...classroom} grade={grade} />);
+
+        expect(markup).not.toContain('Menção');
+        expect(markup).toContain(`text-${color}`);
+        expect(markup).not.toContain(`bg-${color}/10`);
+        expect(markup).not.toContain('data-slot="badge"');
+        expect(markup).toMatch(
+            new RegExp(`${classroom.professor} · <span[^>]*>${grade}</span></span>`)
+        );
+        expect(markup.match(new RegExp(`<span[^>]*>${grade}</span>`))?.[0]).not.toContain(
+            'ml-auto'
+        );
+    });
+
+    test.each([null, undefined])('omite a menção quando é %s', (grade) => {
+        const markup = renderToStaticMarkup(<ClassCard {...classroom} grade={grade} />);
+
+        expect(markup).not.toContain('Menção');
+        expect(markup).not.toContain('data-slot="badge"');
+        expect(markup).not.toContain('<span aria-hidden="true">·</span>');
+    });
+
     test('mantém disciplina, horário e local sem oferecer ações ausentes', () => {
         const markup = renderToStaticMarkup(<ClassCard {...classroom} />);
 

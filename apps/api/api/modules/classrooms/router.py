@@ -1,17 +1,26 @@
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Path, Query
 from sigaa_client import (
-    ClassroomFrequency,
     ClassroomMember,
     News,
     StatisticsShare,
 )
 
+from api.cache import NoStore
+from api.db.main import DatabaseDep
 from api.errors import SIGAA_ERRORS
+from api.modules.classrooms.manual_frequency import (
+    ManualAttendanceEntry,
+    delete_manual,
+    list_manual,
+    save_manual,
+)
 from api.modules.classrooms.news import ClassroomNewsServiceDep
 from api.modules.classrooms.service import (
     ClassroomFrequencyResult,
+    ClassroomFrequencyView,
     ClassroomServiceDep,
     UserClassroom,
 )
@@ -105,16 +114,65 @@ async def get_current_frequencies(
 
 @router.get(
     "/{classroom_id}/frequency",
-    response_model=ClassroomFrequency,
+    response_model=ClassroomFrequencyView,
     summary="Consultar frequência e andamento de uma turma",
-    description="Aceita Classroom.id (hash) ou sigaa_id numérico. frequency_status indica not_registered, partially_registered ou registered nas entradas publicadas.",
+    description="Aceita Classroom.id (hash) ou sigaa_id numérico. frequency_status indica not_registered, partially_registered ou registered nas entradas publicadas. unregistered_entries contém aulas anteriores previstas pelo calendário e horário da turma, sem chamada no SIGAA.",
     responses={**CLASSROOM_ERRORS, 503: {"description": "Cache em atualização."}},
 )
 async def get_classroom_frequency(
     service: ClassroomServiceDep,
     classroom_id: ClassroomId,
-) -> ClassroomFrequency:
+) -> ClassroomFrequencyView:
     return await service.get_frequency(classroom_id)
+
+
+@router.get(
+    "/{classroom_id}/frequency/manual",
+    response_model=list[ManualAttendanceEntry],
+    summary="Consultar marcações de frequência feitas pelo aluno",
+    responses=CLASSROOM_ERRORS,
+    dependencies=[NoStore],
+)
+async def get_manual_frequency(
+    service: ClassroomServiceDep, db: DatabaseDep, classroom_id: ClassroomId
+) -> list[ManualAttendanceEntry]:
+    return await list_manual(service, db, classroom_id)
+
+
+@router.put(
+    "/{classroom_id}/frequency/manual",
+    response_model=ManualAttendanceEntry,
+    summary="Marcar presença, ausência ou aula cancelada",
+    responses={
+        **CLASSROOM_ERRORS,
+        409: {"description": "A chamada desta aula já foi registrada no SIGAA."},
+    },
+    dependencies=[NoStore],
+)
+async def put_manual_frequency(
+    body: ManualAttendanceEntry,
+    service: ClassroomServiceDep,
+    db: DatabaseDep,
+    classroom_id: ClassroomId,
+) -> ManualAttendanceEntry:
+    return await save_manual(service, db, classroom_id, body)
+
+
+@router.delete(
+    "/{classroom_id}/frequency/manual/{occurred_on}/{position}",
+    status_code=204,
+    summary="Remover uma marcação manual de frequência",
+    responses=CLASSROOM_ERRORS,
+    dependencies=[NoStore],
+)
+async def remove_manual_frequency(
+    service: ClassroomServiceDep,
+    db: DatabaseDep,
+    classroom_id: ClassroomId,
+    occurred_on: date,
+    position: Annotated[int, Path(ge=0)],
+) -> None:
+    await delete_manual(service, db, classroom_id, occurred_on, position)
 
 
 @router.get(

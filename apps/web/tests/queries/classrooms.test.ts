@@ -5,7 +5,8 @@ import {
     classroomFrequencyQueryOptions,
     classroomMembersQueryOptions,
     classroomNewsDetailQueryOptions,
-    classroomNewsQueryOptions
+    classroomNewsQueryOptions,
+    updateManualFrequencyEntries
 } from '#/queries/classrooms';
 
 describe('queries de turma', () => {
@@ -29,5 +30,26 @@ describe('queries de turma', () => {
         expect(classroomNewsDetailQueryOptions(first, 1).queryKey).not.toEqual(
             classroomNewsDetailQueryOptions(first, 2).queryKey
         );
+    });
+
+    test('atualiza a marcação no cache sem esperar o servidor e permite desfazer', () => {
+        const present = {
+            occurred_on: '2026-10-05',
+            position: 0,
+            status: 'presente',
+            manual: true
+        } as const;
+        const absent = { ...present, status: 'ausente' } as const;
+        const other = {
+            occurred_on: '2026-10-06',
+            position: 0,
+            status: 'cancelada',
+            manual: true
+        } as const;
+        const initial = [present, other];
+
+        expect(updateManualFrequencyEntries(initial, absent, false)).toEqual([absent, other]);
+        expect(updateManualFrequencyEntries(initial, present, true)).toEqual([other]);
+        expect(initial).toEqual([present, other]);
     });
 });

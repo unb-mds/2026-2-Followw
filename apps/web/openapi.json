@@ -299,7 +299,7 @@
             "get": {
                 "tags": ["Classrooms"],
                 "summary": "Consultar frequência e andamento de uma turma",
-                "description": "Aceita Classroom.id (hash) ou sigaa_id numérico. frequency_status indica not_registered, partially_registered ou registered nas entradas publicadas.",
+                "description": "Aceita Classroom.id (hash) ou sigaa_id numérico. frequency_status indica not_registered, partially_registered ou registered nas entradas publicadas. unregistered_entries contém aulas anteriores previstas pelo calendário e horário da turma, sem chamada no SIGAA.",
                 "operationId": "get_classroom_frequency_classrooms__classroom_id__frequency_get",
                 "parameters": [
                     {
@@ -318,7 +318,14 @@
                         "in": "header",
                         "required": false,
                         "schema": {
-                            "anyOf": [{ "type": "string" }, { "type": "null" }],
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
                             "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
                             "title": "Cache-Control"
                         },
@@ -330,19 +337,266 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": { "$ref": "#/components/schemas/ClassroomFrequency" }
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClassroomFrequencyView"
+                                }
                             }
                         }
                     },
-                    "401": { "description": "Credenciais ausentes ou inválidas." },
-                    "502": { "description": "SIGAA indisponível." },
-                    "404": { "description": "Turma não encontrada entre as turmas do usuário." },
-                    "503": { "description": "Cache em atualização." },
+                    "401": {
+                        "description": "Credenciais ausentes ou inválidas."
+                    },
+                    "502": {
+                        "description": "SIGAA indisponível."
+                    },
+                    "404": {
+                        "description": "Turma não encontrada entre as turmas do usuário."
+                    },
+                    "503": {
+                        "description": "Cache em atualização."
+                    },
                     "422": {
                         "description": "Validation Error",
                         "content": {
                             "application/json": {
-                                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/classrooms/{classroom_id}/frequency/manual": {
+            "get": {
+                "tags": ["Classrooms"],
+                "summary": "Consultar marcações de frequência feitas pelo aluno",
+                "operationId": "get_manual_frequency_classrooms__classroom_id__frequency_manual_get",
+                "parameters": [
+                    {
+                        "name": "classroom_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "description": "Classroom.id ou Classroom.sigaa_id.",
+                            "title": "Classroom Id"
+                        },
+                        "description": "Classroom.id ou Classroom.sigaa_id."
+                    },
+                    {
+                        "name": "Cache-Control",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
+                            "title": "Cache-Control"
+                        },
+                        "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache)."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ManualAttendanceEntry"
+                                    },
+                                    "title": "Response Get Manual Frequency Classrooms  Classroom Id  Frequency Manual Get"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Credenciais ausentes ou inválidas."
+                    },
+                    "502": {
+                        "description": "SIGAA indisponível."
+                    },
+                    "404": {
+                        "description": "Turma não encontrada entre as turmas do usuário."
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "tags": ["Classrooms"],
+                "summary": "Marcar presença, ausência ou aula cancelada",
+                "operationId": "put_manual_frequency_classrooms__classroom_id__frequency_manual_put",
+                "parameters": [
+                    {
+                        "name": "classroom_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "description": "Classroom.id ou Classroom.sigaa_id.",
+                            "title": "Classroom Id"
+                        },
+                        "description": "Classroom.id ou Classroom.sigaa_id."
+                    },
+                    {
+                        "name": "Cache-Control",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
+                            "title": "Cache-Control"
+                        },
+                        "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache)."
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ManualAttendanceEntry"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ManualAttendanceEntry"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Credenciais ausentes ou inválidas."
+                    },
+                    "502": {
+                        "description": "SIGAA indisponível."
+                    },
+                    "404": {
+                        "description": "Turma não encontrada entre as turmas do usuário."
+                    },
+                    "409": {
+                        "description": "A chamada desta aula já foi registrada no SIGAA."
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/classrooms/{classroom_id}/frequency/manual/{occurred_on}/{position}": {
+            "delete": {
+                "tags": ["Classrooms"],
+                "summary": "Remover uma marcação manual de frequência",
+                "operationId": "remove_manual_frequency_classrooms__classroom_id__frequency_manual__occurred_on___position__delete",
+                "parameters": [
+                    {
+                        "name": "classroom_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "description": "Classroom.id ou Classroom.sigaa_id.",
+                            "title": "Classroom Id"
+                        },
+                        "description": "Classroom.id ou Classroom.sigaa_id."
+                    },
+                    {
+                        "name": "occurred_on",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "title": "Occurred On"
+                        }
+                    },
+                    {
+                        "name": "position",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "title": "Position"
+                        }
+                    },
+                    {
+                        "name": "Cache-Control",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
+                            "title": "Cache-Control"
+                        },
+                        "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache)."
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Successful Response"
+                    },
+                    "401": {
+                        "description": "Credenciais ausentes ou inválidas."
+                    },
+                    "502": {
+                        "description": "SIGAA indisponível."
+                    },
+                    "404": {
+                        "description": "Turma não encontrada entre as turmas do usuário."
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
                             }
                         }
                     }
@@ -987,14 +1241,30 @@
             },
             "ClassroomFrequencyResult": {
                 "properties": {
-                    "progress": { "$ref": "#/components/schemas/ClassroomProgress" },
+                    "progress": {
+                        "$ref": "#/components/schemas/ClassroomProgress"
+                    },
                     "frequency": {
                         "anyOf": [
-                            { "$ref": "#/components/schemas/ClassroomAttendance" },
-                            { "type": "null" }
+                            {
+                                "$ref": "#/components/schemas/ClassroomAttendance"
+                            },
+                            {
+                                "type": "null"
+                            }
                         ]
                     },
-                    "classroom": { "$ref": "#/components/schemas/UserClassroom" },
+                    "unregistered_entries": {
+                        "items": {
+                            "$ref": "#/components/schemas/AttendanceEntry"
+                        },
+                        "type": "array",
+                        "title": "Unregistered Entries",
+                        "default": []
+                    },
+                    "classroom": {
+                        "$ref": "#/components/schemas/UserClassroom"
+                    },
                     "frequency_status": {
                         "type": "string",
                         "enum": ["not_registered", "partially_registered", "registered"],
@@ -1005,6 +1275,41 @@
                 "type": "object",
                 "required": ["progress", "classroom", "frequency_status"],
                 "title": "ClassroomFrequencyResult"
+            },
+            "ClassroomFrequencyView": {
+                "properties": {
+                    "progress": {
+                        "$ref": "#/components/schemas/ClassroomProgress"
+                    },
+                    "frequency": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/ClassroomAttendance"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "unregistered_entries": {
+                        "items": {
+                            "$ref": "#/components/schemas/AttendanceEntry"
+                        },
+                        "type": "array",
+                        "title": "Unregistered Entries",
+                        "default": []
+                    },
+                    "frequency_status": {
+                        "type": "string",
+                        "enum": ["not_registered", "partially_registered", "registered"],
+                        "title": "Frequency Status",
+                        "readOnly": true
+                    }
+                },
+                "type": "object",
+                "required": ["progress", "frequency_status"],
+                "title": "ClassroomFrequencyView",
+                "description": "Frequência do SIGAA e aulas passadas previstas sem chamada publicada."
             },
             "ClassroomMember": {
                 "properties": {
@@ -1168,6 +1473,34 @@
                     "dessert"
                 ],
                 "title": "MenuSectionKey"
+            },
+            "ManualAttendanceEntry": {
+                "properties": {
+                    "occurred_on": {
+                        "type": "string",
+                        "format": "date",
+                        "title": "Occurred On"
+                    },
+                    "position": {
+                        "type": "integer",
+                        "minimum": 0.0,
+                        "title": "Position"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["presente", "ausente", "cancelada"],
+                        "title": "Status"
+                    },
+                    "manual": {
+                        "type": "boolean",
+                        "const": true,
+                        "title": "Manual",
+                        "default": true
+                    }
+                },
+                "type": "object",
+                "required": ["occurred_on", "position", "status"],
+                "title": "ManualAttendanceEntry"
             },
             "News": {
                 "properties": {

@@ -5,13 +5,14 @@ import type { components } from '#/queries/schema.gen';
 
 import { FrequencyContent } from '#/components/classroom/FrequencyContent';
 
-type Frequency = components['schemas']['ClassroomFrequency'];
+type Frequency = components['schemas']['ClassroomFrequencyView'];
 
 const progress = { taught: 30, total: 60, percentage: 50 };
 
 const registered: Frequency = {
     progress,
     frequency_status: 'registered',
+    unregistered_entries: [],
     frequency: {
         attended: 28,
         registered: 30,
@@ -73,7 +74,12 @@ describe('FrequencyContent', () => {
     test('avisa quando o professor ainda não lançou a frequência', () => {
         const markup = renderToStaticMarkup(
             <FrequencyContent
-                data={{ progress, frequency_status: 'not_registered', frequency: null }}
+                data={{
+                    progress,
+                    frequency_status: 'not_registered',
+                    frequency: null,
+                    unregistered_entries: []
+                }}
             />
         );
         expect(markup).toContain('ainda não foi lançada');
@@ -86,5 +92,155 @@ describe('FrequencyContent', () => {
             <FrequencyContent data={{ ...registered, frequency_status: 'partially_registered' }} />
         );
         expect(markup).toContain('ainda não foi registrada');
+    });
+
+    test('inclui marcações manuais nos indicadores e ignora aulas canceladas', () => {
+        const markup = renderToStaticMarkup(
+            <FrequencyContent
+                data={registered}
+                manualEntries={[
+                    { occurred_on: '2026-10-06', position: 0, status: 'ausente', manual: true },
+                    { occurred_on: '2026-10-04', position: 0, status: 'cancelada', manual: true }
+                ]}
+            />
+        );
+        expect(markup).not.toContain('Minhas marcações');
+        expect(markup).toContain('Aula cancelada');
+        expect(markup).toMatch(/Presenças<\/dt><dd[^>]*>1</);
+        expect(markup).toMatch(/Faltas<\/dt><dd[^>]*>3</);
+        expect(markup).toMatch(/Frequência<\/dt><dd[^>]*>90,3%</);
+        expect(markup).toContain('Frequência estimada');
+    });
+
+    test('calcula os indicadores apenas pelas marcações quando não há chamada do SIGAA', () => {
+        const markup = renderToStaticMarkup(
+            <FrequencyContent
+                data={{
+                    progress,
+                    frequency_status: 'not_registered',
+                    frequency: null,
+                    unregistered_entries: [
+                        { occurred_on: '2026-10-05', status: 'nao_registrada', absences: 0 },
+                        { occurred_on: '2026-10-06', status: 'nao_registrada', absences: 0 }
+                    ]
+                }}
+                manualEntries={[
+                    { occurred_on: '2026-10-05', position: 0, status: 'presente', manual: true },
+                    { occurred_on: '2026-10-06', position: 0, status: 'ausente', manual: true }
+                ]}
+            />
+        );
+        expect(markup).toMatch(/Presenças<\/dt><dd[^>]*>1</);
+        expect(markup).toMatch(/Faltas<\/dt><dd[^>]*>1</);
+        expect(markup).toMatch(/Frequência<\/dt><dd[^>]*>50%</);
+    });
+
+    test('a presença do SIGAA prevalece sobre a marcação do aluno', () => {
+        const markup = renderToStaticMarkup(
+            <FrequencyContent
+                data={registered}
+                manualEntries={[
+                    { occurred_on: '2026-10-07', position: 0, status: 'presente', manual: true }
+                ]}
+            />
+        );
+        expect(markup).toContain('2 faltas');
+        expect(markup).not.toContain('Minhas marcações');
+        expect(markup).toMatch(/Faltas<\/dt><dd[^>]*>2</);
+        expect(markup).toMatch(/Frequência<\/dt><dd[^>]*>93,3%</);
+    });
+
+    test('alterna a situação pela bolinha da aula sem select', () => {
+        const markup = renderToStaticMarkup(
+            <FrequencyContent
+                data={{
+                    progress,
+                    frequency_status: 'not_registered',
+                    frequency: null,
+                    unregistered_entries: []
+                }}
+                manualEntries={[
+                    { occurred_on: '2026-10-06', position: 0, status: 'ausente', manual: true }
+                ]}
+                onSave={async () => {}}
+                onRemove={async () => {}}
+            />
+        );
+        expect(markup).not.toContain('Adicionar aula');
+        expect(markup).not.toContain('Data da aula');
+        expect(markup).not.toContain('<select');
+        expect(markup).toContain('<button');
+        expect(markup).toContain('relative flex size-4');
+        expect(markup).toContain('after:-inset-2');
+        expect(markup).not.toContain('size-8');
+        expect(markup).toContain(
+            'Situação de 06/10/2026, aula 1: Ausente. Alterar para aula cancelada.'
+        );
+        expect(markup).toContain('Ausente');
+    });
+
+    test('o ciclo da bolinha percorre presente, ausente, cancelada e não marcada', () => {
+        const cases = [
+            [undefined, 'presente'],
+            ['presente', 'ausente'],
+            ['ausente', 'aula cancelada'],
+            ['cancelada', 'não marcada']
+        ] as const;
+        for (const [status, next] of cases) {
+            const markup = renderToStaticMarkup(
+                <FrequencyContent
+                    data={registered}
+                    manualEntries={
+                        status
+                            ? [{ occurred_on: '2026-10-06', position: 0, status, manual: true }]
+                            : []
+                    }
+                    onSave={async () => {}}
+                    onRemove={async () => {}}
+                />
+            );
+            expect(markup).toContain(`Alterar para ${next}`);
+            expect(markup).not.toContain('Situação de 05/10/2026');
+            expect(markup).not.toContain('Situação de 07/10/2026');
+        }
+    });
+
+    test('distingue aulas diferentes na mesma data', () => {
+        const markup = renderToStaticMarkup(
+            <FrequencyContent
+                data={{
+                    progress,
+                    frequency_status: 'not_registered',
+                    frequency: null,
+                    unregistered_entries: []
+                }}
+                manualEntries={[
+                    { occurred_on: '2026-10-06', position: 0, status: 'presente', manual: true },
+                    { occurred_on: '2026-10-06', position: 1, status: 'ausente', manual: true }
+                ]}
+            />
+        );
+        expect(markup).toContain('Aula 1');
+        expect(markup).toContain('Aula 2');
+    });
+
+    test('mostra aulas anteriores previstas pelo calendário sem chamada do SIGAA', () => {
+        const markup = renderToStaticMarkup(
+            <FrequencyContent
+                data={{
+                    progress,
+                    frequency_status: 'not_registered',
+                    frequency: null,
+                    unregistered_entries: [
+                        { occurred_on: '2026-10-05', status: 'nao_registrada', absences: 0 }
+                    ]
+                }}
+                onSave={async () => {}}
+                onRemove={async () => {}}
+            />
+        );
+        expect(markup).toContain('05/10/2026');
+        expect(markup).toContain('Situação de 05/10/2026, aula 1');
+        expect(markup).not.toContain('Minhas marcações');
     });
 });

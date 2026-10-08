@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID, uuid4
 
 import sigaa_client
@@ -24,6 +24,28 @@ from api.db.models import (
 _WITH_CLASSROOM = selectinload(ClassroomUser.classroom).selectinload(Classroom.subject)
 # Só quem ainda está na turma ganha o motivo de uma saída.
 _ENROLLED = (None, ClassroomStatus.CURSANDO)
+
+
+def recorded_lessons(
+    frequency: sigaa_client.ClassroomFrequency,
+) -> set[tuple[date, int]]:
+    positions: dict[date, int] = {}
+    recorded = set()
+    for entry in frequency.frequency.entries if frequency.frequency else ():
+        position = positions.get(entry.occurred_on, 0)
+        positions[entry.occurred_on] = position + 1
+        if entry.status != sigaa_client.AttendanceStatus.NAO_REGISTRADA:
+            recorded.add((entry.occurred_on, position))
+    return recorded
+
+
+def manual_entries(data: dict[str, object]) -> list[dict[str, object]]:
+    entries = data.get("manual_entries")
+    return (
+        [item for item in entries if isinstance(item, dict)]
+        if isinstance(entries, list)
+        else []
+    )
 
 
 class ClassroomRepository:
@@ -67,13 +89,14 @@ class ClassroomRepository:
         )
 
     async def get_frequency(
-        self, user_classroom_id: UUID
+        self, user_classroom_id: UUID, *, for_update: bool = False
     ) -> ClassroomFrequencyCache | None:
-        return await self._session.scalar(
-            select(ClassroomFrequencyCache).where(
-                ClassroomFrequencyCache.user_classroom_id == user_classroom_id
-            )
+        query = select(ClassroomFrequencyCache).where(
+            ClassroomFrequencyCache.user_classroom_id == user_classroom_id
         )
+        if for_update:
+            query = query.with_for_update()
+        return await self._session.scalar(query)
 
     async def save_frequency(
         self,
@@ -81,12 +104,67 @@ class ClassroomRepository:
         frequency: sigaa_client.ClassroomFrequency,
         synced_at: datetime,
     ) -> None:
-        cached = await self.get_frequency(user_classroom_id)
+        cached = await self.get_frequency(user_classroom_id, for_update=True)
+        existing = manual_entries(cached.data) if cached is not None else []
         if cached is None:
             cached = ClassroomFrequencyCache(user_classroom_id=user_classroom_id)
             self._session.add(cached)
-        cached.data = frequency.model_dump(mode="json")
+        recorded = {
+            (day.isoformat(), position) for day, position in recorded_lessons(frequency)
+        }
+        remaining = [
+            entry
+            for entry in existing
+            if (entry.get("occurred_on"), entry.get("position")) not in recorded
+        ]
+        data = frequency.model_dump(mode="json")
+        if remaining:
+            data["manual_entries"] = remaining
+        cached.data = data
         cached.synced_at = synced_at
+        await self._session.flush()
+
+    async def save_manual_attendance(
+        self, user_classroom_id: UUID, entry: dict[str, object]
+    ) -> bool:
+        cached = await self.get_frequency(user_classroom_id, for_update=True)
+        assert cached is not None, "frequência deve estar no cache antes da marcação"
+        frequency = sigaa_client.ClassroomFrequency.model_validate(cached.data)
+        if (
+            date.fromisoformat(str(entry["occurred_on"])),
+            entry["position"],
+        ) in recorded_lessons(frequency):
+            return False
+        entries = [
+            item
+            for item in manual_entries(cached.data)
+            if (item.get("occurred_on"), item.get("position"))
+            != (entry["occurred_on"], entry["position"])
+        ]
+        entries.append(entry)
+        entries.sort(key=lambda item: (str(item["occurred_on"]), int(item["position"])))
+        cached.data = {**cached.data, "manual_entries": entries}
+        await self._session.flush()
+        return True
+
+    async def delete_manual_attendance(
+        self, user_classroom_id: UUID, occurred_on: date, position: int
+    ) -> None:
+        cached = await self.get_frequency(user_classroom_id, for_update=True)
+        if cached is None:
+            return
+        entries = [
+            item
+            for item in manual_entries(cached.data)
+            if (item.get("occurred_on"), item.get("position"))
+            != (occurred_on.isoformat(), position)
+        ]
+        data = {**cached.data}
+        if entries:
+            data["manual_entries"] = entries
+        else:
+            data.pop("manual_entries", None)
+        cached.data = data
         await self._session.flush()
 
     async def save_grade(

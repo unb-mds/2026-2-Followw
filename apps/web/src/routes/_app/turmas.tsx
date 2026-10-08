@@ -86,6 +86,7 @@ function Classrooms() {
                                 : undefined
                         }
                         professor={`Turma ${classroom.number}`}
+                        grade={classroom.current ? undefined : classroom.grade}
                         onClick={() =>
                             navigate({ to: '/turmas/$id', params: { id: classroom.id } })
                         }
