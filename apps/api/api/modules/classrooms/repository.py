@@ -3,12 +3,16 @@ from datetime import date, datetime
 from uuid import UUID, uuid4
 
 import sigaa_client
-from sqlalchemy import ColumnElement, Select, String, cast, select
+from sqlalchemy import Select, String, cast, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from api import academic_calendar
-from api.db.enums import ClassroomRole, ClassroomStatus
+from api.db.enums import (
+    ClassroomRole,
+    ClassroomStatus,
+    LessonMarkStatus,
+)
 from api.db.models import (
     USER_WITHOUT_IDS,
     Classroom,
@@ -16,6 +20,7 @@ from api.db.models import (
     ClassroomNews,
     ClassroomStatistic,
     ClassroomUser,
+    LessonMark,
     OwnLink,
     Subject,
     User,
@@ -24,28 +29,6 @@ from api.db.models import (
 _WITH_CLASSROOM = selectinload(ClassroomUser.classroom).selectinload(Classroom.subject)
 # Só quem ainda está na turma ganha o motivo de uma saída.
 _ENROLLED = (None, ClassroomStatus.CURSANDO)
-
-
-def recorded_lessons(
-    frequency: sigaa_client.ClassroomFrequency,
-) -> set[tuple[date, int]]:
-    positions: dict[date, int] = {}
-    recorded = set()
-    for entry in frequency.frequency.entries if frequency.frequency else ():
-        position = positions.get(entry.occurred_on, 0)
-        positions[entry.occurred_on] = position + 1
-        if entry.status != sigaa_client.AttendanceStatus.NAO_REGISTRADA:
-            recorded.add((entry.occurred_on, position))
-    return recorded
-
-
-def manual_entries(data: dict[str, object]) -> list[dict[str, object]]:
-    entries = data.get("manual_entries")
-    return (
-        [item for item in entries if isinstance(item, dict)]
-        if isinstance(entries, list)
-        else []
-    )
 
 
 class ClassroomRepository:
@@ -88,85 +71,6 @@ class ClassroomRepository:
             )
         )
 
-    async def get_frequency(
-        self, user_classroom_id: UUID, *, for_update: bool = False
-    ) -> ClassroomFrequencyCache | None:
-        query = select(ClassroomFrequencyCache).where(
-            ClassroomFrequencyCache.user_classroom_id == user_classroom_id
-        )
-        if for_update:
-            query = query.with_for_update()
-        return await self._session.scalar(query)
-
-    async def save_frequency(
-        self,
-        user_classroom_id: UUID,
-        frequency: sigaa_client.ClassroomFrequency,
-        synced_at: datetime,
-    ) -> None:
-        cached = await self.get_frequency(user_classroom_id, for_update=True)
-        existing = manual_entries(cached.data) if cached is not None else []
-        if cached is None:
-            cached = ClassroomFrequencyCache(user_classroom_id=user_classroom_id)
-            self._session.add(cached)
-        recorded = {
-            (day.isoformat(), position) for day, position in recorded_lessons(frequency)
-        }
-        remaining = [
-            entry
-            for entry in existing
-            if (entry.get("occurred_on"), entry.get("position")) not in recorded
-        ]
-        data = frequency.model_dump(mode="json")
-        if remaining:
-            data["manual_entries"] = remaining
-        cached.data = data
-        cached.synced_at = synced_at
-        await self._session.flush()
-
-    async def save_manual_attendance(
-        self, user_classroom_id: UUID, entry: dict[str, object]
-    ) -> bool:
-        cached = await self.get_frequency(user_classroom_id, for_update=True)
-        assert cached is not None, "frequência deve estar no cache antes da marcação"
-        frequency = sigaa_client.ClassroomFrequency.model_validate(cached.data)
-        if (
-            date.fromisoformat(str(entry["occurred_on"])),
-            entry["position"],
-        ) in recorded_lessons(frequency):
-            return False
-        entries = [
-            item
-            for item in manual_entries(cached.data)
-            if (item.get("occurred_on"), item.get("position"))
-            != (entry["occurred_on"], entry["position"])
-        ]
-        entries.append(entry)
-        entries.sort(key=lambda item: (str(item["occurred_on"]), int(item["position"])))
-        cached.data = {**cached.data, "manual_entries": entries}
-        await self._session.flush()
-        return True
-
-    async def delete_manual_attendance(
-        self, user_classroom_id: UUID, occurred_on: date, position: int
-    ) -> None:
-        cached = await self.get_frequency(user_classroom_id, for_update=True)
-        if cached is None:
-            return
-        entries = [
-            item
-            for item in manual_entries(cached.data)
-            if (item.get("occurred_on"), item.get("position"))
-            != (occurred_on.isoformat(), position)
-        ]
-        data = {**cached.data}
-        if entries:
-            data["manual_entries"] = entries
-        else:
-            data.pop("manual_entries", None)
-        cached.data = data
-        await self._session.flush()
-
     async def save_grade(
         self,
         user_classroom_id: UUID,
@@ -196,10 +100,12 @@ class ClassroomRepository:
         }
         seen: set[UUID] = set()
         for item in classrooms:
-            # Turma só do portal vem sem número: gravá-la duplicaria a do histórico.
-            if not item.number:
+            code = item.subject.code
+            # Turma só do portal vem sem número nem código: gravá-la duplicaria a
+            # do histórico.
+            if not item.number or code is None:
                 continue
-            classroom = await self._save_classroom(item, refresh=refresh)
+            classroom = await self._save_classroom(code, item, refresh=refresh)
             link = links.get(classroom.id)
             if link is None:
                 link = ClassroomUser(
@@ -306,14 +212,13 @@ class ClassroomRepository:
             )
         )
 
-    async def _save_subject(self, item: sigaa_client.Subject) -> Subject:
-        subject = await self._session.scalar(select(Subject).where(_same_subject(item)))
+    async def _save_subject(self, code: str, item: sigaa_client.Subject) -> Subject:
+        subject = await self._session.get(Subject, code)
         if subject is None:
-            subject = Subject(code=item.code)
+            subject = Subject(code=code)
             self._session.add(subject)
 
         subject.name = item.name
-        subject.sigaa_id = item.sigaa_id or subject.sigaa_id
         subject.hours = item.hours or subject.hours
         subject.unity = item.unity or subject.unity
         await self._session.flush()
@@ -321,13 +226,11 @@ class ClassroomRepository:
         return subject
 
     async def _save_classroom(
-        self, item: sigaa_client.Classroom, *, refresh: bool
+        self, code: str, item: sigaa_client.Classroom, *, refresh: bool
     ) -> Classroom:
         classroom = await self._session.scalar(
-            select(Classroom)
-            .join(Classroom.subject)
-            .where(
-                _same_subject(item.subject),
+            select(Classroom).where(
+                Classroom.subject_code == code,
                 Classroom.number == item.number,
                 Classroom.semester == item.semester,
             )
@@ -336,10 +239,10 @@ class ClassroomRepository:
         if classroom is not None and not item.current and not refresh:
             return classroom
 
-        subject = await self._save_subject(item.subject)
+        await self._save_subject(code, item.subject)
         if classroom is None:
             classroom = Classroom(
-                subject_id=subject.id, number=item.number, semester=item.semester
+                subject_code=code, number=item.number, semester=item.semester
             )
             self._session.add(classroom)
 
@@ -472,6 +375,81 @@ class NewsRepository:
         await self._session.flush()
 
 
+class FrequencyRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def get(self, user_classroom_id: UUID) -> ClassroomFrequencyCache | None:
+        return await self._session.scalar(
+            select(ClassroomFrequencyCache).where(
+                ClassroomFrequencyCache.user_classroom_id == user_classroom_id
+            )
+        )
+
+    async def save(
+        self,
+        user_classroom_id: UUID,
+        classroom_id: UUID,
+        frequency: sigaa_client.ClassroomFrequency,
+        synced_at: datetime,
+    ) -> None:
+        cached = await self.get(user_classroom_id)
+        if cached is None:
+            cached = ClassroomFrequencyCache(user_classroom_id=user_classroom_id)
+            self._session.add(cached)
+        cached.frequency = (
+            frequency.frequency.model_dump(mode="json") if frequency.frequency else None
+        )
+        cached.frequency_status = frequency.frequency_status
+        cached.synced_at = synced_at
+        classroom = await self._session.get_one(Classroom, classroom_id)
+        classroom.progress = frequency.progress.model_dump(mode="json")
+        await self._session.flush()
+
+    async def list_marks(
+        self, user_classroom_id: UUID
+    ) -> dict[tuple[date, int], LessonMarkStatus]:
+        marks = await self._session.scalars(
+            select(LessonMark).where(LessonMark.user_classroom_id == user_classroom_id)
+        )
+        return {(mark.occurred_on, mark.position): mark.status for mark in marks}
+
+    async def save_mark(
+        self,
+        user_classroom_id: UUID,
+        occurred_on: date,
+        position: int,
+        status: LessonMarkStatus,
+    ) -> None:
+        mark = await self._session.scalar(
+            select(LessonMark).where(
+                LessonMark.user_classroom_id == user_classroom_id,
+                LessonMark.occurred_on == occurred_on,
+                LessonMark.position == position,
+            )
+        )
+        if mark is None:
+            mark = LessonMark(
+                user_classroom_id=user_classroom_id,
+                occurred_on=occurred_on,
+                position=position,
+            )
+            self._session.add(mark)
+        mark.status = status
+        await self._session.flush()
+
+    async def delete_mark(
+        self, user_classroom_id: UUID, occurred_on: date, position: int
+    ) -> None:
+        await self._session.execute(
+            delete(LessonMark).where(
+                LessonMark.user_classroom_id == user_classroom_id,
+                LessonMark.occurred_on == occurred_on,
+                LessonMark.position == position,
+            )
+        )
+
+
 class _UserIndex:
     """Usuários por identidade, espelhando as consultas que o banco responderia."""
 
@@ -497,13 +475,6 @@ class _UserIndex:
         for index, key in self._keys(user):
             if index.get(key) is user:
                 del index[key]
-
-
-def _same_subject(item: sigaa_client.Subject) -> ColumnElement[bool]:
-    if item.code:
-        return Subject.code == item.code
-
-    return Subject.code.is_(None) & (Subject.name == item.name)
 
 
 def _without_ids(member: sigaa_client.ClassroomMember) -> bool:

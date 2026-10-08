@@ -16,6 +16,7 @@ from sigaa_client import (
     ClassroomProgress,
     ClassroomRole,
     Credentials,
+    FrequencyStatus,
     Grade,
     SessionExpired,
     SigaaError,
@@ -32,18 +33,31 @@ from api.cookies import (
     REFRESH_COOKIE_NAME,
     encrypt_cookie,
 )
-from api.db.enums import ClassroomStatus, UserLevel
+from api.db.enums import (
+    ClassroomStatus,
+    LessonMarkStatus,
+    UserLevel,
+)
 from api.db.models import Classroom as ClassroomModel
 from api.db.models import (
     ClassroomFrequencyCache,
     ClassroomStatistic,
     ClassroomUser,
+    LessonMark,
     User,
 )
 from api.db.models import Subject as SubjectModel
+from api.modules.classrooms.frequency import ClassroomFrequencyView, sync_frequency
+from api.modules.classrooms.lessons import (
+    FrequencyTotals,
+    LessonStatus,
+    Timetable,
+    build_lessons,
+    class_days,
+    frequency_totals,
+    max_absences,
+)
 from api.modules.classrooms.repository import ClassroomRepository
-from api.modules.classrooms.scheduled_frequency import scheduled_entries
-from api.modules.classrooms.service import sync_frequency
 from api.sync.engine import Step
 
 CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha123"))
@@ -736,59 +750,160 @@ NOT_REGISTERED = ClassroomFrequency(progress=FREQUENCY.progress)
 
 
 def frequency_view_json(
-    frequency: ClassroomFrequency, classroom: Classroom = CURRENT
+    frequency: ClassroomFrequency, classroom: Classroom = CURRENT, marks=None
 ) -> dict:
-    return {
-        **frequency.model_dump(mode="json"),
-        "unregistered_entries": [
-            entry.model_dump(mode="json")
-            for entry in scheduled_entries(
-                classroom.semester, classroom.schedule, frequency
-            )
-        ],
-    }
+    timetable = Timetable.parse(classroom.schedule)
+    days = class_days(classroom.semester) if classroom.current else ()
+    lessons = build_lessons(frequency, timetable, marks or {}, days)
+    return ClassroomFrequencyView(
+        **dict(frequency),
+        lessons=lessons,
+        totals=frequency_totals(frequency, lessons, timetable, classroom.subject.hours),
+    ).model_dump(mode="json")
+
+
+def _with_entries(*entries: AttendanceEntry) -> ClassroomFrequency:
+    return ClassroomFrequency(
+        progress=FREQUENCY.progress,
+        frequency=FREQUENCY.frequency.model_copy(update={"entries": entries}),
+    )
+
+
+def _keys(lessons) -> list[tuple[date, int, LessonStatus]]:
+    return [(lesson.occurred_on, lesson.position, lesson.status) for lesson in lessons]
+
+
+def test_horario_vira_aulas_por_dia_com_suas_horas_aula():
+    assert Timetable.parse("35T23").sessions == {1: (2,), 3: (2,)}
+    # Blocos colados são uma aula só; separados, duas.
+    assert Timetable.parse("35M5 35T1").sessions == {1: (2,), 3: (2,)}
+    assert Timetable.parse("3M12 3T45").sessions == {1: (2, 2)}
+    assert Timetable.parse("6M1234").sessions == {4: (4,)}
+    assert Timetable.parse(None).sessions == {}
+    assert Timetable.parse("99Z9").sessions == {}
+
+
+def test_aula_fora_do_horario_vale_o_tamanho_usual():
+    timetable = Timetable.parse("2M12 4M123 6M123")
+    assert timetable.hours(date(2026, 8, 10), 0) == 2
+    assert timetable.hours(date(2026, 8, 10), 1) == 3
+    assert timetable.hours(date(2026, 8, 15), 0) == 3
+    assert Timetable.parse(None).hours(date(2026, 8, 10), 0) == 1
 
 
 def test_aulas_previstas_respeitam_periodo_horario_e_dia_atual():
-    entries = scheduled_entries(
-        "2026.2", "35M5 35T1", NOT_REGISTERED, on=date(2026, 8, 14)
+    lessons = build_lessons(
+        NOT_REGISTERED,
+        Timetable.parse("35M5 35T1"),
+        {},
+        class_days("2026.2", on=date(2026, 8, 14)),
     )
-    assert [entry.occurred_on for entry in entries] == [
-        date(2026, 8, 11),
-        date(2026, 8, 13),
+    assert _keys(lessons) == [
+        (date(2026, 8, 13), 0, LessonStatus.NAO_REGISTRADA),
+        (date(2026, 8, 11), 0, LessonStatus.NAO_REGISTRADA),
     ]
-    assert all(entry.status == AttendanceStatus.NAO_REGISTRADA for entry in entries)
 
 
 def test_aulas_previstas_excluem_feriado_e_semana_universitaria():
-    entries = scheduled_entries("2026.2", "2T23", NOT_REGISTERED, on=date(2026, 9, 23))
-    dates = {entry.occurred_on for entry in entries}
-    assert date(2026, 8, 10) in dates
-    assert date(2026, 9, 7) not in dates
-    assert date(2026, 9, 21) not in dates
+    days = set(class_days("2026.2", on=date(2026, 9, 23)))
+    assert date(2026, 8, 10) in days
+    assert date(2026, 9, 7) not in days
+    assert date(2026, 9, 21) not in days
 
 
-def test_aulas_previstas_descontam_chamadas_publicadas_no_mesmo_dia():
-    frequency = ClassroomFrequency(
-        progress=FREQUENCY.progress,
-        frequency=FREQUENCY.frequency.model_copy(
-            update={
-                "entries": (
-                    AttendanceEntry(
-                        occurred_on=date(2026, 8, 11), status=AttendanceStatus.PRESENTE
-                    ),
-                )
-            }
-        ),
+def test_aulas_previstas_completam_as_chamadas_publicadas_no_mesmo_dia():
+    frequency = _with_entries(
+        AttendanceEntry(occurred_on=date(2026, 8, 11), status=AttendanceStatus.PRESENTE)
     )
-    entries = scheduled_entries("2026.2", "3M12 3T45", frequency, on=date(2026, 8, 12))
-    assert [entry.occurred_on for entry in entries] == [date(2026, 8, 11)]
+    lessons = build_lessons(
+        frequency,
+        Timetable.parse("3M12 3T45"),
+        {},
+        class_days("2026.2", on=date(2026, 8, 12)),
+    )
+    assert _keys(lessons) == [
+        (date(2026, 8, 11), 1, LessonStatus.NAO_REGISTRADA),
+        (date(2026, 8, 11), 0, LessonStatus.PRESENTE),
+    ]
 
 
 def test_aulas_previstas_nao_inventam_dias_sem_horario_ou_calendario():
-    assert scheduled_entries("2026.2", None, NOT_REGISTERED) == ()
-    assert scheduled_entries("2099.1", "35T23", NOT_REGISTERED) == ()
-    assert scheduled_entries("2026.2", "99Z9", NOT_REGISTERED) == ()
+    days = list(class_days("2026.2"))
+    assert build_lessons(NOT_REGISTERED, Timetable.parse(None), {}, days) == ()
+    assert list(class_days("2099.1")) == []
+
+
+def test_marcacao_vale_so_onde_o_sigaa_nao_registrou_e_falta_conta_as_horas_aula():
+    marks = {
+        (date(2026, 9, 20), 0): LessonMarkStatus.FALTA,
+        (date(2026, 9, 24), 0): LessonMarkStatus.FALTA,
+        (date(2026, 9, 25), 0): LessonMarkStatus.CANCELADA,
+    }
+    lessons = build_lessons(FREQUENCY, Timetable.parse("2346T23"), marks)
+    assert [
+        (lesson.occurred_on, lesson.status, lesson.absences, lesson.marked)
+        for lesson in lessons
+    ] == [
+        (date(2026, 9, 25), LessonStatus.CANCELADA, 0, True),
+        (date(2026, 9, 24), LessonStatus.FALTA, 2, True),
+        (date(2026, 9, 22), LessonStatus.FALTA, 2, False),
+        (date(2026, 9, 20), LessonStatus.PRESENTE, 0, False),
+    ]
+
+
+def test_totais_somam_marcacoes_em_horas_aula_e_ignoram_canceladas():
+    timetable = Timetable.parse("2346T23")
+    marks = {
+        (date(2026, 9, 24), 0): LessonMarkStatus.FALTA,
+        (date(2026, 9, 25), 0): LessonMarkStatus.PRESENTE,
+        (date(2026, 9, 28), 0): LessonMarkStatus.CANCELADA,
+    }
+    lessons = build_lessons(FREQUENCY, timetable, marks)
+    assert frequency_totals(FREQUENCY, lessons, timetable, 90) == FrequencyTotals(
+        presences=2, absences=4, percentage=88.2, max_absences=22, estimated=True
+    )
+    assert frequency_totals(
+        FREQUENCY, build_lessons(FREQUENCY, timetable, {}), timetable, 90
+    ) == FrequencyTotals(
+        presences=1, absences=2, percentage=93.8, max_absences=22, estimated=False
+    )
+
+
+@pytest.mark.parametrize(
+    "hours,expected",
+    [(30, 6), (60, 14), (90, 22), (15, 2), (7, 0), (0, None), (None, None)],
+)
+def test_maximo_de_faltas_pela_carga_horaria(hours, expected):
+    assert max_absences(hours) == expected
+
+
+def test_aula_sem_chamada_conta_como_presenca_so_na_porcentagem():
+    timetable = Timetable.parse("2346T23")
+    sem_chamada = build_lessons(FREQUENCY, timetable, {})
+    # 28 de 30 horas-aula do SIGAA + a aula de 24/09 (2h) sem chamada.
+    totals = frequency_totals(FREQUENCY, sem_chamada, timetable, 90)
+    assert (totals.presences, totals.absences, totals.percentage) == (1, 2, 93.8)
+    # Cancelada fica de fora: a porcentagem volta à do SIGAA.
+    cancelada = build_lessons(
+        FREQUENCY, timetable, {(date(2026, 9, 24), 0): LessonMarkStatus.CANCELADA}
+    )
+    assert frequency_totals(FREQUENCY, cancelada, timetable, 90).percentage == 93.3
+
+
+def test_totais_sem_chamada_do_sigaa_vem_so_das_marcacoes():
+    timetable = Timetable.parse("2346T23")
+    marks = {
+        (date(2026, 9, 24), 0): LessonMarkStatus.PRESENTE,
+        (date(2026, 9, 25), 0): LessonMarkStatus.FALTA,
+    }
+    lessons = build_lessons(NOT_REGISTERED, timetable, marks)
+    assert frequency_totals(NOT_REGISTERED, lessons, timetable, 90) == FrequencyTotals(
+        presences=1, absences=2, percentage=50, max_absences=22, estimated=True
+    )
+    cancelled = build_lessons(
+        NOT_REGISTERED, timetable, {(date(2026, 9, 24), 0): LessonMarkStatus.CANCELADA}
+    )
+    assert frequency_totals(NOT_REGISTERED, cancelled, timetable, 90) is None
 
 
 @pytest.fixture
@@ -827,7 +942,12 @@ def test_ids_numerico_e_hash_retornam_todos_os_campos_e_usam_o_mesmo_cache(
     with database() as session:
         rows = list(session.scalars(select(ClassroomFrequencyCache)))
         assert len(rows) == 1
-        assert rows[0].data == FREQUENCY.model_dump(mode="json")
+        assert rows[0].frequency == FREQUENCY.frequency.model_dump(mode="json")
+        assert rows[0].frequency_status is FrequencyStatus.PARCIALMENTE_REGISTRADA
+        classroom = session.scalar(
+            select(ClassroomModel).where(ClassroomModel.sigaa_id == CURRENT.sigaa_id)
+        )
+        assert classroom.progress == FREQUENCY.progress.model_dump(mode="json")
 
 
 def test_agregado_retorna_apenas_atuais_identificadas_em_ordem_e_reutiliza_cache(
@@ -861,13 +981,19 @@ def test_frequencia_sem_turmas_atuais_retorna_lista_vazia(logged, account):
     account.classrooms.get_classroom_frequency.assert_not_awaited()
 
 
-def test_sem_lancamentos_preserva_progress_e_cache(logged, account):
+def test_sem_lancamentos_preserva_progress_e_cache(logged, account, database):
     account.classrooms.get_classroom_frequency.return_value = NOT_REGISTERED
     for _ in range(2):
         response = logged.get("/classrooms/HASH-A/frequency")
         assert response.status_code == 200
         assert response.json() == frequency_view_json(NOT_REGISTERED)
     account.classrooms.get_classroom_frequency.assert_awaited_once()
+    with database() as session:
+        row = session.scalar(select(ClassroomFrequencyCache))
+        assert (row.frequency, row.frequency_status) == (
+            None,
+            FrequencyStatus.NAO_REGISTRADA,
+        )
 
 
 def test_rota_inclui_aulas_passadas_sem_lancamento_sem_inventar_totais(logged, account):
@@ -879,146 +1005,135 @@ def test_rota_inclui_aulas_passadas_sem_lancamento_sem_inventar_totais(logged, a
     assert response.status_code == 200
     data = response.json()
     assert data["frequency"] is None
-    assert data["frequency_status"] == "not_registered"
+    assert data["frequency_status"] == "nao_registrada"
+    assert data["totals"] is None
     assert {
         "occurred_on": "2026-08-11",
+        "position": 0,
         "status": "nao_registrada",
         "absences": 0,
-    } in data["unregistered_entries"]
-    assert all(
-        entry["occurred_on"] < "2026-09-22" for entry in data["unregistered_entries"]
-    )
+        "marked": False,
+    } in data["lessons"]
+    assert all(lesson["occurred_on"] < "2026-09-22" for lesson in data["lessons"])
 
 
 @pytest.mark.parametrize("frequency", [NOT_REGISTERED, FREQUENCY])
 def test_turma_antiga_nao_gera_aulas_previstas(logged, account, frequency):
-    account.classrooms.list_classrooms.return_value = [
-        CURRENT.model_copy(
-            update={"semester": "2026.1", "current": False, "schedule": "35T23"}
-        )
-    ]
+    old = CURRENT.model_copy(
+        update={"semester": "2026.1", "current": False, "schedule": "35T23"}
+    )
+    account.classrooms.list_classrooms.return_value = [old]
     account.classrooms.get_classroom_frequency.return_value = frequency
 
     response = logged.get("/classrooms/HASH-A/frequency")
 
     assert response.status_code == 200
-    assert response.json() == {
-        **frequency.model_dump(mode="json"),
-        "unregistered_entries": [],
-    }
-
-
-def test_marcacao_manual_persiste_e_pode_mudar_status(logged, account, database):
-    account.classrooms.get_classroom_frequency.return_value = NOT_REGISTERED
-    path = "/classrooms/HASH-A/frequency/manual"
-    for status in ("ausente", "presente", "cancelada"):
-        response = logged.put(
-            path,
-            json={"occurred_on": "2026-09-22", "position": 0, "status": status},
-        )
-        assert response.status_code == 200
-        assert response.json()["manual"] is True
-        assert logged.get(path).json() == [response.json()]
-    with database() as session:
-        rows = list(session.scalars(select(ClassroomFrequencyCache)))
-        assert len(rows) == 1
-        assert rows[0].data["manual_entries"] == [response.json()]
-    assert logged.delete(f"{path}/2026-09-22/0").status_code == 204
-    assert logged.get(path).json() == []
-    with database() as session:
-        assert (
-            "manual_entries" not in session.scalar(select(ClassroomFrequencyCache)).data
-        )
-
-
-def test_sigaa_sobrescreve_marcacao_manual_na_mesma_aula(logged, account, database):
-    path = "/classrooms/HASH-A/frequency/manual"
-    account.classrooms.get_classroom_frequency.return_value = NOT_REGISTERED
-    logged.get("/classrooms/HASH-A/frequency")
-    entry = {"occurred_on": "2026-09-22", "position": 0, "status": "ausente"}
-    assert logged.put(path, json=entry).status_code == 200
-    account.classrooms.get_classroom_frequency.return_value = FREQUENCY
-    logged.get("/classrooms/HASH-A/frequency", headers=NO_CACHE)
-    assert logged.get(path).json() == []
-    assert logged.put(path, json=entry).status_code == 409
-    with database() as session:
-        assert (
-            "manual_entries" not in session.scalar(select(ClassroomFrequencyCache)).data
-        )
-
-
-def test_refresh_preserva_marcacao_sem_chamada_no_mesmo_json(logged, account, database):
-    account.classrooms.get_classroom_frequency.return_value = NOT_REGISTERED
-    path = "/classrooms/HASH-A/frequency/manual"
-    entry = {"occurred_on": "2026-09-22", "position": 0, "status": "ausente"}
-    assert logged.put(path, json=entry).status_code == 200
-    assert (
-        logged.get("/classrooms/HASH-A/frequency", headers=NO_CACHE).status_code == 200
+    assert response.json() == frequency_view_json(frequency, old)
+    assert len(response.json()["lessons"]) == len(
+        frequency.frequency.entries if frequency.frequency else ()
     )
+
+
+LESSON = "/classrooms/HASH-A/frequency/lessons/2026-09-24/0"
+
+
+def _lesson(response, occurred_on: str, position: int = 0) -> dict:
+    return next(
+        lesson
+        for lesson in response.json()["lessons"]
+        if (lesson["occurred_on"], lesson["position"]) == (occurred_on, position)
+    )
+
+
+def test_marcacao_persiste_muda_de_status_e_pode_ser_removida(
+    logged, account, database
+):
+    for status in ("falta", "presente", "cancelada"):
+        assert logged.put(LESSON, json={"status": status}).status_code == 204
+        lesson = _lesson(logged.get("/classrooms/HASH-A/frequency"), "2026-09-24")
+        assert (lesson["status"], lesson["marked"]) == (status, True)
     with database() as session:
-        rows = list(session.scalars(select(ClassroomFrequencyCache)))
-        assert len(rows) == 1
-        assert rows[0].data["manual_entries"] == [{**entry, "manual": True}]
-        assert rows[0].data["progress"] == NOT_REGISTERED.progress.model_dump()
-    assert logged.get(path).json() == [{**entry, "manual": True}]
+        marks = list(session.scalars(select(LessonMark)))
+        assert [(m.occurred_on, m.position, m.status) for m in marks] == [
+            (date(2026, 9, 24), 0, LessonMarkStatus.CANCELADA)
+        ]
+    assert logged.delete(LESSON).status_code == 204
+    lesson = _lesson(logged.get("/classrooms/HASH-A/frequency"), "2026-09-24")
+    assert (lesson["status"], lesson["marked"]) == ("nao_registrada", False)
+    assert logged.delete(LESSON).status_code == 204
 
 
-def test_aula_sem_chamada_aceita_marcacao_mesmo_com_outras_registradas(logged, account):
-    logged.get("/classrooms/HASH-A/frequency")
-    path = "/classrooms/HASH-A/frequency/manual"
-    entry = {"occurred_on": "2026-09-24", "position": 0, "status": "ausente"}
-    assert logged.put(path, json=entry).status_code == 200
-    assert logged.get(path).json() == [{**entry, "manual": True}]
-    assert logged.put(path, json={**entry, "position": 1}).status_code == 200
-    assert (
-        logged.put(path, json={**entry, "occurred_on": "2026-09-20"}).status_code == 409
+def test_marcacao_entra_nos_totais_da_frequencia(logged, account):
+    assert logged.put(LESSON, json={"status": "falta"}).status_code == 204
+    response = logged.get("/classrooms/HASH-A/frequency")
+    assert response.json()["totals"] == {
+        "presences": 1,
+        "absences": 3,
+        "percentage": 90.3,
+        "max_absences": 22,
+        "estimated": True,
+    }
+    assert response.json()["frequency"] == FREQUENCY.frequency.model_dump(mode="json")
+
+
+def test_chamada_do_sigaa_prevalece_sobre_a_marcacao(logged, account):
+    account.classrooms.get_classroom_frequency.return_value = NOT_REGISTERED
+    path = "/classrooms/HASH-A/frequency/lessons/2026-09-22/0"
+    assert logged.put(path, json={"status": "presente"}).status_code == 204
+    lesson = _lesson(logged.get("/classrooms/HASH-A/frequency"), "2026-09-22")
+    assert (lesson["status"], lesson["marked"]) == ("presente", True)
+
+    account.classrooms.get_classroom_frequency.return_value = FREQUENCY
+    response = logged.get("/classrooms/HASH-A/frequency", headers=NO_CACHE)
+    lesson = _lesson(response, "2026-09-22")
+    assert (lesson["status"], lesson["absences"], lesson["marked"]) == (
+        "falta",
+        2,
+        False,
     )
 
 
 def test_chamada_de_uma_das_aulas_no_mesmo_dia_preserva_a_outra(logged, account):
-    path = "/classrooms/HASH-A/frequency/manual"
     account.classrooms.get_classroom_frequency.return_value = NOT_REGISTERED
-    logged.get("/classrooms/HASH-A/frequency")
-    entry = {"occurred_on": "2026-09-24", "position": 0, "status": "ausente"}
-    assert logged.put(path, json=entry).status_code == 200
-    assert logged.put(path, json={**entry, "position": 1}).status_code == 200
-    account.classrooms.get_classroom_frequency.return_value = ClassroomFrequency(
-        progress=FREQUENCY.progress,
-        frequency=FREQUENCY.frequency.model_copy(
-            update={
-                "entries": (
-                    AttendanceEntry(
-                        occurred_on=date(2026, 9, 24),
-                        status=AttendanceStatus.NAO_REGISTRADA,
-                    ),
-                    AttendanceEntry(
-                        occurred_on=date(2026, 9, 24), status=AttendanceStatus.PRESENTE
-                    ),
-                )
-            }
+    assert logged.put(LESSON, json={"status": "falta"}).status_code == 204
+    second = LESSON.removesuffix("0") + "1"
+    assert logged.put(second, json={"status": "falta"}).status_code == 204
+    account.classrooms.get_classroom_frequency.return_value = _with_entries(
+        AttendanceEntry(
+            occurred_on=date(2026, 9, 24), status=AttendanceStatus.NAO_REGISTRADA
+        ),
+        AttendanceEntry(
+            occurred_on=date(2026, 9, 24), status=AttendanceStatus.PRESENTE
         ),
     )
-    logged.get("/classrooms/HASH-A/frequency", headers=NO_CACHE)
-    assert logged.get(path).json() == [{**entry, "manual": True}]
+    response = logged.get("/classrooms/HASH-A/frequency", headers=NO_CACHE)
+    assert [
+        (lesson["position"], lesson["status"], lesson["marked"])
+        for lesson in response.json()["lessons"]
+        if lesson["occurred_on"] == "2026-09-24"
+    ] == [(1, "presente", False), (0, "falta", True)]
 
 
-def test_marcacao_manual_exige_login_e_turma_do_aluno(client, logged, account):
-    path = "/classrooms/HASH-A/frequency/manual"
-    body = {"occurred_on": "2026-09-24", "position": 0, "status": "ausente"}
-    assert logged.put(path, json=body).status_code == 200
-    assert logged.get("/classrooms/UNKNOWN/frequency/manual").status_code == 404
+def test_refresh_preserva_marcacao(logged, account):
+    assert logged.put(LESSON, json={"status": "falta"}).status_code == 204
+    account.classrooms.get_classroom_frequency.return_value = NOT_REGISTERED
+    response = logged.get("/classrooms/HASH-A/frequency", headers=NO_CACHE)
+    assert _lesson(response, "2026-09-24")["marked"] is True
+
+
+def test_marcacao_exige_login_e_turma_do_aluno(client, logged, account):
+    body = {"status": "falta"}
+    assert logged.put(LESSON, json=body).status_code == 204
+    unknown = LESSON.replace("HASH-A", "UNKNOWN")
+    assert logged.put(unknown, json=body).status_code == 404
+    assert logged.delete(unknown).status_code == 404
     logged.cookies.clear()
-    assert client.get(path).status_code == 401
-    assert client.put(path, json=body).status_code == 401
-    assert client.delete(f"{path}/2026-09-24/0").status_code == 401
+    assert client.put(LESSON, json=body).status_code == 401
+    assert client.delete(LESSON).status_code == 401
 
 
-def test_marcacoes_manuais_nao_sao_compartilhadas_entre_alunos(
-    logged, account, cookies
-):
-    path = "/classrooms/HASH-A/frequency/manual"
-    entry = {"occurred_on": "2026-09-24", "position": 0, "status": "ausente"}
-    assert logged.put(path, json=entry).status_code == 200
+def test_marcacoes_nao_sao_compartilhadas_entre_alunos(logged, account, cookies):
+    assert logged.put(LESSON, json={"status": "falta"}).status_code == 204
     other = Credentials(registration="252000000", password=SecretStr("outra"))
     logged.cookies.clear()
     logged.cookies.update(cookies(access="other-token", refresh=other))
@@ -1027,20 +1142,23 @@ def test_marcacoes_manuais_nao_sao_compartilhadas_entre_alunos(
             update={"registration": other.registration}
         )
     )
-    assert logged.get(path).json() == []
+    response = logged.get("/classrooms/HASH-A/frequency")
+    assert not any(lesson["marked"] for lesson in response.json()["lessons"])
     logged.cookies.clear()
     logged.cookies.update(cookies(access="tok", refresh=CREDENCIAIS))
-    assert logged.get(path).json() == [{**entry, "manual": True}]
+    response = logged.get("/classrooms/HASH-A/frequency")
+    assert _lesson(response, "2026-09-24")["marked"] is True
 
 
-def test_marcacao_manual_valida_dados(logged, account):
-    path = "/classrooms/HASH-A/frequency/manual"
-    for body in (
-        {"occurred_on": "2026-09-24", "position": -1, "status": "ausente"},
-        {"occurred_on": "2026-09-24", "position": 0, "status": "falta"},
-        {"occurred_on": "ontem", "position": 0, "status": "presente"},
+def test_marcacao_valida_dados(logged, account):
+    assert logged.put(LESSON, json={"status": "nao_registrada"}).status_code == 422
+    assert logged.put(LESSON, json={}).status_code == 422
+    for path in (
+        "/classrooms/HASH-A/frequency/lessons/2026-09-24/-1",
+        "/classrooms/HASH-A/frequency/lessons/ontem/0",
     ):
-        assert logged.put(path, json=body).status_code == 422
+        assert logged.put(path, json={"status": "falta"}).status_code == 422
+        assert logged.delete(path).status_code == 422
 
 
 def test_refresh_reconsulta_sigaa_e_atualiza_mesmo_cache(logged, account):
@@ -1097,7 +1215,9 @@ def test_frequencia_de_semestre_passado_por_hash_nao_vence(logged, account, data
 def test_cache_invalido_e_refeito(logged, account, database):
     logged.get("/classrooms/HASH-A/frequency")
     with database() as session:
-        session.execute(update(ClassroomFrequencyCache).values(data={}))
+        session.execute(
+            update(ClassroomFrequencyCache).values(frequency={"entries": "x"})
+        )
         session.commit()
     assert logged.get("/classrooms/HASH-A/frequency").json() == frequency_view_json(
         FREQUENCY
@@ -1109,15 +1229,14 @@ def test_cache_antigo_ganha_estado_e_resumo_sem_nova_consulta(
     logged, account, database
 ):
     logged.get("/classrooms/HASH-A/frequency")
-    data = FREQUENCY.model_dump(mode="json")
-    data.pop("frequency_status")
-    data["frequency"].pop("summary")
+    data = FREQUENCY.frequency.model_dump(mode="json")
+    data.pop("summary")
     with database() as session:
-        session.execute(update(ClassroomFrequencyCache).values(data=data))
+        session.execute(update(ClassroomFrequencyCache).values(frequency=data))
         session.commit()
     response = logged.get("/classrooms/HASH-A/frequency")
     assert response.status_code == 200
-    assert response.json()["frequency_status"] == "partially_registered"
+    assert response.json()["frequency_status"] == "parcialmente_registrada"
     assert response.json()["frequency"]["summary"] == {
         "total_entries": 3,
         "recorded_entries": 2,
@@ -1134,7 +1253,7 @@ def test_agregado_explicita_ausencia_sem_inventar_saldo_de_faltas(logged, accoun
     response = logged.get("/classrooms/frequency")
     assert response.status_code == 200
     for item in response.json():
-        assert item["frequency_status"] == "not_registered"
+        assert item["frequency_status"] == "nao_registrada"
         assert item["frequency"] is None
         assert item["progress"] == NOT_REGISTERED.progress.model_dump()
         assert item["classroom"]["subject"]["sigaa_id"] is None
@@ -1418,17 +1537,23 @@ async def test_turma_que_volta_para_a_lista_volta_cursando(
     )
 
 
-async def test_turma_sem_numero_nao_e_gravada(async_database, usuarios):
-    # A turma só do portal ainda não tem o número que o histórico traz.
-    portal = _turma("AAA", current=True).model_copy(update={"number": ""})
+async def test_turma_sem_numero_ou_codigo_nao_e_gravada(async_database, usuarios):
+    # A turma só do portal ainda não tem o número e o código que o histórico traz.
+    sem_numero = _turma("AAA", current=True).model_copy(update={"number": ""})
+    sem_codigo = _turma("CCC", current=True).model_copy(
+        update={"subject": sigaa_client.Subject(name="DISCIPLINA SEM CÓDIGO")}
+    )
 
     await _salvar_turmas(
-        async_database, usuarios[0], [portal, _turma("BBB", "FGA0158")]
+        async_database,
+        usuarios[0],
+        [sem_numero, sem_codigo, _turma("BBB", "FGA0158")],
     )
 
     links = await _vinculos(async_database, usuarios[0])
     assert [l.front_end_id for l in links] == ["BBB"]
     assert await _contar(async_database, ClassroomModel) == 1
+    assert await _contar(async_database, SubjectModel) == 1
 
 
 async def test_turma_e_compartilhada_entre_alunos(async_database, usuarios):

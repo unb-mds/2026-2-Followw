@@ -1,3 +1,5 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
 import type { components } from '#/queries/schema.gen.ts';
 
 import { api } from '#/queries/api.ts';
@@ -26,43 +28,34 @@ export const classroomFrequencyQueryOptions = (id: string) =>
         params: { path: { classroom_id: id } }
     });
 
-export type ManualAttendanceEntry = components['schemas']['ManualAttendanceEntry'];
+export type ClassroomFrequency = components['schemas']['ClassroomFrequencyView'];
+export type Lesson = components['schemas']['Lesson'];
+export type LessonMarkStatus = components['schemas']['LessonMarkStatus'];
 
-export function updateManualFrequencyEntries(
-    entries: ManualAttendanceEntry[],
-    entry: ManualAttendanceEntry,
-    remove: boolean
-): ManualAttendanceEntry[] {
-    const updated = entries.filter(
-        (item) => item.occurred_on !== entry.occurred_on || item.position !== entry.position
-    );
-    if (!remove) updated.push(entry);
-    return updated.toSorted(
-        (a, b) => a.occurred_on.localeCompare(b.occurred_on) || a.position - b.position
-    );
-}
-
-export const manualFrequencyQueryOptions = (id: string) =>
-    api.queryOptions('get', '/classrooms/{classroom_id}/frequency/manual', {
-        params: { path: { classroom_id: id } }
-    });
-
-export async function saveManualFrequency(id: string, entry: ManualAttendanceEntry) {
-    await apiClient.PUT('/classrooms/{classroom_id}/frequency/manual', {
-        params: { path: { classroom_id: id } },
-        body: entry
-    });
-}
-
-export async function removeManualFrequency(id: string, entry: ManualAttendanceEntry) {
-    await apiClient.DELETE('/classrooms/{classroom_id}/frequency/manual/{occurred_on}/{position}', {
-        params: {
-            path: {
+/** Marca a aula (`null` desmarca) e relê a frequência, que já volta com aulas e totais. */
+export function useMarkLesson(id: string) {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async ({
+            lesson,
+            status
+        }: {
+            lesson: Lesson;
+            status: LessonMarkStatus | null;
+        }) => {
+            const url = '/classrooms/{classroom_id}/frequency/lessons/{occurred_on}/{position}';
+            const path = {
                 classroom_id: id,
-                occurred_on: entry.occurred_on,
-                position: entry.position
-            }
-        }
+                occurred_on: lesson.occurred_on,
+                position: lesson.position
+            };
+            if (status) await apiClient.PUT(url, { params: { path }, body: { status } });
+            else await apiClient.DELETE(url, { params: { path } });
+        },
+        onSettled: () =>
+            queryClient.invalidateQueries({
+                queryKey: classroomFrequencyQueryOptions(id).queryKey
+            })
     });
 }
 

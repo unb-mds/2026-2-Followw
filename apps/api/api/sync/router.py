@@ -7,11 +7,11 @@ from sqlalchemy.exc import IntegrityError
 
 from api.db.main import DatabaseDep
 from api.modules.auth.account import sync_account
+from api.modules.classrooms.frequency import sync_frequency
 from api.modules.classrooms.news import sync_news, sync_news_content
 from api.modules.classrooms.service import (
     find_link,
     sync_classrooms,
-    sync_frequency,
     sync_grade,
     sync_members,
     sync_statistics,

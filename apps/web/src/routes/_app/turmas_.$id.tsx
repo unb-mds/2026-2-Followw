@@ -1,15 +1,8 @@
-import {
-    noop,
-    useMutation,
-    useQuery,
-    useQueryClient,
-    useSuspenseQuery
-} from '@tanstack/react-query';
-import { Link, createFileRoute } from '@tanstack/react-router';
+import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import { Link, createFileRoute, useCanGoBack, useRouter } from '@tanstack/react-router';
 import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 
-import type { ManualAttendanceEntry } from '#/queries/classrooms';
 import type { components } from '#/queries/schema.gen';
 
 import { ClassroomSummary } from '#/components/classroom/ClassroomSummary';
@@ -38,10 +31,7 @@ import {
     classroomMembersQueryOptions,
     classroomNewsDetailQueryOptions,
     classroomNewsQueryOptions,
-    manualFrequencyQueryOptions,
-    removeManualFrequency,
-    saveManualFrequency,
-    updateManualFrequencyEntries
+    useMarkLesson
 } from '#/queries/classrooms';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
@@ -73,11 +63,19 @@ export const Route = createFileRoute('/_app/turmas_/$id')({
 });
 
 function ClassroomHeader() {
+    const router = useRouter();
+    const canGoBack = useCanGoBack();
+
     return (
         <HeaderBar showLogo={false}>
             <Link
                 to="/turmas"
-                aria-label="Voltar para as turmas"
+                aria-label="Voltar"
+                onClick={(event) => {
+                    if (!canGoBack) return;
+                    event.preventDefault();
+                    router.history.back();
+                }}
                 className={buttonVariants({ variant: 'ghost', className: 'size-10' })}
             >
                 <ArrowLeft className="size-5" />
@@ -261,59 +259,23 @@ function NewsDetail({ classroomId, newsId }: { classroomId: string; newsId: numb
 }
 
 function FrequencyTab({ id }: { id: string }) {
-    const queryClient = useQueryClient();
     const frequency = useQuery(classroomFrequencyQueryOptions(id));
-    const manual = useQuery(manualFrequencyQueryOptions(id));
-    const manualKey = manualFrequencyQueryOptions(id).queryKey;
-    const [saveError, setSaveError] = useState(false);
-    const mutation = useMutation({
-        mutationFn: async ({
-            entry,
-            remove
-        }: {
-            entry: ManualAttendanceEntry;
-            remove: boolean;
-        }) => {
-            if (remove) await removeManualFrequency(id, entry);
-            else await saveManualFrequency(id, entry);
-        },
-        onMutate: async ({ entry, remove }) => {
-            setSaveError(false);
-            await queryClient.cancelQueries({ queryKey: manualKey });
-            const previous = queryClient.getQueryData<ManualAttendanceEntry[]>(manualKey);
-            queryClient.setQueryData<ManualAttendanceEntry[]>(manualKey, (current) =>
-                current ? updateManualFrequencyEntries(current, entry, remove) : current
-            );
-            return { previous };
-        },
-        onError: async (_error, _variables, context) => {
-            if (context?.previous) queryClient.setQueryData(manualKey, context.previous);
-            setSaveError(true);
-            await frequency.refetch();
-        },
-        onSettled: async () => {
-            await queryClient.invalidateQueries({ queryKey: manualKey });
-        }
-    });
+    const markLesson = useMarkLesson(id);
 
-    if (frequency.isPending || manual.isPending) return <TabLoading />;
+    if (frequency.isPending) return <TabLoading />;
     if (frequency.isLoadingError) return <TabError onRetry={() => frequency.refetch()} />;
-    if (manual.isLoadingError) return <TabError onRetry={() => manual.refetch()} />;
 
     return (
         <>
-            {saveError && (
+            {markLesson.isError && (
                 <p role="alert" className="mb-2 text-sm text-destructive">
-                    Não foi possível salvar a marcação. Confira a chamada atualizada e tente
-                    novamente.
+                    Não foi possível salvar a marcação. Tente novamente.
                 </p>
             )}
             <FrequencyContent
                 data={frequency.data}
-                manualEntries={manual.data}
-                pending={mutation.isPending}
-                onSave={(entry) => mutation.mutateAsync({ entry, remove: false })}
-                onRemove={(entry) => mutation.mutateAsync({ entry, remove: true })}
+                pending={markLesson.isPending}
+                onMark={(lesson, status) => markLesson.mutate({ lesson, status })}
             />
         </>
     );

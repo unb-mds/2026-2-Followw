@@ -1,10 +1,16 @@
-import { CircleCheck, CircleDashed, CircleX } from 'lucide-react';
+import { CircleCheck, CircleDashed, CircleSlash, CircleX } from 'lucide-react';
 
-import type { ManualAttendanceEntry } from '#/queries/classrooms';
-import type { components } from '#/queries/schema.gen';
+import type { ClassroomFrequency, Lesson, LessonMarkStatus } from '#/queries/classrooms';
 
 import { ListCard, Meter } from '#/components/ListCard';
-import { Card, CardContent } from '#/components/ui/card';
+import { Card } from '#/components/ui/card';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger
+} from '#/components/ui/dropdown-menu';
 import {
     formatClassroomDate,
     formatClassroomWeekday,
@@ -12,15 +18,7 @@ import {
 } from '#/lib/classroom-details';
 import { cn } from '#/lib/shadcn';
 
-type Frequency = components['schemas']['ClassroomFrequencyView'];
-type Entry = components['schemas']['AttendanceEntry'];
-type ManualStatus = ManualAttendanceEntry['status'];
-type DisplayEntry = {
-    occurred_on: string;
-    position: number;
-    official?: Entry;
-    manual?: ManualAttendanceEntry;
-};
+export type MarkLesson = (lesson: Lesson, status: LessonMarkStatus | null) => void;
 
 const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
 
@@ -30,109 +28,36 @@ const FREQUENCY_TONE = {
     danger: 'text-destructive'
 } as const;
 
-const ENTRY_VIEW = {
-    presente: { icon: CircleCheck, color: 'text-primary', label: () => 'Presença' },
-    falta: {
-        icon: CircleX,
-        color: 'text-destructive',
-        label: (entry: Entry) => plural(entry.absences, 'falta', 'faltas')
-    },
-    nao_registrada: {
-        icon: CircleDashed,
-        color: 'text-muted-foreground',
-        label: () => 'Não registrada'
-    }
+const LESSON_VIEW = {
+    presente: { icon: CircleCheck, color: 'text-primary', name: 'Presença' },
+    falta: { icon: CircleX, color: 'text-destructive', name: 'Falta' },
+    nao_registrada: { icon: CircleDashed, color: 'text-muted-foreground', name: 'Não registrada' },
+    cancelada: { icon: CircleSlash, color: 'text-muted-foreground', name: 'Aula cancelada' }
 } as const;
 
-const MANUAL_VIEW = {
-    presente: { icon: CircleCheck, color: 'text-primary', label: 'Presente' },
-    ausente: { icon: CircleX, color: 'text-destructive', label: 'Ausente' },
-    cancelada: { icon: CircleDashed, color: 'text-muted-foreground', label: 'Aula cancelada' }
-} as const;
-const EMPTY_MANUAL: ManualAttendanceEntry[] = [];
-const NEXT_MANUAL_STATUS: Record<ManualStatus, ManualStatus | null> = {
-    presente: 'ausente',
-    ausente: 'cancelada',
-    cancelada: null
-};
+// Marcações que o aluno pode dar a uma aula sem chamada no SIGAA.
+const MARKS: LessonMarkStatus[] = ['presente', 'falta', 'cancelada'];
 
-function nextManualStatus(status?: ManualStatus): ManualStatus | null {
-    return status ? NEXT_MANUAL_STATUS[status] : 'presente';
-}
-
-function displayEntries(official: Entry[], manual: ManualAttendanceEntry[]): DisplayEntry[] {
-    const entries = new Map<string, DisplayEntry>();
-    const positions = new Map<string, number>();
-    for (const entry of official) {
-        const position = positions.get(entry.occurred_on) ?? 0;
-        positions.set(entry.occurred_on, position + 1);
-        entries.set(`${entry.occurred_on}:${position}`, {
-            occurred_on: entry.occurred_on,
-            position,
-            official: entry
-        });
-    }
-    for (const entry of manual) {
-        const key = `${entry.occurred_on}:${entry.position}`;
-        const current = entries.get(key);
-        if (current?.official?.status === 'presente' || current?.official?.status === 'falta') {
-            continue;
-        }
-        entries.set(key, {
-            ...current,
-            occurred_on: entry.occurred_on,
-            position: entry.position,
-            manual: entry
-        });
-    }
-    return [...entries.values()].toSorted(
-        (a, b) => b.occurred_on.localeCompare(a.occurred_on) || b.position - a.position
-    );
+function lessonLabel(lesson: Lesson) {
+    return lesson.status === 'falta'
+        ? plural(lesson.absences, 'falta', 'faltas')
+        : LESSON_VIEW[lesson.status].name;
 }
 
 export function FrequencyContent({
     data,
-    manualEntries = EMPTY_MANUAL,
-    onSave,
-    onRemove,
-    pending = false
+    onMark,
+    pending
 }: {
-    data: Frequency;
-    manualEntries?: ManualAttendanceEntry[];
-    onSave?: (entry: ManualAttendanceEntry) => Promise<unknown>;
-    onRemove?: (entry: ManualAttendanceEntry) => Promise<unknown>;
-    pending?: boolean;
+    data: ClassroomFrequency;
+    onMark: MarkLesson;
+    pending: boolean;
 }) {
-    const attendance = data.frequency;
-    const summary = attendance?.summary;
-    const registered = data.frequency_status !== 'not_registered';
-    const entries = displayEntries(
-        [...(attendance?.entries ?? []), ...(data.unregistered_entries ?? [])],
-        manualEntries
-    );
-    const manualPresent = entries.filter((entry) => entry.manual?.status === 'presente').length;
-    const manualAbsent = entries.filter((entry) => entry.manual?.status === 'ausente').length;
-    const presences =
-        (summary?.recorded_entries ?? 0) - (summary?.absence_entries ?? 0) + manualPresent;
-    const absences = (summary?.total_absences ?? 0) + manualAbsent;
-    const manualRecorded = manualPresent + manualAbsent;
-    const registeredLessons = (attendance?.registered ?? 0) + manualRecorded;
-    const percentage = manualRecorded
-        ? (((attendance?.attended ?? 0) + manualPresent) / registeredLessons) * 100
-        : (attendance?.registered_percentage ?? 0);
-    function toggle(entry: DisplayEntry) {
-        const status = nextManualStatus(entry.manual?.status);
-        if (status === null && entry.manual) {
-            void onRemove?.(entry.manual).catch(() => {});
-        } else if (status && onSave) {
-            void onSave({
-                occurred_on: entry.occurred_on,
-                position: entry.position,
-                status,
-                manual: true
-            }).catch(() => {});
-        }
-    }
+    const { totals, lessons } = data;
+    const notLaunched = data.frequency_status === 'nao_registrada';
+    const perDay = new Map<string, number>();
+    for (const { occurred_on } of lessons)
+        perDay.set(occurred_on, (perDay.get(occurred_on) ?? 0) + 1);
 
     return (
         <div className="flex flex-col gap-2">
@@ -143,108 +68,143 @@ export function FrequencyContent({
                     detail={`${data.progress.taught}h ministradas de ${data.progress.total}h`}
                 />
             </ListCard>
-            {!registered && (
-                <Card size="sm">
-                    <CardContent className="text-center text-sm text-muted-foreground">
-                        A frequência ainda não foi lançada pelo professor.
-                    </CardContent>
-                </Card>
-            )}
-            {((summary?.recorded_entries ?? 0) > 0 || manualRecorded > 0) && (
+            {totals && (
                 <Card size="sm" className="gap-0 py-0">
                     <dl className="grid grid-cols-3 divide-x divide-border">
-                        <Stat label="Presenças" value={presences} />
+                        <Stat label="Presenças" value={totals.presences} />
                         <Stat
                             label="Faltas"
-                            value={absences}
-                            className={absences > 0 ? 'text-destructive' : undefined}
+                            value={
+                                <>
+                                    {totals.absences}
+                                    {totals.max_absences !== null && (
+                                        <small className="text-sm font-medium text-foreground">
+                                            {' '}
+                                            / {totals.max_absences}
+                                        </small>
+                                    )}
+                                </>
+                            }
+                            className={totals.absences > 0 ? 'text-destructive' : undefined}
                         />
                         <Stat
                             label="Frequência"
-                            value={`${Number(percentage.toFixed(1)).toLocaleString('pt-BR')}%`}
-                            className={FREQUENCY_TONE[frequencyTone(percentage)]}
+                            value={`${totals.percentage.toLocaleString('pt-BR')}%`}
+                            className={FREQUENCY_TONE[frequencyTone(totals.percentage)]}
                         />
                     </dl>
                 </Card>
             )}
-            {manualRecorded > 0 && (
+            {totals?.estimated && (
                 <p className="px-1 text-xs text-muted-foreground">
                     Frequência estimada com as aulas marcadas por você.
                 </p>
             )}
-            {data.frequency_status === 'partially_registered' && (
+            {data.frequency_status === 'parcialmente_registrada' && (
                 <p className="px-1 text-xs text-muted-foreground">
                     Há aulas publicadas cuja frequência ainda não foi registrada.
                 </p>
             )}
-            {entries.length > 0 && (
+            {(lessons.length > 0 || notLaunched) && (
                 <section>
-                    <h3 className="mb-2 px-1 text-sm font-semibold">
-                        Aulas{' '}
-                        <span className="font-normal text-muted-foreground">{entries.length}</span>
-                    </h3>
+                    {lessons.length > 0 && (
+                        <h3 className="mb-2 px-1 text-sm font-semibold">
+                            Aulas{' '}
+                            <span className="font-normal text-muted-foreground">
+                                {lessons.length}
+                            </span>
+                        </h3>
+                    )}
                     <ListCard>
-                        {entries.map((entry) => {
-                            const view = entry.manual
-                                ? MANUAL_VIEW[entry.manual.status]
-                                : ENTRY_VIEW[entry.official!.status];
-                            const editable =
-                                !entry.official || entry.official.status === 'nao_registrada';
-                            const label =
-                                typeof view.label === 'function'
-                                    ? view.label(entry.official!)
-                                    : view.label;
-                            const nextStatus = nextManualStatus(entry.manual?.status);
-                            const nextLabel = nextStatus
-                                ? MANUAL_VIEW[nextStatus].label.toLowerCase()
-                                : 'não marcada';
-                            return (
-                                <div
-                                    key={`${entry.occurred_on}:${entry.position}`}
-                                    className="flex flex-wrap items-center gap-2 py-2.5 text-sm"
-                                >
-                                    {editable && onSave && onRemove ? (
-                                        <button
-                                            type="button"
-                                            aria-label={`Situação de ${formatClassroomDate(entry.occurred_on)}, aula ${entry.position + 1}: ${label}. Alterar para ${nextLabel}.`}
-                                            title={`Alterar para ${nextLabel}`}
-                                            disabled={pending}
-                                            onClick={() => toggle(entry)}
-                                            className="relative flex size-4 shrink-0 items-center justify-center rounded-full after:absolute after:-inset-2 after:rounded-full hover:opacity-70 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50"
-                                        >
-                                            <view.icon
-                                                className={cn('size-4', view.color)}
-                                                aria-hidden
-                                            />
-                                        </button>
-                                    ) : (
-                                        <view.icon
-                                            className={cn('size-4 shrink-0', view.color)}
-                                            aria-hidden
-                                        />
-                                    )}
-                                    <span className="tabular-nums">
-                                        {formatClassroomDate(entry.occurred_on)}
-                                    </span>
-                                    <span className="text-xs text-muted-foreground">
-                                        {formatClassroomWeekday(entry.occurred_on)}
-                                    </span>
-                                    {entries.filter(
-                                        (item) => item.occurred_on === entry.occurred_on
-                                    ).length > 1 && (
-                                        <span className="text-xs text-muted-foreground">
-                                            Aula {entry.position + 1}
-                                        </span>
-                                    )}
-                                    <span className={cn('ml-auto text-xs font-medium', view.color)}>
-                                        {label}
-                                    </span>
-                                </div>
-                            );
-                        })}
+                        {lessons.map((lesson) => (
+                            <LessonRow
+                                key={`${lesson.occurred_on}:${lesson.position}`}
+                                lesson={lesson}
+                                numbered={(perDay.get(lesson.occurred_on) ?? 0) > 1}
+                                onMark={onMark}
+                                pending={pending}
+                            />
+                        ))}
+                        {notLaunched && (
+                            <p className="py-2.5 text-center text-sm text-muted-foreground">
+                                A frequência ainda não foi lançada pelo professor.
+                            </p>
+                        )}
                     </ListCard>
                 </section>
             )}
+        </div>
+    );
+}
+
+function LessonRow({
+    lesson,
+    numbered,
+    onMark,
+    pending
+}: {
+    lesson: Lesson;
+    numbered: boolean;
+    onMark: MarkLesson;
+    pending: boolean;
+}) {
+    const view = LESSON_VIEW[lesson.status];
+    const label = lessonLabel(lesson);
+    const editable = lesson.marked || lesson.status === 'nao_registrada';
+    // presença e falta tingem a linha toda; os textos secundários só esmaecem
+    const tinted = lesson.status === 'presente' || lesson.status === 'falta';
+    const secondary = tinted ? 'text-xs opacity-70' : 'text-xs text-muted-foreground';
+
+    return (
+        <div
+            className={cn(
+                'flex flex-wrap items-center gap-2 py-2.5 text-sm',
+                tinted && view.color,
+                lesson.status === 'cancelada' && 'line-through'
+            )}
+        >
+            {editable ? (
+                <DropdownMenu>
+                    <DropdownMenuTrigger
+                        aria-label={`Situação de ${formatClassroomDate(lesson.occurred_on)}, aula ${lesson.position + 1}: ${label}. Alterar situação.`}
+                        disabled={pending}
+                        className="relative flex size-4 shrink-0 items-center justify-center rounded-full after:absolute after:-inset-2 after:rounded-full hover:opacity-70 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50"
+                    >
+                        <view.icon className={cn('size-4', view.color)} aria-hidden />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-44">
+                        {MARKS.map((mark) => {
+                            const option = LESSON_VIEW[mark];
+                            return (
+                                <DropdownMenuItem
+                                    key={mark}
+                                    disabled={lesson.marked && lesson.status === mark}
+                                    onClick={() => onMark(lesson, mark)}
+                                >
+                                    <option.icon className={option.color} />
+                                    {option.name}
+                                </DropdownMenuItem>
+                            );
+                        })}
+                        {lesson.marked && (
+                            <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => onMark(lesson, null)}>
+                                    <CircleDashed />
+                                    Remover marcação
+                                </DropdownMenuItem>
+                            </>
+                        )}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            ) : (
+                <view.icon className={cn('size-4 shrink-0', view.color)} aria-hidden />
+            )}
+            <span className="tabular-nums">{formatClassroomDate(lesson.occurred_on)}</span>
+            <span className={secondary}>{formatClassroomWeekday(lesson.occurred_on)}</span>
+            {numbered && <span className={secondary}>Aula {lesson.position + 1}</span>}
+            {lesson.marked && <span className={secondary}>Marcada</span>}
+            <span className={cn('ml-auto text-xs font-medium', view.color)}>{label}</span>
         </div>
     );
 }

@@ -3,13 +3,18 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
-from sigaa_client import Grade
+from sigaa_client import FrequencyStatus, Grade
 from sqlalchemy import JSON, DateTime, ForeignKey, Index, Text, UniqueConstraint
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from api.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
-from api.db.enums import ClassroomRole, ClassroomStatus, UserLevel
+from api.db.enums import (
+    ClassroomRole,
+    ClassroomStatus,
+    LessonMarkStatus,
+    UserLevel,
+)
 
 
 def _enum(enum: type, name: str) -> SAEnum:
@@ -55,11 +60,10 @@ Index(
 )
 
 
-class Subject(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+class Subject(Base, TimestampMixin):
     __tablename__ = "subjects"
 
-    code: Mapped[str | None] = mapped_column(unique=True)
-    sigaa_id: Mapped[int | None] = mapped_column()
+    code: Mapped[str] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column()
     hours: Mapped[int | None] = mapped_column()
     unity: Mapped[str | None] = mapped_column()
@@ -71,7 +75,7 @@ class Classroom(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "classrooms"
     __table_args__ = (
         UniqueConstraint(
-            "subject_id", "number", "semester", name="uq_classroom_subject_number"
+            "subject_code", "number", "semester", name="uq_classroom_subject_number"
         ),
     )
 
@@ -80,12 +84,14 @@ class Classroom(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     semester: Mapped[str] = mapped_column()
     schedule: Mapped[str | None] = mapped_column()
     room: Mapped[str | None] = mapped_column()
-    subject_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("subjects.id"))
+    subject_code: Mapped[str] = mapped_column(ForeignKey("subjects.code"))
     members_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     news_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     statistics_synced_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True)
     )
+    # Andamento das aulas: é o mesmo para todos os alunos, vem com a frequência.
+    progress: Mapped[dict[str, int] | None] = mapped_column(JSON)
 
     subject: Mapped[Subject] = relationship(back_populates="classrooms")
     user_links: Mapped[list[ClassroomUser]] = relationship(
@@ -126,6 +132,7 @@ class ClassroomUser(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     frequency_cache: Mapped[ClassroomFrequencyCache | None] = relationship(
         cascade="all, delete-orphan", single_parent=True
     )
+    lesson_marks: Mapped[list[LessonMark]] = relationship(cascade="all, delete-orphan")
 
 
 @dataclass(frozen=True)
@@ -147,8 +154,33 @@ class ClassroomFrequencyCache(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     user_classroom_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("user_classrooms.id", ondelete="CASCADE"), unique=True
     )
-    data: Mapped[dict[str, object]] = mapped_column(JSON)
+    # `ClassroomAttendance` do SIGAA; `None` enquanto o docente não lança a frequência.
+    frequency: Mapped[dict[str, object] | None] = mapped_column(JSON)
+    frequency_status: Mapped[FrequencyStatus] = mapped_column(
+        _enum(FrequencyStatus, "frequency_status")
+    )
     synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class LessonMark(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """Situação de uma aula marcada pelo aluno; a chamada do SIGAA prevalece sobre ela."""
+
+    __tablename__ = "lesson_marks"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_classroom_id", "occurred_on", "position", name="uq_lesson_mark"
+        ),
+    )
+
+    user_classroom_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_classrooms.id", ondelete="CASCADE")
+    )
+    occurred_on: Mapped[dt.date] = mapped_column()
+    # Ordem da aula entre as do mesmo dia.
+    position: Mapped[int] = mapped_column()
+    status: Mapped[LessonMarkStatus] = mapped_column(
+        _enum(LessonMarkStatus, "lesson_mark_status")
+    )
 
 
 class ClassroomStatistic(Base, UUIDPrimaryKeyMixin, TimestampMixin):

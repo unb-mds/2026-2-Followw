@@ -146,6 +146,14 @@ class AttendanceStatus(str, enum.Enum):
     NAO_REGISTRADA = "nao_registrada"
 
 
+class FrequencyStatus(str, enum.Enum):
+    """Quanto das entradas publicadas o docente já registrou."""
+
+    NAO_REGISTRADA = "nao_registrada"
+    PARCIALMENTE_REGISTRADA = "parcialmente_registrada"
+    REGISTRADA = "registrada"
+
+
 class AttendanceEntry(BaseModel):
     """Uma aula do mapa de frequências. `absences` é 0 fora da situação de falta."""
 
@@ -255,14 +263,12 @@ class ClassroomFrequency(BaseModel):
 
     @computed_field
     @property
-    def frequency_status(
-        self,
-    ) -> Literal["not_registered", "partially_registered", "registered"]:
+    def frequency_status(self) -> FrequencyStatus:
         if self.frequency is None or self.frequency.summary.recorded_entries == 0:
-            return "not_registered"
+            return FrequencyStatus.NAO_REGISTRADA
         if self.frequency.summary.unrecorded_entries:
-            return "partially_registered"
-        return "registered"
+            return FrequencyStatus.PARCIALMENTE_REGISTRADA
+        return FrequencyStatus.REGISTRADA
 
 
 class TeachingLevel(str, enum.Enum):

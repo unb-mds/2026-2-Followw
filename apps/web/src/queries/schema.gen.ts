@@ -108,7 +108,7 @@ export interface paths {
         };
         /**
          * Consultar frequência de todas as turmas atuais
-         * @description Turmas atuais com identificação, andamento, frequência, frequency_status e resumo das entradas. Falha em uma turma retorna erro, sem omiti-la da lista.
+         * @description Turmas atuais com identificação, andamento, frequência, frequency_status, aulas e totais. Falha em uma turma retorna erro, sem omiti-la da lista.
          */
         get: operations["get_current_frequencies_classrooms_frequency_get"];
         put?: never;
@@ -128,7 +128,7 @@ export interface paths {
         };
         /**
          * Consultar frequência e andamento de uma turma
-         * @description Aceita Classroom.id (hash) ou sigaa_id numérico. frequency_status indica not_registered, partially_registered ou registered nas entradas publicadas.
+         * @description Aceita Classroom.id (hash) ou sigaa_id numérico. frequency_status indica nao_registrada, parcialmente_registrada ou registrada nas entradas publicadas. lessons traz as aulas do SIGAA, as anteriores previstas pelo calendário e horário da turma e as marcadas pelo aluno, mais recentes primeiro; totals soma as marcações aos totais do SIGAA.
          */
         get: operations["get_classroom_frequency_classrooms__classroom_id__frequency_get"];
         put?: never;
@@ -139,25 +139,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/classrooms/{classroom_id}/frequency/manual": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Consultar marcações de frequência feitas pelo aluno */
-        get: operations["get_manual_frequency_classrooms__classroom_id__frequency_manual_get"];
-        /** Marcar presença, ausência ou aula cancelada */
-        put: operations["put_manual_frequency_classrooms__classroom_id__frequency_manual_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/classrooms/{classroom_id}/frequency/manual/{occurred_on}/{position}": {
+    "/classrooms/{classroom_id}/frequency/lessons/{occurred_on}/{position}": {
         parameters: {
             query?: never;
             header?: never;
@@ -165,10 +147,14 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put?: never;
+        /**
+         * Marcar presença, falta ou aula cancelada
+         * @description Vale enquanto o SIGAA não registra a aula: a chamada publicada prevalece sobre a marcação.
+         */
+        put: operations["mark_lesson_classrooms__classroom_id__frequency_lessons__occurred_on___position__put"];
         post?: never;
-        /** Remover uma marcação manual de frequência */
-        delete: operations["remove_manual_frequency_classrooms__classroom_id__frequency_manual__occurred_on___position__delete"];
+        /** Remover a marcação de uma aula */
+        delete: operations["unmark_lesson_classrooms__classroom_id__frequency_lessons__occurred_on___position__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -422,56 +408,30 @@ export interface components {
             total_percentage: number;
             readonly summary: components["schemas"]["AttendanceSummary"];
         };
-        /**
-         * ClassroomFrequency
-         * @description A tela de frequência da turma virtual.
-         *
-         *     `frequency` é `None` quando o docente não lançou frequência — nesse caso o
-         *     SIGAA ainda mostra totais na tela, mas eles são fictícios (100% de presença
-         *     em toda a carga horária), então não são devolvidos.
-         */
-        ClassroomFrequency: {
-            progress: components["schemas"]["ClassroomProgress"];
-            frequency?: components["schemas"]["ClassroomAttendance"] | null;
-            /**
-             * Frequency Status
-             * @enum {string}
-             */
-            readonly frequency_status: "not_registered" | "partially_registered" | "registered";
-        };
         /** ClassroomFrequencyResult */
         ClassroomFrequencyResult: {
             progress: components["schemas"]["ClassroomProgress"];
             frequency?: components["schemas"]["ClassroomAttendance"] | null;
             /**
-             * Unregistered Entries
+             * Lessons
              * @default []
              */
-            unregistered_entries: components["schemas"]["AttendanceEntry"][];
+            lessons: components["schemas"]["Lesson"][];
+            totals?: components["schemas"]["FrequencyTotals"] | null;
             classroom: components["schemas"]["UserClassroom"];
-            /**
-             * Frequency Status
-             * @enum {string}
-             */
-            readonly frequency_status: "not_registered" | "partially_registered" | "registered";
+            readonly frequency_status: components["schemas"]["FrequencyStatus"];
         };
-        /**
-         * ClassroomFrequencyView
-         * @description Frequência do SIGAA e aulas passadas previstas sem chamada publicada.
-         */
+        /** ClassroomFrequencyView */
         ClassroomFrequencyView: {
             progress: components["schemas"]["ClassroomProgress"];
             frequency?: components["schemas"]["ClassroomAttendance"] | null;
             /**
-             * Unregistered Entries
+             * Lessons
              * @default []
              */
-            unregistered_entries: components["schemas"]["AttendanceEntry"][];
-            /**
-             * Frequency Status
-             * @enum {string}
-             */
-            readonly frequency_status: "not_registered" | "partially_registered" | "registered";
+            lessons: components["schemas"]["Lesson"][];
+            totals?: components["schemas"]["FrequencyTotals"] | null;
+            readonly frequency_status: components["schemas"]["FrequencyStatus"];
         };
         /**
          * ClassroomMember
@@ -543,6 +503,28 @@ export interface components {
             dinner?: components["schemas"]["MenuSection"][] | null;
         };
         /**
+         * FrequencyStatus
+         * @description Quanto das entradas publicadas o docente já registrou.
+         * @enum {string}
+         */
+        FrequencyStatus: "nao_registrada" | "parcialmente_registrada" | "registrada";
+        /**
+         * FrequencyTotals
+         * @description Presenças, faltas e frequência do SIGAA somadas às aulas marcadas pelo aluno.
+         */
+        FrequencyTotals: {
+            /** Presences */
+            presences: number;
+            /** Absences */
+            absences: number;
+            /** Percentage */
+            percentage: number;
+            /** Max Absences */
+            max_absences: number | null;
+            /** Estimated */
+            estimated: boolean;
+        };
+        /**
          * Grade
          * @description Menção da UnB, como o "Resultado" da tela "Ver Notas".
          * @enum {string}
@@ -553,6 +535,44 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /**
+         * Lesson
+         * @description Uma aula; `position` a distingue das outras do mesmo dia.
+         */
+        Lesson: {
+            /**
+             * Occurred On
+             * Format: date
+             */
+            occurred_on: string;
+            /** Position */
+            position: number;
+            status: components["schemas"]["LessonStatus"];
+            /**
+             * Absences
+             * @default 0
+             */
+            absences: number;
+            /**
+             * Marked
+             * @default false
+             */
+            marked: boolean;
+        };
+        /** LessonMarkBody */
+        LessonMarkBody: {
+            status: components["schemas"]["LessonMarkStatus"];
+        };
+        /**
+         * LessonMarkStatus
+         * @enum {string}
+         */
+        LessonMarkStatus: "presente" | "falta" | "cancelada";
+        /**
+         * LessonStatus
+         * @enum {string}
+         */
+        LessonStatus: "presente" | "falta" | "nao_registrada" | "cancelada";
         /** MenuSection */
         MenuSection: {
             key?: components["schemas"]["MenuSectionKey"] | null;
@@ -566,27 +586,6 @@ export interface components {
          * @enum {string}
          */
         MenuSectionKey: "drink" | "bread" | "extra" | "spread" | "complement" | "complement_vegetarian" | "complement_vegan" | "fruit" | "salad_1" | "salad_2" | "salad_dressing" | "main_dish" | "main_dish_vegetarian" | "main_dish_vegan" | "side_dish" | "accompaniments" | "soup" | "toast" | "dessert";
-        /** ManualAttendanceEntry */
-        ManualAttendanceEntry: {
-            /**
-             * Occurred On
-             * Format: date
-             */
-            occurred_on: string;
-            /** Position */
-            position: number;
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "presente" | "ausente" | "cancelada";
-            /**
-             * Manual
-             * @default true
-             * @constant
-             */
-            manual: true;
-        };
         /**
          * News
          * @description A home não traz `id`; hora, texto e anexos só vêm de `get_classroom_news`.
@@ -1230,130 +1229,7 @@ export interface operations {
             };
         };
     };
-    get_manual_frequency_classrooms__classroom_id__frequency_manual_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description `no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache). */
-                "Cache-Control"?: string | null;
-            };
-            path: {
-                /** @description Classroom.id ou Classroom.sigaa_id. */
-                classroom_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ManualAttendanceEntry"][];
-                };
-            };
-            /** @description Credenciais ausentes ou inválidas. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Turma não encontrada entre as turmas do usuário. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            /** @description SIGAA indisponível. */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    put_manual_frequency_classrooms__classroom_id__frequency_manual_put: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description `no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache). */
-                "Cache-Control"?: string | null;
-            };
-            path: {
-                /** @description Classroom.id ou Classroom.sigaa_id. */
-                classroom_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ManualAttendanceEntry"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ManualAttendanceEntry"];
-                };
-            };
-            /** @description Credenciais ausentes ou inválidas. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Turma não encontrada entre as turmas do usuário. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description A chamada desta aula já foi registrada no SIGAA. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            /** @description SIGAA indisponível. */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    remove_manual_frequency_classrooms__classroom_id__frequency_manual__occurred_on___position__delete: {
+    mark_lesson_classrooms__classroom_id__frequency_lessons__occurred_on___position__put: {
         parameters: {
             query?: never;
             header?: {
@@ -1364,6 +1240,68 @@ export interface operations {
                 /** @description Classroom.id ou Classroom.sigaa_id. */
                 classroom_id: string;
                 occurred_on: string;
+                /** @description Ordem da aula entre as do mesmo dia (Lesson.position). */
+                position: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LessonMarkBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Turma não encontrada entre as turmas do usuário. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description SIGAA indisponível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    unmark_lesson_classrooms__classroom_id__frequency_lessons__occurred_on___position__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description `no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache). */
+                "Cache-Control"?: string | null;
+            };
+            path: {
+                /** @description Classroom.id ou Classroom.sigaa_id. */
+                classroom_id: string;
+                occurred_on: string;
+                /** @description Ordem da aula entre as do mesmo dia (Lesson.position). */
                 position: number;
             };
             cookie?: never;

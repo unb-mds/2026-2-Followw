@@ -18,3 +18,9 @@ class ClassroomStatus(str, enum.Enum):
     REMOVIDO = "removido"
     TRANCADO = "trancado"
     CONCLUIDO = "concluido"
+
+
+class LessonMarkStatus(str, enum.Enum):
+    PRESENTE = "presente"
+    FALTA = "falta"
+    CANCELADA = "cancelada"

@@ -3,11 +3,8 @@ from functools import partial
 from typing import Annotated
 
 from fastapi import Depends
-from pydantic import ValidationError
 from sigaa_client import (
-    AttendanceEntry,
     Classroom,
-    ClassroomFrequency,
     ClassroomMember,
     ClassroomNotFound,
     ClassroomRole,
@@ -22,7 +19,6 @@ from api import academic_calendar
 from api.cache import Freshness, freshness
 from api.db.models import ClassroomUser, OwnLink, User
 from api.modules.classrooms.repository import ClassroomRepository
-from api.modules.classrooms.scheduled_frequency import scheduled_entries
 from api.modules.me.profile import sync_profile
 from api.modules.me.repository import UserRepository
 from api.sync import Cached, Context, SyncDep
@@ -116,16 +112,6 @@ async def sync_statistics(ctx: Context[OwnLink]) -> None:
     )
 
 
-async def sync_frequency(ctx: Context[OwnLink]) -> None:
-    link = ctx.target
-    frequency = await ctx.client.classrooms.get_classroom_frequency(link.front_end_id)
-    await ctx.sync.db.write(
-        lambda session: ClassroomRepository(session).save_frequency(
-            link.row.id, frequency, datetime.now(UTC)
-        )
-    )
-
-
 async def sync_grade(ctx: Context[OwnLink]) -> None:
     link = ctx.target
     grade = await ctx.client.classrooms.get_classroom_grade(link.front_end_id)
@@ -140,16 +126,6 @@ class UserClassroom(Classroom):
     """A turma com a menção do usuário, `None` enquanto não lançada ou sincronizada."""
 
     grade: Grade | None = None
-
-
-class ClassroomFrequencyView(ClassroomFrequency):
-    """Frequência do SIGAA e aulas passadas previstas sem chamada publicada."""
-
-    unregistered_entries: tuple[AttendanceEntry, ...] = ()
-
-
-class ClassroomFrequencyResult(ClassroomFrequencyView):
-    classroom: UserClassroom
 
 
 class ClassroomService:
@@ -220,49 +196,6 @@ class ClassroomService:
 
         return sorted(shares, key=lambda s: _SITUATIONS.index(s.situation))
 
-    async def get_frequency(self, classroom_id: str) -> ClassroomFrequencyView:
-        link = await self.get_link(classroom_id)
-
-        async def load(session: AsyncSession) -> Cached[ClassroomFrequency] | None:
-            cached = await ClassroomRepository(session).get_frequency(link.row.id)
-            if cached is None:
-                return None
-            try:
-                frequency = ClassroomFrequency.model_validate(cached.data)
-            except ValidationError:
-                return None
-            return Cached(
-                frequency,
-                cached.synced_at,
-                freshness(cached.synced_at, details_ttl(link)),
-            )
-
-        frequency = await self._sync.resolve(sync_frequency, link, load)
-        classroom = link.row.classroom
-        return ClassroomFrequencyView(
-            progress=frequency.progress,
-            frequency=frequency.frequency,
-            unregistered_entries=scheduled_entries(
-                classroom.semester, classroom.schedule, frequency
-            )
-            if link.row.current
-            else (),
-        )
-
-    async def list_frequencies(self) -> list[ClassroomFrequencyResult]:
-        result = []
-        for classroom in await self.list_classrooms():
-            frequency = await self.get_frequency(classroom.id)
-            result.append(
-                ClassroomFrequencyResult(
-                    classroom=classroom,
-                    progress=frequency.progress,
-                    frequency=frequency.frequency,
-                    unregistered_entries=frequency.unregistered_entries,
-                )
-            )
-        return result
-
     async def get_link(self, classroom_id: str) -> OwnLink:
         """O vínculo pelo `Classroom.id` ou pelo `sigaa_id` da turma."""
         find = partial(find_link, self._sync.registration, classroom_id)
@@ -320,7 +253,6 @@ def _to_classroom(link: OwnLink) -> UserClassroom:
         current=link.row.current,
         subject=Subject(
             code=subject.code,
-            sigaa_id=subject.sigaa_id,
             name=subject.name,
             hours=subject.hours,
             unity=subject.unity,
