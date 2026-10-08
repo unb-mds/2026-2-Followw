@@ -91,7 +91,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Consultar as turmas do usuário autenticado */
+        /**
+         * Consultar as turmas do usuário autenticado
+         * @description Cada turma traz a menção do usuário em grade (null até ser lançada ou sincronizada). A menção é atualizada pelo sync do login e de /auth/sigaa/refresh, e congela depois da consolidação das turmas.
+         */
         get: operations["get_classrooms_classrooms_get"];
         put?: never;
         post?: never;
@@ -364,35 +367,6 @@ export interface components {
             total_absences: number;
         };
         /**
-         * Classroom
-         * @description Turma, nos campos da tabela `classrooms`.
-         *
-         *     `id` é o `frontEndIdTurma` do SIGAA — o único identificador presente tanto
-         *     nas turmas do semestre quanto no histórico. `sigaa_id` é o id numérico
-         *     interno, que só o portal do semestre expõe. `current` marca as turmas que o
-         *     portal lista como atuais.
-         */
-        Classroom: {
-            /** Id */
-            id: string;
-            /** Sigaa Id */
-            sigaa_id?: number | null;
-            /** Number */
-            number: string;
-            /** Semester */
-            semester: string;
-            /** Schedule */
-            schedule?: string | null;
-            /** Room */
-            room?: string | null;
-            /**
-             * Current
-             * @default false
-             */
-            current: boolean;
-            subject: components["schemas"]["Subject"];
-        };
-        /**
          * ClassroomAttendance
          * @description Mapa de frequências da turma, com os totais que o próprio SIGAA calcula.
          *
@@ -439,7 +413,7 @@ export interface components {
         ClassroomFrequencyResult: {
             progress: components["schemas"]["ClassroomProgress"];
             frequency?: components["schemas"]["ClassroomAttendance"] | null;
-            classroom: components["schemas"]["Classroom"];
+            classroom: components["schemas"]["UserClassroom"];
             /**
              * Frequency Status
              * @enum {string}
@@ -515,6 +489,12 @@ export interface components {
             /** Dinner */
             dinner?: components["schemas"]["MenuSection"][] | null;
         };
+        /**
+         * Grade
+         * @description Menção da UnB, como o "Resultado" da tela "Ver Notas".
+         * @enum {string}
+         */
+        Grade: "SS" | "MS" | "MM" | "MI" | "II" | "SR";
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -689,6 +669,31 @@ export interface components {
             id: number;
             /** Name */
             name: string;
+        };
+        /**
+         * UserClassroom
+         * @description A turma com a menção do usuário, `None` enquanto não lançada ou sincronizada.
+         */
+        UserClassroom: {
+            /** Id */
+            id: string;
+            /** Sigaa Id */
+            sigaa_id?: number | null;
+            /** Number */
+            number: string;
+            /** Semester */
+            semester: string;
+            /** Schedule */
+            schedule?: string | null;
+            /** Room */
+            room?: string | null;
+            /**
+             * Current
+             * @default false
+             */
+            current: boolean;
+            subject: components["schemas"]["Subject"];
+            grade?: components["schemas"]["Grade"] | null;
         };
         /**
          * UserLevel
@@ -1000,7 +1005,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Classroom"][];
+                    "application/json": components["schemas"]["UserClassroom"][];
                 };
             };
             /** @description Credenciais ausentes ou inválidas. */
