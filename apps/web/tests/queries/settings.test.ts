@@ -11,7 +11,7 @@ import { ApiError } from '#/queries/errors';
 import { settingsQueryOptions } from '#/queries/settings';
 
 const registration = '251000000';
-const settings: UserSettings = { displayName: 'Ana', defaultRuCampus: 'Gama' };
+const settings: UserSettings = { displayName: 'Ana' };
 
 describe('configurações do usuário', () => {
     let middleware: Middleware;

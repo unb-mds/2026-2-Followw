@@ -50,7 +50,7 @@
             "post": {
                 "tags": ["Auth"],
                 "summary": "Sigaa Refresh",
-                "description": "Loga no SIGAA com o refresh_token se ainda não houver um access_token válido.\n\nO cache sai só com o refresh_token, então o app chama esta rota ao abrir: ela\nconfere a senha, aquece o access_token e revalida o que venceu, como o login.",
+                "description": "Confere a senha se não houver access_token e agenda o sync do que venceu.\n\nO cache sai só com o refresh_token, então o app chama esta rota ao abrir.",
                 "operationId": "sigaa_refresh_auth_sigaa_refresh_post",
                 "responses": {
                     "204": { "description": "Successful Response" },
@@ -191,6 +191,7 @@
             "get": {
                 "tags": ["Classrooms"],
                 "summary": "Consultar as turmas do usuário autenticado",
+                "description": "Cada turma traz a menção do usuário em grade (null até ser lançada ou sincronizada). A menção é atualizada pelo sync do login e de /auth/sigaa/refresh, e congela depois da consolidação das turmas.",
                 "operationId": "get_classrooms_classrooms_get",
                 "parameters": [
                     {
@@ -226,7 +227,7 @@
                             "application/json": {
                                 "schema": {
                                     "type": "array",
-                                    "items": { "$ref": "#/components/schemas/Classroom" },
+                                    "items": { "$ref": "#/components/schemas/UserClassroom" },
                                     "title": "Response Get Classrooms Classrooms Get"
                                 }
                             }
@@ -930,31 +931,6 @@
                 "title": "AttendanceSummary",
                 "description": "Contagens das entradas publicadas, sem presumir duração de cada aula."
             },
-            "Classroom": {
-                "properties": {
-                    "id": { "type": "string", "title": "Id" },
-                    "sigaa_id": {
-                        "anyOf": [{ "type": "integer" }, { "type": "null" }],
-                        "title": "Sigaa Id"
-                    },
-                    "number": { "type": "string", "title": "Number" },
-                    "semester": { "type": "string", "title": "Semester" },
-                    "schedule": {
-                        "anyOf": [{ "type": "string" }, { "type": "null" }],
-                        "title": "Schedule"
-                    },
-                    "room": {
-                        "anyOf": [{ "type": "string" }, { "type": "null" }],
-                        "title": "Room"
-                    },
-                    "current": { "type": "boolean", "title": "Current", "default": false },
-                    "subject": { "$ref": "#/components/schemas/Subject" }
-                },
-                "type": "object",
-                "required": ["id", "number", "semester", "subject"],
-                "title": "Classroom",
-                "description": "Turma, nos campos da tabela `classrooms`.\n\n`id` é o `frontEndIdTurma` do SIGAA — o único identificador presente tanto\nnas turmas do semestre quanto no histórico. `sigaa_id` é o id numérico\ninterno, que só o portal do semestre expõe. `current` marca as turmas que o\nportal lista como atuais."
-            },
             "ClassroomAttendance": {
                 "properties": {
                     "entries": {
@@ -1018,7 +994,7 @@
                             { "type": "null" }
                         ]
                     },
-                    "classroom": { "$ref": "#/components/schemas/Classroom" },
+                    "classroom": { "$ref": "#/components/schemas/UserClassroom" },
                     "frequency_status": {
                         "type": "string",
                         "enum": ["not_registered", "partially_registered", "registered"],
@@ -1135,6 +1111,12 @@
                 "required": ["date"],
                 "title": "DailyMenu",
                 "description": "Refeição que o campus não serve (ou não publicou) no dia vem `None`."
+            },
+            "Grade": {
+                "type": "string",
+                "enum": ["SS", "MS", "MM", "MI", "II", "SR"],
+                "title": "Grade",
+                "description": "Menção da UnB, como o \"Resultado\" da tela \"Ver Notas\"."
             },
             "HTTPValidationError": {
                 "properties": {
@@ -1405,6 +1387,34 @@
                 "title": "Unit",
                 "description": "Unidade acadêmica ofertante — o filtro obrigatório da busca pública."
             },
+            "UserClassroom": {
+                "properties": {
+                    "id": { "type": "string", "title": "Id" },
+                    "sigaa_id": {
+                        "anyOf": [{ "type": "integer" }, { "type": "null" }],
+                        "title": "Sigaa Id"
+                    },
+                    "number": { "type": "string", "title": "Number" },
+                    "semester": { "type": "string", "title": "Semester" },
+                    "schedule": {
+                        "anyOf": [{ "type": "string" }, { "type": "null" }],
+                        "title": "Schedule"
+                    },
+                    "room": {
+                        "anyOf": [{ "type": "string" }, { "type": "null" }],
+                        "title": "Room"
+                    },
+                    "current": { "type": "boolean", "title": "Current", "default": false },
+                    "subject": { "$ref": "#/components/schemas/Subject" },
+                    "grade": {
+                        "anyOf": [{ "$ref": "#/components/schemas/Grade" }, { "type": "null" }]
+                    }
+                },
+                "type": "object",
+                "required": ["id", "number", "semester", "subject"],
+                "title": "UserClassroom",
+                "description": "A turma com a menção do usuário, `None` enquanto não lançada ou sincronizada."
+            },
             "UserLevel": {
                 "type": "string",
                 "enum": ["Graduação", "Pós-graduação", "Mestrado"],
@@ -1460,16 +1470,6 @@
                     "displayName": {
                         "anyOf": [{ "type": "string" }, { "type": "null" }],
                         "title": "Displayname"
-                    },
-                    "defaultRuCampus": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "enum": ["Darcy", "Gama", "Ceilandia", "Planaltina", "Fazenda"]
-                            },
-                            { "type": "null" }
-                        ],
-                        "title": "Defaultrucampus"
                     }
                 },
                 "type": "object",
@@ -1483,16 +1483,6 @@
                             { "type": "null" }
                         ],
                         "title": "Displayname"
-                    },
-                    "defaultRuCampus": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "enum": ["Darcy", "Gama", "Ceilandia", "Planaltina", "Fazenda"]
-                            },
-                            { "type": "null" }
-                        ],
-                        "title": "Defaultrucampus"
                     }
                 },
                 "additionalProperties": false,

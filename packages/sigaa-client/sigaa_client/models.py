@@ -110,6 +110,21 @@ class Classroom(BaseModel):
     subject: Subject
 
 
+class Grade(str, enum.Enum):
+    """Menção da UnB, como o "Resultado" da tela "Ver Notas"."""
+
+    SS = "SS"
+    MS = "MS"
+    MM = "MM"
+    MI = "MI"
+    II = "II"
+    SR = "SR"
+
+    @property
+    def approved(self) -> bool:
+        return self in (Grade.SS, Grade.MS, Grade.MM)
+
+
 class ClassroomMember(BaseModel):
     """Participante de uma turma, nos campos da tabela `users` que a tela expõe."""
 

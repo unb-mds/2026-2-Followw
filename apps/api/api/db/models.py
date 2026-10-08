@@ -1,7 +1,9 @@
 import datetime as dt
 import uuid
+from dataclasses import dataclass
 from datetime import datetime
 
+from sigaa_client import Grade
 from sqlalchemy import JSON, DateTime, ForeignKey, Index, Text, UniqueConstraint
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -110,6 +112,8 @@ class ClassroomUser(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     status: Mapped[ClassroomStatus | None] = mapped_column(
         _enum(ClassroomStatus, "classroom_status")
     )
+    grade: Mapped[Grade | None] = mapped_column(_enum(Grade, "classroom_grade"))
+    grade_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # `frontEndIdTurma` visto pelo próprio usuário: só existe nos vínculos que
     # vieram da lista de turmas dele, não da lista de participantes.
     front_end_id: Mapped[str | None] = mapped_column()
@@ -122,6 +126,19 @@ class ClassroomUser(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     frequency_cache: Mapped[ClassroomFrequencyCache | None] = relationship(
         cascade="all, delete-orphan", single_parent=True
     )
+
+
+@dataclass(frozen=True)
+class OwnLink:
+    """Um vínculo da lista de turmas do próprio usuário: o SIGAA abre a turma pelo `front_end_id`."""
+
+    row: ClassroomUser
+    front_end_id: str
+
+    @classmethod
+    def of(cls, row: ClassroomUser) -> OwnLink:
+        assert row.front_end_id is not None, "vínculo fora da lista do usuário"
+        return cls(row, row.front_end_id)
 
 
 class ClassroomFrequencyCache(Base, UUIDPrimaryKeyMixin, TimestampMixin):

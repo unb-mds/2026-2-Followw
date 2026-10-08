@@ -12,10 +12,12 @@ from sigaa_client import (
     ClassroomNotFound,
     ClassroomProgress,
     ClassroomRole,
+    Grade,
     NewsNotFound,
     StudentSituation,
 )
 from sigaa_client.config import (
+    CLASSROOM_HOME_PATH,
     CLASSROOMS_PATH,
     DASHBOARD_PATH,
     PARTICIPANTS_PATH,
@@ -32,10 +34,12 @@ from sigaa_client.private.classrooms import (
     _merge,
     _news_fieldset,
     _open_frequency,
+    _open_grades,
     _open_news_detail,
     _open_statistics,
     _parse_dashboard,
     _parse_frequency,
+    _parse_grade,
     _parse_history,
     _parse_members,
     _parse_news_detail,
@@ -266,6 +270,8 @@ CLASSROOM_HOME = """
   <a href="#" onclick="jsfcljs(document.getElementById('formMenu'),
     {'formMenu:j_id_jsp_142':'formMenu:j_id_jsp_142'},'');">Situação dos Discentes</a>
   <a href="#" onclick="jsfcljs(document.getElementById('formMenu'),
+    {'formMenu:j_id_jsp_121':'formMenu:j_id_jsp_121'},'');">Ver Notas</a>
+  <a href="#" onclick="jsfcljs(document.getElementById('formMenu'),
     {'formMenu:j_id_jsp_88':'formMenu:j_id_jsp_88'},'');">
     <div class="itemMenu">Notícias</div></a>
   <input name="javax.faces.ViewState" type="hidden" value="j_id6"/>
@@ -468,6 +474,125 @@ def test_contexto_confere_codigo_numero_e_semestre():
 
     with pytest.raises(SigaaParseError):
         _assert_context(CONTEXT.replace("T01", "T02"), turma)
+
+
+GRADES = """
+<html><body><div id="relatorio">
+<h3>FGA0146 - ESTRUTURAS DE DADOS 1 (60h) - Turma: 01 (2026.2)</h3>
+<div class="notas"><table class="tabelaRelatorio" width="100%">
+<caption>Discentes Matriculados(as)</caption>
+<thead><tr>
+  <th>Matrícula</th><th>Nome</th>
+  <th style="text-align: right" colspan="1">Nota 1</th>
+  <th>Resultado</th><th>Faltas</th><th>Sit.</th>
+</tr></thead>
+<tbody><tr class="linhaPar">
+  <td nowrap="nowrap">251000000 </td><td nowrap="nowrap">NOME DISCENTE</td>
+  <td>
+      MM
+  </td>
+  <td>
+    MS
+  </td>
+  <td>0</td><td>APR</td>
+</tr></tbody>
+</table></div>
+</div></body></html>
+"""
+
+GRADES_NOT_LAUNCHED = (
+    CONTEXT
+    + """
+<div id="painel-erros"><ul class="warning">
+  <li>Ainda n&#227;o foram lan&#231;adas notas.</li>
+</ul></div>
+"""
+)
+
+
+def test_notas_trazem_a_mencao_do_resultado():
+    assert _parse_grade(BeautifulSoup(GRADES, "lxml")) == Grade.MS
+
+
+def test_mencao_diz_se_o_aluno_foi_aprovado():
+    assert {grade for grade in Grade if grade.approved} == {
+        Grade.SS,
+        Grade.MS,
+        Grade.MM,
+    }
+
+
+def test_unidade_com_varias_avaliacoes_nao_desloca_o_resultado():
+    pagina = GRADES.replace('colspan="1">Nota 1', 'colspan="2">Nota 1').replace(
+        "NOME DISCENTE</td>", "NOME DISCENTE</td><td>8.0</td>"
+    )
+
+    assert _parse_grade(BeautifulSoup(pagina, "lxml")) == Grade.MS
+
+
+@pytest.mark.parametrize("pagina", [GRADES_NOT_LAUNCHED, GRADES.replace("MS", "--")])
+def test_notas_sem_resultado_vem_none(pagina):
+    assert _parse_grade(BeautifulSoup(pagina, "lxml")) is None
+
+
+@pytest.mark.parametrize(
+    "pagina",
+    [
+        GRADES.replace("MS", "XX"),
+        GRADES.replace("Resultado", "Média"),
+        "<html><body><div id='painel-erros'>Outro aviso</div></body></html>",
+    ],
+)
+def test_notas_fora_do_formato_sao_barulhentas(pagina):
+    with pytest.raises(SigaaParseError):
+        _parse_grade(BeautifulSoup(pagina, "lxml"))
+
+
+def test_contexto_do_relatorio_vem_do_titulo():
+    turma = _parse_history(HISTORY)["AAA"]
+
+    _assert_context(GRADES, turma)
+
+    with pytest.raises(SigaaParseError):
+        _assert_context(GRADES.replace("Turma: 01", "Turma: 02"), turma)
+
+
+class MenuSession(SharedSession):
+    """Entra na turma e devolve, a cada postback do menu, a próxima tela."""
+
+    async def get(self, url: str, **_: object) -> httpx.Response:
+        if url == CLASSROOMS_PATH:
+            return httpx.Response(200, text=self.history)
+        return httpx.Response(200, text=CLASSROOM_HOME)
+
+    async def post(self, url: str, **_: object) -> httpx.Response:
+        if url == f"{SIGAA_BASE_URL}{CLASSROOM_HOME_PATH}":
+            return httpx.Response(200, text=self.screens.pop(0))
+        self.entries += 1
+        return httpx.Response(200, text="")
+
+
+async def test_nota_abre_pelo_menu_e_reabre_a_turma_trocada():
+    outra = GRADES.replace("FGA0146 - ESTRUTURAS", "FGA0158 - ORIENTAÇÃO")
+    session = MenuSession(outra, GRADES)
+
+    nota = await Classrooms(session).get_classroom_grade("AAA")  # type: ignore[arg-type]
+
+    assert nota == Grade.MS
+    assert session.entries == 2
+
+
+async def test_nota_nao_lancada_confere_a_turma_pelo_menu():
+    session = MenuSession(GRADES_NOT_LAUNCHED)
+
+    assert await Classrooms(session).get_classroom_grade("AAA") is None  # type: ignore[arg-type]
+
+
+async def test_notas_abrem_pelo_postback_do_menu():
+    session = FakeSession(CLASSROOM_HOME, GRADES)
+
+    assert await _open_grades(session, True) == GRADES  # type: ignore[arg-type]
+    assert session.payload["formMenu:j_id_jsp_121"] == "formMenu:j_id_jsp_121"
 
 
 def test_estatisticas_casam_a_legenda_com_as_situacoes():

@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from fastapi import Response
 
-from api.dependencies.cache import CacheControl
+from api.cache import CacheControl
 
 AGORA = datetime.now(UTC)
 

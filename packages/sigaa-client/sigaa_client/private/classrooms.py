@@ -32,6 +32,7 @@ from ..models import (
     ClassroomMember,
     ClassroomProgress,
     ClassroomRole,
+    Grade,
     News,
     NewsAttachment,
     StatisticsShare,
@@ -54,6 +55,8 @@ from .session import Session
 CLASSROOM_ID_FIELD = "frontEndIdTurma"
 MENU_FORM_ID = "formMenu"
 FREQUENCY_MENU_LABEL = "Frequência"
+GRADES_MENU_LABEL = "Ver Notas"
+GRADES_RESULT_LABEL = "Resultado"
 STATISTICS_MENU_LABEL = "Situação dos Discentes"
 NEWS_MENU_LABEL = "Notícias"
 NEWS_ID_FIELD = "id"
@@ -89,6 +92,13 @@ _CONTEXT_RE = re.compile(r'var nomeTurma\s*=\s*"(.*?)";')
 _CONTEXT_CLASSROOM_RE = re.compile(
     r"Turma:\s*(?P<code>\w+).*\((?P<semester>\d{4}\.\d)\s*-\s*T?(?P<number>[\w-]+)\)"
 )
+# Telas de relatório não têm o menu: `<h3>FGA0133 - NOME (60h) - Turma: 01 (2026.1)</h3>`.
+_REPORT_CONTEXT_RE = re.compile(
+    r"<h3>\s*(?P<code>\w+) - .*Turma:\s*(?P<number>[\w-]+)\s*"
+    r"\((?P<semester>\d{4}\.\d)\)\s*</h3>"
+)
+_GRADES_NOT_LAUNCHED_RE = re.compile(r"ainda não foram lançadas notas", re.IGNORECASE)
+_NO_GRADE = ("", "-", "--")
 _NUMBER_RE = re.compile(r"(\d+)")
 _COUNTS_RE = re.compile(r"(\d+)\s*/\s*(\d+)")
 _ABSENCES_RE = re.compile(r"(\d+)\s*Falta", re.IGNORECASE)
@@ -129,6 +139,11 @@ class Classrooms:
     async def get_classroom_frequency(self, classroom_id: str) -> ClassroomFrequency:
         page = await self._read_screen(classroom_id, _open_frequency)
         return _parse_frequency(BeautifulSoup(page, "lxml"))
+
+    async def get_classroom_grade(self, classroom_id: str) -> Grade | None:
+        """A menção do usuário na turma; `None` enquanto não há resultado lançado."""
+        page = await self._read_screen(classroom_id, _open_grades)
+        return _parse_grade(BeautifulSoup(page, "lxml"))
 
     async def get_classroom_statistics(
         self, classroom_id: str
@@ -217,6 +232,10 @@ async def _open_participants(session: Session, allow_renewal: bool) -> str:
 
 async def _open_frequency(session: Session, allow_renewal: bool) -> str:
     return await _open_menu(session, FREQUENCY_MENU_LABEL, allow_renewal)
+
+
+async def _open_grades(session: Session, allow_renewal: bool) -> str:
+    return await _open_menu(session, GRADES_MENU_LABEL, allow_renewal)
 
 
 async def _open_statistics(session: Session, allow_renewal: bool) -> str:
@@ -449,28 +468,67 @@ def _total(totals: Tag, label: str) -> int:
     raise SigaaParseError(f"`{label}` não encontrado no mapa de frequências.")
 
 
+def _parse_grade(soup: BeautifulSoup) -> Grade | None:
+    errors = soup.find(id="painel-erros")
+    if isinstance(errors, Tag) and _GRADES_NOT_LAUNCHED_RE.search(clean_text(errors)):
+        return None
+
+    table = soup.find("table", class_="tabelaRelatorio")
+    header = table.find("tr") if isinstance(table, Tag) else None
+    row = table.select_one("tbody tr") if isinstance(table, Tag) else None
+    if not (isinstance(header, Tag) and isinstance(row, Tag)):
+        raise SigaaParseError("Tabela de notas não encontrada na turma.")
+
+    # As unidades podem ocupar várias colunas: o resultado é contado do fim.
+    labels = [clean_text(cell) for cell in header.find_all("th")]
+    cells = row.find_all("td")
+    if GRADES_RESULT_LABEL not in labels:
+        raise SigaaParseError(f"Coluna `{GRADES_RESULT_LABEL}` ausente nas notas.")
+    from_end = len(labels) - labels.index(GRADES_RESULT_LABEL)
+    if len(cells) < from_end:
+        raise SigaaParseError("Linha de notas com menos colunas que o cabeçalho.")
+
+    value = clean_text(cells[-from_end])
+    if value in _NO_GRADE:
+        return None
+    try:
+        return Grade(value)
+    except ValueError:
+        raise SigaaParseError(f"Menção `{value}` desconhecida nas notas.") from None
+
+
 class _ContextSwitched(SigaaParseError):
     """A sessão está em outra turma: alguém a trocou entre a entrada e a leitura."""
 
 
 def _assert_context(page: str, expected: Classroom) -> None:
     """A turma da sessão pode não ser a que se pediu — o cabeçalho é a prova."""
-    match = _CONTEXT_RE.search(page)
-    if match is None:
-        raise SigaaParseError("Página de participantes não declara a turma atual.")
-
-    context = match.group(1)
-    current = _CONTEXT_CLASSROOM_RE.search(context)
-    if current is None:
-        raise SigaaParseError(f"Cabeçalho da turma fora do formato: `{context}`.")
+    current = _current_classroom(page)
     if (
         current.group("code"),
         current.group("number"),
         current.group("semester"),
     ) != (expected.subject.code, expected.number, expected.semester):
         raise _ContextSwitched(
-            f"A sessão está na turma `{context}`, não em `{expected.id}`."
+            f"A sessão está na turma `{current.group(0)}`, não em `{expected.id}`."
         )
+
+
+def _current_classroom(page: str) -> re.Match[str]:
+    """O `nomeTurma` das telas com menu ou, nos relatórios, o título."""
+    match = _CONTEXT_RE.search(page)
+    if match is None:
+        report = _REPORT_CONTEXT_RE.search(page)
+        if report is None:
+            raise SigaaParseError("Página da turma não declara a turma atual.")
+        return report
+
+    current = _CONTEXT_CLASSROOM_RE.search(match.group(1))
+    if current is None:
+        raise SigaaParseError(
+            f"Cabeçalho da turma fora do formato: `{match.group(1)}`."
+        )
+    return current
 
 
 def _history_rows(soup: BeautifulSoup) -> list[tuple[Tag, Tag, str]]:

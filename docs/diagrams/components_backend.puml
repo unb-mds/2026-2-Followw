@@ -6,25 +6,28 @@ LAYOUT_WITH_LEGEND()
 title Diagrama de Componentes — Backend API (apps/api)
 
 Container_Boundary(api_boundary, "FastAPI Application") {
-    Component(routers, "API Routers", "FastAPI Routers", "Rotas para /auth, /classrooms, /me, /news, /restaurant, /jobs")
-    Component(session, "Session Handler", "JWE / HKDF", "Criptografa e decifra tokens em cookies HttpOnly (AES-256-GCM)")
-    Component(services, "Services & SyncEngine", "Python Async Services", "Implementa Stale-While-Revalidate e regras de negócio")
-    Component(repos, "Repositories", "SQLAlchemy", "Acesso aos dados em cache no PostgreSQL")
+    Component(modules, "Módulos por feature", "Router, Service e Repository", "auth, classrooms, me, news, public_classrooms, public_restaurant")
+    Component(session, "Sessão e cookies", "JWE / HKDF", "Criptografa e decifra a sessão em cookies HttpOnly (AES-256-GCM)")
+    Component(sync, "Sync", "Stale-While-Revalidate", "Resolve o cache e junta o que venceu em um job por turma")
+    Component(jobs, "Rota /jobs", "QStash", "Loga numa sessão própria do SIGAA, roda as tarefas e faz logout")
 }
 
 Component_Ext(sigaa_client, "sigaa-client", "Python Package", "Abstração do SIGAA com suporte a ViewState e JSF")
 Component_Ext(unb_browser, "unb-browser", "Python Package", "Scraper do RU com extração geométrica via pdfplumber")
 
 ContainerDb(db, "PostgreSQL", "Banco de dados relacional")
+System_Ext(qstash, "Upstash QStash", "Fila de jobs")
 System_Ext(sigaa, "SIGAA / CAS", "Servidor UnB")
 System_Ext(ru_site, "Site do RU", "PDFs públicos")
 
-Rel(routers, session, "Valida e renova sessão")
-Rel(routers, services, "Executa operações")
-Rel(services, repos, "Consulta / grava cache")
-Rel(repos, db, "SQL Queries")
-Rel(services, sigaa_client, "Solicita dados do SIGAA")
-Rel(services, unb_browser, "Solicita cardápio do RU")
+Rel(modules, session, "Valida e renova a sessão do usuário")
+Rel(modules, sync, "Resolve dados com cache")
+Rel(sync, db, "Consulta / grava cache")
+Rel(sync, qstash, "Publica jobs com a credencial cifrada")
+Rel(qstash, jobs, "Entrega os jobs")
+Rel(jobs, sync, "Roda as tarefas das features")
+Rel(sync, sigaa_client, "Solicita dados do SIGAA")
+Rel(modules, unb_browser, "Solicita cardápio do RU")
 Rel(sigaa_client, sigaa, "Chamadas HTTP/JSF")
 Rel(unb_browser, ru_site, "Download e parse de PDF")
 

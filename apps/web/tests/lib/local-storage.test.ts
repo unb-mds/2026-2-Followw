@@ -54,7 +54,7 @@ describe('localStorageRepository', () => {
     });
 
     test('armazena e recupera configurações', () => {
-        const settings = { displayName: 'Estudante UnB', defaultRuCampus: 'Gama' };
+        const settings = { displayName: 'Estudante UnB' };
         localStorageRepository.set('settings', settings);
         const retrieved = localStorageRepository.get('settings');
 
