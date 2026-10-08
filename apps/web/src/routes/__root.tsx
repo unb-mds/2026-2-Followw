@@ -4,6 +4,7 @@ import { TanStackDevtools } from '@tanstack/react-devtools';
 import { HeadContent, Outlet, Scripts, createRootRouteWithContext } from '@tanstack/react-router';
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools';
 
+import { BrandIntro } from '#/components/BrandIntro';
 import { ErrorPage } from '#/components/ErrorPage';
 import { useOfflineSupport } from '#/integrations/offline/use-offline-support';
 import PostHogProvider from '#/integrations/posthog/provider';
@@ -49,7 +50,12 @@ function RootComponent() {
     useSessionRefresh();
     useOfflineSupport();
 
-    return <Outlet />;
+    return (
+        <>
+            <BrandIntro />
+            <Outlet />
+        </>
+    );
 }
 
 function RootDocument({ children }: { children: React.ReactNode }) {
