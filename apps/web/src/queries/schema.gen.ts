@@ -128,7 +128,7 @@ export interface paths {
         };
         /**
          * Consultar frequência e andamento de uma turma
-         * @description Aceita Classroom.id (hash) ou sigaa_id numérico. frequency_status indica nao_registrada, parcialmente_registrada ou registrada nas entradas publicadas. lessons traz as aulas do SIGAA, as anteriores previstas pelo calendário e horário da turma e as marcadas pelo aluno, mais recentes primeiro; totals soma as marcações aos totais do SIGAA.
+         * @description Aceita Classroom.id (hash) ou sigaa_id numérico. frequency_status indica nao_registrada, parcialmente_registrada ou registrada nas entradas publicadas. lessons traz as aulas previstas pelo calendário e horário da turma até ontem, as publicadas pelo SIGAA fora delas e as com situação do aluno, mais recentes primeiro; totals soma as marcações aos totais do SIGAA.
          */
         get: operations["get_classroom_frequency_classrooms__classroom_id__frequency_get"];
         put?: never;
@@ -139,7 +139,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/classrooms/{classroom_id}/frequency/lessons/{occurred_on}/{position}": {
+    "/classrooms/{classroom_id}/frequency/lessons/{lesson_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -149,12 +149,15 @@ export interface paths {
         get?: never;
         /**
          * Marcar presença, falta ou aula cancelada
-         * @description Vale enquanto o SIGAA não registra a aula: a chamada publicada prevalece sobre a marcação.
+         * @description Vale enquanto o SIGAA não registra a aula: a chamada publicada substitui a marcação. Aula que ainda não aconteceu retorna 422.
          */
-        put: operations["mark_lesson_classrooms__classroom_id__frequency_lessons__occurred_on___position__put"];
+        put: operations["mark_lesson_classrooms__classroom_id__frequency_lessons__lesson_id__put"];
         post?: never;
-        /** Remover a marcação de uma aula */
-        delete: operations["unmark_lesson_classrooms__classroom_id__frequency_lessons__occurred_on___position__delete"];
+        /**
+         * Remover a marcação de uma aula
+         * @description Não apaga a chamada do SIGAA.
+         */
+        delete: operations["unmark_lesson_classrooms__classroom_id__frequency_lessons__lesson_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -464,6 +467,11 @@ export interface components {
          * @description Uma aula; `position` a distingue das outras do mesmo dia.
          */
         Lesson: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
             /**
              * Occurred On
              * Format: date
@@ -1168,7 +1176,7 @@ export interface operations {
             };
         };
     };
-    mark_lesson_classrooms__classroom_id__frequency_lessons__occurred_on___position__put: {
+    mark_lesson_classrooms__classroom_id__frequency_lessons__lesson_id__put: {
         parameters: {
             query?: never;
             header?: {
@@ -1178,9 +1186,8 @@ export interface operations {
             path: {
                 /** @description Classroom.id ou Classroom.sigaa_id. */
                 classroom_id: string;
-                occurred_on: string;
-                /** @description Ordem da aula entre as do mesmo dia (Lesson.position). */
-                position: number;
+                /** @description Lesson.id de uma aula da turma. */
+                lesson_id: string;
             };
             cookie?: never;
         };
@@ -1204,8 +1211,15 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Turma não encontrada entre as turmas do usuário. */
+            /** @description Turma ou aula não encontrada. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description O SIGAA já registrou a chamada da aula. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1229,7 +1243,7 @@ export interface operations {
             };
         };
     };
-    unmark_lesson_classrooms__classroom_id__frequency_lessons__occurred_on___position__delete: {
+    unmark_lesson_classrooms__classroom_id__frequency_lessons__lesson_id__delete: {
         parameters: {
             query?: never;
             header?: {
@@ -1239,9 +1253,8 @@ export interface operations {
             path: {
                 /** @description Classroom.id ou Classroom.sigaa_id. */
                 classroom_id: string;
-                occurred_on: string;
-                /** @description Ordem da aula entre as do mesmo dia (Lesson.position). */
-                position: number;
+                /** @description Lesson.id de uma aula da turma. */
+                lesson_id: string;
             };
             cookie?: never;
         };
@@ -1261,7 +1274,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Turma não encontrada entre as turmas do usuário. */
+            /** @description Turma ou aula não encontrada. */
             404: {
                 headers: {
                     [name: string]: unknown;

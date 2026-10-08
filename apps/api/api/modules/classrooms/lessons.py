@@ -1,20 +1,22 @@
-"""As aulas da turma: as do SIGAA, as previstas pelo horário e as marcadas pelo aluno."""
+"""As aulas da turma: o plano pelo horário e calendário e a situação do aluno em cada uma."""
 
 import re
 from collections import Counter
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from datetime import date
 from typing import Self
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 from sigaa_client import (
-    ClassroomAttendance,
+    AttendanceEntry,
     ClassroomFrequency,
     ClassroomProgress,
     FrequencyStatus,
 )
 
+from api.db import models
 from api.db.enums import LessonStatus
 
 _SCHEDULE = re.compile(r"([1-7]+)([MTN])([1-6]+)")
@@ -25,7 +27,8 @@ _SLOTS = [
     for slot in range(1, count + 1)
 ]
 
-type Marks = Mapping[tuple[date, int], LessonStatus]
+# Uma aula pelo dia e pela ordem entre as do mesmo dia.
+type Slot = tuple[date, int]
 
 
 class Lesson(BaseModel):
@@ -33,6 +36,7 @@ class Lesson(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
+    id: UUID
     occurred_on: date
     position: int
     status: LessonStatus
@@ -57,6 +61,28 @@ class FrequencyTotals(BaseModel):
     estimated: bool
 
 
+class FrequencySummary(BaseModel):
+    """O que a tela de frequência do SIGAA soma, sem as aulas."""
+
+    model_config = ConfigDict(frozen=True)
+
+    progress: ClassroomProgress
+    frequency_status: FrequencyStatus
+    # Horas-aula; `None` enquanto o docente não lança frequência.
+    attended: int | None = None
+    registered: int | None = None
+
+    @classmethod
+    def of(cls, frequency: ClassroomFrequency) -> Self:
+        attendance = frequency.frequency
+        return cls(
+            progress=frequency.progress,
+            frequency_status=frequency.frequency_status,
+            attended=attendance.attended if attendance else None,
+            registered=attendance.registered if attendance else None,
+        )
+
+
 class ClassroomFrequencyView(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -68,20 +94,29 @@ class ClassroomFrequencyView(BaseModel):
     @classmethod
     def build(
         cls,
-        frequency: ClassroomFrequency,
-        marks: Marks,
+        summary: FrequencySummary,
+        rows: Iterable[tuple[models.Lesson, models.LessonAttendance | None]],
         *,
-        schedule: str | None,
         subject_hours: int | None,
-        days: Iterable[date] = (),
+        today: date,
     ) -> Self:
-        """As aulas do SIGAA, as previstas nos `days` e as marcadas, com os totais."""
-        lessons = _lessons(frequency.frequency, Timetable.parse(schedule), marks, days)
+        """As aulas até ontem, as publicadas pelo SIGAA e as com situação, com os totais."""
+        lessons = tuple(
+            sorted(
+                (
+                    _lesson(row, attendance)
+                    for row, attendance in rows
+                    if attendance or not row.scheduled or row.occurred_on < today
+                ),
+                key=_order,
+                reverse=True,
+            )
+        )
         return cls(
-            progress=frequency.progress,
-            frequency_status=frequency.frequency_status,
+            progress=summary.progress,
+            frequency_status=summary.frequency_status,
             lessons=lessons,
-            totals=_totals(frequency.frequency, lessons, subject_hours),
+            totals=_totals(summary, lessons, subject_hours),
         )
 
 
@@ -106,101 +141,74 @@ class Timetable:
         usual = Counter(hours for day in sessions.values() for hours in day)
         return cls(sessions, usual.most_common(1)[0][0] if usual else 1)
 
-    def lessons_on(self, day: date) -> int:
-        return len(self.sessions.get(day.weekday(), ()))
-
     def hours(self, day: date, position: int) -> int:
         day_sessions = self.sessions.get(day.weekday(), ())
         return day_sessions[position] if position < len(day_sessions) else self.usual
 
-    def lesson(
-        self,
-        day: date,
-        position: int,
-        status: LessonStatus,
-        *,
-        absences: int | None = None,
-        marked: bool = False,
-    ) -> Lesson:
-        """Sem `absences`, a falta conta todas as horas-aula da aula."""
-        hours = self.hours(day, position)
-        if absences is None:
-            absences = hours if status is LessonStatus.FALTA else 0
-        return Lesson(
-            occurred_on=day,
-            position=position,
-            status=status,
-            hours=hours,
-            absences=absences,
-            marked=marked,
-        )
+    def plan(self, days: Iterable[date]) -> dict[Slot, int]:
+        """As aulas previstas nos `days`, com as horas-aula de cada uma."""
+        return {
+            (day, position): hours
+            for day in days
+            for position, hours in enumerate(self.sessions.get(day.weekday(), ()))
+        }
 
 
 def max_absences(hours: int | None) -> int | None:
-    return max(hours * 4 // 15 - 2, 0) if hours else None
+    return hours // 4 if hours else None
 
 
-def _lessons(
-    attendance: ClassroomAttendance | None,
-    timetable: Timetable,
-    marks: Marks,
-    days: Iterable[date],
-) -> tuple[Lesson, ...]:
-    """Mais recentes primeiro."""
-    lessons: dict[tuple[date, int], Lesson] = {}
+def positioned(
+    entries: Iterable[AttendanceEntry],
+) -> Iterator[tuple[Slot, AttendanceEntry]]:
+    """As entradas do SIGAA com a posição de cada uma entre as do mesmo dia."""
     positions: Counter[date] = Counter()
-    for entry in attendance.entries if attendance else ():
-        position = positions[entry.occurred_on]
+    for entry in entries:
+        yield (entry.occurred_on, positions[entry.occurred_on]), entry
         positions[entry.occurred_on] += 1
-        lessons[entry.occurred_on, position] = timetable.lesson(
-            entry.occurred_on,
-            position,
-            LessonStatus(entry.status.value),
-            absences=entry.absences,
-        )
-    for day in days:
-        for position in range(timetable.lessons_on(day)):
-            lessons.setdefault(
-                (day, position),
-                timetable.lesson(day, position, LessonStatus.NAO_REGISTRADA),
-            )
-    for (day, position), status in marks.items():
-        official = lessons.get((day, position))
-        if official is None or official.status is LessonStatus.NAO_REGISTRADA:
-            lessons[day, position] = timetable.lesson(
-                day, position, status, marked=True
-            )
-    return tuple(sorted(lessons.values(), key=_order, reverse=True))
+
+
+def _lesson(row: models.Lesson, attendance: models.LessonAttendance | None) -> Lesson:
+    status = attendance.status if attendance else LessonStatus.NAO_REGISTRADA
+    absences = attendance.absences if attendance else None
+    if absences is None:
+        absences = row.hours if status is LessonStatus.FALTA else 0
+    return Lesson(
+        id=row.id,
+        occurred_on=row.occurred_on,
+        position=row.position,
+        status=status,
+        hours=row.hours,
+        absences=absences,
+        marked=attendance.marked if attendance else False,
+    )
 
 
 def _totals(
-    attendance: ClassroomAttendance | None,
+    summary: FrequencySummary,
     lessons: Iterable[Lesson],
     subject_hours: int | None,
 ) -> FrequencyTotals | None:
-    """`None` enquanto não há aula com presença ou falta.
-
-    Na porcentagem, a aula sem chamada vale como presença: só a falta a tira.
-    """
-    attended = registered = presences = absences = recorded = 0
-    if attendance:
-        summary = attendance.summary
-        attended, registered = attendance.attended, attendance.registered
-        recorded = summary.recorded_entries
-        presences = recorded - summary.absence_entries
-        absences = summary.total_absences
+    # `None` sem aula com presença ou falta; aula sem chamada vale presença na porcentagem.
+    attended, registered = summary.attended or 0, summary.registered or 0
+    presences = absences = recorded = 0
     estimated = False
     for lesson in lessons:
         if lesson.status is LessonStatus.NAO_REGISTRADA:
             registered += lesson.hours
             attended += lesson.hours
-        elif lesson.marked and lesson.status is not LessonStatus.CANCELADA:
-            estimated = True
-            registered += lesson.hours
-            if lesson.status is LessonStatus.PRESENTE:
-                attended += lesson.hours
-                presences += 1
-            absences += lesson.absences
+            continue
+        if lesson.status is LessonStatus.CANCELADA:
+            continue
+        present = lesson.status is LessonStatus.PRESENTE
+        presences += present
+        absences += lesson.absences
+        if not lesson.marked:
+            recorded += 1
+            continue
+        estimated = True
+        registered += lesson.hours
+        attended += lesson.hours if present else 0
 
     if not estimated and not recorded:
         return None

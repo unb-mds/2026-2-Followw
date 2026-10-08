@@ -118,7 +118,7 @@ export function FrequencyContent({
                     <ListCard>
                         {lessons.map((lesson) => (
                             <LessonRow
-                                key={`${lesson.occurred_on}:${lesson.position}`}
+                                key={lesson.id}
                                 lesson={lesson}
                                 numbered={(perDay.get(lesson.occurred_on) ?? 0) > 1}
                                 onMark={onMark}

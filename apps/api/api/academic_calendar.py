@@ -89,13 +89,12 @@ def departure_status(semester: str) -> ClassroomStatus:
     return ClassroomStatus.REMOVIDO
 
 
-def class_days(semester: str, *, on: date | None = None) -> Iterator[date]:
-    """Os dias letivos do semestre até ontem, sem feriados e semana universitária."""
+def class_days(semester: str) -> Iterator[date]:
+    """Os dias letivos do semestre, sem feriados e semana universitária."""
     calendar = load_academic_calendar().get_semester(semester)
     if calendar is None:
         return
-    start = calendar.classes.start
-    end = min(calendar.classes.end, (on or today()) - timedelta(days=1))
+    start, end = calendar.classes.start, calendar.classes.end
     no_class = {
         day
         for event in calendar.events

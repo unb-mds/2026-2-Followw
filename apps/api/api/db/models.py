@@ -3,7 +3,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
-from sigaa_client import Grade
+from sigaa_client import FrequencyStatus, Grade
 from sqlalchemy import JSON, DateTime, ForeignKey, Index, Text, UniqueConstraint
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -119,13 +119,22 @@ class ClassroomUser(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     current: Mapped[bool] = mapped_column(default=False)
     # Aparece na lista de participantes da turma.
     member: Mapped[bool] = mapped_column(default=False)
+    # O resumo da tela de frequência do SIGAA; as aulas ficam em `lesson_attendances`.
+    frequency_synced_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
+    frequency_status: Mapped[FrequencyStatus | None] = mapped_column(
+        _enum(FrequencyStatus, "frequency_status")
+    )
+    progress_taught: Mapped[int | None] = mapped_column()
+    progress_total: Mapped[int | None] = mapped_column()
+    progress_percentage: Mapped[int | None] = mapped_column()
+    # Horas-aula que o SIGAA soma; `None` enquanto o docente não lança frequência.
+    attended_hours: Mapped[int | None] = mapped_column()
+    registered_hours: Mapped[int | None] = mapped_column()
 
     user: Mapped[User] = relationship(back_populates="classroom_links")
     classroom: Mapped[Classroom] = relationship(back_populates="user_links")
-    frequency_cache: Mapped[ClassroomFrequencyCache | None] = relationship(
-        cascade="all, delete-orphan", single_parent=True
-    )
-    lesson_marks: Mapped[list[LessonMark]] = relationship(cascade="all, delete-orphan")
 
 
 @dataclass(frozen=True)
@@ -141,33 +150,43 @@ class OwnLink:
         return cls(row, row.front_end_id)
 
 
-class ClassroomFrequencyCache(Base, UUIDPrimaryKeyMixin, TimestampMixin):
-    __tablename__ = "classroom_frequencies"
+class Lesson(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """Uma aula da turma, prevista pelo horário e calendário ou publicada pelo SIGAA."""
 
-    user_classroom_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("user_classrooms.id", ondelete="CASCADE"), unique=True
-    )
-    data: Mapped[dict[str, object]] = mapped_column(JSON)
-    synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-
-
-class LessonMark(Base, UUIDPrimaryKeyMixin, TimestampMixin):
-    """Situação de uma aula marcada pelo aluno; a chamada do SIGAA prevalece sobre ela."""
-
-    __tablename__ = "lesson_marks"
+    __tablename__ = "lessons"
     __table_args__ = (
-        UniqueConstraint(
-            "user_classroom_id", "occurred_on", "position", name="uq_lesson_mark"
-        ),
+        UniqueConstraint("classroom_id", "occurred_on", "position", name="uq_lesson"),
     )
 
-    user_classroom_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("user_classrooms.id", ondelete="CASCADE")
+    classroom_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("classrooms.id", ondelete="CASCADE")
     )
     occurred_on: Mapped[dt.date] = mapped_column()
     # Ordem da aula entre as do mesmo dia.
     position: Mapped[int] = mapped_column()
+    hours: Mapped[int] = mapped_column()
+    # Está no plano; as demais o SIGAA publicou fora dele (ex.: reposição).
+    scheduled: Mapped[bool] = mapped_column()
+
+
+class LessonAttendance(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """A situação do aluno na aula: a chamada do SIGAA ou, sem ela, a que ele marcou."""
+
+    __tablename__ = "lesson_attendances"
+    __table_args__ = (
+        UniqueConstraint("user_id", "lesson_id", name="uq_lesson_attendance"),
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE")
+    )
+    lesson_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("lessons.id", ondelete="CASCADE")
+    )
     status: Mapped[LessonStatus] = mapped_column(_enum(LessonStatus, "lesson_status"))
+    marked: Mapped[bool] = mapped_column()
+    # Horas-aula de falta pela chamada do SIGAA; a falta marcada conta a aula toda.
+    absences: Mapped[int | None] = mapped_column()
 
 
 class ClassroomStatistic(Base, UUIDPrimaryKeyMixin, TimestampMixin):

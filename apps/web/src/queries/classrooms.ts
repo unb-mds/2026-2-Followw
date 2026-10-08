@@ -47,14 +47,12 @@ export function useMarkLesson(id: string) {
             lesson: Lesson;
             status: LessonMarkStatus | null;
         }) => {
-            const url = '/classrooms/{classroom_id}/frequency/lessons/{occurred_on}/{position}';
-            const path = {
-                classroom_id: id,
-                occurred_on: lesson.occurred_on,
-                position: lesson.position
-            };
-            if (status) await apiClient.PUT(url, { params: { path }, body: { status } });
-            else await apiClient.DELETE(url, { params: { path } });
+            const url = '/classrooms/{classroom_id}/frequency/lessons/{lesson_id}';
+            const path = { classroom_id: id, lesson_id: lesson.id };
+            const { error } = status
+                ? await apiClient.PUT(url, { params: { path }, body: { status } })
+                : await apiClient.DELETE(url, { params: { path } });
+            if (error) throw new Error('Não foi possível salvar a marcação');
         },
         onSettled: () =>
             queryClient.invalidateQueries({

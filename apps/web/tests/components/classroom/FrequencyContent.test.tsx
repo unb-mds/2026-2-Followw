@@ -8,6 +8,7 @@ import { FrequencyContent } from '#/components/classroom/FrequencyContent';
 const progress = { taught: 30, total: 60, percentage: 50 };
 
 const lesson = (occurred_on: string, fields: Partial<Lesson> = {}): Lesson => ({
+    id: `${occurred_on}:${fields.position ?? 0}`,
     occurred_on,
     position: 0,
     status: 'nao_registrada',
