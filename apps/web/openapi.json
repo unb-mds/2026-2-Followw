@@ -250,7 +250,7 @@
             "get": {
                 "tags": ["Classrooms"],
                 "summary": "Consultar frequência de todas as turmas atuais",
-                "description": "Turmas atuais com identificação, andamento, frequência, frequency_status, aulas e totais. Falha em uma turma retorna erro, sem omiti-la da lista.",
+                "description": "Turmas atuais com identificação e a mesma frequência da rota individual. Falha em uma turma retorna erro, sem omiti-la da lista.",
                 "operationId": "get_current_frequencies_classrooms_frequency_get",
                 "parameters": [
                     {
@@ -1029,133 +1029,33 @@
     },
     "components": {
         "schemas": {
-            "AttendanceEntry": {
-                "properties": {
-                    "occurred_on": { "type": "string", "format": "date", "title": "Occurred On" },
-                    "status": { "$ref": "#/components/schemas/AttendanceStatus" },
-                    "absences": { "type": "integer", "title": "Absences", "default": 0 }
-                },
-                "type": "object",
-                "required": ["occurred_on", "status"],
-                "title": "AttendanceEntry",
-                "description": "Uma aula do mapa de frequências. `absences` é 0 fora da situação de falta."
-            },
-            "AttendanceStatus": {
-                "type": "string",
-                "enum": ["presente", "falta", "nao_registrada"],
-                "title": "AttendanceStatus"
-            },
-            "AttendanceSummary": {
-                "properties": {
-                    "total_entries": { "type": "integer", "title": "Total Entries" },
-                    "recorded_entries": { "type": "integer", "title": "Recorded Entries" },
-                    "unrecorded_entries": { "type": "integer", "title": "Unrecorded Entries" },
-                    "absence_entries": { "type": "integer", "title": "Absence Entries" },
-                    "total_absences": { "type": "integer", "title": "Total Absences" }
-                },
-                "type": "object",
-                "required": [
-                    "total_entries",
-                    "recorded_entries",
-                    "unrecorded_entries",
-                    "absence_entries",
-                    "total_absences"
-                ],
-                "title": "AttendanceSummary",
-                "description": "Contagens das entradas publicadas, sem presumir duração de cada aula."
-            },
-            "ClassroomAttendance": {
-                "properties": {
-                    "entries": {
-                        "items": { "$ref": "#/components/schemas/AttendanceEntry" },
-                        "type": "array",
-                        "title": "Entries",
-                        "default": []
-                    },
-                    "attended": { "type": "integer", "title": "Attended" },
-                    "registered": { "type": "integer", "title": "Registered" },
-                    "registered_percentage": {
-                        "type": "integer",
-                        "title": "Registered Percentage"
-                    },
-                    "total": { "type": "integer", "title": "Total" },
-                    "total_percentage": { "type": "integer", "title": "Total Percentage" },
-                    "summary": {
-                        "$ref": "#/components/schemas/AttendanceSummary",
-                        "readOnly": true
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "attended",
-                    "registered",
-                    "registered_percentage",
-                    "total",
-                    "total_percentage",
-                    "summary"
-                ],
-                "title": "ClassroomAttendance",
-                "description": "Mapa de frequências da turma, com os totais que o próprio SIGAA calcula.\n\nTotais e porcentagens são os valores exibidos pelo SIGAA; eles podem\nincluir aulas ainda não registradas. `summary` conta apenas as entradas\npublicadas, sem confundir quantidade de datas com carga horária."
-            },
             "ClassroomFrequencyResult": {
                 "properties": {
-                    "progress": { "$ref": "#/components/schemas/ClassroomProgress" },
-                    "frequency": {
-                        "anyOf": [
-                            { "$ref": "#/components/schemas/ClassroomAttendance" },
-                            { "type": "null" }
-                        ]
-                    },
-                    "lessons": {
-                        "items": { "$ref": "#/components/schemas/Lesson" },
-                        "type": "array",
-                        "title": "Lessons",
-                        "default": []
-                    },
-                    "totals": {
-                        "anyOf": [
-                            { "$ref": "#/components/schemas/FrequencyTotals" },
-                            { "type": "null" }
-                        ]
-                    },
                     "classroom": { "$ref": "#/components/schemas/UserClassroom" },
-                    "frequency_status": {
-                        "$ref": "#/components/schemas/FrequencyStatus",
-                        "readOnly": true
-                    }
+                    "frequency": { "$ref": "#/components/schemas/ClassroomFrequencyView" }
                 },
                 "type": "object",
-                "required": ["progress", "classroom", "frequency_status"],
+                "required": ["classroom", "frequency"],
                 "title": "ClassroomFrequencyResult"
             },
             "ClassroomFrequencyView": {
                 "properties": {
                     "progress": { "$ref": "#/components/schemas/ClassroomProgress" },
-                    "frequency": {
-                        "anyOf": [
-                            { "$ref": "#/components/schemas/ClassroomAttendance" },
-                            { "type": "null" }
-                        ]
-                    },
+                    "frequency_status": { "$ref": "#/components/schemas/FrequencyStatus" },
                     "lessons": {
                         "items": { "$ref": "#/components/schemas/Lesson" },
                         "type": "array",
-                        "title": "Lessons",
-                        "default": []
+                        "title": "Lessons"
                     },
                     "totals": {
                         "anyOf": [
                             { "$ref": "#/components/schemas/FrequencyTotals" },
                             { "type": "null" }
                         ]
-                    },
-                    "frequency_status": {
-                        "$ref": "#/components/schemas/FrequencyStatus",
-                        "readOnly": true
                     }
                 },
                 "type": "object",
-                "required": ["progress", "frequency_status"],
+                "required": ["progress", "frequency_status", "lessons", "totals"],
                 "title": "ClassroomFrequencyView"
             },
             "ClassroomMember": {
@@ -1308,24 +1208,26 @@
                     "occurred_on": { "type": "string", "format": "date", "title": "Occurred On" },
                     "position": { "type": "integer", "title": "Position" },
                     "status": { "$ref": "#/components/schemas/LessonStatus" },
+                    "hours": { "type": "integer", "title": "Hours" },
                     "absences": { "type": "integer", "title": "Absences", "default": 0 },
                     "marked": { "type": "boolean", "title": "Marked", "default": false }
                 },
                 "type": "object",
-                "required": ["occurred_on", "position", "status"],
+                "required": ["occurred_on", "position", "status", "hours"],
                 "title": "Lesson",
                 "description": "Uma aula; `position` a distingue das outras do mesmo dia."
             },
             "LessonMarkBody": {
-                "properties": { "status": { "$ref": "#/components/schemas/LessonMarkStatus" } },
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["presente", "falta", "cancelada"],
+                        "title": "Status"
+                    }
+                },
                 "type": "object",
                 "required": ["status"],
                 "title": "LessonMarkBody"
-            },
-            "LessonMarkStatus": {
-                "type": "string",
-                "enum": ["presente", "falta", "cancelada"],
-                "title": "LessonMarkStatus"
             },
             "LessonStatus": {
                 "type": "string",
@@ -1608,7 +1510,7 @@
                         "title": "Room"
                     },
                     "current": { "type": "boolean", "title": "Current", "default": false },
-                    "subject": { "$ref": "#/components/schemas/Subject" },
+                    "subject": { "$ref": "#/components/schemas/UserSubject" },
                     "grade": {
                         "anyOf": [{ "$ref": "#/components/schemas/Grade" }, { "type": "null" }]
                     }
@@ -1691,6 +1593,24 @@
                 "additionalProperties": false,
                 "type": "object",
                 "title": "UserSettingsPatch"
+            },
+            "UserSubject": {
+                "properties": {
+                    "code": { "type": "string", "title": "Code" },
+                    "name": { "type": "string", "title": "Name" },
+                    "hours": {
+                        "anyOf": [{ "type": "integer" }, { "type": "null" }],
+                        "title": "Hours"
+                    },
+                    "unity": {
+                        "anyOf": [{ "type": "string" }, { "type": "null" }],
+                        "title": "Unity"
+                    }
+                },
+                "type": "object",
+                "required": ["code", "name"],
+                "title": "UserSubject",
+                "description": "O componente como o cache guarda, pelo código."
             },
             "ValidationError": {
                 "properties": {

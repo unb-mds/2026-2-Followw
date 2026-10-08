@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Path, Query
 from pydantic import BaseModel
@@ -10,13 +10,13 @@ from sigaa_client import (
 )
 
 from api.cache import NoStore
-from api.db.enums import LessonMarkStatus
+from api.db.enums import LessonStatus
 from api.errors import SIGAA_ERRORS
 from api.modules.classrooms.frequency import (
     ClassroomFrequencyResult,
-    ClassroomFrequencyView,
     FrequencyServiceDep,
 )
+from api.modules.classrooms.lessons import ClassroomFrequencyView
 from api.modules.classrooms.news import ClassroomNewsServiceDep
 from api.modules.classrooms.service import ClassroomServiceDep, UserClassroom
 
@@ -37,7 +37,8 @@ LessonPosition = Annotated[
 
 
 class LessonMarkBody(BaseModel):
-    status: LessonMarkStatus
+    # Desmarcar é o DELETE: a aula sem chamada não é uma marcação.
+    status: Literal[LessonStatus.PRESENTE, LessonStatus.FALTA, LessonStatus.CANCELADA]
 
 
 @router.get(
@@ -106,7 +107,7 @@ async def get_classrooms(
     "/frequency",
     response_model=list[ClassroomFrequencyResult],
     summary="Consultar frequência de todas as turmas atuais",
-    description="Turmas atuais com identificação, andamento, frequência, frequency_status, aulas e totais. Falha em uma turma retorna erro, sem omiti-la da lista.",
+    description="Turmas atuais com identificação e a mesma frequência da rota individual. Falha em uma turma retorna erro, sem omiti-la da lista.",
     responses={**CLASSROOM_ERRORS, 503: {"description": "Cache em atualização."}},
 )
 async def get_current_frequencies(

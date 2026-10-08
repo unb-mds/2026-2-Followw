@@ -7,6 +7,10 @@ import { apiClient } from '#/queries/client.ts';
 
 export type Classroom = components['schemas']['UserClassroom'];
 
+/** A menção vale nas turmas encerradas; nas atuais, quem ocupa o lugar dela é o local. */
+export const finalGrade = (classroom: Classroom) =>
+    classroom.current ? null : (classroom.grade ?? null);
+
 export const classroomsQueryOptions = api.queryOptions('get', '/classrooms');
 
 export const allClassroomsQueryOptions = api.queryOptions('get', '/classrooms', {
@@ -30,7 +34,7 @@ export const classroomFrequencyQueryOptions = (id: string) =>
 
 export type ClassroomFrequency = components['schemas']['ClassroomFrequencyView'];
 export type Lesson = components['schemas']['Lesson'];
-export type LessonMarkStatus = components['schemas']['LessonMarkStatus'];
+export type LessonMarkStatus = components['schemas']['LessonMarkBody']['status'];
 
 /** Marca a aula (`null` desmarca) e relê a frequência, que já volta com aulas e totais. */
 export function useMarkLesson(id: string) {

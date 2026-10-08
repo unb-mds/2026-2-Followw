@@ -4,14 +4,15 @@ import type { Classroom } from '#/queries/classrooms';
 
 import { GradeText } from '#/components/classroom/GradeText';
 import { describeSchedule } from '#/lib/schedule';
+import { finalGrade } from '#/queries/classrooms';
+
 export function ClassroomSummary({ classroom }: { classroom: Classroom }) {
     const schedule = describeSchedule(classroom.schedule);
+    const grade = finalGrade(classroom);
     return (
         <header>
             <p className="text-xs font-medium tracking-wide text-muted-foreground">
-                <span className="font-semibold text-primary">
-                    {classroom.subject.code ?? 'Disciplina'}
-                </span>
+                <span className="font-semibold text-primary">{classroom.subject.code}</span>
                 {` · Turma ${classroom.number} · ${classroom.semester}`}
             </p>
             <h1 className="mt-1 text-xl leading-tight font-semibold tracking-tight text-balance">
@@ -29,11 +30,7 @@ export function ClassroomSummary({ classroom }: { classroom: Classroom }) {
                     </SummaryItem>
                 ) : (
                     <SummaryItem icon={Award}>
-                        {classroom.grade ? (
-                            <GradeText grade={classroom.grade} />
-                        ) : (
-                            'Menção não disponível'
-                        )}
+                        {grade ? <GradeText grade={grade} /> : 'Menção não disponível'}
                     </SummaryItem>
                 )}
                 {classroom.subject.hours != null && (

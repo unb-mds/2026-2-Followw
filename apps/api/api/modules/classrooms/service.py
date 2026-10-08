@@ -3,6 +3,7 @@ from functools import partial
 from typing import Annotated
 
 from fastapi import Depends
+from pydantic import BaseModel, ConfigDict
 from sigaa_client import (
     Classroom,
     ClassroomMember,
@@ -11,7 +12,6 @@ from sigaa_client import (
     Grade,
     StatisticsShare,
     StudentSituation,
-    Subject,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -122,9 +122,21 @@ async def sync_grade(ctx: Context[OwnLink]) -> None:
     )
 
 
+class UserSubject(BaseModel):
+    """O componente como o cache guarda, pelo código."""
+
+    model_config = ConfigDict(frozen=True)
+
+    code: str
+    name: str
+    hours: int | None = None
+    unity: str | None = None
+
+
 class UserClassroom(Classroom):
     """A turma com a menção do usuário, `None` enquanto não lançada ou sincronizada."""
 
+    subject: UserSubject
     grade: Grade | None = None
 
 
@@ -134,23 +146,33 @@ class ClassroomService:
 
     async def list_classrooms(self, semester: str | None = None) -> list[UserClassroom]:
         """A menção sai do cache: quem a revalida é o sync do login."""
+        return [to_classroom(link) for link in await self.list_links(semester)]
 
-        async def load(session: AsyncSession) -> Cached[list[UserClassroom]] | None:
+    async def list_links(self, semester: str | None = None) -> list[OwnLink]:
+        """Os vínculos da lista de turmas, na ordem em que ela é exibida."""
+
+        async def load(session: AsyncSession) -> Cached[list[OwnLink]] | None:
             user = await _user(self._sync.registration, session)
             if user is None or user.classrooms_synced_at is None:
                 return None
-            links = await ClassroomRepository(session).list_by_user_id(user.id)
             return Cached(
-                [_to_classroom(link) for link in links],
+                await ClassroomRepository(session).list_by_user_id(user.id),
                 user.classrooms_synced_at,
                 classrooms_freshness(user.classrooms_synced_at),
             )
 
-        classrooms = await self._sync.resolve(sync_classrooms, None, load)
-        selected = [c for c in classrooms if _in_semester(c, semester)]
-        selected.sort(key=lambda c: (c.subject.name, c.number))
+        links = await self._sync.resolve(sync_classrooms, None, load)
+        selected = [link for link in links if _in_semester(link, semester)]
+        selected.sort(
+            key=lambda link: (
+                link.row.classroom.subject.name,
+                link.row.classroom.number,
+            )
+        )
 
-        return sorted(selected, key=lambda c: c.semester, reverse=True)
+        return sorted(
+            selected, key=lambda link: link.row.classroom.semester, reverse=True
+        )
 
     async def list_members(self, classroom_id: str) -> list[ClassroomMember]:
         link = await self.get_link(classroom_id)
@@ -232,14 +254,14 @@ async def _user(registration: str, session: AsyncSession) -> User | None:
     return await UserRepository(session).get_by_registration(registration)
 
 
-def _in_semester(classroom: Classroom, semester: str | None) -> bool:
+def _in_semester(link: OwnLink, semester: str | None) -> bool:
     if semester is None:
-        return classroom.current
+        return link.row.current
 
-    return semester == "all" or classroom.semester == semester
+    return semester == "all" or link.row.classroom.semester == semester
 
 
-def _to_classroom(link: OwnLink) -> UserClassroom:
+def to_classroom(link: OwnLink) -> UserClassroom:
     classroom = link.row.classroom
     subject = classroom.subject
 
@@ -251,7 +273,7 @@ def _to_classroom(link: OwnLink) -> UserClassroom:
         schedule=classroom.schedule,
         room=classroom.room,
         current=link.row.current,
-        subject=Subject(
+        subject=UserSubject(
             code=subject.code,
             name=subject.name,
             hours=subject.hours,

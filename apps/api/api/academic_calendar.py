@@ -1,10 +1,11 @@
 """Regras que dependem do calendário acadêmico da UnB (`unb_browser`)."""
 
 import enum
+from collections.abc import Iterator
 from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from unb_browser import load_academic_calendar
+from unb_browser import CalendarEventCategory, load_academic_calendar
 
 from api.db.enums import ClassroomStatus
 
@@ -13,6 +14,11 @@ _BRASILIA = ZoneInfo("America/Sao_Paulo")
 MEMBERS_TOLERANCE = timedelta(days=3)
 # Docente que consolida a turma com atraso ainda tem a menção lida.
 GRADES_TOLERANCE = timedelta(days=3)
+_NO_CLASS = {
+    CalendarEventCategory.HOLIDAY,
+    CalendarEventCategory.OPTIONAL_HOLIDAY,
+    CalendarEventCategory.UNIVERSITY_WEEK,
+}
 
 
 class Event(str, enum.Enum):
@@ -81,3 +87,28 @@ def departure_status(semester: str) -> ClassroomStatus:
     if ended(semester, Event.EXTRAORDINARY_ENROLLMENT):
         return ClassroomStatus.TRANCADO
     return ClassroomStatus.REMOVIDO
+
+
+def class_days(semester: str, *, on: date | None = None) -> Iterator[date]:
+    """Os dias letivos do semestre até ontem, sem feriados e semana universitária."""
+    calendar = load_academic_calendar().get_semester(semester)
+    if calendar is None:
+        return
+    start = calendar.classes.start
+    end = min(calendar.classes.end, (on or today()) - timedelta(days=1))
+    no_class = {
+        day
+        for event in calendar.events
+        if event.category in _NO_CLASS
+        for day in _days(max(event.start_date, start), min(event.end_date, end))
+    }
+    for day in _days(start, end):
+        if day not in no_class:
+            yield day
+
+
+def _days(start: date, end: date) -> Iterator[date]:
+    day = start
+    while day <= end:
+        yield day
+        day += timedelta(days=1)

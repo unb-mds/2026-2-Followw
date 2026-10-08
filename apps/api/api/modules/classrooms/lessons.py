@@ -1,40 +1,31 @@
 """As aulas da turma: as do SIGAA, as previstas pelo horário e as marcadas pelo aluno."""
 
-import enum
 import re
 from collections import Counter
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date
+from typing import Self
 
 from pydantic import BaseModel, ConfigDict
-from sigaa_client import ClassroomFrequency
-from unb_browser import CalendarEventCategory, load_academic_calendar
+from sigaa_client import (
+    ClassroomAttendance,
+    ClassroomFrequency,
+    ClassroomProgress,
+    FrequencyStatus,
+)
 
-from api import academic_calendar
-from api.db.enums import LessonMarkStatus
+from api.db.enums import LessonStatus
 
 _SCHEDULE = re.compile(r"([1-7]+)([MTN])([1-6]+)")
-# Início e fim de cada horário, em minutos do dia, como em `apps/web/src/lib/schedule.ts`.
-_SLOTS = {
-    "M": ((480, 535), (535, 590), (600, 655), (655, 710), (720, 775)),
-    "T": ((775, 830), (840, 895), (895, 950), (960, 1015), (1015, 1070), (1080, 1135)),
-    "N": ((1140, 1190), (1190, 1240), (1250, 1300), (1300, 1350)),
-}
-_NO_CLASS = {
-    CalendarEventCategory.HOLIDAY,
-    CalendarEventCategory.OPTIONAL_HOLIDAY,
-    CalendarEventCategory.UNIVERSITY_WEEK,
-}
+# Os horários do dia, em ordem: horários consecutivos são uma aula só, como `M5T1`.
+_SLOTS = [
+    f"{shift}{slot}"
+    for shift, count in (("M", 5), ("T", 6), ("N", 4))
+    for slot in range(1, count + 1)
+]
 
-type Marks = Mapping[tuple[date, int], LessonMarkStatus]
-
-
-class LessonStatus(str, enum.Enum):
-    PRESENTE = "presente"
-    FALTA = "falta"
-    NAO_REGISTRADA = "nao_registrada"
-    CANCELADA = "cancelada"
+type Marks = Mapping[tuple[date, int], LessonStatus]
 
 
 class Lesson(BaseModel):
@@ -45,6 +36,8 @@ class Lesson(BaseModel):
     occurred_on: date
     position: int
     status: LessonStatus
+    # Horas-aula pelo horário da turma.
+    hours: int
     # Horas-aula de falta, como o SIGAA conta.
     absences: int = 0
     # Situação marcada pelo aluno numa aula que o SIGAA não registrou.
@@ -64,157 +57,152 @@ class FrequencyTotals(BaseModel):
     estimated: bool
 
 
+class ClassroomFrequencyView(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    progress: ClassroomProgress
+    frequency_status: FrequencyStatus
+    lessons: tuple[Lesson, ...]
+    totals: FrequencyTotals | None
+
+    @classmethod
+    def build(
+        cls,
+        frequency: ClassroomFrequency,
+        marks: Marks,
+        *,
+        schedule: str | None,
+        subject_hours: int | None,
+        days: Iterable[date] = (),
+    ) -> Self:
+        """As aulas do SIGAA, as previstas nos `days` e as marcadas, com os totais."""
+        lessons = _lessons(frequency.frequency, Timetable.parse(schedule), marks, days)
+        return cls(
+            progress=frequency.progress,
+            frequency_status=frequency.frequency_status,
+            lessons=lessons,
+            totals=_totals(frequency.frequency, lessons, subject_hours),
+        )
+
+
 @dataclass(frozen=True)
 class Timetable:
     """As aulas de cada dia da semana (0 = segunda), com as horas-aula de cada uma."""
 
     sessions: Mapping[int, tuple[int, ...]]
+    # Tamanho mais comum das aulas, que vale para as fora do horário (reposições).
+    usual: int = 1
 
     @classmethod
     def parse(cls, schedule: str | None) -> Timetable:
-        blocks: dict[int, list[tuple[int, int, int]]] = {}
-        for days, shift, slots in _SCHEDULE.findall(schedule or ""):
-            ranges = [
-                _SLOTS[shift][int(slot) - 1]
-                for slot in slots
-                if int(slot) <= len(_SLOTS[shift])
-            ]
-            if not ranges:
-                continue
+        slots: dict[int, set[int]] = {}
+        for days, shift, numbers in _SCHEDULE.findall(schedule or ""):
+            indexes = {_SLOTS.index(shift + n) for n in numbers if shift + n in _SLOTS}
             # No SIGAA, 1 é domingo e 2 é segunda.
-            for day in days:
-                blocks.setdefault((int(day) - 2) % 7, []).append(
-                    (ranges[0][0], ranges[-1][1], len(ranges))
-                )
+            for day in days if indexes else ():
+                slots.setdefault((int(day) - 2) % 7, set()).update(indexes)
 
-        sessions = {}
-        for weekday, day_blocks in blocks.items():
-            # Blocos colados no mesmo dia, como `M5T1`, são uma aula só.
-            merged: list[tuple[int, int, int]] = []
-            for start, end, hours in sorted(day_blocks):
-                if merged and merged[-1][1] == start:
-                    merged[-1] = (merged[-1][0], end, merged[-1][2] + hours)
-                else:
-                    merged.append((start, end, hours))
-            sessions[weekday] = tuple(hours for _, _, hours in merged)
-        return cls(sessions)
+        sessions = {weekday: _runs(indexes) for weekday, indexes in slots.items()}
+        usual = Counter(hours for day in sessions.values() for hours in day)
+        return cls(sessions, usual.most_common(1)[0][0] if usual else 1)
 
     def lessons_on(self, day: date) -> int:
         return len(self.sessions.get(day.weekday(), ()))
 
     def hours(self, day: date, position: int) -> int:
         day_sessions = self.sessions.get(day.weekday(), ())
-        if position < len(day_sessions):
-            return day_sessions[position]
-        # Aula fora do horário, como uma reposição: vale o tamanho usual das aulas.
-        usual = Counter(hours for day in self.sessions.values() for hours in day)
-        return usual.most_common(1)[0][0] if usual else 1
+        return day_sessions[position] if position < len(day_sessions) else self.usual
 
-
-def class_days(semester: str, *, on: date | None = None) -> Iterator[date]:
-    """Os dias letivos do semestre até ontem, sem feriados e semana universitária."""
-    calendar = load_academic_calendar().get_semester(semester)
-    if calendar is None:
-        return
-    start = calendar.classes.start
-    end = min(
-        calendar.classes.end, (on or academic_calendar.today()) - timedelta(days=1)
-    )
-    no_class = {
-        day
-        for event in calendar.events
-        if event.category in _NO_CLASS
-        for day in _days(max(event.start_date, start), min(event.end_date, end))
-    }
-    for day in _days(start, end):
-        if day not in no_class:
-            yield day
-
-
-def build_lessons(
-    frequency: ClassroomFrequency,
-    timetable: Timetable,
-    marks: Marks,
-    days: Iterable[date] = (),
-) -> tuple[Lesson, ...]:
-    """As aulas do SIGAA, as previstas nos `days` e as marcadas, mais recentes primeiro."""
-    lessons: dict[tuple[date, int], Lesson] = {}
-    positions: Counter[date] = Counter()
-    for entry in frequency.frequency.entries if frequency.frequency else ():
-        position = positions[entry.occurred_on]
-        positions[entry.occurred_on] += 1
-        lessons[entry.occurred_on, position] = Lesson(
-            occurred_on=entry.occurred_on,
-            position=position,
-            status=LessonStatus(entry.status.value),
-            absences=entry.absences,
-        )
-    for day in days:
-        for position in range(timetable.lessons_on(day)):
-            lessons.setdefault(
-                (day, position),
-                Lesson(
-                    occurred_on=day,
-                    position=position,
-                    status=LessonStatus.NAO_REGISTRADA,
-                ),
-            )
-    for (day, position), status in marks.items():
-        official = lessons.get((day, position))
-        if official is not None and official.status is not LessonStatus.NAO_REGISTRADA:
-            continue
-        lessons[day, position] = Lesson(
+    def lesson(
+        self,
+        day: date,
+        position: int,
+        status: LessonStatus,
+        *,
+        absences: int | None = None,
+        marked: bool = False,
+    ) -> Lesson:
+        """Sem `absences`, a falta conta todas as horas-aula da aula."""
+        hours = self.hours(day, position)
+        if absences is None:
+            absences = hours if status is LessonStatus.FALTA else 0
+        return Lesson(
             occurred_on=day,
             position=position,
-            status=LessonStatus(status.value),
-            absences=timetable.hours(day, position)
-            if status is LessonMarkStatus.FALTA
-            else 0,
-            marked=True,
+            status=status,
+            hours=hours,
+            absences=absences,
+            marked=marked,
         )
-    return tuple(sorted(lessons.values(), key=_order, reverse=True))
 
 
 def max_absences(hours: int | None) -> int | None:
     return max(hours * 4 // 15 - 2, 0) if hours else None
 
 
-def frequency_totals(
-    frequency: ClassroomFrequency,
-    lessons: Iterable[Lesson],
+def _lessons(
+    attendance: ClassroomAttendance | None,
     timetable: Timetable,
+    marks: Marks,
+    days: Iterable[date],
+) -> tuple[Lesson, ...]:
+    """Mais recentes primeiro."""
+    lessons: dict[tuple[date, int], Lesson] = {}
+    positions: Counter[date] = Counter()
+    for entry in attendance.entries if attendance else ():
+        position = positions[entry.occurred_on]
+        positions[entry.occurred_on] += 1
+        lessons[entry.occurred_on, position] = timetable.lesson(
+            entry.occurred_on,
+            position,
+            LessonStatus(entry.status.value),
+            absences=entry.absences,
+        )
+    for day in days:
+        for position in range(timetable.lessons_on(day)):
+            lessons.setdefault(
+                (day, position),
+                timetable.lesson(day, position, LessonStatus.NAO_REGISTRADA),
+            )
+    for (day, position), status in marks.items():
+        official = lessons.get((day, position))
+        if official is None or official.status is LessonStatus.NAO_REGISTRADA:
+            lessons[day, position] = timetable.lesson(
+                day, position, status, marked=True
+            )
+    return tuple(sorted(lessons.values(), key=_order, reverse=True))
+
+
+def _totals(
+    attendance: ClassroomAttendance | None,
+    lessons: Iterable[Lesson],
     subject_hours: int | None,
 ) -> FrequencyTotals | None:
     """`None` enquanto não há aula com presença ou falta.
 
     Na porcentagem, a aula sem chamada vale como presença: só a falta a tira.
     """
-    attendance = frequency.frequency
-    summary = attendance.summary if attendance else None
-    attended = attendance.attended if attendance else 0
-    registered = attendance.registered if attendance else 0
-    presences = summary.recorded_entries - summary.absence_entries if summary else 0
-    absences = summary.total_absences if summary else 0
+    attended = registered = presences = absences = recorded = 0
+    if attendance:
+        summary = attendance.summary
+        attended, registered = attendance.attended, attendance.registered
+        recorded = summary.recorded_entries
+        presences = recorded - summary.absence_entries
+        absences = summary.total_absences
     estimated = False
     for lesson in lessons:
-        if lesson.status is LessonStatus.CANCELADA:
-            continue
-        lesson_hours = timetable.hours(lesson.occurred_on, lesson.position)
         if lesson.status is LessonStatus.NAO_REGISTRADA:
-            registered += lesson_hours
-            attended += lesson_hours
-            continue
-        if not lesson.marked:
-            continue
-        registered += lesson_hours
-        if lesson.status is LessonStatus.PRESENTE:
-            attended += lesson_hours
-            presences += 1
-        else:
-            absences += lesson_hours
-        estimated = True
+            registered += lesson.hours
+            attended += lesson.hours
+        elif lesson.marked and lesson.status is not LessonStatus.CANCELADA:
+            estimated = True
+            registered += lesson.hours
+            if lesson.status is LessonStatus.PRESENTE:
+                attended += lesson.hours
+                presences += 1
+            absences += lesson.absences
 
-    if not estimated and not (summary and summary.recorded_entries):
+    if not estimated and not recorded:
         return None
     return FrequencyTotals(
         presences=presences,
@@ -229,8 +217,12 @@ def _order(lesson: Lesson) -> tuple[date, int]:
     return lesson.occurred_on, lesson.position
 
 
-def _days(start: date, end: date) -> Iterator[date]:
-    day = start
-    while day <= end:
-        yield day
-        day += timedelta(days=1)
+def _runs(slots: set[int]) -> tuple[int, ...]:
+    """O tamanho de cada sequência de horários consecutivos."""
+    runs: list[int] = []
+    for slot in sorted(slots):
+        if slot - 1 in slots:
+            runs[-1] += 1
+        else:
+            runs.append(1)
+    return tuple(runs)

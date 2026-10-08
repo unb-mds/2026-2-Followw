@@ -20,7 +20,8 @@ class ClassroomStatus(str, enum.Enum):
     CONCLUIDO = "concluido"
 
 
-class LessonMarkStatus(str, enum.Enum):
+class LessonStatus(str, enum.Enum):
     PRESENTE = "presente"
     FALTA = "falta"
+    NAO_REGISTRADA = "nao_registrada"
     CANCELADA = "cancelada"

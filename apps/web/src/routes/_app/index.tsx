@@ -157,7 +157,7 @@ function HomePage() {
                                     <ClassCard
                                         key={`${item.id}-${start}`}
                                         title={item.subject.name}
-                                        code={item.subject.code ?? undefined}
+                                        code={item.subject.code}
                                         time={`${start} - ${end}`}
                                         location={item.room ?? 'Local não informado'}
                                         status={status}

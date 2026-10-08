@@ -108,7 +108,7 @@ export interface paths {
         };
         /**
          * Consultar frequência de todas as turmas atuais
-         * @description Turmas atuais com identificação, andamento, frequência, frequency_status, aulas e totais. Falha em uma turma retorna erro, sem omiti-la da lista.
+         * @description Turmas atuais com identificação e a mesma frequência da rota individual. Falha em uma turma retorna erro, sem omiti-la da lista.
          */
         get: operations["get_current_frequencies_classrooms_frequency_get"];
         put?: never;
@@ -344,94 +344,18 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /**
-         * AttendanceEntry
-         * @description Uma aula do mapa de frequências. `absences` é 0 fora da situação de falta.
-         */
-        AttendanceEntry: {
-            /**
-             * Occurred On
-             * Format: date
-             */
-            occurred_on: string;
-            status: components["schemas"]["AttendanceStatus"];
-            /**
-             * Absences
-             * @default 0
-             */
-            absences: number;
-        };
-        /**
-         * AttendanceStatus
-         * @enum {string}
-         */
-        AttendanceStatus: "presente" | "falta" | "nao_registrada";
-        /**
-         * AttendanceSummary
-         * @description Contagens das entradas publicadas, sem presumir duração de cada aula.
-         */
-        AttendanceSummary: {
-            /** Total Entries */
-            total_entries: number;
-            /** Recorded Entries */
-            recorded_entries: number;
-            /** Unrecorded Entries */
-            unrecorded_entries: number;
-            /** Absence Entries */
-            absence_entries: number;
-            /** Total Absences */
-            total_absences: number;
-        };
-        /**
-         * ClassroomAttendance
-         * @description Mapa de frequências da turma, com os totais que o próprio SIGAA calcula.
-         *
-         *     Totais e porcentagens são os valores exibidos pelo SIGAA; eles podem
-         *     incluir aulas ainda não registradas. `summary` conta apenas as entradas
-         *     publicadas, sem confundir quantidade de datas com carga horária.
-         */
-        ClassroomAttendance: {
-            /**
-             * Entries
-             * @default []
-             */
-            entries: components["schemas"]["AttendanceEntry"][];
-            /** Attended */
-            attended: number;
-            /** Registered */
-            registered: number;
-            /** Registered Percentage */
-            registered_percentage: number;
-            /** Total */
-            total: number;
-            /** Total Percentage */
-            total_percentage: number;
-            readonly summary: components["schemas"]["AttendanceSummary"];
-        };
         /** ClassroomFrequencyResult */
         ClassroomFrequencyResult: {
-            progress: components["schemas"]["ClassroomProgress"];
-            frequency?: components["schemas"]["ClassroomAttendance"] | null;
-            /**
-             * Lessons
-             * @default []
-             */
-            lessons: components["schemas"]["Lesson"][];
-            totals?: components["schemas"]["FrequencyTotals"] | null;
             classroom: components["schemas"]["UserClassroom"];
-            readonly frequency_status: components["schemas"]["FrequencyStatus"];
+            frequency: components["schemas"]["ClassroomFrequencyView"];
         };
         /** ClassroomFrequencyView */
         ClassroomFrequencyView: {
             progress: components["schemas"]["ClassroomProgress"];
-            frequency?: components["schemas"]["ClassroomAttendance"] | null;
-            /**
-             * Lessons
-             * @default []
-             */
+            frequency_status: components["schemas"]["FrequencyStatus"];
+            /** Lessons */
             lessons: components["schemas"]["Lesson"][];
-            totals?: components["schemas"]["FrequencyTotals"] | null;
-            readonly frequency_status: components["schemas"]["FrequencyStatus"];
+            totals: components["schemas"]["FrequencyTotals"] | null;
         };
         /**
          * ClassroomMember
@@ -548,6 +472,8 @@ export interface components {
             /** Position */
             position: number;
             status: components["schemas"]["LessonStatus"];
+            /** Hours */
+            hours: number;
             /**
              * Absences
              * @default 0
@@ -561,13 +487,12 @@ export interface components {
         };
         /** LessonMarkBody */
         LessonMarkBody: {
-            status: components["schemas"]["LessonMarkStatus"];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "presente" | "falta" | "cancelada";
         };
-        /**
-         * LessonMarkStatus
-         * @enum {string}
-         */
-        LessonMarkStatus: "presente" | "falta" | "cancelada";
         /**
          * LessonStatus
          * @enum {string}
@@ -765,7 +690,7 @@ export interface components {
              * @default false
              */
             current: boolean;
-            subject: components["schemas"]["Subject"];
+            subject: components["schemas"]["UserSubject"];
             grade?: components["schemas"]["Grade"] | null;
         };
         /**
@@ -807,6 +732,20 @@ export interface components {
         UserSettingsPatch: {
             /** Displayname */
             displayName?: string | null;
+        };
+        /**
+         * UserSubject
+         * @description O componente como o cache guarda, pelo código.
+         */
+        UserSubject: {
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+            /** Hours */
+            hours?: number | null;
+            /** Unity */
+            unity?: string | null;
         };
         /** ValidationError */
         ValidationError: {

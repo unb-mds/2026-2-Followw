@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from datetime import date, datetime
 from uuid import UUID, uuid4
 
@@ -8,11 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from api import academic_calendar
-from api.db.enums import (
-    ClassroomRole,
-    ClassroomStatus,
-    LessonMarkStatus,
-)
+from api.db.enums import ClassroomRole, ClassroomStatus, LessonStatus
 from api.db.models import (
     USER_WITHOUT_IDS,
     Classroom,
@@ -389,7 +385,6 @@ class FrequencyRepository:
     async def save(
         self,
         user_classroom_id: UUID,
-        classroom_id: UUID,
         frequency: sigaa_client.ClassroomFrequency,
         synced_at: datetime,
     ) -> None:
@@ -397,29 +392,31 @@ class FrequencyRepository:
         if cached is None:
             cached = ClassroomFrequencyCache(user_classroom_id=user_classroom_id)
             self._session.add(cached)
-        cached.frequency = (
-            frequency.frequency.model_dump(mode="json") if frequency.frequency else None
-        )
-        cached.frequency_status = frequency.frequency_status
+        cached.data = frequency.model_dump(mode="json")
         cached.synced_at = synced_at
-        classroom = await self._session.get_one(Classroom, classroom_id)
-        classroom.progress = frequency.progress.model_dump(mode="json")
         await self._session.flush()
 
     async def list_marks(
-        self, user_classroom_id: UUID
-    ) -> dict[tuple[date, int], LessonMarkStatus]:
-        marks = await self._session.scalars(
-            select(LessonMark).where(LessonMark.user_classroom_id == user_classroom_id)
-        )
-        return {(mark.occurred_on, mark.position): mark.status for mark in marks}
+        self, user_classroom_ids: Collection[UUID]
+    ) -> dict[UUID, dict[tuple[date, int], LessonStatus]]:
+        """As marcações de cada vínculo, inclusive dos que não têm nenhuma."""
+        marks: dict[UUID, dict[tuple[date, int], LessonStatus]] = {
+            user_classroom_id: {} for user_classroom_id in user_classroom_ids
+        }
+        for mark in await self._session.scalars(
+            select(LessonMark).where(
+                LessonMark.user_classroom_id.in_(user_classroom_ids)
+            )
+        ):
+            marks[mark.user_classroom_id][mark.occurred_on, mark.position] = mark.status
+        return marks
 
     async def save_mark(
         self,
         user_classroom_id: UUID,
         occurred_on: date,
         position: int,
-        status: LessonMarkStatus,
+        status: LessonStatus,
     ) -> None:
         mark = await self._session.scalar(
             select(LessonMark).where(

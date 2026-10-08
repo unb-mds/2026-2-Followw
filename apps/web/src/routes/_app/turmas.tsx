@@ -11,7 +11,7 @@ import { Card, CardContent } from '#/components/ui/card';
 import { Toggle } from '#/components/ui/toggle';
 import { groupBySemester } from '#/lib/classroom-details';
 import { describeSchedule } from '#/lib/schedule';
-import { allClassroomsQueryOptions } from '#/queries/classrooms';
+import { allClassroomsQueryOptions, finalGrade } from '#/queries/classrooms';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
 
@@ -78,7 +78,7 @@ function Classrooms() {
                     <ClassCard
                         key={classroom.id}
                         title={classroom.subject.name}
-                        code={classroom.subject.code ?? undefined}
+                        code={classroom.subject.code}
                         time={describeSchedule(classroom.schedule) ?? 'Horário a definir'}
                         location={
                             classroom.current
@@ -86,7 +86,7 @@ function Classrooms() {
                                 : undefined
                         }
                         professor={`Turma ${classroom.number}`}
-                        grade={classroom.current ? undefined : classroom.grade}
+                        grade={finalGrade(classroom)}
                         onClick={() =>
                             navigate({ to: '/turmas/$id', params: { id: classroom.id } })
                         }

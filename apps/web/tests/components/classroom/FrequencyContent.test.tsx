@@ -11,6 +11,7 @@ const lesson = (occurred_on: string, fields: Partial<Lesson> = {}): Lesson => ({
     occurred_on,
     position: 0,
     status: 'nao_registrada',
+    hours: 2,
     absences: 0,
     marked: false,
     ...fields
@@ -19,7 +20,6 @@ const lesson = (occurred_on: string, fields: Partial<Lesson> = {}): Lesson => ({
 const registered: ClassroomFrequency = {
     progress,
     frequency_status: 'registrada',
-    frequency: null,
     lessons: [
         lesson('2026-10-07', { status: 'falta', absences: 2 }),
         lesson('2026-10-06'),
@@ -31,7 +31,6 @@ const registered: ClassroomFrequency = {
 const notRegistered: ClassroomFrequency = {
     progress,
     frequency_status: 'nao_registrada',
-    frequency: null,
     lessons: [],
     totals: null
 };
