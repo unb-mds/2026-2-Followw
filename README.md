@@ -77,8 +77,8 @@ bun install
 bun dev                           # sobe o front em http://localhost:3000
 ```
 
-O front usa `http://localhost:8000` como API por padrão; para outra URL, defina
-`VITE_API_URL`.
+O front acessa a API em `/api` da mesma origem: no dev, o Vite repassa para
+`http://localhost:8000`.
 
 ### Testes e lint
 

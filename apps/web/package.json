@@ -32,11 +32,11 @@
         "class-variance-authority": "^0.7.1",
         "cn": "^0.4.0",
         "idb-keyval": "^6.3.0",
-        "lucide-react": "^1.52.0",
+        "lucide-react": "^1.53.0",
         "nitro": "3.0.260903-beta",
         "openapi-fetch": "^0.17.0",
         "openapi-react-query": "^0.5.4",
-        "posthog-js": "^1.438.2",
+        "posthog-js": "^1.438.3",
         "qrcode.react": "^4.2.0",
         "react": "^19.2.0",
         "react-dom": "^19.2.0",
@@ -59,7 +59,7 @@
         "oxlint-tsgolint": "^7.0.2003",
         "shadcn": "^4.21.4",
         "typescript": "^7.0.2",
-        "vite": "^8.3.3",
+        "vite": "^8.3.4",
         "vite-plugin-pwa": "^2.0.0"
     }
 }

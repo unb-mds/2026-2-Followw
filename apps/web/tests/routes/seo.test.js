@@ -82,11 +82,23 @@ describe('indexação das páginas', () => {
     test('URLs inexistentes continuam redirecionando para a inicial', () => {
         let error;
         try {
-            FallbackRoute.options.beforeLoad();
+            FallbackRoute.options.beforeLoad({ location: { pathname: '/nada/aqui' } });
         } catch (caught) {
             error = caught;
         }
         expect(error).toMatchObject({ options: { to: '/' } });
+    });
+
+    test('assets inexistentes dão 404 em vez de redirecionar', () => {
+        let error;
+        try {
+            FallbackRoute.options.beforeLoad({
+                location: { pathname: '/assets/turmas-ANTIGO.js' }
+            });
+        } catch (caught) {
+            error = caught;
+        }
+        expect(error).toMatchObject({ isNotFound: true });
     });
 
     test('sitemap contém apenas as páginas públicas com os mesmos canonicals', async () => {

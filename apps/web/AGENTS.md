@@ -37,8 +37,8 @@ travar; tratando `ApiError.isUnauthorized`) e o componente consome com `useSuspe
 persistido para uso offline (veja `docs/offline.md`): tela de erro por falta de dado usa
 `isLoadingError`; `isError` só onde há dado salvo para exibir junto do aviso de falha.
 
-No SSR, os cookies são repassados pelo contexto da requisição, nunca por variável de módulo (vazaria
-sessão entre usuários). Em produção o SSR só autentica porque a API grava os cookies com
-`Domain=followw.app` (`COOKIE_DOMAIN`).
+A API fica em `/api` da mesma origem (proxy do Vite no dev, `vercel.json` em produção). No SSR, a
+origem e os cookies vêm do contexto da requisição, nunca de variável de módulo (vazaria sessão entre
+usuários).
 
 Para pedir dado novo à API, use `refreshQuery(queryClient, options)`.

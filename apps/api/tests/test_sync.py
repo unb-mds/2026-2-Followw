@@ -22,7 +22,7 @@ from sqlalchemy import select, update
 
 from api.cache import is_stale
 from api.cookies import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME
-from api.db.models import Classroom, ClassroomStatistic, ClassroomUser, User
+from api.db.models import Classroom, ClassroomParticipant, ClassroomStatistic, User
 from api.modules.auth.account import sync_account
 from api.modules.classrooms.service import sync_grade, sync_members, sync_statistics
 from api.modules.me.profile import sync_profile
@@ -389,9 +389,11 @@ def test_primeiro_login_sincroniza_tudo(client, conta, database):
         classrooms = list(session.scalars(select(Classroom)))
         assert user.profile_synced_at and user.classrooms_synced_at
         assert len(classrooms) == 2
-        assert all(c.members_synced_at and c.statistics_synced_at for c in classrooms)
+        assert all(c.members_synced_at for c in classrooms)
+        # Só a turma passada tem estatística sincronizada.
+        assert [c.semester for c in classrooms if c.statistics_synced_at] == ["2025.2"]
         assert session.scalar(select(User).where(User.registration == "2"))
-        assert len(list(session.scalars(select(ClassroomStatistic)))) == 2
+        assert len(list(session.scalars(select(ClassroomStatistic)))) == 1
     lidas = conta.classrooms.list_classroom_members.await_args_list
     assert sorted(c.args for c in lidas) == [("AAA",), ("BBB",)]
 
@@ -421,11 +423,11 @@ def test_segundo_aluno_aproveita_as_turmas_ja_sincronizadas(client, conta, datab
     client.post("/auth/sigaa", json={**LOGIN, "registration": "251000001"})
 
     assert conta.classrooms.list_classroom_members.await_count == 2
-    assert conta.classrooms.get_classroom_statistics.await_count == 2
+    assert conta.classrooms.get_classroom_statistics.await_count == 1
     with database() as session:
         assert len(list(session.scalars(select(Classroom)))) == 2
         # Dois vínculos de cada aluno e o colega nas duas turmas.
-        assert len(list(session.scalars(select(ClassroomUser)))) == 6
+        assert len(list(session.scalars(select(ClassroomParticipant)))) == 6
 
 
 @pytest.mark.parametrize(
@@ -451,9 +453,9 @@ def test_turma_com_falha_nao_impede_o_sync_das_outras(
     with database() as session:
         synced = dict(
             session.execute(
-                select(ClassroomUser.front_end_id, Classroom.members_synced_at).join(
-                    Classroom
-                )
+                select(
+                    ClassroomParticipant.front_end_id, Classroom.members_synced_at
+                ).join(Classroom)
             ).all()
         )
     # A que falhou fica sem data: tentou de novo uma vez e o próximo sync refaz.
@@ -463,18 +465,19 @@ def test_turma_com_falha_nao_impede_o_sync_das_outras(
     assert sorted(lidas) == [("AAA",), ("AAA",), ("BBB",)]
     assert {r.status_code for r in qstash.deliveries} == {204}
     estatisticas = conta.classrooms.get_classroom_statistics.await_args_list
-    assert sorted(c.args for c in estatisticas) == [("AAA",), ("BBB",)]
+    assert [c.args for c in estatisticas] == [("BBB",)]
 
 
 def test_login_sincroniza_cada_turma_em_um_job(client, conta, qstash):
     client.post("/auth/sigaa", json=LOGIN)
 
     conta_job, *turmas = qstash.jobs()
-    telas = (Step.of(sync_members), Step.of(sync_statistics), Step.of(sync_grade))
+    atual = (Step.of(sync_members), Step.of(sync_grade))
+    antiga = (Step.of(sync_members), Step.of(sync_statistics), Step.of(sync_grade))
     assert (conta_job.classroom_id, conta_job.steps) == (None, (Step.of(sync_account),))
     assert sorted((job.classroom_id, job.steps) for job in turmas) == [
-        ("AAA", telas),
-        ("BBB", telas),
+        ("AAA", atual),
+        ("BBB", antiga),
     ]
     # O login do usuário e uma sessão para cada job, encerrada no fim dele.
     assert conta.authenticate.await_count == 4
@@ -652,21 +655,53 @@ def test_requisicao_junta_as_tarefas_num_job_por_turma(
 ):
     """A lista vencida vai no job da conta; a tela da turma, no job da turma."""
     client.cookies.update(cookies(refresh=CREDENCIAIS))
-    client.get("/classrooms/AAA/statistics")
+    client.get("/classrooms/AAA/members")
     vencido = datetime.now(UTC) - timedelta(days=30)
     with database() as session:
         session.execute(update(User).values(classrooms_synced_at=vencido))
-        session.execute(update(Classroom).values(statistics_synced_at=vencido))
+        session.execute(update(Classroom).values(members_synced_at=vencido))
         session.commit()
     qstash.published.clear()
 
-    client.get("/classrooms/AAA/statistics")
+    client.get("/classrooms/AAA/members")
 
     jobs = {job.classroom_id: job.steps for job in qstash.jobs()}
     assert jobs == {
         None: (Step(task="sync_classrooms"),),
-        "AAA": (Step.of(sync_statistics),),
+        "AAA": (Step.of(sync_members),),
     }
+
+
+def test_estatistica_salva_nao_vence_e_so_o_no_cache_revalida(
+    client, turma, cookies, qstash, database
+):
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+    client.get("/classrooms/AAA/statistics")
+    _envelhecer(database, Classroom.statistics_synced_at, hours=24 * 365)
+    qstash.published.clear()
+    turma.reset()
+
+    client.get("/classrooms/AAA/statistics")
+    assert not [
+        s for job in qstash.jobs() for s in job.steps if s == Step.of(sync_statistics)
+    ]
+    turma.classrooms.get_classroom_statistics.assert_not_awaited()
+
+    client.get("/classrooms/AAA/statistics", headers=NO_CACHE)
+    turma.classrooms.get_classroom_statistics.assert_awaited_once()
+
+
+def test_login_nao_sincroniza_estatistica_de_turma_atual_nem_a_ja_salva(
+    client, conta, database, qstash
+):
+    client.post("/auth/sigaa", json=LOGIN)
+    _envelhecer(database, User.classrooms_synced_at, hours=73)
+    _envelhecer(database, Classroom.statistics_synced_at, hours=24 * 365)
+    conta.classrooms.get_classroom_statistics.reset_mock()
+
+    client.post("/auth/sigaa", json=LOGIN)
+
+    conta.classrooms.get_classroom_statistics.assert_not_awaited()
 
 
 def test_job_com_tarefa_desconhecida_retorna_400(client, stub_sigaa, qstash):

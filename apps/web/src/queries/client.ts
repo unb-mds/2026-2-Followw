@@ -5,7 +5,11 @@ import type { paths } from '#/queries/schema.gen.ts';
 
 import { toApiError } from '#/queries/errors.ts';
 
-const baseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
+// a API fica em /api da mesma origem; no SSR o fetch exige URL absoluta, e a origem provisória é
+// trocada pela da requisição recebida (veja `ssrMiddleware`)
+const baseUrl = createIsomorphicFn()
+    .client(() => '/api')
+    .server(() => 'http://localhost/api')();
 
 const getSsrCookie = createIsomorphicFn()
     .client(() => undefined)
@@ -18,6 +22,18 @@ const getSsrCookie = createIsomorphicFn()
         }
     });
 
+const toSsrOrigin = createIsomorphicFn()
+    .client((request: Request) => request)
+    .server(async (request: Request) => {
+        const { getRequestUrl } = await import('@tanstack/react-start/server');
+        try {
+            const { pathname, search } = new URL(request.url);
+            return new Request(new URL(pathname + search, getRequestUrl()), request);
+        } catch {
+            return request;
+        }
+    });
+
 const forwardSsrSetCookie = createIsomorphicFn()
     .client((_cookies: string[]) => {})
     .server(async (cookies: string[]) => {
@@ -27,8 +43,9 @@ const forwardSsrSetCookie = createIsomorphicFn()
         } catch {}
     });
 
-const ssrCookiesMiddleware: Middleware = {
-    async onRequest({ request }) {
+const ssrMiddleware: Middleware = {
+    async onRequest({ request: original }) {
+        const request = await toSsrOrigin(original);
         const cookie = await getSsrCookie();
         if (cookie) request.headers.set('cookie', cookie);
         return request;
@@ -57,4 +74,4 @@ export const apiClient = createClient<paths>({
 });
 
 apiClient.use(errorHandlingMiddleware);
-apiClient.use(ssrCookiesMiddleware);
+apiClient.use(ssrMiddleware);

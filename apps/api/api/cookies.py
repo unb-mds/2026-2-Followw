@@ -58,10 +58,8 @@ def read_refresh_cookie(request: Request) -> Credentials | None:
 
 
 def clear_cookies(response: Response) -> None:
-    domains = {settings.cookie_domain, None}
     for name in (ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME):
-        for domain in domains:
-            response.delete_cookie(name, domain=domain)
+        response.delete_cookie(name)
 
 
 def encrypt_cookie(name: str, claims: dict) -> str:
@@ -117,7 +115,6 @@ def _set_cookie(
         secure=settings.environment == "production",
         samesite="lax",
         max_age=expire_minutes * 60,
-        domain=settings.cookie_domain,
     )
 
 

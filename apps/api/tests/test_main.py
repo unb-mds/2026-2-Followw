@@ -1,7 +1,6 @@
 import importlib
 import logging
 
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 
 import api.main as main_module
@@ -22,10 +21,6 @@ def test_redireciona_https_em_producao(monkeypatch):
         assert any(
             m.cls is HTTPSRedirectMiddleware for m in main_module.app.user_middleware
         )
-        cors = next(
-            m for m in main_module.app.user_middleware if m.cls is CORSMiddleware
-        )
-        assert "http://localhost:3000" not in cors.kwargs["allow_origins"]
     finally:
         monkeypatch.setattr(settings, "environment", original)
         importlib.reload(main_module)
@@ -36,7 +31,13 @@ def test_scalar_docs_retorna_html_com_referencia_openapi(client):
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
     assert "api-reference" in response.text
-    assert "/openapi.json" in response.text
+    assert 'data-url="/api/openapi.json"' in response.text
+
+
+def test_rotas_respondem_com_e_sem_prefixo_api(client):
+    for path in ("/openapi.json", "/api/openapi.json"):
+        assert client.get(path).status_code == 200
+    assert client.get("/api/openapi.json").json()["servers"] == [{"url": "/api"}]
 
 
 def test_openapi_agrupa_recursos_publicos_sem_ocultar_rotas_privadas(client):
@@ -55,8 +56,8 @@ def test_openapi_agrupa_recursos_publicos_sem_ocultar_rotas_privadas(client):
             ) == path.startswith("/public/")
 
 
-def test_cors_libera_origens_do_front_com_credenciais(client):
-    for origin in ("https://followw.app", "http://localhost:3000"):
+def test_cors_libera_origens_configuradas_com_credenciais(client):
+    for origin in ("https://followw.app",):
         response = client.options(
             "/me",
             headers={

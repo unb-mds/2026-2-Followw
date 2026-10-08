@@ -1,11 +1,11 @@
 import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
-import { Link, createFileRoute } from '@tanstack/react-router';
-import { ArrowLeft, Clock3, Hourglass, MapPin } from 'lucide-react';
+import { Link, createFileRoute, useCanGoBack, useRouter } from '@tanstack/react-router';
+import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 
-import type { Classroom } from '#/queries/classrooms';
 import type { components } from '#/queries/schema.gen';
 
+import { ClassroomSummary } from '#/components/classroom/ClassroomSummary';
 import { FrequencyContent } from '#/components/classroom/FrequencyContent';
 import { ErrorCard, ErrorState, SIGAA_DOWN_MESSAGE } from '#/components/ErrorState';
 import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
@@ -25,13 +25,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
 import { formatClassroomDate, groupMembers } from '#/lib/classroom-details';
 import { Markdown } from '#/lib/markdown';
 import { titleCase } from '#/lib/profile';
-import { describeSchedule } from '#/lib/schedule';
 import {
     allClassroomsQueryOptions,
     classroomFrequencyQueryOptions,
     classroomMembersQueryOptions,
     classroomNewsDetailQueryOptions,
-    classroomNewsQueryOptions
+    classroomNewsQueryOptions,
+    useMarkLesson
 } from '#/queries/classrooms';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
@@ -63,11 +63,19 @@ export const Route = createFileRoute('/_app/turmas_/$id')({
 });
 
 function ClassroomHeader() {
+    const router = useRouter();
+    const canGoBack = useCanGoBack();
+
     return (
         <HeaderBar showLogo={false}>
             <Link
                 to="/turmas"
-                aria-label="Voltar para as turmas"
+                aria-label="Voltar"
+                onClick={(event) => {
+                    if (!canGoBack) return;
+                    event.preventDefault();
+                    router.history.back();
+                }}
                 className={buttonVariants({ variant: 'ghost', className: 'size-10' })}
             >
                 <ArrowLeft className="size-5" />
@@ -136,49 +144,6 @@ function ClassroomPage() {
                 </>
             )}
         </>
-    );
-}
-
-function ClassroomSummary({ classroom }: { classroom: Classroom }) {
-    const schedule = describeSchedule(classroom.schedule);
-    return (
-        <header>
-            <p className="text-xs font-medium tracking-wide text-muted-foreground">
-                <span className="font-semibold text-primary">
-                    {classroom.subject.code ?? 'Disciplina'}
-                </span>
-                {` · Turma ${classroom.number} · ${classroom.semester}`}
-            </p>
-            <h1 className="mt-1 text-xl leading-tight font-semibold tracking-tight text-balance">
-                {classroom.subject.name}
-            </h1>
-            <ul className="mt-3 flex flex-col gap-1 text-sm text-muted-foreground">
-                <SummaryItem icon={Clock3}>
-                    <span className="font-medium text-primary tabular-nums">
-                        {schedule ?? 'Horário a definir'}
-                    </span>
-                </SummaryItem>
-                <SummaryItem icon={MapPin}>{classroom.room ?? 'Local não informado'}</SummaryItem>
-                {classroom.subject.hours != null && (
-                    <SummaryItem icon={Hourglass}>{classroom.subject.hours}h</SummaryItem>
-                )}
-            </ul>
-        </header>
-    );
-}
-
-function SummaryItem({
-    icon: Icon,
-    children
-}: {
-    icon: React.FC<{ className?: string }>;
-    children: React.ReactNode;
-}) {
-    return (
-        <li className="flex items-start gap-2">
-            <Icon className="mt-1 size-3.5 shrink-0" />
-            <span className="min-w-0">{children}</span>
-        </li>
     );
 }
 
@@ -295,11 +260,25 @@ function NewsDetail({ classroomId, newsId }: { classroomId: string; newsId: numb
 
 function FrequencyTab({ id }: { id: string }) {
     const frequency = useQuery(classroomFrequencyQueryOptions(id));
+    const markLesson = useMarkLesson(id);
 
     if (frequency.isPending) return <TabLoading />;
     if (frequency.isLoadingError) return <TabError onRetry={() => frequency.refetch()} />;
 
-    return <FrequencyContent data={frequency.data} />;
+    return (
+        <>
+            {markLesson.isError && (
+                <p role="alert" className="mb-2 text-sm text-destructive">
+                    Não foi possível salvar a marcação. Tente novamente.
+                </p>
+            )}
+            <FrequencyContent
+                data={frequency.data}
+                pending={markLesson.isPending}
+                onMark={(lesson, status) => markLesson.mutate({ lesson, status })}
+            />
+        </>
+    );
 }
 
 function GroupTitle({ title, count }: { title: string; count: number }) {

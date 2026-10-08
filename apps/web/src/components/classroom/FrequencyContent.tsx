@@ -1,9 +1,16 @@
-import { CircleCheck, CircleDashed, CircleX } from 'lucide-react';
+import { CircleCheck, CircleDashed, CircleSlash, CircleX } from 'lucide-react';
 
-import type { components } from '#/queries/schema.gen';
+import type { ClassroomFrequency, Lesson, LessonMarkStatus } from '#/queries/classrooms';
 
 import { ListCard, Meter } from '#/components/ListCard';
-import { Card, CardContent } from '#/components/ui/card';
+import { Card } from '#/components/ui/card';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger
+} from '#/components/ui/dropdown-menu';
 import {
     formatClassroomDate,
     formatClassroomWeekday,
@@ -11,8 +18,7 @@ import {
 } from '#/lib/classroom-details';
 import { cn } from '#/lib/shadcn';
 
-type Frequency = components['schemas']['ClassroomFrequency'];
-type Entry = components['schemas']['AttendanceEntry'];
+export type MarkLesson = (lesson: Lesson, status: LessonMarkStatus | null) => void;
 
 const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
 
@@ -22,34 +28,36 @@ const FREQUENCY_TONE = {
     danger: 'text-destructive'
 } as const;
 
-const ENTRY_VIEW = {
-    presente: { icon: CircleCheck, color: 'text-primary', label: () => 'Presença' },
-    falta: {
-        icon: CircleX,
-        color: 'text-destructive',
-        label: (entry: Entry) => plural(entry.absences, 'falta', 'faltas')
-    },
-    nao_registrada: {
-        icon: CircleDashed,
-        color: 'text-muted-foreground',
-        label: () => 'Não registrada'
-    }
+const LESSON_VIEW = {
+    presente: { icon: CircleCheck, color: 'text-primary', name: 'Presença' },
+    falta: { icon: CircleX, color: 'text-destructive', name: 'Falta' },
+    nao_registrada: { icon: CircleDashed, color: 'text-muted-foreground', name: 'Não registrada' },
+    cancelada: { icon: CircleSlash, color: 'text-muted-foreground', name: 'Aula cancelada' }
 } as const;
 
-export function FrequencyContent({ data }: { data: Frequency }) {
-    const attendance = data.frequency;
-    const summary = attendance?.summary;
-    const registered = data.frequency_status !== 'not_registered';
-    const occurrences = new Map<string, number>();
-    // mais recentes primeiro
-    const entries = attendance?.entries
-        .toSorted((a, b) => b.occurred_on.localeCompare(a.occurred_on))
-        .map((entry) => {
-            const signature = [entry.occurred_on, entry.status, entry.absences].join('-');
-            const occurrence = occurrences.get(signature) ?? 0;
-            occurrences.set(signature, occurrence + 1);
-            return { entry, key: signature + '-' + occurrence };
-        });
+// Marcações que o aluno pode dar a uma aula sem chamada no SIGAA.
+const MARKS: LessonMarkStatus[] = ['presente', 'falta', 'cancelada'];
+
+function lessonLabel(lesson: Lesson) {
+    return lesson.status === 'falta'
+        ? plural(lesson.absences, 'falta', 'faltas')
+        : LESSON_VIEW[lesson.status].name;
+}
+
+export function FrequencyContent({
+    data,
+    onMark,
+    pending
+}: {
+    data: ClassroomFrequency;
+    onMark: MarkLesson;
+    pending: boolean;
+}) {
+    const { totals, lessons } = data;
+    const notLaunched = data.frequency_status === 'nao_registrada';
+    const perDay = new Map<string, number>();
+    for (const { occurred_on } of lessons)
+        perDay.set(occurred_on, (perDay.get(occurred_on) ?? 0) + 1);
 
     return (
         <div className="flex flex-col gap-2">
@@ -60,87 +68,143 @@ export function FrequencyContent({ data }: { data: Frequency }) {
                     detail={`${data.progress.taught}h ministradas de ${data.progress.total}h`}
                 />
             </ListCard>
-            {!registered ? (
-                <Card size="sm">
-                    <CardContent className="text-center text-sm text-muted-foreground">
-                        A frequência ainda não foi lançada pelo professor.
-                    </CardContent>
+            {totals && (
+                <Card size="sm" className="gap-0 py-0">
+                    <dl className="grid grid-cols-3 divide-x divide-border">
+                        <Stat label="Presenças" value={totals.presences} />
+                        <Stat
+                            label="Faltas"
+                            value={
+                                <>
+                                    {totals.absences}
+                                    {totals.max_absences !== null && (
+                                        <small className="text-sm font-medium text-foreground">
+                                            {' '}
+                                            / {totals.max_absences}
+                                        </small>
+                                    )}
+                                </>
+                            }
+                            className={totals.absences > 0 ? 'text-destructive' : undefined}
+                        />
+                        <Stat
+                            label="Frequência"
+                            value={`${totals.percentage.toLocaleString('pt-BR')}%`}
+                            className={FREQUENCY_TONE[frequencyTone(totals.percentage)]}
+                        />
+                    </dl>
                 </Card>
-            ) : (
-                <>
-                    {attendance && summary && (
-                        <Card size="sm" className="gap-0 py-0">
-                            <dl className="grid grid-cols-3 divide-x divide-border">
-                                <Stat
-                                    label="Presenças"
-                                    value={summary.recorded_entries - summary.absence_entries}
-                                />
-                                <Stat
-                                    label="Faltas"
-                                    value={summary.total_absences}
-                                    className={
-                                        summary.total_absences > 0 ? 'text-destructive' : undefined
-                                    }
-                                />
-                                <Stat
-                                    label="Frequência"
-                                    value={`${attendance.registered_percentage.toLocaleString('pt-BR')}%`}
-                                    className={
-                                        FREQUENCY_TONE[
-                                            frequencyTone(attendance.registered_percentage)
-                                        ]
-                                    }
-                                />
-                            </dl>
-                        </Card>
-                    )}
-                    {data.frequency_status === 'partially_registered' && (
-                        <p className="px-1 text-xs text-muted-foreground">
-                            Há aulas publicadas cuja frequência ainda não foi registrada.
-                        </p>
-                    )}
-                    {entries && entries.length > 0 && (
-                        <section>
-                            <h3 className="mb-2 px-1 text-sm font-semibold">
-                                Aulas{' '}
-                                <span className="font-normal text-muted-foreground">
-                                    {entries.length}
-                                </span>
-                            </h3>
-                            <ListCard>
-                                {entries.map(({ entry, key }) => {
-                                    const view = ENTRY_VIEW[entry.status];
-                                    return (
-                                        <div
-                                            key={key}
-                                            className="flex items-center gap-3 py-2.5 text-sm"
-                                        >
-                                            <view.icon
-                                                className={cn('size-4 shrink-0', view.color)}
-                                                aria-hidden
-                                            />
-                                            <span className="tabular-nums">
-                                                {formatClassroomDate(entry.occurred_on)}
-                                            </span>
-                                            <span className="text-xs text-muted-foreground">
-                                                {formatClassroomWeekday(entry.occurred_on)}
-                                            </span>
-                                            <span
-                                                className={cn(
-                                                    'ml-auto text-xs font-medium',
-                                                    view.color
-                                                )}
-                                            >
-                                                {view.label(entry)}
-                                            </span>
-                                        </div>
-                                    );
-                                })}
-                            </ListCard>
-                        </section>
-                    )}
-                </>
             )}
+            {totals?.estimated && (
+                <p className="px-1 text-xs text-muted-foreground">
+                    Frequência estimada com as aulas marcadas por você.
+                </p>
+            )}
+            {data.frequency_status === 'parcialmente_registrada' && (
+                <p className="px-1 text-xs text-muted-foreground">
+                    Há aulas publicadas cuja frequência ainda não foi registrada.
+                </p>
+            )}
+            {(lessons.length > 0 || notLaunched) && (
+                <section>
+                    {lessons.length > 0 && (
+                        <h3 className="mb-2 px-1 text-sm font-semibold">
+                            Aulas{' '}
+                            <span className="font-normal text-muted-foreground">
+                                {lessons.length}
+                            </span>
+                        </h3>
+                    )}
+                    <ListCard>
+                        {lessons.map((lesson) => (
+                            <LessonRow
+                                key={lesson.id}
+                                lesson={lesson}
+                                numbered={(perDay.get(lesson.occurred_on) ?? 0) > 1}
+                                onMark={onMark}
+                                pending={pending}
+                            />
+                        ))}
+                        {notLaunched && (
+                            <p className="py-2.5 text-center text-sm text-muted-foreground">
+                                A frequência ainda não foi lançada pelo professor.
+                            </p>
+                        )}
+                    </ListCard>
+                </section>
+            )}
+        </div>
+    );
+}
+
+function LessonRow({
+    lesson,
+    numbered,
+    onMark,
+    pending
+}: {
+    lesson: Lesson;
+    numbered: boolean;
+    onMark: MarkLesson;
+    pending: boolean;
+}) {
+    const view = LESSON_VIEW[lesson.status];
+    const label = lessonLabel(lesson);
+    const editable = lesson.marked || lesson.status === 'nao_registrada';
+    // presença e falta tingem a linha toda; os textos secundários só esmaecem
+    const tinted = lesson.status === 'presente' || lesson.status === 'falta';
+    const secondary = tinted ? 'text-xs opacity-70' : 'text-xs text-muted-foreground';
+
+    return (
+        <div
+            className={cn(
+                'flex flex-wrap items-center gap-2 py-2.5 text-sm',
+                tinted && view.color,
+                lesson.status === 'cancelada' && 'line-through'
+            )}
+        >
+            {editable ? (
+                <DropdownMenu>
+                    <DropdownMenuTrigger
+                        aria-label={`Situação de ${formatClassroomDate(lesson.occurred_on)}, aula ${lesson.position + 1}: ${label}. Alterar situação.`}
+                        disabled={pending}
+                        className="relative flex size-4 shrink-0 items-center justify-center rounded-full after:absolute after:-inset-2 after:rounded-full hover:opacity-70 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50"
+                    >
+                        <view.icon className={cn('size-4', view.color)} aria-hidden />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-44">
+                        {MARKS.map((mark) => {
+                            const option = LESSON_VIEW[mark];
+                            return (
+                                <DropdownMenuItem
+                                    key={mark}
+                                    disabled={lesson.marked && lesson.status === mark}
+                                    onClick={() => onMark(lesson, mark)}
+                                >
+                                    <option.icon className={option.color} />
+                                    {option.name}
+                                </DropdownMenuItem>
+                            );
+                        })}
+                        {lesson.marked && (
+                            <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => onMark(lesson, null)}>
+                                    <CircleDashed />
+                                    Remover marcação
+                                </DropdownMenuItem>
+                            </>
+                        )}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            ) : (
+                <view.icon className={cn('size-4 shrink-0', view.color)} aria-hidden />
+            )}
+            <span className="tabular-nums">{formatClassroomDate(lesson.occurred_on)}</span>
+            <span className={secondary}>{formatClassroomWeekday(lesson.occurred_on)}</span>
+            {numbered && <span className={secondary}>Aula {lesson.position + 1}</span>}
+            {lesson.marked && <span className={secondary}>Marcada</span>}
+            <span className={cn('ml-auto text-xs font-medium', view.color)}>{label}</span>
         </div>
     );
 }
