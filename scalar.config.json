@@ -36,7 +36,10 @@
       "/": {
         "type": "openapi",
         "title": "API Reference",
-        "url": "http://localhost:8000/openapi.json"
+        "filepath": "apps/web/openapi.json",
+        "config": {
+          "baseServerURL": "https://api.followw.app"
+        }
       },
       "/arquitetura": {
         "type": "page",
