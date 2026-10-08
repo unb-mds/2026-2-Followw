@@ -3,6 +3,7 @@ from datetime import UTC, date, datetime
 import pytest
 
 from api.academic_calendar import (
+    class_days,
     departure_status,
     grades_closed,
     grades_frozen,
@@ -67,3 +68,16 @@ def test_mencao_encerra_tres_dias_depois_da_consolidacao(hoje, dia, encerrada):
     hoje(dia)
 
     assert grades_closed("2026.1") is encerrada
+
+
+def test_dias_letivos_excluem_feriado_e_semana_universitaria():
+    days = set(class_days("2026.2"))
+    assert date(2026, 8, 10) in days
+    assert date(2026, 9, 7) not in days
+    assert date(2026, 9, 21) not in days
+
+
+def test_dias_letivos_cobrem_o_semestre_inteiro_e_so_existem_no_calendario():
+    days = list(class_days("2026.2"))
+    assert (days[0], days[-1]) == (date(2026, 8, 10), date(2026, 12, 14))
+    assert list(class_days("2099.1")) == []

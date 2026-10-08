@@ -27,7 +27,7 @@
         },
         {
             "source": "/api/:path*",
-            "destination": { "service": "api", "path": "/:path*" }
+            "destination": { "service": "api" }
         },
         {
             "source": "/(.*)",

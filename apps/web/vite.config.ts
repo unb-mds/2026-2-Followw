@@ -24,7 +24,11 @@ const config = defineConfig({
     },
     plugins: [
         devtools(),
-        nitro({ rollupConfig: { external: [/^@sentry\//] } }),
+        nitro({
+            rollupConfig: { external: [/^@sentry\//] },
+            // só no dev; na Vercel, o vercel.json faz o mesmo
+            devProxy: { '/api/**': 'http://127.0.0.1:8000' }
+        }),
         tailwindcss(),
         tanstackStart(),
         viteReact(),

@@ -3,11 +3,13 @@ import type { QueryClient } from '@tanstack/react-query';
 import { TanStackDevtools } from '@tanstack/react-devtools';
 import { HeadContent, Outlet, Scripts, createRootRouteWithContext } from '@tanstack/react-router';
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools';
+import { useEffect } from 'react';
 
 import { ErrorPage } from '#/components/ErrorPage';
 import { useOfflineSupport } from '#/integrations/offline/use-offline-support';
 import PostHogProvider from '#/integrations/posthog/provider';
 import TanStackQueryDevtools from '#/integrations/tanstack-query/devtools';
+import { reloadOnPreloadError } from '#/lib/chunk-reload';
 import { themeScript } from '#/lib/theme';
 import { useSessionRefresh } from '#/queries/auth';
 import appCss from '#/styles.css?url';
@@ -47,6 +49,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 
 function RootComponent() {
     useSessionRefresh();
+    useEffect(() => reloadOnPreloadError(), []);
     useOfflineSupport();
 
     return <Outlet />;

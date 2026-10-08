@@ -36,8 +36,8 @@ tests/                # um arquivo por módulo
   resolve com `Sync.resolve(tarefa, alvo, load)` (stale-while-revalidate). `load` lê o cache em
   sessão própria do banco e devolve `Cached` (ou `None`) com o `Freshness` calculado pela função de
   validade da feature, a mesma que o sync do login usa. A tarefa é uma função da feature
-  `(ctx: Context[alvo]) -> None` que busca no SIGAA e grava; o alvo é a conta (`None`), uma turma
-  do usuário (`OwnLink`) ou um item dela (`Item`). Toda tarefa nova entra em `TASKS`
+  `(ctx: Context[alvo]) -> None` que busca no SIGAA e grava; o alvo é a conta (`None`), uma turma do
+  usuário (`OwnLink`) ou um item dela (`Item`). Toda tarefa nova entra em `TASKS`
   (`sync/router.py`).
 - **Cache-Control.** O `SyncDep` já recebe o `CacheControlDep`: toda rota com cache o ganha pelo
   service. Rota GET sem cache usa `dependencies=[NoStore]`. O cliente pode pedir `no-cache`,
@@ -46,11 +46,13 @@ tests/                # um arquivo por módulo
   responder, um job por turma (e um da conta). O job leva a credencial cifrada, loga numa sessão
   própria do SIGAA e faz logout no fim; nunca use a sessão do usuário num job. Tarefa que falha na
   origem tem uma única retentativa.
-- **Repositories** recebem `AsyncSession` e não fazem commit (o `Database.write` faz, com retentativa). Nunca persista
-  credenciais. Turmas podem ter milhares de participantes: grave em lote.
-- **Modelos.** Toda tabela herda `Base, UUIDPrimaryKeyMixin, TimestampMixin`; enums do banco são
-  `str, enum.Enum` com `values_callable` para gravar o `.value`. Não há migrations: `db-init` só
-  cria o que falta, alterar tabela exige recriar o banco.
+- **Repositories** recebem `AsyncSession` e não fazem commit (o `Database.write` faz, com
+  retentativa). Nunca persista credenciais. Turmas podem ter milhares de participantes: grave em
+  lote.
+- **Modelos.** Toda tabela herda `Base, UUIDPrimaryKeyMixin, TimestampMixin`, salvo as de chave
+  natural (como `subjects`, pelo código); enums do banco são `str, enum.Enum` com `values_callable`
+  para gravar o `.value`. Não há migrations: `db-init` só cria o que falta, alterar tabela exige
+  recriar o banco.
 - **Settings** é instanciado no import: env de teste precisa ser setada antes do primeiro import de
   `api.core.config` (veja `tests/conftest.py`).
 

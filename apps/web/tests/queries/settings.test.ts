@@ -42,7 +42,9 @@ describe('configurações do usuário', () => {
         expect(settingsQueryOptions(registration).queryKey).not.toEqual(
             settingsQueryOptions('outra-matricula').queryKey
         );
-        expect(requests.map((request) => new URL(request.url).pathname)).toEqual(['/me/settings']);
+        expect(requests.map((request) => new URL(request.url).pathname)).toEqual([
+            '/api/me/settings'
+        ]);
     });
 
     test('sem login resolve vazio sem ir à API', async () => {

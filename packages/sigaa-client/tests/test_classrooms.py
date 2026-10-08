@@ -338,7 +338,7 @@ def test_frequencia_nao_lancada_vem_none_com_andamento():
 
 def test_resumo_separa_pendencias_dos_totais_do_sigaa():
     frequency = _parse_frequency(BeautifulSoup(FREQUENCY, "lxml"))
-    assert frequency.frequency_status == "partially_registered"
+    assert frequency.frequency_status == "parcialmente_registrada"
     assert frequency.frequency.summary.model_dump() == {
         "total_entries": 3,
         "recorded_entries": 2,
@@ -353,14 +353,14 @@ def test_resumo_separa_pendencias_dos_totais_do_sigaa():
 @pytest.mark.parametrize(
     "html,expected",
     [
-        (NOT_LAUNCHED, "not_registered"),
+        (NOT_LAUNCHED, "nao_registrada"),
         (
             FREQUENCY.replace("Presente", "Não Registrada").replace(
                 "2 Falta(s)", "Não Registrada"
             ),
-            "not_registered",
+            "nao_registrada",
         ),
-        (FREQUENCY.replace("Não Registrada", "Presente"), "registered"),
+        (FREQUENCY.replace("Não Registrada", "Presente"), "registrada"),
     ],
 )
 def test_estado_dos_lancamentos_nao_depende_da_porcentagem(html, expected):

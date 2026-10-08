@@ -62,7 +62,7 @@ def news_sigaa(stub_sigaa):
                 number="01",
                 current=True,
                 semester="2026.2",
-                subject=Subject(name="ESTRUTURAS DE DADOS 1"),
+                subject=Subject(code="FGA0146", name="ESTRUTURAS DE DADOS 1"),
             )
         ]
     )
