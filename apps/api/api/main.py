@@ -60,6 +60,8 @@ app = FastAPI(
         "sincronização assíncrona inteligente e cache resiliente via Stale-While-Revalidate."
     ),
     version="0.1.0",
+    # o front serve a API em /api; rotas sem o prefixo também respondem (subdomínio api., jobs)
+    root_path="/api",
     docs_url=None,
     redoc_url=None,
     openapi_tags=tags_metadata,
@@ -76,6 +78,7 @@ def custom_openapi() -> dict[str, Any]:
             description=app.description,
             routes=app.routes,
             tags=app.openapi_tags,
+            servers=[{"url": app.root_path}],
         )
         app.openapi_schema["x-tagGroups"] = [
             {"name": "Public", "tags": ["Public Classrooms", "Public Restaurant"]},
@@ -105,7 +108,7 @@ async def scalar_docs() -> HTMLResponse:
           <body>
             <script
               id="api-reference"
-              data-url="{app.openapi_url}"
+              data-url="{app.root_path}{app.openapi_url}"
               data-configuration='{{"theme":"purple","layout":"modern","darkMode":true}}'
             ></script>
             <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
@@ -120,11 +123,7 @@ if settings.environment == "production":
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=(
-        settings.cors_origins
-        if settings.environment == "production"
-        else [*settings.cors_origins, "http://localhost:3000"]
-    ),
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

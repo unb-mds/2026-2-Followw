@@ -1,5 +1,8 @@
 import { MapIcon, MapPin } from 'lucide-react';
 
+import type { Classroom } from '#/queries/classrooms';
+
+import { GradeText } from '#/components/classroom/GradeText';
 import { Badge } from '#/components/ui/badge';
 import { Button } from '#/components/ui/button';
 import { Card } from '#/components/ui/card';
@@ -11,6 +14,7 @@ export interface ClassCardProps {
     time: string;
     location?: string;
     professor?: string;
+    grade?: Classroom['grade'];
     status?: 'in_progress' | 'next' | 'normal' | 'warning';
     statusText?: string;
     onLocationClick?: () => void;
@@ -33,6 +37,7 @@ export const ClassCard: React.FC<ClassCardProps> = ({
     time,
     location,
     professor,
+    grade,
     status = 'normal',
     statusText,
     onLocationClick,
@@ -40,6 +45,7 @@ export const ClassCard: React.FC<ClassCardProps> = ({
 }) => {
     const statusInfo = status === 'normal' ? undefined : STATUS[status];
     const active = status === 'in_progress';
+    const details = [location, professor].filter(Boolean).join(' · ');
 
     return (
         <Card
@@ -79,7 +85,9 @@ export const ClassCard: React.FC<ClassCardProps> = ({
             <div className="pointer-events-none relative flex items-center gap-2 text-xs text-muted-foreground">
                 {location && <MapPin className="size-3 shrink-0" />}
                 <span className="min-w-0 truncate">
-                    {[location, professor].filter(Boolean).join(' · ')}
+                    {details}
+                    {details && grade && ' · '}
+                    {grade && <GradeText grade={grade} />}
                 </span>
                 {onLocationClick && (
                     <Button

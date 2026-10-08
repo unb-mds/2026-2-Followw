@@ -32,7 +32,7 @@ describe('conta do RU', () => {
         requests = [];
         response = (request) =>
             Response.json(
-                new URL(request.url).pathname === '/me/ru-token' ? credentials : statement
+                new URL(request.url).pathname === '/api/me/ru-token' ? credentials : statement
             );
         middleware = {
             onRequest: ({ request }) => {
@@ -53,8 +53,8 @@ describe('conta do RU', () => {
         expect(await client.query(statementQueryOptions(registration))).toEqual(statement);
         expect(await client.query(credentialsQueryOptions(registration))).toEqual(credentials);
         expect(requests.map((request) => new URL(request.url).pathname)).toEqual([
-            '/me/ru-statement',
-            '/me/ru-token'
+            '/api/me/ru-statement',
+            '/api/me/ru-token'
         ]);
         expect(requests.every((request) => new URL(request.url).search === '')).toBe(true);
     });

@@ -33,7 +33,7 @@ O TTL conta a partir do `synced_at` do dado e vence quando `idade > TTL` (estrit
 | Conteúdo de uma notícia | sem TTL | notícia | Gravado no primeiro acesso; só muda com `no-cache` |
 | Cardápio do RU | 72 h | campus | Sem job: revalida na hora (veja abaixo) |
 
-"Turma atual" é a que o SIGAA marca como do semestre vigente (`ClassroomUser.current`).
+"Turma atual" é a que o SIGAA marca como do semestre vigente (`ClassroomParticipant.current`).
 
 Dados **por turma** (participantes, estatísticas, notícias) são compartilhados entre os usuários: se outro
 aluno da mesma turma sincronizou há pouco, o seu cache também está fresco. A frequência é por usuário.
