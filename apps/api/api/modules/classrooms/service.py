@@ -1,0 +1,297 @@
+from datetime import UTC, datetime, timedelta
+from functools import partial
+from typing import Annotated
+
+from fastapi import Depends
+from pydantic import ValidationError
+from sigaa_client import (
+    Classroom,
+    ClassroomFrequency,
+    ClassroomMember,
+    ClassroomNotFound,
+    ClassroomRole,
+    StatisticsShare,
+    StudentSituation,
+    Subject,
+)
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from api import academic_calendar
+from api.cache import Freshness, freshness
+from api.db.models import ClassroomUser, OwnLink, User
+from api.modules.classrooms.repository import ClassroomRepository
+from api.modules.me.profile import sync_profile
+from api.modules.me.repository import UserRepository
+from api.sync import Cached, Context, SyncDep
+from api.sync.engine import Task
+
+CLASSROOMS_TTL = timedelta(hours=72)
+# Detalhes das turmas atuais; os de semestres passados não mudam.
+DETAILS_TTL = timedelta(hours=24)
+
+_SITUATIONS = list(StudentSituation)
+
+
+def details_ttl(link: OwnLink) -> timedelta | None:
+    return DETAILS_TTL if link.row.current else None
+
+
+def classrooms_freshness(synced_at: datetime | None) -> Freshness:
+    return freshness(synced_at, CLASSROOMS_TTL)
+
+
+def members_freshness(link: OwnLink, synced_at: datetime | None) -> Freshness:
+    semester = link.row.classroom.semester
+    if synced_at is not None and academic_calendar.members_frozen(semester, synced_at):
+        return Freshness.FROZEN
+    if academic_calendar.members_closed(semester):
+        # Passada a tolerância do semestre, a lista vence até um sync depois dela.
+        return Freshness.STALE
+    return freshness(synced_at, details_ttl(link))
+
+
+def statistics_freshness(link: OwnLink, synced_at: datetime | None) -> Freshness:
+    return freshness(synced_at, details_ttl(link))
+
+
+def stale_classroom_tasks(link: OwnLink) -> list[Task[OwnLink]]:
+    """As telas da turma que o sync do login revalida."""
+    classroom = link.row.classroom
+    stale: list[Task[OwnLink]] = []
+    if members_freshness(link, classroom.members_synced_at) is Freshness.STALE:
+        stale.append(sync_members)
+    if statistics_freshness(link, classroom.statistics_synced_at) is Freshness.STALE:
+        stale.append(sync_statistics)
+    return stale
+
+
+async def sync_classrooms(ctx: Context[None]) -> None:
+    classrooms = await ctx.client.classrooms.list_classrooms()
+    registration = ctx.sync.registration
+    if await ctx.sync.db.read(partial(_user, registration)) is None:
+        # As turmas penduram no usuário: sem perfil no cache, ele vem antes.
+        await sync_profile(ctx)
+
+    async def write(session: AsyncSession) -> None:
+        user = await _user(registration, session)
+        assert user is not None
+        await ClassroomRepository(session).save_user_classrooms(
+            user, classrooms, datetime.now(UTC), refresh=ctx.refresh
+        )
+
+    await ctx.sync.db.write(write)
+
+
+async def sync_members(ctx: Context[OwnLink]) -> None:
+    link = ctx.target
+    members = await ctx.client.classrooms.list_classroom_members(link.front_end_id)
+    await ctx.sync.db.write(
+        lambda session: ClassroomRepository(session).save_members(
+            link.row.classroom_id, members, datetime.now(UTC)
+        )
+    )
+
+
+async def sync_statistics(ctx: Context[OwnLink]) -> None:
+    link = ctx.target
+    shares = await ctx.client.classrooms.get_classroom_statistics(link.front_end_id)
+    await ctx.sync.db.write(
+        lambda session: ClassroomRepository(session).save_statistics(
+            link.row.classroom_id, shares, datetime.now(UTC)
+        )
+    )
+
+
+async def sync_frequency(ctx: Context[OwnLink]) -> None:
+    link = ctx.target
+    frequency = await ctx.client.classrooms.get_classroom_frequency(link.front_end_id)
+    await ctx.sync.db.write(
+        lambda session: ClassroomRepository(session).save_frequency(
+            link.row.id, frequency, datetime.now(UTC)
+        )
+    )
+
+
+class ClassroomFrequencyResult(ClassroomFrequency):
+    classroom: Classroom
+
+
+class ClassroomService:
+    def __init__(self, sync: SyncDep) -> None:
+        self._sync = sync
+
+    async def list_classrooms(self, semester: str | None = None) -> list[Classroom]:
+        async def load(session: AsyncSession) -> Cached[list[Classroom]] | None:
+            user = await _user(self._sync.registration, session)
+            if user is None or user.classrooms_synced_at is None:
+                return None
+            links = await ClassroomRepository(session).list_by_user_id(user.id)
+            return Cached(
+                [_to_classroom(link) for link in links],
+                user.classrooms_synced_at,
+                classrooms_freshness(user.classrooms_synced_at),
+            )
+
+        classrooms = await self._sync.resolve(sync_classrooms, None, load)
+        selected = [c for c in classrooms if _in_semester(c, semester)]
+        selected.sort(key=lambda c: (c.subject.name, c.number))
+
+        return sorted(selected, key=lambda c: c.semester, reverse=True)
+
+    async def list_members(self, classroom_id: str) -> list[ClassroomMember]:
+        link = await self.get_link(classroom_id)
+
+        async def load(session: AsyncSession) -> Cached[list[ClassroomMember]] | None:
+            repository = ClassroomRepository(session)
+            classroom = await repository.get(link.row.classroom_id)
+            if classroom is None or classroom.members_synced_at is None:
+                return None
+            members = await repository.list_members(link.row.classroom_id)
+            return Cached(
+                [_to_member(member) for member in members],
+                classroom.members_synced_at,
+                members_freshness(link, classroom.members_synced_at),
+            )
+
+        members = await self._sync.resolve(sync_members, link, load)
+
+        return sorted(
+            members, key=lambda m: (m.role != ClassroomRole.PROFESSOR, m.name)
+        )
+
+    async def list_statistics(self, classroom_id: str) -> list[StatisticsShare]:
+        link = await self.get_link(classroom_id)
+
+        async def load(session: AsyncSession) -> Cached[list[StatisticsShare]] | None:
+            repository = ClassroomRepository(session)
+            classroom = await repository.get(link.row.classroom_id)
+            statistics = await repository.get_statistics(link.row.classroom_id)
+            if (
+                classroom is None
+                or classroom.statistics_synced_at is None
+                or statistics is None
+            ):
+                return None
+            return Cached(
+                [StatisticsShare.model_validate(share) for share in statistics.data],
+                classroom.statistics_synced_at,
+                statistics_freshness(link, classroom.statistics_synced_at),
+            )
+
+        shares = await self._sync.resolve(sync_statistics, link, load)
+
+        return sorted(shares, key=lambda s: _SITUATIONS.index(s.situation))
+
+    async def get_frequency(self, classroom_id: str) -> ClassroomFrequency:
+        link = await self.get_link(classroom_id)
+
+        async def load(session: AsyncSession) -> Cached[ClassroomFrequency] | None:
+            cached = await ClassroomRepository(session).get_frequency(link.row.id)
+            if cached is None:
+                return None
+            try:
+                frequency = ClassroomFrequency.model_validate(cached.data)
+            except ValidationError:
+                return None
+            return Cached(
+                frequency,
+                cached.synced_at,
+                freshness(cached.synced_at, details_ttl(link)),
+            )
+
+        return await self._sync.resolve(sync_frequency, link, load)
+
+    async def list_frequencies(self) -> list[ClassroomFrequencyResult]:
+        result = []
+        for classroom in await self.list_classrooms():
+            frequency = await self.get_frequency(classroom.id)
+            result.append(
+                ClassroomFrequencyResult(
+                    classroom=classroom,
+                    progress=frequency.progress,
+                    frequency=frequency.frequency,
+                )
+            )
+        return result
+
+    async def get_link(self, classroom_id: str) -> OwnLink:
+        """O vínculo pelo `Classroom.id` ou pelo `sigaa_id` da turma."""
+        find = partial(find_link, self._sync.registration, classroom_id)
+        link, synced_at = await self._sync.db.read(find)
+        if link is None:
+            # Turma nova ainda fora do cache: relê a lista antes de recusar.
+            await self._sync.perform(sync_classrooms, None)
+            link, _ = await self._sync.db.read(find)
+        elif classrooms_freshness(synced_at) is Freshness.STALE:
+            # A lista é o que dá acesso à turma: vencida, revalida como a listagem.
+            self._sync.schedule(sync_classrooms, None)
+        if link is None:
+            raise ClassroomNotFound(f"Turma `{classroom_id}` não é do usuário.")
+
+        return link
+
+
+async def find_link(
+    registration: str, classroom_id: str, session: AsyncSession
+) -> tuple[OwnLink | None, datetime | None]:
+    """O vínculo com a turma e quando a lista de turmas foi sincronizada."""
+    user = await _user(registration, session)
+    if user is None:
+        return None, None
+
+    repository = ClassroomRepository(session)
+    link = await repository.get_by_front_end_id(
+        user.id, classroom_id
+    ) or await repository.get_by_sigaa_id(user.id, classroom_id)
+    return link, user.classrooms_synced_at
+
+
+async def _user(registration: str, session: AsyncSession) -> User | None:
+    return await UserRepository(session).get_by_registration(registration)
+
+
+def _in_semester(classroom: Classroom, semester: str | None) -> bool:
+    if semester is None:
+        return classroom.current
+
+    return semester == "all" or classroom.semester == semester
+
+
+def _to_classroom(link: OwnLink) -> Classroom:
+    classroom = link.row.classroom
+    subject = classroom.subject
+
+    return Classroom(
+        id=link.front_end_id,
+        sigaa_id=classroom.sigaa_id,
+        number=classroom.number,
+        semester=classroom.semester,
+        schedule=classroom.schedule,
+        room=classroom.room,
+        current=link.row.current,
+        subject=Subject(
+            code=subject.code,
+            sigaa_id=subject.sigaa_id,
+            name=subject.name,
+            hours=subject.hours,
+            unity=subject.unity,
+        ),
+    )
+
+
+def _to_member(link: ClassroomUser) -> ClassroomMember:
+    user = link.user
+
+    return ClassroomMember(
+        name=user.name,
+        role=ClassroomRole(link.role.value),
+        registration=user.registration,
+        photo=user.photo,
+        email=user.email,
+        course=user.course,
+        unity=user.unity,
+        person_id=user.person_id,
+    )
+
+
+ClassroomServiceDep = Annotated[ClassroomService, Depends()]

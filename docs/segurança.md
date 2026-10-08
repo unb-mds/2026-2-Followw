@@ -17,8 +17,11 @@ requisição, a API decifra esses cookies em memória, usa o que precisa para fa
 com o SIGAA e descarta tudo ao responder. A API é _stateless_, ou seja, ela nunca
 mantém uma sessão ativa.
 
-As tarefas que rodam em segundo plano (sincronizar turmas, por exemplo) recebem
-só o token de sessão do SIGAA, nunca a senha, e ele também viaja protegido.
+As tarefas que rodam em segundo plano (sincronizar turmas, por exemplo) abrem uma
+sessão própria no SIGAA, separada da sua, e a encerram ao terminar. Para isso cada
+tarefa leva a sua credencial cifrada com uma chave que só a API conhece: o serviço
+de fila (Upstash QStash) guarda a mensagem até entregá-la, mas só enxerga o
+conteúdo cifrado.
 
 ## Os dois cookies
 
@@ -76,8 +79,8 @@ possibilitam o acesso através do próprio Followw.
   aleatório de 96 bits a cada cookie emitido.
 - **HKDF-SHA256**: [RFC 5869](https://www.rfc-editor.org/rfc/rfc5869), para
   derivar as chaves.
-- **Fernet**: para os tokens das tarefas em segundo plano (AES-128-CBC com
-  HMAC-SHA256).
+- **Fernet**: para as tarefas em segundo plano, que levam a credencial
+  (AES-128-CBC com HMAC-SHA256).
 - **Cookies** `HttpOnly`**,** `Secure` **e** `SameSite`:
   [RFC 6265](https://www.rfc-editor.org/rfc/rfc6265) e extensões.
 
@@ -88,8 +91,8 @@ algoritmo criptográfico por conta própria.
 
 ## Onde conferir
 
-- `apps/api/api/utils/session.py`: derivação das chaves, emissão, criptografia e
+- `apps/api/api/cookies.py`: derivação das chaves, emissão, criptografia e
   leitura dos cookies.
-- `apps/api/tests/test_session.py`: testes de segurança de cada etapa
+- `apps/api/tests/test_cookies.py`: testes de segurança de cada etapa
   (vazamento, adulteração, chaves, formatos recusados, expiração).
-- `apps/api/api/dependencies/qstash.py`: cifra das tarefas em segundo plano.
+- `apps/api/api/sync/queue.py`: cifra das tarefas em segundo plano.

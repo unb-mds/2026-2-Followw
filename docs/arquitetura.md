@@ -75,18 +75,22 @@ Apresenta a organização interna dos componentes do Frontend (`apps/web`), do B
   - `refresh_token` (14 dias): Matrícula e senha encriptadas para renovação automática de sessão sem atrito para o usuário.
 
 ### Estratégia de Cache: Stale-While-Revalidate (SWR)
-- Chamadas a dados custosos do SIGAA utilizam o `SyncEngine.resolve(task, load)`.
+- Chamadas a dados custosos do SIGAA utilizam o `Sync.resolve(tarefa, alvo, load)` (`api/sync/`).
 - Se o dado em cache estiver válido, ele é servido imediatamente.
-- Se estiver expirado (*stale*), os dados do cache são servidos instantaneamente enquanto uma `Task` de sincronização é enfileirada no **QStash** para atualização assíncrona.
+- Se estiver expirado (*stale*), os dados do cache são servidos instantaneamente e a tarefa de sincronização entra num job do **QStash**, publicado antes da resposta.
+- Sem cache, a requisição busca no SIGAA na hora, com a sessão do próprio usuário.
 
 ### Isolamento dos Scrapers em Pacotes Monorepo
 - O parsing das páginas da UnB é completamente desacoplado da API REST em dois pacotes (`packages/sigaa-client` e `packages/unb-browser`).
-- **Resiliência a JSF**: O `sigaa-client` trata ciclos de vida de `ViewState`, postbacks de menus laterais (`jscookMenu`) e concorrência de sessão (*context locks*).
+- **Resiliência a JSF**: O `sigaa-client` trata ciclos de vida de `ViewState`, postbacks de menus laterais (`jscookMenu`) e a turma aberta, que é estado da sessão: requisições paralelas na mesma sessão podem trocá-la, e o client confere e reabre a turma antes de ler cada tela.
 - **Extração geométrica de PDFs**: O `unb-browser` utiliza `pdfplumber` avaliando posicionamento espacial relativo para lidar com células mescladas e formatos variados entre os campi da UnB.
 
 ### Orquestração de Background Jobs (QStash)
-- Operações lentas de sincronização completa são desacopladas da requisição síncrona do usuário.
-- O QStash executa *flow control* baseado na matrícula do estudante (`parallelism: 1`), evitando conflitos de concorrência na mesma sessão do SIGAA.
+- Operações lentas de sincronização são desacopladas da requisição síncrona do usuário.
+- **Sessão efêmera por job**: o job nunca usa a sessão do usuário. Ele leva a credencial cifrada, faz login numa sessão própria do SIGAA, roda as tarefas e faz logout no fim. Sessões diferentes da mesma conta não interferem entre si.
+- **Um job por turma**: a requisição junta as tarefas vencidas e publica um job por turma (e um da conta, com perfil e lista de turmas). O sync do login abre um job para cada turma com telas vencidas.
+- **Paralelismo**: o *flow control* por matrícula (`parallelism: 4`) só poupa o CAS de rajadas de login; os jobs não disputam sessão.
+- **Falhas**: uma tarefa que falha na origem não impede as outras e ganha uma única retentativa, com 1 min de espera. Senha recusada descarta o job.
 
 ---
 
@@ -99,12 +103,13 @@ Apresenta a organização interna dos componentes do Frontend (`apps/web`), do B
 │   │   ├── api/
 │   │   │   ├── core/          # Configurações e variáveis de ambiente
 │   │   │   ├── db/            # Modelos SQLAlchemy e inicialização do banco
-│   │   │   ├── dependencies/  # Injeção de dependências (FastAPI Depends)
-│   │   │   ├── modules/       # Rotas organizadas por funcionalidade
-│   │   │   ├── repositories/  # Consultas e persistência no banco
-│   │   │   ├── services/      # Lógica de negócio e SyncEngine
-│   │   │   └── utils/         # Criptografia de sessão e helpers
-│   │   └── tests/             # Testes unitários e de integração da API
+│   │   │   ├── modules/       # Uma pasta por feature: router, service e repository
+│   │   │   ├── sync/          # Motor de cache (SWR), jobs do QStash e rota /jobs
+│   │   │   ├── sigaa.py       # Conexão com o SIGAA da requisição
+│   │   │   ├── cookies.py     # Cookies de sessão cifrados (JWE)
+│   │   │   ├── cache.py       # Diretivas de Cache-Control
+│   │   │   └── errors.py      # Erros do SIGAA e do RU traduzidos para HTTP
+│   │   └── tests/             # Testes da API, um arquivo por módulo
 │   │
 │   └── web/                   # Frontend TanStack Start
 │       └── src/

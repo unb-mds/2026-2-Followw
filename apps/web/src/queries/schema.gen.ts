@@ -33,10 +33,9 @@ export interface paths {
         put?: never;
         /**
          * Sigaa Refresh
-         * @description Loga no SIGAA com o refresh_token se ainda não houver um access_token válido.
+         * @description Confere a senha se não houver access_token e agenda o sync do que venceu.
          *
-         *     O cache sai só com o refresh_token, então o app chama esta rota ao abrir: ela
-         *     confere a senha, aquece o access_token e revalida o que venceu, como o login.
+         *     O cache sai só com o refresh_token, então o app chama esta rota ao abrir.
          */
         post: operations["sigaa_refresh_auth_sigaa_refresh_post"];
         delete?: never;
@@ -725,15 +724,11 @@ export interface components {
         UserSettings: {
             /** Displayname */
             displayName?: string | null;
-            /** Defaultrucampus */
-            defaultRuCampus?: ("Darcy" | "Gama" | "Ceilandia" | "Planaltina" | "Fazenda") | null;
         };
         /** UserSettingsPatch */
         UserSettingsPatch: {
             /** Displayname */
             displayName?: string | null;
-            /** Defaultrucampus */
-            defaultRuCampus?: ("Darcy" | "Gama" | "Ceilandia" | "Planaltina" | "Fazenda") | null;
         };
         /** ValidationError */
         ValidationError: {

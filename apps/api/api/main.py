@@ -8,13 +8,14 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.responses import HTMLResponse
 
 from api.core.config import settings
-from api.modules.auth.main import router as auth_router
-from api.modules.classrooms.main import router as classrooms_router
-from api.modules.jobs.main import router as jobs_router
-from api.modules.me.main import router as me_router
-from api.modules.news.main import router as news_router
-from api.modules.public_classrooms.main import router as public_classrooms_router
-from api.modules.public_restaurant.main import router as public_restaurant_router
+from api.errors import EXCEPTION_HANDLERS
+from api.modules.auth.router import router as auth_router
+from api.modules.classrooms.router import router as classrooms_router
+from api.modules.me.router import router as me_router
+from api.modules.news.router import router as news_router
+from api.modules.public_classrooms.router import router as public_classrooms_router
+from api.modules.public_restaurant.router import router as public_restaurant_router
+from api.sync.router import router as jobs_router
 
 # desativa logs "HTTP Request: ..." que o httpx emite pra cada chamada ao SIGAA
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -62,6 +63,7 @@ app = FastAPI(
     docs_url=None,
     redoc_url=None,
     openapi_tags=tags_metadata,
+    exception_handlers=EXCEPTION_HANDLERS,
 )
 
 

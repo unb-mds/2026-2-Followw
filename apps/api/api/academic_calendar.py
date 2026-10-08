@@ -1,0 +1,68 @@
+"""Regras que dependem do calendário acadêmico da UnB (`unb_browser`)."""
+
+import enum
+from datetime import UTC, date, datetime, timedelta
+from zoneinfo import ZoneInfo
+
+from unb_browser import load_academic_calendar
+
+from api.db.enums import ClassroomStatus
+
+_BRASILIA = ZoneInfo("America/Sao_Paulo")
+# Dá tempo de o último sync da turma marcar os alunos como concluídos.
+MEMBERS_TOLERANCE = timedelta(days=3)
+
+
+class Event(str, enum.Enum):
+    """Os ids dos eventos do calendário que as regras usam."""
+
+    EXTRAORDINARY_ENROLLMENT = "extraordinary_enrollment"
+    SEMESTER_END = "semester_end"
+
+
+def today() -> date:
+    return datetime.now(_BRASILIA).date()
+
+
+def ended(
+    semester: str,
+    event: Event,
+    tolerance: timedelta = timedelta(),
+    on: date | None = None,
+) -> bool:
+    calendar = load_academic_calendar()
+    semester_calendar = calendar.get_semester(semester)
+    if semester_calendar is None:
+        # Fora do calendário: o semestre anterior a ele já acabou, o posterior não.
+        return semester < min(calendar.semesters)
+    end = next((e.end_date for e in semester_calendar.events if e.id == event), None)
+    return end is not None and (on or today()) > end + tolerance
+
+
+def local_date(at: datetime) -> date:
+    # O SQLite devolve as datas sem fuso, em UTC.
+    if at.tzinfo is None:
+        at = at.replace(tzinfo=UTC)
+    return at.astimezone(_BRASILIA).date()
+
+
+def members_closed(semester: str) -> bool:
+    """A tolerância do fim do semestre já passou: falta só o último sync dos participantes."""
+    return ended(semester, Event.SEMESTER_END, MEMBERS_TOLERANCE)
+
+
+def members_frozen(semester: str, synced_at: datetime) -> bool:
+    """Os participantes sincronizados depois da tolerância não são ressincronizados."""
+    return ended(semester, Event.SEMESTER_END, MEMBERS_TOLERANCE, local_date(synced_at))
+
+
+def member_status(semester: str) -> ClassroomStatus:
+    if ended(semester, Event.SEMESTER_END):
+        return ClassroomStatus.CONCLUIDO
+    return ClassroomStatus.CURSANDO
+
+
+def departure_status(semester: str) -> ClassroomStatus:
+    if ended(semester, Event.EXTRAORDINARY_ENROLLMENT):
+        return ClassroomStatus.TRANCADO
+    return ClassroomStatus.REMOVIDO

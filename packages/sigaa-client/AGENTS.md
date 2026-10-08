@@ -38,7 +38,9 @@ tests/
 - **`ViewState` morre a cada postback.** Releia a página antes de cada um.
 - **O contexto vive na sessão, não na URL.** Telas da turma mostram a última turma aberta, e outro
   client na mesma sessão pode trocá-la; por isso passam por `_read_screen`, que confere o contexto e
-  reabre se preciso. Nem toda tela abre por GET: algumas só vêm pelo menu da turma.
+  reabre se preciso. Nem toda tela abre por GET: algumas só vêm pelo menu da turma. Cada login é
+  uma sessão independente (o logout de uma não derruba as outras): para ler turmas em paralelo,
+  use um client por sessão.
 - **Sessão anônima precisa passar pela home pública** antes de o JSF aceitar a view (`PublicSession`
   cuida disso).
 - **HTML malformado** é comum: tags fecham no lugar errado, às vezes `find_next` é a única saída.

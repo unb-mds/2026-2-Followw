@@ -50,7 +50,7 @@
             "post": {
                 "tags": ["Auth"],
                 "summary": "Sigaa Refresh",
-                "description": "Loga no SIGAA com o refresh_token se ainda não houver um access_token válido.\n\nO cache sai só com o refresh_token, então o app chama esta rota ao abrir: ela\nconfere a senha, aquece o access_token e revalida o que venceu, como o login.",
+                "description": "Confere a senha se não houver access_token e agenda o sync do que venceu.\n\nO cache sai só com o refresh_token, então o app chama esta rota ao abrir.",
                 "operationId": "sigaa_refresh_auth_sigaa_refresh_post",
                 "responses": {
                     "204": { "description": "Successful Response" },
@@ -1460,16 +1460,6 @@
                     "displayName": {
                         "anyOf": [{ "type": "string" }, { "type": "null" }],
                         "title": "Displayname"
-                    },
-                    "defaultRuCampus": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "enum": ["Darcy", "Gama", "Ceilandia", "Planaltina", "Fazenda"]
-                            },
-                            { "type": "null" }
-                        ],
-                        "title": "Defaultrucampus"
                     }
                 },
                 "type": "object",
@@ -1483,16 +1473,6 @@
                             { "type": "null" }
                         ],
                         "title": "Displayname"
-                    },
-                    "defaultRuCampus": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "enum": ["Darcy", "Gama", "Ceilandia", "Planaltina", "Fazenda"]
-                            },
-                            { "type": "null" }
-                        ],
-                        "title": "Defaultrucampus"
                     }
                 },
                 "additionalProperties": false,

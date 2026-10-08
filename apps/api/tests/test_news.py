@@ -21,7 +21,8 @@ from sqlalchemy import select
 from api.db.main import get_sessionmaker
 from api.db.models import Classroom as DBClassroom
 from api.db.models import ClassroomNews
-from api.services.sync import Job, Task
+from api.modules.classrooms.news import sync_news_content
+from api.sync.engine import Job, Step
 
 CREDENTIALS = Credentials(registration="251000000", password=SecretStr("senha123"))
 DETAIL_PATH = "/classrooms/AAA/news/1"
@@ -407,14 +408,14 @@ def test_stale_if_error_preserva_resposta_em_falha_do_sigaa(
 
 
 def test_jobs_de_conteudos_distintos_nao_sao_deduplicados():
-    job = Job(
-        task=Task.NEWS_CONTENT,
-        registration="251000000",
-        session_token="token",
-        classroom_id="AAA",
-        item_id=1,
-    )
-    assert job.key != job.model_copy(update={"item_id": 2}).key
+    def job(news_id: int) -> Job:
+        return Job(
+            credentials=CREDENTIALS,
+            classroom_id="AAA",
+            steps=(Step.of(sync_news_content, news_id),),
+        )
+
+    assert job(1).key != job(2).key
 
 
 def test_lista_nao_busca_conteudo_ate_primeira_abertura(client, cookies, news_sigaa):
@@ -431,7 +432,9 @@ def test_lista_nao_busca_conteudo_ate_primeira_abertura(client, cookies, news_si
 def test_ttl_do_conteudo_pode_ser_ativado(
     client, cookies, news_sigaa, database, monkeypatch, qstash
 ):
-    monkeypatch.setattr("api.services.news.NEWS_CONTENT_TTL", timedelta(minutes=60))
+    monkeypatch.setattr(
+        "api.modules.classrooms.news.NEWS_CONTENT_TTL", timedelta(minutes=60)
+    )
     client.cookies.update(cookies(refresh=CREDENTIALS))
     original = client.get(DETAIL_PATH).json()
     with database() as session:

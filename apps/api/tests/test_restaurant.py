@@ -16,7 +16,7 @@ from unb_browser import Campus, DailyMenu, MenuSection, UnbParseError
 from unb_browser.config import RU_MENU_URL
 
 from api.db.models import RestaurantMenu
-from api.repositories.restaurant import RestaurantRepository
+from api.modules.public_restaurant.repository import RestaurantRepository
 
 CREDENTIALS = Credentials(registration="251000000", password=SecretStr("senha"))
 NO_CACHE = {"Cache-Control": "no-cache"}
@@ -37,7 +37,9 @@ def _cached_days(session):
 @pytest.fixture(autouse=True)
 def today(monkeypatch):
     current = SimpleNamespace(value=date(2026, 9, 25))
-    monkeypatch.setattr("api.services.restaurant.today", lambda: current.value)
+    monkeypatch.setattr(
+        "api.modules.public_restaurant.service.today", lambda: current.value
+    )
     return current
 
 
@@ -46,7 +48,9 @@ def browser(monkeypatch):
     browser = MagicMock()
     browser.__aenter__.return_value = browser
     browser.restaurant.get_menu = AsyncMock(return_value=(DAY,))
-    monkeypatch.setattr("api.dependencies.unb_browser.UnbBrowser", lambda: browser)
+    monkeypatch.setattr(
+        "api.modules.public_restaurant.service.UnbBrowser", lambda: browser
+    )
     return browser
 
 
