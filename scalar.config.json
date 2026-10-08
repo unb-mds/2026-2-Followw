@@ -8,12 +8,50 @@
   "siteConfig": {
     "theme": "purple"
   },
+  "assetsDir": "docs",
   "navigation": {
+    "tabs": [
+      {
+        "title": "API",
+        "to": "/",
+        "icon": "phosphor/regular/plug"
+      },
+      {
+        "title": "Arquitetura",
+        "to": "/arquitetura",
+        "icon": "phosphor/regular/buildings"
+      },
+      {
+        "title": "Segurança",
+        "to": "/seguranca",
+        "icon": "phosphor/regular/shield-check"
+      },
+      {
+        "title": "Requisitos",
+        "to": "/requisitos",
+        "icon": "phosphor/regular/clipboard-text"
+      }
+    ],
     "routes": {
       "/": {
         "type": "openapi",
         "title": "API Reference",
         "url": "http://localhost:8000/openapi.json"
+      },
+      "/arquitetura": {
+        "type": "page",
+        "title": "Arquitetura",
+        "filepath": "docs/arquitetura.md"
+      },
+      "/seguranca": {
+        "type": "page",
+        "title": "Segurança",
+        "filepath": "docs/segurança.md"
+      },
+      "/requisitos": {
+        "type": "page",
+        "title": "Requisitos",
+        "filepath": "docs/requisitos.md"
       }
     }
   }
