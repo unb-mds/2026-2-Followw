@@ -2,7 +2,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, Path, Query
 from sigaa_client import (
-    Classroom,
     ClassroomFrequency,
     ClassroomMember,
     News,
@@ -11,7 +10,11 @@ from sigaa_client import (
 
 from api.errors import SIGAA_ERRORS
 from api.modules.classrooms.news import ClassroomNewsServiceDep
-from api.modules.classrooms.service import ClassroomFrequencyResult, ClassroomServiceDep
+from api.modules.classrooms.service import (
+    ClassroomFrequencyResult,
+    ClassroomServiceDep,
+    UserClassroom,
+)
 
 router = APIRouter()
 
@@ -69,8 +72,9 @@ async def get_classroom_news_detail(
 
 @router.get(
     "",
-    response_model=list[Classroom],
+    response_model=list[UserClassroom],
     summary="Consultar as turmas do usuário autenticado",
+    description="Cada turma traz a menção do usuário em grade (null até ser lançada ou sincronizada). A menção é atualizada pelo sync do login e de /auth/sigaa/refresh, e congela depois da consolidação das turmas.",
     responses=SIGAA_ERRORS,
 )
 async def get_classrooms(
@@ -82,7 +86,7 @@ async def get_classrooms(
             description="Sem filtro: turmas atuais. Use 'all' ou um semestre no formato AAAA.P, como 2026.2.",
         ),
     ] = None,
-) -> list[Classroom]:
+) -> list[UserClassroom]:
     return await service.list_classrooms(semester)
 
 

@@ -3,12 +3,13 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
+from sigaa_client import Grade
 from sqlalchemy import JSON, DateTime, ForeignKey, Index, Text, UniqueConstraint
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from api.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
-from api.db.enums import ClassroomGrade, ClassroomRole, ClassroomStatus, UserLevel
+from api.db.enums import ClassroomRole, ClassroomStatus, UserLevel
 
 
 def _enum(enum: type, name: str) -> SAEnum:
@@ -111,9 +112,8 @@ class ClassroomUser(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     status: Mapped[ClassroomStatus | None] = mapped_column(
         _enum(ClassroomStatus, "classroom_status")
     )
-    grade: Mapped[ClassroomGrade | None] = mapped_column(
-        _enum(ClassroomGrade, "classroom_grade")
-    )
+    grade: Mapped[Grade | None] = mapped_column(_enum(Grade, "classroom_grade"))
+    grade_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # `frontEndIdTurma` visto pelo próprio usuário: só existe nos vínculos que
     # vieram da lista de turmas dele, não da lista de participantes.
     front_end_id: Mapped[str | None] = mapped_column()

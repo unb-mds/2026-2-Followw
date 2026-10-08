@@ -89,6 +89,17 @@ class ClassroomRepository:
         cached.synced_at = synced_at
         await self._session.flush()
 
+    async def save_grade(
+        self,
+        user_classroom_id: UUID,
+        grade: sigaa_client.Grade | None,
+        synced_at: datetime,
+    ) -> None:
+        link = await self._session.get_one(ClassroomUser, user_classroom_id)
+        link.grade = grade
+        link.grade_synced_at = synced_at
+        await self._session.flush()
+
     async def save_user_classrooms(
         self,
         user: User,

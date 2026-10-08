@@ -11,12 +11,15 @@ from api.db.enums import ClassroomStatus
 _BRASILIA = ZoneInfo("America/Sao_Paulo")
 # Dá tempo de o último sync da turma marcar os alunos como concluídos.
 MEMBERS_TOLERANCE = timedelta(days=3)
+# Docente que consolida a turma com atraso ainda tem a menção lida.
+GRADES_TOLERANCE = timedelta(days=3)
 
 
 class Event(str, enum.Enum):
     """Os ids dos eventos do calendário que as regras usam."""
 
     EXTRAORDINARY_ENROLLMENT = "extraordinary_enrollment"
+    GRADES_CONSOLIDATION = "grades_consolidation"
     SEMESTER_END = "semester_end"
 
 
@@ -54,6 +57,18 @@ def members_closed(semester: str) -> bool:
 def members_frozen(semester: str, synced_at: datetime) -> bool:
     """Os participantes sincronizados depois da tolerância não são ressincronizados."""
     return ended(semester, Event.SEMESTER_END, MEMBERS_TOLERANCE, local_date(synced_at))
+
+
+def grades_closed(semester: str) -> bool:
+    """A tolerância da consolidação já passou: falta só o último sync da menção."""
+    return ended(semester, Event.GRADES_CONSOLIDATION, GRADES_TOLERANCE)
+
+
+def grades_frozen(semester: str, synced_at: datetime) -> bool:
+    """A menção sincronizada depois da consolidação das turmas não muda mais."""
+    return ended(
+        semester, Event.GRADES_CONSOLIDATION, GRADES_TOLERANCE, local_date(synced_at)
+    )
 
 
 def member_status(semester: str) -> ClassroomStatus:

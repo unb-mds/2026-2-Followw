@@ -16,6 +16,7 @@ from sigaa_client import (
     ClassroomProgress,
     ClassroomRole,
     Credentials,
+    Grade,
     SessionExpired,
     SigaaError,
     SigaaParseError,
@@ -113,6 +114,7 @@ def test_login_e_listagem_retornam_apenas_turmas_atuais(client, classrooms_sigaa
                 "unity": "FCTE",
                 "sigaa_id": None,
             },
+            "grade": None,
         }
     ]
     # Só a sessão do usuário segue aberta: cada job encerrou a sua.
@@ -268,10 +270,10 @@ def test_openapi_documenta_lista_de_turmas_e_401(client):
     assert "401" in route["responses"]
     response_schema = route["responses"]["200"]["content"]["application/json"]["schema"]
     assert response_schema["type"] == "array"
-    assert response_schema["items"]["$ref"] == "#/components/schemas/Classroom"
-    assert {"number", "semester", "schedule", "room", "subject"} <= schema[
+    assert response_schema["items"]["$ref"] == "#/components/schemas/UserClassroom"
+    assert {"number", "semester", "schedule", "room", "subject", "grade"} <= schema[
         "components"
-    ]["schemas"]["Classroom"]["properties"].keys()
+    ]["schemas"]["UserClassroom"]["properties"].keys()
     assert {"name", "code", "hours", "unity"} <= schema["components"]["schemas"][
         "Subject"
     ]["properties"].keys()
@@ -339,6 +341,7 @@ def test_historico_preserva_campos_das_turmas_atuais(client, classrooms_sigaa, c
             "unity": None,
             "sigaa_id": None,
         },
+        "grade": None,
     }
 
 
@@ -621,6 +624,70 @@ def test_participantes_sem_cache_buscam_depois_da_tolerancia_do_semestre(
     assert turmas.classrooms.list_classroom_members.await_count == 1
 
 
+def _login(client) -> None:
+    client.post(
+        "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
+    )
+
+
+def _mencoes_sincronizadas_em(database, synced_at: datetime) -> None:
+    with database() as session:
+        session.execute(update(ClassroomUser).values(grade_synced_at=synced_at))
+        session.commit()
+
+
+def _mencoes_lidas(turmas) -> list[str]:
+    return sorted(
+        c.args[0] for c in turmas.classrooms.get_classroom_grade.await_args_list
+    )
+
+
+def test_mencao_vem_com_a_turma_pelo_sync_do_login(client, sigaa, turmas):
+    turmas.classrooms.get_classroom_grade.side_effect = lambda turma: (
+        Grade.MS if turma == "BBB" else None
+    )
+    _login(client)
+
+    response = client.get("/classrooms?semester=all")
+
+    assert {c["id"]: c["grade"] for c in response.json()} == {"AAA": None, "BBB": "MS"}
+    assert _mencoes_lidas(turmas) == ["AAA", "BBB"]
+
+
+def test_mencao_vencida_revalida_e_a_de_semestre_consolidado_congela(
+    client, sigaa, turmas, database
+):
+    _login(client)
+    _mencoes_sincronizadas_em(database, datetime.now(UTC) - timedelta(days=2))
+    turmas.classrooms.get_classroom_grade.reset_mock()
+
+    _login(client)
+
+    # 2025.2 já foi consolidado: o sync que veio depois disso é o último.
+    assert _mencoes_lidas(turmas) == ["AAA"]
+
+
+# 2026.2 consolida em 19/12: com a tolerância, a menção congela no sync a partir de 23/12.
+@pytest.mark.parametrize(
+    ("synced_at", "lidas"),
+    [
+        (datetime(2026, 12, 22, 12, tzinfo=UTC), ["AAA"]),
+        (datetime(2026, 12, 23, 12, tzinfo=UTC), []),
+    ],
+)
+def test_mencao_faz_um_ultimo_sync_depois_da_consolidacao(
+    client, sigaa, turmas, database, hoje, synced_at, lidas
+):
+    _login(client)
+    hoje(date(2026, 12, 30))
+    _mencoes_sincronizadas_em(database, synced_at)
+    turmas.classrooms.get_classroom_grade.reset_mock()
+
+    _login(client)
+
+    assert _mencoes_lidas(turmas) == lidas
+
+
 CURRENT = Classroom(
     id="HASH-A",
     sigaa_id=1614141,
@@ -714,11 +781,11 @@ def test_agregado_retorna_apenas_atuais_identificadas_em_ordem_e_reutiliza_cache
     assert response.status_code == 200
     assert response.json() == [
         {
-            "classroom": CURRENT.model_dump(mode="json"),
+            "classroom": {**CURRENT.model_dump(mode="json"), "grade": None},
             **FREQUENCY.model_dump(mode="json"),
         },
         {
-            "classroom": SECOND.model_dump(mode="json"),
+            "classroom": {**SECOND.model_dump(mode="json"), "grade": None},
             **NOT_REGISTERED.model_dump(mode="json"),
         },
     ]

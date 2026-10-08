@@ -24,7 +24,7 @@ from api.cache import is_stale
 from api.cookies import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME
 from api.db.models import Classroom, ClassroomStatistic, ClassroomUser, User
 from api.modules.auth.account import sync_account
-from api.modules.classrooms.service import sync_members, sync_statistics
+from api.modules.classrooms.service import sync_grade, sync_members, sync_statistics
 from api.modules.me.profile import sync_profile
 from api.sync.engine import Job, Step
 from api.sync.queue import JOBS_URL, encode_job
@@ -470,7 +470,7 @@ def test_login_sincroniza_cada_turma_em_um_job(client, conta, qstash):
     client.post("/auth/sigaa", json=LOGIN)
 
     conta_job, *turmas = qstash.jobs()
-    telas = (Step.of(sync_members), Step.of(sync_statistics))
+    telas = (Step.of(sync_members), Step.of(sync_statistics), Step.of(sync_grade))
     assert (conta_job.classroom_id, conta_job.steps) == (None, (Step.of(sync_account),))
     assert sorted((job.classroom_id, job.steps) for job in turmas) == [
         ("AAA", telas),

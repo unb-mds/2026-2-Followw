@@ -4,11 +4,13 @@ import pytest
 
 from api.academic_calendar import (
     departure_status,
+    grades_closed,
+    grades_frozen,
     member_status,
     members_closed,
     members_frozen,
 )
-from api.db.enums import ClassroomGrade, ClassroomStatus
+from api.db.enums import ClassroomStatus
 
 
 @pytest.mark.parametrize(
@@ -50,7 +52,18 @@ def test_semestre_fora_do_calendario_usa_a_ordem_dos_semestres():
     assert departure_status("2030.1") == ClassroomStatus.REMOVIDO
 
 
-def test_mencao_diz_se_o_aluno_foi_aprovado():
-    aprovadas = {grade for grade in ClassroomGrade if grade.approved}
+def test_mencao_congela_depois_da_consolidacao_com_tolerancia():
+    # 2026.1 consolida em 21/07.
+    assert not grades_frozen("2026.1", datetime(2026, 7, 24, 12, tzinfo=UTC))
+    assert grades_frozen("2026.1", datetime(2026, 7, 25, 12, tzinfo=UTC))
+    assert grades_frozen("2025.2", datetime(2025, 1, 1, tzinfo=UTC))
+    assert not grades_frozen("2030.1", datetime(2030, 12, 31, tzinfo=UTC))
 
-    assert aprovadas == {ClassroomGrade.SS, ClassroomGrade.MS, ClassroomGrade.MM}
+
+@pytest.mark.parametrize(
+    ("dia", "encerrada"), [(date(2026, 7, 24), False), (date(2026, 7, 25), True)]
+)
+def test_mencao_encerra_tres_dias_depois_da_consolidacao(hoje, dia, encerrada):
+    hoje(dia)
+
+    assert grades_closed("2026.1") is encerrada

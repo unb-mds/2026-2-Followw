@@ -12,6 +12,7 @@ from api.modules.classrooms.service import (
     find_link,
     sync_classrooms,
     sync_frequency,
+    sync_grade,
     sync_members,
     sync_statistics,
 )
@@ -34,6 +35,7 @@ TASKS: dict[str, Task] = {
         sync_members,
         sync_statistics,
         sync_frequency,
+        sync_grade,
         sync_news,
         sync_news_content,
     )

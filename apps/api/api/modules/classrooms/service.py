@@ -10,6 +10,7 @@ from sigaa_client import (
     ClassroomMember,
     ClassroomNotFound,
     ClassroomRole,
+    Grade,
     StatisticsShare,
     StudentSituation,
     Subject,
@@ -54,6 +55,15 @@ def statistics_freshness(link: OwnLink, synced_at: datetime | None) -> Freshness
     return freshness(synced_at, details_ttl(link))
 
 
+def grade_freshness(link: OwnLink, synced_at: datetime | None) -> Freshness:
+    semester = link.row.classroom.semester
+    if synced_at is not None and academic_calendar.grades_frozen(semester, synced_at):
+        return Freshness.FROZEN
+    if academic_calendar.grades_closed(semester):
+        return Freshness.STALE
+    return freshness(synced_at, DETAILS_TTL)
+
+
 def stale_classroom_tasks(link: OwnLink) -> list[Task[OwnLink]]:
     """As telas da turma que o sync do login revalida."""
     classroom = link.row.classroom
@@ -62,6 +72,8 @@ def stale_classroom_tasks(link: OwnLink) -> list[Task[OwnLink]]:
         stale.append(sync_members)
     if statistics_freshness(link, classroom.statistics_synced_at) is Freshness.STALE:
         stale.append(sync_statistics)
+    if grade_freshness(link, link.row.grade_synced_at) is Freshness.STALE:
+        stale.append(sync_grade)
     return stale
 
 
@@ -112,16 +124,34 @@ async def sync_frequency(ctx: Context[OwnLink]) -> None:
     )
 
 
+async def sync_grade(ctx: Context[OwnLink]) -> None:
+    link = ctx.target
+    grade = await ctx.client.classrooms.get_classroom_grade(link.front_end_id)
+    await ctx.sync.db.write(
+        lambda session: ClassroomRepository(session).save_grade(
+            link.row.id, grade, datetime.now(UTC)
+        )
+    )
+
+
+class UserClassroom(Classroom):
+    """A turma com a menção do usuário, `None` enquanto não lançada ou sincronizada."""
+
+    grade: Grade | None = None
+
+
 class ClassroomFrequencyResult(ClassroomFrequency):
-    classroom: Classroom
+    classroom: UserClassroom
 
 
 class ClassroomService:
     def __init__(self, sync: SyncDep) -> None:
         self._sync = sync
 
-    async def list_classrooms(self, semester: str | None = None) -> list[Classroom]:
-        async def load(session: AsyncSession) -> Cached[list[Classroom]] | None:
+    async def list_classrooms(self, semester: str | None = None) -> list[UserClassroom]:
+        """A menção sai do cache: quem a revalida é o sync do login."""
+
+        async def load(session: AsyncSession) -> Cached[list[UserClassroom]] | None:
             user = await _user(self._sync.registration, session)
             if user is None or user.classrooms_synced_at is None:
                 return None
@@ -257,11 +287,11 @@ def _in_semester(classroom: Classroom, semester: str | None) -> bool:
     return semester == "all" or classroom.semester == semester
 
 
-def _to_classroom(link: OwnLink) -> Classroom:
+def _to_classroom(link: OwnLink) -> UserClassroom:
     classroom = link.row.classroom
     subject = classroom.subject
 
-    return Classroom(
+    return UserClassroom(
         id=link.front_end_id,
         sigaa_id=classroom.sigaa_id,
         number=classroom.number,
@@ -276,6 +306,7 @@ def _to_classroom(link: OwnLink) -> Classroom:
             hours=subject.hours,
             unity=subject.unity,
         ),
+        grade=link.row.grade,
     )
 
 
