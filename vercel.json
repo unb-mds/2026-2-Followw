@@ -8,13 +8,7 @@
             "root": "apps/api/",
             "framework": "fastapi",
             "entrypoint": "api.main:app",
-            "installCommand": "UV_LINK_MODE=copy uv sync --frozen --no-dev --no-editable",
-            "routes": [
-                {
-                    "src": "/api/(.*)",
-                    "transforms": [{ "type": "request.path", "op": "set", "args": "/$1" }]
-                }
-            ]
+            "installCommand": "UV_LINK_MODE=copy uv sync --frozen --no-dev --no-editable"
         }
     },
     "redirects": [
@@ -32,8 +26,8 @@
             "destination": { "service": "api" }
         },
         {
-            "source": "/api/(.*)",
-            "destination": { "service": "api" }
+            "source": "/api/:path*",
+            "destination": { "service": "api", "path": "/:path*" }
         },
         {
             "source": "/(.*)",

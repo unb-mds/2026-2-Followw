@@ -10,22 +10,28 @@ from pydantic import SecretStr
 from sigaa_client import (
     AuthenticationFailed,
     Credentials,
+    CurriculumWorkload,
     RestaurantCredentials,
     RestaurantStatement,
     RestaurantStatementEntry,
     SessionExpired,
     SigaaParseError,
+    UserProfile,
 )
+from sigaa_client import UserLevel as SigaaUserLevel
 from sigaa_client.config import SIGAA_BASE_URL
+from sqlalchemy import select
 
-from api.db.main import get_sessionmaker
-from api.repositories.user import UserRepository
-from api.utils.session import (
+from api.cookies import (
     ACCESS_COOKIE_NAME,
     REFRESH_COOKIE_NAME,
     decrypt_cookie,
     encrypt_cookie,
 )
+from api.db.enums import UserLevel
+from api.db.main import get_sessionmaker
+from api.db.models import User
+from api.modules.me.repository import UserRepository
 
 CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha123"))
 NO_CACHE = {"Cache-Control": "no-cache"}
@@ -89,7 +95,8 @@ def test_login_seguido_de_me_responde_do_cache(client, sigaa):
     assert client.get("/me", headers=NO_CACHE).json()["ira"] == 4.0
     assert client.get("/me").json()["ira"] == 4.0
     assert sigaa.profile_requests == requests_before + 1
-    assert sigaa.logins == 1
+    # Só a sessão do usuário segue aberta: a do sync da conta foi encerrada.
+    assert sigaa.logins - sigaa.logouts == 1
 
 
 def test_me_sem_campos_opcionais_retorna_null(client, sigaa, cookies):
@@ -437,13 +444,20 @@ def test_configuracoes_aceitam_display_name_no_limite(client, cookies):
     client.cookies.update(cookies(refresh=CREDENCIAIS))
     nome = "a" * 24
 
-    response = client.patch(
-        "/me/settings", json={"displayName": nome, "defaultRuCampus": "Gama"}
-    )
+    response = client.patch("/me/settings", json={"displayName": nome})
 
     assert response.status_code == 200
-    assert response.json() == {"displayName": nome, "defaultRuCampus": "Gama"}
+    assert response.json() == {"displayName": nome}
     assert client.get("/me/settings").json() == response.json()
+
+
+def test_patch_sem_campos_preserva_as_configuracoes(client, cookies):
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+    client.patch("/me/settings", json={"displayName": "Ana"})
+
+    response = client.patch("/me/settings", json={})
+
+    assert response.json() == {"displayName": "Ana"}
 
 
 @pytest.mark.parametrize(
@@ -452,7 +466,8 @@ def test_configuracoes_aceitam_display_name_no_limite(client, cookies):
         {"displayName": "a" * 25},
         {"displayName": ""},
         {"displayName": "   "},
-        {"defaultRuCampus": "Asa Norte"},
+        # A setting saiu: quem ainda a mandar recebe 422.
+        {"defaultRuCampus": "Gama"},
         {"theme": "dark"},
     ],
 )
@@ -462,10 +477,7 @@ def test_configuracoes_rejeitam_input_invalido(client, cookies, body):
     response = client.patch("/me/settings", json=body)
 
     assert response.status_code == 422
-    assert client.get("/me/settings").json() == {
-        "displayName": None,
-        "defaultRuCampus": None,
-    }
+    assert client.get("/me/settings").json() == {"displayName": None}
 
 
 def test_configuracoes_removem_espacos_do_display_name(client, cookies):
@@ -492,7 +504,123 @@ def test_configuracoes_sobrevivem_ao_sync_criando_o_usuario_ao_mesmo_tempo(
 
     monkeypatch.setattr(UserRepository, "get_by_registration", get_by_registration)
 
-    response = client.patch("/me/settings", json={"defaultRuCampus": "Gama"})
+    response = client.patch("/me/settings", json={"displayName": "Bia"})
 
     assert response.status_code == 200
-    assert response.json() == {"displayName": "Ana", "defaultRuCampus": "Gama"}
+    assert response.json() == {"displayName": "Bia"}
+
+
+AGORA = datetime(2026, 9, 22, tzinfo=UTC)
+PERFIL_LIDO = UserProfile(
+    name="NOME DISCENTE",
+    registration="251000000",
+    photo=None,
+    bio="Bio.",
+    unity="FCTE",
+    course="ENGENHARIA DE SOFTWARE",
+    integralization=35,
+    workload=CurriculumWorkload(
+        total=3525,
+        pending_mandatory=2175,
+        pending_optional=420,
+        pending_complementary=0,
+    ),
+    ira=3.9,
+    mp=4.1,
+    level=SigaaUserLevel.GRADUACAO,
+)
+
+
+@pytest.mark.parametrize(
+    "registration", ["251000000", "251000001", "inexistente", "' OR 1=1 --"]
+)
+async def test_repository_busca_somente_a_matricula_pedida(
+    async_database, registration
+):
+    async with async_database() as session:
+        session.add_all(
+            User(
+                name=f"Discente {index}",
+                registration=f"25100000{index}",
+                level=UserLevel.GRADUACAO,
+            )
+            for index in range(2)
+        )
+        await session.commit()
+
+        result = await UserRepository(session).get_by_registration(registration)
+
+    assert (result.registration if result else None) == (
+        registration if registration.startswith("25100000") else None
+    )
+
+
+async def test_perfil_cria_usuario_com_data_de_sync(async_database):
+    async with async_database() as session:
+        await UserRepository(session).save_profile(PERFIL_LIDO, AGORA)
+        await session.commit()
+
+    async with async_database() as session:
+        user = await UserRepository(session).get_by_registration("251000000")
+
+    assert user is not None
+    assert (user.name, user.ira, user.level) == (
+        "NOME DISCENTE",
+        3.9,
+        UserLevel.GRADUACAO,
+    )
+    assert user.workload == PERFIL_LIDO.workload.model_dump()
+    assert user.profile_synced_at is not None
+
+
+async def test_perfil_assume_o_usuario_sombra_da_mesma_matricula(async_database):
+    async with async_database() as session:
+        session.add(
+            User(
+                name="NOME DA LISTA",
+                registration="251000000",
+                person_id=42,
+                email="discente@example.org",
+            )
+        )
+        await session.commit()
+
+        await UserRepository(session).save_profile(PERFIL_LIDO, AGORA)
+        await session.commit()
+
+    async with async_database() as session:
+        users = list(await session.scalars(select(User)))
+
+    assert len(users) == 1
+    assert users[0].name == "NOME DISCENTE"
+    # O perfil não traz esses campos: o que a lista de participantes trouxe fica.
+    assert (users[0].person_id, users[0].email) == (42, "discente@example.org")
+
+
+async def test_settings_retorna_vazio_quando_usuario_nao_tem_configuracoes(
+    async_database,
+):
+    async with async_database() as session:
+        settings = await UserRepository(session).get_settings("251000000")
+        assert settings == {}
+
+
+async def test_settings_salva_e_sobrescreve_preferencias(async_database):
+    async with async_database() as session:
+        repo = UserRepository(session)
+        updated = await repo.update_settings(
+            "251000000", {"displayName": "Discente Teste"}
+        )
+        assert updated == {"displayName": "Discente Teste"}
+        await session.commit()
+
+    async with async_database() as session:
+        repo = UserRepository(session)
+        updated = await repo.update_settings("251000000", {"displayName": "Outro"})
+        assert updated == {"displayName": "Outro"}
+        await session.commit()
+
+    async with async_database() as session:
+        repo = UserRepository(session)
+        settings = await repo.get_settings("251000000")
+        assert settings == {"displayName": "Outro"}

@@ -179,6 +179,12 @@ class FakeQStash:
             200, json=[{"messageId": f"msg_{n}"} for n in range(len(batch))]
         )
 
+    def jobs(self) -> list:
+        """Os jobs publicados, decifrados como a própria app os leria."""
+        from api.sync.queue import decode_job
+
+        return [decode_job(message["body"].encode()) for message in self.published]
+
     def deliver(self, client: TestClient) -> None:
         while self.pending:
             message = self.pending.popleft()
@@ -229,6 +235,19 @@ class JobsClient(TestClient):
         return response
 
 
+@pytest.fixture(autouse=True)
+def hoje(monkeypatch):
+    """Fixa o dia do calendário acadêmico: 2026.2 entre a matrícula extraordinária e
+    o fim do trancamento geral. Chame com outra data para mudar o dia."""
+    from datetime import date
+
+    def _set(day: date) -> None:
+        monkeypatch.setattr("api.academic_calendar.today", lambda: day)
+
+    _set(date(2026, 9, 22))
+    return _set
+
+
 @pytest.fixture
 def database(tmp_path):
     """Banco SQLite em arquivo: a app usa via aiosqlite, o teste via sessão síncrona."""
@@ -271,7 +290,7 @@ def cookies():
     # Importado aqui dentro: `api.core.config` lê o ambiente já no import.
     from fastapi import Response
 
-    from api.utils.session import set_access_cookie, set_refresh_cookie
+    from api.cookies import set_access_cookie, set_refresh_cookie
 
     def _build(
         *, access: str | None = None, refresh: Credentials | None = None
@@ -315,8 +334,10 @@ def probe_app():
     testes e deixaria o resultado na mão da ordem de coleta.
     """
 
+    from api.errors import EXCEPTION_HANDLERS
+
     def _build(handler) -> TestClient:
-        app = FastAPI()
+        app = FastAPI(exception_handlers=EXCEPTION_HANDLERS)
         app.get("/probe")(handler)
         return TestClient(app)
 
@@ -328,7 +349,7 @@ def stub_sigaa(monkeypatch):
     """Troca o `SigaaClient` por dublês de método, para testar o cache sem HTML.
 
     Só o client muda: conexão, cookies e tradução de erros continuam os da app.
-    `created` conta quantos clients a app abriu.
+    `created` conta quantos clients a app abriu; cada job abre o seu.
     """
     from types import SimpleNamespace
     from unittest.mock import AsyncMock, Mock
@@ -337,6 +358,7 @@ def stub_sigaa(monkeypatch):
 
     client = SimpleNamespace(
         authenticate=AsyncMock(return_value="app14~STUB"),
+        logout=AsyncMock(),
         aclose=AsyncMock(),
         profile=SimpleNamespace(
             get_profile=AsyncMock(
@@ -359,9 +381,24 @@ def stub_sigaa(monkeypatch):
             list_classrooms=AsyncMock(return_value=[]),
             list_classroom_members=AsyncMock(return_value=[]),
             get_classroom_statistics=AsyncMock(return_value=()),
+            get_classroom_grade=AsyncMock(return_value=None),
         ),
     )
 
     client.created = Mock(return_value=client)
-    monkeypatch.setattr("api.dependencies.sigaa.SigaaClient", client.created)
+
+    def reset() -> None:
+        """Zera as chamadas registradas, mantendo os retornos configurados."""
+        for mock in (
+            client.created,
+            client.authenticate,
+            client.logout,
+            client.aclose,
+            *vars(client.profile).values(),
+            *vars(client.classrooms).values(),
+        ):
+            mock.reset_mock()
+
+    client.reset = reset
+    monkeypatch.setattr("api.sigaa.SigaaClient", client.created)
     return client

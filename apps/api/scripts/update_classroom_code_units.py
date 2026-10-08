@@ -12,9 +12,12 @@ import httpx
 from sigaa_client import SigaaError, SigaaPublicClient
 from sigaa_client.config import PUBLIC_CLASSROOMS_PATH, SIGAA_BASE_URL
 
-from api.utils.classroom_code import classroom_code_prefix
+from api.modules.public_classrooms.code import classroom_code_prefix
 
-OUTPUT = Path(__file__).resolve().parents[1] / "api/data/classroom_code_units.json"
+OUTPUT = (
+    Path(__file__).resolve().parents[1]
+    / "api/modules/public_classrooms/classroom_code_units.json"
+)
 logger = logging.getLogger(__name__)
 
 

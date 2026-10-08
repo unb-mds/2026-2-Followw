@@ -5,12 +5,12 @@ version = "0.0.1"
 requires-python = ">=3.14"
 dependencies = [
     "httpx>=0.28.1",
-    "beautifulsoup4>=4.13.0",
-    "lxml>=5.3.0",
-    "pillow>=11.0.0",
+    "beautifulsoup4>=4.15.0",
+    "lxml>=6.1.3",
+    "pillow>=12.3.0",
     "pydantic>=2.13.5",
-    "pypdf[image]>=5.9.0",
-    "zxing-cpp>=2.3.0",
+    "pypdf[image]>=6.19.0",
+    "zxing-cpp>=3.1.1",
     "markdownify>=1.2.3",
 ]
 
@@ -26,9 +26,9 @@ module-root = ""
 
 [dependency-groups]
 dev = [
-    "ruff>=0.16.6",
-    "pytest>=8.3.0",
-    "pytest-asyncio>=0.24.0",
+    "ruff>=0.16.10",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
 ]
 
 [tool.pytest.ini_options]

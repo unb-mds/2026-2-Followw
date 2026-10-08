@@ -4,15 +4,16 @@ description = "API pública do Followw UnB."
 version = "0.0.1"
 requires-python = ">=3.14"
 dependencies = [
-    "asyncpg>=0.31.0",
-    "cryptography>=50.0.1",
-    "fastapi[standard]>=0.141.1",
+    "asyncpg>=0.32.0",
+    "cryptography>=50.0.2",
+    "fastapi[standard]>=0.142.4",
     "joserfc>=1.7.5",
     "pydantic>=2.13.5",
     "pydantic-settings>=2.15.0",
     "qstash>=3.4.0",
     "sigaa-client",
-    "sqlalchemy[asyncio]>=2.0.52",
+    "sqlalchemy[asyncio]>=2.1.4",
+    "tzdata>=2026.5",
     "unb-browser",
 ]
 
@@ -40,9 +41,9 @@ module-root = ""
 [dependency-groups]
 dev = [
     "aiosqlite>=0.22.1",
-    "pyjwt>=2.14.0",
+    "pyjwt>=2.15.1",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "respx>=0.23.1",
-    "ruff>=0.16.6",
+    "ruff>=0.16.10",
 ]

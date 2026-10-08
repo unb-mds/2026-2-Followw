@@ -2,7 +2,7 @@ import type { components } from '#/queries/schema.gen.ts';
 
 import { api } from '#/queries/api.ts';
 
-export type Classroom = components['schemas']['Classroom'];
+export type Classroom = components['schemas']['UserClassroom'];
 
 export const classroomsQueryOptions = api.queryOptions('get', '/classrooms');
 

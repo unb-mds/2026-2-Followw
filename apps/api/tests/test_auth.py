@@ -2,9 +2,9 @@ import pytest
 from pydantic import SecretStr
 from sigaa_client import Credentials
 
-from api.dependencies.qstash import decode_job
-from api.services.sync import Task
-from api.utils.session import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME, decrypt_cookie
+from api.cookies import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME, decrypt_cookie
+from api.modules.auth.account import sync_account
+from api.sync.engine import Step
 
 CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha123"))
 LOGIN = {"registration": "251000000", "password": "senha123"}
@@ -63,8 +63,9 @@ def test_login_guarda_a_sessao_e_as_credenciais(client, sigaa):
 
     assert response.status_code == 200
     assert response.json() == {"message": "Login successful"}
-    assert sigaa.logins == 1
+    # A sessão do cookie é a do login; a do sync da conta já foi encerrada.
     assert _payload(response, ACCESS_COOKIE_NAME)["session_token"] == "app14~TOKEN1"
+    assert sigaa.valid_tokens == {"app14~TOKEN1"}
     # O refresh guarda a credencial porque a sessão do SIGAA é curta e só o
     # relogin a renova — não há refresh token do lado deles.
     assert _payload(response, REFRESH_COOKIE_NAME)["registration"] == "251000000"
@@ -101,7 +102,7 @@ def test_login_com_cas_fora_do_esperado_e_502(client, sigaa):
     )
 
     assert response.status_code == 502
-    assert "JSESSIONID" in response.json()["detail"]
+    assert response.json()["detail"] == "SIGAA is unavailable"
 
 
 def test_logout_encerra_no_sigaa_e_apaga_os_cookies(
@@ -139,7 +140,7 @@ def test_logout_com_sigaa_fora_do_ar_ainda_desloga(client, sigaa, cookies, ler_c
     assert ACCESS_COOKIE_NAME in _expirados(ler_cookies(response))
 
 
-def test_refresh_com_access_token_valido_nao_vai_ao_sigaa(
+def test_refresh_com_access_token_valido_nao_loga_na_requisicao(
     client, sigaa, cookies, qstash
 ):
     client.cookies.update(cookies(access="app14~VIVO", refresh=CREDENCIAIS))
@@ -147,8 +148,19 @@ def test_refresh_com_access_token_valido_nao_vai_ao_sigaa(
     response = client.post("/auth/sigaa/refresh")
 
     assert response.status_code == 204
-    assert sigaa.logins == 0
     assert "set-cookie" not in response.headers
+    # Sem nada no cache, o sync da conta sai num job, que loga sozinho e sai.
+    assert [job.steps for job in qstash.jobs()] == [(Step.of(sync_account),)]
+    assert (sigaa.logins, sigaa.logouts) == (1, 1)
+
+
+def test_refresh_com_tudo_em_dia_nao_agenda_nada(client, sigaa, qstash):
+    client.post("/auth/sigaa", json=LOGIN)
+    qstash.published.clear()
+
+    response = client.post("/auth/sigaa/refresh")
+
+    assert response.status_code == 204
     assert qstash.published == []
 
 
@@ -158,10 +170,10 @@ def test_refresh_sem_access_token_loga_e_agenda_o_sync(client, sigaa, cookies, q
     response = client.post("/auth/sigaa/refresh")
 
     assert response.status_code == 204
-    assert sigaa.logins == 1
     assert _payload(response, ACCESS_COOKIE_NAME)["session_token"] == "app14~TOKEN1"
-    job = decode_job(qstash.published[0]["body"].encode())
-    assert (job.task, job.session_token) == (Task.ACCOUNT, "app14~TOKEN1")
+    [job] = qstash.jobs()
+    assert (job.credentials, job.steps) == (CREDENCIAIS, (Step.of(sync_account),))
+    assert sigaa.valid_tokens == {"app14~TOKEN1"}
 
 
 def test_refresh_com_senha_trocada_desloga(client, sigaa, ler_cookies):
