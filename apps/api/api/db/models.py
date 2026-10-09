@@ -85,6 +85,8 @@ class Classroom(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     statistics_synced_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True)
     )
+    # As aulas pelo horário e calendário são criadas uma vez, no sync de um aluno.
+    lessons_created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     subject: Mapped[Subject] = relationship(back_populates="classrooms")
     participant_links: Mapped[list[ClassroomParticipant]] = relationship(
@@ -105,7 +107,7 @@ class ClassroomParticipant(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         ForeignKey("users.id", ondelete="CASCADE")
     )
     classroom_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("classrooms.id", ondelete="CASCADE")
+        ForeignKey("classrooms.id", ondelete="CASCADE"), index=True
     )
     role: Mapped[ClassroomRole] = mapped_column(_enum(ClassroomRole, "classroom_role"))
     status: Mapped[ClassroomStatus | None] = mapped_column(
@@ -155,16 +157,23 @@ class Lesson(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     __tablename__ = "lessons"
     __table_args__ = (
-        UniqueConstraint("classroom_id", "occurred_on", "position", name="uq_lesson"),
+        # Uma só aula sem horário por dia.
+        UniqueConstraint(
+            "classroom_id",
+            "occurred_on",
+            "start_time",
+            name="uq_lesson",
+            postgresql_nulls_not_distinct=True,
+        ),
     )
 
     classroom_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("classrooms.id", ondelete="CASCADE")
     )
     occurred_on: Mapped[dt.date] = mapped_column()
-    # Ordem da aula entre as do mesmo dia.
-    position: Mapped[int] = mapped_column()
-    hours: Mapped[int] = mapped_column()
+    # Horário de Brasília; vazio só na aula que o SIGAA publicou numa turma sem horário.
+    start_time: Mapped[dt.time | None] = mapped_column()
+    end_time: Mapped[dt.time | None] = mapped_column()
     # Está no plano; as demais o SIGAA publicou fora dele (ex.: reposição).
     scheduled: Mapped[bool] = mapped_column()
 
@@ -183,7 +192,7 @@ class LessonAttendance(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         ForeignKey("classroom_participants.id", ondelete="CASCADE")
     )
     lesson_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("lessons.id", ondelete="CASCADE")
+        ForeignKey("lessons.id", ondelete="CASCADE"), index=True
     )
     status: Mapped[LessonStatus] = mapped_column(_enum(LessonStatus, "lesson_status"))
     marked: Mapped[bool] = mapped_column()

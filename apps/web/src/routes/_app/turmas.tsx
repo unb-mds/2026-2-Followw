@@ -85,7 +85,7 @@ function Classrooms() {
                                 ? (classroom.room ?? 'Local não informado')
                                 : undefined
                         }
-                        professor={`Turma ${classroom.number}`}
+                        classNumber={classroom.number}
                         grade={finalGrade(classroom)}
                         onClick={() =>
                             navigate({ to: '/turmas/$id', params: { id: classroom.id } })

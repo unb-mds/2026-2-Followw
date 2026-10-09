@@ -158,6 +158,7 @@ function HomePage() {
                                         key={`${item.id}-${start}`}
                                         title={item.subject.name}
                                         code={item.subject.code}
+                                        classNumber={item.number}
                                         time={`${start} - ${end}`}
                                         location={item.room ?? 'Local não informado'}
                                         status={status}

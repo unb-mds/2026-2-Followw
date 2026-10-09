@@ -51,8 +51,8 @@ tests/                # um arquivo por módulo
   lote.
 - **Modelos.** Toda tabela herda `Base, UUIDPrimaryKeyMixin, TimestampMixin`, salvo as de chave
   natural (como `subjects`, pelo código); enums do banco são `str, enum.Enum` com `values_callable`
-  para gravar o `.value`. Não há migrations: `db-init` só cria o que falta, alterar tabela exige
-  recriar o banco.
+  para gravar o `.value`. Não há migrations: `db-init` só cria as tabelas e os índices que faltam,
+  alterar coluna exige recriar o banco.
 - **Settings** é instanciado no import: env de teste precisa ser setada antes do primeiro import de
   `api.core.config` (veja `tests/conftest.py`).
 

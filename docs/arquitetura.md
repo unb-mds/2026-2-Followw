@@ -22,7 +22,7 @@ O sistema não possui contas proprietárias: a autenticação é delegada ao **C
 | **Backend API** | FastAPI (Python >= 3.14) | Assíncrono nativo, alta performance, geração automática de documentação OpenAPI e injeção de dependências robusta. |
 | **Scraper SIGAA** | `sigaa-client` | Abstração que gerencia o ciclo de vida JSF (ViewState, postback), decodificação de PDFs e sessões CAS. |
 | **Scraper Sites UnB**| `unb-browser` | Extração resiliente de cardápios do RU (parser geométrico via `pdfplumber`) e calendários acadêmicos. |
-| **Banco de Dados** | PostgreSQL 16+ (SQLAlchemy assíncrono) | Armazenamento de cache de turmas, cardápios e participantes, com suporte a campos JSON estruturados. |
+| **Banco de Dados** | PostgreSQL 18+ (SQLAlchemy assíncrono) | Armazenamento de cache de turmas, cardápios e participantes, com suporte a campos JSON estruturados. |
 | **Fila Assíncrona** | Upstash QStash | Execução desacoplada de jobs de sincronização via webhooks autenticados, com *flow control* e deduplicação. |
 | **Segurança/Sessão**| JWE (AES-256-GCM) + HKDF | Sessão *stateless*: token e credenciais residem em cookies HttpOnly cifrados; nenhuma senha persistida no servidor. |
 | **Gerenciadores** | `uv` (monorepo Python) e `bun` (web) | Resolução instantânea de dependências e execução ultra-rápida. |

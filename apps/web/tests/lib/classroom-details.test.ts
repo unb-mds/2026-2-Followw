@@ -3,8 +3,10 @@ import { describe, expect, test } from 'bun:test';
 import type { components } from '#/queries/schema.gen';
 
 import {
+    daysFrom,
     formatClassroomDate,
     formatClassroomWeekday,
+    formatRelativeDay,
     frequencyTone,
     groupBySemester,
     groupMembers
@@ -56,6 +58,21 @@ describe('formatClassroomWeekday', () => {
     test('abrevia o dia da semana sem ponto', () => {
         expect(formatClassroomWeekday('2026-10-07')).toBe('qua');
         expect(formatClassroomWeekday('2026-10-10T12:00:00')).toBe('sáb');
+    });
+});
+
+describe('daysFrom', () => {
+    test('conta os dias desde hoje, ignorando o horário', () => {
+        expect(daysFrom('2026-10-09', '2026-10-09')).toBe(0);
+        expect(daysFrom('2026-10-09', '2026-10-08T12:00:00')).toBe(-1);
+        expect(daysFrom('2026-10-09', '2026-10-12')).toBe(3);
+    });
+});
+
+describe('formatRelativeDay', () => {
+    test('escreve o dia relativo com inicial maiúscula', () => {
+        expect(formatRelativeDay(0)).toBe('Hoje');
+        expect(formatRelativeDay(-1)).toBe('Ontem');
     });
 });
 
