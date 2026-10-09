@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
 import { ListCard } from '#/components/ListCard';
+import { InstallPromptCard } from '#/components/profile/InstallPromptCard';
 import {
     AcademicPerformance,
     ProfileIdentity,
@@ -70,12 +71,15 @@ function PerfilPage() {
             {user && (
                 <>
                     <ProfileIdentity user={user} displayName={settings.displayName} />
-                    <AcademicPerformance user={user} />
-                    <ProgressSection user={user} />
-                    <AccountSection
-                        name={titleCase(user.name)}
-                        displayName={settings.displayName}
-                    />
+                    <div className="my-4 flex flex-col gap-4">
+                        <InstallPromptCard />
+                        <AcademicPerformance user={user} />
+                        <ProgressSection user={user} />
+                        <AccountSection
+                            name={titleCase(user.name)}
+                            displayName={settings.displayName}
+                        />
+                    </div>
                 </>
             )}
         </>

@@ -6,6 +6,7 @@ import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools';
 import { useEffect } from 'react';
 
 import { ErrorPage } from '#/components/ErrorPage';
+import { initializeInstallSupport } from '#/integrations/offline/install';
 import { useOfflineSupport } from '#/integrations/offline/use-offline-support';
 import PostHogProvider from '#/integrations/posthog/provider';
 import TanStackQueryDevtools from '#/integrations/tanstack-query/devtools';
@@ -36,7 +37,8 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
             { title: 'Followw' }
         ],
         links: [
-            { rel: 'icon', href: '/favicon.svg' },
+            { rel: 'icon', href: '/favicon.ico', sizes: '48x48' },
+            { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
             { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
             { rel: 'manifest', href: '/manifest.json' },
             { rel: 'stylesheet', href: appCss }
@@ -50,6 +52,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 function RootComponent() {
     useSessionRefresh();
     useEffect(() => reloadOnPreloadError(), []);
+    useEffect(() => initializeInstallSupport(), []);
     useOfflineSupport();
 
     return <Outlet />;

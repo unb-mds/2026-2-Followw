@@ -121,7 +121,7 @@ export function ProgressSection({ user }: { user: UserProfile }) {
 
 export function ProfileSection({ title, children }: { title: string; children: React.ReactNode }) {
     return (
-        <section className="mt-6" aria-label={title}>
+        <section aria-label={title}>
             <h2 className="mb-2 px-1 text-sm font-semibold">{title}</h2>
             {children}
         </section>
