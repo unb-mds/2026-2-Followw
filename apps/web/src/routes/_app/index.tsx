@@ -6,7 +6,6 @@ import { getNoClassReason } from '#/calendar';
 import { ErrorCard, ErrorState, SIGAA_DOWN_MESSAGE } from '#/components/ErrorState';
 import { HeaderBar, HeaderToggle } from '#/components/HeaderBar';
 import { ClassCard } from '#/components/home/ClassCard';
-import { InstallPromptCard } from '#/components/home/InstallPromptCard';
 import { LoginPromptCard } from '#/components/home/LoginPromptCard';
 import { PublicInfoSection } from '#/components/home/PublicInfoSection';
 import { usePageState } from '#/components/PageState';
@@ -186,7 +185,6 @@ function HomePage() {
                 isLoading={menu.isPending}
                 day={label}
             />
-            <InstallPromptCard />
         </>
     );
 }

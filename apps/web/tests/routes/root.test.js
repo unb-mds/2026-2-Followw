@@ -11,7 +11,8 @@ describe('rota raiz e manifest PWA', () => {
 
         const links = head?.links ?? [];
         expect(links).toContainEqual({ rel: 'manifest', href: '/manifest.json' });
-        expect(links).toContainEqual({ rel: 'icon', href: '/favicon.svg' });
+        expect(links).toContainEqual({ rel: 'icon', href: '/favicon.ico', sizes: '48x48' });
+        expect(links).toContainEqual({ rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' });
         expect(links).toContainEqual({ rel: 'apple-touch-icon', href: '/apple-touch-icon.png' });
 
         const meta = head?.meta ?? [];

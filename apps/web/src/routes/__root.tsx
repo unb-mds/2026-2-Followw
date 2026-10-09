@@ -37,7 +37,8 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
             { title: 'Followw' }
         ],
         links: [
-            { rel: 'icon', href: '/favicon.svg' },
+            { rel: 'icon', href: '/favicon.ico', sizes: '48x48' },
+            { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
             { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
             { rel: 'manifest', href: '/manifest.json' },
             { rel: 'stylesheet', href: appCss }
