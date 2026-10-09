@@ -11,7 +11,7 @@ bun fmt && bun lint        # formata e corrige lint
 bun check                  # verifica formatação + lint (sem alterar)
 bun test                   # testes em tests/
 bun generate-routes        # gera routeTree.gen.ts
-bun generate-api [url]     # gera src/queries/schema.gen.ts (default: localhost:8000/openapi.json, ou OPENAPI_URL)
+bun generate-api           # gera src/queries/schema.gen.ts a partir de localhost:8000/openapi.json
 ```
 
 ## Convenções

@@ -563,6 +563,16 @@ def test_detalhes_aceitam_sigaa_id(client, turmas, cookies, screen):
     assert turmas.classrooms.list_classrooms.await_count == 1
 
 
+@pytest.mark.parametrize("classroom_id", ["99999999999", "-1", "1614100.0"])
+def test_sigaa_id_fora_do_formato_retorna_404(client, turmas, cookies, classroom_id):
+    turmas.classrooms.list_classrooms.return_value = [
+        ATUAL.model_copy(update={"sigaa_id": 1614100})
+    ]
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+
+    assert client.get(f"/classrooms/{classroom_id}/members").status_code == 404
+
+
 def _participantes_sincronizados_em(database, synced_at: datetime) -> None:
     with database() as session:
         session.execute(update(ClassroomModel).values(members_synced_at=synced_at))
@@ -991,6 +1001,27 @@ async def test_turma_grande_nao_consulta_o_banco_por_participante(
     assert len([sql for sql in selects if sql.lstrip().startswith("SELECT")]) < 10
     assert len(await _membros(async_database, classroom_id)) == 300
     assert await _contar(async_database, User) == 302
+
+
+async def test_historico_nao_consulta_o_banco_por_turma(async_database, usuarios):
+    historico = [
+        _turma(f"T{i}", f"FGA{i:04}", "2025.2", current=i < 5) for i in range(40)
+    ]
+    await _salvar_turmas(async_database, usuarios[0], historico)
+
+    selects: list[str] = []
+    engine = async_database.kw["bind"].sync_engine
+    listener = lambda *args: selects.append(args[2])
+    event.listen(engine, "before_cursor_execute", listener)
+    try:
+        await _salvar_turmas(async_database, usuarios[1], historico)
+    finally:
+        event.remove(engine, "before_cursor_execute", listener)
+
+    assert len([sql for sql in selects if sql.lstrip().startswith("SELECT")]) < 10
+    assert len(await _vinculos(async_database, usuarios[1])) == 40
+    assert await _contar(async_database, ClassroomModel) == 40
+    assert await _contar(async_database, SubjectModel) == 40
 
 
 async def test_participante_repetido_na_listagem_vira_um_usuario_so(

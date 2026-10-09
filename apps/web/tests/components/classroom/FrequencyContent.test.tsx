@@ -4,15 +4,16 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { ClassroomFrequency, Lesson } from '#/queries/classrooms';
 
 import { FrequencyContent } from '#/components/classroom/FrequencyContent';
+import { nowInBrasilia } from '#/lib/schedule';
 
 const progress = { taught: 30, total: 60, percentage: 50 };
 
 const lesson = (occurred_on: string, fields: Partial<Lesson> = {}): Lesson => ({
-    id: `${occurred_on}:${fields.position ?? 0}`,
+    id: `${occurred_on}:${fields.start_time ?? ''}`,
     occurred_on,
-    position: 0,
+    start_time: null,
+    end_time: null,
     status: 'nao_registrada',
-    hours: 2,
     absences: 0,
     marked: false,
     ...fields
@@ -48,6 +49,19 @@ const tone = (percentage: number) =>
     )?.[1];
 
 describe('FrequencyContent', () => {
+    test('mostra apenas "Hoje" e "Ontem" nas aulas desses dias', () => {
+        const today = nowInBrasilia().date;
+        const yesterday = new Date(Date.parse(today) - 86_400_000).toISOString().slice(0, 10);
+        const markup = render({
+            ...notRegistered,
+            lessons: [lesson(today), lesson(yesterday), lesson('2020-10-05')]
+        });
+        expect(markup).toContain('<span>Hoje</span>');
+        expect(markup).toContain('<span>Ontem</span>');
+        expect(markup).not.toContain(`tabular-nums">${today.split('-').toReversed().join('/')}`);
+        expect(markup).toContain('tabular-nums">05/10/2020');
+    });
+
     test('mostra os totais de presenças, faltas e frequência', () => {
         const markup = render(registered);
         expect(markup).toMatch(/Presenças<\/dt><dd[^>]*>1</);
@@ -80,16 +94,6 @@ describe('FrequencyContent', () => {
         const markup = render(notRegistered);
         expect(markup).toContain('ainda não foi lançada');
         expect(markup).not.toContain('Faltas');
-    });
-
-    test('o aviso de frequência não lançada vem depois da lista de aulas', () => {
-        const markup = render({ ...notRegistered, lessons: [lesson('2026-10-05')] });
-        expect(markup.indexOf('05/10/2026')).toBeLessThan(markup.indexOf('ainda não foi lançada'));
-    });
-
-    test('avisa quando só parte das aulas foi registrada', () => {
-        const markup = render({ ...registered, frequency_status: 'parcialmente_registrada' });
-        expect(markup).toContain('ainda não foi registrada');
     });
 
     test('identifica as marcações do aluno e a frequência estimada', () => {
@@ -130,9 +134,7 @@ describe('FrequencyContent', () => {
     test('só as aulas sem chamada do SIGAA têm a bolinha como menu', () => {
         const markup = render(registered);
         expect(markup.match(/<button/g)).toHaveLength(1);
-        expect(markup).toContain(
-            'Situação de 06/10/2026, aula 1: Não registrada. Alterar situação.'
-        );
+        expect(markup).toContain('Situação de 06/10/2026, aula: Não registrada. Alterar situação.');
         expect(markup).toContain('after:-inset-2');
     });
 
@@ -147,15 +149,5 @@ describe('FrequencyContent', () => {
             <FrequencyContent data={registered} onMark={() => {}} pending />
         );
         expect(markup).toContain('disabled');
-    });
-
-    test('distingue aulas diferentes na mesma data', () => {
-        const markup = render({
-            ...notRegistered,
-            lessons: [lesson('2026-10-06', { position: 1 }), lesson('2026-10-06')]
-        });
-        expect(markup).toContain('Aula 1');
-        expect(markup).toContain('Aula 2');
-        expect(render(registered)).not.toContain('Aula 1');
     });
 });

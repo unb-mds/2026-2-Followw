@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from unittest.mock import AsyncMock, call
 from uuid import uuid4
 
@@ -18,17 +18,22 @@ from sigaa_client import (
     SigaaParseError,
     Subject,
 )
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
+from sqlalchemy.dialects import postgresql
+from sqlalchemy.schema import CreateTable
 
 from api.academic_calendar import class_days
 from api.db.enums import ClassroomStatus, LessonStatus
+from api.db.models import Classroom as ClassroomRow
 from api.db.models import ClassroomParticipant, Lesson, LessonAttendance
 from api.modules.classrooms.frequency import sync_frequency
 from api.modules.classrooms.lessons import (
     ClassroomFrequencyView,
     FrequencySummary,
     FrequencyTotals,
+    Period,
     Timetable,
+    hours,
     max_absences,
     positioned,
 )
@@ -90,15 +95,15 @@ PROGRESS = {"taught": 30, "total": 90, "percentage": 33}
 def lesson_json(occurred_on: str, status: str, absences: int = 0) -> dict:
     return {
         "occurred_on": occurred_on,
-        "position": 0,
+        "start_time": None,
+        "end_time": None,
         "status": status,
-        "hours": 1,
         "absences": absences,
         "marked": False,
     }
 
 
-# Turma sem horário: as aulas são só as que o SIGAA publicou, de uma hora-aula.
+# Turma sem horário: as aulas são só as que o SIGAA publicou, sem horário e de uma hora-aula.
 FREQUENCY_JSON = {
     "progress": PROGRESS,
     "frequency_status": "parcialmente_registrada",
@@ -145,6 +150,10 @@ def _with_entries(*entries: AttendanceEntry) -> ClassroomFrequency:
     )
 
 
+# Aulas da tarde pelas horas-aula.
+_ENDS = {1: time(14, 55), 2: time(15, 50), 3: time(16, 55)}
+
+
 def _row(
     day: date,
     status: LessonStatus | None = None,
@@ -155,7 +164,11 @@ def _row(
     scheduled: bool = True,
 ) -> tuple[Lesson, LessonAttendance | None]:
     lesson = Lesson(
-        id=uuid4(), occurred_on=day, position=0, hours=hours, scheduled=scheduled
+        id=uuid4(),
+        occurred_on=day,
+        start_time=time(14),
+        end_time=_ENDS[hours],
+        scheduled=scheduled,
     )
     if status is None:
         return lesson, None
@@ -178,36 +191,61 @@ def _view(
     )
 
 
-def test_horario_vira_aulas_por_dia_com_suas_horas_aula():
-    assert Timetable.parse("35T23").sessions == {1: (2,), 3: (2,)}
+def _hours(schedule: str) -> dict[int, tuple[int, ...]]:
+    sessions = Timetable.parse(schedule).sessions
+    return {
+        day: tuple(hours(period.start, period.end) for period in day_sessions)
+        for day, day_sessions in sessions.items()
+    }
+
+
+def test_horario_vira_aulas_por_dia_com_inicio_e_fim():
+    assert Timetable.parse("35T23").sessions == {
+        1: (Period(time(14), time(15, 50)),),
+        3: (Period(time(14), time(15, 50)),),
+    }
     # Horários consecutivos são uma aula só, mesmo entre turnos ou blocos; separados, duas.
-    assert Timetable.parse("35M5 35T1").sessions == {1: (2,), 3: (2,)}
-    assert Timetable.parse("3M12 3M34").sessions == {1: (4,)}
-    assert Timetable.parse("3M12 3T45").sessions == {1: (2, 2)}
-    assert Timetable.parse("6M1234 6M12").sessions == {4: (4,)}
+    assert Timetable.parse("35M5 35T1").sessions[1] == (Period(time(12), time(13, 50)),)
+    assert _hours("3M12 3M34") == {1: (4,)}
+    assert Timetable.parse("3M12 3T45").sessions[1] == (
+        Period(time(8), time(9, 50)),
+        Period(time(16), time(17, 50)),
+    )
+    assert _hours("6M1234 6M12") == {4: (4,)}
     assert Timetable.parse(None).sessions == {}
     assert Timetable.parse("99Z9 2N6").sessions == {}
 
 
-def test_aula_fora_do_horario_vale_o_tamanho_usual():
+def test_horas_aula_pelo_inicio_e_fim():
+    assert hours(time(8), time(9, 50)) == 2
+    assert hours(time(19), time(22, 30)) == 4
+    assert hours(None, None) == 1
+
+
+def test_aula_fora_do_horario_fica_sem_horario():
     timetable = Timetable.parse("2M12 4M123 6M123")
-    assert timetable.hours(date(2026, 8, 10), 0) == 2
-    assert timetable.hours(date(2026, 8, 10), 1) == 3
-    assert timetable.hours(date(2026, 8, 15), 0) == 3
-    assert Timetable.parse(None).hours(date(2026, 8, 10), 0) == 1
+    assert timetable.period(date(2026, 8, 10), 0) == Period(time(8), time(9, 50))
+    assert timetable.period(date(2026, 8, 10), 1) is None
+    assert timetable.period(date(2026, 8, 15), 0) is None
+    assert Timetable.parse(None).period(date(2026, 8, 10), 0) is None
+
+
+def test_banco_aceita_uma_so_aula_sem_horario_por_dia():
+    ddl = str(CreateTable(Lesson.__table__).compile(dialect=postgresql.dialect()))
+    assert "NULLS NOT DISTINCT (classroom_id, occurred_on, start_time)" in ddl
 
 
 def test_plano_cobre_o_semestre_pelo_horario_sem_feriados():
     plan = Timetable.parse("35M5 35T1").plan(class_days("2026.2"))
-    assert plan[date(2026, 8, 11), 0] == 2
-    assert (date(2026, 9, 22), 0) not in plan
+    assert plan[0] == (date(2026, 8, 11), Period(time(12), time(13, 50)))
+    assert date(2026, 9, 22) not in {day for day, _ in plan}
     assert {day.weekday() for day, _ in plan} == {1, 3}
-    assert max(plan) == (date(2026, 12, 10), 0)
-    assert Timetable.parse("3M12 3T45").plan([date(2026, 8, 11)]) == {
-        (date(2026, 8, 11), 0): 2,
-        (date(2026, 8, 11), 1): 2,
-    }
-    assert Timetable.parse(None).plan(class_days("2026.2")) == {}
+    assert plan[-1][0] == date(2026, 12, 10)
+    assert Timetable.parse("3M12 3T45").plan([date(2026, 8, 11)]) == [
+        (date(2026, 8, 11), Period(time(8), time(9, 50))),
+        (date(2026, 8, 11), Period(time(16), time(17, 50))),
+    ]
+    assert Timetable.parse(None).plan(class_days("2026.2")) == []
 
 
 def test_entradas_do_mesmo_dia_ganham_posicoes_em_ordem():
@@ -336,11 +374,12 @@ def age_cache(database, *, days=2):
         session.commit()
 
 
-def _lesson(response, occurred_on: str, position: int = 0) -> dict:
+def _lesson(response, occurred_on: str, start_time: str | None = None) -> dict:
     return next(
         lesson
         for lesson in response.json()["lessons"]
-        if (lesson["occurred_on"], lesson["position"]) == (occurred_on, position)
+        if lesson["occurred_on"] == occurred_on
+        and start_time in (None, lesson["start_time"])
     )
 
 
@@ -449,12 +488,17 @@ def test_aulas_previstas_vao_ate_ontem_sem_inventar_totais(logged, scheduled, da
     assert data["frequency_status"] == "nao_registrada"
     assert data["totals"] is None
     lessons = [
-        (lesson["occurred_on"], lesson["status"], lesson["hours"])
+        (
+            lesson["occurred_on"],
+            lesson["status"],
+            lesson["start_time"],
+            lesson["end_time"],
+        )
         for lesson in data["lessons"]
     ]
     assert len(lessons) == 12
-    assert lessons[0] == ("2026-09-17", "nao_registrada", 2)
-    assert lessons[-1] == ("2026-08-11", "nao_registrada", 2)
+    assert lessons[0] == ("2026-09-17", "nao_registrada", "14:00:00", "15:50:00")
+    assert lessons[-1] == ("2026-08-11", "nao_registrada", "14:00:00", "15:50:00")
     # O plano cobre o semestre inteiro.
     with database() as session:
         assert session.scalar(select(func.max(Lesson.occurred_on))) == date(
@@ -462,15 +506,18 @@ def test_aulas_previstas_vao_ate_ontem_sem_inventar_totais(logged, scheduled, da
         )
 
 
-def test_turma_passada_no_calendario_tambem_tem_aulas_previstas(logged, account):
+def test_turma_de_semestre_passado_nao_ganha_aulas_previstas(logged, account, database):
     old = SCHEDULED.model_copy(update={"semester": "2026.1", "current": False})
     account.classrooms.list_classrooms.return_value = [old]
-    account.classrooms.get_classroom_frequency.return_value = NOT_REGISTERED
     lessons = logged.get(FREQ).json()["lessons"]
-    planned = Timetable.parse(old.schedule).plan(class_days("2026.1"))
-    assert {lesson["occurred_on"] for lesson in lessons} == {
-        day.isoformat() for day, _ in planned
-    }
+    assert [lesson["occurred_on"] for lesson in lessons] == [
+        "2026-09-24",
+        "2026-09-22",
+        "2026-09-20",
+    ]
+    with database() as session:
+        assert not any(lesson.scheduled for lesson in session.scalars(select(Lesson)))
+        assert session.scalar(select(ClassroomRow.lessons_created_at)) is None
 
 
 def test_turma_fora_do_calendario_tem_so_as_aulas_do_sigaa(logged, account):
@@ -493,7 +540,11 @@ def test_aula_publicada_fora_do_plano_some_quando_o_sigaa_a_retira(
         AttendanceEntry(occurred_on=date(2026, 9, 19), status=AttendanceStatus.PRESENTE)
     )
     lesson = _lesson(logged.get(FREQ), "2026-09-19")
-    assert (lesson["status"], lesson["hours"]) == ("presente", 2)
+    assert (lesson["status"], lesson["start_time"], lesson["end_time"]) == (
+        "presente",
+        None,
+        None,
+    )
 
     scheduled.classrooms.get_classroom_frequency.return_value = NOT_REGISTERED
     response = logged.get(FREQ, headers=NO_CACHE)
@@ -510,23 +561,117 @@ def test_aula_publicada_fora_do_plano_some_quando_o_sigaa_a_retira(
         )
 
 
-def test_mudanca_de_horario_replaneja_e_apaga_as_aulas_que_sairam(
-    logged, scheduled, database
-):
-    lesson = _lesson(logged.get(FREQ), "2026-09-15")
-    assert logged.put(_mark(lesson), json={"status": "falta"}).status_code == 204
+def test_reposicao_no_dia_de_aula_fica_depois_dela_sem_horario(logged, scheduled):
+    # A terceira entrada do dia não cabe: só há uma aula sem horário por dia.
+    scheduled.classrooms.get_classroom_frequency.return_value = _with_entries(
+        AttendanceEntry(
+            occurred_on=date(2026, 9, 15), status=AttendanceStatus.PRESENTE
+        ),
+        AttendanceEntry(
+            occurred_on=date(2026, 9, 15), status=AttendanceStatus.FALTA, absences=2
+        ),
+        AttendanceEntry(
+            occurred_on=date(2026, 9, 15), status=AttendanceStatus.PRESENTE
+        ),
+    )
+    for headers in ({}, NO_CACHE):
+        response = logged.get(FREQ, headers=headers)
+        assert [
+            (lesson["start_time"], lesson["status"])
+            for lesson in response.json()["lessons"]
+            if lesson["occurred_on"] == "2026-09-15"
+        ] == [(None, "falta"), ("14:00:00", "presente")]
 
-    scheduled.classrooms.list_classrooms.return_value = [
-        SCHEDULED.model_copy(update={"schedule": "24T23"})
+
+def _change_schedule(logged, account, schedule: str):
+    account.classrooms.list_classrooms.return_value = [
+        SCHEDULED.model_copy(update={"schedule": schedule})
     ]
     logged.get("/classrooms", headers=NO_CACHE)
-    response = logged.get(FREQ, headers=NO_CACHE)
-    assert {
+    return logged.get(FREQ, headers=NO_CACHE)
+
+
+def _weekdays(response) -> set[int]:
+    return {
         date.fromisoformat(lesson["occurred_on"]).weekday()
         for lesson in response.json()["lessons"]
-    } == {0, 2}
+    }
+
+
+def test_mudanca_de_horario_recria_as_aulas_sem_situacao(logged, scheduled, database):
+    logged.get(FREQ)
+    response = _change_schedule(logged, scheduled, "24N12")
+    assert _weekdays(response) == {0, 2}
+    assert _lesson(response, "2026-09-16")["start_time"] == "19:00:00"
+
+
+def test_mudanca_de_horario_preserva_as_aulas_com_situacao(logged, scheduled, database):
+    lesson = _lesson(logged.get(FREQ), "2026-09-15")
+    assert logged.patch(_mark(lesson), json={"status": "falta"}).status_code == 204
+    response = _change_schedule(logged, scheduled, "24T23")
+    assert _weekdays(response) == {1, 3}
+    assert _lesson(response, "2026-09-15")["marked"] is True
+
+
+def test_aulas_sao_criadas_no_sync_das_turmas(logged, scheduled, database):
+    assert logged.get("/classrooms").status_code == 200
+    scheduled.classrooms.get_classroom_frequency.assert_not_awaited()
     with database() as session:
-        assert list(session.scalars(select(LessonAttendance))) == []
+        classroom = session.scalar(select(ClassroomRow))
+        assert classroom.lessons_created_at is not None
+        lessons = session.scalars(select(Lesson)).all()
+        assert len(lessons) == len(Timetable.parse("35T23").plan(class_days("2026.2")))
+        assert all(lesson.scheduled for lesson in lessons)
+
+
+def test_aulas_excluidas_nao_voltam(logged, scheduled, database, cookies):
+    logged.get("/classrooms")
+    with database() as session:
+        total = session.scalar(select(func.count(Lesson.id)))
+        session.execute(delete(Lesson).where(Lesson.occurred_on == date(2026, 9, 15)))
+        session.commit()
+    logged.get("/classrooms", headers=NO_CACHE)
+    with database() as session:
+        assert session.scalar(select(func.count(Lesson.id))) == total - 1
+        session.execute(delete(Lesson))
+        session.commit()
+    _switch_to_other_student(logged, scheduled, cookies)
+    logged.get("/classrooms")
+    with database() as session:
+        assert session.scalar(select(func.count(Lesson.id))) == 0
+
+
+def test_turma_existente_sem_aulas_ganha_as_aulas_no_sync_de_outro_aluno(
+    logged, account, database, cookies
+):
+    # Só o histórico, sem horário: a turma fica sem aulas.
+    account.classrooms.list_classrooms.return_value = [CURRENT]
+    logged.get("/classrooms")
+    with database() as session:
+        assert session.scalar(select(func.count(Lesson.id))) == 0
+        assert session.scalar(select(ClassroomRow.lessons_created_at)) is None
+    _switch_to_other_student(logged, account, cookies)
+    account.classrooms.list_classrooms.return_value = [SCHEDULED]
+    logged.get("/classrooms")
+    with database() as session:
+        assert session.scalar(select(func.count(Lesson.id))) > 0
+
+
+def test_chamada_numa_aula_excluida_a_cria_fora_do_plano(logged, scheduled, database):
+    logged.get("/classrooms")
+    with database() as session:
+        session.execute(delete(Lesson).where(Lesson.occurred_on == date(2026, 9, 15)))
+        session.commit()
+    scheduled.classrooms.get_classroom_frequency.return_value = _with_entries(
+        AttendanceEntry(occurred_on=date(2026, 9, 15), status=AttendanceStatus.FALTA)
+    )
+    lesson = _lesson(logged.get(FREQ), "2026-09-15")
+    assert (lesson["status"], lesson["start_time"]) == ("falta", "14:00:00")
+    with database() as session:
+        restored = session.scalar(
+            select(Lesson).where(Lesson.occurred_on == date(2026, 9, 15))
+        )
+        assert restored.scheduled is False
 
 
 def test_marcacao_persiste_muda_de_status_e_pode_ser_removida(
@@ -534,7 +679,7 @@ def test_marcacao_persiste_muda_de_status_e_pode_ser_removida(
 ):
     path = _mark(_lesson(logged.get(FREQ), "2026-09-17"))
     for status in ("falta", "presente", "cancelada"):
-        assert logged.put(path, json={"status": status}).status_code == 204
+        assert logged.patch(path, json={"status": status}).status_code == 204
         lesson = _lesson(logged.get(FREQ), "2026-09-17")
         assert (lesson["status"], lesson["marked"]) == (status, True)
     with database() as session:
@@ -542,15 +687,15 @@ def test_marcacao_persiste_muda_de_status_e_pode_ser_removida(
             (attendance.status, attendance.marked, attendance.absences)
             for attendance in session.scalars(select(LessonAttendance))
         ] == [(LessonStatus.CANCELADA, True, None)]
-    assert logged.delete(path).status_code == 204
+    assert logged.patch(path, json={"status": None}).status_code == 204
     lesson = _lesson(logged.get(FREQ), "2026-09-17")
     assert (lesson["status"], lesson["marked"]) == ("nao_registrada", False)
-    assert logged.delete(path).status_code == 204
+    assert logged.patch(path, json={"status": None}).status_code == 204
 
 
 def test_marcacao_entra_nos_totais_da_frequencia(logged, account, depois_da_aula):
     path = _mark(_lesson(logged.get(FREQ), "2026-09-24"))
-    assert logged.put(path, json={"status": "falta"}).status_code == 204
+    assert logged.patch(path, json={"status": "falta"}).status_code == 204
     assert logged.get(FREQ).json()["totals"] == {
         "presences": 1,
         "absences": 3,
@@ -562,7 +707,7 @@ def test_marcacao_entra_nos_totais_da_frequencia(logged, account, depois_da_aula
 
 def test_chamada_do_sigaa_substitui_a_marcacao(logged, scheduled):
     path = _mark(_lesson(logged.get(FREQ), "2026-09-15"))
-    assert logged.put(path, json={"status": "presente"}).status_code == 204
+    assert logged.patch(path, json={"status": "presente"}).status_code == 204
 
     scheduled.classrooms.get_classroom_frequency.return_value = _with_entries(
         AttendanceEntry(
@@ -575,8 +720,8 @@ def test_chamada_do_sigaa_substitui_a_marcacao(logged, scheduled):
         2,
         False,
     )
-    assert logged.put(path, json={"status": "presente"}).status_code == 409
-    assert logged.delete(path).status_code == 204
+    assert logged.patch(path, json={"status": "presente"}).status_code == 409
+    assert logged.patch(path, json={"status": None}).status_code == 204
     assert _lesson(logged.get(FREQ), "2026-09-15")["status"] == "falta"
 
 
@@ -585,9 +730,9 @@ def test_chamada_de_uma_das_aulas_no_mesmo_dia_preserva_a_outra(logged, schedule
         CURRENT.model_copy(update={"schedule": "3M12 3T45"})
     ]
     response = logged.get(FREQ)
-    for position in (0, 1):
-        path = _mark(_lesson(response, "2026-09-15", position))
-        assert logged.put(path, json={"status": "falta"}).status_code == 204
+    for start_time in ("08:00:00", "16:00:00"):
+        path = _mark(_lesson(response, "2026-09-15", start_time))
+        assert logged.patch(path, json={"status": "falta"}).status_code == 204
 
     scheduled.classrooms.get_classroom_frequency.return_value = _with_entries(
         AttendanceEntry(
@@ -599,15 +744,15 @@ def test_chamada_de_uma_das_aulas_no_mesmo_dia_preserva_a_outra(logged, schedule
     )
     response = logged.get(FREQ, headers=NO_CACHE)
     assert [
-        (lesson["position"], lesson["status"], lesson["marked"])
+        (lesson["start_time"], lesson["status"], lesson["marked"])
         for lesson in response.json()["lessons"]
         if lesson["occurred_on"] == "2026-09-15"
-    ] == [(1, "presente", False), (0, "falta", True)]
+    ] == [("16:00:00", "presente", False), ("08:00:00", "falta", True)]
 
 
 def test_refresh_preserva_marcacao(logged, scheduled):
     path = _mark(_lesson(logged.get(FREQ), "2026-09-17"))
-    assert logged.put(path, json={"status": "falta"}).status_code == 204
+    assert logged.patch(path, json={"status": "falta"}).status_code == 204
     response = logged.get(FREQ, headers=NO_CACHE)
     assert _lesson(response, "2026-09-17")["marked"] is True
 
@@ -620,22 +765,22 @@ def test_marcacao_exige_login_aula_e_turma_do_aluno(client, logged, scheduled):
     lesson = _lesson(logged.get(FREQ), "2026-09-17")
     other = _lesson(logged.get("/classrooms/HASH-B/frequency"), "2026-09-17")
     body = {"status": "falta"}
-    assert logged.put(_mark(lesson), json=body).status_code == 204
+    assert logged.patch(_mark(lesson), json=body).status_code == 204
     for path in (
         _mark(lesson, "UNKNOWN"),
         _mark(other),
         f"{FREQ}/lessons/{uuid4()}",
     ):
-        assert logged.put(path, json=body).status_code == 404
-        assert logged.delete(path).status_code == 404
+        assert logged.patch(path, json=body).status_code == 404
+        assert logged.patch(path, json={"status": None}).status_code == 404
     logged.cookies.clear()
-    assert client.put(_mark(lesson), json=body).status_code == 401
-    assert client.delete(_mark(lesson)).status_code == 401
+    assert client.patch(_mark(lesson), json=body).status_code == 401
+    assert client.patch(_mark(lesson), json={"status": None}).status_code == 401
 
 
 def test_marcacoes_nao_sao_compartilhadas_entre_alunos(logged, scheduled, cookies):
     path = _mark(_lesson(logged.get(FREQ), "2026-09-17"))
-    assert logged.put(path, json={"status": "falta"}).status_code == 204
+    assert logged.patch(path, json={"status": "falta"}).status_code == 204
     _switch_to_other_student(logged, scheduled, cookies)
     response = logged.get(FREQ)
     assert not any(lesson["marked"] for lesson in response.json()["lessons"])
@@ -645,12 +790,15 @@ def test_marcacoes_nao_sao_compartilhadas_entre_alunos(logged, scheduled, cookie
 
 def test_marcacao_valida_dados(logged, scheduled):
     path = _mark(_lesson(logged.get(FREQ), "2026-09-17"))
-    assert logged.put(path, json={"status": "nao_registrada"}).status_code == 422
-    assert logged.put(path, json={}).status_code == 422
+    assert logged.patch(path, json={"status": "nao_registrada"}).status_code == 422
+    assert logged.patch(path, json={}).status_code == 422
     assert (
-        logged.put(f"{FREQ}/lessons/ontem", json={"status": "falta"}).status_code == 422
+        logged.patch(f"{FREQ}/lessons/ontem", json={"status": "falta"}).status_code
+        == 422
     )
-    assert logged.delete(f"{FREQ}/lessons/ontem").status_code == 422
+    assert (
+        logged.patch(f"{FREQ}/lessons/ontem", json={"status": None}).status_code == 422
+    )
 
 
 def test_marcacao_de_aula_que_ainda_nao_aconteceu_e_recusada(
@@ -661,7 +809,7 @@ def test_marcacao_de_aula_que_ainda_nao_aconteceu_e_recusada(
         future = session.scalar(
             select(Lesson).where(Lesson.occurred_on == date(2026, 10, 1))
         )
-    response = logged.put(f"{FREQ}/lessons/{future.id}", json={"status": "falta"})
+    response = logged.patch(f"{FREQ}/lessons/{future.id}", json={"status": "falta"})
     assert response.status_code == 422
     with database() as session:
         assert list(session.scalars(select(LessonAttendance))) == []
@@ -854,4 +1002,5 @@ def test_openapi_documenta_frequencia_e_marcacao(client):
         assert {"401", "404", "502", "503"} <= route["responses"].keys()
         assert any(p["name"] == "Cache-Control" for p in route["parameters"])
     mark = paths["/classrooms/{classroom_id}/frequency/lessons/{lesson_id}"]
-    assert {"404", "409", "422"} <= mark["put"]["responses"].keys()
+    assert {"404", "409", "422"} <= mark["patch"]["responses"].keys()
+    assert mark.keys() == {"patch"}

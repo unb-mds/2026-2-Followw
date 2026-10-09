@@ -1,12 +1,12 @@
-from collections.abc import Collection, Iterable, Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from datetime import date, datetime
 from uuid import UUID, uuid4
 
 import sigaa_client
 from sigaa_client import AttendanceStatus
-from sqlalchemy import Select, String, cast, delete, select
+from sqlalchemy import ColumnElement, delete, exists, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import contains_eager, joinedload
 
 from api import academic_calendar
 from api.db.enums import ClassroomRole, ClassroomStatus, LessonStatus
@@ -24,13 +24,20 @@ from api.db.models import (
 )
 from api.modules.classrooms.lessons import (
     FrequencySummary,
-    Slot,
+    Period,
     Timetable,
+    lesson_order,
     positioned,
 )
 
-_WITH_CLASSROOM = selectinload(ClassroomParticipant.classroom).selectinload(
-    Classroom.subject
+# Vínculo com turma e componente, no mesmo join que os filtros usam.
+_OWN = (
+    select(ClassroomParticipant)
+    .join(ClassroomParticipant.classroom)
+    .join(Classroom.subject)
+    .options(
+        contains_eager(ClassroomParticipant.classroom).contains_eager(Classroom.subject)
+    )
 )
 # Só quem ainda está na turma ganha o motivo de uma saída.
 _ENROLLED = (None, ClassroomStatus.CURSANDO)
@@ -39,16 +46,15 @@ _ENROLLED = (None, ClassroomStatus.CURSANDO)
 class ClassroomRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+        self._lessons = LessonRepository(session)
 
     async def list_by_user_id(self, user_id: UUID) -> list[OwnLink]:
         """Vínculos da lista de turmas do próprio usuário, com turma e componente."""
         rows = await self._session.scalars(
-            select(ClassroomParticipant)
-            .where(
+            _OWN.where(
                 ClassroomParticipant.user_id == user_id,
                 ClassroomParticipant.front_end_id.is_not(None),
             )
-            .options(_WITH_CLASSROOM)
         )
         return [OwnLink.of(row) for row in rows]
 
@@ -59,21 +65,18 @@ class ClassroomRepository:
         self, user_id: UUID, front_end_id: str
     ) -> OwnLink | None:
         return await self._own(
-            select(ClassroomParticipant).where(
-                ClassroomParticipant.user_id == user_id,
-                ClassroomParticipant.front_end_id == front_end_id,
-            )
+            ClassroomParticipant.user_id == user_id,
+            ClassroomParticipant.front_end_id == front_end_id,
         )
 
     async def get_by_sigaa_id(self, user_id: UUID, sigaa_id: str) -> OwnLink | None:
+        # Cabe no INTEGER da coluna; fora disso nem chega ao banco.
+        if not sigaa_id.isdecimal() or int(sigaa_id) >= 2**31:
+            return None
         return await self._own(
-            select(ClassroomParticipant)
-            .join(Classroom)
-            .where(
-                ClassroomParticipant.user_id == user_id,
-                ClassroomParticipant.front_end_id.is_not(None),
-                cast(Classroom.sigaa_id, String) == sigaa_id,
-            )
+            ClassroomParticipant.user_id == user_id,
+            ClassroomParticipant.front_end_id.is_not(None),
+            Classroom.sigaa_id == int(sigaa_id),
         )
 
     async def save_grade(
@@ -102,17 +105,24 @@ class ClassroomRepository:
             for link in await self._session.scalars(
                 select(ClassroomParticipant)
                 .where(ClassroomParticipant.user_id == user.id)
-                .options(selectinload(ClassroomParticipant.classroom))
+                .options(joinedload(ClassroomParticipant.classroom, innerjoin=True))
             )
         }
+        keyed = [(key, item) for item in classrooms if (key := _classroom_key(item))]
+        # O histórico tem dezenas de turmas: turmas e componentes vêm de uma vez.
+        saved = await self._classrooms_by_key([key for key, _ in keyed])
+        subjects = await self._subjects({key[0] for key, _ in keyed})
         seen: set[UUID] = set()
-        for item in classrooms:
-            code = item.subject.code
-            # Turma só do portal vem sem número nem código: gravá-la duplicaria a
-            # do histórico.
-            if not item.number or code is None:
-                continue
-            classroom = await self._save_classroom(code, item, refresh=refresh)
+        current: list[Classroom] = []
+        for key, item in keyed:
+            classroom = saved.get(key)
+            # Turma de semestre passado quase não muda: só é regravada num refresh.
+            if classroom is None or item.current or refresh:
+                classroom = saved[key] = await self._save_classroom(
+                    key, item, classroom, subjects
+                )
+            if item.current:
+                current.append(classroom)
             link = links.get(classroom.id)
             if link is None:
                 link = ClassroomParticipant(
@@ -138,11 +148,13 @@ class ClassroomRepository:
                 link.status = academic_calendar.departure_status(
                     link.classroom.semester
                 )
+        # Turma de semestre passado fica só com as aulas que o SIGAA publicou.
+        await self._lessons.plan(current, synced_at)
         user.classrooms_synced_at = synced_at
         await self._session.flush()
 
     async def list_members(self, classroom_id: UUID) -> list[ClassroomParticipant]:
-        return [link for link in await self._links(classroom_id) if link.member]
+        return await self._links(classroom_id, ClassroomParticipant.member.is_(True))
 
     async def save_members(
         self,
@@ -206,59 +218,79 @@ class ClassroomRepository:
         classroom.statistics_synced_at = synced_at
         await self._session.flush()
 
-    async def _own(self, query: Select[tuple[ClassroomParticipant]]) -> OwnLink | None:
-        row = await self._session.scalar(query.options(_WITH_CLASSROOM))
+    async def _own(self, *where: ColumnElement[bool]) -> OwnLink | None:
+        row = await self._session.scalar(_OWN.where(*where))
         return OwnLink.of(row) if row is not None else None
 
-    async def _links(self, classroom_id: UUID) -> list[ClassroomParticipant]:
+    async def _links(
+        self, classroom_id: UUID, *where: ColumnElement[bool]
+    ) -> list[ClassroomParticipant]:
         return list(
             await self._session.scalars(
                 select(ClassroomParticipant)
-                .where(ClassroomParticipant.classroom_id == classroom_id)
-                .options(selectinload(ClassroomParticipant.user))
+                .where(ClassroomParticipant.classroom_id == classroom_id, *where)
+                .options(joinedload(ClassroomParticipant.user, innerjoin=True))
             )
         )
 
-    async def _save_subject(self, code: str, item: sigaa_client.Subject) -> Subject:
-        subject = await self._session.get(Subject, code)
+    async def _classrooms_by_key(
+        self, keys: Sequence[_ClassroomKey]
+    ) -> dict[_ClassroomKey, Classroom]:
+        if not keys:
+            return {}
+        rows = await self._session.scalars(
+            select(Classroom).where(
+                tuple_(
+                    Classroom.subject_code, Classroom.number, Classroom.semester
+                ).in_(keys)
+            )
+        )
+        return {(row.subject_code, row.number, row.semester): row for row in rows}
+
+    async def _subjects(self, codes: Collection[str]) -> dict[str, Subject]:
+        if not codes:
+            return {}
+        rows = await self._session.scalars(
+            select(Subject).where(Subject.code.in_(codes))
+        )
+        return {row.code: row for row in rows}
+
+    def _save_subject(
+        self, code: str, item: sigaa_client.Subject, subjects: dict[str, Subject]
+    ) -> None:
+        subject = subjects.get(code)
         if subject is None:
-            subject = Subject(code=code)
+            subject = subjects[code] = Subject(code=code)
             self._session.add(subject)
 
         subject.name = item.name
         subject.hours = item.hours or subject.hours
         subject.unity = item.unity or subject.unity
-        await self._session.flush()
-
-        return subject
 
     async def _save_classroom(
-        self, code: str, item: sigaa_client.Classroom, *, refresh: bool
+        self,
+        key: _ClassroomKey,
+        item: sigaa_client.Classroom,
+        classroom: Classroom | None,
+        subjects: dict[str, Subject],
     ) -> Classroom:
-        classroom = await self._session.scalar(
-            select(Classroom).where(
-                Classroom.subject_code == code,
-                Classroom.number == item.number,
-                Classroom.semester == item.semester,
-            )
-        )
-        # Turma de semestre passado quase não muda: só é regravada num refresh.
-        if classroom is not None and not item.current and not refresh:
-            return classroom
-
-        await self._save_subject(code, item.subject)
+        code, number, semester = key
+        self._save_subject(code, item.subject, subjects)
         if classroom is None:
+            # O id vem antes do flush: o vínculo aponta para ele.
             classroom = Classroom(
-                subject_code=code, number=item.number, semester=item.semester
+                id=uuid4(), subject_code=code, number=number, semester=semester
             )
             self._session.add(classroom)
 
         # A turma é compartilhada: quem vê só o histórico não apaga a sala que o
         # portal de outro aluno trouxe.
         classroom.sigaa_id = item.sigaa_id or classroom.sigaa_id
-        classroom.schedule = item.schedule or classroom.schedule
+        schedule = item.schedule or classroom.schedule
+        if schedule != classroom.schedule:
+            await self._lessons.reset(classroom)
+        classroom.schedule = schedule
         classroom.room = item.room or classroom.room
-        await self._session.flush()
 
         return classroom
 
@@ -318,6 +350,59 @@ class ClassroomRepository:
         users.add(user)
 
         return user
+
+
+class LessonRepository:
+    """As aulas da turma, criadas uma vez pelo horário e calendário."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def plan(
+        self, classrooms: Collection[Classroom], created_at: datetime
+    ) -> None:
+        """Cria as aulas das turmas que ainda não as têm; as excluídas não voltam."""
+        plans = {
+            classroom.id: (classroom, planned)
+            for classroom in classrooms
+            if classroom.lessons_created_at is None
+            and (
+                planned := Timetable.parse(classroom.schedule).plan(
+                    academic_calendar.class_days(classroom.semester)
+                )
+            )
+        }
+        if not plans:
+            return
+        # Aulas que o SIGAA publicou antes do plano entram nele.
+        published = {
+            (lesson.classroom_id, lesson.occurred_on, lesson.start_time): lesson
+            for lesson in await self._session.scalars(
+                select(Lesson).where(Lesson.classroom_id.in_(plans))
+            )
+        }
+        for classroom, planned in plans.values():
+            for day, period in planned:
+                lesson = published.get((classroom.id, day, period.start))
+                if lesson is None:
+                    lesson = _new_lesson(classroom.id, day, period)
+                    self._session.add(lesson)
+                lesson.scheduled = True
+            classroom.lessons_created_at = created_at
+
+    async def reset(self, classroom: Classroom) -> None:
+        """Apaga as aulas para um novo plano, se nenhuma tem a situação de um aluno."""
+        if classroom.lessons_created_at is None:
+            return
+        lessons = select(Lesson.id).where(Lesson.classroom_id == classroom.id)
+        if await self._session.scalar(
+            select(exists().where(LessonAttendance.lesson_id.in_(lessons)))
+        ):
+            return
+        await self._session.execute(
+            delete(Lesson).where(Lesson.classroom_id == classroom.id)
+        )
+        classroom.lessons_created_at = None
 
 
 class NewsRepository:
@@ -436,21 +521,24 @@ class FrequencyRepository:
         classroom_participant_id: UUID,
         frequency: sigaa_client.ClassroomFrequency,
         timetable: Timetable,
-        days: Iterable[date],
         synced_at: datetime,
     ) -> None:
-        """Replaneja as aulas da turma e grava a chamada do SIGAA e o resumo do aluno."""
+        """Grava a chamada do SIGAA nas aulas da turma e o resumo do aluno."""
         link = await self._session.get_one(
             ClassroomParticipant, classroom_participant_id
         )
         attendance = frequency.frequency
-        entries = dict(positioned(attendance.entries if attendance else ()))
-        lessons = await self._save_lessons(
+        lessons = await self._lessons_by_day(link.classroom_id)
+        entries = self._match(
             link.classroom_id,
-            timetable.plan(days),
-            {slot: timetable.hours(*slot) for slot in entries},
+            lessons,
+            attendance.entries if attendance else (),
+            timetable,
         )
-        await self._save_attendances(link.id, lessons, entries)
+        await self._save_attendances(
+            link.id, [lesson for day in lessons.values() for lesson in day], entries
+        )
+        await self._drop_unpublished(lessons, entries)
 
         summary = FrequencySummary.of(frequency)
         link.frequency_status = summary.frequency_status
@@ -499,47 +587,71 @@ class FrequencyRepository:
             )
         )
 
-    async def _save_lessons(
+    async def _lessons_by_day(self, classroom_id: UUID) -> dict[date, list[Lesson]]:
+        lessons: dict[date, list[Lesson]] = {}
+        rows = await self._session.scalars(
+            select(Lesson).where(Lesson.classroom_id == classroom_id)
+        )
+        for lesson in sorted(rows, key=lesson_order):
+            lessons.setdefault(lesson.occurred_on, []).append(lesson)
+        return lessons
+
+    def _match(
         self,
         classroom_id: UUID,
-        planned: Mapping[Slot, int],
-        published: Mapping[Slot, int],
-    ) -> dict[Slot, Lesson]:
-        """As aulas da turma passam a ser as do plano e as publicadas; as demais são apagadas."""
-        saved = {
-            (lesson.occurred_on, lesson.position): lesson
-            for lesson in await self._session.scalars(
-                select(Lesson).where(Lesson.classroom_id == classroom_id)
-            )
-        }
-        wanted = {**published, **planned}
-        dropped = [lesson.id for slot, lesson in saved.items() if slot not in wanted]
-        if dropped:
-            await self._session.execute(
-                delete(LessonAttendance).where(LessonAttendance.lesson_id.in_(dropped))
-            )
-            await self._session.execute(delete(Lesson).where(Lesson.id.in_(dropped)))
-
-        lessons: dict[Slot, Lesson] = {}
-        for slot, hours in wanted.items():
-            lesson = saved.get(slot)
-            if lesson is None:
-                day, position = slot
-                lesson = Lesson(
-                    classroom_id=classroom_id, occurred_on=day, position=position
-                )
+        lessons: dict[date, list[Lesson]],
+        entries: Sequence[sigaa_client.AttendanceEntry],
+        timetable: Timetable,
+    ) -> dict[UUID, sigaa_client.AttendanceEntry]:
+        """Cada entrada do SIGAA vai para a aula na mesma ordem do dia; sem ela, uma nova."""
+        matched: dict[UUID, sigaa_client.AttendanceEntry] = {}
+        for (day, position), entry in positioned(entries):
+            day_lessons = lessons.setdefault(day, [])
+            if position >= len(day_lessons):
+                period = timetable.period(day, position)
+                # O horário já usado no dia fica para a aula do plano.
+                if period and period.start in {
+                    other.start_time for other in day_lessons
+                }:
+                    period = None
+                # Uma só aula sem horário por dia: as demais entradas ficam de fora.
+                if period is None and any(
+                    other.start_time is None for other in day_lessons
+                ):
+                    continue
+                lesson = _new_lesson(classroom_id, day, period, scheduled=False)
                 self._session.add(lesson)
-            lesson.hours = hours
-            lesson.scheduled = slot in planned
-            lessons[slot] = lesson
+                day_lessons.append(lesson)
+            matched[day_lessons[position].id] = entry
+        return matched
+
+    async def _drop_unpublished(
+        self,
+        lessons: Mapping[date, Sequence[Lesson]],
+        entries: Mapping[UUID, sigaa_client.AttendanceEntry],
+    ) -> None:
+        """Aulas fora do plano que o SIGAA retirou e ninguém tem situação nelas."""
+        dropped = [
+            lesson.id
+            for day in lessons.values()
+            for lesson in day
+            if not lesson.scheduled and lesson.id not in entries
+        ]
+        if not dropped:
+            return
         await self._session.flush()
-        return lessons
+        await self._session.execute(
+            delete(Lesson).where(
+                Lesson.id.in_(dropped),
+                ~exists().where(LessonAttendance.lesson_id == Lesson.id),
+            )
+        )
 
     async def _save_attendances(
         self,
         participant_id: UUID,
-        lessons: Mapping[Slot, Lesson],
-        entries: Mapping[Slot, sigaa_client.AttendanceEntry],
+        lessons: Sequence[Lesson],
+        entries: Mapping[UUID, sigaa_client.AttendanceEntry],
     ) -> None:
         """A chamada do SIGAA substitui a marcação; sem ela, só a marcação fica."""
         attendances = {
@@ -547,15 +659,13 @@ class FrequencyRepository:
             for attendance in await self._session.scalars(
                 select(LessonAttendance).where(
                     LessonAttendance.classroom_participant_id == participant_id,
-                    LessonAttendance.lesson_id.in_(
-                        [lesson.id for lesson in lessons.values()]
-                    ),
+                    LessonAttendance.lesson_id.in_([lesson.id for lesson in lessons]),
                 )
             )
         }
         stale: list[UUID] = []
-        for slot, lesson in lessons.items():
-            entry = entries.get(slot)
+        for lesson in lessons:
+            entry = entries.get(lesson.id)
             attendance = attendances.get(lesson.id)
             if entry is None or entry.status is AttendanceStatus.NAO_REGISTRADA:
                 if attendance is not None and not attendance.marked:
@@ -573,6 +683,31 @@ class FrequencyRepository:
             await self._session.execute(
                 delete(LessonAttendance).where(LessonAttendance.id.in_(stale))
             )
+
+
+def _new_lesson(
+    classroom_id: UUID, day: date, period: Period | None, *, scheduled: bool = True
+) -> Lesson:
+    # O id vem antes do flush: a chamada do SIGAA aponta para ele.
+    return Lesson(
+        id=uuid4(),
+        classroom_id=classroom_id,
+        occurred_on=day,
+        start_time=period.start if period else None,
+        end_time=period.end if period else None,
+        scheduled=scheduled,
+    )
+
+
+# A turma pelo componente, número e semestre.
+type _ClassroomKey = tuple[str, str, str]
+
+
+def _classroom_key(item: sigaa_client.Classroom) -> _ClassroomKey | None:
+    # Turma só do portal vem sem número nem código: gravá-la duplicaria a do histórico.
+    if not item.number or item.subject.code is None:
+        return None
+    return item.subject.code, item.number, item.semester
 
 
 class _UserIndex:

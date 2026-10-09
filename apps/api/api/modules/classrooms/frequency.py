@@ -28,12 +28,10 @@ from api.sync import Cached, Context, SyncDep
 async def sync_frequency(ctx: Context[OwnLink]) -> None:
     link = ctx.target
     frequency = await ctx.client.classrooms.get_classroom_frequency(link.front_end_id)
-    classroom = link.row.classroom
-    timetable = Timetable.parse(classroom.schedule)
-    days = list(academic_calendar.class_days(classroom.semester))
+    timetable = Timetable.parse(link.row.classroom.schedule)
     await ctx.sync.db.write(
         lambda session: FrequencyRepository(session).save(
-            link.row.id, frequency, timetable, days, datetime.now(UTC)
+            link.row.id, frequency, timetable, datetime.now(UTC)
         )
     )
 

@@ -13,9 +13,12 @@ import {
 } from '#/components/ui/dropdown-menu';
 import {
     formatClassroomDate,
+    daysFrom,
     formatClassroomWeekday,
+    formatRelativeDay,
     frequencyTone
 } from '#/lib/classroom-details';
+import { nowInBrasilia } from '#/lib/schedule';
 import { cn } from '#/lib/shadcn';
 
 export type MarkLesson = (lesson: Lesson, status: LessonMarkStatus | null) => void;
@@ -38,6 +41,12 @@ const LESSON_VIEW = {
 // Marcações que o aluno pode dar a uma aula sem chamada no SIGAA.
 const MARKS: LessonMarkStatus[] = ['presente', 'falta', 'cancelada'];
 
+// Aviso no fim da lista de aulas enquanto a frequência não está toda registrada.
+const FREQUENCY_NOTICE: Partial<Record<ClassroomFrequency['frequency_status'], string>> = {
+    nao_registrada: 'A frequência ainda não foi lançada pelo professor.',
+    parcialmente_registrada: 'Algumas aulas ainda não tiveram a frequência registrada.'
+};
+
 function lessonLabel(lesson: Lesson) {
     return lesson.status === 'falta'
         ? plural(lesson.absences, 'falta', 'faltas')
@@ -54,10 +63,7 @@ export function FrequencyContent({
     pending: boolean;
 }) {
     const { totals, lessons } = data;
-    const notLaunched = data.frequency_status === 'nao_registrada';
-    const perDay = new Map<string, number>();
-    for (const { occurred_on } of lessons)
-        perDay.set(occurred_on, (perDay.get(occurred_on) ?? 0) + 1);
+    const notice = FREQUENCY_NOTICE[data.frequency_status];
 
     return (
         <div className="flex flex-col gap-2">
@@ -65,7 +71,7 @@ export function FrequencyContent({
                 <Meter
                     label="Andamento das aulas"
                     value={data.progress.percentage}
-                    detail={`${data.progress.taught}h ministradas de ${data.progress.total}h`}
+                    detail={`${data.progress.taught} / ${data.progress.total}`}
                 />
             </ListCard>
             {totals && (
@@ -100,12 +106,7 @@ export function FrequencyContent({
                     Frequência estimada com as aulas marcadas por você.
                 </p>
             )}
-            {data.frequency_status === 'parcialmente_registrada' && (
-                <p className="px-1 text-xs text-muted-foreground">
-                    Há aulas publicadas cuja frequência ainda não foi registrada.
-                </p>
-            )}
-            {(lessons.length > 0 || notLaunched) && (
+            {(lessons.length > 0 || notice) && (
                 <section>
                     {lessons.length > 0 && (
                         <h3 className="mb-2 px-1 text-sm font-semibold">
@@ -120,14 +121,13 @@ export function FrequencyContent({
                             <LessonRow
                                 key={lesson.id}
                                 lesson={lesson}
-                                numbered={(perDay.get(lesson.occurred_on) ?? 0) > 1}
                                 onMark={onMark}
                                 pending={pending}
                             />
                         ))}
-                        {notLaunched && (
+                        {notice && (
                             <p className="py-2.5 text-center text-sm text-muted-foreground">
-                                A frequência ainda não foi lançada pelo professor.
+                                {notice}
                             </p>
                         )}
                     </ListCard>
@@ -139,12 +139,10 @@ export function FrequencyContent({
 
 function LessonRow({
     lesson,
-    numbered,
     onMark,
     pending
 }: {
     lesson: Lesson;
-    numbered: boolean;
     onMark: MarkLesson;
     pending: boolean;
 }) {
@@ -153,6 +151,8 @@ function LessonRow({
     const editable = lesson.marked || lesson.status === 'nao_registrada';
     // presença e falta tingem a linha toda; os textos secundários só esmaecem
     const tinted = lesson.status === 'presente' || lesson.status === 'falta';
+    const days = daysFrom(nowInBrasilia().date, lesson.occurred_on);
+    const relativeDay = days === 0 || days === -1 ? formatRelativeDay(days) : null;
     const secondary = tinted ? 'text-xs opacity-70' : 'text-xs text-muted-foreground';
 
     return (
@@ -166,7 +166,7 @@ function LessonRow({
             {editable ? (
                 <DropdownMenu>
                     <DropdownMenuTrigger
-                        aria-label={`Situação de ${formatClassroomDate(lesson.occurred_on)}, aula ${lesson.position + 1}: ${label}. Alterar situação.`}
+                        aria-label={`Situação de ${formatClassroomDate(lesson.occurred_on)}, aula: ${label}. Alterar situação.`}
                         disabled={pending}
                         className="relative flex size-4 shrink-0 items-center justify-center rounded-full after:absolute after:-inset-2 after:rounded-full hover:opacity-70 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50"
                     >
@@ -200,9 +200,14 @@ function LessonRow({
             ) : (
                 <view.icon className={cn('size-4 shrink-0', view.color)} aria-hidden />
             )}
-            <span className="tabular-nums">{formatClassroomDate(lesson.occurred_on)}</span>
-            <span className={secondary}>{formatClassroomWeekday(lesson.occurred_on)}</span>
-            {numbered && <span className={secondary}>Aula {lesson.position + 1}</span>}
+            {relativeDay ? (
+                <span>{relativeDay}</span>
+            ) : (
+                <>
+                    <span className="tabular-nums">{formatClassroomDate(lesson.occurred_on)}</span>
+                    <span className={secondary}>{formatClassroomWeekday(lesson.occurred_on)}</span>
+                </>
+            )}
             {lesson.marked && <span className={secondary}>Marcada</span>}
             <span className={cn('ml-auto text-xs font-medium', view.color)}>{label}</span>
         </div>

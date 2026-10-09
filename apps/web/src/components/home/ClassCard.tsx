@@ -1,4 +1,4 @@
-import { MapIcon, MapPin } from 'lucide-react';
+import { Award, MapIcon, MapPin } from 'lucide-react';
 
 import type { Classroom } from '#/queries/classrooms';
 
@@ -13,7 +13,7 @@ export interface ClassCardProps {
     code?: string;
     time: string;
     location?: string;
-    professor?: string;
+    classNumber?: string;
     grade?: Classroom['grade'];
     status?: 'in_progress' | 'next' | 'normal' | 'warning';
     statusText?: string;
@@ -36,7 +36,7 @@ export const ClassCard: React.FC<ClassCardProps> = ({
     code,
     time,
     location,
-    professor,
+    classNumber,
     grade,
     status = 'normal',
     statusText,
@@ -45,7 +45,7 @@ export const ClassCard: React.FC<ClassCardProps> = ({
 }) => {
     const statusInfo = status === 'normal' ? undefined : STATUS[status];
     const active = status === 'in_progress';
-    const details = [location, professor].filter(Boolean).join(' · ');
+    const details = location;
 
     return (
         <Card
@@ -75,19 +75,23 @@ export const ClassCard: React.FC<ClassCardProps> = ({
                 )}
                 {code && (
                     <span className="ml-auto shrink-0 font-medium tracking-wide text-muted-foreground">
-                        {code}
+                        {[code, classNumber && `T${classNumber}`].filter(Boolean).join(' · ')}
                     </span>
                 )}
             </div>
             <h3 className="pointer-events-none relative line-clamp-2 text-sm leading-snug font-semibold">
                 {title}
             </h3>
-            <div className="pointer-events-none relative flex items-center gap-2 text-xs text-muted-foreground">
-                {location && <MapPin className="size-3 shrink-0" />}
+            <div className="pointer-events-none relative flex items-center gap-1 text-xs text-muted-foreground">
+                {grade ? (
+                    <Award className="size-3 shrink-0" />
+                ) : (
+                    location && <MapPin className="size-3 shrink-0" />
+                )}
                 <span className="min-w-0 truncate">
-                    {details}
-                    {details && grade && ' · '}
                     {grade && <GradeText grade={grade} />}
+                    {grade && details && ' · '}
+                    {details}
                 </span>
                 {onLocationClick && (
                     <Button

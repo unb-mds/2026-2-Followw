@@ -1,3 +1,4 @@
+import { usePostHog } from '@posthog/react';
 import { type Query, type QueryClient, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
@@ -12,14 +13,11 @@ import { meQueryOptions } from '#/queries/me.ts';
 const isAccountQuery = ({ queryKey: [, path] }: Query) =>
     !(typeof path === 'string' && (path.startsWith('/public/') || path === '/me'));
 
-// remover também cancela o fetch em andamento; o persister só regrava após o throttle,
-// então apagar o disco já evita dado da conta salvo nesse intervalo
 async function clearUserData(queryClient: QueryClient) {
     queryClient.removeQueries({ predicate: isAccountQuery });
     await clearOfflineData();
 }
 
-/** O estado em memória já sai na hora; a promise resolve quando o armazenamento local também saiu. */
 export function clearSession(queryClient: QueryClient) {
     const cleared = clearUserData(queryClient);
     queryClient.setQueryData(meQueryOptions.queryKey, null);
@@ -39,9 +37,11 @@ export function useLogin() {
 
 export function useLogout(onLoggedOut?: () => void) {
     const queryClient = useQueryClient();
+    const posthog = usePostHog();
     return api.useMutation('delete', '/auth/sigaa', {
         onSuccess: async () => {
             await clearSession(queryClient);
+            posthog.reset();
             onLoggedOut?.();
         }
     });

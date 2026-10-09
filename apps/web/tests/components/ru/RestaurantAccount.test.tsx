@@ -123,6 +123,8 @@ describe('StatementDetails', () => {
         expect(markup).toContain('5,20');
         expect(markup).toContain('20,00');
         expect(markup).toContain('05/10/2026, 12:00');
+        expect(markup).toMatch(/text-destructive[^>]*>-R\$\s5,20/);
+        expect(markup).toMatch(/text-success[^>]*>R\$\s20,00/);
     });
 
     test('explicita saldo/grupo ausentes e extrato vazio', () => {

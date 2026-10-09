@@ -2,6 +2,7 @@ import { createRouter as createTanStackRouter } from '@tanstack/react-router';
 import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query';
 
 import { ErrorPage } from '#/components/ErrorPage';
+import { PendingPage } from '#/components/PendingPage';
 import { getContext } from '#/integrations/tanstack-query/root-provider';
 import { routeTree } from '#/routeTree.gen';
 
@@ -12,6 +13,8 @@ export function getRouter() {
         routeTree,
         context,
         defaultErrorComponent: ErrorPage,
+        defaultPendingComponent: PendingPage,
+        defaultPendingMs: 200,
         scrollRestoration: true,
         defaultPreload: 'intent',
         defaultPreloadStaleTime: 0
