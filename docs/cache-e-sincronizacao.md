@@ -31,7 +31,7 @@ O TTL conta a partir do `synced_at` do dado e vence quando `idade > TTL` (estrit
 | Frequência da turma | 24 h | vínculo usuário × turma | Turma de semestre passado: sem TTL |
 | Lista de notícias da turma | 60 min | turma | Turma de semestre passado: sem TTL |
 | Conteúdo de uma notícia | sem TTL | notícia | Gravado no primeiro acesso; só muda com `no-cache` |
-| Cardápio do RU | 72 h | campus | Sem job: revalida na hora (veja abaixo) |
+| Cardápio do RU | 5 dias | campus | Sem job: revalida na hora (veja abaixo) |
 
 "Turma atual" é a que o SIGAA marca como do semestre vigente (`ClassroomParticipant.current`).
 
@@ -125,7 +125,8 @@ CAS.
 
 Não passa pelo `Sync`: o cardápio é público e vem do site da UnB, sem login.
 
-- Cache por campus, TTL de 72 h. Vencido, o cardápio **inteiro** do campus é baixado e gravado na hora.
+- Cache por campus, TTL de 5 dias. Vencido, o cardápio **inteiro** do campus é baixado e gravado na hora.
+- Todos os dias do período informado no link são salvos; dias sem refeições têm os campos `null`.
 - Intervalo pedido sem nenhum dia em cache vai ao site mesmo com o campus fresco.
 - Site fora do ar: se houver cache do intervalo, serve-o (TTL vencido) ou só com `stale-if-error`
   (se o cliente forçou a revalidação). Sem cache do intervalo → `502`.

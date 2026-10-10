@@ -30,11 +30,11 @@ sozinho (`autoUpdate`: `skipWaiting` + `clientsClaim`).
   hidratação**, para o dado restaurado não divergir do HTML do SSR. Na restauração vence o dado
   mais novo (SSR ou salvo).
 - Validade: **14 dias** (`PERSIST_MAX_AGE`: `maxAge` do persister e `gcTime` das queries no
-  navegador).
+  navegador). Query sem atualização há mais tempo deixa de ser salva (`shouldPersistQuery`); só o
+  `gcTime` não bastaria, já que a restauração reinicia o prazo a cada sessão.
 - `buster`: hash de `schema.gen.ts`. Mudou o contrato da API, o cache salvo é descartado.
-- O cardápio da semana do campus do usuário é pré-carregado numa só requisição (`prefetchWeekMenus`)
-  e gravado na query de cada dia; a query da faixa não fica no cache. Se já houver cardápio salvo
-  de algum dia daquela semana (e campus), não busca de novo.
+- O cardápio é uma query por campus e semana (segunda a domingo); cada dia é um `select` dela. A
+  semana do campus do usuário é pré-carregada (`prefetchWeekMenus`), salvo se já estiver no cache.
 
 ## Nenhuma rota trava
 
