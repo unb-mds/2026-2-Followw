@@ -24,94 +24,83 @@ describe('campusOf', () => {
     });
 });
 
+const week = { start_date: '2026-09-21', end_date: '2026-09-27' };
+
 describe('menuQueryOptions', () => {
-    test('consulta o cardápio pela rota pública sem usuário', () => {
+    test('consulta a semana do dia pela rota pública sem usuário', () => {
         expect(menuQueryOptions({ date }).queryKey).toEqual([
             'get',
             '/public/restaurant',
-            { params: { query: { campus: 'Darcy', date } } }
+            { params: { query: { campus: 'Darcy', ...week } } }
         ]);
     });
 
     test('usa o campus do usuário logado quando nenhum é especificado', () => {
         expect(paramsOf(menuQueryOptions({ date, user }))).toEqual({
-            params: { query: { campus: 'Gama', date } }
+            params: { query: { campus: 'Gama', ...week } }
         });
     });
 
     test('prioriza o campus explícito', () => {
         expect(paramsOf(menuQueryOptions({ campus: 'Fazenda', date, user }))).toEqual({
-            params: { query: { campus: 'Fazenda', date } }
+            params: { query: { campus: 'Fazenda', ...week } }
         });
     });
 
     test('usa o Darcy sem usuário', () => {
         expect(paramsOf(menuQueryOptions({ date, user: null }))).toEqual({
-            params: { query: { campus: 'Darcy', date } }
+            params: { query: { campus: 'Darcy', ...week } }
         });
     });
 
-    test('separa o cache por dia e campus selecionados', () => {
+    test('compartilha o cache entre os dias da semana e separa por campus e semana', () => {
         const current = menuQueryOptions({ campus: 'Darcy', date }).queryKey;
+        expect(menuQueryOptions({ campus: 'Darcy', date: '2026-09-22' }).queryKey).toEqual(current);
         expect(menuQueryOptions({ campus: 'Gama', date }).queryKey).not.toEqual(current);
-        expect(menuQueryOptions({ campus: 'Darcy', date: '2026-09-27' }).queryKey).not.toEqual(
+        expect(menuQueryOptions({ campus: 'Darcy', date: '2026-09-28' }).queryKey).not.toEqual(
             current
         );
+    });
+
+    test('inclui o domingo na semana que termina nele', () => {
+        expect(paramsOf(menuQueryOptions({ date: '2026-09-27' }))).toEqual({
+            params: { query: { campus: 'Darcy', ...week } }
+        });
+    });
+
+    test('seleciona só o cardápio do dia', () => {
+        const days = [
+            { date: '2026-09-25', lunch: [] },
+            { date: '2026-09-26', lunch: [] }
+        ];
+        expect(menuQueryOptions({ date }).select(days)).toEqual([days[1]]);
     });
 });
 
 describe('prefetchWeekMenus', () => {
-    test('busca a semana numa requisição e grava o cardápio de cada dia', async () => {
+    test('busca a semana numa requisição só', async () => {
         const client = new QueryClient();
         const monday = { date: '2026-10-05', lunch: [] };
-        const tuesday = { date: '2026-10-06', lunch: [] };
         const requests: URL[] = [];
         const middleware: Middleware = {
             onRequest: ({ request }) => {
                 requests.push(new URL(request.url));
-                return Response.json([monday, tuesday]);
+                return Response.json([monday]);
             }
         };
         apiClient.use(middleware);
 
         await prefetchWeekMenus(client, 'Gama', '2026-10-07');
+        // mesmo vencido, o cardápio salvo da semana basta para o offline
+        await prefetchWeekMenus(client, 'Gama', '2026-10-08');
         apiClient.eject(middleware);
 
         expect(requests).toHaveLength(1);
         expect(requests[0].searchParams.get('start_date')).toBe('2026-10-05');
-        expect(requests[0].searchParams.get('end_date')).toBe('2026-10-10');
-        const cached = (day: string): unknown =>
-            client.getQueryData(menuQueryOptions({ campus: 'Gama', date: day }).queryKey);
-        expect(cached(monday.date)).toEqual([monday]);
-        expect(cached(tuesday.date)).toEqual([tuesday]);
-        // a query da faixa não fica no cache (nem vai para o persister)
-        await new Promise((resolve) => setTimeout(resolve, 0));
-        expect(
-            client.getQueryCache().findAll({ queryKey: ['get', '/public/restaurant'] })
-        ).toHaveLength(2);
-    });
-
-    test('não busca de novo quando já há cardápio salvo da semana', async () => {
-        const client = new QueryClient();
-        const tuesday = { date: '2026-10-06', lunch: [] };
-        client.setQueryData(menuQueryOptions({ campus: 'Gama', date: tuesday.date }).queryKey, [
-            tuesday
-        ]);
-        const requests: URL[] = [];
-        const middleware: Middleware = {
-            onRequest: ({ request }) => {
-                requests.push(new URL(request.url));
-                return Response.json([]);
-            }
-        };
-        apiClient.use(middleware);
-
-        await prefetchWeekMenus(client, 'Gama', '2026-10-07');
-        await prefetchWeekMenus(client, 'Darcy', '2026-10-13');
-        apiClient.eject(middleware);
-
-        // o cardápio salvo é de outro campus/semana: só a segunda chamada vai à rede
-        expect(requests).toHaveLength(1);
-        expect(requests[0].searchParams.get('campus')).toBe('Darcy');
+        expect(requests[0].searchParams.get('end_date')).toBe('2026-10-11');
+        const saved: unknown = client.getQueryData(
+            menuQueryOptions({ campus: 'Gama', date: monday.date }).queryKey
+        );
+        expect(saved).toEqual([monday]);
     });
 });

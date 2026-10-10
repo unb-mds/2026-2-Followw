@@ -106,7 +106,9 @@ def _parse_page(page: Page) -> tuple[str, _Sections]:
         raise UnbParseError("Coluna `COMPOSIÇÃO` não encontrada no cardápio do RU.")
 
     days = _days(cells, header)
-    body = [c for c in cells if c.top >= header.bottom - _TOLERANCE]
+    # As datas podem estar numa linha própria, logo abaixo de `COMPOSIÇÃO`.
+    body_top = max(header.bottom, *(cell.bottom for _, cell in days))
+    body = [c for c in cells if c.top >= body_top - _TOLERANCE]
     labels = sorted((c for c in body if header.spans_x(c.center_x)), key=_by_position)
     values = sorted(
         (c for c in body if c.x0 >= header.x1 - _TOLERANCE), key=_by_position
@@ -189,7 +191,7 @@ def _days(cells: list[_Cell], header: _Cell) -> list[tuple[datetime.date, _Cell]
     days = []
     for cell in cells:
         match = _DATE_RE.search(cell.text)
-        if match is None or cell.center_y > header.bottom + _TOLERANCE:
+        if match is None or cell.top > header.bottom + _TOLERANCE:
             continue
         day, month, year = map(int, match.groups())
         try:

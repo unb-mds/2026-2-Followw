@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import httpx
@@ -6,6 +6,7 @@ import pytest
 
 from unb_browser import (
     Campus,
+    DailyMenu,
     MenuSection,
     MenuSectionKey,
     UnbBrowser,
@@ -75,6 +76,62 @@ async def test_get_menu_junta_as_semanas_e_a_ultima_publicada_vence():
     assert [m.dinner is None for m in menu] == [True] * 5 + [False] * 2
     assert len(site.urls) == 3
     assert not any("Estatuto" in url for url in site.urls)
+
+
+async def test_periodo_do_link_inclui_fim_de_semana_sem_refeicoes():
+    site = FakeRuSite(
+        PAGINA_RU.replace("14/9/2026 A 18/9/2026", "14/9/2026 A 20/9/2026")
+    )
+    async with UnbBrowser(transport=site.transport) as browser:
+        menu = await browser.restaurant.get_menu(Campus.FAZENDA_AGUA_LIMPA)
+
+    assert [day.date.day for day in menu] == list(range(14, 21))
+    assert all(day.breakfast and day.lunch for day in menu[:5])
+    # A última publicação também substitui refeições antigas por ausência de serviço.
+    assert menu[-2:] == (
+        DailyMenu(date=date(2026, 9, 19)),
+        DailyMenu(date=date(2026, 9, 20)),
+    )
+
+
+async def test_periodo_do_link_inclui_dias_ausentes_na_virada_do_mes():
+    path = "/wp-content/uploads/2026/09/Fazenda-Semana-04-14-9-a-20-9.pdf"
+    site = FakeRuSite(
+        f'<h3>Cardápio Fazenda Água Limpa</h3><a href="{path}">'
+        "ISM – 13/9/2026 a 1/10/2026</a>"
+    )
+    async with UnbBrowser(transport=site.transport) as browser:
+        menu = await browser.restaurant.get_menu(Campus.FAZENDA_AGUA_LIMPA)
+
+    assert len(menu) == 19
+    assert menu[0] == DailyMenu(date=date(2026, 9, 13))
+    assert menu[-1] == DailyMenu(date=date(2026, 10, 1))
+    assert all(day.breakfast and day.lunch for day in menu[1:6])
+    assert all(day == DailyMenu(date=day.date) for day in menu[6:])
+
+
+async def test_link_sem_periodo_preserva_apenas_as_datas_do_pdf():
+    site = FakeRuSite(
+        PAGINA_RU.replace("ISM &#8211; 14/9/2026 A 18/9/2026", "Cardápio")
+    )
+    async with UnbBrowser(transport=site.transport) as browser:
+        menu = await browser.restaurant.get_menu(Campus.FAZENDA_AGUA_LIMPA)
+
+    assert [day.date.day for day in menu] == list(range(14, 21))
+    assert all(day.dinner is None for day in menu[:5])
+    assert all(day.dinner for day in menu[5:])
+
+
+@pytest.mark.parametrize(
+    "period",
+    ["31/9/2026 A 4/10/2026", "28/9/2026 A 32/10/2026", "4/10/2026 A 28/9/2026"],
+)
+async def test_periodo_invalido_no_link_e_barulhento(period):
+    site = FakeRuSite(PAGINA_RU.replace("14/9/2026 A 18/9/2026", period))
+    async with UnbBrowser(transport=site.transport) as browser:
+        with pytest.raises(UnbParseError, match="Período"):
+            await browser.restaurant.get_menu(Campus.FAZENDA_AGUA_LIMPA)
+    assert site.urls == [RU_MENU_URL]
 
 
 async def test_get_menu_aceita_o_nome_do_campus():
@@ -232,6 +289,19 @@ def test_datas_ligeiramente_abaixo_do_cabecalho_sao_reconhecidas():
     assert all(day.breakfast and day.lunch and day.dinner for day in menu)
     assert menu[0].breakfast[0].key == MenuSectionKey.DRINK
     assert "Leite integral ou Bebida de soja" in menu[0].breakfast[0].items
+
+
+def test_datas_em_linha_propria_abaixo_de_composicao_nao_viram_itens():
+    menu = parse_menu((FIXTURES / "cardapio-darcy-12-10.pdf").read_bytes())
+
+    assert [day.date for day in menu] == [
+        date(2026, 10, 12) + timedelta(days=offset) for offset in range(7)
+    ]
+    assert all(day.breakfast and day.lunch and day.dinner for day in menu)
+    assert menu[0].lunch[0] == MenuSection(
+        key=MenuSectionKey.SALAD_1, name="Salada 1", items=("Alface roxa",)
+    )
+    assert menu[0].lunch[3].items == ("Carne de sol trinchada com cebola roxa",)
 
 
 def test_gama_reconhece_categorias_com_palavras_quebradas_sem_perder_itens():

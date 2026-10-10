@@ -13,7 +13,7 @@ from api.db.main import SessionmakerDep
 from api.modules.public_restaurant.repository import RestaurantRepository
 
 log = logging.getLogger(__name__)
-RESTAURANT_MENU_TTL = timedelta(hours=72)
+RESTAURANT_MENU_TTL = timedelta(days=5)
 BRASILIA = timezone(timedelta(hours=-3))
 _MENU = TypeAdapter(tuple[DailyMenu, ...])
 Meal = Literal["breakfast", "lunch", "dinner"]

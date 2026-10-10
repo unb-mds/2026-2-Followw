@@ -15,7 +15,7 @@ async with UnbBrowser() as browser:
     semester = browser.calendar.get_semester("2026.1")
 ```
 
-- **Cardápio:** traz todos os dias publicados do campus. Cada dia tem
+- **Cardápio:** traz todos os dias do período informado nos links do campus. Cada dia tem
   `breakfast`, `lunch` e `dinner`, com as seções do PDF; refeição que não é
   servida vem `null`.
 - **Calendário:** os dados oficiais de 2026 e 2027 ficam em um JSON estático,
