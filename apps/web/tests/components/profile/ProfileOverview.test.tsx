@@ -17,6 +17,7 @@ const user: components['schemas']['UserProfile'] = {
     bio: null,
     unity: 'FCTE',
     course: 'ENGENHARIA DE SOFTWARE',
+    shift: 'DIURNO',
     integralization: 62.5,
     workload: null,
     ira: 3.5,

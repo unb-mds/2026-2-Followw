@@ -175,6 +175,23 @@ def test_campos_opcionais_ausentes_retornam_null(client, classrooms_sigaa, cooki
     assert classroom["subject"]["hours"] is None
 
 
+def test_unidade_do_componente_nao_se_perde_para_local_desconhecido(
+    client, classrooms_sigaa, database
+):
+    client.post(
+        "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
+    )
+    assert client.get("/classrooms").json()[0]["subject"]["unity"] == "FCTE"
+
+    # O local passa a vir com um prefixo que não é unidade: o vínculo anterior fica.
+    classrooms_sigaa.profile = classrooms_sigaa.profile.replace("FCTE - ", "Térreo - ")
+    response = client.get("/classrooms", headers=NO_CACHE)
+
+    assert response.json()[0]["subject"]["unity"] == "FCTE"
+    with database() as session:
+        assert session.scalar(select(SubjectModel.unity_id)) == 673
+
+
 @pytest.mark.parametrize("refresh", [None, "invalido", "expirado"])
 def test_sem_credenciais_validas_retorna_401(client, sigaa, refresh):
     if refresh == "expirado":

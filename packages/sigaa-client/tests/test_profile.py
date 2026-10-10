@@ -3,7 +3,13 @@ from datetime import date
 import httpx
 import pytest
 
-from sigaa_client import CurriculumWorkload, News, SigaaClient, SigaaParseError
+from sigaa_client import (
+    CourseShift,
+    CurriculumWorkload,
+    News,
+    SigaaClient,
+    SigaaParseError,
+)
 
 CARD = """
 <div id="perfil-docente">
@@ -76,6 +82,7 @@ async def test_get_profile_faz_um_unico_get():
     assert profile.name == "FULANO DE TAL"
     assert profile.registration == "251000000"
     assert (profile.course, profile.unity) == ("ENGENHARIA DE SOFTWARE", "FCTE")
+    assert profile.shift == CourseShift.DIURNO
     assert profile.bio == "Bio de teste."
     assert profile.ira == 3.9524
     assert profile.mp == 4.1724
@@ -86,6 +93,25 @@ async def test_get_profile_faz_um_unico_get():
         pending_optional=420,
         pending_complementary=0,
     )
+
+
+@pytest.mark.parametrize(
+    ("course", "shift"),
+    [
+        ("ENGENHARIA DE SOFTWARE/FCTE - Bacharelado - MT", CourseShift.DIURNO),
+        ("ADMINISTRAÇÃO/FCTE - Bacharelado - N", CourseShift.NOTURNO),
+        ("ADMINISTRAÇÃO/FCTE - Bacharelado", CourseShift.DIURNO),
+        ("ADMINISTRAÇÃO/FCTE", None),
+    ],
+)
+async def test_get_profile_turno_vem_do_fim_da_linha_do_curso(course, shift):
+    page = DASHBOARD.replace("ENGENHARIA DE SOFTWARE/FCTE - Bacharelado", course)
+    sigaa = FakeDashboard(page=page)
+    async with SigaaClient(session_token="tok", transport=sigaa.transport) as client:
+        profile = await client.profile.get_profile()
+
+    assert (profile.course, profile.unity) == (course.split("/")[0], "FCTE")
+    assert profile.shift == shift
 
 
 async def test_get_profile_sem_indices_academicos_vem_none():

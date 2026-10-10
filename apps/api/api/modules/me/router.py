@@ -1,10 +1,10 @@
 from fastapi import APIRouter
-from sigaa_client import RestaurantCredentials, RestaurantStatement, UserProfile
+from sigaa_client import RestaurantCredentials, RestaurantStatement
 
 from api.cache import NoStore
 from api.db.main import DatabaseDep
 from api.errors import SIGAA_ERRORS
-from api.modules.me.profile import ProfileServiceDep
+from api.modules.me.profile import ProfileServiceDep, UserProfile
 from api.modules.me.settings import (
     UserSettings,
     UserSettingsPatch,

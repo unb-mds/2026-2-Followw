@@ -283,7 +283,7 @@ def to_classroom(link: OwnLink) -> ParticipantClassroom:
             code=subject.code,
             name=subject.name,
             hours=subject.hours,
-            unity=subject.unity,
+            unity=subject.unity.code if subject.unity else None,
         ),
         grade=link.row.grade,
     )
@@ -298,8 +298,8 @@ def _to_member(link: ClassroomParticipant) -> ClassroomMember:
         registration=user.registration,
         photo=user.photo,
         email=user.email,
-        course=user.course,
-        unity=user.unity,
+        course=user.course.name if user.course else None,
+        unity=user.course.unity.code if user.course else None,
         person_id=user.person_id,
     )
 

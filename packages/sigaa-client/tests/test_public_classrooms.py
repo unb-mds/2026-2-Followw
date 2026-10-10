@@ -1,7 +1,12 @@
 import httpx
 import pytest
 
-from sigaa_client import SigaaPublicClient, SigaaSearchError, TeachingLevel
+from sigaa_client import (
+    SigaaParseError,
+    SigaaPublicClient,
+    SigaaSearchError,
+    TeachingLevel,
+)
 from sigaa_client.config import PUBLIC_CLASSROOMS_PATH, PUBLIC_HOME_PATH
 
 SEARCH_FORM = """
@@ -28,7 +33,11 @@ SEARCH_FORM = """
 """
 
 RESULTS = """
-<html><body><table class="listagem">
+<html><body><form id="formTurma" name="formTurma" method="post"
+  action="/sigaa/public/turmas/listar.jsf">
+  <input type="hidden" name="formTurma" value="formTurma" />
+  <input type="hidden" name="javax.faces.ViewState" value="j_id3" />
+<table class="listagem">
   <tr><th>Código</th></tr>
   <tr class="agrupador"><td colspan="8">
     <a id="formTurma:aqui" href="#"
@@ -67,8 +76,72 @@ RESULTS = """
     <td style="text-align: center;"> </td>
     <td nowrap="nowrap" align="center"> </td>
   </tr>
+</table></form></body></html>
+"""
+
+SECOND_SUBJECT = """
+  <tr class="agrupador"><td colspan="8">
+    <a id="formTurma:aquij_id_1" href="#"
+      onclick="jsfcljs(x,{'formTurma:aquij_id_1':'formTurma:aquij_id_1','id':'176618','publico':'public'},'');"
+    ><span class="tituloDisciplina">FGA0031 - ESTRUTURAS DE DADOS 3</span></a>
+  </td></tr>
+  <tr class="linhaPar">
+    <td class="turma" align="center"> 01</td>
+    <td class="anoPeriodo" align="center">2026.2</td>
+    <td class="nome">GLAUCO VITOR PEDROSA (30h)</td>
+    <td> 35M12</td>
+    <td> </td>
+    <td style="text-align: center;">50</td>
+    <td style="text-align: center;">10</td>
+    <td nowrap="nowrap" align="center"> FCTE - S4</td>
+  </tr>
+</table>"""
+
+TWO_SUBJECTS = RESULTS.replace("</table>", SECOND_SUBJECT)
+
+
+def details_page(code, name, *, pre="-", co="-", equivalences="-", total="60h"):
+    return f"""
+<html><body><table class="visualizacao" width="100%">
+  <caption>Dados Gerais do Componente Curricular</caption>
+  <tr><th>Código:</th><td>{code}</td></tr>
+  <tr><th>Nome:</th><td>{name}</td></tr>
+  <tr><th>Pré-Requisitos:</th><td>
+    {pre}
+  </td></tr>
+  <tr><th>Co-Requisitos:</th><td>{co}</td></tr>
+  <tr><th>Equivalências:</th><td>
+    {equivalences}
+  </td></tr>
+  <tr><td colspan="2"><table class="subFormulario">
+    <caption>Cargas Horárias</caption>
+    <tr><td class="box">Subtotal de Carga Horária de Aula<div class="popUp">x</div></td>
+      <td><b>30h</b></td></tr>
+    <tr><td class="box">Total de Carga Horária do Componente<div class="popUp">y</div></td>
+      <td><b>{total}</b></td></tr>
+  </table></td></tr>
+</table>
+<table class="subFormulario"><caption>Histórico de Equivalências</caption>
+  <tr><td>( <acronym title="a">OLD0001</acronym> )</td><td> INATIVO</td></tr>
 </table></body></html>
 """
+
+
+def acronym(code):
+    return f'<acronym title="{code} - X">{code}</acronym>'
+
+
+DETAILS = {
+    "176617": details_page(
+        "FGA0030",
+        "ESTRUTURAS DE DADOS 2",
+        pre=f"( ( {acronym('FGA0029')} E {acronym('MAT0025')} ) OU ( {acronym('CIC0090')} ) )",
+        co=f"( {acronym('FGA0031')} )",
+        equivalences=f"( {acronym('FGA0001')} )",
+        total="90h",
+    ),
+    "176618": details_page("FGA0031", "ESTRUTURAS DE DADOS 3"),
+}
 
 EMPTY = """
 <html><body><ul class="erros">
@@ -86,10 +159,19 @@ REJECTED = """
 class FakePublicSigaa:
     """SIGAA público de mentira: só aceita o submit de quem passou pela home."""
 
-    def __init__(self, result: str = RESULTS, expired_submits: int = 0) -> None:
+    def __init__(
+        self,
+        result: str = RESULTS,
+        expired_submits: int = 0,
+        details: dict[str, str] | None = None,
+        expired_details: int = 0,
+    ) -> None:
         self.result = result
+        self.details = details or DETAILS
         # Submits que a sessão descarta antes de voltar a funcionar.
         self.expired_submits = expired_submits
+        # O mesmo, só nos postbacks de detalhes (a sessão morre depois da busca).
+        self.expired_details = expired_details
         self.warm = False
         self.payloads: list[dict[str, str]] = []
         self.paths: list[str] = []
@@ -115,6 +197,16 @@ class FakePublicSigaa:
             return httpx.Response(
                 302, headers={"location": f"https://sigaa.unb.br{PUBLIC_HOME_PATH}"}
             )
+
+        if "id" in self.payloads[-1]:
+            if self.expired_details:
+                self.expired_details -= 1
+                self.warm = False
+                return httpx.Response(
+                    302,
+                    headers={"location": f"https://sigaa.unb.br{PUBLIC_HOME_PATH}"},
+                )
+            return httpx.Response(200, text=self.details[self.payloads[-1]["id"]])
         return httpx.Response(200, text=self.result)
 
 
@@ -237,3 +329,98 @@ async def test_lista_unidades_ignora_o_placeholder():
 
     assert [unidade.id for unidade in unidades] == [672, 673]
     assert [unidade.id for unidade in ceilandia] == [672]
+
+
+async def _collect(sigaa, **kwargs):
+    async with SigaaPublicClient(transport=sigaa.transport) as client:
+        return [s async for s in client.classrooms.iter_subjects(673, **kwargs)]
+
+
+async def test_componentes_trazem_requisitos_e_carga_horaria_dos_detalhes():
+    sigaa = FakePublicSigaa(result=TWO_SUBJECTS)
+
+    primeiro, segundo = await _collect(sigaa)
+
+    assert (primeiro.code, primeiro.sigaa_id, primeiro.name) == (
+        "FGA0030",
+        176617,
+        "ESTRUTURAS DE DADOS 2",
+    )
+    # Os códigos saem dos `<acronym>` e a expressão do SIGAA fica como veio.
+    assert primeiro.prerequisites == "( ( FGA0029 E MAT0025 ) OU ( CIC0090 ) )"
+    assert primeiro.corequisites == "( FGA0031 )"
+    # Só a expressão do resumo: a linha INATIVA do histórico não entra.
+    assert primeiro.equivalences == "( FGA0001 )"
+    # O total da tela de detalhes vale mais que a soma dos docentes (60h).
+    assert (primeiro.hours, primeiro.unity) == (90, "FCTE")
+
+    assert (segundo.prerequisites, segundo.corequisites, segundo.equivalences) == (
+        None,
+        None,
+        None,
+    )
+
+
+async def test_componentes_usam_o_nivel_graduacao_e_postam_o_link_do_componente():
+    sigaa = FakePublicSigaa(result=TWO_SUBJECTS)
+
+    await _collect(sigaa)
+
+    assert sigaa.payloads[0]["formTurma:inputNivel"] == "G"
+    busca, primeiro, segundo = sigaa.payloads
+    assert (primeiro["id"], primeiro["formTurma:aqui"]) == (
+        "176617",
+        "formTurma:aqui",
+    )
+    assert segundo["formTurma:aquij_id_1"] == "formTurma:aquij_id_1"
+    # A view do resultado é reaproveitada: a busca roda uma única vez.
+    assert busca["javax.faces.ViewState"] == "j_id2"
+    assert (
+        primeiro["javax.faces.ViewState"] == segundo["javax.faces.ViewState"] == "j_id3"
+    )
+    assert len(sigaa.payloads) == 3
+
+
+async def test_componente_ja_coletado_nao_e_aberto_de_novo():
+    sigaa = FakePublicSigaa(result=TWO_SUBJECTS)
+
+    subjects = await _collect(sigaa, skip={"FGA0030"})
+
+    assert [s.code for s in subjects] == ["FGA0031"]
+    assert [p.get("id") for p in sigaa.payloads[1:]] == ["176618"]
+
+
+async def test_busca_sem_resultado_nao_tem_componentes():
+    sigaa = FakePublicSigaa(result=EMPTY)
+
+    assert await _collect(sigaa) == []
+
+
+async def test_detalhes_de_outro_componente_sao_barulhentos():
+    """O contexto vive na sessão: a tela pode ser de outro componente."""
+    sigaa = FakePublicSigaa(
+        details={**DETAILS, "176617": details_page("FGA0099", "OUTRO")}
+    )
+
+    with pytest.raises(SigaaParseError, match="FGA0099.*FGA0030"):
+        await _collect(sigaa)
+
+
+async def test_detalhes_sem_campo_de_requisitos_sao_barulhentos():
+    broken = {
+        "176617": "<html><body><table class='visualizacao'></table></body></html>"
+    }
+    sigaa = FakePublicSigaa(details=broken)
+
+    with pytest.raises(SigaaParseError, match="Campo `Código:` ausente"):
+        await _collect(sigaa)
+
+
+async def test_sessao_expirada_nos_detalhes_refaz_a_busca_e_segue():
+    sigaa = FakePublicSigaa(expired_details=1)
+
+    (subject,) = await _collect(sigaa)
+
+    assert subject.code == "FGA0030"
+    # busca, detalhe descartado, busca de novo, detalhe.
+    assert [bool(p.get("id")) for p in sigaa.payloads] == [False, True, False, True]

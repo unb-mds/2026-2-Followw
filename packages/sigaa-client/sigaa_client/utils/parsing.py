@@ -10,6 +10,7 @@ from markdownify import ATX, BACKSLASH, MarkdownConverter
 
 from ..config import SIGAA_BASE_URL
 from ..exceptions import SigaaParseError
+from ..models import CourseShift
 
 _DATE_RANGE_RE = re.compile(r"\s*\([^)]*\)\s*")
 _TRAILING_SPACES_RE = re.compile(r"[ \t]+$", re.MULTILINE)
@@ -43,6 +44,15 @@ def split_course(value: str) -> tuple[str, str | None]:
     if not separator:
         return value.strip(), None
     return course.strip(), rest.split("-")[0].strip() or None
+
+
+def course_shift(value: str) -> CourseShift | None:
+    """`ENGENHARIA DE SOFTWARE/FCTE - Bacharelado - N` -> noturno; sem o que vem após a unidade, `None`."""
+    _, _, rest = value.partition("/")
+    parts = [part.strip() for part in rest.split(" - ")]
+    if len(parts) < 2:
+        return None
+    return CourseShift.NOTURNO if parts[-1] == "N" else CourseShift.DIURNO
 
 
 def split_location(value: str) -> tuple[str | None, str | None]:
