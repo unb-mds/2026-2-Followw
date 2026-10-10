@@ -7,7 +7,13 @@ from ..config import DASHBOARD_PATH, SIGAA_BASE_URL
 from ..exceptions import SigaaParseError
 from ..models import CurriculumWorkload, News, UserLevel, UserProfile
 from ..utils.jsf import link_params
-from ..utils.parsing import clean_text, lookup_key, parse_datetime, split_course
+from ..utils.parsing import (
+    clean_text,
+    course_shift,
+    lookup_key,
+    parse_datetime,
+    split_course,
+)
 from .session import Session
 
 UPDATES_ID = "atualizacoes-turma"
@@ -57,6 +63,7 @@ class Profile:
             bio=_bio(card),
             unity=unity,
             course=course,
+            shift=course_shift(raw_course),
             integralization=_integralization(card),
             workload=_workload(fields),
             ira=_academic_index(fields, "ira"),

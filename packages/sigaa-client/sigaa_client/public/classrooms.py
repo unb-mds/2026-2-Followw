@@ -1,12 +1,26 @@
 import re
 import unicodedata
+from collections.abc import AsyncIterator, Collection
 
 from bs4 import BeautifulSoup, Tag
 
 from ..config import PUBLIC_CLASSROOMS_PATH
 from ..exceptions import SessionExpired, SigaaParseError, SigaaSearchError
-from ..models import PublicClassroom, Subject, Teacher, TeachingLevel, Unit
-from ..utils.jsf import build_submit, link_params, read_form
+from ..models import (
+    PublicClassroom,
+    Subject,
+    SubjectDetails,
+    Teacher,
+    TeachingLevel,
+    Unit,
+)
+from ..utils.jsf import (
+    build_postback,
+    build_submit,
+    link_params,
+    read_form,
+    read_viewstate,
+)
 from ..utils.parsing import (
     clean_text,
     schedule_code,
@@ -23,10 +37,17 @@ UNIT_FIELD = "formTurma:inputDepto"
 YEAR_FIELD = "formTurma:inputAno"
 PERIOD_FIELD = "formTurma:inputPeriodo"
 
+CODE_FIELD = "Código:"
+PREREQUISITES_FIELD = "Pré-Requisitos:"
+COREQUISITES_FIELD = "Co-Requisitos:"
+EQUIVALENCES_FIELD = "Equivalências:"
+TOTAL_HOURS_LABEL = "Total de Carga Horária do Componente"
+
 _COLUMNS = 8
 _AMBIGUOUS_SAMPLE = 3
 _ROW_CLASSES = frozenset({"linhaPar", "linhaImpar"})
 _TEACHER_RE = re.compile(r"^(.+?)(?:\s*\((\d+)h\))?$")
+_HOURS_RE = re.compile(r"^(\d+)\s*h$")
 # A mensagem de "nada encontrado" chega no mesmo bloco dos erros de verdade.
 _NO_RESULTS = "nao foram encontrados resultados"
 
@@ -66,6 +87,39 @@ class PublicClassrooms:
         """
         soup = await self._search(unit, level, year, period)
         return [] if _no_results(soup) else _parse_results(soup)
+
+    async def iter_subjects(
+        self,
+        unit: Unit | int | str,
+        *,
+        level: TeachingLevel = TeachingLevel.GRADUACAO,
+        year: int | None = None,
+        period: int | None = None,
+        skip: Collection[str] = (),
+    ) -> AsyncIterator[SubjectDetails]:
+        """Os componentes ofertados, com requisitos; `skip` são códigos já coletados."""
+        page = await self._search(unit, level, year, period)
+        listed = {} if _no_results(page) else _listed_subjects(page)
+
+        for sigaa_id, subject in listed.items():
+            if subject.code is None or subject.code in skip:
+                continue
+            try:
+                details = await self._open_details(page, sigaa_id)
+            except SessionExpired:
+                await self._session.restart()
+                page = await self._search(unit, level, year, period)
+                details = await self._open_details(page, sigaa_id)
+            yield _parse_details(details, subject)
+
+    async def _open_details(self, page: BeautifulSoup, sigaa_id: int) -> BeautifulSoup:
+        form = read_form(page, FORM_ID)
+        for anchor in form.select("tr.agrupador a"):
+            params = link_params(anchor)
+            if params.get("id") == str(sigaa_id):
+                action, payload = build_postback(form, params, read_viewstate(form))
+                return await self._session.submit(action, payload)
+        raise SigaaParseError(f"Componente {sigaa_id} não tem link na busca.")
 
     async def _search(
         self,
@@ -180,6 +234,74 @@ def _subject(row: Tag) -> Subject:
         sigaa_id=int(sigaa_id) if sigaa_id.isdigit() else None,
         name=name.strip() or code.strip(),
     )
+
+
+def _listed_subjects(soup: BeautifulSoup) -> dict[int, Subject]:
+    """Os componentes da busca por `sigaa_id`, com a unidade da primeira turma que a traz."""
+    subjects: dict[int, Subject] = {}
+    for classroom in _parse_results(soup):
+        subject = classroom.subject
+        if subject.sigaa_id is None:
+            raise SigaaParseError(f"Componente {subject.code} sem id no link.")
+        known = subjects.get(subject.sigaa_id)
+        if known is None or (known.unity is None and subject.unity is not None):
+            subjects[subject.sigaa_id] = subject
+    return subjects
+
+
+def _parse_details(soup: BeautifulSoup, subject: Subject) -> SubjectDetails:
+    table = soup.find("table", class_="visualizacao")
+    if not isinstance(table, Tag):
+        raise SigaaParseError("Resumo do componente não veio na tela de detalhes.")
+
+    fields = {
+        clean_text(header): cell
+        for header in table.find_all("th")
+        if isinstance(cell := header.find_next_sibling("td"), Tag)
+    }
+    for label in (
+        CODE_FIELD,
+        PREREQUISITES_FIELD,
+        COREQUISITES_FIELD,
+        EQUIVALENCES_FIELD,
+    ):
+        if label not in fields:
+            raise SigaaParseError(
+                f"Campo `{label}` ausente nos detalhes do componente."
+            )
+
+    # O contexto vive na sessão: confere que a tela é do componente pedido.
+    code = clean_text(fields[CODE_FIELD])
+    if code != subject.code:
+        raise SigaaParseError(
+            f"Detalhes de `{code}` onde se esperava `{subject.code}`."
+        )
+
+    return SubjectDetails(
+        **subject.model_dump(exclude={"hours"}),
+        hours=_total_hours(soup) or subject.hours,
+        prerequisites=_expression(fields[PREREQUISITES_FIELD]),
+        corequisites=_expression(fields[COREQUISITES_FIELD]),
+        # O resumo traz a expressão ativa; as antigas ficam só no histórico.
+        equivalences=_expression(fields[EQUIVALENCES_FIELD]),
+    )
+
+
+def _expression(cell: Tag) -> str | None:
+    """`( ( <acronym>CIC0004</acronym> ) )` -> `( ( CIC0004 ) )`; `-` é sem requisito."""
+    text = clean_text(cell)
+    return None if text in ("", "-") else text
+
+
+def _total_hours(soup: BeautifulSoup) -> int | None:
+    for cell in soup.find_all("td"):
+        if not clean_text(cell).startswith(TOTAL_HOURS_LABEL):
+            continue
+        value = cell.find_next_sibling("td")
+        match = _HOURS_RE.match(clean_text(value)) if isinstance(value, Tag) else None
+        if match is not None:
+            return int(match.group(1))
+    return None
 
 
 def _classroom(row: Tag, subject: Subject) -> PublicClassroom:

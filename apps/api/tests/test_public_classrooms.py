@@ -1,20 +1,10 @@
-import asyncio
-import json
-import logging
-import runpy
-from pathlib import Path
-from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock
-
 import httpx
 import pytest
 import respx
-from sigaa_client import PublicClassroom, SigaaParseError, Subject, Unit
 from sigaa_client.config import PUBLIC_CLASSROOMS_PATH, PUBLIC_HOME_PATH
 
 from api.db.main import get_sessionmaker
-from api.modules.public_classrooms import service as public_classroom
-from api.modules.public_classrooms.service import _code_index
+from api.modules.public_classrooms.repository import UnitIndexRepository
 from api.sync.queue import get_job_queue
 
 SEARCH_FORM = """
@@ -89,9 +79,12 @@ def public_sigaa():
 @pytest.mark.parametrize("unit", ["673", "gama", "  GAMA  "])
 def test_busca_publica_sem_login_preserva_defaults_do_sigaa(client, public_sigaa, unit):
     def dependency_proibida():
-        pytest.fail("Busca pública não deve usar banco ou fila")
+        pytest.fail("Busca pública não deve usar fila")
 
-    client.app.dependency_overrides[get_sessionmaker] = dependency_proibida
+    def sessao_proibida(*args, **kwargs):
+        pytest.fail("Busca por unidade não deve consultar o banco")
+
+    client.app.dependency_overrides[get_sessionmaker] = lambda: sessao_proibida
     client.app.dependency_overrides[get_job_queue] = dependency_proibida
     response = client.get("/public/classrooms", params={"unit": unit})
 
@@ -362,17 +355,35 @@ def test_local_filtra_local_completo_e_combina_com_contains(
 
 
 @pytest.fixture
-def code_index(monkeypatch):
-    index = {
-        "prefixes": {"FGA": [673], "FCTE": [673], "MAT": [518]},
-        "units": {
-            "673": "CAMPUS UNB GAMA",
-            "672": "CAMPUS UNB CEILÂNDIA",
-            "518": "DEPTO MATEMÁTICA",
-        },
-    }
-    monkeypatch.setattr(public_classroom, "_code_index", lambda: index)
-    return index["prefixes"]
+def code_index(database):
+    """Os componentes gravados dizem em que unidades cada prefixo é ofertado."""
+    from api.db.models import Subject, Unity
+
+    class Index:
+        def __setitem__(self, prefix, units):
+            with database.begin() as session:
+                for subject in session.query(Subject).filter(
+                    Subject.code.like(f"{prefix}%")
+                ):
+                    session.delete(subject)
+                session.flush()
+                session.add_all(
+                    Subject(code=f"{prefix}{n:04d}", name="X", unity_id=unit)
+                    for n, unit in enumerate(units, start=1)
+                )
+
+    with database.begin() as session:
+        session.add_all(
+            [
+                Unity(id=672, code="FCTS", name="CAMPUS UNB CEILÂNDIA"),
+                Unity(id=518, code="MAT", name="DEPTO MATEMÁTICA"),
+            ]
+        )
+        session.merge(Unity(id=673, code="FCTE", name="CAMPUS UNB GAMA"))
+    index = Index()
+    for prefix, units in {"FGA": [673], "FCTE": [673], "MAT": [518]}.items():
+        index[prefix] = units
+    return index
 
 
 @pytest.mark.parametrize("code", ["FGA0030", "fga0030", "  FgA0030  "])
@@ -417,7 +428,7 @@ def test_code_consulta_todas_unidades_do_prefixo_sem_duplicar_turmas(
     response = client.get("/public/classrooms?code=FGA0030")
     assert response.status_code == 200
     assert [row["number"] for row in response.json()] == ["01", "02"]
-    assert [p["formTurma:inputDepto"] for p in public_sigaa.payloads] == ["673", "672"]
+    assert [p["formTurma:inputDepto"] for p in public_sigaa.payloads] == ["672", "673"]
 
 
 def test_code_nao_oculta_falha_em_uma_das_unidades(client, public_sigaa, code_index):
@@ -440,7 +451,7 @@ def test_prefixo_desconhecido_pede_unidade_sem_varrer_sigaa(
     response = client.get("/public/classrooms?code=NOVO0001")
     assert response.status_code == 422
     assert response.json()["detail"] == (
-        "Prefixo `NOVO` não encontrado no índice. "
+        "Prefixo `NOVO` não encontrado nos componentes conhecidos. "
         "Ele pode não existir no SIGAA ou ainda não ter sido mapeado. "
         "Informe `unit` junto de `code` para buscar diretamente nessa unidade."
     )
@@ -450,10 +461,10 @@ def test_prefixo_desconhecido_pede_unidade_sem_varrer_sigaa(
 def test_unit_explicita_dispensa_indice_e_restringe_busca(
     client, public_sigaa, monkeypatch
 ):
-    def index_proibido():
+    def index_proibido(*args):
         pytest.fail("Unidade explícita não deve depender do índice")
 
-    monkeypatch.setattr(public_classroom, "_code_index", index_proibido)
+    monkeypatch.setattr(UnitIndexRepository, "unit_ids", index_proibido)
     public_sigaa.result = RESULTS.replace("FGA0030", "NOVO0001")
     response = client.get("/public/classrooms?unit=gama&code=NOVO0001")
     assert response.status_code == 200
@@ -535,10 +546,10 @@ def test_codigo_sem_oferta_na_primeira_unidade_consulta_as_demais(
         public_sigaa.results_by_unit["672"] = RESULTS
     response = client.get("/public/classrooms?code=FGA0030")
     assert response.status_code == (200 if found_in_second_unit else 404)
-    assert [p["formTurma:inputDepto"] for p in public_sigaa.payloads] == ["673", "672"]
+    assert [p["formTurma:inputDepto"] for p in public_sigaa.payloads] == ["672", "673"]
     if not found_in_second_unit:
         detail = response.json()["detail"]
-        assert "`CAMPUS UNB GAMA` (ID 673); `CAMPUS UNB CEILÂNDIA` (ID 672)" in detail
+        assert "`CAMPUS UNB CEILÂNDIA` (ID 672); `CAMPUS UNB GAMA` (ID 673)" in detail
         assert "DEPTO MATEMÁTICA" not in detail
 
 
@@ -648,138 +659,3 @@ def test_number_nao_oculta_codigo_sem_oferta(client, public_sigaa, code_index):
     response = client.get("/public/classrooms?code=FGA9999&number=01")
     assert response.status_code == 404
     assert "FGA9999" in response.json()["detail"]
-
-
-SCRIPT = Path(__file__).resolve().parents[1] / "scripts/update_classroom_code_units.py"
-
-
-@pytest.fixture
-def updater(monkeypatch):
-    collect = runpy.run_path(str(SCRIPT))["collect_index"]
-    client = MagicMock()
-    client.__aenter__.return_value = client
-    client.classrooms.list_units = AsyncMock(
-        return_value=[
-            Unit(id=1, name="Unidade A"),
-            Unit(id=2, name="Unidade B"),
-            Unit(id=3, name="Sem oferta"),
-        ]
-    )
-    monkeypatch.setitem(
-        collect.__globals__, "SigaaPublicClient", lambda **kwargs: client
-    )
-    monkeypatch.setitem(
-        collect.__globals__,
-        "asyncio",
-        SimpleNamespace(Queue=asyncio.Queue, gather=asyncio.gather, sleep=AsyncMock()),
-    )
-    return collect, client
-
-
-async def test_indice_coleta_todos_prefixos_por_unidade_e_preserva_multiplas_unidades(
-    updater,
-):
-    collect, client = updater
-    codes = {1: ["FGA0132", "FCTE0030", "FGA0001"], 2: ["FGA0132"], 3: []}
-
-    async def search(unit, *, year, period):
-        assert (year, period) == (2026, 2)
-        return [
-            PublicClassroom(
-                number="01",
-                semester="2026.2",
-                subject=Subject(name="Disciplina", code=code),
-            )
-            for code in codes[unit]
-        ]
-
-    client.classrooms.search = AsyncMock(side_effect=search)
-    index = await collect("2026.2")
-    assert index["prefixes"] == {"FCTE": [1], "FGA": [1, 2]}
-    assert set(index["units"]) == {"1", "2", "3"}
-    assert index["units_without_classes"] == [3]
-    assert index["semesters"] == ["2026.2"]
-    assert client.classrooms.search.await_count == 3
-
-
-async def test_indice_nao_aceita_coleta_parcial(updater):
-    collect, client = updater
-    client.classrooms.search = AsyncMock(side_effect=SigaaParseError("layout mudou"))
-    with pytest.raises(RuntimeError, match="índice anterior preservado"):
-        await collect()
-    assert client.classrooms.search.await_count == 9
-
-
-@pytest.mark.parametrize("code", [None, "", "FGA-0132", "FGA", "FGA００３０"])
-async def test_indice_avisa_sobre_codigo_invalido_e_continua_coleta(
-    updater, caplog, code
-):
-    collect, client = updater
-    client.classrooms.list_units.return_value = [Unit(id=1, name="Unidade A")]
-    client.classrooms.search = AsyncMock(
-        return_value=[
-            PublicClassroom(
-                number="01",
-                semester="2026.2",
-                subject=Subject(name="Válida", code="  fga0132  "),
-            ),
-            PublicClassroom(
-                number="02",
-                semester="2026.2",
-                subject=Subject(name="Inválida", code=code),
-            ),
-        ]
-    )
-
-    with caplog.at_level(logging.WARNING):
-        index = await collect()
-
-    assert index["prefixes"] == {"FGA": [1]}
-    assert len(caplog.records) == 1
-    record = caplog.records[0]
-    assert record.levelno == logging.WARNING
-    message = record.getMessage()
-    assert "Turma ignorada" in message
-    assert "unidade=1 (Unidade A)" in message
-    assert "turma=02" in message
-    assert "semestre=2026.2" in message
-    assert "disciplina='Inválida'" in message
-    assert f"código={code!r} fora do padrão" in message
-
-
-async def test_indice_repete_falha_transitoria_e_mantem_semestre_do_formulario(updater):
-    collect, client = updater
-    client.classrooms.list_units.return_value = [Unit(id=1, name="Unidade A")]
-    client.classrooms.search = AsyncMock(
-        side_effect=[
-            SigaaParseError("temporário"),
-            [
-                PublicClassroom(
-                    number="01",
-                    semester="2026.2",
-                    subject=Subject(name="Disciplina", code="FGA0132"),
-                )
-            ],
-        ]
-    )
-    index = await collect()
-    assert index["prefixes"] == {"FGA": [1]}
-    assert client.classrooms.search.await_count == 2
-    client.classrooms.search.assert_awaited_with(1, year=None, period=None)
-
-
-def test_indice_distribuido_tem_origem_e_unidades_validas():
-    path = SCRIPT.parents[1] / "api/modules/public_classrooms/classroom_code_units.json"
-    index = json.loads(path.read_text(encoding="utf-8"))
-    assert index["source"] == "https://sigaa.unb.br/sigaa/public/turmas/listar.jsf"
-    assert index["generated_at"]
-    assert index["semesters"]
-    assert index["prefixes"]["FGA"] == [673]
-    assert index["prefixes"]["FCTE"] == [673]
-    assert index["prefixes"]["MAT"] == [518]
-    assert _code_index() == index
-    for prefix, units in index["prefixes"].items():
-        assert prefix.isascii() and prefix.isalpha() and prefix.isupper()
-        assert units == sorted(set(units))
-        assert all(str(unit) in index["units"] for unit in units)
-        assert not set(units) & set(index["units_without_classes"])

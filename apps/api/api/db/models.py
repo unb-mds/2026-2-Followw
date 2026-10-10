@@ -16,6 +16,42 @@ def _enum(enum: type, name: str) -> SAEnum:
     return SAEnum(enum, name=name, values_callable=lambda e: [m.value for m in e])
 
 
+class Unity(Base, TimestampMixin):
+    """Unidade acadêmica: o `id` é o do SIGAA e o `code` a sigla (ex.: FCTE)."""
+
+    __tablename__ = "unities"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=False)
+    code: Mapped[str | None] = mapped_column(unique=True)
+    name: Mapped[str] = mapped_column()
+
+
+class Course(Base, TimestampMixin):
+    """Curso de uma unidade; `sigaa_id` é nulo nos criados pelo sync, fora da lista do SIGAA."""
+
+    __tablename__ = "courses"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    sigaa_id: Mapped[int | None] = mapped_column(unique=True)
+    name: Mapped[str] = mapped_column()
+    shift: Mapped[str | None] = mapped_column()
+    unity_id: Mapped[int] = mapped_column(ForeignKey("unities.id"))
+
+    unity: Mapped[Unity] = relationship(lazy="joined")
+
+
+# Um só curso criado pelo sync por nome e unidade, mesmo com dois syncs ao mesmo tempo.
+COURSE_WITHOUT_SIGAA_ID = Course.sigaa_id.is_(None)
+Index(
+    "uq_course_without_sigaa_id",
+    Course.unity_id,
+    Course.name,
+    unique=True,
+    postgresql_where=COURSE_WITHOUT_SIGAA_ID,
+    sqlite_where=COURSE_WITHOUT_SIGAA_ID,
+)
+
+
 class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "users"
 
@@ -26,8 +62,7 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     photo: Mapped[str | None] = mapped_column()
     email: Mapped[str | None] = mapped_column()
     bio: Mapped[str | None] = mapped_column(Text)
-    unity: Mapped[str | None] = mapped_column()
-    course: Mapped[str | None] = mapped_column()
+    course_id: Mapped[int | None] = mapped_column(ForeignKey("courses.id"))
     integralization: Mapped[int | None] = mapped_column()
     workload: Mapped[dict[str, int] | None] = mapped_column(JSON)
     ira: Mapped[float | None] = mapped_column()
@@ -39,6 +74,7 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     settings: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
 
+    course: Mapped[Course | None] = relationship(lazy="joined")
     classroom_links: Mapped[list[ClassroomParticipant]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
@@ -61,8 +97,9 @@ class Subject(Base, TimestampMixin):
     code: Mapped[str] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column()
     hours: Mapped[int | None] = mapped_column()
-    unity: Mapped[str | None] = mapped_column()
+    unity_id: Mapped[int | None] = mapped_column(ForeignKey("unities.id"))
 
+    unity: Mapped[Unity | None] = relationship(lazy="joined")
     classrooms: Mapped[list[Classroom]] = relationship(back_populates="subject")
 
 

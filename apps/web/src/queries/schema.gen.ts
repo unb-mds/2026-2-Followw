@@ -207,7 +207,7 @@ export interface paths {
         };
         /**
          * Buscar turmas públicas do SIGAA, sem login
-         * @description Consulta diretamente o SIGAA, sem filtrar o nível de ensino. Informe unit ou code. Sem unit, o prefixo de letras do código determina as unidades consultadas pelo índice local; o código completo deve corresponder exatamente. Sem semester, preserva o ano/período do formulário do SIGAA. Com code, retorna 404 se não houver oferta nas unidades e no semestre consultados; isso não confirma que a disciplina inexiste. Se apenas number, contains ou local excluir as turmas encontradas, retorna uma lista vazia (200).
+         * @description Consulta diretamente o SIGAA, sem filtrar o nível de ensino. Informe unit ou code. Sem unit, o prefixo de letras do código determina as unidades consultadas, pelas matérias conhecidas no banco; o código completo deve corresponder exatamente. Sem semester, preserva o ano/período do formulário do SIGAA. Com code, retorna 404 se não houver oferta nas unidades e no semestre consultados; isso não confirma que a disciplina inexiste. Se apenas number, contains ou local excluir as turmas encontradas, retorna uma lista vazia (200).
          */
         get: operations["search_classrooms_public_classrooms_get"];
         put?: never;
@@ -704,7 +704,10 @@ export interface components {
          * @enum {string}
          */
         UserLevel: "Graduação" | "Pós-graduação" | "Mestrado";
-        /** UserProfile */
+        /**
+         * UserProfile
+         * @description O perfil como a API devolve: sem curso na tabela, `course` e `unity` são nulos.
+         */
         UserProfile: {
             /** Name */
             name: string;
@@ -717,9 +720,11 @@ export interface components {
             /** Bio */
             bio: string | null;
             /** Unity */
-            unity: string;
+            unity: string | null;
             /** Course */
-            course: string;
+            course: string | null;
+            /** Shift */
+            shift: string | null;
             /** Integralization */
             integralization: number | null;
             workload: components["schemas"]["CurriculumWorkload"] | null;
@@ -1391,7 +1396,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Informe unit ou code. Filtro inválido, unidade inexistente ou nome ambíguo. Prefixo ausente do índice pode não existir no SIGAA ou ainda não estar mapeado; informe unit para buscar diretamente. */
+            /** @description Informe unit ou code. Filtro inválido, unidade inexistente ou nome ambíguo. Prefixo desconhecido pode não existir no SIGAA ou ainda não estar mapeado; informe unit para buscar diretamente. */
             422: {
                 headers: {
                     [name: string]: unknown;

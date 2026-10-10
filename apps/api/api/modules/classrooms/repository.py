@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import contains_eager, joinedload
 
 from api import academic_calendar
+from api.db.courses import course_ids
 from api.db.enums import ClassroomRole, ClassroomStatus, LessonStatus
 from api.db.models import (
     USER_WITHOUT_IDS,
@@ -22,6 +23,7 @@ from api.db.models import (
     Subject,
     User,
 )
+from api.db.unities import unity_ids
 from api.modules.classrooms.lessons import (
     FrequencySummary,
     Period,
@@ -112,6 +114,9 @@ class ClassroomRepository:
         # O histórico tem dezenas de turmas: turmas e componentes vêm de uma vez.
         saved = await self._classrooms_by_key([key for key, _ in keyed])
         subjects = await self._subjects({key[0] for key, _ in keyed})
+        unities = await unity_ids(
+            self._session, {item.subject.unity for _, item in keyed}
+        )
         seen: set[UUID] = set()
         current: list[Classroom] = []
         for key, item in keyed:
@@ -119,7 +124,7 @@ class ClassroomRepository:
             # Turma de semestre passado quase não muda: só é regravada num refresh.
             if classroom is None or item.current or refresh:
                 classroom = saved[key] = await self._save_classroom(
-                    key, item, classroom, subjects
+                    key, item, classroom, subjects, unities
                 )
             if item.current:
                 current.append(classroom)
@@ -167,10 +172,13 @@ class ClassroomRepository:
         known = [link.user for link in links.values()]
         # Turma grande tem milhares de participantes: os usuários vêm de uma vez.
         users = await self._member_users(members)
+        courses = await course_ids(
+            self._session, {(m.course, m.unity) for m in members}
+        )
         present = academic_calendar.member_status(classroom.semester)
         seen: set[UUID] = set()
         for member in members:
-            user = self._save_member(member, users, known)
+            user = self._save_member(member, users, known, courses)
             link = links.get(user.id)
             if link is None:
                 link = ClassroomParticipant(user_id=user.id, classroom_id=classroom_id)
@@ -256,7 +264,11 @@ class ClassroomRepository:
         return {row.code: row for row in rows}
 
     def _save_subject(
-        self, code: str, item: sigaa_client.Subject, subjects: dict[str, Subject]
+        self,
+        code: str,
+        item: sigaa_client.Subject,
+        subjects: dict[str, Subject],
+        unities: Mapping[str, int],
     ) -> None:
         subject = subjects.get(code)
         if subject is None:
@@ -265,7 +277,8 @@ class ClassroomRepository:
 
         subject.name = item.name
         subject.hours = item.hours or subject.hours
-        subject.unity = item.unity or subject.unity
+        # A unidade ofertante do seed vale mais que o palpite pelo prefixo do local.
+        subject.unity_id = subject.unity_id or unities.get(item.unity or "")
 
     async def _save_classroom(
         self,
@@ -273,9 +286,10 @@ class ClassroomRepository:
         item: sigaa_client.Classroom,
         classroom: Classroom | None,
         subjects: dict[str, Subject],
+        unities: Mapping[str, int],
     ) -> Classroom:
         code, number, semester = key
-        self._save_subject(code, item.subject, subjects)
+        self._save_subject(code, item.subject, subjects, unities)
         if classroom is None:
             # O id vem antes do flush: o vínculo aponta para ele.
             classroom = Classroom(
@@ -315,6 +329,7 @@ class ClassroomRepository:
         member: sigaa_client.ClassroomMember,
         users: _UserIndex,
         known: Sequence[User],
+        courses: Mapping[tuple[str, str], int],
     ) -> User:
         user = None
         if member.registration is not None:
@@ -339,10 +354,13 @@ class ClassroomRepository:
         shadow = user.profile_synced_at is None
         if shadow:
             user.name = member.name
-        for field in ("photo", "email", "course", "unity"):
+        for field in ("photo", "email"):
             value = getattr(member, field)
             if value is not None and (shadow or getattr(user, field) is None):
                 setattr(user, field, value)
+        course_id = courses.get((member.course or "", member.unity or ""))
+        if course_id is not None and (shadow or user.course_id is None):
+            user.course_id = course_id
         user.registration = user.registration or member.registration
         # O `idPessoa` pode já ser de outro usuário, achado antes só por ele.
         if person_owner is None or person_owner is user:
