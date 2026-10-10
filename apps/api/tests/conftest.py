@@ -255,11 +255,14 @@ def database(tmp_path):
     from sqlalchemy.orm import sessionmaker
 
     from api.db.base import Base
-    from api.db.models import User  # noqa: F401 — registra as tabelas no metadata
+    from api.db.models import Unity
 
     engine = create_engine(f"sqlite:///{tmp_path / 'cache.db'}")
     Base.metadata.create_all(engine)
-    yield sessionmaker(engine, expire_on_commit=False)
+    sessions = sessionmaker(engine, expire_on_commit=False)
+    with sessions.begin() as session:
+        session.add(Unity(id=673, code="FCTE", name="CAMPUS UNB GAMA"))
+    yield sessions
     engine.dispose()
 
 
@@ -369,6 +372,7 @@ def stub_sigaa(monkeypatch):
                     bio=None,
                     unity="FCTE",
                     course="ENGENHARIA DE SOFTWARE",
+                    shift=None,
                     integralization=35,
                     workload=None,
                     ira=3.5,

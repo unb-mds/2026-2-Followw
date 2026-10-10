@@ -4,6 +4,7 @@ from sigaa_client import UserProfile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.db.courses import course_ids
 from api.db.enums import UserLevel
 from api.db.models import User
 
@@ -28,8 +29,9 @@ class UserRepository:
         user.photo = profile.photo or user.photo
         user.email = profile.email or user.email
         user.bio = profile.bio
-        user.unity = profile.unity
-        user.course = profile.course
+        pair = (profile.course, profile.unity)
+        shift = profile.shift.value if profile.shift else None
+        user.course_id = (await course_ids(self._session, [pair], shift)).get(pair)
         user.integralization = profile.integralization
         user.workload = profile.workload.model_dump() if profile.workload else None
         user.ira = profile.ira
