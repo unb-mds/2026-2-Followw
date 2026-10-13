@@ -16,6 +16,7 @@ from api.modules.me.router import router as me_router
 from api.modules.news.router import router as news_router
 from api.modules.public_classrooms.router import router as public_classrooms_router
 from api.modules.public_restaurant.router import router as public_restaurant_router
+from api.modules.public_subjects.router import router as public_subjects_router
 from api.sync.router import router as jobs_router
 
 # desativa logs "HTTP Request: ..." que o httpx emite pra cada chamada ao SIGAA
@@ -44,6 +45,11 @@ tags_metadata = [
         "name": "Public Restaurant",
         "x-displayName": "Restaurant",
         "description": "Cardápio público do RU, sem autenticação.",
+    },
+    {
+        "name": "Public Subjects",
+        "x-displayName": "Subjects",
+        "description": "Catálogo público de componentes curriculares do SIGAA e avisos da busca, sem autenticação.",
     },
     {
         "name": "News",
@@ -82,7 +88,10 @@ def custom_openapi() -> dict[str, Any]:
             servers=[{"url": app.root_path}],
         )
         app.openapi_schema["x-tagGroups"] = [
-            {"name": "Public", "tags": ["Public Classrooms", "Public Restaurant"]},
+            {
+                "name": "Public",
+                "tags": ["Public Classrooms", "Public Restaurant", "Public Subjects"],
+            },
             {
                 "name": "SIGAA",
                 "tags": ["Auth", "Classrooms", "Me", "News"],
@@ -140,6 +149,9 @@ app.include_router(
 )
 app.include_router(
     public_restaurant_router, prefix="/public/restaurant", tags=["Public Restaurant"]
+)
+app.include_router(
+    public_subjects_router, prefix="/public/subjects", tags=["Public Subjects"]
 )
 app.include_router(me_router, prefix="/me", tags=["Me"])
 app.include_router(news_router, prefix="/news", tags=["News"])

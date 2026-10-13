@@ -8,8 +8,7 @@ from sigaa_client import Credentials, SessionExpired, SigaaError
 
 from api.cookies import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME, decrypt_cookie
 from api.core.config import settings
-from api.modules.public_classrooms.service import SigaaPublicClientDep
-from api.sigaa import SigaaClientDep
+from api.sigaa import SigaaClientDep, SigaaPublicClientDep
 
 CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha123"))
 

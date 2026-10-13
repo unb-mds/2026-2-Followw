@@ -1,5 +1,4 @@
 import re
-import unicodedata
 from collections.abc import AsyncIterator, Collection
 
 from bs4 import BeautifulSoup, Tag
@@ -23,11 +22,13 @@ from ..utils.jsf import (
 )
 from ..utils.parsing import (
     clean_text,
+    fold_text,
     schedule_code,
     split_location,
     visible_text,
 )
 from .session import PublicSession
+from .units import parse_units, resolve_unit
 
 FORM_ID = "formTurma"
 SEARCH_BUTTON = "Buscar"
@@ -44,7 +45,6 @@ EQUIVALENCES_FIELD = "Equivalências:"
 TOTAL_HOURS_LABEL = "Total de Carga Horária do Componente"
 
 _COLUMNS = 8
-_AMBIGUOUS_SAMPLE = 3
 _ROW_CLASSES = frozenset({"linhaPar", "linhaImpar"})
 _TEACHER_RE = re.compile(r"^(.+?)(?:\s*\((\d+)h\))?$")
 _HOURS_RE = re.compile(r"^(\d+)\s*h$")
@@ -64,12 +64,12 @@ class PublicClassrooms:
         `contains` peneira pelo nome ignorando acento e caixa — são mais de 200.
         """
         form = read_form(await self._session.open(PUBLIC_CLASSROOMS_PATH), FORM_ID)
-        units = _units(form)
+        units = parse_units(form, UNIT_FIELD)
         if contains is None:
             return units
 
-        needle = _fold(contains)
-        return [unit for unit in units if needle in _fold(unit.name)]
+        needle = fold_text(contains)
+        return [unit for unit in units if needle in fold_text(unit.name)]
 
     async def search(
         self,
@@ -146,7 +146,7 @@ class PublicClassrooms:
         form = read_form(await self._session.open(PUBLIC_CLASSROOMS_PATH), FORM_ID)
 
         # O select de unidades vem no mesmo form, então resolver pelo nome é de graça.
-        values = {UNIT_FIELD: str(_resolve_unit(_units(form), unit))}
+        values = {UNIT_FIELD: str(resolve_unit(parse_units(form, UNIT_FIELD), unit))}
         if level is not None:
             values[LEVEL_FIELD] = level.value
         if year is not None:
@@ -158,46 +158,11 @@ class PublicClassrooms:
         return await self._session.submit(action, payload)
 
 
-def _units(form: Tag) -> list[Unit]:
-    select = form.find("select", attrs={"name": UNIT_FIELD})
-    if not isinstance(select, Tag):
-        raise SigaaParseError("Select de unidades não encontrado no form da busca.")
-
-    units = []
-    for option in select.find_all("option"):
-        value = str(option.get("value") or "")
-        if value.isdigit() and int(value) > 0:
-            units.append(Unit(id=int(value), name=clean_text(option)))
-    return units
-
-
-def _resolve_unit(units: list[Unit], wanted: Unit | int | str) -> int:
-    if isinstance(wanted, Unit):
-        return wanted.id
-    if isinstance(wanted, int):
-        return wanted
-    if wanted.isdigit():
-        return int(wanted)
-
-    needle = _fold(wanted)
-    matches = [unit for unit in units if needle in _fold(unit.name)]
-    if not matches:
-        raise SigaaSearchError(f"Nenhuma unidade casa com `{wanted}`.")
-    if len(matches) > 1:
-        names = ", ".join(unit.name for unit in matches[:_AMBIGUOUS_SAMPLE])
-        rest = len(matches) - _AMBIGUOUS_SAMPLE
-        raise SigaaSearchError(
-            f"`{wanted}` casa com {len(matches)} unidades: {names}"
-            + (f" e mais {rest}." if rest > 0 else ".")
-        )
-    return matches[0].id
-
-
 def _no_results(soup: BeautifulSoup) -> bool:
     messages = [clean_text(item) for item in soup.select("ul.erros li")]
     if not messages:
         return False
-    if any(_NO_RESULTS in _fold(message) for message in messages):
+    if any(_NO_RESULTS in fold_text(message) for message in messages):
         return True
     raise SigaaSearchError(" ".join(messages))
 
@@ -351,9 +316,3 @@ def _description(cell: Tag) -> str | None:
 def _count(cell: Tag) -> int | None:
     value = clean_text(cell)
     return int(value) if value.isdigit() else None
-
-
-def _fold(value: str) -> str:
-    """Compara sem acento e sem caixa — `gama` acha `CAMPUS UNB GAMA: ...`."""
-    normalized = unicodedata.normalize("NFKD", value.casefold())
-    return "".join(char for char in normalized if not unicodedata.combining(char))

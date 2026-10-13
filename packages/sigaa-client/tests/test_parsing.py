@@ -6,7 +6,29 @@ from bs4 import BeautifulSoup
 
 from sigaa_client.config import SIGAA_BASE_URL
 from sigaa_client.exceptions import SigaaParseError
-from sigaa_client.utils.parsing import parse_datetime, to_markdown
+from sigaa_client.utils.parsing import (
+    fold_text,
+    lookup_key,
+    parse_datetime,
+    to_markdown,
+)
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ("CEILÂNDIA", "ceilandia"),
+        ("Straße", "strasse"),
+        ("  A\tB ", "  a\tb "),
+        ("", ""),
+    ],
+)
+def test_fold_text_preserves_spacing(value, expected):
+    assert fold_text(value) == expected
+
+
+def test_lookup_key_keeps_its_distinct_normalization():
+    assert lookup_key("  Straße  ") == "straße"
 
 
 def _markdown(html: str) -> str | None:

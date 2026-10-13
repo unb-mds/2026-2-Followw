@@ -17,18 +17,38 @@ async with SigaaClient(credentials) as client:
 
 async with SigaaPublicClient() as client:
     turmas = await client.classrooms.search("gama")
+    componentes = await client.subjects.search("gama", code="FGA00")
 ```
 
 | Client              | Login | Módulos                                  |
 | ------------------- | ----- | ---------------------------------------- |
 | `SigaaClient`       | sim   | `.profile`, `.classrooms`, `.restaurant` |
-| `SigaaPublicClient` | não   | `.classrooms`                            |
+| `SigaaPublicClient` | não   | `.classrooms`, `.subjects`               |
 
 O login é feito sob demanda. O token retornado por `authenticate()` pode ser
 reutilizado com `SigaaClient(session_token=...)`: sem credenciais, uma sessão
 expirada levanta `SessionExpired`.
 
 Todos os erros derivam de `SigaaError`.
+
+`client.subjects.search(unit=None, level=TeachingLevel.GRADUACAO, type=None, code=None, name=None)`
+consulta o catálogo público com filtros combináveis. `unit` aceita `Unit`, ID ou trecho não
+ambíguo do nome; `code` e `name` aceitam trechos. `SubjectLevel` restringe `TeachingLevel` a
+F, G, L, R e S; `SubjectType` aceita DISCIPLINA, ATIVIDADE, BLOCO e MÓDULO.
+Identifique os componentes por `sigaa_id`, pois códigos podem se repetir entre níveis.
+
+O retorno `SubjectSearchResult` contém `items`, `returned_count`, `messages` e `truncated`.
+O aviso de limite de 2000 resultados preserva a lista parcial e marca `truncated=True`;
+refine os filtros para obter resultados completos. Busca vazia retorna `items=()` e a
+mensagem da origem; filtros recusados levantam `SigaaSearchError`.
+
+Na página do SIGAA, o aviso aparece acima do formulário, abaixo do cabeçalho, no painel
+`#painel-erros` (`ul.erros`), com texto vermelho e ícone. Fechar o painel apenas o remove
+da tela; uma nova busca que exceda o limite faz o aviso reaparecer. A API preserva seu texto em `messages`.
+
+A API expõe `GET /public/subjects` com esses filtros e `contains`, que filtra nome ou código
+localmente, ignorando acentos, maiúsculas e espaços extras. Esse filtro preserva os avisos
+e `truncated`, mesmo se remover todos os itens; não recupera resultados cortados pelo SIGAA.
 
 `client.restaurant.get_restaurant_statement()` retorna saldo, extrato e grupo (1 a 4), com saldo e grupo ausentes representados por `None`.
 

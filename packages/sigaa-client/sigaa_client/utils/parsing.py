@@ -68,6 +68,12 @@ def schedule_code(value: str) -> str | None:
     return _DATE_RANGE_RE.sub(" ", value).strip() or None
 
 
+def fold_text(value: str) -> str:
+    """Compara sem acento e sem caixa, preservando os espaços."""
+    normalized = unicodedata.normalize("NFKD", value.casefold())
+    return "".join(char for char in normalized if not unicodedata.combining(char))
+
+
 def lookup_key(value: str) -> str:
     """Chave de lookup, sem acento e em minúscula."""
     normalized = unicodedata.normalize("NFKD", value.strip().lower())
