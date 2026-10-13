@@ -6,6 +6,7 @@ from sigaa_client import AuthenticationFailed
 from sqlalchemy.exc import IntegrityError
 
 from api.db.main import DatabaseDep
+from api.logger import event, operation
 from api.modules.auth.account import sync_account
 from api.modules.classrooms.frequency import sync_frequency
 from api.modules.classrooms.news import sync_news, sync_news_content
@@ -19,10 +20,16 @@ from api.modules.classrooms.service import (
 from api.modules.me.profile import sync_profile
 from api.sigaa import SigaaConnection
 from api.sync import Sync
-from api.sync.engine import GONE_ERRORS, ORIGIN_ERRORS, Context, Job, Step, Task
+from api.sync.engine import (
+    GONE_ERRORS,
+    ORIGIN_ERRORS,
+    Context,
+    Job,
+    Step,
+    Task,
+    run_task,
+)
 from api.sync.queue import JobDep, JobQueueDep
-
-log = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -52,19 +59,21 @@ async def run_job(job: JobDep, db: DatabaseDep, queue: JobQueueDep) -> None:
             status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown task"
         )
 
-    sigaa = SigaaConnection(job.credentials)
-    sync = Sync(db, sigaa)
-    try:
-        failed = await _run(job, sigaa, sync)
-    finally:
-        await sigaa.aclose(logout=True)
+    with operation("job", attempt=job.attempt, step_count=len(job.steps)):
+        sigaa = SigaaConnection(job.credentials)
+        sync = Sync(db, sigaa)
+        try:
+            failed = await _run(job, sigaa, sync)
+        finally:
+            await sigaa.aclose(logout=True)
 
-    jobs = sync.jobs()
-    if failed and job.attempt < MAX_ATTEMPTS:
-        jobs.append(
-            job.model_copy(update={"steps": failed, "attempt": job.attempt + 1})
-        )
-    await queue.enqueue(*jobs)
+        jobs = sync.jobs()
+        if failed and job.attempt < MAX_ATTEMPTS:
+            jobs.append(
+                job.model_copy(update={"steps": failed, "attempt": job.attempt + 1})
+            )
+        event("job.result", failed_count=len(failed), job_count=len(jobs))
+        await queue.enqueue(*jobs)
 
 
 async def _run(job: Job, sigaa: SigaaConnection, sync: Sync) -> tuple[Step, ...]:
@@ -72,10 +81,10 @@ async def _run(job: Job, sigaa: SigaaConnection, sync: Sync) -> tuple[Step, ...]
     try:
         client = await sigaa.client()
     except AuthenticationFailed:
-        log.info("Senha recusada no job %s", job.key)
+        event("job.authentication_rejected")
         return ()
     except ORIGIN_ERRORS:
-        log.warning("Login do job %s falhou", job.key, exc_info=True)
+        event("job.login_failed", level=logging.WARNING)
         return job.steps
 
     link = None
@@ -85,19 +94,20 @@ async def _run(job: Job, sigaa: SigaaConnection, sync: Sync) -> tuple[Step, ...]
         )
         # A turma pode ter saído da lista do usuário depois de agendada.
         if link is None:
+            event("job.skipped")
             return ()
 
     failed = []
     for step in job.steps:
         try:
-            await TASKS[step.task](Context(client, sync, step.target(link)))
+            await run_task(TASKS[step.task], Context(client, sync, step.target(link)))
         except AuthenticationFailed:
-            log.info("Senha recusada no meio do job %s", job.key)
+            event("job.authentication_rejected", task=step.task)
             return ()
         except (*GONE_ERRORS, IntegrityError):
             # Sumiu do SIGAA, ou outro sync já gravou: tentar de novo não muda nada.
-            log.info("Tarefa %s do job %s descartada", step.task, job.key)
+            event("sync.task.discarded", task=step.task)
         except ORIGIN_ERRORS:
-            log.warning("Tarefa %s do job %s falhou", step.task, job.key, exc_info=True)
+            event("sync.task.retry_pending", level=logging.WARNING, task=step.task)
             failed.append(step)
     return tuple(failed)

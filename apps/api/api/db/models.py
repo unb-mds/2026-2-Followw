@@ -68,6 +68,7 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     ira: Mapped[float | None] = mapped_column()
     mp: Mapped[float | None] = mapped_column()
     level: Mapped[UserLevel | None] = mapped_column(_enum(UserLevel, "user_level"))
+    registered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     profile_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     classrooms_synced_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True)

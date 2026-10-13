@@ -12,6 +12,7 @@ from api.cookies import (
     set_access_cookie,
     set_refresh_cookie,
 )
+from api.logger import operation
 
 
 class SigaaConnection:
@@ -50,7 +51,8 @@ class SigaaConnection:
                 on_session_renewed=self._renew,
             )
             try:
-                token = self._session_token or await client.authenticate()
+                with operation("sigaa.connect", reused_session=self.authenticated):
+                    token = self._session_token or await client.authenticate()
             except BaseException:
                 await client.aclose()
                 raise
@@ -65,7 +67,7 @@ class SigaaConnection:
             return
         try:
             if logout:
-                with suppress(SigaaError, httpx.HTTPError):
+                with suppress(SigaaError, httpx.HTTPError), operation("sigaa.logout"):
                     await client.logout()
         finally:
             await client.aclose()

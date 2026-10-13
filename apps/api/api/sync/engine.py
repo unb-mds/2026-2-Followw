@@ -22,9 +22,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.cache import NO_DIRECTIVES, CacheControl, Freshness
 from api.db.main import Database
 from api.db.models import OwnLink
+from api.logger import event, operation
 from api.sigaa import SigaaConnection
-
-log = logging.getLogger(__name__)
 
 # Falhas da origem: o `stale-if-error` as cobre e um job as tenta de novo.
 ORIGIN_ERRORS = (SigaaError, httpx.HTTPError)
@@ -165,13 +164,13 @@ class Sync:
             await self.perform(task, target, refresh=cached is not None)
         except IntegrityError:
             # Outro sync ganhou todas as tentativas de gravar: o que ele gravou serve.
-            log.warning("Gravação concorrente em %s", task.__name__, exc_info=True)
+            event("sync.concurrent_write", level=logging.WARNING, task=task.__name__)
         except _CLIENT_ERRORS:
             raise
         except ORIGIN_ERRORS:
             if cached is None or not cache.accepts_stale(cached.synced_at):
                 raise
-            log.warning("SIGAA falhou, servindo %s vencido", task.__name__)
+            event("sync.stale_fallback", level=logging.WARNING, task=task.__name__)
             return self._serve(task, target, cached)
 
         fresh = await self.db.read(load)
@@ -192,7 +191,7 @@ class Sync:
                 status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail="Not cached"
             )
         client = await self._sigaa.client()
-        await task(Context(client, self, target, refresh))
+        await run_task(task, Context(client, self, target, refresh))
 
     def schedule[T: Target](self, task: Task[T], target: T) -> None:
         """Junta a tarefa ao job da turma do alvo (ou ao da conta, sem turma)."""
@@ -220,3 +219,8 @@ class Sync:
             self.schedule(task, target)
         self._cache.served(cached.synced_at)
         return cached.value
+
+
+async def run_task[T: Target](task: Task[T], ctx: Context[T]) -> None:
+    with operation("sync.task", task=task.__name__):
+        await task(ctx)

@@ -15,8 +15,7 @@ from sigaa_client import (
 from unb_browser import UnbBrowserError
 
 from api.cookies import clear_cookies
-
-log = logging.getLogger(__name__)
+from api.logger import event
 
 Handler = Callable[[Request, Exception], Awaitable[JSONResponse]]
 
@@ -26,7 +25,9 @@ def _error(status_code: int, detail: str | None = None) -> Handler:
 
     async def handle(_: Request, error: Exception) -> JSONResponse:
         if status_code >= 500:
-            log.warning("Falha na origem: %s", error, exc_info=error)
+            event(
+                "origin.failed", level=logging.WARNING, error_type=type(error).__name__
+            )
         return JSONResponse({"detail": detail or str(error)}, status_code=status_code)
 
     return handle
