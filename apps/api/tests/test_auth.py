@@ -1,13 +1,72 @@
+from datetime import UTC, datetime, timedelta
+
 import pytest
 from pydantic import SecretStr
 from sigaa_client import Credentials
+from sqlalchemy import select
 
 from api.cookies import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME, decrypt_cookie
+from api.db.models import User
 from api.modules.auth.account import sync_account
 from api.sync.engine import Step
 
 CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha123"))
 LOGIN = {"registration": "251000000", "password": "senha123"}
+
+
+@pytest.mark.parametrize("shadow", [False, True])
+def test_registered_at_marks_first_login_and_survives_refresh(
+    client, sigaa, database, shadow
+):
+    old = datetime.now(UTC) - timedelta(days=30)
+    if shadow:
+        with database.begin() as session:
+            session.add(
+                User(
+                    name="Participante",
+                    registration=LOGIN["registration"],
+                    created_at=old,
+                )
+            )
+        with database() as session:
+            assert session.scalar(select(User)).registered_at is None
+
+    before = datetime.now(UTC).replace(tzinfo=None)
+    assert client.post("/auth/sigaa", json=LOGIN).status_code == 200
+    with database() as session:
+        user = session.scalar(
+            select(User).where(User.registration == LOGIN["registration"])
+        )
+        registered = user.registered_at
+        assert before <= registered <= datetime.now(UTC).replace(tzinfo=None)
+        if shadow:
+            assert user.created_at == old.replace(tzinfo=None)
+
+    assert client.post("/auth/sigaa", json=LOGIN).status_code == 200
+    assert client.post("/auth/sigaa/refresh").status_code == 204
+    assert client.get("/me", headers={"Cache-Control": "no-cache"}).status_code == 200
+    with database() as session:
+        assert session.scalar(select(User)).registered_at == registered
+
+
+def test_registered_at_does_not_depend_on_job_publication(
+    client, sigaa, qstash, database
+):
+    qstash.unavailable = True
+    assert client.post("/auth/sigaa", json=LOGIN).status_code == 200
+    with database() as session:
+        user = session.scalar(select(User))
+        assert user.registered_at is not None
+        assert user.profile_synced_at is None
+
+
+def test_rejected_login_does_not_register_shadow(client, sigaa, database):
+    with database.begin() as session:
+        session.add(User(name="Participante", registration=LOGIN["registration"]))
+    sigaa.password = "different"
+    assert client.post("/auth/sigaa", json=LOGIN).status_code == 401
+    with database() as session:
+        assert session.scalar(select(User)).registered_at is None
 
 
 def _expirados(jar) -> set[str]:

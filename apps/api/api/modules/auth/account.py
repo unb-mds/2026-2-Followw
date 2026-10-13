@@ -15,7 +15,7 @@ from api.modules.me.profile import profile_freshness, sync_profile
 from api.modules.me.repository import UserRepository
 from api.sigaa import SigaaConnection
 from api.sync import Context
-from api.sync.engine import Job, Step, Task
+from api.sync.engine import Job, Step, Task, run_task
 from api.sync.queue import QStashQueue
 
 
@@ -26,6 +26,9 @@ async def start_account(
     if not connection.authenticated:
         await connection.client()
 
+    await db.write(
+        lambda session: UserRepository(session).register(connection.registration)
+    )
     user, links = await db.read(partial(_account, connection.registration))
     if _stale_account_tasks(user) or any(stale_classroom_tasks(l) for l in links):
         job = Job(credentials=connection.credentials, steps=(Step.of(sync_account),))
@@ -37,7 +40,7 @@ async def sync_account(ctx: Context[None]) -> None:
     account = partial(_account, ctx.sync.registration)
     user, _ = await ctx.sync.db.read(account)
     for task in _stale_account_tasks(user):
-        await task(ctx)
+        await run_task(task, ctx)
 
     _, links = await ctx.sync.db.read(account)
     for link in links:

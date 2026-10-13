@@ -9,6 +9,7 @@ from fastapi.responses import HTMLResponse
 
 from api.core.config import settings
 from api.errors import EXCEPTION_HANDLERS
+from api.logger import RequestLoggingMiddleware
 from api.modules.auth.router import router as auth_router
 from api.modules.classrooms.router import router as classrooms_router
 from api.modules.me.router import router as me_router
@@ -129,6 +130,8 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["Age"],
 )
+
+app.add_middleware(RequestLoggingMiddleware)
 
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 app.include_router(classrooms_router, prefix="/classrooms", tags=["Classrooms"])

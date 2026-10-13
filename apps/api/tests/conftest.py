@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import json
+import logging
 import os
 import time
 from collections import deque
@@ -14,6 +15,17 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sigaa_client import Credentials
 from sigaa_client.config import CLASSROOMS_PATH
+
+
+@pytest.fixture
+def caplog(caplog):
+    logger = logging.getLogger("followw")
+    logger.addHandler(caplog.handler)
+    try:
+        yield caplog
+    finally:
+        logger.removeHandler(caplog.handler)
+
 
 QSTASH_SIGNING_KEY = "sig_atual_de_teste_com_32_bytes_ou_mais"
 
