@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sigaa_client import UserProfile
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.courses import course_ids
@@ -17,6 +17,21 @@ class UserRepository:
         return await self._session.scalar(
             select(User).where(User.registration == registration)
         )
+
+    async def register(self, registration: str) -> None:
+        user = await self.get_by_registration(registration)
+        now = datetime.now(UTC)
+        if user is None:
+            self._session.add(
+                User(registration=registration, name="", registered_at=now)
+            )
+        else:
+            await self._session.execute(
+                update(User)
+                .where(User.id == user.id, User.registered_at.is_(None))
+                .values(registered_at=now)
+            )
+        await self._session.flush()
 
     async def save_profile(self, profile: UserProfile, synced_at: datetime) -> User:
         """Grava o perfil, assumindo o usuário sombra de mesma matrícula se houver."""
