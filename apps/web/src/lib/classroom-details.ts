@@ -15,6 +15,10 @@ export function formatClassroomDate(date: string) {
     return `${day}/${month}/${year}`;
 }
 
+export function formatClassroomDateTime(datetime: string) {
+    return `${formatClassroomDate(datetime)} ${datetime.slice(11, 16)}`;
+}
+
 const weekdayFormat = new Intl.DateTimeFormat('pt-BR', { weekday: 'short', timeZone: 'UTC' });
 
 export function formatClassroomWeekday(date: string) {
@@ -27,8 +31,12 @@ export function daysFrom(today: string, date: string) {
     return Math.round((Date.parse(date.slice(0, 10)) - Date.parse(today)) / 86_400_000);
 }
 
+export function formatRelativeDays(days: number) {
+    return relativeFormat.format(days, 'day');
+}
+
 export function formatRelativeDay(days: number) {
-    const label = relativeFormat.format(days, 'day');
+    const label = formatRelativeDays(days);
     return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
