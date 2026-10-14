@@ -398,7 +398,7 @@ def stub_sigaa(monkeypatch):
             list_classrooms=AsyncMock(return_value=[]),
             list_classroom_members=AsyncMock(return_value=[]),
             get_classroom_statistics=AsyncMock(return_value=()),
-            get_classroom_grade=AsyncMock(return_value=None),
+            list_grades=AsyncMock(return_value=[]),
         ),
     )
 
