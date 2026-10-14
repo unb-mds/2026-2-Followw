@@ -29,6 +29,7 @@ from ..models import (
     Classroom,
     ClassroomAttendance,
     ClassroomFrequency,
+    ClassroomGrade,
     ClassroomMember,
     ClassroomProgress,
     ClassroomRole,
@@ -39,7 +40,13 @@ from ..models import (
     StudentSituation,
     Subject,
 )
-from ..utils.jsf import build_postback, link_params, read_form, read_viewstate
+from ..utils.jsf import (
+    build_menu_action,
+    build_postback,
+    link_params,
+    read_form,
+    read_viewstate,
+)
 from ..utils.parsing import (
     clean_text,
     lookup_key,
@@ -55,7 +62,11 @@ from .session import Session
 CLASSROOM_ID_FIELD = "frontEndIdTurma"
 MENU_FORM_ID = "formMenu"
 FREQUENCY_MENU_LABEL = "Frequência"
-GRADES_MENU_LABEL = "Ver Notas"
+GRADES_FORM_ID = "menu:form_menu_discente"
+GRADES_MENU_ACTION = (
+    "menu_form_menu_discente_discente_menu:A]#{ relatorioNotasAluno.gerarRelatorio }"
+)
+GRADES_REPORT_TITLE = "Relatório de Notas do(a) Aluno(a)"
 GRADES_RESULT_LABEL = "Resultado"
 STATISTICS_MENU_LABEL = "Situação dos Discentes"
 NEWS_MENU_LABEL = "Notícias"
@@ -92,12 +103,6 @@ _CONTEXT_RE = re.compile(r'var nomeTurma\s*=\s*"(.*?)";')
 _CONTEXT_CLASSROOM_RE = re.compile(
     r"Turma:\s*(?P<code>\w+).*\((?P<semester>\d{4}\.\d)\s*-\s*T?(?P<number>[\w-]+)\)"
 )
-# Telas de relatório não têm o menu: `<h3>FGA0133 - NOME (60h) - Turma: 01 (2026.1)</h3>`.
-_REPORT_CONTEXT_RE = re.compile(
-    r"<h3>\s*(?P<code>\w+) - .*Turma:\s*(?P<number>[\w-]+)\s*"
-    r"\((?P<semester>\d{4}\.\d)\)\s*</h3>"
-)
-_GRADES_NOT_LAUNCHED_RE = re.compile(r"ainda não foram lançadas notas", re.IGNORECASE)
 _NO_GRADE = ("", "-", "--")
 _NUMBER_RE = re.compile(r"(\d+)")
 _COUNTS_RE = re.compile(r"(\d+)\s*/\s*(\d+)")
@@ -140,10 +145,14 @@ class Classrooms:
         page = await self._read_screen(classroom_id, _open_frequency)
         return _parse_frequency(BeautifulSoup(page, "lxml"))
 
-    async def get_classroom_grade(self, classroom_id: str) -> Grade | None:
-        """A menção do usuário na turma; `None` enquanto não há resultado lançado."""
-        page = await self._read_screen(classroom_id, _open_grades)
-        return _parse_grade(BeautifulSoup(page, "lxml"))
+    async def list_grades(self) -> list[ClassroomGrade]:
+        """Todas as menções de todos os semestres, num único relatório."""
+        # O relogin invalida o ViewState do postback: relê o portal uma vez.
+        try:
+            page = await _open_grades(self._session, allow_renewal=True)
+        except SessionRenewed:
+            page = await _open_grades(self._session, allow_renewal=False)
+        return _parse_grades(BeautifulSoup(page, "lxml"))
 
     async def get_classroom_statistics(
         self, classroom_id: str
@@ -235,7 +244,13 @@ async def _open_frequency(session: Session, allow_renewal: bool) -> str:
 
 
 async def _open_grades(session: Session, allow_renewal: bool) -> str:
-    return await _open_menu(session, GRADES_MENU_LABEL, allow_renewal)
+    page = await session.get(DASHBOARD_PATH, allow_renewal=allow_renewal)
+    form = read_form(BeautifulSoup(page.text, "lxml"), GRADES_FORM_ID)
+    # Falha antes do postback: sem ViewState, o SIGAA devolveria outra tela.
+    read_viewstate(form)
+    action, payload = build_menu_action(form, GRADES_MENU_ACTION)
+    response = await session.post(action, data=payload, allow_renewal=allow_renewal)
+    return response.text
 
 
 async def _open_statistics(session: Session, allow_renewal: bool) -> str:
@@ -468,27 +483,51 @@ def _total(totals: Tag, label: str) -> int:
     raise SigaaParseError(f"`{label}` não encontrado no mapa de frequências.")
 
 
-def _parse_grade(soup: BeautifulSoup) -> Grade | None:
-    errors = soup.find(id="painel-erros")
-    if isinstance(errors, Tag) and _GRADES_NOT_LAUNCHED_RE.search(clean_text(errors)):
-        return None
+def _parse_grades(soup: BeautifulSoup) -> list[ClassroomGrade]:
+    title = soup.find(
+        lambda tag: tag.name == "h3" and clean_text(tag) == GRADES_REPORT_TITLE
+    )
+    if title is None:
+        raise SigaaParseError("Título do relatório de notas não encontrado.")
 
-    table = soup.find("table", class_="tabelaRelatorio")
-    header = table.find("tr") if isinstance(table, Tag) else None
-    row = table.select_one("tbody tr") if isinstance(table, Tag) else None
-    if not (isinstance(header, Tag) and isinstance(row, Tag)):
-        raise SigaaParseError("Tabela de notas não encontrada na turma.")
+    grades: list[ClassroomGrade] = []
+    seen: set[tuple[str, str]] = set()
+    for table in soup.select("table.tabelaRelatorio"):
+        caption = table.find("caption")
+        semester = clean_text(caption) if caption else ""
+        if not _SEMESTER_RE.fullmatch(semester):
+            raise SigaaParseError("Semestre ausente ou inválido no relatório de notas.")
+        header = table.find("tr")
+        labels = [clean_text(cell) for cell in header.find_all("th")] if header else []
+        if labels[:2] != ["Código", "Disciplina"] or GRADES_RESULT_LABEL not in labels:
+            raise SigaaParseError(
+                "Colunas de código, disciplina ou resultado ausentes nas notas."
+            )
+        # O SIGAA omite células de avaliações não lançadas: contar o resultado do fim.
+        from_end = len(labels) - labels.index(GRADES_RESULT_LABEL)
+        for row in table.select("tbody tr"):
+            cells = row.find_all("td", recursive=False)
+            if len(cells) < 2 + from_end:
+                raise SigaaParseError(
+                    f"Linha de notas incompleta no semestre `{semester}`."
+                )
+            code = clean_text(cells[0])
+            if not code or (code, semester) in seen:
+                raise SigaaParseError(
+                    f"Código ausente ou duplicado nas notas de `{semester}`."
+                )
+            seen.add((code, semester))
+            grades.append(
+                ClassroomGrade(
+                    subject_code=code,
+                    semester=semester,
+                    grade=_grade(clean_text(cells[-from_end])),
+                )
+            )
+    return grades
 
-    # As unidades podem ocupar várias colunas: o resultado é contado do fim.
-    labels = [clean_text(cell) for cell in header.find_all("th")]
-    cells = row.find_all("td")
-    if GRADES_RESULT_LABEL not in labels:
-        raise SigaaParseError(f"Coluna `{GRADES_RESULT_LABEL}` ausente nas notas.")
-    from_end = len(labels) - labels.index(GRADES_RESULT_LABEL)
-    if len(cells) < from_end:
-        raise SigaaParseError("Linha de notas com menos colunas que o cabeçalho.")
 
-    value = clean_text(cells[-from_end])
+def _grade(value: str) -> Grade | None:
     if value in _NO_GRADE:
         return None
     try:
@@ -515,13 +554,9 @@ def _assert_context(page: str, expected: Classroom) -> None:
 
 
 def _current_classroom(page: str) -> re.Match[str]:
-    """O `nomeTurma` das telas com menu ou, nos relatórios, o título."""
     match = _CONTEXT_RE.search(page)
     if match is None:
-        report = _REPORT_CONTEXT_RE.search(page)
-        if report is None:
-            raise SigaaParseError("Página da turma não declara a turma atual.")
-        return report
+        raise SigaaParseError("Página da turma não declara a turma atual.")
 
     current = _CONTEXT_CLASSROOM_RE.search(match.group(1))
     if current is None:

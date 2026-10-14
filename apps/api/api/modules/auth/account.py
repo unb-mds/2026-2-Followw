@@ -8,8 +8,10 @@ from api.db.models import OwnLink, User
 from api.modules.classrooms.repository import ClassroomRepository
 from api.modules.classrooms.service import (
     classrooms_freshness,
+    grade_freshness,
     stale_classroom_tasks,
     sync_classrooms,
+    sync_grades,
 )
 from api.modules.me.profile import profile_freshness, sync_profile
 from api.modules.me.repository import UserRepository
@@ -30,13 +32,17 @@ async def start_account(
         lambda session: UserRepository(session).register(connection.registration)
     )
     user, links = await db.read(partial(_account, connection.registration))
-    if _stale_account_tasks(user) or any(stale_classroom_tasks(l) for l in links):
+    if (
+        _stale_account_tasks(user)
+        or _stale_grades(links)
+        or any(stale_classroom_tasks(l) for l in links)
+    ):
         job = Job(credentials=connection.credentials, steps=(Step.of(sync_account),))
         await queue.enqueue(job)
 
 
 async def sync_account(ctx: Context[None]) -> None:
-    """O sync do login: perfil, turmas e um job por turma com as telas vencidas."""
+    """Perfil, turmas e menções na sessão principal; detalhes em jobs por turma."""
     account = partial(_account, ctx.sync.registration)
     user, _ = await ctx.sync.db.read(account)
     for task in _stale_account_tasks(user):
@@ -46,6 +52,8 @@ async def sync_account(ctx: Context[None]) -> None:
     for link in links:
         for task in stale_classroom_tasks(link):
             ctx.sync.schedule(task, link)
+    if _stale_grades(links):
+        await run_task(sync_grades, ctx)
 
 
 async def _account(
@@ -55,6 +63,13 @@ async def _account(
     if user is None:
         return None, []
     return user, await ClassroomRepository(session).list_by_user_id(user.id)
+
+
+def _stale_grades(links: list[OwnLink]) -> bool:
+    return any(
+        grade_freshness(link, link.row.grade_synced_at) is Freshness.STALE
+        for link in links
+    )
 
 
 def _stale_account_tasks(user: User | None) -> list[Task[None]]:

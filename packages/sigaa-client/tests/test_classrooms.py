@@ -9,15 +9,17 @@ from PIL import Image
 
 from sigaa_client import (
     AttendanceStatus,
+    ClassroomGrade,
     ClassroomNotFound,
     ClassroomProgress,
     ClassroomRole,
     Grade,
     NewsNotFound,
+    SessionExpired,
+    SigaaClient,
     StudentSituation,
 )
 from sigaa_client.config import (
-    CLASSROOM_HOME_PATH,
     CLASSROOMS_PATH,
     DASHBOARD_PATH,
     PARTICIPANTS_PATH,
@@ -34,12 +36,11 @@ from sigaa_client.private.classrooms import (
     _merge,
     _news_fieldset,
     _open_frequency,
-    _open_grades,
     _open_news_detail,
     _open_statistics,
     _parse_dashboard,
     _parse_frequency,
-    _parse_grade,
+    _parse_grades,
     _parse_history,
     _parse_members,
     _parse_news_detail,
@@ -47,6 +48,8 @@ from sigaa_client.private.classrooms import (
     _parse_statistics,
 )
 from sigaa_client.private.session import Session
+
+from .test_auth import CREDENTIALS, FakeSigaa
 
 HISTORY = """
 <html><body><table class="listagem">
@@ -270,8 +273,6 @@ CLASSROOM_HOME = """
   <a href="#" onclick="jsfcljs(document.getElementById('formMenu'),
     {'formMenu:j_id_jsp_142':'formMenu:j_id_jsp_142'},'');">Situação dos Discentes</a>
   <a href="#" onclick="jsfcljs(document.getElementById('formMenu'),
-    {'formMenu:j_id_jsp_121':'formMenu:j_id_jsp_121'},'');">Ver Notas</a>
-  <a href="#" onclick="jsfcljs(document.getElementById('formMenu'),
     {'formMenu:j_id_jsp_88':'formMenu:j_id_jsp_88'},'');">
     <div class="itemMenu">Notícias</div></a>
   <input name="javax.faces.ViewState" type="hidden" value="j_id6"/>
@@ -478,40 +479,66 @@ def test_contexto_confere_codigo_numero_e_semestre():
 
 GRADES = """
 <html><body><div id="relatorio">
-<h3>FGA0146 - ESTRUTURAS DE DADOS 1 (60h) - Turma: 01 (2026.2)</h3>
-<div class="notas"><table class="tabelaRelatorio" width="100%">
-<caption>Discentes Matriculados(as)</caption>
+<h3>Relatório de Notas do(a) Aluno(a)</h3>
+<table class="tabelaRelatorio">
+<caption>2026.2</caption>
 <thead><tr>
-  <th>Matrícula</th><th>Nome</th>
-  <th style="text-align: right" colspan="1">Nota 1</th>
-  <th>Resultado</th><th>Faltas</th><th>Sit.</th>
+  <th>Código</th><th>Disciplina</th><th>Nota 1</th>
+  <th>Resultado</th><th>Faltas</th><th>Situação</th>
 </tr></thead>
-<tbody><tr class="linhaPar">
-  <td nowrap="nowrap">251000000 </td><td nowrap="nowrap">NOME DISCENTE</td>
-  <td>
-      MM
-  </td>
-  <td>
-    MS
-  </td>
-  <td>0</td><td>APR</td>
-</tr></tbody>
-</table></div>
+<tbody>
+  <tr class="linhaPar linha">
+    <td>FGA0146</td><td>ESTRUTURAS DE DADOS 1</td>
+    <td>MM</td><td>MS</td><td>0</td><td>APROVADO(A)</td>
+  </tr>
+  <tr class="linhaImpar linha">
+    <td>FGA0158</td><td>ORIENTAÇÃO A OBJETOS</td>
+    <td>--</td><td>0</td><td>--</td>
+  </tr>
+</tbody>
+</table>
+<table class="tabelaRelatorio">
+<caption>2025.2</caption>
+<thead><tr>
+  <th>Código</th><th>Disciplina</th><th>Nota 1</th>
+  <th>Resultado</th><th>Faltas</th><th>Situação</th>
+</tr></thead>
+<tbody><tr class="linhaPar linha">
+  <td>FGA0146</td><td>ESTRUTURAS DE DADOS 1</td>
+  <td>MI</td><td>MI</td><td>0</td><td>REPROVADO(A)</td>
+</tr></tbody></table>
 </div></body></html>
 """
 
-GRADES_NOT_LAUNCHED = (
-    CONTEXT
-    + """
-<div id="painel-erros"><ul class="warning">
-  <li>Ainda n&#227;o foram lan&#231;adas notas.</li>
-</ul></div>
+GRADES_MENU = """
+<form id="menu:form_menu_discente" name="menu:form_menu_discente"
+      action="/sigaa/portais/discente/discente.jsf">
+  <input type="hidden" name="menu:form_menu_discente" value="menu:form_menu_discente"/>
+  <input type="hidden" name="id" value="123456"/>
+  <input type="hidden" name="jscook_action" value=""/>
+  <input type="hidden" name="javax.faces.ViewState" value="j_id2"/>
+</form>
 """
+
+
+@pytest.mark.parametrize(
+    "page", ["<html></html>", GRADES_MENU.replace("javax.faces.ViewState", "ausente")]
 )
+async def test_notas_acusam_menu_ou_viewstate_ausente_antes_do_postback(page):
+    session = FakeSession(page, GRADES)
+
+    with pytest.raises(SigaaParseError):
+        await Classrooms(session).list_grades()  # type: ignore[arg-type]
+
+    assert session.payload == {}
 
 
-def test_notas_trazem_a_mencao_do_resultado():
-    assert _parse_grade(BeautifulSoup(GRADES, "lxml")) == Grade.MS
+def test_notas_trazem_todos_os_semestres_e_mencoes_do_resultado():
+    assert _parse_grades(BeautifulSoup(GRADES, "lxml")) == [
+        ClassroomGrade(subject_code="FGA0146", semester="2026.2", grade=Grade.MS),
+        ClassroomGrade(subject_code="FGA0158", semester="2026.2"),
+        ClassroomGrade(subject_code="FGA0146", semester="2025.2", grade=Grade.MI),
+    ]
 
 
 def test_mencao_diz_se_o_aluno_foi_aprovado():
@@ -523,16 +550,26 @@ def test_mencao_diz_se_o_aluno_foi_aprovado():
 
 
 def test_unidade_com_varias_avaliacoes_nao_desloca_o_resultado():
-    pagina = GRADES.replace('colspan="1">Nota 1', 'colspan="2">Nota 1').replace(
-        "NOME DISCENTE</td>", "NOME DISCENTE</td><td>8.0</td>"
+    pagina = GRADES.replace("<th>Nota 1", '<th colspan="2">Nota 1').replace(
+        "<td>MM</td>", "<td>8.0</td><td>MM</td>"
     )
 
-    assert _parse_grade(BeautifulSoup(pagina, "lxml")) == Grade.MS
+    assert _parse_grades(BeautifulSoup(pagina, "lxml"))[0].grade == Grade.MS
 
 
-@pytest.mark.parametrize("pagina", [GRADES_NOT_LAUNCHED, GRADES.replace("MS", "--")])
-def test_notas_sem_resultado_vem_none(pagina):
-    assert _parse_grade(BeautifulSoup(pagina, "lxml")) is None
+@pytest.mark.parametrize("resultado", ["", "-", "--"])
+def test_notas_sem_resultado_vem_none(resultado):
+    pagina = GRADES.replace("<td>MS</td>", f"<td>{resultado}</td>")
+    assert _parse_grades(BeautifulSoup(pagina, "lxml"))[0].grade is None
+
+
+def test_relatorio_sem_disciplinas_retorna_lista_vazia():
+    assert (
+        _parse_grades(
+            BeautifulSoup("<h3>Relatório de Notas do(a) Aluno(a)</h3>", "lxml")
+        )
+        == []
+    )
 
 
 @pytest.mark.parametrize(
@@ -540,59 +577,77 @@ def test_notas_sem_resultado_vem_none(pagina):
     [
         GRADES.replace("MS", "XX"),
         GRADES.replace("Resultado", "Média"),
+        GRADES.replace("Código", "ID"),
+        GRADES.replace("2026.2", "2026-2"),
+        GRADES.replace("<td>MM</td><td>MS</td><td>0</td>", ""),
+        GRADES.replace("FGA0158", "FGA0146"),
+        GRADES.replace("<td>FGA0158</td>", "<td></td>"),
         "<html><body><div id='painel-erros'>Outro aviso</div></body></html>",
     ],
 )
 def test_notas_fora_do_formato_sao_barulhentas(pagina):
     with pytest.raises(SigaaParseError):
-        _parse_grade(BeautifulSoup(pagina, "lxml"))
+        _parse_grades(BeautifulSoup(pagina, "lxml"))
 
 
-def test_contexto_do_relatorio_vem_do_titulo():
-    turma = _parse_history(HISTORY)["AAA"]
+class GradesSigaa:
+    """Simula o CAS e expira a sessão entre o portal e o postback de notas."""
 
-    _assert_context(GRADES, turma)
+    def __init__(self, *, expire: bool = False, always_expire: bool = False) -> None:
+        self.auth = FakeSigaa()
+        self.auth.valid_tokens.add("vivo")
+        self.expire = expire
+        self.always_expire = always_expire
+        self.gets = 0
+        self.payloads: list[dict[str, str]] = []
 
-    with pytest.raises(SigaaParseError):
-        _assert_context(GRADES.replace("Turma: 01", "Turma: 02"), turma)
-
-
-class MenuSession(SharedSession):
-    """Entra na turma e devolve, a cada postback do menu, a próxima tela."""
-
-    async def get(self, url: str, **_: object) -> httpx.Response:
-        if url == CLASSROOMS_PATH:
-            return httpx.Response(200, text=self.history)
-        return httpx.Response(200, text=CLASSROOM_HOME)
-
-    async def post(self, url: str, **_: object) -> httpx.Response:
-        if url == f"{SIGAA_BASE_URL}{CLASSROOM_HOME_PATH}":
-            return httpx.Response(200, text=self.screens.pop(0))
-        self.entries += 1
-        return httpx.Response(200, text="")
-
-
-async def test_nota_abre_pelo_menu_e_reabre_a_turma_trocada():
-    outra = GRADES.replace("FGA0146 - ESTRUTURAS", "FGA0158 - ORIENTAÇÃO")
-    session = MenuSession(outra, GRADES)
-
-    nota = await Classrooms(session).get_classroom_grade("AAA")  # type: ignore[arg-type]
-
-    assert nota == Grade.MS
-    assert session.entries == 2
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        if request.url.path != DASHBOARD_PATH:
+            return self.auth(request)
+        if request.method == "GET":
+            self.gets += 1
+            return httpx.Response(
+                200, text=GRADES_MENU.replace("j_id2", f"j_id{self.gets}")
+            )
+        self.payloads.append(dict(httpx.QueryParams(request.content.decode())))
+        if self.expire:
+            self.expire = self.always_expire
+            self.auth.valid_tokens.clear()
+            return httpx.Response(302, headers={"location": "/sigaa/verTelaLogin.do"})
+        return httpx.Response(200, text=GRADES)
 
 
-async def test_nota_nao_lancada_confere_a_turma_pelo_menu():
-    session = MenuSession(GRADES_NOT_LAUNCHED)
+@pytest.mark.parametrize("expire", [False, True])
+async def test_notas_abrem_pelo_menu_e_refazem_postback_depois_de_relogin(expire):
+    sigaa = GradesSigaa(expire=expire)
+    async with SigaaClient(
+        CREDENTIALS, session_token="vivo", transport=httpx.MockTransport(sigaa)
+    ) as client:
+        grades = await client.classrooms.list_grades()
 
-    assert await Classrooms(session).get_classroom_grade("AAA") is None  # type: ignore[arg-type]
+    assert len(grades) == 3
+    assert len(sigaa.payloads) == 1 + expire
+    assert sigaa.auth.logins == int(expire)
+    for payload in sigaa.payloads:
+        assert payload["menu:form_menu_discente"] == "menu:form_menu_discente"
+        assert payload["id"] == "123456"
+        assert payload["jscook_action"] == (
+            "menu_form_menu_discente_discente_menu:A]#{ relatorioNotasAluno.gerarRelatorio }"
+        )
+    assert len({p["javax.faces.ViewState"] for p in sigaa.payloads}) == len(
+        sigaa.payloads
+    )
 
 
-async def test_notas_abrem_pelo_postback_do_menu():
-    session = FakeSession(CLASSROOM_HOME, GRADES)
-
-    assert await _open_grades(session, True) == GRADES  # type: ignore[arg-type]
-    assert session.payload["formMenu:j_id_jsp_121"] == "formMenu:j_id_jsp_121"
+async def test_notas_nao_tentam_relogin_indefinidamente():
+    sigaa = GradesSigaa(expire=True, always_expire=True)
+    async with SigaaClient(
+        CREDENTIALS, session_token="vivo", transport=httpx.MockTransport(sigaa)
+    ) as client:
+        with pytest.raises(SessionExpired):
+            await client.classrooms.list_grades()
+    assert len(sigaa.payloads) == 2
+    assert sigaa.auth.logins == 1
 
 
 def test_estatisticas_casam_a_legenda_com_as_situacoes():

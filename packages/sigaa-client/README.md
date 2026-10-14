@@ -49,14 +49,13 @@ uma nova busca que exceda o limite faz o aviso reaparecer. O client preserva seu
 `client.restaurant.get_restaurant_statement()` retorna saldo, extrato e grupo (1 a 4), com saldo e
 grupo ausentes representados por `None`.
 
+`client.classrooms.list_grades()` retorna todas as menções de "Ensino > Consultar Minhas Notas"
+num único relatório. Cada `ClassroomGrade` traz `subject_code`, `semester` e a menção (`Grade`)
+do "Resultado", ou `None` enquanto não houver nota lançada.
 `client.documents.get_student_card_pdf()` retorna os bytes do PDF original da carteirinha
 estudantil. `client.restaurant.get_restaurant_credentials()` usa esse mesmo download para extrair o token do QR code
 e a validade, sem persistir o arquivo.
-
 `client.documents.get_transcript_pdf()` baixa o PDF original do histórico acadêmico.
-
-`client.classrooms.get_classroom_grade(id)` retorna a menção (`Grade`) do "Resultado" da tela "Ver
-Notas", ou `None` enquanto não houver nota lançada.
 
 `SigaaPublicClient().classrooms.iter_subjects(unidade)` percorre os componentes de graduação
 ofertados por uma unidade e entrega cada um como `SubjectDetails`: o `Subject` com `prerequisites`,
