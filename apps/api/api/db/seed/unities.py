@@ -17,9 +17,9 @@ def read_unities(path: Path = UNITIES_CSV) -> list[Unity]:
             code=row["code"].strip().upper() or None,
             name=row["name"].strip(),
         ),
-        unique=("id", "code"),
+        unique=(("id",), ("code",)),
     )
 
 
 async def seed_unities(session: AsyncSession, path: Path = UNITIES_CSV) -> None:
-    await upsert(session, Unity, read_unities(path), "id", ("code", "name"))
+    await upsert(session, Unity, read_unities(path), ("id",), ("code", "name"))

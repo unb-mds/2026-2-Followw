@@ -27,6 +27,7 @@ from .models import (
     News,
     NewsAttachment,
     PublicClassroom,
+    PublicSubject,
     RestaurantCredentials,
     RestaurantStatement,
     RestaurantStatementEntry,
@@ -34,12 +35,18 @@ from .models import (
     StudentSituation,
     Subject,
     SubjectDetails,
+    SubjectLevel,
+    SubjectSearchMessage,
+    SubjectSearchResult,
+    SubjectType,
     Teacher,
     TeachingLevel,
     Unit,
     UserLevel,
     UserProfile,
 )
+from .public.units import resolve_unit
+from .utils.parsing import lookup_key
 
 __all__ = [
     "AttendanceEntry",
@@ -62,6 +69,7 @@ __all__ = [
     "NewsAttachment",
     "NewsNotFound",
     "PublicClassroom",
+    "PublicSubject",
     "RestaurantCredentials",
     "RestaurantStatement",
     "RestaurantStatementEntry",
@@ -76,9 +84,15 @@ __all__ = [
     "StudentSituation",
     "Subject",
     "SubjectDetails",
+    "SubjectLevel",
+    "SubjectSearchMessage",
+    "SubjectSearchResult",
+    "SubjectType",
     "Teacher",
     "TeachingLevel",
     "Unit",
     "UserLevel",
     "UserProfile",
+    "lookup_key",
+    "resolve_unit",
 ]

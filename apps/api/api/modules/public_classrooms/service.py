@@ -1,21 +1,12 @@
-import unicodedata
-from collections.abc import AsyncGenerator
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
-from sigaa_client import PublicClassroom, SigaaPublicClient, SigaaSearchError, Unit
+from sigaa_client import PublicClassroom, SigaaSearchError, Unit, lookup_key
 
 from api.db.main import DatabaseDep
 from api.modules.public_classrooms.code import classroom_code_prefix
 from api.modules.public_classrooms.repository import UnitIndexRepository
-
-
-async def get_sigaa_public_client() -> AsyncGenerator[SigaaPublicClient]:
-    async with SigaaPublicClient() as client:
-        yield client
-
-
-SigaaPublicClientDep = Annotated[SigaaPublicClient, Depends(get_sigaa_public_client)]
+from api.sigaa import SigaaPublicClientDep
 
 
 class PublicClassroomService:
@@ -106,13 +97,13 @@ class PublicClassroomService:
                 for classroom in classrooms
                 if classroom.number.strip().lstrip("0") == str(number)
             ]
-        needle = _normalize_search(contains or "")
+        needle = lookup_key(contains or "")
         if needle:
             classrooms = [
                 classroom
                 for classroom in classrooms
                 if any(
-                    needle in _normalize_search(value)
+                    needle in lookup_key(value)
                     for value in (
                         classroom.subject.name,
                         classroom.subject.code or "",
@@ -120,14 +111,14 @@ class PublicClassroomService:
                     )
                 )
             ]
-        location = _normalize_search(local or "")
+        location = lookup_key(local or "")
         if not location:
             return classrooms
         return [
             classroom
             for classroom in classrooms
             if location
-            in _normalize_search(
+            in lookup_key(
                 " - ".join(
                     part for part in (classroom.subject.unity, classroom.room) if part
                 )
@@ -136,13 +127,6 @@ class PublicClassroomService:
 
     async def list_units(self, contains: str | None = None) -> list[Unit]:
         return await self._client.classrooms.list_units(contains)
-
-
-def _normalize_search(value: str) -> str:
-    normalized = unicodedata.normalize("NFKD", value.casefold())
-    return " ".join(
-        "".join(char for char in normalized if not unicodedata.combining(char)).split()
-    )
 
 
 PublicClassroomServiceDep = Annotated[PublicClassroomService, Depends()]

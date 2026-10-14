@@ -32,6 +32,7 @@ QSTASH_SIGNING_KEY = "sig_atual_de_teste_com_32_bytes_ou_mais"
 # O `Settings` é instanciado no import de `api.core.config`, então as variáveis
 # precisam existir antes de qualquer teste importar a app.
 os.environ["ENVIRONMENT"] = "testing"
+os.environ["CORS_ORIGINS"] = '["https://followw.app"]'
 os.environ["DATABASE_URL"] = (
     "postgresql+asyncpg://postgres:postgres@localhost:5432/followw_test"
 )
