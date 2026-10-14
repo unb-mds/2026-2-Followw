@@ -1,15 +1,16 @@
 # Followw UnB
 
-O Followw é um client alternativo e open-source para o SIGAA da UnB. Ele reúne
-numa experiência só as informações que hoje ficam espalhadas em sistemas
-diferentes (SIGAA, RU, calendário, etc.), com cache para deixar tudo mais
-rápido do que no SIGAA.
+O Followw é um client alternativo e open-source para o SIGAA da UnB. Ele reúne numa experiência só
+as informações que hoje ficam espalhadas em sistemas diferentes (SIGAA, RU, calendário, etc.), com
+cache para deixar tudo mais rápido do que no SIGAA.
 
-Não existe conta própria: o login é feito com a matrícula e senha do SIGAA,
-pelo CAS da UnB. Suas credenciais ficam sempre no seu navegador e nunca são
-guardadas no nosso servidor.
+Não existe conta própria: o login é feito com a matrícula e senha do SIGAA, pelo CAS da UnB. Suas
+credenciais ficam sempre no seu navegador e nunca são guardadas no nosso servidor.
 
-> O Followw UnB é um projeto independente, sem qualquer vínculo oficial com a UnB ou com o SIGAA. Parte do trabalho envolve o estudo do comportamento de sistemas legados e não documentados oficialmente, com fins educacionais e de melhoria da experiência dos próprios alunos que optarem por usar o projeto. O uso do Followw UnB é de responsabilidade de cada usuário.
+> O Followw UnB é um projeto independente, sem qualquer vínculo oficial com a UnB ou com o SIGAA.
+> Parte do trabalho envolve o estudo do comportamento de sistemas legados e não documentados
+> oficialmente, com fins educacionais e de melhoria da experiência dos próprios alunos que optarem
+> por usar o projeto. O uso do Followw UnB é de responsabilidade de cada usuário.
 
 ## Estrutura
 
@@ -52,18 +53,17 @@ A documentação interativa fica em `http://localhost:8000/docs`.
 
 Recursos públicos, consultáveis sem login, usam o prefixo `/public`:
 
-- `GET /public/restaurant`: cardápio do RU, com os filtros `campus`, `date`,
-  `start_date`, `end_date`, `meal` e `refresh`. Substitui `/restaurant/menu`,
-  preservando o comportamento do cache.
-- `GET /public/classrooms`: busca pública de turmas por unidade, semestre,
-  código (`code`), número da turma (`number`), disciplina/professor (`contains`) e local.
+- `GET /public/restaurant`: cardápio do RU, com os filtros `campus`, `date`, `start_date`,
+  `end_date`, `meal` e `refresh`. Substitui `/restaurant/menu`, preservando o comportamento do
+  cache.
+- `GET /public/classrooms`: busca pública de turmas por unidade, semestre, código (`code`), número
+  da turma (`number`), disciplina/professor (`contains`) e local.
 - `GET /public/classrooms/units`: unidades disponíveis na busca pública.
 
-Extrato/saldo e token exigem autenticação e ficam em `GET /me/ru-statement`
-e `GET /me/ru-token`, substituindo `/restaurant/statement` e `/restaurant/token`.
-`/classrooms` lista somente turmas do usuário
-autenticado, sem lógica de busca pública. Rotas de autenticação, documentação
-e callbacks mantêm seus caminhos próprios.
+Extrato/saldo e token exigem autenticação e ficam em `GET /me/ru-statement` e `GET /me/ru-token`,
+substituindo `/restaurant/statement` e `/restaurant/token`. `/classrooms` lista somente turmas do
+usuário autenticado, sem lógica de busca pública. Rotas de autenticação, documentação e callbacks
+mantêm seus caminhos próprios.
 
 Na documentação, a categoria **Public** reúne **Classrooms** e **Restaurant**.
 
@@ -77,8 +77,7 @@ bun install
 bun dev                           # sobe o front em http://localhost:3000
 ```
 
-O front acessa a API em `/api` da mesma origem: no dev, o Vite repassa para
-`http://localhost:8000`.
+O front acessa a API em `/api` da mesma origem: no dev, o Vite repassa para `http://localhost:8000`.
 
 ### Testes e lint
 

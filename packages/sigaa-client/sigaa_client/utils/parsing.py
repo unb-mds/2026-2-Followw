@@ -13,6 +13,7 @@ from ..exceptions import SigaaParseError
 from ..models import CourseShift
 
 _DATE_RANGE_RE = re.compile(r"\s*\([^)]*\)\s*")
+_HOURS_RE = re.compile(r"(\d+)\s*h", re.IGNORECASE)
 _TRAILING_SPACES_RE = re.compile(r"[ \t]+$", re.MULTILINE)
 _BLANK_LINES_RE = re.compile(r"\n{3,}")
 # O texto é escrito pelo docente: `javascript:` e afins não podem virar link.
@@ -68,16 +69,24 @@ def schedule_code(value: str) -> str | None:
     return _DATE_RANGE_RE.sub(" ", value).strip() or None
 
 
+def parse_hours(value: str) -> int | None:
+    """`60h` -> `60`; outro formato vira `None`."""
+    match = _HOURS_RE.fullmatch(value.strip())
+    return int(match[1]) if match else None
+
+
 def lookup_key(value: str) -> str:
-    """Chave de lookup, sem acento e em minúscula."""
-    normalized = unicodedata.normalize("NFKD", value.strip().lower())
-    return "".join(c for c in normalized if not unicodedata.combining(c))
+    """Chave de lookup, sem acento, em minúscula e com espaços colapsados."""
+    normalized = unicodedata.normalize("NFKD", value.casefold())
+    return " ".join(
+        "".join(c for c in normalized if not unicodedata.combining(c)).split()
+    )
 
 
 def parse_datetime(value: str, fmt: str, where: str) -> datetime:
     """O SIGAA não expõe timezone; a data é sempre a do calendário da UnB."""
     try:
-        return datetime.strptime(value, fmt)  # noqa: DTZ007
+        return datetime.strptime(value, fmt)
     except ValueError as error:
         raise SigaaParseError(
             f"Data `{value}` {where} em formato inesperado."

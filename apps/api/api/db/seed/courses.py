@@ -18,12 +18,16 @@ def read_courses(path: Path = COURSES_CSV) -> list[Course]:
             shift=row["shift"].strip() or None,
             name=row["name"].strip(),
         ),
-        unique=("sigaa_id",),
+        unique=(("sigaa_id",),),
     )
 
 
 async def seed_courses(session: AsyncSession, path: Path = COURSES_CSV) -> None:
     """As unidades precisam estar gravadas."""
     await upsert(
-        session, Course, read_courses(path), "sigaa_id", ("unity_id", "shift", "name")
+        session,
+        Course,
+        read_courses(path),
+        ("sigaa_id",),
+        ("unity_id", "shift", "name"),
     )

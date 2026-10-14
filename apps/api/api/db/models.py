@@ -117,6 +117,10 @@ class Classroom(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     semester: Mapped[str] = mapped_column()
     schedule: Mapped[str | None] = mapped_column()
     room: Mapped[str | None] = mapped_column()
+    # Docentes, vagas e ocupação vêm da busca pública, pelo seed.
+    professors: Mapped[list[str]] = mapped_column(JSON, default=list)
+    vacancies: Mapped[int | None] = mapped_column()
+    occupied: Mapped[int | None] = mapped_column()
     subject_code: Mapped[str] = mapped_column(ForeignKey("subjects.code"))
     members_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     news_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -52,16 +52,16 @@ tests/                # um arquivo por módulo
 - **Modelos.** Toda tabela herda `Base, UUIDPrimaryKeyMixin, TimestampMixin`, salvo as de chave
   natural (como `subjects`, pelo código, e `unities`, pelo id do SIGAA); enums do banco são
   `str, enum.Enum` com `values_callable` para gravar o `.value`. Não há migrations: `db-init` só
-  cria as tabelas e os índices que faltam, alterar coluna exige recriar o banco. Ele também
-  semeia `unities`, `courses` e `subjects` pelos CSVs de
-  `packages/sigaa-client/data/` (`db/seed`).
-  `subjects` aponta para a unidade por `unity_id` e `users` para o curso por `course_id` (o curso
-  aponta para a unidade), achados pelo código da unidade e pelo nome do curso (`course_ids`).
-  Nome que casa com mais de um curso (diurno e noturno) fica com o turno do perfil (`shift`, lido
-  do fim da linha do curso: `N` é noturno) ou, sem ele, com o diurno. Unidade fora da tabela deixa
-  o campo nulo; curso que falta é criado no sync. O sync não
-  troca a `unity_id` que o seed deu ao componente, e a busca pública por `code` descobre as
-  unidades pelo prefixo dos componentes gravados (`public_classrooms/repository.py`).
+  cria as tabelas e os índices que faltam, alterar coluna exige recriar o banco. Ele também semeia
+  `unities`, `courses`, `subjects` e `classrooms` pelos CSVs de `packages/sigaa-client/data/`
+  (`db/seed`); das turmas já gravadas o seed só atualiza docentes e vagas. `subjects` aponta para a
+  unidade por `unity_id` e `users` para o curso por `course_id` (o curso aponta para a unidade),
+  achados pelo código da unidade e pelo nome do curso (`course_ids`). Nome que casa com mais de um
+  curso (diurno e noturno) fica com o turno do perfil (`shift`, lido do fim da linha do curso: `N` é
+  noturno) ou, sem ele, com o diurno. Unidade fora da tabela deixa o campo nulo; curso que falta é
+  criado no sync. O sync não troca a `unity_id` que o seed deu ao componente, e a busca pública por
+  `code` descobre as unidades pelo prefixo dos componentes gravados
+  (`public_classrooms/repository.py`).
 - **Settings** é instanciado no import: env de teste precisa ser setada antes do primeiro import de
   `api.core.config` (veja `tests/conftest.py`).
 

@@ -4,7 +4,7 @@ from typing import Annotated
 
 import httpx
 from fastapi import Depends, HTTPException, Request, Response, status
-from sigaa_client import Credentials, SigaaClient, SigaaError
+from sigaa_client import Credentials, SigaaClient, SigaaError, SigaaPublicClient
 
 from api.cookies import (
     read_access_cookie,
@@ -106,3 +106,11 @@ async def get_sigaa_client(connection: SigaaConnectionDep) -> SigaaClient:
 
 
 SigaaClientDep = Annotated[SigaaClient, Depends(get_sigaa_client)]
+
+
+async def get_sigaa_public_client() -> AsyncGenerator[SigaaPublicClient]:
+    async with SigaaPublicClient() as client:
+        yield client
+
+
+SigaaPublicClientDep = Annotated[SigaaPublicClient, Depends(get_sigaa_public_client)]

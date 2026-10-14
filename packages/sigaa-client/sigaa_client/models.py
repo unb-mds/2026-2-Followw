@@ -306,6 +306,50 @@ class Unit(BaseModel):
     name: str
 
 
+SubjectLevel = Literal[
+    TeachingLevel.FORMACAO_COMPLEMENTAR,
+    TeachingLevel.GRADUACAO,
+    TeachingLevel.LATO_SENSU,
+    TeachingLevel.RESIDENCIA,
+    TeachingLevel.STRICTO_SENSU,
+]
+
+
+class SubjectType(str, enum.Enum):
+    DISCIPLINA = "DISCIPLINA"
+    ATIVIDADE = "ATIVIDADE"
+    BLOCO = "BLOCO"
+    MODULO = "MÓDULO"
+
+
+class PublicSubject(Subject):
+    sigaa_id: int
+    code: str
+    level: SubjectLevel
+    type: SubjectType
+
+
+class SubjectSearchMessage(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    code: Literal["result_limit_exceeded", "no_results"]
+    severity: Literal["warning", "info"]
+    text: str
+
+
+class SubjectSearchResult(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    items: tuple[PublicSubject, ...] = ()
+    messages: tuple[SubjectSearchMessage, ...] = ()
+    truncated: bool = False
+
+    @computed_field
+    @property
+    def returned_count(self) -> int:
+        return len(self.items)
+
+
 class Teacher(BaseModel):
     """Docente de uma turma. `hours` é a carga horária dele naquela turma."""
 

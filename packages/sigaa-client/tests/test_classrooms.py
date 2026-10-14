@@ -804,7 +804,7 @@ def test_visualizacao_traz_hora_texto_e_anexo():
     noticia = _parse_news_detail(BeautifulSoup(NEWS_DETAIL, "lxml"), 23433316)
 
     assert noticia.title == "Bem-vindos à disciplina"
-    assert noticia.published_at == datetime(2026, 8, 10, 15, 24)  # noqa: DTZ001
+    assert noticia.published_at == datetime(2026, 8, 10, 15, 24)
     assert noticia.published_on == date(2026, 8, 10)
     assert noticia.content == "Prezados(as) estudantes,"
     assert [(a.name, a.url) for a in noticia.attachments] == [

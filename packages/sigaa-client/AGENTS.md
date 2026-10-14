@@ -15,8 +15,8 @@ sigaa_client/
   private/          # resources que exigem login
   public/           # resources anônimos
 tests/
-scripts/            # coletas em lote do SIGAA público (collect_subjects.py)
-data/               # CSVs de referência (unities, courses, subjects), lidos pelo seed da api
+scripts/            # coletas em lote do SIGAA público (collect_subjects.py, collect_classrooms.py)
+data/               # CSVs de referência (unities, courses, subjects, classrooms), lidos pelo seed da api
 ```
 
 ## Padrões
@@ -40,9 +40,9 @@ data/               # CSVs de referência (unities, courses, subjects), lidos pe
 - **`ViewState` morre a cada postback.** Releia a página antes de cada um.
 - **O contexto vive na sessão, não na URL.** Telas da turma mostram a última turma aberta, e outro
   client na mesma sessão pode trocá-la; por isso passam por `_read_screen`, que confere o contexto e
-  reabre se preciso. Nem toda tela abre por GET: algumas só vêm pelo menu da turma. Cada login é
-  uma sessão independente (o logout de uma não derruba as outras): para ler turmas em paralelo,
-  use um client por sessão.
+  reabre se preciso. Nem toda tela abre por GET: algumas só vêm pelo menu da turma. Cada login é uma
+  sessão independente (o logout de uma não derruba as outras): para ler turmas em paralelo, use um
+  client por sessão.
 - **Sessão anônima precisa passar pela home pública** antes de o JSF aceitar a view (`PublicSession`
   cuida disso).
 - **HTML malformado** é comum: tags fecham no lugar errado, às vezes `find_next` é a única saída.

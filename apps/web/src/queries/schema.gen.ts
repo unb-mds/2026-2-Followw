@@ -252,6 +252,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/public/subjects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Buscar matérias com suas turmas
+         * @description Consulta os componentes e turmas gravados no Followw, sem ir ao SIGAA. Informe ao menos q, code ou unit; os filtros se combinam. Cada componente traz as turmas do semestre consultado, vazias se não houver oferta.
+         */
+        get: operations["search_subjects_public_subjects_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me": {
         parameters: {
             query?: never;
@@ -348,6 +368,22 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * CatalogSubject
+         * @description O componente com as turmas do semestre consultado.
+         */
+        CatalogSubject: {
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+            /** Hours */
+            hours?: number | null;
+            /** Unity */
+            unity?: string | null;
+            /** Classrooms */
+            classrooms: components["schemas"]["SubjectClassroom"][];
+        };
         /** ClassroomFrequencyResult */
         ClassroomFrequencyResult: {
             classroom: components["schemas"]["ParticipantClassroom"];
@@ -555,6 +591,21 @@ export interface components {
          * @description A turma com a menção do usuário, `None` enquanto não lançada ou sincronizada.
          */
         ParticipantClassroom: {
+            /**
+             * Professors
+             * @default []
+             */
+            professors: string[];
+            /**
+             * Vacancies
+             * @description Vagas na coleta do seed, não em tempo real.
+             */
+            vacancies?: number | null;
+            /**
+             * Occupied
+             * @description Ocupação na coleta do seed, não em tempo real.
+             */
+            occupied?: number | null;
             /** Id */
             id: string;
             /** Sigaa Id */
@@ -678,6 +729,34 @@ export interface components {
             hours?: number | null;
             /** Unity */
             unity?: string | null;
+        };
+        /** SubjectClassroom */
+        SubjectClassroom: {
+            /**
+             * Professors
+             * @default []
+             */
+            professors: string[];
+            /**
+             * Vacancies
+             * @description Vagas na coleta do seed, não em tempo real.
+             */
+            vacancies?: number | null;
+            /**
+             * Occupied
+             * @description Ocupação na coleta do seed, não em tempo real.
+             */
+            occupied?: number | null;
+            /** Sigaa Id */
+            sigaa_id?: number | null;
+            /** Number */
+            number: string;
+            /** Semester */
+            semester: string;
+            /** Schedule */
+            schedule?: string | null;
+            /** Room */
+            room?: string | null;
         };
         /**
          * Teacher
@@ -1369,7 +1448,7 @@ export interface operations {
                 contains?: string | null;
                 /** @description Trecho do local da turma, incluindo unidade e sala, como 'S3', 'FCTE - S3' ou 'auditorio'. Ignora acentos, maiúsculas e espaços extras; vazio não filtra. Com contains, exige correspondência nos dois filtros. */
                 local?: string | null;
-                /** @description Código completo da disciplina, como MAT0031 ou FGA0132. Ignora maiúsculas e espaços nas extremidades; preserva zeros. Sem unit, consulta todas as unidades mapeadas para o prefixo. Combina com semester, number, contains e local. */
+                /** @description Código completo da disciplina, como MAT0031 ou FGA0132. */
                 code?: string | null;
                 /** @description Número da turma, de 1 a 99. Aceita com ou sem zero à esquerda: '1' e '01' selecionam a mesma turma. Combina com os demais filtros; use code e semester para identificar a disciplina e o semestre. Sem correspondência, retorna lista vazia. */
                 number?: number | null;
@@ -1494,6 +1573,42 @@ export interface operations {
             };
             /** @description Site do RU indisponível ou cardápio ilegível. */
             502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    search_subjects_public_subjects_get: {
+        parameters: {
+            query?: {
+                /** @description Trecho do nome do componente, ignorando acentos, maiúsculas e espaços extras. */
+                q?: string | null;
+                /** @description Código completo do componente, como FGA0003. */
+                code?: string | null;
+                /** @description ID da unidade responsável ou parte não ambígua do nome, como 'gama'. */
+                unit?: string | null;
+                /** @description Semestre das turmas, no formato AAAA.P. Sem ele, usa o mais recente gravado. */
+                semester?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogSubject"][];
+                };
+            };
+            /** @description Nenhum filtro informado, filtro inválido, unidade inexistente ou nome de unidade ambíguo. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
