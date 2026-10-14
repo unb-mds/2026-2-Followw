@@ -10,15 +10,19 @@ import { cn } from '#/lib/shadcn';
 
 export interface ClassCardProps {
     title: string;
+    variant?: 'card' | 'row';
     code?: string;
     time: string;
     location?: string;
+    professors?: string[];
     classNumber?: string;
     grade?: Classroom['grade'];
     status?: 'in_progress' | 'next' | 'normal' | 'warning';
     statusText?: string;
     onLocationClick?: () => void;
     onClick?: () => void;
+    buttonRender?: React.ReactElement;
+    indicator?: React.ReactNode;
 }
 
 const STATUS = {
@@ -33,31 +37,44 @@ const STATUS = {
 
 export const ClassCard: React.FC<ClassCardProps> = ({
     title,
+    variant = 'card',
     code,
     time,
     location,
+    professors,
     classNumber,
     grade,
     status = 'normal',
     statusText,
     onLocationClick,
-    onClick
+    onClick,
+    buttonRender,
+    indicator
 }) => {
     const statusInfo = status === 'normal' ? undefined : STATUS[status];
     const active = status === 'in_progress';
-    const details = location;
+    const professorNames = professors?.join(', ');
+    const details = [location, professorNames].filter(Boolean).join(' · ');
 
     return (
         <Card
             size="sm"
-            className={cn('relative gap-1 px-3', active && 'bg-primary/5 ring-primary/30')}
+            className={cn(
+                'relative gap-1 px-3',
+                active && 'bg-primary/5 ring-primary/30',
+                variant === 'row' && 'rounded-none bg-transparent shadow-none ring-0'
+            )}
         >
-            {onClick && (
+            {(onClick || buttonRender) && (
                 <Button
                     variant="ghost"
                     onClick={onClick}
+                    render={buttonRender}
                     aria-label={title}
-                    className="absolute inset-0 h-full w-full rounded-2xl hover:bg-primary/5"
+                    className={cn(
+                        'absolute inset-0 h-full w-full rounded-2xl hover:bg-primary/5',
+                        variant === 'row' && 'rounded-none focus-visible:ring-inset'
+                    )}
                 />
             )}
             <div className="pointer-events-none relative flex items-center gap-2 text-xs">
@@ -79,16 +96,19 @@ export const ClassCard: React.FC<ClassCardProps> = ({
                     </span>
                 )}
             </div>
-            <h3 className="pointer-events-none relative line-clamp-2 text-sm leading-snug font-semibold">
-                {title}
-            </h3>
+            <div className="pointer-events-none relative flex items-center gap-2">
+                <h3 className="line-clamp-2 min-w-0 flex-1 text-sm leading-snug font-semibold">
+                    {title}
+                </h3>
+                {indicator}
+            </div>
             <div className="pointer-events-none relative flex items-center gap-1 text-xs text-muted-foreground">
                 {grade ? (
                     <Award className="size-3 shrink-0" />
                 ) : (
                     location && <MapPin className="size-3 shrink-0" />
                 )}
-                <span className="min-w-0 truncate">
+                <span className="min-w-0 truncate" title={professorNames ? details : undefined}>
                     {grade && <GradeText grade={grade} />}
                     {grade && details && ' · '}
                     {details}

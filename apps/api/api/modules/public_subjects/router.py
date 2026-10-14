@@ -43,7 +43,7 @@ async def search_subjects(
         Query(
             min_length=1,
             pattern=r"\S",
-            description="ID da unidade responsável ou parte não ambígua do nome, como 'gama'.",
+            description="ID ou código exato da unidade responsável, como 673 ou FCTE.",
         ),
     ] = None,
     semester: Annotated[

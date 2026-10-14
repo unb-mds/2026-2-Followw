@@ -2,7 +2,12 @@ import pytest
 from sqlalchemy import select
 
 from api.db.models import Subject, Unity
-from api.db.seed.subjects import SUBJECTS_CSV, read_subjects, seed_subjects
+from api.db.seed.subjects import (
+    SUBJECTS_CSV,
+    parse_requirements,
+    read_subjects,
+    seed_subjects,
+)
 from api.db.seed.unities import UNITIES_CSV, read_unities
 from api.modules.public_classrooms.repository import UnitIndexRepository
 
@@ -24,11 +29,38 @@ def test_csv_do_repositorio_aponta_para_unidades_que_existem():
 
     assert {s.unity_id for s in subjects} <= unities
     assert all(s.hours for s in subjects)
+    assert any(s.prerequisites for s in subjects)
+
+
+@pytest.mark.parametrize(
+    ("expression", "expected"),
+    [
+        ("", None),
+        ("( ( CIC0004 ) )", [["CIC0004"]]),
+        ("( ( X E Y ) OU ( Z ) )", [["X", "Y"], ["Z"]]),
+        ("( A E B E C )", [["A", "B", "C"]]),
+        (
+            "( ( A OU B ) E ( C OU D ) )",
+            [["A", "C"], ["A", "D"], ["B", "C"], ["B", "D"]],
+        ),
+        ("( A E B OU C )", [["A", "B"], ["C"]]),
+        ("( ( A ) OU ( A ) OU ( A E A ) )", [["A"]]),
+    ],
+)
+def test_requisitos_viram_ou_de_es(expression, expected):
+    assert parse_requirements(expression) == expected
+
+
+@pytest.mark.parametrize("expression", ["( A", "( A ) )", "( A E )", "( OU A )", "A B"])
+def test_requisito_malformado_e_barulhento(expression):
+    with pytest.raises(ValueError, match="malformado"):
+        parse_requirements(expression)
 
 
 def test_campos_vazios_ficam_nulos_e_codigo_repetido_e_barulhento(tmp_path):
-    (subject,) = read_subjects(_csv(tmp_path, 'A1,NOME,,,"( ( X ) )",,'))
-    assert (subject.hours, subject.unity_id) == (None, None)
+    (subject,) = read_subjects(_csv(tmp_path, 'A1,NOME,,,"( ( X ) )",,( Y OU Z )'))
+    assert (subject.hours, subject.unity_id, subject.corequisites) == (None, None, None)
+    assert (subject.prerequisites, subject.equivalences) == ([["X"]], [["Y"], ["Z"]])
 
     with pytest.raises(ValueError, match="repetido"):
         read_subjects(_csv(tmp_path, "A1,A,60,1,,,", "A1,B,60,1,,,"))
@@ -38,11 +70,14 @@ async def test_seed_atualiza_pelo_codigo_e_nao_duplica(async_database, tmp_path)
     async with async_database.begin() as session:
         await seed_subjects(session, _csv(tmp_path, "FGA0001,ANTIGO,30,673,,,"))
     async with async_database.begin() as session:
-        await seed_subjects(session, _csv(tmp_path, "FGA0001,NOVO,60,673,,,"))
+        await seed_subjects(
+            session, _csv(tmp_path, 'FGA0001,NOVO,60,673,"( ( A E B ) OU ( C ) )",,')
+        )
 
     async with async_database() as session:
         (subject,) = (await session.scalars(select(Subject))).all()
     assert (subject.name, subject.hours, subject.unity_id) == ("NOVO", 60, 673)
+    assert subject.prerequisites == [["A", "B"], ["C"]]
 
 
 async def test_indice_acha_as_unidades_pelo_prefixo_e_ignora_prefixo_maior(
