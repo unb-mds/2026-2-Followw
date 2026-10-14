@@ -14,8 +14,8 @@ from api.db.models import (
     USER_WITHOUT_IDS,
     Classroom,
     ClassroomNews,
-    ClassroomStatistic,
     ClassroomParticipant,
+    ClassroomStatistic,
     Lesson,
     LessonAttendance,
     OwnLink,
@@ -76,17 +76,19 @@ class ClassroomRepository:
             )
         )
 
-    async def save_grade(
+    async def save_grades(
         self,
-        classroom_participant_id: UUID,
-        grade: sigaa_client.Grade | None,
+        links: Sequence[OwnLink],
+        grades: Sequence[sigaa_client.ClassroomGrade],
         synced_at: datetime,
     ) -> None:
-        link = await self._session.get_one(
-            ClassroomParticipant, classroom_participant_id
-        )
-        link.grade = grade
-        link.grade_synced_at = synced_at
+        by_subject = {(item.subject_code, item.semester): item.grade for item in grades}
+        for link in links:
+            classroom = link.row.classroom
+            link.row.grade = by_subject.get(
+                (classroom.subject_code, classroom.semester)
+            )
+            link.row.grade_synced_at = synced_at
         await self._session.flush()
 
     async def save_classroom_participants(

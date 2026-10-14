@@ -32,4 +32,4 @@ Todos os erros derivam de `SigaaError`.
 
 `client.restaurant.get_restaurant_statement()` retorna saldo, extrato e grupo (1 a 4), com saldo e grupo ausentes representados por `None`.
 
-`client.classrooms.get_classroom_grade(id)` retorna a menção (`Grade`) do "Resultado" da tela "Ver Notas", ou `None` enquanto não houver nota lançada.
+`client.classrooms.list_grades()` retorna todas as menções de "Ensino > Consultar Minhas Notas" num único relatório. Cada `ClassroomGrade` traz `subject_code`, `semester` e a menção (`Grade`) do "Resultado", ou `None` enquanto não houver nota lançada.

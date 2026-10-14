@@ -111,7 +111,7 @@ class Classroom(BaseModel):
 
 
 class Grade(str, enum.Enum):
-    """Menção da UnB, como o "Resultado" da tela "Ver Notas"."""
+    """Menção da UnB, como o "Resultado" de "Consultar Minhas Notas"."""
 
     SS = "SS"
     MS = "MS"
@@ -123,6 +123,16 @@ class Grade(str, enum.Enum):
     @property
     def approved(self) -> bool:
         return self in (Grade.SS, Grade.MS, Grade.MM)
+
+
+class ClassroomGrade(BaseModel):
+    """O relatório de notas identifica a disciplina pelo código e semestre."""
+
+    model_config = ConfigDict(frozen=True)
+
+    subject_code: str
+    semester: str
+    grade: Grade | None = None
 
 
 class ClassroomMember(BaseModel):

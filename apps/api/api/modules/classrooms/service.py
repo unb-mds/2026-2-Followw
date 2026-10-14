@@ -74,8 +74,6 @@ def stale_classroom_tasks(link: OwnLink) -> list[Task[OwnLink]]:
         and statistics_freshness(classroom.statistics_synced_at) is Freshness.STALE
     ):
         stale.append(sync_statistics)
-    if grade_freshness(link, link.row.grade_synced_at) is Freshness.STALE:
-        stale.append(sync_grade)
     return stale
 
 
@@ -116,14 +114,26 @@ async def sync_statistics(ctx: Context[OwnLink]) -> None:
     )
 
 
-async def sync_grade(ctx: Context[OwnLink]) -> None:
-    link = ctx.target
-    grade = await ctx.client.classrooms.get_classroom_grade(link.front_end_id)
-    await ctx.sync.db.write(
-        lambda session: ClassroomRepository(session).save_grade(
-            link.row.id, grade, datetime.now(UTC)
+async def sync_grades(ctx: Context[None]) -> None:
+    grades = await ctx.client.classrooms.list_grades()
+
+    async def write(session: AsyncSession) -> None:
+        user = await _user(ctx.sync.registration, session)
+        assert user is not None
+        repository = ClassroomRepository(session)
+        links = await repository.list_by_user_id(user.id)
+        await repository.save_grades(
+            [
+                link
+                for link in links
+                if grade_freshness(link, link.row.grade_synced_at)
+                is not Freshness.FROZEN
+            ],
+            grades,
+            datetime.now(UTC),
         )
-    )
+
+    await ctx.sync.db.write(write)
 
 
 class UserSubject(BaseModel):

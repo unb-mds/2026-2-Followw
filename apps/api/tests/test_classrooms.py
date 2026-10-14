@@ -6,6 +6,7 @@ import sigaa_client
 from pydantic import SecretStr
 from sigaa_client import (
     Classroom,
+    ClassroomGrade,
     ClassroomMember,
     ClassroomRole,
     Credentials,
@@ -29,8 +30,8 @@ from api.db.enums import (
 )
 from api.db.models import Classroom as ClassroomModel
 from api.db.models import (
-    ClassroomStatistic,
     ClassroomParticipant,
+    ClassroomStatistic,
     User,
 )
 from api.db.models import Subject as SubjectModel
@@ -627,22 +628,20 @@ def _mencoes_sincronizadas_em(database, synced_at: datetime) -> None:
         session.commit()
 
 
-def _mencoes_lidas(turmas) -> list[str]:
-    return sorted(
-        c.args[0] for c in turmas.classrooms.get_classroom_grade.await_args_list
-    )
-
-
-def test_mencao_vem_com_a_turma_pelo_sync_do_login(client, sigaa, turmas):
-    turmas.classrooms.get_classroom_grade.side_effect = lambda turma: (
-        Grade.MS if turma == "BBB" else None
-    )
+def test_mencao_vem_com_a_turma_pelo_sync_do_login(client, sigaa, turmas, qstash):
+    turmas.classrooms.list_grades.return_value = [
+        ClassroomGrade(subject_code="FGA0146", semester="2026.2"),
+        ClassroomGrade(subject_code="FGA0158", semester="2025.2", grade=Grade.MS),
+    ]
     _login(client)
 
     response = client.get("/classrooms?semester=all")
 
     assert {c["id"]: c["grade"] for c in response.json()} == {"AAA": None, "BBB": "MS"}
-    assert _mencoes_lidas(turmas) == ["AAA", "BBB"]
+    turmas.classrooms.list_grades.assert_awaited_once_with()
+    assert all(
+        "sync_grades" not in [step.task for step in job.steps] for job in qstash.jobs()
+    )
 
 
 def test_mencao_vencida_revalida_e_a_de_semestre_consolidado_congela(
@@ -650,33 +649,122 @@ def test_mencao_vencida_revalida_e_a_de_semestre_consolidado_congela(
 ):
     _login(client)
     _mencoes_sincronizadas_em(database, datetime.now(UTC) - timedelta(days=2))
-    turmas.classrooms.get_classroom_grade.reset_mock()
+    turmas.classrooms.list_grades.reset_mock()
 
     _login(client)
 
     # 2025.2 já foi consolidado: o sync que veio depois disso é o último.
-    assert _mencoes_lidas(turmas) == ["AAA"]
+    turmas.classrooms.list_grades.assert_awaited_once_with()
+    with database() as session:
+        dates = dict(
+            session.execute(
+                select(
+                    ClassroomParticipant.front_end_id,
+                    ClassroomParticipant.grade_synced_at,
+                )
+            ).all()
+        )
+    assert dates["AAA"] > dates["BBB"]
 
 
 # 2026.2 consolida em 19/12: com a tolerância, a menção congela no sync a partir de 23/12.
 @pytest.mark.parametrize(
-    ("synced_at", "lidas"),
+    ("synced_at", "consultas"),
     [
-        (datetime(2026, 12, 22, 12, tzinfo=UTC), ["AAA"]),
-        (datetime(2026, 12, 23, 12, tzinfo=UTC), []),
+        (datetime(2026, 12, 22, 12, tzinfo=UTC), 1),
+        (datetime(2026, 12, 23, 12, tzinfo=UTC), 0),
     ],
 )
 def test_mencao_faz_um_ultimo_sync_depois_da_consolidacao(
-    client, sigaa, turmas, database, hoje, synced_at, lidas
+    client, sigaa, turmas, database, hoje, synced_at, consultas
 ):
     _login(client)
     hoje(date(2026, 12, 30))
     _mencoes_sincronizadas_em(database, synced_at)
-    turmas.classrooms.get_classroom_grade.reset_mock()
+    turmas.classrooms.list_grades.reset_mock()
 
     _login(client)
 
-    assert _mencoes_lidas(turmas) == lidas
+    assert turmas.classrooms.list_grades.await_count == consultas
+
+
+def test_mencoes_associam_codigo_e_semestre_sem_confundir_repeticao(client, turmas):
+    antiga = ATUAL.model_copy(
+        update={"id": "BBB", "semester": "2025.2", "current": False}
+    )
+    turmas.classrooms.list_classrooms.return_value = [ATUAL, antiga]
+    turmas.classrooms.list_grades.return_value = [
+        ClassroomGrade(subject_code="FGA0146", semester="2026.2", grade=Grade.MS),
+        ClassroomGrade(subject_code="FGA0146", semester="2025.2", grade=Grade.MI),
+        ClassroomGrade(subject_code="OUTRA", semester="2026.2", grade=Grade.SS),
+    ]
+    _login(client)
+
+    assert {
+        c["id"]: c["grade"] for c in client.get("/classrooms?semester=all").json()
+    } == {"AAA": "MS", "BBB": "MI"}
+    turmas.classrooms.list_grades.assert_awaited_once_with()
+
+
+def test_mencoes_frescas_nao_releem_relatorio(client, turmas):
+    _login(client)
+    turmas.classrooms.list_grades.reset_mock()
+
+    _login(client)
+
+    turmas.classrooms.list_grades.assert_not_awaited()
+
+
+def test_relatorio_sem_mencao_limpa_resultado_anterior(client, turmas, database):
+    turmas.classrooms.list_grades.return_value = [
+        ClassroomGrade(subject_code="FGA0146", semester="2026.2", grade=Grade.MS)
+    ]
+    _login(client)
+    _mencoes_sincronizadas_em(database, datetime.now(UTC) - timedelta(days=2))
+    turmas.classrooms.list_grades.return_value = []
+
+    _login(client)
+
+    assert client.get("/classrooms").json()[0]["grade"] is None
+
+
+def test_falha_no_relatorio_preserva_mencoes_e_tenta_uma_vez(
+    client, turmas, database, qstash
+):
+    turmas.classrooms.list_grades.return_value = [
+        ClassroomGrade(subject_code="FGA0146", semester="2026.2", grade=Grade.MS)
+    ]
+    _login(client)
+    synced_at = datetime.now(UTC) - timedelta(days=2)
+    _mencoes_sincronizadas_em(database, synced_at)
+    turmas.classrooms.list_grades.reset_mock()
+    turmas.classrooms.list_grades.side_effect = SigaaError("relatório indisponível")
+
+    _login(client)
+
+    assert client.get("/classrooms").json()[0]["grade"] == "MS"
+    assert turmas.classrooms.list_grades.await_count == 2
+    with database() as session:
+        link = session.scalar(
+            select(ClassroomParticipant).where(
+                ClassroomParticipant.front_end_id == "AAA"
+            )
+        )
+        assert link.grade_synced_at == synced_at.replace(tzinfo=None)
+    assert qstash.jobs()[-1].attempt == 2
+
+
+def test_falha_no_relatorio_nao_impede_jobs_das_turmas(client, turmas, qstash):
+    turmas.classrooms.list_grades.side_effect = SigaaError("relatório indisponível")
+
+    _login(client)
+
+    assert sorted(
+        call.args[0]
+        for call in turmas.classrooms.list_classroom_members.await_args_list
+    ) == ["AAA", "BBB"]
+    assert turmas.classrooms.list_grades.await_count == 2
+    assert {response.status_code for response in qstash.deliveries} == {204}
 
 
 AGORA = datetime(2026, 9, 22, tzinfo=UTC)
