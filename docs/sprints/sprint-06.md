@@ -4,7 +4,8 @@
 **Scrum Master:** Samuel  
 **Product Owner:** Eliabe  
 **Equipe:** [eliabexp, ratatta-na-nite, Mendezalv, diegolxxz, ed9gaspar, gabrielcrzojo e SamukaToned]  
-**Período da Sprint:** [29/09/2026] até [05/10/2026]  
+**Período da Sprint:** [06/10/2026] até [13/10/2026]  
+**Data da Reunião:** [13/10/2026]  
 
 ---
 
@@ -18,6 +19,7 @@
 - [X] [#82/feat] [implementar service-worker para possibilitar o uso offline do site] - [eliabexp]
 - [X] [#83/feat] [Padronizar interface] - [ed9gaspar e ratatta-na-nite]
 - [X] [#88/feat] [exibir carga horária pendente no perfil] - [eliabexp, gabrielcrzojo e ed9gaspar]
+- [X] [#89/task] [adicionar skills favoritas] - [all]
 - [X] [#92/task] [nova página de login] - [diegolxzz e eliabexp]
 - [X] [#94/task] [alteração das imagens no /docs] - [SamukaToned e Mendezalv]
 - [X] [#95/feat] [suporte de dias sem aula] - [ed9gaspar]
