@@ -1,7 +1,13 @@
+import { QueryClient } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 
 import { pagesCacheName } from '#/integrations/offline/pages-cache';
-import { clearOfflineData, warmPages } from '#/integrations/offline/storage';
+import {
+    clearOfflineData,
+    PERSIST_MAX_AGE,
+    shouldPersistQuery,
+    warmPages
+} from '#/integrations/offline/storage';
 
 // sem o define do vite, o build é 'dev'
 const current = pagesCacheName('dev');
@@ -113,5 +119,30 @@ describe('cache de páginas offline', () => {
     test('clearOfflineData não quebra sem Cache Storage (SSR)', async () => {
         Reflect.deleteProperty(globalThis, 'caches');
         await clearOfflineData();
+    });
+});
+
+const queryAt = (updatedAt: number) => {
+    const client = new QueryClient();
+    client.setQueryData(['dado'], 1, { updatedAt });
+    return client.getQueryCache().find({ queryKey: ['dado'] })!;
+};
+
+describe('shouldPersistQuery', () => {
+    const now = Date.parse('2026-10-10T12:00:00Z');
+
+    test('salva a query atualizada dentro da validade', () => {
+        expect(shouldPersistQuery(queryAt(now - PERSIST_MAX_AGE + 1), now)).toBe(true);
+    });
+
+    test('descarta a query sem atualização há mais que a validade', () => {
+        expect(shouldPersistQuery(queryAt(now - PERSIST_MAX_AGE), now)).toBe(false);
+    });
+
+    test('não salva query sem dado', () => {
+        const client = new QueryClient();
+        client.getQueryCache().build(client, { queryKey: ['vazia'] });
+        const query = client.getQueryCache().find({ queryKey: ['vazia'] })!;
+        expect(shouldPersistQuery(query, now)).toBe(false);
     });
 });

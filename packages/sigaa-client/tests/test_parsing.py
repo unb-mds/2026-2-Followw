@@ -6,7 +6,35 @@ from bs4 import BeautifulSoup
 
 from sigaa_client.config import SIGAA_BASE_URL
 from sigaa_client.exceptions import SigaaParseError
-from sigaa_client.utils.parsing import parse_datetime, to_markdown
+from sigaa_client.utils.parsing import (
+    lookup_key,
+    parse_datetime,
+    parse_hours,
+    to_markdown,
+)
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ("  CEILÂNDIA ", "ceilandia"),
+        ("Gama: Engenharia", "gama: engenharia"),
+        ("  COMPILAÇÃO\tDE\nPROGRAMAS ", "compilacao de programas"),
+        ("Straße", "strasse"),
+        (" \t", ""),
+        ("", ""),
+    ],
+)
+def test_lookup_key_ignora_acento_caixa_e_espacos(value, expected):
+    assert lookup_key(value) == expected
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [("60h", 60), (" 30 H ", 30), ("0h", 0), ("-", None), ("60", None), ("", None)],
+)
+def test_parse_hours(value, expected):
+    assert parse_hours(value) == expected
 
 
 def _markdown(html: str) -> str | None:
@@ -75,7 +103,7 @@ def test_markdown_nao_gera_link_nem_imagem_executavel():
 
 def test_parse_datetime_le_data_do_sigaa():
     assert parse_datetime("10/08/2026 15:24", "%d/%m/%Y %H:%M", "da notícia") == (
-        datetime(2026, 8, 10, 15, 24)  # noqa: DTZ001
+        datetime(2026, 8, 10, 15, 24)
     )
 
 

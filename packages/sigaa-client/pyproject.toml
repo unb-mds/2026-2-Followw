@@ -8,14 +8,14 @@ dependencies = [
     "beautifulsoup4>=4.15.0",
     "lxml>=6.1.3",
     "pillow>=12.3.0",
-    "pydantic>=2.13.5",
-    "pypdf[image]>=6.19.0",
+    "pydantic>=2.14.1",
+    "pypdf[image]>=6.20.1",
     "zxing-cpp>=3.1.1",
     "markdownify>=1.2.3",
 ]
 
 [build-system]
-requires = ["uv_build>=0.12.9,<0.13.0"]
+requires = ["uv_build>=0.13.0,<0.14.0"]
 build-backend = "uv_build"
 
 [tool.ruff.format]
@@ -26,7 +26,7 @@ module-root = ""
 
 [dependency-groups]
 dev = [
-    "ruff>=0.16.10",
+    "ruff>=0.17.0",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
 ]

@@ -1,27 +1,18 @@
-import json
-import unicodedata
-from collections.abc import AsyncGenerator
-from functools import cache
-from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
-from sigaa_client import PublicClassroom, SigaaPublicClient, SigaaSearchError, Unit
+from sigaa_client import PublicClassroom, SigaaSearchError, Unit, lookup_key
 
+from api.db.main import DatabaseDep
 from api.modules.public_classrooms.code import classroom_code_prefix
-
-
-async def get_sigaa_public_client() -> AsyncGenerator[SigaaPublicClient]:
-    async with SigaaPublicClient() as client:
-        yield client
-
-
-SigaaPublicClientDep = Annotated[SigaaPublicClient, Depends(get_sigaa_public_client)]
+from api.modules.public_classrooms.repository import UnitIndexRepository
+from api.sigaa import SigaaPublicClientDep
 
 
 class PublicClassroomService:
-    def __init__(self, client: SigaaPublicClientDep) -> None:
+    def __init__(self, client: SigaaPublicClientDep, db: DatabaseDep) -> None:
         self._client = client
+        self._db = db
 
     async def search(
         self,
@@ -44,10 +35,12 @@ class PublicClassroomService:
         if unit is not None:
             units = [unit.strip()]
         elif prefix is not None:
-            units = _code_index()["prefixes"].get(prefix, [])
+            units = await self._db.read(
+                lambda session: UnitIndexRepository(session).unit_ids(prefix)
+            )
             if not units:
                 raise SigaaSearchError(
-                    f"Prefixo `{prefix}` não encontrado no índice. "
+                    f"Prefixo `{prefix}` não encontrado nos componentes conhecidos. "
                     "Ele pode não existir no SIGAA ou ainda não ter sido mapeado. "
                     "Informe `unit` junto de `code` para buscar diretamente nessa unidade."
                 )
@@ -76,9 +69,11 @@ class PublicClassroomService:
                 if unit is not None:
                     scope = f"na unidade `{unit.strip()}`"
                 else:
-                    names = _code_index()["units"]
+                    names = await self._db.read(
+                        lambda session: UnitIndexRepository(session).unit_names(units)
+                    )
                     labels = "; ".join(
-                        f"`{names.get(str(selected), 'Unidade')}` (ID {selected})"
+                        f"`{names.get(selected, 'Unidade')}` (ID {selected})"
                         for selected in units
                     )
                     scope = f"nas unidades mapeadas para o prefixo `{prefix}`: {labels}"
@@ -102,13 +97,13 @@ class PublicClassroomService:
                 for classroom in classrooms
                 if classroom.number.strip().lstrip("0") == str(number)
             ]
-        needle = _normalize_search(contains or "")
+        needle = lookup_key(contains or "")
         if needle:
             classrooms = [
                 classroom
                 for classroom in classrooms
                 if any(
-                    needle in _normalize_search(value)
+                    needle in lookup_key(value)
                     for value in (
                         classroom.subject.name,
                         classroom.subject.code or "",
@@ -116,14 +111,14 @@ class PublicClassroomService:
                     )
                 )
             ]
-        location = _normalize_search(local or "")
+        location = lookup_key(local or "")
         if not location:
             return classrooms
         return [
             classroom
             for classroom in classrooms
             if location
-            in _normalize_search(
+            in lookup_key(
                 " - ".join(
                     part for part in (classroom.subject.unity, classroom.room) if part
                 )
@@ -132,19 +127,6 @@ class PublicClassroomService:
 
     async def list_units(self, contains: str | None = None) -> list[Unit]:
         return await self._client.classrooms.list_units(contains)
-
-
-def _normalize_search(value: str) -> str:
-    normalized = unicodedata.normalize("NFKD", value.casefold())
-    return " ".join(
-        "".join(char for char in normalized if not unicodedata.combining(char)).split()
-    )
-
-
-@cache
-def _code_index() -> dict:
-    path = Path(__file__).with_name("classroom_code_units.json")
-    return json.loads(path.read_text(encoding="utf-8"))
 
 
 PublicClassroomServiceDep = Annotated[PublicClassroomService, Depends()]

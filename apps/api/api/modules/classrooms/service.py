@@ -3,7 +3,6 @@ from functools import partial
 from typing import Annotated
 
 from fastapi import Depends
-from pydantic import BaseModel, ConfigDict
 from sigaa_client import (
     Classroom,
     ClassroomMember,
@@ -21,6 +20,7 @@ from api.db.models import ClassroomParticipant, OwnLink, User
 from api.modules.classrooms.repository import ClassroomRepository
 from api.modules.me.profile import sync_profile
 from api.modules.me.repository import UserRepository
+from api.schemas import ClassroomOffer, UserSubject
 from api.sync import Cached, Context, SyncDep
 from api.sync.engine import Task
 
@@ -136,18 +136,7 @@ async def sync_grades(ctx: Context[None]) -> None:
     await ctx.sync.db.write(write)
 
 
-class UserSubject(BaseModel):
-    """O componente como o cache guarda, pelo código."""
-
-    model_config = ConfigDict(frozen=True)
-
-    code: str
-    name: str
-    hours: int | None = None
-    unity: str | None = None
-
-
-class ParticipantClassroom(Classroom):
+class ParticipantClassroom(Classroom, ClassroomOffer):
     """A turma com a menção do usuário, `None` enquanto não lançada ou sincronizada."""
 
     subject: UserSubject
@@ -293,9 +282,12 @@ def to_classroom(link: OwnLink) -> ParticipantClassroom:
             code=subject.code,
             name=subject.name,
             hours=subject.hours,
-            unity=subject.unity,
+            unity=subject.unity.code if subject.unity else None,
         ),
         grade=link.row.grade,
+        professors=classroom.professors,
+        vacancies=classroom.vacancies,
+        occupied=classroom.occupied,
     )
 
 
@@ -308,8 +300,8 @@ def _to_member(link: ClassroomParticipant) -> ClassroomMember:
         registration=user.registration,
         photo=user.photo,
         email=user.email,
-        course=user.course,
-        unity=user.unity,
+        course=user.course.name if user.course else None,
+        unity=user.course.unity.code if user.course else None,
         person_id=user.person_id,
     )
 

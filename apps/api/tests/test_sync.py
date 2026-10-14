@@ -1,4 +1,5 @@
 import hashlib
+import json
 import logging
 from datetime import UTC, datetime, timedelta
 
@@ -574,7 +575,7 @@ def test_sessao_do_job_sai_mesmo_quando_a_tarefa_falha(client, stub_sigaa, qstas
 
 
 def test_tarefa_que_falha_na_origem_tem_uma_unica_retentativa(
-    client, turma, qstash, database
+    client, turma, qstash, database, caplog
 ):
     turma.classrooms.list_classroom_members.side_effect = SigaaError("fora do ar")
 
@@ -597,6 +598,18 @@ def test_tarefa_que_falha_na_origem_tem_uma_unica_retentativa(
         classroom = session.scalar(select(Classroom))
         assert classroom.members_synced_at is None
         assert classroom.statistics_synced_at is not None
+
+    logs = [json.loads(r.message) for r in caplog.records if r.name == "followw"]
+    failures = [r for r in logs if r["event"] == "sync.task.failed"]
+    assert [(r["task"], r["attempt"]) for r in failures] == [
+        ("sync_members", 1),
+        ("sync_members", 2),
+    ]
+    assert any(
+        r["event"] == "sync.task.completed" and r["task"] == "sync_statistics"
+        for r in logs
+    )
+    assert all(r["error_type"] == "SigaaError" for r in failures)
 
 
 def test_retentativa_nao_cai_na_deduplicacao_da_primeira(client, turma, qstash):
@@ -772,8 +785,9 @@ def test_cada_requisicao_fecha_o_proprio_client_do_qstash(
 def test_qstash_fora_nao_derruba_o_login(client, stub_sigaa, qstash, caplog):
     qstash.unavailable = True
 
-    with caplog.at_level(logging.ERROR):
+    with caplog.at_level(logging.WARNING):
         response = client.post("/auth/sigaa", json=LOGIN)
 
     assert response.status_code == 200
-    assert "Falha ao agendar 251000000:sync_account:#1" in caplog.text
+    assert '"event": "queue.publish.failed"' in caplog.text
+    assert "251000000" not in caplog.text

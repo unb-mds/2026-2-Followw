@@ -78,6 +78,7 @@ def test_login_seguido_de_me_responde_do_cache(client, sigaa):
         "bio": "Bio de teste.",
         "unity": "FCTE",
         "course": "ENGENHARIA DE SOFTWARE",
+        "shift": None,
         "integralization": 35,
         "workload": {
             "total": 3525,
@@ -518,6 +519,7 @@ PERFIL_LIDO = UserProfile(
     bio="Bio.",
     unity="FCTE",
     course="ENGENHARIA DE SOFTWARE",
+    shift=None,
     integralization=35,
     workload=CurriculumWorkload(
         total=3525,

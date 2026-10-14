@@ -40,6 +40,8 @@ function installEvent(outcome: 'accepted' | 'dismissed' = 'dismissed') {
     });
 }
 
+const SAFARI = 'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+
 const realWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
 
 describe('instalação do app', () => {
@@ -75,13 +77,22 @@ describe('instalação do app', () => {
     });
 
     test.each(['iPhone', 'iPad', 'iPod'])('oferece instruções para %s', (device) => {
-        browser.navigator.userAgent = `Mozilla/5.0 (${device})`;
+        browser.navigator.userAgent = `Mozilla/5.0 (${device}) ${SAFARI}`;
         initialize();
         expect(getInstallMode()).toBe('ios');
     });
 
+    test.each(['CriOS/120.0', 'FxiOS/120.0', 'Instagram 300.0'])(
+        'oculta as instruções do Safari em outros navegadores do iOS (%s)',
+        (browserName) => {
+            browser.navigator.userAgent = `Mozilla/5.0 (iPhone) ${SAFARI} ${browserName}`;
+            initialize();
+            expect(getInstallMode()).toBeNull();
+        }
+    );
+
     test('reconhece iPadOS com identificação de desktop', () => {
-        browser.navigator.userAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15)';
+        browser.navigator.userAgent = `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) ${SAFARI}`;
         browser.navigator.platform = 'MacIntel';
         initialize();
         expect(getInstallMode()).toBe('ios');
@@ -97,7 +108,7 @@ describe('instalação do app', () => {
     test.each(['display-mode', 'navigator.standalone'])(
         'oculta quando %s indica app instalado',
         (indicator) => {
-            browser.navigator.userAgent = 'iPhone';
+            browser.navigator.userAgent = `Mozilla/5.0 (iPhone) ${SAFARI}`;
             if (indicator === 'display-mode') browser.displayMode.matches = true;
             else browser.navigator.standalone = true;
             initialize();
@@ -115,7 +126,6 @@ describe('instalação do app', () => {
         expect(getInstallMode()).toBe('native');
         await promptInstall();
         expect(event.prompt).toHaveBeenCalledTimes(1);
-        expect(getInstallMode()).toBeNull();
     });
 
     test('preserva o evento durante a desmontagem e remontagem do root', async () => {
@@ -155,16 +165,23 @@ describe('instalação do app', () => {
         browser.dispatchEvent(installEvent());
         dismissInstallCard();
         expect(getInstallMode()).toBeNull();
-        expect(browser.values.get('followw:install-dismissed')).toBe('true');
+        expect(browser.values.get('followw:install-dismissed')).toBe('1');
         browser.dispatchEvent(installEvent());
         expect(getInstallMode()).toBeNull();
     });
 
     test('respeita a dispensa já salva no dispositivo', () => {
-        browser.navigator.userAgent = 'iPhone';
-        browser.values.set('followw:install-dismissed', 'true');
+        browser.navigator.userAgent = `Mozilla/5.0 (iPhone) ${SAFARI}`;
+        browser.values.set('followw:install-dismissed', '1');
         initialize();
         expect(getInstallMode()).toBeNull();
+    });
+
+    test('volta a sugerir quando a dispensa salva é de uma versão anterior', () => {
+        browser.navigator.userAgent = `Mozilla/5.0 (iPhone) ${SAFARI}`;
+        browser.values.set('followw:install-dismissed', '0');
+        initialize();
+        expect(getInstallMode()).toBe('ios');
     });
 
     test('oculta após appinstalled e ignora eventos nativos tardios', () => {
@@ -185,17 +202,29 @@ describe('instalação do app', () => {
         expect(getInstallMode()).toBeNull();
     });
 
-    test('consome o prompt antes de aguardar e evita cliques repetidos', async () => {
+    test('volta a sugerir quando o display-mode deixa de ser standalone', () => {
+        browser.navigator.userAgent = `Mozilla/5.0 (iPhone) ${SAFARI}`;
+        browser.displayMode.matches = true;
+        initialize();
+        expect(getInstallMode()).toBeNull();
+        browser.displayMode.change(false);
+        expect(getInstallMode()).toBe('ios');
+    });
+
+    test('mantém o card durante o prompt, evita cliques repetidos e oculta após aceitar', async () => {
         initialize();
         const choice = Promise.withResolvers<{ outcome: 'accepted' | 'dismissed' }>();
         const event = Object.assign(installEvent(), { userChoice: choice.promise });
         browser.dispatchEvent(event);
         const first = promptInstall();
-        expect(getInstallMode()).toBeNull();
+        expect(getInstallMode()).toBe('native');
         await promptInstall();
         expect(event.prompt).toHaveBeenCalledTimes(1);
         choice.resolve({ outcome: 'accepted' });
         await first;
+        expect(getInstallMode()).toBeNull();
+        browser.dispatchEvent(installEvent());
+        expect(getInstallMode()).toBeNull();
     });
 
     test('a recusa do usuário consome o evento e um novo evento reativa o card', async () => {

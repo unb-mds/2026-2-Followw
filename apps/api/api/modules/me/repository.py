@@ -1,9 +1,10 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sigaa_client import UserProfile
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.db.courses import course_ids
 from api.db.enums import UserLevel
 from api.db.models import User
 
@@ -17,6 +18,21 @@ class UserRepository:
             select(User).where(User.registration == registration)
         )
 
+    async def register(self, registration: str) -> None:
+        user = await self.get_by_registration(registration)
+        now = datetime.now(UTC)
+        if user is None:
+            self._session.add(
+                User(registration=registration, name="", registered_at=now)
+            )
+        else:
+            await self._session.execute(
+                update(User)
+                .where(User.id == user.id, User.registered_at.is_(None))
+                .values(registered_at=now)
+            )
+        await self._session.flush()
+
     async def save_profile(self, profile: UserProfile, synced_at: datetime) -> User:
         """Grava o perfil, assumindo o usuário sombra de mesma matrícula se houver."""
         user = await self.get_by_registration(profile.registration)
@@ -28,8 +44,9 @@ class UserRepository:
         user.photo = profile.photo or user.photo
         user.email = profile.email or user.email
         user.bio = profile.bio
-        user.unity = profile.unity
-        user.course = profile.course
+        pair = (profile.course, profile.unity)
+        shift = profile.shift.value if profile.shift else None
+        user.course_id = (await course_ids(self._session, [pair], shift)).get(pair)
         user.integralization = profile.integralization
         user.workload = profile.workload.model_dump() if profile.workload else None
         user.ira = profile.ira

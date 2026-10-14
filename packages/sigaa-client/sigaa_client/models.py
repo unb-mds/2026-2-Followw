@@ -20,6 +20,11 @@ class UserLevel(str, enum.Enum):
     MESTRADO = "Mestrado"
 
 
+class CourseShift(str, enum.Enum):
+    DIURNO = "DIURNO"
+    NOTURNO = "NOTURNO"
+
+
 class RestaurantStatementEntry(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -64,6 +69,7 @@ class UserProfile(BaseModel):
     bio: str | None
     unity: str
     course: str
+    shift: CourseShift | None
     integralization: int | None
     workload: CurriculumWorkload | None
     ira: float | None
@@ -87,6 +93,14 @@ class Subject(BaseModel):
     name: str
     hours: int | None = None
     unity: str | None = None
+
+
+class SubjectDetails(Subject):
+    """Componente com os requisitos do SIGAA, como `( ( CIC0004 ) OU ( CIC0088 ) )`."""
+
+    prerequisites: str | None = None
+    corequisites: str | None = None
+    equivalences: str | None = None
 
 
 class Classroom(BaseModel):
@@ -300,6 +314,50 @@ class Unit(BaseModel):
 
     id: int
     name: str
+
+
+SubjectLevel = Literal[
+    TeachingLevel.FORMACAO_COMPLEMENTAR,
+    TeachingLevel.GRADUACAO,
+    TeachingLevel.LATO_SENSU,
+    TeachingLevel.RESIDENCIA,
+    TeachingLevel.STRICTO_SENSU,
+]
+
+
+class SubjectType(str, enum.Enum):
+    DISCIPLINA = "DISCIPLINA"
+    ATIVIDADE = "ATIVIDADE"
+    BLOCO = "BLOCO"
+    MODULO = "MÓDULO"
+
+
+class PublicSubject(Subject):
+    sigaa_id: int
+    code: str
+    level: SubjectLevel
+    type: SubjectType
+
+
+class SubjectSearchMessage(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    code: Literal["result_limit_exceeded", "no_results"]
+    severity: Literal["warning", "info"]
+    text: str
+
+
+class SubjectSearchResult(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    items: tuple[PublicSubject, ...] = ()
+    messages: tuple[SubjectSearchMessage, ...] = ()
+    truncated: bool = False
+
+    @computed_field
+    @property
+    def returned_count(self) -> int:
+        return len(self.items)
 
 
 class Teacher(BaseModel):

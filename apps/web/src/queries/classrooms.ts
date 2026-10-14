@@ -34,7 +34,7 @@ export const classroomFrequencyQueryOptions = (id: string) =>
 
 export type ClassroomFrequency = components['schemas']['ClassroomFrequencyView'];
 export type Lesson = components['schemas']['Lesson'];
-export type LessonMarkStatus = components['schemas']['LessonMarkBody']['status'];
+export type LessonMarkStatus = NonNullable<components['schemas']['LessonMarkBody']['status']>;
 
 /** Marca a aula (`null` desmarca) e relê a frequência, que já volta com aulas e totais. */
 export function useMarkLesson(id: string) {
@@ -49,9 +49,7 @@ export function useMarkLesson(id: string) {
         }) => {
             const url = '/classrooms/{classroom_id}/frequency/lessons/{lesson_id}';
             const path = { classroom_id: id, lesson_id: lesson.id };
-            const { error } = status
-                ? await apiClient.PUT(url, { params: { path }, body: { status } })
-                : await apiClient.DELETE(url, { params: { path } });
+            const { error } = await apiClient.PATCH(url, { params: { path }, body: { status } });
             if (error) throw new Error('Não foi possível salvar a marcação');
         },
         onSettled: () =>

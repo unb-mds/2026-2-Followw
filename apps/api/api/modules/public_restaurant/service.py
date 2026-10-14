@@ -10,10 +10,10 @@ from unb_browser import Campus, DailyMenu, UnbBrowser, UnbBrowserError
 
 from api.cache import NO_DIRECTIVES, CacheControl, is_stale
 from api.db.main import SessionmakerDep
+from api.logger import event
 from api.modules.public_restaurant.repository import RestaurantRepository
 
-log = logging.getLogger(__name__)
-RESTAURANT_MENU_TTL = timedelta(hours=72)
+RESTAURANT_MENU_TTL = timedelta(days=5)
 BRASILIA = timezone(timedelta(hours=-3))
 _MENU = TypeAdapter(tuple[DailyMenu, ...])
 Meal = Literal["breakfast", "lunch", "dinner"]
@@ -78,7 +78,7 @@ class RestaurantService:
                 cached = _MENU.validate_python(rows, from_attributes=True)
                 synced_at = await repository.synced_at(campus)
         except SQLAlchemyError, OSError, TimeoutError, ValidationError:
-            log.warning("Não foi possível ler o cache do cardápio", exc_info=True)
+            event("restaurant.cache_read_failed", level=logging.WARNING)
 
         if (
             cached
@@ -110,7 +110,7 @@ class RestaurantService:
                 or (cache.revalidate(synced_at) and not cache.accepts_stale(synced_at))
             ):
                 raise UnbBrowserError("Site do RU indisponível.") from error
-            log.warning("RU indisponível, servindo cardápio vencido", exc_info=True)
+            event("restaurant.stale_fallback", level=logging.WARNING)
             cache.served(synced_at)
             return cached
 
@@ -124,7 +124,7 @@ class RestaurantService:
                 rows = await repository.get(campus, start, end)
                 return _MENU.validate_python(rows, from_attributes=True)
         except SQLAlchemyError, OSError, TimeoutError, ValidationError:
-            log.warning("Não foi possível salvar o cache do cardápio", exc_info=True)
+            event("restaurant.cache_write_failed", level=logging.WARNING)
         # Revalida para marcar todos os campos como definidos, igual ao que vem do banco.
         return _MENU.validate_python(
             _MENU.dump_python(tuple(d for d in days if start <= d.date <= end))

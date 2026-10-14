@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import json
+import logging
 import os
 import time
 from collections import deque
@@ -15,11 +16,23 @@ from fastapi.testclient import TestClient
 from sigaa_client import Credentials
 from sigaa_client.config import CLASSROOMS_PATH
 
+
+@pytest.fixture
+def caplog(caplog):
+    logger = logging.getLogger("followw")
+    logger.addHandler(caplog.handler)
+    try:
+        yield caplog
+    finally:
+        logger.removeHandler(caplog.handler)
+
+
 QSTASH_SIGNING_KEY = "sig_atual_de_teste_com_32_bytes_ou_mais"
 
 # O `Settings` é instanciado no import de `api.core.config`, então as variáveis
 # precisam existir antes de qualquer teste importar a app.
 os.environ["ENVIRONMENT"] = "testing"
+os.environ["CORS_ORIGINS"] = '["https://followw.app"]'
 os.environ["DATABASE_URL"] = (
     "postgresql+asyncpg://postgres:postgres@localhost:5432/followw_test"
 )
@@ -255,11 +268,14 @@ def database(tmp_path):
     from sqlalchemy.orm import sessionmaker
 
     from api.db.base import Base
-    from api.db.models import User  # noqa: F401 — registra as tabelas no metadata
+    from api.db.models import Unity
 
     engine = create_engine(f"sqlite:///{tmp_path / 'cache.db'}")
     Base.metadata.create_all(engine)
-    yield sessionmaker(engine, expire_on_commit=False)
+    sessions = sessionmaker(engine, expire_on_commit=False)
+    with sessions.begin() as session:
+        session.add(Unity(id=673, code="FCTE", name="CAMPUS UNB GAMA"))
+    yield sessions
     engine.dispose()
 
 
@@ -369,6 +385,7 @@ def stub_sigaa(monkeypatch):
                     bio=None,
                     unity="FCTE",
                     course="ENGENHARIA DE SOFTWARE",
+                    shift=None,
                     integralization=35,
                     workload=None,
                     ira=3.5,

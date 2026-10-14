@@ -6,7 +6,6 @@ import { getNoClassReason } from '#/calendar';
 import { ErrorCard, ErrorState, SIGAA_DOWN_MESSAGE } from '#/components/ErrorState';
 import { HeaderBar, HeaderToggle } from '#/components/HeaderBar';
 import { ClassCard } from '#/components/home/ClassCard';
-import { InstallPromptCard } from '#/components/home/InstallPromptCard';
 import { LoginPromptCard } from '#/components/home/LoginPromptCard';
 import { PublicInfoSection } from '#/components/home/PublicInfoSection';
 import { usePageState } from '#/components/PageState';
@@ -159,6 +158,7 @@ function HomePage() {
                                         key={`${item.id}-${start}`}
                                         title={item.subject.name}
                                         code={item.subject.code}
+                                        classNumber={item.number}
                                         time={`${start} - ${end}`}
                                         location={item.room ?? 'Local não informado'}
                                         status={status}
@@ -186,7 +186,6 @@ function HomePage() {
                 isLoading={menu.isPending}
                 day={label}
             />
-            <InstallPromptCard />
         </>
     );
 }

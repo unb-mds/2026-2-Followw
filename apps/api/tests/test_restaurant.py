@@ -121,12 +121,15 @@ def _age_cache(database, hours):
         session.commit()
 
 
-def test_menu_vencido_reconsulta_e_substitui_cache(client, browser, database):
+def test_menu_vencido_apos_cinco_dias_reconsulta_e_substitui_cache(
+    client, browser, database
+):
     client.get("/public/restaurant")
-    _age_cache(database, 71)
-    client.get("/public/restaurant")
+    for hours in (72, 96, 119):
+        _age_cache(database, hours)
+        client.get("/public/restaurant")
     browser.restaurant.get_menu.assert_awaited_once()
-    _age_cache(database, 73)
+    _age_cache(database, 121)
     browser.restaurant.get_menu.return_value = (DAY.model_copy(update={"lunch": None}),)
     response = client.get("/public/restaurant")
     assert response.status_code == 200
@@ -168,7 +171,7 @@ def test_dia_antigo_fora_do_cardapio_nao_vence_o_cache(client, browser, database
         DAY.model_copy(update={"date": date(2026, 9, 24)}),
     )
     client.get("/public/restaurant")
-    _age_cache(database, 73)
+    _age_cache(database, 121)
     browser.restaurant.get_menu.return_value = (DAY,)
     assert len(client.get("/public/restaurant").json()) == 2
     assert len(client.get("/public/restaurant").json()) == 2
@@ -180,7 +183,7 @@ def test_dia_antigo_fora_do_cardapio_nao_vence_o_cache(client, browser, database
 )
 def test_ru_fora_do_ar_serve_cache_vencido(client, browser, database, error):
     original = client.get("/public/restaurant").json()
-    _age_cache(database, 73)
+    _age_cache(database, 121)
     browser.restaurant.get_menu.side_effect = error
     response = client.get("/public/restaurant")
     assert response.status_code == 200
@@ -200,7 +203,7 @@ def test_ru_fora_do_ar_com_cache_so_de_outras_datas_retorna_502(
         DAY.model_copy(update={"date": date(2026, 9, 18)}),
     )
     client.get("/public/restaurant?date=2026-09-18")
-    _age_cache(database, 73)
+    _age_cache(database, 121)
     browser.restaurant.get_menu.side_effect = UnbParseError("fora")
     assert client.get("/public/restaurant").status_code == 502
     assert client.get("/public/restaurant?date=2026-09-18").status_code == 200
@@ -392,7 +395,7 @@ def test_menu_only_if_cached_nunca_consulta_o_ru(client, browser, database):
         "/public/restaurant", headers={"Cache-Control": "only-if-cached"}
     )
     original = client.get("/public/restaurant").json()
-    _age_cache(database, 73)
+    _age_cache(database, 121)
 
     vencido = client.get(
         "/public/restaurant", headers={"Cache-Control": "only-if-cached"}
@@ -446,6 +449,70 @@ def test_cardapio_do_pdf_real_chega_ao_endpoint_e_ao_cache(client, today):
         assert days[0]["breakfast"] and days[0]["lunch"] and days[0]["dinner"]
         assert client.get("/public/restaurant").json() == days
         assert page.call_count == pdf.call_count == 1
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"date": "2026-10-03"},
+        {"date": "2026-10-04"},
+        {"date": "2026-10-03", "meal": "lunch"},
+        {"start_date": "2026-10-03", "end_date": "2026-10-04"},
+        {},
+    ],
+)
+def test_fim_de_semana_do_pdf_real_fica_em_cache_por_cinco_dias(
+    client, today, database, params
+):
+    today.value = date(2026, 10, 3)
+    fixture = (
+        Path(__file__).resolve().parents[3]
+        / "packages/unb-browser/tests/fixtures/cardapio-gama-28-09.pdf"
+    )
+    pdf_url = "https://ru.unb.br/cardapio-teste.pdf"
+    with respx.mock as network:
+        page = network.get(RU_MENU_URL).respond(
+            200,
+            text=f'<h3>Cardápio Gama</h3><a href="{pdf_url}">'
+            "ISM – 28/9/2026 A 4/10/2026</a>",
+        )
+        pdf = network.get(pdf_url).respond(200, content=fixture.read_bytes())
+        response = client.get("/public/restaurant", params={"campus": "Gama", **params})
+        assert response.status_code == 200
+        expected = response.json()
+        weekends = [item for item in expected if item["date"] >= "2026-10-03"]
+        assert weekends
+        assert all(
+            value is None
+            for item in weekends
+            for key, value in item.items()
+            if key != "date"
+        )
+        with database() as session:
+            rows = list(
+                session.scalars(select(RestaurantMenu).order_by(RestaurantMenu.date))
+            )
+            assert len(rows) == 7
+            assert rows[0].date == date(2026, 9, 28)
+            assert rows[-1].date == date(2026, 10, 4)
+            assert all(row.breakfast and row.lunch and row.dinner for row in rows[:5])
+            assert all(
+                row.breakfast is None and row.lunch is None and row.dinner is None
+                for row in rows[5:]
+            )
+        for hours in (0, 73, 119):
+            _age_cache(database, hours)
+            cached = client.get(
+                "/public/restaurant", params={"campus": "Gama", **params}
+            )
+            assert cached.json() == expected
+        assert page.call_count == pdf.call_count == 1
+        _age_cache(database, 121)
+        assert (
+            client.get("/public/restaurant", params={"campus": "Gama", **params}).json()
+            == expected
+        )
+        assert page.call_count == pdf.call_count == 2
 
 
 @pytest.mark.parametrize(

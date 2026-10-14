@@ -43,10 +43,15 @@ def test_rotas_respondem_com_e_sem_prefixo_api(client):
 def test_openapi_agrupa_recursos_publicos_sem_ocultar_rotas_privadas(client):
     schema = client.get("/openapi.json").json()
     groups = {group["name"]: group["tags"] for group in schema["x-tagGroups"]}
-    assert groups["Public"] == ["Public Classrooms", "Public Restaurant"]
+    assert groups["Public"] == [
+        "Public Classrooms",
+        "Public Restaurant",
+        "Public Subjects",
+    ]
     tags = {tag["name"]: tag for tag in schema["tags"]}
     assert tags["Public Classrooms"]["x-displayName"] == "Classrooms"
     assert tags["Public Restaurant"]["x-displayName"] == "Restaurant"
+    assert tags["Public Subjects"]["x-displayName"] == "Subjects"
     grouped_tags = {tag for group in groups.values() for tag in group}
     for path, methods in schema["paths"].items():
         for operation in methods.values():

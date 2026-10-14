@@ -31,6 +31,7 @@ import { Spinner } from '#/components/ui/spinner';
 import { useFailureMessage, useOnline } from '#/lib/online';
 import { cardIsExpired, insufficientMealBalance } from '#/lib/restaurant';
 import { nowInBrasilia } from '#/lib/schedule';
+import { cn } from '#/lib/shadcn';
 import { refreshQuery } from '#/queries/refresh';
 import { credentialsQueryOptions, statementQueryOptions } from '#/queries/restaurant-account';
 
@@ -183,28 +184,35 @@ export function StatementDetails({
             )}
             <Accordion className="mt-4 border-t border-border pt-3">
                 <AccordionItem value="statement">
-                    <AccordionTrigger className="py-0 text-primary">Extrato do RU</AccordionTrigger>
-                    <AccordionContent keepMounted>
+                    <AccordionTrigger className="mb-2 py-0 text-primary">
+                        Extrato do RU
+                    </AccordionTrigger>
+                    <AccordionContent className="pb-0" keepMounted>
                         {entries.length === 0 ? (
                             <p className="mt-3 text-sm text-muted-foreground">
                                 Nenhuma movimentação no extrato.
                             </p>
                         ) : (
-                            <ul className="mt-2 max-h-64 divide-y divide-border overflow-y-auto">
+                            <ul className="max-h-64 overflow-y-auto">
                                 {entries.map((entry) => (
                                     <li
                                         key={`${entry.occurred_at}-${entry.description}-${entry.amount}`}
-                                        className="flex items-center justify-between gap-3 py-3"
+                                        className="flex items-baseline gap-2"
                                     >
-                                        <div className="min-w-0">
-                                            <p className="text-sm font-semibold text-foreground">
-                                                {entry.description.replace(/^grupo\s*\d+\s+/i, '')}
-                                            </p>
-                                            <p className="mt-1 text-xs text-muted-foreground">
-                                                {dateTime.format(new Date(entry.occurred_at))}
-                                            </p>
-                                        </div>
-                                        <span className="shrink-0 text-sm font-bold text-foreground tabular-nums">
+                                        <p className="min-w-0 truncate text-sm font-semibold text-foreground">
+                                            {entry.description.replace(/^grupo\s*\d+\s+/i, '')}
+                                        </p>
+                                        <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                                            {dateTime.format(new Date(entry.occurred_at))}
+                                        </span>
+                                        <span
+                                            className={cn(
+                                                'ml-auto shrink-0 text-sm font-bold tabular-nums',
+                                                Number(entry.amount) < 0
+                                                    ? 'text-destructive'
+                                                    : 'text-success'
+                                            )}
+                                        >
                                             {currency.format(Number(entry.amount))}
                                         </span>
                                     </li>
@@ -275,7 +283,7 @@ function AccountStatus({
     const showError = query.isError && (online || !hasData);
 
     return (
-        <div className="mt-3 text-xs text-muted-foreground" aria-live="polite">
+        <div className="text-xs text-muted-foreground" aria-live="polite">
             {query.isPending && !hasData && <LoadingText>Carregando {label}...</LoadingText>}
             {showError && (
                 <p>
@@ -291,9 +299,7 @@ function AccountStatus({
                 </p>
             )}
             {showUpdatedAt && hasData && query.dataUpdatedAt > 0 && (
-                <p className="mt-1">
-                    Atualizado em {dateTime.format(new Date(query.dataUpdatedAt))}
-                </p>
+                <p>Atualizado em {dateTime.format(new Date(query.dataUpdatedAt))}</p>
             )}
         </div>
     );

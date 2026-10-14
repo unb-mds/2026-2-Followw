@@ -28,7 +28,9 @@ export function ProfileIdentity({
                     </h1>
                     <RegistrationCopy value={user.registration} />
                     <p className="mt-2 text-sm text-primary">
-                        {titleCase(user.course)} · {user.unity}
+                        {[user.course && titleCase(user.course), user.unity]
+                            .filter(Boolean)
+                            .join(' · ')}
                     </p>
                     <p className="text-xs font-medium text-muted-foreground">{user.level}</p>
                 </div>
@@ -121,7 +123,7 @@ export function ProgressSection({ user }: { user: UserProfile }) {
 
 export function ProfileSection({ title, children }: { title: string; children: React.ReactNode }) {
     return (
-        <section className="mt-6" aria-label={title}>
+        <section aria-label={title}>
             <h2 className="mb-2 px-1 text-sm font-semibold">{title}</h2>
             {children}
         </section>

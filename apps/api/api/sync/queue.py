@@ -16,9 +16,8 @@ from qstash.message import BatchRequest
 
 from api.cookies import derive_key
 from api.core.config import settings
+from api.logger import event, operation
 from api.sync.engine import Job
-
-log = logging.getLogger(__name__)
 
 JOBS_URL = f"{settings.public_url.rstrip('/')}/jobs"
 
@@ -43,11 +42,12 @@ class QStashQueue:
 
         messages: list[BatchRequest] = [_message(job) for job in jobs]
         try:
-            async with asyncio.timeout(_PUBLISH_TIMEOUT):
-                await self._client.message.batch(messages)
+            with operation("queue.publish", job_count=len(jobs)):
+                async with asyncio.timeout(_PUBLISH_TIMEOUT):
+                    await self._client.message.batch(messages)
         except QStashError, httpx.HTTPError, TimeoutError:
             # Sem o job, o cache só segue vencido até o próximo acesso agendar outro.
-            log.exception("Falha ao agendar %s", ", ".join(job.key for job in jobs))
+            event("queue.publish_abandoned", level=logging.WARNING, job_count=len(jobs))
 
     async def aclose(self) -> None:
         # O AsyncQStash não expõe como fechar o próprio httpx.AsyncClient.

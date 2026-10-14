@@ -16,6 +16,42 @@ def _enum(enum: type, name: str) -> SAEnum:
     return SAEnum(enum, name=name, values_callable=lambda e: [m.value for m in e])
 
 
+class Unity(Base, TimestampMixin):
+    """Unidade acadêmica: o `id` é o do SIGAA e o `code` a sigla (ex.: FCTE)."""
+
+    __tablename__ = "unities"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=False)
+    code: Mapped[str | None] = mapped_column(unique=True)
+    name: Mapped[str] = mapped_column()
+
+
+class Course(Base, TimestampMixin):
+    """Curso de uma unidade; `sigaa_id` é nulo nos criados pelo sync, fora da lista do SIGAA."""
+
+    __tablename__ = "courses"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    sigaa_id: Mapped[int | None] = mapped_column(unique=True)
+    name: Mapped[str] = mapped_column()
+    shift: Mapped[str | None] = mapped_column()
+    unity_id: Mapped[int] = mapped_column(ForeignKey("unities.id"))
+
+    unity: Mapped[Unity] = relationship(lazy="joined")
+
+
+# Um só curso criado pelo sync por nome e unidade, mesmo com dois syncs ao mesmo tempo.
+COURSE_WITHOUT_SIGAA_ID = Course.sigaa_id.is_(None)
+Index(
+    "uq_course_without_sigaa_id",
+    Course.unity_id,
+    Course.name,
+    unique=True,
+    postgresql_where=COURSE_WITHOUT_SIGAA_ID,
+    sqlite_where=COURSE_WITHOUT_SIGAA_ID,
+)
+
+
 class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "users"
 
@@ -26,19 +62,20 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     photo: Mapped[str | None] = mapped_column()
     email: Mapped[str | None] = mapped_column()
     bio: Mapped[str | None] = mapped_column(Text)
-    unity: Mapped[str | None] = mapped_column()
-    course: Mapped[str | None] = mapped_column()
+    course_id: Mapped[int | None] = mapped_column(ForeignKey("courses.id"))
     integralization: Mapped[int | None] = mapped_column()
     workload: Mapped[dict[str, int] | None] = mapped_column(JSON)
     ira: Mapped[float | None] = mapped_column()
     mp: Mapped[float | None] = mapped_column()
     level: Mapped[UserLevel | None] = mapped_column(_enum(UserLevel, "user_level"))
+    registered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     profile_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     classrooms_synced_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True)
     )
     settings: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
 
+    course: Mapped[Course | None] = relationship(lazy="joined")
     classroom_links: Mapped[list[ClassroomParticipant]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
@@ -61,8 +98,9 @@ class Subject(Base, TimestampMixin):
     code: Mapped[str] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column()
     hours: Mapped[int | None] = mapped_column()
-    unity: Mapped[str | None] = mapped_column()
+    unity_id: Mapped[int | None] = mapped_column(ForeignKey("unities.id"))
 
+    unity: Mapped[Unity | None] = relationship(lazy="joined")
     classrooms: Mapped[list[Classroom]] = relationship(back_populates="subject")
 
 
@@ -79,12 +117,18 @@ class Classroom(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     semester: Mapped[str] = mapped_column()
     schedule: Mapped[str | None] = mapped_column()
     room: Mapped[str | None] = mapped_column()
+    # Docentes, vagas e ocupação vêm da busca pública, pelo seed.
+    professors: Mapped[list[str]] = mapped_column(JSON, default=list)
+    vacancies: Mapped[int | None] = mapped_column()
+    occupied: Mapped[int | None] = mapped_column()
     subject_code: Mapped[str] = mapped_column(ForeignKey("subjects.code"))
     members_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     news_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     statistics_synced_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True)
     )
+    # As aulas pelo horário e calendário são criadas uma vez, no sync de um aluno.
+    lessons_created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     subject: Mapped[Subject] = relationship(back_populates="classrooms")
     participant_links: Mapped[list[ClassroomParticipant]] = relationship(
@@ -105,7 +149,7 @@ class ClassroomParticipant(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         ForeignKey("users.id", ondelete="CASCADE")
     )
     classroom_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("classrooms.id", ondelete="CASCADE")
+        ForeignKey("classrooms.id", ondelete="CASCADE"), index=True
     )
     role: Mapped[ClassroomRole] = mapped_column(_enum(ClassroomRole, "classroom_role"))
     status: Mapped[ClassroomStatus | None] = mapped_column(
@@ -155,16 +199,23 @@ class Lesson(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     __tablename__ = "lessons"
     __table_args__ = (
-        UniqueConstraint("classroom_id", "occurred_on", "position", name="uq_lesson"),
+        # Uma só aula sem horário por dia.
+        UniqueConstraint(
+            "classroom_id",
+            "occurred_on",
+            "start_time",
+            name="uq_lesson",
+            postgresql_nulls_not_distinct=True,
+        ),
     )
 
     classroom_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("classrooms.id", ondelete="CASCADE")
     )
     occurred_on: Mapped[dt.date] = mapped_column()
-    # Ordem da aula entre as do mesmo dia.
-    position: Mapped[int] = mapped_column()
-    hours: Mapped[int] = mapped_column()
+    # Horário de Brasília; vazio só na aula que o SIGAA publicou numa turma sem horário.
+    start_time: Mapped[dt.time | None] = mapped_column()
+    end_time: Mapped[dt.time | None] = mapped_column()
     # Está no plano; as demais o SIGAA publicou fora dele (ex.: reposição).
     scheduled: Mapped[bool] = mapped_column()
 
@@ -183,7 +234,7 @@ class LessonAttendance(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         ForeignKey("classroom_participants.id", ondelete="CASCADE")
     )
     lesson_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("lessons.id", ondelete="CASCADE")
+        ForeignKey("lessons.id", ondelete="CASCADE"), index=True
     )
     status: Mapped[LessonStatus] = mapped_column(_enum(LessonStatus, "lesson_status"))
     marked: Mapped[bool] = mapped_column()

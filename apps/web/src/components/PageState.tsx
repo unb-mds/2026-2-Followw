@@ -19,13 +19,14 @@ interface PageStateProviderProps {
     children: React.ReactNode;
 }
 
-// estado que o header divide com a página; zera ao trocar de página
+// estado que o header divide com a página
 export const PageStateProvider: React.FC<PageStateProviderProps> = ({ page, children }) => {
     const [values, setValues] = useState<Values>({});
     const [currentPage, setCurrentPage] = useState(page);
     if (currentPage !== page) {
         setCurrentPage(page);
-        setValues({});
+        // escolhe o que é mantido entre páginas
+        setValues(({ date }) => ({ date }));
     }
     const context = useMemo(() => [values, setValues] as const, [values]);
 

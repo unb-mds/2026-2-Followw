@@ -1,5 +1,5 @@
-import { ChevronDown, Download, Ellipsis, PlusSquare, Share, X } from 'lucide-react';
-import { useSyncExternalStore } from 'react';
+import { Download, Ellipsis, PlusSquare, Share, X } from 'lucide-react';
+import { useState, useSyncExternalStore } from 'react';
 
 import { Button } from '#/components/ui/button';
 import { Card, CardContent } from '#/components/ui/card';
@@ -9,8 +9,7 @@ import {
     DialogContent,
     DialogDescription,
     DialogHeader,
-    DialogTitle,
-    DialogTrigger
+    DialogTitle
 } from '#/components/ui/dialog';
 import {
     dismissInstallCard,
@@ -31,6 +30,9 @@ function IosInstallDialog() {
                     <DialogTitle className="text-lg leading-snug font-bold tracking-tight">
                         Instale o Followw
                     </DialogTitle>
+                    <DialogDescription className="text-xs leading-relaxed">
+                        No Safari, siga estes passos:
+                    </DialogDescription>
                 </DialogHeader>
                 <DialogClose
                     render={<Button variant="ghost" size="icon-lg" />}
@@ -40,21 +42,17 @@ function IosInstallDialog() {
                 </DialogClose>
             </div>
 
-            <DialogDescription className="text-xs leading-relaxed">
-                No iPhone ou iPad, siga estes passos:
-            </DialogDescription>
-
             <ol className="flex flex-col gap-3 border-y py-3">
                 <li className="flex items-start gap-3">
                     <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                         <Share className="size-5" aria-hidden="true" />
                     </div>
                     <div className="flex flex-col gap-1">
-                        <p className="font-semibold">1. Abra Compartilhar</p>
+                        <p className="font-semibold">1. Clique em Compartilhar</p>
                         <p className="text-xs leading-5 text-muted-foreground">
-                            Toque em compartilhar. Se preciso, abra o menu
+                            Abra o menu
                             <Ellipsis className="mx-1 inline size-4" aria-label="Mais opções" />
-                            do navegador.
+                            do navegador e toque em “Compartilhar”.
                         </p>
                     </div>
                 </li>
@@ -65,8 +63,8 @@ function IosInstallDialog() {
                     <div className="flex flex-col gap-1">
                         <p className="font-semibold">2. Adicione à Tela de Início</p>
                         <p className="text-xs leading-5 text-muted-foreground">
-                            Selecione “Adicionar à Tela de Início”. Se preciso, toque em “Ver Mais”
-                            <ChevronDown className="ml-1 inline size-4" aria-hidden="true" />.
+                            Toque em “Ver Mais”, e em seguida, selecione “Adicionar à Tela de
+                            Início”.
                         </p>
                     </div>
                 </li>
@@ -83,9 +81,6 @@ function IosInstallDialog() {
                 </li>
             </ol>
 
-            <p className="text-xs leading-relaxed text-muted-foreground">
-                Sem essa opção? Veja “Editar Ações” ou abra o Followw no Safari.
-            </p>
             <DialogClose render={<Button className="h-11 w-full" />}>Entendi</DialogClose>
         </DialogContent>
     );
@@ -93,11 +88,12 @@ function IosInstallDialog() {
 
 export function InstallPromptCard() {
     const mode = useSyncExternalStore(subscribeInstallSupport, getInstallMode, () => null);
+    const [iosDialogOpen, setIosDialogOpen] = useState(false);
     if (!mode) return null;
 
     return (
-        <Dialog>
-            <Card as="section" className="relative mt-6" aria-label="Instalar Followw">
+        <Dialog open={mode === 'ios' && iosDialogOpen} onOpenChange={setIosDialogOpen}>
+            <Card as="section" className="relative" aria-label="Instalar Followw">
                 <Button
                     variant="ghost"
                     size="icon-lg"
@@ -119,22 +115,18 @@ export function InstallPromptCard() {
                             Acesse o app com um toque e consulte suas turmas já acessadas mesmo sem
                             internet.
                         </p>
-                        {mode === 'ios' ? (
-                            <DialogTrigger render={<Button className="h-11 self-start px-4" />}>
-                                Instalar app
-                            </DialogTrigger>
-                        ) : (
-                            <Button
-                                className="h-11 self-start px-4"
-                                onClick={() => void promptInstall()}
-                            >
-                                Instalar app
-                            </Button>
-                        )}
+                        <Button
+                            className="h-11 self-start px-4"
+                            onClick={() =>
+                                mode === 'ios' ? setIosDialogOpen(true) : void promptInstall()
+                            }
+                        >
+                            Instalar app
+                        </Button>
                     </div>
                 </CardContent>
             </Card>
-            {mode === 'ios' && <IosInstallDialog />}
+            <IosInstallDialog />
         </Dialog>
     );
 }

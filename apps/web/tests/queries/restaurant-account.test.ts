@@ -68,6 +68,17 @@ describe('conta do RU', () => {
         );
     });
 
+    test('o saldo salvo só é refeito depois de 30 minutos', async () => {
+        const { queryKey } = statementQueryOptions(registration);
+        client.setQueryData(queryKey, statement, { updatedAt: Date.now() - 29 * 60_000 });
+        await client.query(statementQueryOptions(registration));
+        expect(requests).toHaveLength(0);
+
+        client.setQueryData(queryKey, statement, { updatedAt: Date.now() - 31 * 60_000 });
+        await client.query(statementQueryOptions(registration));
+        expect(requests).toHaveLength(1);
+    });
+
     test('a carteirinha salva não é refeita automaticamente', async () => {
         client.setQueryData(credentialsQueryOptions(registration).queryKey, credentials);
         await client.query(credentialsQueryOptions(registration));

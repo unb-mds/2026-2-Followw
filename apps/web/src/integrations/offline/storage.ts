@@ -1,4 +1,4 @@
-import type { QueryClient } from '@tanstack/react-query';
+import type { Query, QueryClient } from '@tanstack/react-query';
 
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { noop } from '@tanstack/react-query';
@@ -19,6 +19,11 @@ const persister =
               key: 'followw-query-cache'
           });
 
+// sem isso, query sem uso (ex.: cardápio de semana antiga) é salva de novo a cada sessão e nunca sai
+export function shouldPersistQuery(query: Query, now = Date.now()) {
+    return query.state.status === 'success' && now - query.state.dataUpdatedAt < PERSIST_MAX_AGE;
+}
+
 /** Restaura o cache salvo no IndexedDB e salva cada mudança; devolve a função que para de salvar. */
 export function persistQueryCache(queryClient: QueryClient) {
     if (!persister) return noop;
@@ -26,7 +31,8 @@ export function persistQueryCache(queryClient: QueryClient) {
         queryClient,
         persister,
         maxAge: PERSIST_MAX_AGE,
-        buster: import.meta.env.VITE_QUERY_CACHE_BUSTER
+        buster: import.meta.env.VITE_QUERY_CACHE_BUSTER,
+        dehydrateOptions: { shouldDehydrateQuery: (query) => shouldPersistQuery(query) }
     });
     // falha ao restaurar já descarta o cache salvo
     restoring.catch(noop);
