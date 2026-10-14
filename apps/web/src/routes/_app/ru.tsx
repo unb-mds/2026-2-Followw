@@ -128,7 +128,7 @@ function RUPage() {
             {filtersOpen && (
                 <div>
                     <WeekDayPicker
-                        days={weekDays(today)}
+                        days={weekDays(today, 7)}
                         selectedDate={selectedDate}
                         onSelect={(day) => setSelectedDate(day.date)}
                     />

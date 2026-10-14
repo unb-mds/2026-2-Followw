@@ -29,6 +29,10 @@ describe('parseSchedule', () => {
             { weekday: 2, start: '12:00', end: '13:50' },
             { weekday: 4, start: '12:00', end: '13:50' }
         ]);
+        expect(parseSchedule('24T6 24N1')).toEqual([
+            { weekday: 1, start: '18:00', end: '19:50' },
+            { weekday: 3, start: '18:00', end: '19:50' }
+        ]);
         expect(parseSchedule('2M5 3T1')).toHaveLength(2);
     });
 
@@ -42,6 +46,7 @@ describe('describeSchedule', () => {
     test('agrupa os dias com o mesmo horário', () => {
         expect(describeSchedule('35M34')).toBe('Ter, Qui · 10:00–11:50');
         expect(describeSchedule('35M5 35T1')).toBe('Ter, Qui · 12:00–13:50');
+        expect(describeSchedule('24T6 24N1')).toBe('Seg, Qua · 18:00–19:50');
     });
 
     test('devolve o código quando não entende', () => {
@@ -103,5 +108,25 @@ describe('weekDays', () => {
 
     test('no domingo, mostra a semana que começa', () => {
         expect(dates('2026-09-27')[0]).toBe('2026-09-28');
+    });
+
+    test('com count=7 vai de segunda a domingo da semana', () => {
+        expect(weekDays('2026-09-30', 7).map((d) => d.date)).toEqual([
+            '2026-09-28',
+            '2026-09-29',
+            '2026-09-30',
+            '2026-10-01',
+            '2026-10-02',
+            '2026-10-03',
+            '2026-10-04'
+        ]);
+        expect(weekDays('2026-09-26', 7).map((d) => d.weekday)).toEqual([1, 2, 3, 4, 5, 6, 0]);
+    });
+
+    test('no domingo com count=7, mostra a semana que termina nele', () => {
+        const days = weekDays('2026-09-27', 7);
+        expect(days[0].date).toBe('2026-09-21');
+        expect(days.at(-1)?.date).toBe('2026-09-27');
+        expect(days.at(-1)?.weekday).toBe(0);
     });
 });

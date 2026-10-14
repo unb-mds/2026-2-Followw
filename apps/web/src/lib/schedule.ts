@@ -13,7 +13,7 @@ const SLOTS: Record<string, [string, string][]> = {
         ['14:55', '15:50'],
         ['16:00', '16:55'],
         ['16:55', '17:50'],
-        ['18:00', '18:55']
+        ['18:00', '19:00']
     ],
     N: [
         ['19:00', '19:50'],
@@ -108,11 +108,13 @@ export function nextDays(start: string, count: number): Day[] {
     });
 }
 
-/** Segunda a sábado da semana de `date`; no domingo, a semana que começa. */
-export function weekDays(date: string): Day[] {
+/** Segunda a sábado da semana de `date`; com `count = 7`, vai de segunda a domingo da mesma semana. */
+export function weekDays(date: string, count = 6): Day[] {
     const monday = new Date(`${date}T00:00:00Z`);
-    monday.setUTCDate(monday.getUTCDate() + 1 - monday.getUTCDay());
-    return nextDays(monday.toISOString().slice(0, 10), 6);
+    const day = monday.getUTCDay();
+    const diff = count === 7 && day === 0 ? -6 : 1 - day;
+    monday.setUTCDate(monday.getUTCDate() + diff);
+    return nextDays(monday.toISOString().slice(0, 10), count);
 }
 
 export interface ScheduledClass<T> extends ClassTime {
