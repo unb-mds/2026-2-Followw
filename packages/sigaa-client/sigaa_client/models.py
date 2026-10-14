@@ -125,8 +125,6 @@ class Classroom(BaseModel):
 
 
 class Grade(str, enum.Enum):
-    """Menção da UnB, como o "Resultado" de "Consultar Minhas Notas"."""
-
     SS = "SS"
     MS = "MS"
     MM = "MM"

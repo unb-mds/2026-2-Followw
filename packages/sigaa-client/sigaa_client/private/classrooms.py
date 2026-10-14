@@ -147,22 +147,12 @@ class Classrooms:
 
     async def list_grades(self) -> list[ClassroomGrade]:
         """Todas as menções de todos os semestres, num único relatório."""
-        for allow_renewal in (True, False):
-            try:
-                page = await self._session.get(
-                    DASHBOARD_PATH, allow_renewal=allow_renewal
-                )
-                form = read_form(BeautifulSoup(page.text, "lxml"), GRADES_FORM_ID)
-                read_viewstate(form)
-                action, payload = build_menu_action(form, GRADES_MENU_ACTION)
-                page = await self._session.post(
-                    action, data=payload, allow_renewal=allow_renewal
-                )
-                return _parse_grades(BeautifulSoup(page.text, "lxml"))
-            except SessionRenewed:
-                if not allow_renewal:
-                    raise
-        raise SessionExpired("Não foi possível abrir o relatório de notas.")
+        # O relogin invalida o ViewState do postback: relê o portal uma vez.
+        try:
+            page = await _open_grades(self._session, allow_renewal=True)
+        except SessionRenewed:
+            page = await _open_grades(self._session, allow_renewal=False)
+        return _parse_grades(BeautifulSoup(page, "lxml"))
 
     async def get_classroom_statistics(
         self, classroom_id: str
@@ -251,6 +241,16 @@ async def _open_participants(session: Session, allow_renewal: bool) -> str:
 
 async def _open_frequency(session: Session, allow_renewal: bool) -> str:
     return await _open_menu(session, FREQUENCY_MENU_LABEL, allow_renewal)
+
+
+async def _open_grades(session: Session, allow_renewal: bool) -> str:
+    page = await session.get(DASHBOARD_PATH, allow_renewal=allow_renewal)
+    form = read_form(BeautifulSoup(page.text, "lxml"), GRADES_FORM_ID)
+    # Falha antes do postback: sem ViewState, o SIGAA devolveria outra tela.
+    read_viewstate(form)
+    action, payload = build_menu_action(form, GRADES_MENU_ACTION)
+    response = await session.post(action, data=payload, allow_renewal=allow_renewal)
+    return response.text
 
 
 async def _open_statistics(session: Session, allow_renewal: bool) -> str:

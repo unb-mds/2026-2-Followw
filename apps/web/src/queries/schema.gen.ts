@@ -490,7 +490,7 @@ export interface components {
         };
         /**
          * Grade
-         * @description Menção da UnB, como o "Resultado" da tela "Ver Notas".
+         * @description Menção da UnB, como o "Resultado" de "Consultar Minhas Notas".
          * @enum {string}
          */
         Grade: "SS" | "MS" | "MM" | "MI" | "II" | "SR";

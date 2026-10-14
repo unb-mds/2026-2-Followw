@@ -49,6 +49,8 @@ from sigaa_client.private.classrooms import (
 )
 from sigaa_client.private.session import Session
 
+from .test_auth import CREDENTIALS, FakeSigaa
+
 HISTORY = """
 <html><body><table class="listagem">
   <tr><td class="periodo" colspan="6">2026.2</td></tr>
@@ -592,8 +594,6 @@ class GradesSigaa:
     """Simula o CAS e expira a sessão entre o portal e o postback de notas."""
 
     def __init__(self, *, expire: bool = False, always_expire: bool = False) -> None:
-        from .test_auth import FakeSigaa
-
         self.auth = FakeSigaa()
         self.auth.valid_tokens.add("vivo")
         self.expire = expire
@@ -619,8 +619,6 @@ class GradesSigaa:
 
 @pytest.mark.parametrize("expire", [False, True])
 async def test_notas_abrem_pelo_menu_e_refazem_postback_depois_de_relogin(expire):
-    from .test_auth import CREDENTIALS
-
     sigaa = GradesSigaa(expire=expire)
     async with SigaaClient(
         CREDENTIALS, session_token="vivo", transport=httpx.MockTransport(sigaa)
@@ -642,8 +640,6 @@ async def test_notas_abrem_pelo_menu_e_refazem_postback_depois_de_relogin(expire
 
 
 async def test_notas_nao_tentam_relogin_indefinidamente():
-    from .test_auth import CREDENTIALS
-
     sigaa = GradesSigaa(expire=True, always_expire=True)
     async with SigaaClient(
         CREDENTIALS, session_token="vivo", transport=httpx.MockTransport(sigaa)
