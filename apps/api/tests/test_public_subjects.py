@@ -19,6 +19,8 @@ def catalog(client, database):
                     name="COMPILAÇÃO DE PROGRAMAS",
                     hours=60,
                     unity_id=673,
+                    prerequisites=[["FGA0001", "FGA0002"], ["FGA0010"]],
+                    equivalences=[["CIC0004"]],
                 ),
                 Subject(code="FGA0001", name="CÁLCULO 1", hours=90, unity_id=673),
                 Subject(code="FCE0001", name="CÁLCULO APLICADO", unity_id=518),
@@ -63,6 +65,9 @@ def test_componente_traz_as_turmas_do_semestre_mais_recente(catalog):
             "name": "COMPILAÇÃO DE PROGRAMAS",
             "hours": 60,
             "unity": "FCTE",
+            "prerequisites": [["FGA0001", "FGA0002"], ["FGA0010"]],
+            "corequisites": None,
+            "equivalences": [["CIC0004"]],
             "classrooms": [
                 {
                     "sigaa_id": 10,

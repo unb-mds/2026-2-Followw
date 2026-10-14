@@ -6,6 +6,7 @@ from sigaa_client import SigaaSearchError, Unit, lookup_key, resolve_unit
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.main import DatabaseDep
+from api.db.models import Requirements
 from api.modules.public_subjects.repository import SubjectCatalogRepository
 from api.schemas import ClassroomOffer, UserSubject
 
@@ -21,8 +22,12 @@ class SubjectClassroom(ClassroomOffer):
 
 
 class CatalogSubject(UserSubject):
-    """O componente com as turmas do semestre consultado."""
+    """O componente com as turmas do semestre consultado e os requisitos."""
 
+    # OU de Es: `[["A", "B"], ["C"]]` é `(A E B) OU C`; nulo quando desconhecido.
+    prerequisites: Requirements | None = None
+    corequisites: Requirements | None = None
+    equivalences: Requirements | None = None
     classrooms: list[SubjectClassroom]
 
 
@@ -69,6 +74,9 @@ async def _search(
             name=subject.name,
             hours=subject.hours,
             unity=subject.unity.code if subject.unity else None,
+            prerequisites=subject.prerequisites,
+            corequisites=subject.corequisites,
+            equivalences=subject.equivalences,
             classrooms=[
                 SubjectClassroom.model_validate(classroom)
                 for classroom in sorted(subject.classrooms, key=lambda c: c.number)
