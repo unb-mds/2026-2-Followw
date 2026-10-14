@@ -1,14 +1,13 @@
 """Coleta as turmas de graduação do semestre, unidade a unidade."""
 
-import argparse
 import asyncio
-from collections.abc import Mapping, Sequence
-from pathlib import Path
+from collections.abc import Iterable, Sequence
 
 from _by_unit import (
     DATA_DIR,
     collect_by_unit,
     load_units,
+    parse_args,
     parse_semester,
     write_csv,
 )
@@ -22,7 +21,6 @@ COLUMNS = (
     "semester",
     "schedule",
     "room",
-    "unity_id",
     "vacancies",
     "occupied",
     "teachers",
@@ -46,7 +44,7 @@ async def collect_classrooms(
     found_by_unit = await collect_by_unit(
         units, collect_unit, lambda found: f"{len(found)} turmas", workers
     )
-    rows = classroom_rows(found_by_unit)
+    rows = classroom_rows(found_by_unit.values())
     if not rows:
         raise RuntimeError("Nenhuma turma encontrada; nada foi salvo.")
 
@@ -56,12 +54,12 @@ async def collect_classrooms(
 
 
 def classroom_rows(
-    found_by_unit: Mapping[int, Sequence[PublicClassroom]],
+    found: Iterable[Sequence[PublicClassroom]],
 ) -> list[dict[str, object]]:
-    """Uma linha por turma; a que aparece em mais de uma unidade fica com a de menor id."""
+    """Uma linha por turma, ordenadas pela chave; a repetida entre unidades vale uma vez."""
     rows: dict[tuple[str, str, str], dict[str, object]] = {}
     shared = 0
-    for unit_id, classrooms in sorted(found_by_unit.items()):
+    for classrooms in found:
         for classroom in classrooms:
             code = classroom.subject.code
             if code is None:
@@ -76,7 +74,6 @@ def classroom_rows(
                 "semester": classroom.semester,
                 "schedule": classroom.schedule,
                 "room": classroom.room,
-                "unity_id": unit_id,
                 "vacancies": classroom.vacancies,
                 "occupied": classroom.occupied,
                 "teachers": TEACHER_SEPARATOR.join(t.name for t in classroom.teachers),
@@ -87,19 +84,7 @@ def classroom_rows(
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--semester", help="AAAA.P; omitido usa o formulário do SIGAA.")
-    parser.add_argument("--output", type=Path, default=OUTPUT)
-    parser.add_argument(
-        "--unit", action="append", help="id ou nome exato de uma unidade (repetível)."
-    )
-    parser.add_argument("--workers", type=int, default=2)
-    args = parser.parse_args()
-    try:
-        parse_semester(args.semester)
-    except ValueError as error:
-        parser.error(f"--semester: {error}")
-
+    args = parse_args(__doc__, OUTPUT)
     rows = asyncio.run(collect_classrooms(args.semester, args.unit, args.workers))
     write_csv(rows, COLUMNS, args.output)
     print(f"Salvo em {args.output}: {len(rows)} turmas.")

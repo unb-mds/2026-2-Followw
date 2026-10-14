@@ -16,9 +16,16 @@ from sigaa_client.utils.parsing import (
 
 @pytest.mark.parametrize(
     "value,expected",
-    [("  CEILÂNDIA ", "ceilandia"), ("Gama: Engenharia", "gama: engenharia"), ("", "")],
+    [
+        ("  CEILÂNDIA ", "ceilandia"),
+        ("Gama: Engenharia", "gama: engenharia"),
+        ("  COMPILAÇÃO\tDE\nPROGRAMAS ", "compilacao de programas"),
+        ("Straße", "strasse"),
+        (" \t", ""),
+        ("", ""),
+    ],
 )
-def test_lookup_key_ignora_acento_caixa_e_borda(value, expected):
+def test_lookup_key_ignora_acento_caixa_e_espacos(value, expected):
     assert lookup_key(value) == expected
 
 
@@ -96,7 +103,7 @@ def test_markdown_nao_gera_link_nem_imagem_executavel():
 
 def test_parse_datetime_le_data_do_sigaa():
     assert parse_datetime("10/08/2026 15:24", "%d/%m/%Y %H:%M", "da notícia") == (
-        datetime(2026, 8, 10, 15, 24)  # noqa: DTZ001
+        datetime(2026, 8, 10, 15, 24)
     )
 
 

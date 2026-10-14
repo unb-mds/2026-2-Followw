@@ -45,6 +45,8 @@ from .models import (
     UserLevel,
     UserProfile,
 )
+from .public.units import resolve_unit
+from .utils.parsing import lookup_key
 
 __all__ = [
     "AttendanceEntry",
@@ -91,4 +93,6 @@ __all__ = [
     "Unit",
     "UserLevel",
     "UserProfile",
+    "lookup_key",
+    "resolve_unit",
 ]

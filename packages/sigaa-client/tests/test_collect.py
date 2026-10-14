@@ -113,11 +113,13 @@ def test_semestre_invalido_e_barulhento(by_unit):
         by_unit.parse_semester("2026-2")
 
 
-def test_uma_turma_por_linha_com_a_unidade_de_menor_id(classrooms_script):
+def test_uma_turma_por_linha_ainda_que_apareca_em_mais_de_uma_unidade(
+    classrooms_script,
+):
     shared = _classroom("FGA0030", "01", schedule="35M12", room="S3", vacancies=100)
     rows = classrooms_script.classroom_rows(
-        {
-            673: [
+        [
+            [
                 shared,
                 _classroom(
                     "FGA0001",
@@ -126,8 +128,8 @@ def test_uma_turma_por_linha_com_a_unidade_de_menor_id(classrooms_script):
                     teachers=(Teacher(name="A", hours=30), Teacher(name="B")),
                 ),
             ],
-            518: [shared, _classroom(None, "01")],
-        }
+            [shared, _classroom(None, "01")],
+        ]
     )
 
     assert rows == [
@@ -137,7 +139,6 @@ def test_uma_turma_por_linha_com_a_unidade_de_menor_id(classrooms_script):
             "semester": "2026.2",
             "schedule": None,
             "room": None,
-            "unity_id": 673,
             "vacancies": None,
             "occupied": 10,
             "teachers": "A; B",
@@ -148,7 +149,6 @@ def test_uma_turma_por_linha_com_a_unidade_de_menor_id(classrooms_script):
             "semester": "2026.2",
             "schedule": "35M12",
             "room": "S3",
-            "unity_id": 518,
             "vacancies": 100,
             "occupied": None,
             "teachers": "",
@@ -160,14 +160,12 @@ def test_csv_de_turmas_escreve_as_colunas_na_ordem_e_vazio_para_nulo(
     classrooms_script, tmp_path
 ):
     path = tmp_path / "classrooms.csv"
-    rows = classrooms_script.classroom_rows(
-        {673: [_classroom("FGA0030", "01", room="S3")]}
-    )
+    rows = classrooms_script.classroom_rows([[_classroom("FGA0030", "01", room="S3")]])
     classrooms_script.write_csv(rows, classrooms_script.COLUMNS, path)
 
     assert path.read_text(encoding="utf-8").splitlines() == [
         ",".join(classrooms_script.COLUMNS),
-        "FGA0030,01,2026.2,,S3,673,,,",
+        "FGA0030,01,2026.2,,S3,,,",
     ]
 
 

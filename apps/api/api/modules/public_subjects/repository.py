@@ -1,7 +1,6 @@
-from collections.abc import Collection
-
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from api.db.models import Classroom, Subject, Unity
 
@@ -12,33 +11,29 @@ class SubjectCatalogRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
+    async def list_unities(self) -> list[Unity]:
+        return list(await self._session.scalars(select(Unity).order_by(Unity.id)))
+
     async def list_subjects(
-        self, code: str | None = None, unity_id: int | None = None
+        self,
+        *,
+        code: str | None = None,
+        unity_id: int | None = None,
+        semester: str | None = None,
     ) -> list[Subject]:
+        """Cada componente com as turmas de `semester` (o mais recente gravado, se omitido)."""
+        semester = semester or await self._session.scalar(
+            select(func.max(Classroom.semester))
+        )
         query = select(Subject).order_by(Subject.code)
         if code is not None:
             query = query.where(Subject.code == code)
         if unity_id is not None:
             query = query.where(Subject.unity_id == unity_id)
-        return list(await self._session.scalars(query))
-
-    async def list_unities(self) -> list[Unity]:
-        return list(await self._session.scalars(select(Unity).order_by(Unity.id)))
-
-    async def latest_semester(self) -> str | None:
-        return await self._session.scalar(select(func.max(Classroom.semester)))
-
-    async def list_classrooms(
-        self, codes: Collection[str], semester: str
-    ) -> list[Classroom]:
-        if not codes:
-            return []
-        return list(
-            await self._session.scalars(
-                select(Classroom)
-                .where(
-                    Classroom.subject_code.in_(codes), Classroom.semester == semester
-                )
-                .order_by(Classroom.subject_code, Classroom.number)
+        # Sem semestre não há turma gravada, então o filtro não tira nada.
+        offered = selectinload(Subject.classrooms)
+        if semester is not None:
+            offered = selectinload(
+                Subject.classrooms.and_(Classroom.semester == semester)
             )
-        )
+        return list(await self._session.scalars(query.options(offered)))

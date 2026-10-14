@@ -591,6 +591,21 @@ export interface components {
          * @description A turma com a menção do usuário, `None` enquanto não lançada ou sincronizada.
          */
         ParticipantClassroom: {
+            /**
+             * Professors
+             * @default []
+             */
+            professors: string[];
+            /**
+             * Vacancies
+             * @description Vagas na coleta do seed, não em tempo real.
+             */
+            vacancies?: number | null;
+            /**
+             * Occupied
+             * @description Ocupação na coleta do seed, não em tempo real.
+             */
+            occupied?: number | null;
             /** Id */
             id: string;
             /** Sigaa Id */
@@ -610,15 +625,6 @@ export interface components {
             current: boolean;
             subject: components["schemas"]["UserSubject"];
             grade?: components["schemas"]["Grade"] | null;
-            /**
-             * Professors
-             * @default []
-             */
-            professors: string[];
-            /** Vacancies */
-            vacancies?: number | null;
-            /** Occupied */
-            occupied?: number | null;
         };
         /**
          * PublicClassroom
@@ -726,6 +732,21 @@ export interface components {
         };
         /** SubjectClassroom */
         SubjectClassroom: {
+            /**
+             * Professors
+             * @default []
+             */
+            professors: string[];
+            /**
+             * Vacancies
+             * @description Vagas na coleta do seed, não em tempo real.
+             */
+            vacancies?: number | null;
+            /**
+             * Occupied
+             * @description Ocupação na coleta do seed, não em tempo real.
+             */
+            occupied?: number | null;
             /** Sigaa Id */
             sigaa_id?: number | null;
             /** Number */
@@ -736,15 +757,6 @@ export interface components {
             schedule?: string | null;
             /** Room */
             room?: string | null;
-            /**
-             * Professors
-             * @default []
-             */
-            professors: string[];
-            /** Vacancies */
-            vacancies?: number | null;
-            /** Occupied */
-            occupied?: number | null;
         };
         /**
          * Teacher

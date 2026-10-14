@@ -1,5 +1,6 @@
 """O que as coletas unidade a unidade da busca pública de turmas têm em comum."""
 
+import argparse
 import asyncio
 import csv
 import re
@@ -30,6 +31,22 @@ def parse_semester(semester: str | None) -> tuple[int | None, int | None]:
     return int(year), int(period)
 
 
+def parse_args(description: str | None, output: Path) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument("--semester", help="AAAA.P; omitido usa o formulário do SIGAA.")
+    parser.add_argument("--output", type=Path, default=output)
+    parser.add_argument(
+        "--unit", action="append", help="id ou nome exato de uma unidade (repetível)."
+    )
+    parser.add_argument("--workers", type=int, default=2)
+    args = parser.parse_args()
+    try:
+        parse_semester(args.semester)
+    except ValueError as error:
+        parser.error(f"--semester: {error}")
+    return args
+
+
 async def load_units(only: Sequence[str] | None = None) -> list[Unit]:
     """As unidades da busca; `only` filtra por id ou nome exato."""
     async with SigaaPublicClient(timeout=TIMEOUT) as client:
@@ -52,7 +69,8 @@ async def collect_by_unit[T](
 ) -> dict[int, T]:
     """Roda `collect` em cada unidade, com `workers` sessões; falha se alguma unidade falhar.
 
-    Uma unidade com erro de rede é tentada de novo até `ATTEMPTS` vezes.
+    Uma unidade com erro de rede é tentada de novo até `ATTEMPTS` vezes, então `collect`
+    deve poder ser chamada outra vez sobre a mesma unidade.
     """
     found_by_unit: dict[int, T] = {}
     failed: list[int] = []
@@ -87,13 +105,15 @@ async def _attempts[T](
     client: SigaaPublicClient,
     unit: Unit,
 ) -> T:
-    for _ in range(ATTEMPTS - 1):
+    for attempt in range(ATTEMPTS):
         try:
             return await collect(client, unit)
         except NETWORK_ERRORS as error:
+            if attempt == ATTEMPTS - 1:
+                raise
             print(f"Nova tentativa {unit.id}: {error}", flush=True)
             await asyncio.sleep(RETRY_DELAY)
-    return await collect(client, unit)
+    raise AssertionError("ATTEMPTS deve ser positivo")
 
 
 def write_csv(

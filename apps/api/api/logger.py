@@ -32,6 +32,7 @@ _FIELDS = {
     "step_count",
     "job_count",
     "failed_count",
+    "skipped_count",
     "reused_session",
 }
 

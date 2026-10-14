@@ -1,13 +1,12 @@
 """Coleta os componentes de graduação ofertados, unidade a unidade, com requisitos."""
 
-import argparse
 import asyncio
-from pathlib import Path
 
 from _by_unit import (
     DATA_DIR,
     collect_by_unit,
     load_units,
+    parse_args,
     parse_semester,
     write_csv,
 )
@@ -82,19 +81,7 @@ def subject_rows(
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--semester", help="AAAA.P; omitido usa o formulário do SIGAA.")
-    parser.add_argument("--output", type=Path, default=OUTPUT)
-    parser.add_argument(
-        "--unit", action="append", help="id ou nome exato de uma unidade (repetível)."
-    )
-    parser.add_argument("--workers", type=int, default=2)
-    args = parser.parse_args()
-    try:
-        parse_semester(args.semester)
-    except ValueError as error:
-        parser.error(f"--semester: {error}")
-
+    args = parse_args(__doc__, OUTPUT)
     subjects = asyncio.run(collect_subjects(args.semester, args.unit, args.workers))
     write_csv(subject_rows(subjects), COLUMNS, args.output)
     print(f"Salvo em {args.output}: {len(subjects)} componentes.")

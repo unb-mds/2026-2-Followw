@@ -76,15 +76,17 @@ def parse_hours(value: str) -> int | None:
 
 
 def lookup_key(value: str) -> str:
-    """Chave de lookup, sem acento e em minúscula."""
-    normalized = unicodedata.normalize("NFKD", value.strip().lower())
-    return "".join(c for c in normalized if not unicodedata.combining(c))
+    """Chave de lookup, sem acento, em minúscula e com espaços colapsados."""
+    normalized = unicodedata.normalize("NFKD", value.casefold())
+    return " ".join(
+        "".join(c for c in normalized if not unicodedata.combining(c)).split()
+    )
 
 
 def parse_datetime(value: str, fmt: str, where: str) -> datetime:
     """O SIGAA não expõe timezone; a data é sempre a do calendário da UnB."""
     try:
-        return datetime.strptime(value, fmt)  # noqa: DTZ007
+        return datetime.strptime(value, fmt)
     except ValueError as error:
         raise SigaaParseError(
             f"Data `{value}` {where} em formato inesperado."

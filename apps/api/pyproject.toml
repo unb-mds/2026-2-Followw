@@ -6,9 +6,9 @@ requires-python = ">=3.14"
 dependencies = [
     "asyncpg>=0.32.0",
     "cryptography>=50.0.2",
-    "fastapi[standard]>=0.142.4",
+    "fastapi[standard]>=0.143.0",
     "joserfc>=1.7.5",
-    "pydantic>=2.13.5",
+    "pydantic>=2.14.1",
     "pydantic-settings>=2.15.0",
     "qstash>=3.4.0",
     "sigaa-client",
@@ -29,7 +29,7 @@ api = "api:main"
 db-init = "api.db.main:db_init"
 
 [build-system]
-requires = ["uv_build>=0.12.9,<0.13.0"]
+requires = ["uv_build>=0.13.0,<0.14.0"]
 build-backend = "uv_build"
 
 [tool.ruff.format]
@@ -45,5 +45,5 @@ dev = [
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "respx>=0.23.1",
-    "ruff>=0.16.10",
+    "ruff>=0.17.0",
 ]

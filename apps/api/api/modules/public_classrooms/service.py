@@ -1,12 +1,11 @@
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
-from sigaa_client import PublicClassroom, SigaaSearchError, Unit
+from sigaa_client import PublicClassroom, SigaaSearchError, Unit, lookup_key
 
 from api.db.main import DatabaseDep
 from api.modules.public_classrooms.code import classroom_code_prefix
 from api.modules.public_classrooms.repository import UnitIndexRepository
-from api.search import normalize_search
 from api.sigaa import SigaaPublicClientDep
 
 
@@ -98,13 +97,13 @@ class PublicClassroomService:
                 for classroom in classrooms
                 if classroom.number.strip().lstrip("0") == str(number)
             ]
-        needle = normalize_search(contains or "")
+        needle = lookup_key(contains or "")
         if needle:
             classrooms = [
                 classroom
                 for classroom in classrooms
                 if any(
-                    needle in normalize_search(value)
+                    needle in lookup_key(value)
                     for value in (
                         classroom.subject.name,
                         classroom.subject.code or "",
@@ -112,14 +111,14 @@ class PublicClassroomService:
                     )
                 )
             ]
-        location = normalize_search(local or "")
+        location = lookup_key(local or "")
         if not location:
             return classrooms
         return [
             classroom
             for classroom in classrooms
             if location
-            in normalize_search(
+            in lookup_key(
                 " - ".join(
                     part for part in (classroom.subject.unity, classroom.room) if part
                 )

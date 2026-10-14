@@ -11,15 +11,11 @@ from api.db.base import Base
 DATA_DIR = Path(__file__).resolve().parents[5] / "packages/sigaa-client/data"
 
 
-type Key = str | tuple[str, ...]
-
-
-def _fields(key: Key) -> tuple[str, ...]:
-    return (key,) if isinstance(key, str) else key
+type Key = tuple[str, ...]
 
 
 def _value(row: Base, key: Key) -> tuple[object, ...]:
-    return tuple(getattr(row, field) for field in _fields(key))
+    return tuple(getattr(row, field) for field in key)
 
 
 def read_csv[M: Base](
@@ -31,7 +27,7 @@ def read_csv[M: Base](
     for key in unique:
         values = [v for row in rows if None not in (v := _value(row, key))]
         if len(values) != len(set(values)):
-            raise ValueError(f"`{', '.join(_fields(key))}` repetido em {path.name}.")
+            raise ValueError(f"`{', '.join(key)}` repetido em {path.name}.")
     return rows
 
 
@@ -43,7 +39,7 @@ async def upsert[M: Base](
     fields: Sequence[str],
 ) -> None:
     """Cria as linhas novas e atualiza `fields` das já gravadas, achadas por `key`."""
-    filled = [getattr(model, field).is_not(None) for field in _fields(key)]
+    filled = [getattr(model, field).is_not(None) for field in key]
     saved = {
         _value(row, key): row
         for row in await session.scalars(select(model).where(*filled))
