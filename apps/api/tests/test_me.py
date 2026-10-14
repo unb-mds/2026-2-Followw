@@ -259,7 +259,9 @@ def documents(stub_sigaa):
     stub_sigaa.documents = SimpleNamespace(
         get_student_card_pdf=AsyncMock(return_value=pdf),
         get_transcript_pdf=AsyncMock(return_value=pdf),
-        get_enrollment_certificate_pdf=AsyncMock(return_value=pdf),
+        get_enrollment_certificate_html=AsyncMock(
+            return_value="<html><head><meta charset='utf-8'></head><body>Atestado de Matrícula - TESTE123</body></html>"
+        ),
     )
     return stub_sigaa.documents
 
@@ -288,19 +290,20 @@ def restaurant(stub_sigaa):
 
 
 DOCUMENT_DOWNLOADS = [
-    ("student-card", "get_student_card_pdf", "carteirinha.pdf"),
-    ("transcript", "get_transcript_pdf", "historico.pdf"),
+    ("student-card", "get_student_card_pdf", "carteirinha.pdf", "application/pdf"),
+    ("transcript", "get_transcript_pdf", "historico.pdf", "application/pdf"),
     (
         "enrollment-certificate",
-        "get_enrollment_certificate_pdf",
-        "atestado-matricula.pdf",
+        "get_enrollment_certificate_html",
+        "atestado-matricula.html",
+        "text/html",
     ),
 ]
 
 
-@pytest.mark.parametrize("path,method,filename", DOCUMENT_DOWNLOADS)
-def test_download_documento_preserva_pdf_cookies_e_nao_usa_cache(
-    client, cookies, documents, qstash, path, method, filename
+@pytest.mark.parametrize("path,method,filename,media_type", DOCUMENT_DOWNLOADS)
+def test_download_documento_preserva_conteudo_cookies_e_nao_usa_cache(
+    client, cookies, documents, qstash, path, method, filename, media_type
 ):
     def banco_proibido():
         pytest.fail("Download de documento não deve usar banco")
@@ -310,8 +313,13 @@ def test_download_documento_preserva_pdf_cookies_e_nao_usa_cache(
     for _ in range(2):
         response = client.post(f"/me/{path}")
         assert response.status_code == 200
-        assert response.content == getattr(documents, method).return_value
-        assert response.headers["content-type"] == "application/pdf"
+        expected = getattr(documents, method).return_value
+        assert response.content == (
+            expected.encode("utf-8") if isinstance(expected, str) else expected
+        )
+        assert response.headers["content-type"] == (
+            "text/html; charset=utf-8" if media_type == "text/html" else media_type
+        )
         assert (
             response.headers["content-disposition"]
             == f'attachment; filename="{filename}"'
@@ -324,9 +332,9 @@ def test_download_documento_preserva_pdf_cookies_e_nao_usa_cache(
     assert qstash.published == []
 
 
-@pytest.mark.parametrize("path,method,filename", DOCUMENT_DOWNLOADS)
+@pytest.mark.parametrize("path,method,filename,media_type", DOCUMENT_DOWNLOADS)
 def test_download_documento_exige_login(
-    client, stub_sigaa, documents, path, method, filename
+    client, stub_sigaa, documents, path, method, filename, media_type
 ):
     assert client.post(f"/me/{path}").status_code == 401
     getattr(documents, method).assert_not_awaited()
@@ -342,29 +350,39 @@ def test_download_documento_exige_login(
         (httpx.ReadTimeout("fora"), 502),
     ],
 )
-@pytest.mark.parametrize("path,method,filename", DOCUMENT_DOWNLOADS)
+@pytest.mark.parametrize("path,method,filename,media_type", DOCUMENT_DOWNLOADS)
 def test_download_documento_traduz_erros(
-    client, cookies, documents, error, status, path, method, filename
+    client, cookies, documents, error, status, path, method, filename, media_type
 ):
     client.cookies.update(cookies(refresh=CREDENCIAIS))
     getattr(documents, method).side_effect = error
     assert client.post(f"/me/{path}").status_code == status
 
 
-@pytest.mark.parametrize("path,method,filename", DOCUMENT_DOWNLOADS)
-def test_openapi_documenta_download_documento(client, path, method, filename):
+@pytest.mark.parametrize("path,method,filename,media_type", DOCUMENT_DOWNLOADS)
+def test_openapi_documenta_download_documento(
+    client, path, method, filename, media_type
+):
     methods = client.get("/openapi.json").json()["paths"][f"/me/{path}"]
     assert "get" not in methods
     route = methods["post"]
     assert route["tags"] == ["Me"]
     assert {"401", "502"} <= route["responses"].keys()
     assert route["responses"]["200"]["content"] == {
-        "application/pdf": {"schema": {"type": "string", "format": "binary"}}
+        media_type: {
+            "schema": (
+                {"type": "string"}
+                if media_type == "text/html"
+                else {"type": "string", "format": "binary"}
+            )
+        }
     }
 
 
-@pytest.mark.parametrize("path,method,filename", DOCUMENT_DOWNLOADS)
-def test_download_documento_rejeita_get(client, documents, path, method, filename):
+@pytest.mark.parametrize("path,method,filename,media_type", DOCUMENT_DOWNLOADS)
+def test_download_documento_rejeita_get(
+    client, documents, path, method, filename, media_type
+):
     assert client.get(f"/me/{path}").status_code == 405
     getattr(documents, method).assert_not_awaited()
 

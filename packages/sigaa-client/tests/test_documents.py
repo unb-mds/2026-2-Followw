@@ -1,12 +1,9 @@
-from io import BytesIO
 from pathlib import Path
 from unittest.mock import AsyncMock
 
 import httpx
 import pytest
 from bs4 import BeautifulSoup
-from playwright.async_api import async_playwright
-from pypdf import PdfReader
 
 from sigaa_client import SessionRenewed, SigaaClient, SigaaParseError
 from sigaa_client.config import DASHBOARD_PATH
@@ -30,21 +27,39 @@ ATTESTATION = """
 <html><head><title>Atestado de Matrícula</title></head><body>
 <div id="relatorio-container"><div id="relatorio">
   <h3>Atestado de Matrícula</h3>
-  <div id="identificacao">DISCENTE DE TESTE — 251000000</div>
+  <div id="identificacao">DISCENTE DE TESTE - 251000000</div>
   <table id="matriculas"><tr><th>Componente</th><th>Status</th></tr>
     <tr><td>DISCIPLINA DE TESTE</td><td>MATRICULADO(A)</td></tr></table>
   <div id="autenticacao">Código de verificação: TESTE123</div>
 </div></div></body></html>
 """
-DOCUMENTS = [
+PDF_DOCUMENTS = [
     ("get_student_card_pdf", _STUDENT_CARD_MENU_ACTION),
     ("get_transcript_pdf", _TRANSCRIPT_MENU_ACTION),
-    ("get_enrollment_certificate_pdf", _ENROLLMENT_CERTIFICATE_MENU_ACTION),
+]
+DOCUMENTS = PDF_DOCUMENTS + [
+    ("get_enrollment_certificate_html", _ENROLLMENT_CERTIFICATE_MENU_ACTION)
 ]
 
 
+def _content(method):
+    return (
+        ATTESTATION.encode("utf-8")
+        if method == "get_enrollment_certificate_html"
+        else CARTEIRINHA_PDF
+    )
+
+
+def _assert_document(result, method):
+    if method == "get_enrollment_certificate_html":
+        assert "TESTE123" in result
+        assert "Atestado de Matrícula" in result
+    else:
+        assert result == CARTEIRINHA_PDF
+
+
 @pytest.mark.parametrize("method,menu_action", DOCUMENTS)
-async def test_download_retorna_pdf_original_e_rele_viewstate(method, menu_action):
+async def test_download_retorna_documento_e_rele_viewstate(method, menu_action):
     methods = []
     viewstate = "VS1"
 
@@ -56,19 +71,19 @@ async def test_download_retorna_pdf_original_e_rele_viewstate(method, menu_actio
         payload = dict(httpx.QueryParams(request.content.decode()))
         assert payload["javax.faces.ViewState"] == viewstate
         assert payload["jscook_action"] == menu_action
-        return httpx.Response(200, content=CARTEIRINHA_PDF)
+        return httpx.Response(200, content=_content(method))
 
     async with SigaaClient(
         session_token="tok", transport=httpx.MockTransport(handle)
     ) as client:
         for viewstate in ("VS1", "VS2"):
-            assert await getattr(client.documents, method)() == CARTEIRINHA_PDF
+            _assert_document(await getattr(client.documents, method)(), method)
     assert methods == ["GET", "POST", "GET", "POST"]
 
 
 @pytest.mark.parametrize("content", [b"<html>Erro do SIGAA</html>", b""])
 @pytest.mark.parametrize("method,menu_action", DOCUMENTS)
-async def test_download_rejeita_resposta_sem_pdf(content, method, menu_action):
+async def test_download_rejeita_resposta_invalida(content, method, menu_action):
     def handle(request):
         if request.method == "GET":
             return httpx.Response(200, text=MENU)
@@ -106,10 +121,10 @@ async def test_documento_reabre_portal_apos_renovacao_da_sessao(method, menu_act
     ]
     session.post.side_effect = [
         SessionRenewed(),
-        httpx.Response(200, content=CARTEIRINHA_PDF),
+        httpx.Response(200, content=_content(method)),
     ]
     documents = Documents(session)
-    assert await getattr(documents, method)() == CARTEIRINHA_PDF
+    _assert_document(await getattr(documents, method)(), method)
     assert session.get.await_count == 2
     assert [
         call.kwargs["data"]["javax.faces.ViewState"]
@@ -140,72 +155,29 @@ async def test_documento_sem_viewstate_nao_envia_postback():
     session.post.assert_not_awaited()
 
 
-async def test_atestado_converte_html_original_com_codigo_de_verificacao(monkeypatch):
+@pytest.mark.parametrize("encoding", ["utf-8", "iso-8859-1"])
+async def test_atestado_exporta_html_com_codigo_de_verificacao_e_base(encoding):
     session = AsyncMock()
     session.get.return_value = httpx.Response(200, text=MENU)
-    session.post.return_value = httpx.Response(200, text=ATTESTATION)
-    render = AsyncMock(return_value=CARTEIRINHA_PDF)
-    monkeypatch.setattr(Documents, "_print_pdf", render)
-    assert await Documents(session).get_enrollment_certificate_pdf() == CARTEIRINHA_PDF
-    html = BeautifulSoup(render.call_args.args[0], "lxml")
+    source = ATTESTATION.replace(
+        "</head>",
+        '<meta charset="iso-8859-1"><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1"><base href="https://example.org/"></head>',
+    )
+    source = source.replace(
+        '<meta charset="iso-8859-1">', f'<meta charset="{encoding}">'
+    )
+    session.post.return_value = httpx.Response(200, content=source.encode(encoding))
+    result = await Documents(session).get_enrollment_certificate_html()
+    html = BeautifulSoup(result, "lxml")
+    assert "Atestado de Matrícula" in html.get_text()
     assert "TESTE123" in html.get_text()
     assert "MATRICULADO(A)" in html.get_text()
+    assert len(html.find_all("base")) == 1
     assert html.base["href"].endswith(DASHBOARD_PATH)
+    assert html.meta["charset"] == "utf-8"
+    assert "iso-8859-1" not in result
+    assert session.get.await_count == 1
     assert (
         session.post.call_args.kwargs["data"]["jscook_action"]
         == _ENROLLMENT_CERTIFICATE_MENU_ACTION
     )
-
-
-async def test_atestado_renderiza_pdf_com_estilos_pela_sessao_e_bloqueia_rede_externa():
-    async with async_playwright() as playwright:
-        if not Path(playwright.chromium.executable_path).exists():
-            pytest.skip("Instale Chromium com `uv run playwright install chromium`.")
-    requests = []
-    html = ATTESTATION.replace(
-        "</head>",
-        """
-      <link rel="stylesheet" href="/shared/css/ufrn_print.css" media="print">
-      <script src="/shared/jsBundles/jawr_loader.js"></script>
-      <link rel="stylesheet" href="https://example.org/external.css">
-      <img src="/sigaa/logar.do?dispatch=logOff">
-    </head>""",
-    )
-
-    def handle(request):
-        requests.append(request)
-        if request.method == "POST":
-            return httpx.Response(200, text=html)
-        if request.url.path == "/shared/css/ufrn_print.css":
-            return httpx.Response(
-                200,
-                text="body {font-family: Arial; font-size: 12px}",
-                headers={"content-type": "text/css"},
-            )
-        if request.url.path == "/shared/jsBundles/jawr_loader.js":
-            return httpx.Response(
-                200,
-                text="document.body.dataset.stylesLoaded = 'yes';",
-                headers={"content-type": "application/javascript"},
-            )
-        assert request.url.path == DASHBOARD_PATH
-        return httpx.Response(200, text=MENU)
-
-    async with SigaaClient(
-        session_token="tok", transport=httpx.MockTransport(handle)
-    ) as client:
-        pdf = await client.documents.get_enrollment_certificate_pdf()
-    reader = PdfReader(BytesIO(pdf))
-    text = "\n".join(page.extract_text() for page in reader.pages)
-    assert "Atestado de Matrícula" in text
-    assert "TESTE123" in text
-    assert "DISCIPLINA DE TESTE" in text
-    assert float(reader.pages[0].mediabox.width) == pytest.approx(595, abs=1)
-    assert [request.url.path for request in requests[:2]] == [
-        DASHBOARD_PATH,
-        DASHBOARD_PATH,
-    ]
-    assert {request.url.path for request in requests[2:]} == {
-        "/shared/css/ufrn_print.css",
-        "/shared/jsBundles/jawr_loader.js",
-    }

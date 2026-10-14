@@ -54,12 +54,9 @@ estudantil. `client.restaurant.get_restaurant_credentials()` usa esse mesmo down
 e a validade, sem persistir o arquivo.
 
 `client.documents.get_transcript_pdf()` baixa o PDF original do histórico acadêmico.
-`client.documents.get_enrollment_certificate_pdf()` emite o atestado de matrícula e converte
-o HTML de impressão do SIGAA para PDF A4 localmente, preservando o código de verificação.
-Os estilos e imagens são carregados pela mesma sessão do SIGAA; o arquivo não é persistido.
-
-A conversão do atestado requer Chromium: após `uv sync`, execute
-`uv run playwright install chromium` (em Linux, `uv run playwright install --with-deps chromium`).
+`client.documents.get_enrollment_certificate_html()` retorna o HTML de impressão do atestado
+de matrícula, preservando o conteúdo e o código de verificação. O documento usa UTF-8 e uma URL
+base do SIGAA para resolver seus estilos e imagens ao abrir no navegador. O arquivo não é persistido.
 
 `client.classrooms.get_classroom_grade(id)` retorna a menção (`Grade`) do "Resultado" da tela "Ver
 Notas", ou `None` enquanto não houver nota lançada.

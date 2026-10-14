@@ -13,7 +13,6 @@ CLASSROOMS_PATH = "/sigaa/portais/discente/turmas.jsf"
 PARTICIPANTS_PATH = "/sigaa/ava/participantes.jsf"
 CLASSROOM_HOME_PATH = "/sigaa/ava/index.jsf"
 LOGOUT_PATH = "/sigaa/logar.do?dispatch=logOff"
-PRINT_RESOURCE_PATHS = ("/shared/", "/sigaa/cssBundles/", "/sigaa/a4j/", "/sigaa/img/")
 
 PUBLIC_HOME_PATH = "/sigaa/public/home.jsf"
 PUBLIC_CLASSROOMS_PATH = "/sigaa/public/turmas/listar.jsf"

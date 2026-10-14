@@ -66,7 +66,7 @@ async def get_token(client: SigaaClientDep) -> RestaurantCredentials:
 )
 async def get_student_card(client: SigaaClientDep, response: Response) -> Response:
     pdf = await client.documents.get_student_card_pdf()
-    return _pdf_download(pdf, "carteirinha.pdf", response)
+    return _document_download(pdf, "carteirinha.pdf", "application/pdf", response)
 
 
 @router.post(
@@ -78,27 +78,32 @@ async def get_student_card(client: SigaaClientDep, response: Response) -> Respon
 )
 async def get_transcript(client: SigaaClientDep, response: Response) -> Response:
     pdf = await client.documents.get_transcript_pdf()
-    return _pdf_download(pdf, "historico.pdf", response)
+    return _document_download(pdf, "historico.pdf", "application/pdf", response)
 
 
 @router.post(
     "/enrollment-certificate",
     response_class=Response,
-    summary="Emitir o atestado de matrícula em PDF",
-    responses=_PDF_RESPONSES,
+    summary="Emitir o atestado de matrícula em HTML",
+    responses={
+        **SIGAA_ERRORS,
+        200: {"content": {"text/html": {"schema": {"type": "string"}}}},
+    },
     dependencies=[NoStore],
 )
 async def get_enrollment_certificate(
     client: SigaaClientDep, response: Response
 ) -> Response:
-    pdf = await client.documents.get_enrollment_certificate_pdf()
-    return _pdf_download(pdf, "atestado-matricula.pdf", response)
+    html = await client.documents.get_enrollment_certificate_html()
+    return _document_download(html, "atestado-matricula.html", "text/html", response)
 
 
-def _pdf_download(pdf: bytes, filename: str, response: Response) -> Response:
+def _document_download(
+    content: bytes | str, filename: str, media_type: str, response: Response
+) -> Response:
     download = Response(
-        content=pdf,
-        media_type="application/pdf",
+        content=content,
+        media_type=media_type,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
     download.raw_headers.extend(response.raw_headers)
