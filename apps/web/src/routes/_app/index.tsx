@@ -131,7 +131,14 @@ function HomePage() {
                 />
             )}
 
-            {noClassReason ? (
+            {!user ? (
+                <section>
+                    <SectionHeader title="Aulas do dia" />
+                    <div className="mb-4">
+                        <LoginPromptCard />
+                    </div>
+                </section>
+            ) : noClassReason ? (
                 <section>
                     <SectionHeader title="Aulas do dia" />
                     <div className="rounded-2xl border bg-card p-4">
@@ -139,45 +146,36 @@ function HomePage() {
                         <p className="text-sm text-muted-foreground">{noClassReason}</p>
                     </div>
                 </section>
-            ) : user ? (
-                classroomsQuery.isLoadingError ? (
-                    <section>
-                        <SectionHeader title="Aulas do dia" />
-                        <ErrorCard
-                            message={SIGAA_DOWN_MESSAGE}
-                            onRetry={() => classroomsQuery.refetch()}
-                        />
-                    </section>
-                ) : (
-                    classes.length > 0 && (
-                        <section>
-                            <SectionHeader title="Aulas do dia" />
-                            <div className="flex flex-col gap-2">
-                                {classes.map(({ item, start, end, status }) => (
-                                    <ClassCard
-                                        key={`${item.id}-${start}`}
-                                        title={item.subject.name}
-                                        code={item.subject.code}
-                                        classNumber={item.number}
-                                        time={`${start} - ${end}`}
-                                        location={item.room ?? 'Local não informado'}
-                                        status={status}
-                                        onClick={() =>
-                                            navigate({ to: '/turmas/$id', params: { id: item.id } })
-                                        }
-                                    />
-                                ))}
-                            </div>
-                        </section>
-                    )
-                )
-            ) : (
+            ) : classroomsQuery.isLoadingError ? (
                 <section>
                     <SectionHeader title="Aulas do dia" />
-                    <div className="mb-4">
-                        <LoginPromptCard />
-                    </div>
+                    <ErrorCard
+                        message={SIGAA_DOWN_MESSAGE}
+                        onRetry={() => classroomsQuery.refetch()}
+                    />
                 </section>
+            ) : (
+                classes.length > 0 && (
+                    <section>
+                        <SectionHeader title="Aulas do dia" />
+                        <div className="flex flex-col gap-2">
+                            {classes.map(({ item, start, end, status }) => (
+                                <ClassCard
+                                    key={`${item.id}-${start}`}
+                                    title={item.subject.name}
+                                    code={item.subject.code}
+                                    classNumber={item.number}
+                                    time={`${start} - ${end}`}
+                                    location={item.room ?? 'Local não informado'}
+                                    status={status}
+                                    onClick={() =>
+                                        navigate({ to: '/turmas/$id', params: { id: item.id } })
+                                    }
+                                />
+                            ))}
+                        </div>
+                    </section>
+                )
             )}
 
             <PublicInfoSection

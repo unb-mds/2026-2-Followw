@@ -22,9 +22,15 @@ import { buttonVariants } from '#/components/ui/button';
 import { Card, CardContent } from '#/components/ui/card';
 import { PersonPhoto } from '#/components/ui/person-photo';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
-import { formatClassroomDate, groupMembers } from '#/lib/classroom-details';
+import {
+    daysFrom,
+    formatClassroomDateTime,
+    formatRelativeDays,
+    groupMembers
+} from '#/lib/classroom-details';
 import { Markdown } from '#/lib/markdown';
 import { titleCase } from '#/lib/profile';
+import { nowInBrasilia } from '#/lib/schedule';
 import {
     allClassroomsQueryOptions,
     classroomFrequencyQueryOptions,
@@ -212,11 +218,11 @@ function NewsTab({ id }: { id: string }) {
 
 function NewsHeading({ news }: { news: News }) {
     return (
-        <span className="block min-w-0">
-            <span className="block text-xs font-medium text-primary tabular-nums">
-                {formatClassroomDate(news.published_on)}
+        <span className="flex min-w-0 flex-1 items-baseline justify-between gap-3">
+            <span className="text-sm font-semibold text-foreground">{news.title}</span>
+            <span className="shrink-0 text-xs font-medium text-muted-foreground tabular-nums">
+                {formatRelativeDays(daysFrom(nowInBrasilia().date, news.published_on))}
             </span>
-            <span className="mt-0.5 block text-sm font-semibold text-foreground">{news.title}</span>
         </span>
     );
 }
@@ -234,9 +240,6 @@ function NewsDetail({ classroomId, newsId }: { classroomId: string; newsId: numb
 
     return (
         <div>
-            {detail.data.published_at && (
-                <p className="mb-2 text-xs text-muted-foreground">{detail.data.published_at}</p>
-            )}
             {detail.data.content && <Markdown>{detail.data.content}</Markdown>}
             {detail.data.attachments.length > 0 && (
                 <div className="mt-4 flex flex-col gap-1">
@@ -253,6 +256,11 @@ function NewsDetail({ classroomId, newsId }: { classroomId: string; newsId: numb
                         </a>
                     ))}
                 </div>
+            )}
+            {detail.data.published_at && (
+                <p className="mt-4 text-xs text-muted-foreground tabular-nums">
+                    Publicada em {formatClassroomDateTime(detail.data.published_at)}
+                </p>
             )}
         </div>
     );
