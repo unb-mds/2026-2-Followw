@@ -22,7 +22,7 @@ async with SigaaPublicClient() as client:
 
 | Client              | Login | Módulos                                  |
 | ------------------- | ----- | ---------------------------------------- |
-| `SigaaClient`       | sim   | `.profile`, `.classrooms`, `.restaurant` |
+| `SigaaClient`       | sim   | `.profile`, `.classrooms`, `.documents`, `.restaurant` |
 | `SigaaPublicClient` | não   | `.classrooms`, `.subjects`               |
 
 O login é feito sob demanda. O token retornado por `authenticate()` pode ser reutilizado com
@@ -48,6 +48,12 @@ uma nova busca que exceda o limite faz o aviso reaparecer. O client preserva seu
 
 `client.restaurant.get_restaurant_statement()` retorna saldo, extrato e grupo (1 a 4), com saldo e
 grupo ausentes representados por `None`.
+
+`client.documents.get_student_card_pdf()` retorna os bytes do PDF original da carteirinha
+estudantil. `client.restaurant.get_restaurant_credentials()` usa esse mesmo download para extrair o token do QR code
+e a validade, sem persistir o arquivo.
+
+`client.documents.get_transcript_pdf()` baixa o PDF original do histórico acadêmico.
 
 `client.classrooms.get_classroom_grade(id)` retorna a menção (`Grade`) do "Resultado" da tela "Ver
 Notas", ou `None` enquanto não houver nota lançada.

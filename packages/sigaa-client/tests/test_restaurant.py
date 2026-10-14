@@ -8,8 +8,8 @@ from bs4 import BeautifulSoup
 
 from sigaa_client import RestaurantStatement, SigaaClient
 from sigaa_client.exceptions import SigaaParseError
+from sigaa_client.private.documents import _STUDENT_CARD_MENU_ACTION
 from sigaa_client.private.restaurant import (
-    _STUDENT_CARD_MENU_ACTION,
     _credentials,
     _month_number,
     _parse_amount,
@@ -226,6 +226,22 @@ async def test_get_restaurant_credentials_le_token_e_validade():
     assert [r.method for r in sigaa.requests] == ["GET", "POST"]
     assert credentials.token == "TESTE0000000001"
     assert credentials.valid_until == date(2027, 3, 1)
+
+
+@pytest.mark.parametrize("content", [b"<html>Erro do SIGAA</html>", b""])
+async def test_carteirinha_rejeita_resposta_sem_pdf(content):
+    sigaa = FakeDashboard()
+
+    def handle(request):
+        if request.method == "POST":
+            return httpx.Response(200, content=content)
+        return sigaa(request)
+
+    async with SigaaClient(
+        session_token="tok", transport=httpx.MockTransport(handle)
+    ) as client:
+        with pytest.raises(SigaaParseError, match="PDF da carteirinha"):
+            await client.restaurant.get_restaurant_credentials()
 
 
 async def test_get_restaurant_credentials_sem_menu_e_barulhento():
