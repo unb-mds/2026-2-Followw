@@ -5,6 +5,7 @@ import httpx
 from .config import DEFAULT_TIMEOUT, SIGAA_BASE_URL, USER_AGENT
 from .models import Credentials
 from .private.classrooms import Classrooms
+from .private.documents import Documents
 from .private.profile import Profile
 from .private.restaurant import Restaurant
 from .private.session import OnSessionRenewed, Session
@@ -58,6 +59,7 @@ class SigaaClient(_BaseClient):
         )
         self.profile = Profile(self._session)
         self.classrooms = Classrooms(self._session)
+        self.documents = Documents(self._session)
         self.restaurant = Restaurant(self._session)
 
     @property

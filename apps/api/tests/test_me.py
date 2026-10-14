@@ -251,14 +251,22 @@ def _entry(description, amount="0.00", *, day=25):
 
 
 @pytest.fixture
+def documents(stub_sigaa):
+    pdf = (
+        Path(__file__).parents[3]
+        / "packages/sigaa-client/tests/fixtures/carteirinha.pdf"
+    ).read_bytes()
+    stub_sigaa.documents = SimpleNamespace(
+        get_student_card_pdf=AsyncMock(return_value=pdf),
+        get_transcript_pdf=AsyncMock(return_value=pdf),
+        get_enrollment_certificate_pdf=AsyncMock(return_value=pdf),
+    )
+    return stub_sigaa.documents
+
+
+@pytest.fixture
 def restaurant(stub_sigaa):
     stub_sigaa.restaurant = SimpleNamespace(
-        get_student_card_pdf=AsyncMock(
-            return_value=(
-                Path(__file__).parents[3]
-                / "packages/sigaa-client/tests/fixtures/carteirinha.pdf"
-            ).read_bytes()
-        ),
         get_restaurant_statement=AsyncMock(
             return_value=RestaurantStatement(
                 balance=Decimal("12.50"),
@@ -279,34 +287,49 @@ def restaurant(stub_sigaa):
     return stub_sigaa.restaurant
 
 
-def test_download_carteirinha_preserva_pdf_cookies_e_nao_usa_cache(
-    client, cookies, restaurant, qstash
+DOCUMENT_DOWNLOADS = [
+    ("student-card", "get_student_card_pdf", "carteirinha.pdf"),
+    ("transcript", "get_transcript_pdf", "historico.pdf"),
+    (
+        "enrollment-certificate",
+        "get_enrollment_certificate_pdf",
+        "atestado-matricula.pdf",
+    ),
+]
+
+
+@pytest.mark.parametrize("path,method,filename", DOCUMENT_DOWNLOADS)
+def test_download_documento_preserva_pdf_cookies_e_nao_usa_cache(
+    client, cookies, documents, qstash, path, method, filename
 ):
     def banco_proibido():
-        pytest.fail("Download da carteirinha não deve usar banco")
+        pytest.fail("Download de documento não deve usar banco")
 
     client.app.dependency_overrides[get_sessionmaker] = banco_proibido
     client.cookies.update(cookies(refresh=CREDENCIAIS))
     for _ in range(2):
-        response = client.post("/me/student-card")
+        response = client.post(f"/me/{path}")
         assert response.status_code == 200
-        assert response.content == restaurant.get_student_card_pdf.return_value
+        assert response.content == getattr(documents, method).return_value
         assert response.headers["content-type"] == "application/pdf"
         assert (
             response.headers["content-disposition"]
-            == 'attachment; filename="carteirinha.pdf"'
+            == f'attachment; filename="{filename}"'
         )
         assert response.headers["cache-control"] == "no-store"
         assert int(response.headers["content-length"]) == len(response.content)
         assert ACCESS_COOKIE_NAME in response.cookies
         assert REFRESH_COOKIE_NAME in response.cookies
-    assert restaurant.get_student_card_pdf.await_count == 2
+    assert getattr(documents, method).await_count == 2
     assert qstash.published == []
 
 
-def test_download_carteirinha_exige_login(client, stub_sigaa, restaurant):
-    assert client.post("/me/student-card").status_code == 401
-    restaurant.get_student_card_pdf.assert_not_awaited()
+@pytest.mark.parametrize("path,method,filename", DOCUMENT_DOWNLOADS)
+def test_download_documento_exige_login(
+    client, stub_sigaa, documents, path, method, filename
+):
+    assert client.post(f"/me/{path}").status_code == 401
+    getattr(documents, method).assert_not_awaited()
     stub_sigaa.created.assert_not_called()
 
 
@@ -319,14 +342,18 @@ def test_download_carteirinha_exige_login(client, stub_sigaa, restaurant):
         (httpx.ReadTimeout("fora"), 502),
     ],
 )
-def test_download_carteirinha_traduz_erros(client, cookies, restaurant, error, status):
+@pytest.mark.parametrize("path,method,filename", DOCUMENT_DOWNLOADS)
+def test_download_documento_traduz_erros(
+    client, cookies, documents, error, status, path, method, filename
+):
     client.cookies.update(cookies(refresh=CREDENCIAIS))
-    restaurant.get_student_card_pdf.side_effect = error
-    assert client.post("/me/student-card").status_code == status
+    getattr(documents, method).side_effect = error
+    assert client.post(f"/me/{path}").status_code == status
 
 
-def test_openapi_documenta_download_carteirinha(client):
-    methods = client.get("/openapi.json").json()["paths"]["/me/student-card"]
+@pytest.mark.parametrize("path,method,filename", DOCUMENT_DOWNLOADS)
+def test_openapi_documenta_download_documento(client, path, method, filename):
+    methods = client.get("/openapi.json").json()["paths"][f"/me/{path}"]
     assert "get" not in methods
     route = methods["post"]
     assert route["tags"] == ["Me"]
@@ -334,6 +361,12 @@ def test_openapi_documenta_download_carteirinha(client):
     assert route["responses"]["200"]["content"] == {
         "application/pdf": {"schema": {"type": "string", "format": "binary"}}
     }
+
+
+@pytest.mark.parametrize("path,method,filename", DOCUMENT_DOWNLOADS)
+def test_download_documento_rejeita_get(client, documents, path, method, filename):
+    assert client.get(f"/me/{path}").status_code == 405
+    getattr(documents, method).assert_not_awaited()
 
 
 @pytest.mark.parametrize(

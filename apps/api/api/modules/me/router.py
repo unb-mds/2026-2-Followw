@@ -14,6 +14,14 @@ from api.modules.me.settings import (
 from api.sigaa import SigaaClientDep, SigaaConnectionDep
 
 router = APIRouter()
+_PDF_RESPONSES = {
+    **SIGAA_ERRORS,
+    200: {
+        "content": {
+            "application/pdf": {"schema": {"type": "string", "format": "binary"}}
+        }
+    },
+}
 
 
 @router.get(
@@ -53,22 +61,45 @@ async def get_token(client: SigaaClientDep) -> RestaurantCredentials:
     "/student-card",
     response_class=Response,
     summary="Baixar a carteirinha estudantil em PDF",
-    responses={
-        **SIGAA_ERRORS,
-        200: {
-            "content": {
-                "application/pdf": {"schema": {"type": "string", "format": "binary"}}
-            }
-        },
-    },
+    responses=_PDF_RESPONSES,
     dependencies=[NoStore],
 )
 async def get_student_card(client: SigaaClientDep, response: Response) -> Response:
-    pdf = await client.restaurant.get_student_card_pdf()
+    pdf = await client.documents.get_student_card_pdf()
+    return _pdf_download(pdf, "carteirinha.pdf", response)
+
+
+@router.post(
+    "/transcript",
+    response_class=Response,
+    summary="Baixar o histórico acadêmico em PDF",
+    responses=_PDF_RESPONSES,
+    dependencies=[NoStore],
+)
+async def get_transcript(client: SigaaClientDep, response: Response) -> Response:
+    pdf = await client.documents.get_transcript_pdf()
+    return _pdf_download(pdf, "historico.pdf", response)
+
+
+@router.post(
+    "/enrollment-certificate",
+    response_class=Response,
+    summary="Emitir o atestado de matrícula em PDF",
+    responses=_PDF_RESPONSES,
+    dependencies=[NoStore],
+)
+async def get_enrollment_certificate(
+    client: SigaaClientDep, response: Response
+) -> Response:
+    pdf = await client.documents.get_enrollment_certificate_pdf()
+    return _pdf_download(pdf, "atestado-matricula.pdf", response)
+
+
+def _pdf_download(pdf: bytes, filename: str, response: Response) -> Response:
     download = Response(
         content=pdf,
         media_type="application/pdf",
-        headers={"Content-Disposition": 'attachment; filename="carteirinha.pdf"'},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
     download.raw_headers.extend(response.raw_headers)
     return download
