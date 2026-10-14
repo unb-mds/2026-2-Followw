@@ -142,6 +142,9 @@ class ParticipantClassroom(Classroom):
 
     subject: UserSubject
     grade: Grade | None = None
+    professors: tuple[str, ...] = ()
+    vacancies: int | None = None
+    occupied: int | None = None
 
 
 class ClassroomService:
@@ -286,6 +289,9 @@ def to_classroom(link: OwnLink) -> ParticipantClassroom:
             unity=subject.unity.code if subject.unity else None,
         ),
         grade=link.row.grade,
+        professors=classroom.professors,
+        vacancies=classroom.vacancies,
+        occupied=classroom.occupied,
     )
 
 

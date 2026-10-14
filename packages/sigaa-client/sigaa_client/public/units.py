@@ -2,7 +2,7 @@ from bs4 import Tag
 
 from ..exceptions import SigaaParseError, SigaaSearchError
 from ..models import Unit
-from ..utils.parsing import clean_text, fold_text
+from ..utils.parsing import clean_text, lookup_key
 
 _AMBIGUOUS_SAMPLE = 3
 
@@ -25,8 +25,8 @@ def resolve_unit(units: list[Unit], wanted: Unit | int | str) -> int:
         return wanted
     if wanted.isdigit():
         return int(wanted)
-    needle = fold_text(wanted)
-    matches = [unit for unit in units if needle in fold_text(unit.name)]
+    needle = lookup_key(wanted)
+    matches = [unit for unit in units if needle in lookup_key(unit.name)]
     if not matches:
         raise SigaaSearchError(f"Nenhuma unidade casa com `{wanted}`.")
     if len(matches) > 1:

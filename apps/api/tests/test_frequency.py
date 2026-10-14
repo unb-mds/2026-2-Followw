@@ -140,7 +140,13 @@ def without_ids(frequency: dict) -> dict:
 def classroom_json(classroom: Classroom) -> dict:
     data = classroom.model_dump(mode="json")
     del data["subject"]["sigaa_id"]
-    return {**data, "grade": None}
+    return {
+        **data,
+        "grade": None,
+        "professors": [],
+        "vacancies": None,
+        "occupied": None,
+    }
 
 
 def _with_entries(*entries: AttendanceEntry) -> ClassroomFrequency:

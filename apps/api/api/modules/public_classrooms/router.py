@@ -59,7 +59,7 @@ async def search_classrooms(
         str | None,
         Query(
             pattern=CLASSROOM_CODE_PATTERN,
-            description="Código completo da disciplina, como MAT0031 ou FGA0132. Ignora maiúsculas e espaços nas extremidades; preserva zeros. Sem unit, consulta todas as unidades mapeadas para o prefixo. Combina com semester, number, contains e local.",
+            description="Código completo da disciplina, como MAT0031 ou FGA0132.",
         ),
     ] = None,
     number: Annotated[

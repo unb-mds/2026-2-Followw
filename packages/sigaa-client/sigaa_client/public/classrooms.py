@@ -22,7 +22,8 @@ from ..utils.jsf import (
 )
 from ..utils.parsing import (
     clean_text,
-    fold_text,
+    lookup_key,
+    parse_hours,
     schedule_code,
     split_location,
     visible_text,
@@ -47,7 +48,6 @@ TOTAL_HOURS_LABEL = "Total de Carga Horária do Componente"
 _COLUMNS = 8
 _ROW_CLASSES = frozenset({"linhaPar", "linhaImpar"})
 _TEACHER_RE = re.compile(r"^(.+?)(?:\s*\((\d+)h\))?$")
-_HOURS_RE = re.compile(r"^(\d+)\s*h$")
 # A mensagem de "nada encontrado" chega no mesmo bloco dos erros de verdade.
 _NO_RESULTS = "nao foram encontrados resultados"
 
@@ -68,8 +68,8 @@ class PublicClassrooms:
         if contains is None:
             return units
 
-        needle = fold_text(contains)
-        return [unit for unit in units if needle in fold_text(unit.name)]
+        needle = lookup_key(contains)
+        return [unit for unit in units if needle in lookup_key(unit.name)]
 
     async def search(
         self,
@@ -162,7 +162,7 @@ def _no_results(soup: BeautifulSoup) -> bool:
     messages = [clean_text(item) for item in soup.select("ul.erros li")]
     if not messages:
         return False
-    if any(_NO_RESULTS in fold_text(message) for message in messages):
+    if any(_NO_RESULTS in lookup_key(message) for message in messages):
         return True
     raise SigaaSearchError(" ".join(messages))
 
@@ -263,9 +263,9 @@ def _total_hours(soup: BeautifulSoup) -> int | None:
         if not clean_text(cell).startswith(TOTAL_HOURS_LABEL):
             continue
         value = cell.find_next_sibling("td")
-        match = _HOURS_RE.match(clean_text(value)) if isinstance(value, Tag) else None
-        if match is not None:
-            return int(match.group(1))
+        hours = parse_hours(clean_text(value)) if isinstance(value, Tag) else None
+        if hours is not None:
+            return hours
     return None
 
 

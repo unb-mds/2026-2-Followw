@@ -13,6 +13,7 @@ from ..exceptions import SigaaParseError
 from ..models import CourseShift
 
 _DATE_RANGE_RE = re.compile(r"\s*\([^)]*\)\s*")
+_HOURS_RE = re.compile(r"(\d+)\s*h", re.IGNORECASE)
 _TRAILING_SPACES_RE = re.compile(r"[ \t]+$", re.MULTILINE)
 _BLANK_LINES_RE = re.compile(r"\n{3,}")
 # O texto é escrito pelo docente: `javascript:` e afins não podem virar link.
@@ -68,10 +69,10 @@ def schedule_code(value: str) -> str | None:
     return _DATE_RANGE_RE.sub(" ", value).strip() or None
 
 
-def fold_text(value: str) -> str:
-    """Compara sem acento e sem caixa, preservando os espaços."""
-    normalized = unicodedata.normalize("NFKD", value.casefold())
-    return "".join(char for char in normalized if not unicodedata.combining(char))
+def parse_hours(value: str) -> int | None:
+    """`60h` -> `60`; outro formato vira `None`."""
+    match = _HOURS_RE.fullmatch(value.strip())
+    return int(match[1]) if match else None
 
 
 def lookup_key(value: str) -> str:

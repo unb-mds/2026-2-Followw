@@ -53,8 +53,8 @@ tests/                # um arquivo por módulo
   natural (como `subjects`, pelo código, e `unities`, pelo id do SIGAA); enums do banco são
   `str, enum.Enum` com `values_callable` para gravar o `.value`. Não há migrations: `db-init` só
   cria as tabelas e os índices que faltam, alterar coluna exige recriar o banco. Ele também
-  semeia `unities`, `courses` e `subjects` pelos CSVs de
-  `packages/sigaa-client/data/` (`db/seed`).
+  semeia `unities`, `courses`, `subjects` e `classrooms` pelos CSVs de
+  `packages/sigaa-client/data/` (`db/seed`); das turmas já gravadas o seed só atualiza docentes e vagas.
   `subjects` aponta para a unidade por `unity_id` e `users` para o curso por `course_id` (o curso
   aponta para a unidade), achados pelo código da unidade e pelo nome do curso (`course_ids`).
   Nome que casa com mais de um curso (diurno e noturno) fica com o turno do perfil (`shift`, lido

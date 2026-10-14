@@ -1,4 +1,3 @@
-import re
 from typing import get_args
 
 from bs4 import BeautifulSoup, Tag
@@ -15,7 +14,7 @@ from ..models import (
     Unit,
 )
 from ..utils.jsf import build_submit, link_params, read_form, read_viewstate
-from ..utils.parsing import clean_text, lookup_key
+from ..utils.parsing import clean_text, lookup_key, parse_hours
 from .session import PublicSession
 from .units import parse_units, resolve_unit
 
@@ -36,7 +35,6 @@ _TYPE_VALUES = {
     SubjectType.BLOCO: "4",
     SubjectType.MODULO: "3",
 }
-_HOURS_RE = re.compile(r"^(\d+)\s*h$", re.IGNORECASE)
 _NO_RESULTS = "nao foram encontrados resultados"
 _LIMIT_EXCEEDED = "a busca excedeu o numero maximo de"
 
@@ -191,7 +189,7 @@ def _parse_subject(cells: list[Tag], level: SubjectLevel) -> PublicSubject:
         raise SigaaParseError(
             f"Tipo `{kind}` desconhecido no componente `{code}`."
         ) from error
-    hours = _HOURS_RE.fullmatch(workload)
+    hours = parse_hours(workload)
     if workload not in ("", "-") and hours is None:
         raise SigaaParseError(
             f"Carga horária `{workload}` inválida no componente `{code}`."
@@ -201,6 +199,6 @@ def _parse_subject(cells: list[Tag], level: SubjectLevel) -> PublicSubject:
         code=code,
         name=name,
         type=type,
-        hours=int(hours[1]) if hours else None,
+        hours=hours,
         level=level,
     )

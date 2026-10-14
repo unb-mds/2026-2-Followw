@@ -15,8 +15,8 @@ sigaa_client/
   private/          # resources que exigem login
   public/           # resources anônimos
 tests/
-scripts/            # coletas em lote do SIGAA público (collect_subjects.py)
-data/               # CSVs de referência (unities, courses, subjects), lidos pelo seed da api
+scripts/            # coletas em lote do SIGAA público (collect_subjects.py, collect_classrooms.py)
+data/               # CSVs de referência (unities, courses, subjects, classrooms), lidos pelo seed da api
 ```
 
 ## Padrões

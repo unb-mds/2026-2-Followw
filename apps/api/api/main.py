@@ -49,7 +49,7 @@ tags_metadata = [
     {
         "name": "Public Subjects",
         "x-displayName": "Subjects",
-        "description": "Catálogo público de componentes curriculares do SIGAA e avisos da busca, sem autenticação.",
+        "description": "Componentes curriculares de graduação e suas turmas, sem autenticação.",
     },
     {
         "name": "News",
