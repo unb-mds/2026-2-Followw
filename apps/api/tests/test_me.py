@@ -288,7 +288,7 @@ def test_download_carteirinha_preserva_pdf_cookies_e_nao_usa_cache(
     client.app.dependency_overrides[get_sessionmaker] = banco_proibido
     client.cookies.update(cookies(refresh=CREDENCIAIS))
     for _ in range(2):
-        response = client.get("/me/student-card")
+        response = client.post("/me/student-card")
         assert response.status_code == 200
         assert response.content == restaurant.get_student_card_pdf.return_value
         assert response.headers["content-type"] == "application/pdf"
@@ -305,7 +305,7 @@ def test_download_carteirinha_preserva_pdf_cookies_e_nao_usa_cache(
 
 
 def test_download_carteirinha_exige_login(client, stub_sigaa, restaurant):
-    assert client.get("/me/student-card").status_code == 401
+    assert client.post("/me/student-card").status_code == 401
     restaurant.get_student_card_pdf.assert_not_awaited()
     stub_sigaa.created.assert_not_called()
 
@@ -322,11 +322,13 @@ def test_download_carteirinha_exige_login(client, stub_sigaa, restaurant):
 def test_download_carteirinha_traduz_erros(client, cookies, restaurant, error, status):
     client.cookies.update(cookies(refresh=CREDENCIAIS))
     restaurant.get_student_card_pdf.side_effect = error
-    assert client.get("/me/student-card").status_code == status
+    assert client.post("/me/student-card").status_code == status
 
 
 def test_openapi_documenta_download_carteirinha(client):
-    route = client.get("/openapi.json").json()["paths"]["/me/student-card"]["get"]
+    methods = client.get("/openapi.json").json()["paths"]["/me/student-card"]
+    assert "get" not in methods
+    route = methods["post"]
     assert route["tags"] == ["Me"]
     assert {"401", "502"} <= route["responses"].keys()
     assert route["responses"]["200"]["content"] == {

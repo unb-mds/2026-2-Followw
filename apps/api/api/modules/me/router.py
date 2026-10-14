@@ -49,7 +49,7 @@ async def get_token(client: SigaaClientDep) -> RestaurantCredentials:
     return await client.restaurant.get_restaurant_credentials()
 
 
-@router.get(
+@router.post(
     "/student-card",
     response_class=Response,
     summary="Baixar a carteirinha estudantil em PDF",
