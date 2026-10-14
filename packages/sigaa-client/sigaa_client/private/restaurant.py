@@ -14,7 +14,7 @@ from ..models import (
 from ..utils.jsf import build_postback, link_params, read_viewstate
 from ..utils.parsing import clean_text, lookup_key, parse_datetime
 from ..utils.pdf import extract_text, find_qr_code
-from .documents import Documents
+from .documents import download_student_card_pdf
 from .session import Session
 
 # Postback que expande o extrato do RU dentro da própria página do dashboard.
@@ -43,7 +43,6 @@ _MONTHS = {
 class Restaurant:
     def __init__(self, session: Session) -> None:
         self._session = session
-        self._documents = Documents(session)
 
     async def get_restaurant_statement(
         self,
@@ -76,7 +75,7 @@ class Restaurant:
 
     async def get_restaurant_credentials(self) -> RestaurantCredentials:
         """Token do QR code e validade da carteirinha estudantil (lida no RU)."""
-        return _credentials(await self._documents.get_student_card_pdf())
+        return _credentials(await download_student_card_pdf(self._session))
 
 
 def _statement(page: BeautifulSoup) -> RestaurantStatement | None:

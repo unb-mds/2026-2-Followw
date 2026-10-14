@@ -66,7 +66,7 @@ async def get_token(client: SigaaClientDep) -> RestaurantCredentials:
 )
 async def get_student_card(client: SigaaClientDep, response: Response) -> Response:
     pdf = await client.documents.get_student_card_pdf()
-    return _document_download(pdf, "carteirinha.pdf", "application/pdf", response)
+    return _document_download(pdf, "carteirinha.pdf", response)
 
 
 @router.post(
@@ -78,15 +78,13 @@ async def get_student_card(client: SigaaClientDep, response: Response) -> Respon
 )
 async def get_transcript(client: SigaaClientDep, response: Response) -> Response:
     pdf = await client.documents.get_transcript_pdf()
-    return _document_download(pdf, "historico.pdf", "application/pdf", response)
+    return _document_download(pdf, "historico.pdf", response)
 
 
-def _document_download(
-    content: bytes, filename: str, media_type: str, response: Response
-) -> Response:
+def _document_download(content: bytes, filename: str, response: Response) -> Response:
     download = Response(
         content=content,
-        media_type=media_type,
+        media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
     download.raw_headers.extend(response.raw_headers)

@@ -12,8 +12,8 @@ const documents = [
     { document: 'transcript', icon: GraduationCap }
 ] satisfies { document: StudentDocument; icon: typeof IdCard }[];
 
-export function DocumentDownloads({ onUnauthorized }: { onUnauthorized?: () => void }) {
-    const download = useDownloadDocument(onUnauthorized);
+export function DocumentDownloads() {
+    const download = useDownloadDocument();
     const online = useOnline();
 
     return (

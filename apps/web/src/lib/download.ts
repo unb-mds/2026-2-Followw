@@ -8,6 +8,7 @@ export function saveFile(blob: Blob, filename: string) {
         link.click();
     } finally {
         link.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        // Safari e PWA no iOS leem o blob depois do clique
+        setTimeout(() => URL.revokeObjectURL(url), 40_000);
     }
 }

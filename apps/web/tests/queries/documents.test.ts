@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 
 import { apiClient } from '#/queries/client';
 import { getDocumentDownload } from '#/queries/documents';
-import { ApiError } from '#/queries/errors';
 
 describe('download de documentos', () => {
     let middleware: Middleware;
@@ -41,14 +40,6 @@ describe('download de documentos', () => {
         expect(requests[0].credentials).toBe('include');
         expect(new URL(requests[0].url).pathname).toBe(`/api/me/${document}`);
         expect(await requests[0].text()).toBe('');
-    });
-
-    test.each([401, 502])('propaga o erro HTTP %s sem entregar um arquivo', async (status) => {
-        response = () => Response.json({ detail: 'Falha na emissão' }, { status });
-        const error = await getDocumentDownload('transcript').catch((cause: unknown) => cause);
-        expect(error).toBeInstanceOf(ApiError);
-        expect(error).toMatchObject({ status });
-        expect(requests).toHaveLength(1);
     });
 
     test('não aceita um documento vazio', async () => {

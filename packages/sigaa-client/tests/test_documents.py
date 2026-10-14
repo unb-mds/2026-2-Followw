@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 
-from sigaa_client import SessionRenewed, SigaaClient, SigaaParseError
+from sigaa_client import SessionExpired, SessionRenewed, SigaaClient, SigaaParseError
 from sigaa_client.config import DASHBOARD_PATH
 from sigaa_client.private.documents import (
     _STUDENT_CARD_MENU_ACTION,
@@ -105,13 +105,26 @@ async def test_documento_reabre_portal_apos_renovacao_da_sessao(method, menu_act
     )
 
 
-async def test_documento_limita_retentativa_apos_renovacao():
+async def test_documento_retenta_sem_novo_relogin():
     session = AsyncMock()
     session.get.return_value = httpx.Response(200, text=MENU)
-    session.post.side_effect = SessionRenewed()
-    with pytest.raises(SessionRenewed):
+    session.post.side_effect = [SessionRenewed(), SessionExpired()]
+    with pytest.raises(SessionExpired):
         await Documents(session).get_transcript_pdf()
-    assert session.post.await_count == 2
+    calls = [*session.get.await_args_list, *session.post.await_args_list]
+    assert [call.kwargs["allow_renewal"] for call in calls] == [
+        True,
+        False,
+        True,
+        False,
+    ]
+
+
+async def test_documento_aceita_bytes_antes_do_cabecalho_pdf():
+    session = AsyncMock()
+    session.get.return_value = httpx.Response(200, text=MENU)
+    session.post.return_value = httpx.Response(200, content=b"\r\n" + CARTEIRINHA_PDF)
+    assert await Documents(session).get_transcript_pdf() == b"\r\n" + CARTEIRINHA_PDF
 
 
 async def test_documento_sem_viewstate_nao_envia_postback():

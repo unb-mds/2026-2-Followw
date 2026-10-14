@@ -1,9 +1,7 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 
 import { saveFile } from '#/lib/download';
-import { clearSession } from '#/queries/auth';
 import { apiClient } from '#/queries/client';
-import { ApiError, toApiError } from '#/queries/errors';
 
 export const studentDocuments = {
     'student-card': { label: 'Carteirinha estudantil', filename: 'carteirinha.pdf' },
@@ -13,14 +11,12 @@ export const studentDocuments = {
 export type StudentDocument = keyof typeof studentDocuments;
 
 export async function getDocumentDownload(document: StudentDocument) {
-    const { data, error, response } = await apiClient.POST(`/me/${document}`, { parseAs: 'blob' });
-    if (!response.ok) throw toApiError(response.status, error);
+    const { data } = await apiClient.POST(`/me/${document}`, { parseAs: 'blob' });
     if (!data || data.size === 0) throw new Error('O documento recebido está vazio.');
     return { blob: data, filename: studentDocuments[document].filename };
 }
 
-export function useDownloadDocument(onUnauthorized?: () => void) {
-    const queryClient = useQueryClient();
+export function useDownloadDocument() {
     return useMutation({
         mutationKey: ['download-document'],
         gcTime: 0,
@@ -28,12 +24,6 @@ export function useDownloadDocument(onUnauthorized?: () => void) {
         mutationFn: async (document: StudentDocument) => {
             const { blob, filename } = await getDocumentDownload(document);
             saveFile(blob, filename);
-        },
-        onError: async (error) => {
-            if (error instanceof ApiError && error.isUnauthorized) {
-                await clearSession(queryClient);
-                onUnauthorized?.();
-            }
         }
     });
 }

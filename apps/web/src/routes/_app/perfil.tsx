@@ -1,5 +1,5 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
+import { Navigate, createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import { ChevronRight, LogOut, Pencil } from 'lucide-react';
 import { useState } from 'react';
 
@@ -67,35 +67,28 @@ function PerfilPage() {
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const settings = useUserSettings();
 
+    // sessão encerrada por um 401 em qualquer query ou mutation
+    if (!user) return <Navigate to="/login" replace />;
+
     return (
         <>
-            {user && (
-                <>
-                    <ProfileIdentity user={user} displayName={settings.displayName} />
-                    <div className="my-4 flex flex-col gap-4">
-                        <InstallPromptCard />
-                        <AcademicPerformance user={user} />
-                        <ProgressSection user={user} />
-                        <AccountSection
-                            name={titleCase(user.name)}
-                            displayName={settings.displayName}
-                        />
-                    </div>
-                </>
-            )}
+            <ProfileIdentity user={user} displayName={settings.displayName} />
+            <div className="my-4 flex flex-col gap-4">
+                <InstallPromptCard />
+                <AcademicPerformance user={user} />
+                <ProgressSection user={user} />
+                <AccountSection name={titleCase(user.name)} displayName={settings.displayName} />
+            </div>
         </>
     );
 }
 
 function AccountSection({ name, displayName }: { name: string; displayName?: string | null }) {
-    const navigate = useNavigate();
     return (
         <ProfileSection title="Conta">
             <ListCard>
                 <DisplayNameButton name={name} displayName={displayName} />
-                <DocumentDownloads
-                    onUnauthorized={() => void navigate({ to: '/login', replace: true })}
-                />
+                <DocumentDownloads />
                 <LogoutButton />
             </ListCard>
         </ProfileSection>
