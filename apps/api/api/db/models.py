@@ -11,6 +11,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from api.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 from api.db.enums import ClassroomRole, ClassroomStatus, LessonStatus, UserLevel
 
+type Requirements = list[list[str]]
+
 
 def _enum(enum: type, name: str) -> SAEnum:
     return SAEnum(enum, name=name, values_callable=lambda e: [m.value for m in e])
@@ -99,6 +101,10 @@ class Subject(Base, TimestampMixin):
     name: Mapped[str] = mapped_column()
     hours: Mapped[int | None] = mapped_column()
     unity_id: Mapped[int | None] = mapped_column(ForeignKey("unities.id"))
+    # Expressões em OU de Es: `[["A", "B"], ["C"]]` é `(A E B) OU C`.
+    prerequisites: Mapped[Requirements | None] = mapped_column(JSON)
+    corequisites: Mapped[Requirements | None] = mapped_column(JSON)
+    equivalences: Mapped[Requirements | None] = mapped_column(JSON)
 
     unity: Mapped[Unity | None] = relationship(lazy="joined")
     classrooms: Mapped[list[Classroom]] = relationship(back_populates="subject")

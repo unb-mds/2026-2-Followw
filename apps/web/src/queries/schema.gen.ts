@@ -404,7 +404,7 @@ export interface components {
     schemas: {
         /**
          * CatalogSubject
-         * @description O componente com as turmas do semestre consultado.
+         * @description O componente com as turmas do semestre consultado e os requisitos.
          */
         CatalogSubject: {
             /** Code */
@@ -415,6 +415,9 @@ export interface components {
             hours?: number | null;
             /** Unity */
             unity?: string | null;
+            prerequisites?: components["schemas"]["Requirements"] | null;
+            corequisites?: components["schemas"]["Requirements"] | null;
+            equivalences?: components["schemas"]["Requirements"] | null;
             /** Classrooms */
             classrooms: components["schemas"]["SubjectClassroom"][];
         };
@@ -524,7 +527,6 @@ export interface components {
         };
         /**
          * Grade
-         * @description Menção da UnB, como o "Resultado" de "Consultar Minhas Notas".
          * @enum {string}
          */
         Grade: "SS" | "MS" | "MM" | "MI" | "II" | "SR";
@@ -689,6 +691,7 @@ export interface components {
             teachers: components["schemas"]["Teacher"][];
             subject: components["schemas"]["Subject"];
         };
+        Requirements: string[][];
         /** RestaurantCredentials */
         RestaurantCredentials: {
             /** Token */
@@ -1621,7 +1624,7 @@ export interface operations {
                 q?: string | null;
                 /** @description Código completo do componente, como FGA0003. */
                 code?: string | null;
-                /** @description ID da unidade responsável ou parte não ambígua do nome, como 'gama'. */
+                /** @description ID ou código exato da unidade responsável, como 673 ou FCTE. */
                 unit?: string | null;
                 /** @description Semestre das turmas, no formato AAAA.P. Sem ele, usa o mais recente gravado. */
                 semester?: string | null;

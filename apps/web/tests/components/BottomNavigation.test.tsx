@@ -13,7 +13,7 @@ import { BottomNavigation } from '#/components/BottomNavigation';
 async function renderNavigation(pathname: string) {
     const rootRoute = createRootRoute({ component: BottomNavigation });
     const routeTree = rootRoute.addChildren(
-        ['/', '/turmas', '/turmas/$id', '/ru', '/perfil'].map((path) =>
+        ['/', '/turmas', '/turmas/$id', '/ru', '/buscar', '/perfil'].map((path) =>
             createRoute({ getParentRoute: () => rootRoute, path })
         )
     );
@@ -43,6 +43,7 @@ describe('BottomNavigation', () => {
             { href: '/', label: 'Início', role: undefined, text: '' },
             { href: '/turmas', label: 'Turmas', role: undefined, text: '' },
             { href: '/ru', label: 'RU', role: undefined, text: '' },
+            { href: '/buscar', label: 'Buscar', role: undefined, text: '' },
             { href: '/perfil', label: 'Perfil', role: undefined, text: '' }
         ]);
     });
@@ -52,7 +53,13 @@ describe('BottomNavigation', () => {
         ['/turmas', 'Turmas'],
         ['/turmas/', 'Turmas'],
         ['/turmas/123', 'Turmas'],
-        ['/turmas/123/', 'Turmas']
+        ['/turmas/123/', 'Turmas'],
+        ['/ru', 'RU'],
+        ['/ru/', 'RU'],
+        ['/buscar', 'Buscar'],
+        ['/buscar/', 'Buscar'],
+        ['/perfil', 'Perfil'],
+        ['/perfil/', 'Perfil']
     ])('indica apenas a página atual em %s', async (pathname, label) => {
         const markup = await renderNavigation(pathname);
         const activeLabels = [...markup.matchAll(/<a\b([^>]*)>/g)]

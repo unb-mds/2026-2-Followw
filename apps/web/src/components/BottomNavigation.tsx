@@ -1,10 +1,10 @@
 import { Link, useLocation } from '@tanstack/react-router';
-import { House, User, type LucideIcon, Utensils, UserRoundGroup } from 'lucide-react';
+import { House, Search, User, type LucideIcon, Utensils, UserRoundGroup } from 'lucide-react';
 
 import { cn } from '#/lib/shadcn';
 
 interface NavItem {
-    to: '/' | '/turmas' | '/ru' | '/perfil';
+    to: '/' | '/turmas' | '/ru' | '/buscar' | '/perfil';
     label: string;
     icon: LucideIcon;
 }
@@ -13,6 +13,7 @@ const navItems: NavItem[] = [
     { to: '/', label: 'Início', icon: House },
     { to: '/turmas', label: 'Turmas', icon: UserRoundGroup },
     { to: '/ru', label: 'RU', icon: Utensils },
+    { to: '/buscar', label: 'Buscar', icon: Search },
     { to: '/perfil', label: 'Perfil', icon: User }
 ];
 
@@ -25,13 +26,13 @@ export const BottomNavigation: React.FC = () => {
 
     return (
         <nav
-            className="fixed bottom-5 left-1/2 z-50 w-74 -translate-x-1/2 rounded-full border bg-card/80 px-1 py-1.5 text-card-foreground shadow-lg backdrop-blur-xl"
+            className="fixed bottom-5 left-1/2 z-50 w-80 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-full border bg-card/80 px-1 py-1.5 text-card-foreground shadow-lg backdrop-blur-xl"
             aria-label="Navegação principal do aplicativo"
         >
-            <div className="relative grid h-11 grid-cols-4">
+            <div className="relative grid h-11 grid-cols-5">
                 <div
                     aria-hidden="true"
-                    className="pointer-events-none absolute inset-y-0 left-0 w-1/4 px-1 transition-all duration-400 motion-reduce:transition-none"
+                    className="pointer-events-none absolute inset-y-0 left-0 w-1/5 px-1 transition-all duration-400 motion-reduce:transition-none"
                     style={{
                         transform: `translateX(${Math.max(activeIndex, 0) * 100}%)`,
                         opacity: activeIndex === -1 ? 0 : 1,
