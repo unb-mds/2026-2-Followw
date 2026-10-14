@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
 import { ListCard } from '#/components/ListCard';
+import { DocumentDownloads } from '#/components/profile/DocumentDownloads';
 import { InstallPromptCard } from '#/components/profile/InstallPromptCard';
 import {
     AcademicPerformance,
@@ -87,10 +88,14 @@ function PerfilPage() {
 }
 
 function AccountSection({ name, displayName }: { name: string; displayName?: string | null }) {
+    const navigate = useNavigate();
     return (
         <ProfileSection title="Conta">
             <ListCard>
                 <DisplayNameButton name={name} displayName={displayName} />
+                <DocumentDownloads
+                    onUnauthorized={() => void navigate({ to: '/login', replace: true })}
+                />
                 <LogoutButton />
             </ListCard>
         </ProfileSection>

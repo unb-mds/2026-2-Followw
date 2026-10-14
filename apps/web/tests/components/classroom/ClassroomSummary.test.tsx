@@ -7,6 +7,7 @@ import { ClassroomSummary } from '#/components/classroom/ClassroomSummary';
 
 const classroom: Classroom = {
     id: '1',
+    professors: [],
     number: '01',
     semester: '2026.1',
     current: false,
