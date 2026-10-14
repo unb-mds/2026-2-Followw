@@ -1,56 +1,73 @@
-import { Lock, MapPin } from 'lucide-react';
+import { Lock, X } from 'lucide-react';
 
 import type { TurmaBusca } from '#/queries/search-classrooms';
 
-import { Card } from '#/components/ui/card';
-import { cn } from '#/lib/shadcn';
+import { ClassCard } from '#/components/home/ClassCard';
+import { TurmaDetails } from '#/components/search/TurmaDetails';
+import { Button } from '#/components/ui/button';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger
+} from '#/components/ui/dialog';
+import { describeSchedule } from '#/lib/schedule';
+import { lockedReasons } from '#/queries/search-classrooms';
 
-export function TurmaCard({ turma }: { turma: TurmaBusca }) {
-    const { disponivel } = turma;
+export function TurmaCard({
+    turma,
+    prerequisitesMet = turma.prerequisites_met ?? null
+}: {
+    turma: TurmaBusca;
+    prerequisitesMet?: boolean | null;
+}) {
+    const reasons = lockedReasons(turma, prerequisitesMet);
 
     return (
-        <Card
-            size="sm"
-            className={cn(
-                'relative gap-1 px-3',
-                !disponivel && 'bg-muted/60 opacity-75 ring-foreground/5'
-            )}
-        >
-            <div className="flex items-center gap-2 text-xs">
-                <span
-                    className={cn(
-                        'min-w-0 font-semibold tabular-nums',
-                        disponivel ? 'text-primary' : 'text-muted-foreground'
-                    )}
-                >
-                    {turma.horario}
-                </span>
-                <span className="ml-auto shrink-0 font-medium tracking-wide text-muted-foreground">
-                    {turma.codigo} · {turma.turma}
-                </span>
-            </div>
-
-            <div className="flex items-center justify-between gap-2">
-                <h3
-                    className={cn(
-                        'line-clamp-2 text-sm leading-snug font-semibold',
-                        disponivel ? 'text-foreground' : 'text-muted-foreground'
-                    )}
-                >
-                    {turma.nome}
-                </h3>
-                {!disponivel && (
-                    <Lock
-                        className="size-3.5 shrink-0 text-muted-foreground"
-                        aria-label="Turma indisponível"
-                    />
-                )}
-            </div>
-
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                <MapPin className="size-3 shrink-0" aria-hidden="true" />
-                <span className="min-w-0 truncate">{turma.local}</span>
-            </div>
-        </Card>
+        <Dialog>
+            <ClassCard
+                variant="row"
+                title={turma.subject.name}
+                code={turma.subject.code}
+                classNumber={turma.number}
+                time={describeSchedule(turma.schedule) ?? 'Horário a definir'}
+                location={turma.room ?? 'Local não informado'}
+                professors={turma.professors}
+                buttonRender={<DialogTrigger />}
+                indicator={
+                    reasons.length > 0 && (
+                        <Lock
+                            className="size-4 shrink-0 text-muted-foreground"
+                            aria-label={reasons.join('. ')}
+                        />
+                    )
+                }
+            />
+            <DialogContent
+                className="max-h-9/10 overflow-y-auto rounded-2xl sm:max-w-lg"
+                showCloseButton={false}
+            >
+                <div className="flex items-start gap-3">
+                    <DialogHeader className="min-w-0 flex-1">
+                        <DialogDescription className="text-xs">
+                            {turma.subject.code} · Turma {turma.number} · {turma.semester}
+                        </DialogDescription>
+                        <DialogTitle className="text-lg leading-snug font-semibold">
+                            {turma.subject.name}
+                        </DialogTitle>
+                    </DialogHeader>
+                    <DialogClose
+                        render={<Button variant="ghost" size="icon-lg" />}
+                        aria-label="Fechar detalhes da turma"
+                    >
+                        <X className="size-5" aria-hidden="true" />
+                    </DialogClose>
+                </div>
+                <TurmaDetails turma={turma} prerequisitesMet={prerequisitesMet} />
+            </DialogContent>
+        </Dialog>
     );
 }

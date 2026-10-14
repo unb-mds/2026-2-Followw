@@ -10,13 +10,14 @@ interface FilterSelectProps {
     label: string;
     icon: React.ReactNode;
     value: string;
-    options: readonly string[] | string[];
+    options: readonly string[];
     onChange: (value: string) => void;
 }
 
 export function FilterSelect({ label, icon, value, options, onChange }: FilterSelectProps) {
     return (
         <Select
+            disabled={options.length === 0}
             value={value}
             onValueChange={(nextValue) => {
                 if (nextValue) onChange(nextValue);
@@ -24,7 +25,7 @@ export function FilterSelect({ label, icon, value, options, onChange }: FilterSe
         >
             <SelectTrigger
                 aria-label={label}
-                className="h-auto w-full justify-between gap-1.5 rounded-2xl bg-card px-2.5 py-2 text-left"
+                className="h-auto w-full justify-between gap-1.5 bg-card px-2.5 py-2 text-left"
             >
                 <div className="flex min-w-0 items-center gap-2">
                     <span className="shrink-0 text-muted-foreground">{icon}</span>
@@ -33,7 +34,7 @@ export function FilterSelect({ label, icon, value, options, onChange }: FilterSe
                             {label}
                         </span>
                         <span className="block truncate text-xs font-semibold text-foreground">
-                            <SelectValue />
+                            <SelectValue placeholder="Nenhum disponível" />
                         </span>
                     </div>
                 </div>
