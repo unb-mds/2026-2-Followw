@@ -5,8 +5,10 @@ import type { components } from '#/queries/schema.gen';
 import {
     daysFrom,
     formatClassroomDate,
+    formatClassroomDateTime,
     formatClassroomWeekday,
     formatRelativeDay,
+    formatRelativeDays,
     frequencyTone,
     groupBySemester,
     groupMembers
@@ -66,6 +68,19 @@ describe('daysFrom', () => {
         expect(daysFrom('2026-10-09', '2026-10-09')).toBe(0);
         expect(daysFrom('2026-10-09', '2026-10-08T12:00:00')).toBe(-1);
         expect(daysFrom('2026-10-09', '2026-10-12')).toBe(3);
+    });
+});
+
+describe('formatClassroomDateTime', () => {
+    test('escreve data e hora', () => {
+        expect(formatClassroomDateTime('2026-09-24T10:30:00')).toBe('24/09/2026 10:30');
+    });
+});
+
+describe('formatRelativeDays', () => {
+    test('escreve o dia relativo em minúsculas', () => {
+        expect(formatRelativeDays(-20)).toBe('há 20 dias');
+        expect(formatRelativeDays(-1)).toBe('ontem');
     });
 });
 

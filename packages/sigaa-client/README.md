@@ -22,7 +22,7 @@ async with SigaaPublicClient() as client:
 
 | Client              | Login | Módulos                                  |
 | ------------------- | ----- | ---------------------------------------- |
-| `SigaaClient`       | sim   | `.profile`, `.classrooms`, `.restaurant` |
+| `SigaaClient`       | sim   | `.profile`, `.classrooms`, `.documents`, `.restaurant` |
 | `SigaaPublicClient` | não   | `.classrooms`, `.subjects`               |
 
 O login é feito sob demanda. O token retornado por `authenticate()` pode ser reutilizado com
@@ -52,6 +52,10 @@ grupo ausentes representados por `None`.
 `client.classrooms.list_grades()` retorna todas as menções de "Ensino > Consultar Minhas Notas"
 num único relatório. Cada `ClassroomGrade` traz `subject_code`, `semester` e a menção (`Grade`)
 do "Resultado", ou `None` enquanto não houver nota lançada.
+`client.documents.get_student_card_pdf()` retorna os bytes do PDF original da carteirinha
+estudantil. `client.restaurant.get_restaurant_credentials()` usa esse mesmo download para extrair o token do QR code
+e a validade, sem persistir o arquivo.
+`client.documents.get_transcript_pdf()` baixa o PDF original do histórico acadêmico.
 
 `SigaaPublicClient().classrooms.iter_subjects(unidade)` percorre os componentes de graduação
 ofertados por uma unidade e entrega cada um como `SubjectDetails`: o `Subject` com `prerequisites`,
