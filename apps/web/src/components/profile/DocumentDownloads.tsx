@@ -1,4 +1,4 @@
-import { Download, FileText, GraduationCap, IdCard } from 'lucide-react';
+import { Download, GraduationCap, IdCard } from 'lucide-react';
 
 import type { StudentDocument } from '#/queries/documents';
 
@@ -9,9 +9,8 @@ import { studentDocuments, useDownloadDocument } from '#/queries/documents';
 
 const documents = [
     { document: 'student-card', icon: IdCard },
-    { document: 'enrollment-certificate', icon: FileText },
     { document: 'transcript', icon: GraduationCap }
-] satisfies { document: StudentDocument; icon: typeof FileText }[];
+] satisfies { document: StudentDocument; icon: typeof IdCard }[];
 
 export function DocumentDownloads({ onUnauthorized }: { onUnauthorized?: () => void }) {
     const download = useDownloadDocument(onUnauthorized);
@@ -20,7 +19,7 @@ export function DocumentDownloads({ onUnauthorized }: { onUnauthorized?: () => v
     return (
         <>
             {documents.map(({ document, icon: Icon }) => {
-                const { label, format } = studentDocuments[document];
+                const { label } = studentDocuments[document];
                 const pending = download.isPending && download.variables === document;
                 return (
                     <Button
@@ -42,7 +41,7 @@ export function DocumentDownloads({ onUnauthorized }: { onUnauthorized?: () => v
                                 className="block text-xs text-muted-foreground"
                                 aria-live="polite"
                             >
-                                {pending ? 'Preparando download...' : `Baixar ${format}`}
+                                {pending && 'Preparando download...'}
                             </span>
                         </span>
                         {pending ? (

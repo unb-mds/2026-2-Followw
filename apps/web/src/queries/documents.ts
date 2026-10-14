@@ -6,13 +6,8 @@ import { apiClient } from '#/queries/client';
 import { ApiError, toApiError } from '#/queries/errors';
 
 export const studentDocuments = {
-    'student-card': { label: 'Carteirinha estudantil', filename: 'carteirinha.pdf', format: 'PDF' },
-    'enrollment-certificate': {
-        label: 'Atestado de matrícula',
-        filename: 'atestado-matricula.html',
-        format: 'HTML'
-    },
-    transcript: { label: 'Histórico acadêmico', filename: 'historico.pdf', format: 'PDF' }
+    'student-card': { label: 'Carteirinha estudantil', filename: 'carteirinha.pdf' },
+    transcript: { label: 'Histórico acadêmico', filename: 'historico.pdf' }
 } as const;
 
 export type StudentDocument = keyof typeof studentDocuments;

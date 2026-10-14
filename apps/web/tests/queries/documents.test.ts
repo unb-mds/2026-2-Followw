@@ -43,17 +43,6 @@ describe('download de documentos', () => {
         expect(await requests[0].text()).toBe('');
     });
 
-    test('baixa o atestado como HTML, preservando acentos e verificação', async () => {
-        const html = '<html><body>Atestado de matrícula — TESTE123</body></html>';
-        response = () =>
-            new Response(html, { headers: { 'content-type': 'text/html; charset=utf-8' } });
-        const file = await getDocumentDownload('enrollment-certificate');
-        expect(file.filename).toBe('atestado-matricula.html');
-        expect(await file.blob.text()).toBe(html);
-        expect(requests[0].method).toBe('POST');
-        expect(new URL(requests[0].url).pathname).toBe('/api/me/enrollment-certificate');
-    });
-
     test.each([401, 502])('propaga o erro HTTP %s sem entregar um arquivo', async (status) => {
         response = () => Response.json({ detail: 'Falha na emissão' }, { status });
         const error = await getDocumentDownload('transcript').catch((cause: unknown) => cause);

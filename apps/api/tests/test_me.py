@@ -259,9 +259,6 @@ def documents(stub_sigaa):
     stub_sigaa.documents = SimpleNamespace(
         get_student_card_pdf=AsyncMock(return_value=pdf),
         get_transcript_pdf=AsyncMock(return_value=pdf),
-        get_enrollment_certificate_html=AsyncMock(
-            return_value="<html><head><meta charset='utf-8'></head><body>Atestado de Matrícula - TESTE123</body></html>"
-        ),
     )
     return stub_sigaa.documents
 
@@ -292,12 +289,6 @@ def restaurant(stub_sigaa):
 DOCUMENT_DOWNLOADS = [
     ("student-card", "get_student_card_pdf", "carteirinha.pdf", "application/pdf"),
     ("transcript", "get_transcript_pdf", "historico.pdf", "application/pdf"),
-    (
-        "enrollment-certificate",
-        "get_enrollment_certificate_html",
-        "atestado-matricula.html",
-        "text/html",
-    ),
 ]
 
 
@@ -313,13 +304,8 @@ def test_download_documento_preserva_conteudo_cookies_e_nao_usa_cache(
     for _ in range(2):
         response = client.post(f"/me/{path}")
         assert response.status_code == 200
-        expected = getattr(documents, method).return_value
-        assert response.content == (
-            expected.encode("utf-8") if isinstance(expected, str) else expected
-        )
-        assert response.headers["content-type"] == (
-            "text/html; charset=utf-8" if media_type == "text/html" else media_type
-        )
+        assert response.content == getattr(documents, method).return_value
+        assert response.headers["content-type"] == media_type
         assert (
             response.headers["content-disposition"]
             == f'attachment; filename="{filename}"'

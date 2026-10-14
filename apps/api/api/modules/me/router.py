@@ -81,25 +81,8 @@ async def get_transcript(client: SigaaClientDep, response: Response) -> Response
     return _document_download(pdf, "historico.pdf", "application/pdf", response)
 
 
-@router.post(
-    "/enrollment-certificate",
-    response_class=Response,
-    summary="Emitir o atestado de matrícula em HTML",
-    responses={
-        **SIGAA_ERRORS,
-        200: {"content": {"text/html": {"schema": {"type": "string"}}}},
-    },
-    dependencies=[NoStore],
-)
-async def get_enrollment_certificate(
-    client: SigaaClientDep, response: Response
-) -> Response:
-    html = await client.documents.get_enrollment_certificate_html()
-    return _document_download(html, "atestado-matricula.html", "text/html", response)
-
-
 def _document_download(
-    content: bytes | str, filename: str, media_type: str, response: Response
+    content: bytes, filename: str, media_type: str, response: Response
 ) -> Response:
     download = Response(
         content=content,

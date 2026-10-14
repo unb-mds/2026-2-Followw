@@ -360,23 +360,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/me/enrollment-certificate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Emitir o atestado de matrícula em HTML */
-        post: operations["get_enrollment_certificate_me_enrollment_certificate_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/me/settings": {
         parameters: {
             query?: never;
@@ -1831,40 +1814,6 @@ export interface operations {
                 };
                 content: {
                     "application/pdf": string;
-                };
-            };
-            /** @description Credenciais ausentes ou inválidas. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description SIGAA indisponível. */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    get_enrollment_certificate_me_enrollment_certificate_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/html": string;
                 };
             };
             /** @description Credenciais ausentes ou inválidas. */
