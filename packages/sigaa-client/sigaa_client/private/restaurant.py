@@ -81,6 +81,10 @@ class Restaurant:
 
     async def get_restaurant_credentials(self) -> RestaurantCredentials:
         """Token do QR code e validade da carteirinha estudantil (lida no RU)."""
+        return _credentials(await self.get_student_card_pdf())
+
+    async def get_student_card_pdf(self) -> bytes:
+        """PDF original da carteirinha estudantil do usuário autenticado."""
         page = await self._session.get(DASHBOARD_PATH)
         soup = BeautifulSoup(page.text, "lxml")
 
@@ -91,7 +95,11 @@ class Restaurant:
         action, payload = build_menu_action(form, _STUDENT_CARD_MENU_ACTION)
         response = await self._session.post(action, data=payload)
 
-        return _credentials(response.content)
+        if not response.content.startswith(b"%PDF-"):
+            raise SigaaParseError(
+                "PDF da carteirinha estudantil não recebido do SIGAA."
+            )
+        return response.content
 
 
 def _statement(page: BeautifulSoup) -> RestaurantStatement | None:

@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Response
 from sigaa_client import RestaurantCredentials, RestaurantStatement
 
 from api.cache import NoStore
@@ -47,6 +47,31 @@ async def get_statement(client: SigaaClientDep) -> RestaurantStatement:
 )
 async def get_token(client: SigaaClientDep) -> RestaurantCredentials:
     return await client.restaurant.get_restaurant_credentials()
+
+
+@router.get(
+    "/student-card",
+    response_class=Response,
+    summary="Baixar a carteirinha estudantil em PDF",
+    responses={
+        **SIGAA_ERRORS,
+        200: {
+            "content": {
+                "application/pdf": {"schema": {"type": "string", "format": "binary"}}
+            }
+        },
+    },
+    dependencies=[NoStore],
+)
+async def get_student_card(client: SigaaClientDep, response: Response) -> Response:
+    pdf = await client.restaurant.get_student_card_pdf()
+    download = Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'attachment; filename="carteirinha.pdf"'},
+    )
+    download.raw_headers.extend(response.raw_headers)
+    return download
 
 
 @router.get(

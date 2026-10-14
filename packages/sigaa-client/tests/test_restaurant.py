@@ -228,6 +228,36 @@ async def test_get_restaurant_credentials_le_token_e_validade():
     assert credentials.valid_until == date(2027, 3, 1)
 
 
+async def test_get_student_card_pdf_retorna_original_com_viewstate_atual():
+    sigaa = FakeDashboard()
+    async with SigaaClient(session_token="tok", transport=sigaa.transport) as client:
+        for viewstate in ("VS1", "VS2"):
+            sigaa.initial = DASHBOARD.replace("VS1", viewstate)
+            assert await client.restaurant.get_student_card_pdf() == CARTEIRINHA_PDF
+            payload = dict(httpx.QueryParams(sigaa.requests[-1].content.decode()))
+            assert payload["javax.faces.ViewState"] == viewstate
+    assert [r.method for r in sigaa.requests] == ["GET", "POST", "GET", "POST"]
+
+
+@pytest.mark.parametrize("content", [b"<html>Erro do SIGAA</html>", b""])
+@pytest.mark.parametrize(
+    "method", ["get_student_card_pdf", "get_restaurant_credentials"]
+)
+async def test_carteirinha_rejeita_resposta_sem_pdf(content, method):
+    sigaa = FakeDashboard()
+
+    def handle(request):
+        if request.method == "POST":
+            return httpx.Response(200, content=content)
+        return sigaa(request)
+
+    async with SigaaClient(
+        session_token="tok", transport=httpx.MockTransport(handle)
+    ) as client:
+        with pytest.raises(SigaaParseError, match="PDF da carteirinha"):
+            await getattr(client.restaurant, method)()
+
+
 async def test_get_restaurant_credentials_sem_menu_e_barulhento():
     sigaa = FakeDashboard(initial=DASHBOARD_SEM_NADA)
     async with SigaaClient(session_token="tok", transport=sigaa.transport) as client:

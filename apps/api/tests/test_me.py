@@ -1,5 +1,6 @@
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -252,6 +253,12 @@ def _entry(description, amount="0.00", *, day=25):
 @pytest.fixture
 def restaurant(stub_sigaa):
     stub_sigaa.restaurant = SimpleNamespace(
+        get_student_card_pdf=AsyncMock(
+            return_value=(
+                Path(__file__).parents[3]
+                / "packages/sigaa-client/tests/fixtures/carteirinha.pdf"
+            ).read_bytes()
+        ),
         get_restaurant_statement=AsyncMock(
             return_value=RestaurantStatement(
                 balance=Decimal("12.50"),
@@ -270,6 +277,61 @@ def restaurant(stub_sigaa):
         ),
     )
     return stub_sigaa.restaurant
+
+
+def test_download_carteirinha_preserva_pdf_cookies_e_nao_usa_cache(
+    client, cookies, restaurant, qstash
+):
+    def banco_proibido():
+        pytest.fail("Download da carteirinha não deve usar banco")
+
+    client.app.dependency_overrides[get_sessionmaker] = banco_proibido
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+    for _ in range(2):
+        response = client.get("/me/student-card")
+        assert response.status_code == 200
+        assert response.content == restaurant.get_student_card_pdf.return_value
+        assert response.headers["content-type"] == "application/pdf"
+        assert (
+            response.headers["content-disposition"]
+            == 'attachment; filename="carteirinha.pdf"'
+        )
+        assert response.headers["cache-control"] == "no-store"
+        assert int(response.headers["content-length"]) == len(response.content)
+        assert ACCESS_COOKIE_NAME in response.cookies
+        assert REFRESH_COOKIE_NAME in response.cookies
+    assert restaurant.get_student_card_pdf.await_count == 2
+    assert qstash.published == []
+
+
+def test_download_carteirinha_exige_login(client, stub_sigaa, restaurant):
+    assert client.get("/me/student-card").status_code == 401
+    restaurant.get_student_card_pdf.assert_not_awaited()
+    stub_sigaa.created.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "error,status",
+    [
+        (AuthenticationFailed(), 401),
+        (SessionExpired(), 401),
+        (SigaaParseError("PDF inválido"), 502),
+        (httpx.ReadTimeout("fora"), 502),
+    ],
+)
+def test_download_carteirinha_traduz_erros(client, cookies, restaurant, error, status):
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+    restaurant.get_student_card_pdf.side_effect = error
+    assert client.get("/me/student-card").status_code == status
+
+
+def test_openapi_documenta_download_carteirinha(client):
+    route = client.get("/openapi.json").json()["paths"]["/me/student-card"]["get"]
+    assert route["tags"] == ["Me"]
+    assert {"401", "502"} <= route["responses"].keys()
+    assert route["responses"]["200"]["content"] == {
+        "application/pdf": {"schema": {"type": "string", "format": "binary"}}
+    }
 
 
 @pytest.mark.parametrize(
