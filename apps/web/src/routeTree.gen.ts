@@ -13,7 +13,6 @@ import { Route as SplatRouteImport } from './routes/$'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
-import { Route as AppBuscaRouteImport } from './routes/_app/busca'
 import { Route as AppBuscarRouteImport } from './routes/_app/buscar'
 import { Route as AppPerfilRouteImport } from './routes/_app/perfil'
 import { Route as AppRuRouteImport } from './routes/_app/ru'
@@ -37,11 +36,6 @@ const LoginRoute = LoginRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppBuscaRoute = AppBuscaRouteImport.update({
-  id: '/busca',
-  path: '/busca',
   getParentRoute: () => AppRoute,
 } as any)
 const AppBuscarRoute = AppBuscarRouteImport.update({
@@ -74,7 +68,6 @@ export interface FileRoutesByFullPath {
   '/$': typeof SplatRoute
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
-  '/busca': typeof AppBuscaRoute
   '/buscar': typeof AppBuscarRoute
   '/perfil': typeof AppPerfilRoute
   '/ru': typeof AppRuRoute
@@ -84,7 +77,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/$': typeof SplatRoute
   '/login': typeof LoginRoute
-  '/busca': typeof AppBuscaRoute
   '/buscar': typeof AppBuscarRoute
   '/perfil': typeof AppPerfilRoute
   '/ru': typeof AppRuRoute
@@ -97,7 +89,6 @@ export interface FileRoutesById {
   '/$': typeof SplatRoute
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
-  '/_app/busca': typeof AppBuscaRoute
   '/_app/buscar': typeof AppBuscarRoute
   '/_app/perfil': typeof AppPerfilRoute
   '/_app/ru': typeof AppRuRoute
@@ -111,7 +102,6 @@ export interface FileRouteTypes {
     | '/$'
     | '/'
     | '/login'
-    | '/busca'
     | '/buscar'
     | '/perfil'
     | '/ru'
@@ -121,7 +111,6 @@ export interface FileRouteTypes {
   to:
     | '/$'
     | '/login'
-    | '/busca'
     | '/buscar'
     | '/perfil'
     | '/ru'
@@ -133,7 +122,6 @@ export interface FileRouteTypes {
     | '/$'
     | '/_app'
     | '/login'
-    | '/_app/busca'
     | '/_app/buscar'
     | '/_app/perfil'
     | '/_app/ru'
@@ -178,13 +166,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/busca': {
-      id: '/_app/busca'
-      path: '/busca'
-      fullPath: '/busca'
-      preLoaderRoute: typeof AppBuscaRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/buscar': {
       id: '/_app/buscar'
       path: '/buscar'
@@ -224,7 +205,6 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
-  AppBuscaRoute: typeof AppBuscaRoute
   AppBuscarRoute: typeof AppBuscarRoute
   AppPerfilRoute: typeof AppPerfilRoute
   AppRuRoute: typeof AppRuRoute
@@ -234,7 +214,6 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppBuscaRoute: AppBuscaRoute,
   AppBuscarRoute: AppBuscarRoute,
   AppPerfilRoute: AppPerfilRoute,
   AppRuRoute: AppRuRoute,

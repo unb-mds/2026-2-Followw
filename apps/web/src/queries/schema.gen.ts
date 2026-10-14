@@ -235,26 +235,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/public/classrooms/catalog": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Pesquisar turmas do catálogo local
-         * @description Consulta o dataset e as turmas gravadas no Followw, sem login nem acesso ao SIGAA. Sem semester, usa o semestre mais recente disponível. Vagas e ocupação refletem a última coleta, sem garantia de disponibilidade atual.
-         */
-        get: operations["search_catalog_public_classrooms_catalog_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/public/restaurant": {
         parameters: {
             query?: never;
@@ -398,46 +378,6 @@ export interface paths {
         patch: operations["update_settings_me_settings_patch"];
         trace?: never;
     };
-    "/me/prerequisites": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Verificar pré-requisitos pelo histórico do usuário
-         * @description Avalia as expressões E/OU e equivalências do dataset com as menções aprovadas de semestres anteriores. null indica histórico ou menções ainda não sincronizados, ou expressão não reconhecida. Não acessa o SIGAA.
-         */
-        get: operations["get_prerequisites_me_prerequisites_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/me/classroom-catalog": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Pesquisar turmas com disponibilidade para o usuário
-         * @description Consulta o catálogo local e o histórico da própria conta. Disponibilidade considera lotação e pré-requisitos antes da paginação; dados não verificados não geram cadeado.
-         */
-        get: operations["get_classroom_catalog_me_classroom_catalog_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/news": {
         parameters: {
             query?: never;
@@ -462,47 +402,9 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** @enum {string} */
-        Availability: "available" | "unavailable";
-        /** CatalogClassroom */
-        CatalogClassroom: {
-            /**
-             * Professors
-             * @default []
-             */
-            professors: string[];
-            /**
-             * Vacancies
-             * @description Vagas na coleta do seed, não em tempo real.
-             */
-            vacancies?: number | null;
-            /**
-             * Occupied
-             * @description Ocupação na coleta do seed, não em tempo real.
-             */
-            occupied?: number | null;
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            subject: components["schemas"]["UserSubject"];
-            /** Number */
-            number: string;
-            /** Semester */
-            semester: string;
-            /** Schedule */
-            schedule: string | null;
-            /** Room */
-            room: string | null;
-            /** Prerequisites */
-            prerequisites: string | null;
-            /** Prerequisites Met */
-            prerequisites_met?: boolean | null;
-        };
         /**
          * CatalogSubject
-         * @description O componente com as turmas do semestre consultado.
+         * @description O componente com as turmas do semestre consultado e os requisitos.
          */
         CatalogSubject: {
             /** Code */
@@ -513,19 +415,11 @@ export interface components {
             hours?: number | null;
             /** Unity */
             unity?: string | null;
+            prerequisites?: components["schemas"]["Requirements"] | null;
+            corequisites?: components["schemas"]["Requirements"] | null;
+            equivalences?: components["schemas"]["Requirements"] | null;
             /** Classrooms */
             classrooms: components["schemas"]["SubjectClassroom"][];
-        };
-        /** ClassroomCatalog */
-        ClassroomCatalog: {
-            /** Semesters */
-            semesters: string[];
-            /** Semester */
-            semester: string | null;
-            /** Total */
-            total: number;
-            /** Classrooms */
-            classrooms: components["schemas"]["CatalogClassroom"][];
         };
         /** ClassroomFrequencyResult */
         ClassroomFrequencyResult: {
@@ -633,7 +527,6 @@ export interface components {
         };
         /**
          * Grade
-         * @description Menção da UnB, como o "Resultado" de "Consultar Minhas Notas".
          * @enum {string}
          */
         Grade: "SS" | "MS" | "MM" | "MI" | "II" | "SR";
@@ -798,6 +691,7 @@ export interface components {
             teachers: components["schemas"]["Teacher"][];
             subject: components["schemas"]["Subject"];
         };
+        Requirements: string[][];
         /** RestaurantCredentials */
         RestaurantCredentials: {
             /** Token */
@@ -832,8 +726,6 @@ export interface components {
             /** Amount */
             amount: string;
         };
-        /** @enum {string} */
-        Shift: "M" | "T" | "N";
         /** SigaaLoginRequest */
         SigaaLoginRequest: {
             /** Registration */
@@ -1675,45 +1567,6 @@ export interface operations {
             };
         };
     };
-    search_catalog_public_classrooms_catalog_get: {
-        parameters: {
-            query?: {
-                /** @description Trecho do nome, código, local, unidade ou docente; ignora acentos e maiúsculas. */
-                q?: string | null;
-                semester?: string | null;
-                /** @description M: manhã, T: tarde, N: noite; turmas de vários turnos aparecem em cada um. */
-                shift?: components["schemas"]["Shift"] | null;
-                offset?: number;
-                limit?: number;
-                /** @description available: sem cadeado; unavailable: turma cheia. Para avaliar pré-requisitos da conta, use /me/classroom-catalog. */
-                availability?: components["schemas"]["Availability"] | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ClassroomCatalog"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     get_menu_public_restaurant_get: {
         parameters: {
             query?: {
@@ -1771,7 +1624,7 @@ export interface operations {
                 q?: string | null;
                 /** @description Código completo do componente, como FGA0003. */
                 code?: string | null;
-                /** @description ID da unidade responsável ou parte não ambígua do nome, como 'gama'. */
+                /** @description ID ou código exato da unidade responsável, como 673 ou FCTE. */
                 unit?: string | null;
                 /** @description Semestre das turmas, no formato AAAA.P. Sem ele, usa o mais recente gravado. */
                 semester?: string | null;
@@ -2036,104 +1889,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserSettings"];
-                };
-            };
-            /** @description Credenciais ausentes ou inválidas. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            /** @description SIGAA indisponível. */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    get_prerequisites_me_prerequisites_get: {
-        parameters: {
-            query: {
-                codes: string[];
-                semester: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: boolean | null;
-                    };
-                };
-            };
-            /** @description Credenciais ausentes ou inválidas. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            /** @description SIGAA indisponível. */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    get_classroom_catalog_me_classroom_catalog_get: {
-        parameters: {
-            query?: {
-                q?: string | null;
-                semester?: string | null;
-                shift?: components["schemas"]["Shift"] | null;
-                availability?: components["schemas"]["Availability"] | null;
-                offset?: number;
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ClassroomCatalog"];
                 };
             };
             /** @description Credenciais ausentes ou inválidas. */

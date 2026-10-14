@@ -122,8 +122,8 @@ def test_code_e_exato(catalog):
     assert [s["code"] for s in _search(catalog, code=" FGA0001 ")] == ["FGA0001"]
 
 
-@pytest.mark.parametrize("unit", ["518", "ceilandia", " Ceilândia "])
-def test_unit_por_id_ou_trecho_do_nome_combina_com_q(catalog, unit):
+@pytest.mark.parametrize("unit", ["518", "FCE", " fce "])
+def test_unit_por_id_ou_codigo_combina_com_q(catalog, unit):
     assert [s["code"] for s in _search(catalog, unit=unit)] == ["FCE0001"]
     assert _search(catalog, unit=unit, q="compilação") == []
 
@@ -133,8 +133,8 @@ def test_unit_por_id_ou_trecho_do_nome_combina_com_q(catalog, unit):
     [
         ({}, "Informe `q`, `code` ou `unit`."),
         ({"unit": "999"}, "Unidade `999` não encontrada."),
-        ({"unit": "reitoria"}, "Nenhuma unidade casa com `reitoria`."),
-        ({"unit": "campus unb"}, "`campus unb` casa com 2 unidades"),
+        ({"unit": "ceilandia"}, "Unidade `ceilandia` não encontrada."),
+        ({"unit": "FC"}, "Unidade `FC` não encontrada."),
     ],
 )
 def test_filtros_invalidos_sao_422(catalog, params, detail):

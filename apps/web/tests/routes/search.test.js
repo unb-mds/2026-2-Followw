@@ -2,22 +2,30 @@ import { describe, expect, test } from 'bun:test';
 
 import { Route } from '#/routes/_app/buscar';
 
-describe('loader da pesquisa pública', () => {
-    test('carrega o catálogo da API sem exigir login', async () => {
-        const paths = [];
-        const catalog = { semesters: ['2026.2'], semester: '2026.2', total: 0, classrooms: [] };
-        const result = await Route.options.loader({
-            context: {
-                queryClient: {
-                    getQueryData: () => undefined,
-                    query: async ({ queryKey }) => {
-                        paths.push(queryKey[1]);
-                        return catalog;
-                    }
+const loadWith = async (user) => {
+    const keys = [];
+    await Route.options.loader({
+        context: {
+            queryClient: {
+                getQueryData: () => undefined,
+                query: async ({ queryKey }) => {
+                    keys.push(queryKey);
+                    return queryKey[1] === '/me' ? user : [];
                 }
             }
-        });
-        expect(paths).toEqual(['/public/classrooms/catalog']);
-        expect(result).toEqual(catalog);
+        }
+    });
+    return keys;
+};
+
+describe('loader da busca de turmas', () => {
+    test('sem login carrega só o perfil', async () => {
+        expect((await loadWith(null)).map((key) => key[1])).toEqual(['/me']);
+    });
+
+    test('com login pré-carrega o histórico e as matérias da unidade', async () => {
+        const keys = await loadWith({ registration: '1', unity: 'FCTE' });
+        expect(keys.map((key) => key[1])).toEqual(['/me', '/classrooms', '/public/subjects']);
+        expect(keys[2][2]).toEqual({ params: { query: { unit: 'FCTE' } } });
     });
 });

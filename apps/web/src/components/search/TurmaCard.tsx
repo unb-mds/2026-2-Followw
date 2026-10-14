@@ -1,6 +1,6 @@
 import { Lock, X } from 'lucide-react';
 
-import type { TurmaBusca } from '#/queries/search-classrooms';
+import type { CatalogSubject, SubjectClassroom } from '#/queries/subjects';
 
 import { ClassCard } from '#/components/home/ClassCard';
 import { TurmaDetails } from '#/components/search/TurmaDetails';
@@ -15,27 +15,27 @@ import {
     DialogTrigger
 } from '#/components/ui/dialog';
 import { describeSchedule } from '#/lib/schedule';
-import { lockedReasons } from '#/queries/search-classrooms';
+import { lockedReasons } from '#/queries/subjects';
 
-export function TurmaCard({
-    turma,
-    prerequisitesMet = turma.prerequisites_met ?? null
-}: {
-    turma: TurmaBusca;
-    prerequisitesMet?: boolean | null;
-}) {
-    const reasons = lockedReasons(turma, prerequisitesMet);
+export interface TurmaProps {
+    subject: CatalogSubject;
+    classroom: SubjectClassroom;
+    prerequisitesMet: boolean | null;
+}
+
+export function TurmaCard({ subject, classroom, prerequisitesMet }: TurmaProps) {
+    const reasons = lockedReasons(classroom, prerequisitesMet);
 
     return (
         <Dialog>
             <ClassCard
                 variant="row"
-                title={turma.subject.name}
-                code={turma.subject.code}
-                classNumber={turma.number}
-                time={describeSchedule(turma.schedule) ?? 'Horário a definir'}
-                location={turma.room ?? 'Local não informado'}
-                professors={turma.professors}
+                title={subject.name}
+                code={subject.code}
+                classNumber={classroom.number}
+                time={describeSchedule(classroom.schedule) ?? 'Horário a definir'}
+                location={classroom.room ?? 'Local não informado'}
+                professors={classroom.professors}
                 buttonRender={<DialogTrigger />}
                 indicator={
                     reasons.length > 0 && (
@@ -53,10 +53,10 @@ export function TurmaCard({
                 <div className="flex items-start gap-3">
                     <DialogHeader className="min-w-0 flex-1">
                         <DialogDescription className="text-xs">
-                            {turma.subject.code} · Turma {turma.number} · {turma.semester}
+                            {subject.code} · Turma {classroom.number} · {classroom.semester}
                         </DialogDescription>
                         <DialogTitle className="text-lg leading-snug font-semibold">
-                            {turma.subject.name}
+                            {subject.name}
                         </DialogTitle>
                     </DialogHeader>
                     <DialogClose
@@ -66,7 +66,11 @@ export function TurmaCard({
                         <X className="size-5" aria-hidden="true" />
                     </DialogClose>
                 </div>
-                <TurmaDetails turma={turma} prerequisitesMet={prerequisitesMet} />
+                <TurmaDetails
+                    subject={subject}
+                    classroom={classroom}
+                    prerequisitesMet={prerequisitesMet}
+                />
             </DialogContent>
         </Dialog>
     );

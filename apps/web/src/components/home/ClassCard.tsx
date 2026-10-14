@@ -53,8 +53,8 @@ export const ClassCard: React.FC<ClassCardProps> = ({
 }) => {
     const statusInfo = status === 'normal' ? undefined : STATUS[status];
     const active = status === 'in_progress';
-    const details = location;
     const professorNames = professors?.join(', ');
+    const details = [location, professorNames].filter(Boolean).join(' · ');
 
     return (
         <Card
@@ -108,19 +108,10 @@ export const ClassCard: React.FC<ClassCardProps> = ({
                 ) : (
                     location && <MapPin className="size-3 shrink-0" />
                 )}
-                <span
-                    className="min-w-0 truncate"
-                    title={
-                        professorNames
-                            ? [details, professorNames].filter(Boolean).join(' · ')
-                            : undefined
-                    }
-                >
+                <span className="min-w-0 truncate" title={professorNames ? details : undefined}>
                     {grade && <GradeText grade={grade} />}
                     {grade && details && ' · '}
                     {details}
-                    {details && professorNames && ' · '}
-                    {professorNames}
                 </span>
                 {onLocationClick && (
                     <Button
