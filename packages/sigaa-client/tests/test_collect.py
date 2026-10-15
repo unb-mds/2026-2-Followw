@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import pytest
 
 from sigaa_client import (
+    CurriculumSummary,
     PublicClassroom,
     SigaaError,
     Subject,
@@ -16,6 +17,82 @@ from sigaa_client import (
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 GAMA = Unit(id=673, name="GAMA")
 CEILANDIA = Unit(id=518, name="CEILANDIA")
+
+
+@pytest.fixture
+def curricula_script(monkeypatch):
+    monkeypatch.syspath_prepend(str(SCRIPTS))
+    module = importlib.import_module("collect_curricula")
+    monkeypatch.setattr(module, "DELAY", 0)
+    monkeypatch.setattr(module, "RETRY_DELAY", 0)
+    return module
+
+
+def test_curriculos_recentes_incluem_base_anterior_e_preservam_turno(curricula_script):
+    def item(id, year, active=True, shift="D"):
+        return CurriculumSummary(
+            sigaa_id=id,
+            course_sigaa_id=1,
+            code=str(id),
+            created_year=year,
+            active=active,
+            shift=shift,
+        )
+
+    items = [
+        item(1, 2018),
+        item(2, 2021),
+        item(3, 2023),
+        item(4, 2026),
+        item(5, 2025, False),
+        item(6, 2027),
+        item(7, 2020, shift="N"),
+        item(8, 2026),
+    ]
+    assert {x.sigaa_id for x in curricula_script.select_curricula(items, 2026)} == {
+        2,
+        3,
+        4,
+        7,
+        8,
+    }
+    assert {
+        x.sigaa_id for x in curricula_script.select_curricula(items, 2026, True)
+    } == {4, 7, 8}
+    assert curricula_script.select_curricula([item(9, 2020, False)], 2026) == []
+    assert curricula_script.select_curricula([item(10, 2027)], 2026) == [item(10, 2027)]
+
+
+def test_falha_na_coleta_de_curriculos_nao_substitui_dataset(
+    curricula_script, monkeypatch, tmp_path
+):
+    class BrokenCurricula:
+        async def list_curricula(self, course_id):
+            raise SigaaError("indisponível")
+
+    class Client(FakeClient):
+        curricula = BrokenCurricula()
+
+    monkeypatch.setattr(curricula_script, "SigaaPublicClient", Client)
+    courses = tmp_path / "courses.csv"
+    courses.write_text("id,name\n1,Curso\n", encoding="utf-8")
+    output = tmp_path / "curricula.json"
+    output.write_text("preservado", encoding="utf-8")
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "collect_curricula",
+            "--courses",
+            str(courses),
+            "--output",
+            str(output),
+            "--year",
+            "2026",
+        ],
+    )
+    with pytest.raises(RuntimeError, match="dataset não foi substituído"):
+        curricula_script.main()
+    assert output.read_text(encoding="utf-8") == "preservado"
 
 
 class FakeClient:

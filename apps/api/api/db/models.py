@@ -54,6 +54,22 @@ Index(
 )
 
 
+class Curriculum(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "curricula"
+    __table_args__ = (
+        UniqueConstraint("course_id", "sigaa_id", name="uq_curriculum_course_sigaa"),
+        Index("ix_curriculum_course_valid_from", "course_id", "valid_from"),
+    )
+
+    course_id: Mapped[int] = mapped_column(ForeignKey("courses.id"))
+    sigaa_id: Mapped[int] = mapped_column()
+    code: Mapped[str] = mapped_column()
+    valid_from: Mapped[str] = mapped_column()
+    data: Mapped[dict[str, object]] = mapped_column(JSON)
+
+    course: Mapped[Course] = relationship()
+
+
 class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "users"
 

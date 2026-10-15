@@ -23,12 +23,41 @@ async with SigaaPublicClient() as client:
 | Client              | Login | Módulos                                  |
 | ------------------- | ----- | ---------------------------------------- |
 | `SigaaClient`       | sim   | `.profile`, `.classrooms`, `.documents`, `.restaurant` |
-| `SigaaPublicClient` | não   | `.classrooms`, `.subjects`               |
+| `SigaaPublicClient` | não   | `.classrooms`, `.subjects`, `.curricula`  |
 
 O login é feito sob demanda. O token retornado por `authenticate()` pode ser reutilizado com
 `SigaaClient(session_token=...)`: sem credenciais, uma sessão expirada levanta `SessionExpired`.
 
 Todos os erros derivam de `SigaaError`.
+
+`client.curricula.list_curricula(course_sigaa_id)` lista as estruturas de um curso, com ID,
+código, ano de criação, turno e status. `get_curriculum(course_sigaa_id, sigaa_id)` retorna
+também a matriz, `valid_from` (semestre de entrada em vigor), `required_by_period` (array de
+objetos com `period` e array `required` de códigos), `optional` e `complementary` (arrays de
+códigos). O período é o nível informado pelo SIGAA, inclusive zero quando presente.
+Optativas indicadas dentro dos períodos também entram em `optional`, sem duplicatas.
+
+```sh
+uv run python packages/sigaa-client/scripts/collect_curricula.py --year 2026
+uv run python packages/sigaa-client/scripts/collect_curricula.py --latest-only
+```
+
+A coleta usa os IDs de `data/courses.csv` e substitui `data/curricula.json` somente ao concluir
+todos os cursos. Por padrão seleciona estruturas ativas criadas no ano de referência e nos
+três anteriores, mais a última versão anterior à janela, por turno, para cobrir ingressos
+antes da primeira revisão. Sem revisões recentes, fica a mais recente; empates são preservados.
+Se a única estrutura ativa for futura, ela é preservada com sua vigência original; consultas
+por ingresso devem respeitar `valid_from`. Cursos sem estruturas ativas ficam fora do JSON.
+`--latest-only` mantém apenas o ano mais recente por turno. O semestre efetivo é preservado
+em `valid_from`; o ano de criação serve apenas para selecionar o conjunto a coletar.
+`--course ID` permite uma coleta parcial, exigindo um `--output` diferente do dataset oficial.
+
+O `uv run db-init` da API cria a tabela `curricula` e executa seu seed após o de cursos.
+Para carregar somente currículos em um banco que já tenha cursos, execute
+`uv run db-seed-curricula` em `apps/api` (usa o `.env` dessa pasta e cria a tabela se necessário).
+O seed resolve `course_sigaa_id` para a chave local de `courses`, valida o JSON e atualiza
+currículos existentes sem duplicá-los. Os componentes ficam em JSON, pois o catálogo de
+disciplinas ofertadas não contém necessariamente todos os componentes de um currículo.
 
 `client.subjects.search(unit=None, level=TeachingLevel.GRADUACAO, type=None, code=None, name=None)`
 consulta o catálogo público com filtros combináveis. `unit` aceita `Unit`, ID ou trecho não ambíguo
