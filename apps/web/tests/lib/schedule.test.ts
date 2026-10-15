@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 
 import {
+    addDays,
     classesOn,
     describeSchedule,
     nextDays,
@@ -131,5 +132,12 @@ describe('weekDays', () => {
         expect(days[0].date).toBe('2026-09-21');
         expect(days.at(-1)?.date).toBe('2026-09-27');
         expect(days.at(-1)?.weekday).toBe(0);
+    });
+});
+
+describe('addDays', () => {
+    test('soma e subtrai dias atravessando meses', () => {
+        expect(addDays('2026-09-28', 7)).toBe('2026-10-05');
+        expect(addDays('2026-10-05', -7)).toBe('2026-09-28');
     });
 });

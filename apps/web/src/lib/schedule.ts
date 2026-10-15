@@ -118,6 +118,13 @@ export function nextDays(start: string, count: number): Day[] {
     });
 }
 
+/** `2026-10-14` + 7 -> `2026-10-21`. */
+export function addDays(date: string, days: number): string {
+    const day = new Date(`${date}T00:00:00Z`);
+    day.setUTCDate(day.getUTCDate() + days);
+    return day.toISOString().slice(0, 10);
+}
+
 /** Segunda a sábado da semana de `date`; com `count = 7`, vai de segunda a domingo da mesma semana. */
 export function weekDays(date: string, count = 6): Day[] {
     const monday = new Date(`${date}T00:00:00Z`);
