@@ -27,7 +27,7 @@ function accountQuery<T, TKey extends ApiKey>(
             const queryKey = context.queryKey.slice(0, 3) as unknown as TKey;
             return options.queryFn({ ...context, queryKey });
         },
-        staleTime: 30 * 60_000
+        staleTime: 90 * 60_000
     });
 }
 
