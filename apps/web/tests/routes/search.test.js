@@ -2,9 +2,10 @@ import { describe, expect, test } from 'bun:test';
 
 import { Route } from '#/routes/_app/buscar';
 
-const loadWith = async (user) => {
+const loadWith = async (user, searchStr = '') => {
     const keys = [];
     await Route.options.loader({
+        location: { searchStr },
         context: {
             queryClient: {
                 getQueryData: () => undefined,
@@ -27,5 +28,26 @@ describe('loader da busca de turmas', () => {
         const keys = await loadWith({ registration: '1', unity: 'FCTE' });
         expect(keys.map((key) => key[1])).toEqual(['/me', '/classrooms', '/public/subjects']);
         expect(keys[2][2]).toEqual({ params: { query: { unit: 'FCTE' } } });
+    });
+
+    test.each([null, { registration: '1', unity: 'FCTE' }])(
+        'uma URL direta pré-carrega a pesquisa, com perfil %p',
+        async (user) => {
+            const keys = await loadWith(user, '?q=calculo&turno=Noite');
+            const subjects = keys.find((key) => key[1] === '/public/subjects');
+            expect(subjects[2]).toEqual({ params: { query: { q: 'calculo' } } });
+        }
+    );
+
+    test.each(['ab', 'a'.repeat(25)])('query inválida %s pré-carrega a unidade', async (q) => {
+        const keys = await loadWith({ registration: '1', unity: 'FCTE' }, `?q=${q}`);
+        const subjects = keys.filter((key) => key[1] === '/public/subjects');
+        expect(subjects.map((key) => key[2])).toEqual([{ params: { query: { unit: 'FCTE' } } }]);
+        expect((await loadWith(null, `?q=${q}`)).map((key) => key[1])).toEqual(['/me']);
+    });
+
+    test('mudanças na URL deixam a busca para o debounce do componente', () => {
+        expect(Route.options.shouldReload({ cause: 'stay' })).toBe(false);
+        expect(Route.options.shouldReload({ cause: 'enter' })).toBe(true);
     });
 });

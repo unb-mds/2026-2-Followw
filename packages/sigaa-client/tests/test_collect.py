@@ -9,10 +9,14 @@ from sigaa_client import (
     Curriculum,
     CurriculumSummary,
     PublicClassroom,
+    PublicSubject,
     SigaaError,
     Subject,
     SubjectDetails,
+    SubjectSearchResult,
+    SubjectType,
     Teacher,
+    TeachingLevel,
     Unit,
 )
 
@@ -179,6 +183,14 @@ def subjects_script(by_unit, monkeypatch):
     return module
 
 
+@pytest.fixture
+def completion_script(by_unit, monkeypatch):
+    module = importlib.import_module("complete_subjects")
+    monkeypatch.setattr(module, "SigaaPublicClient", FakeClient)
+    monkeypatch.setattr(module, "SEARCH_DELAY", 0)
+    return module
+
+
 def _classroom(code: str | None, number: str, **fields) -> PublicClassroom:
     return PublicClassroom(
         number=number,
@@ -337,3 +349,165 @@ def test_csv_de_componentes_tem_a_unidade_e_os_requisitos(subjects_script, tmp_p
         ",".join(subjects_script.COLUMNS),
         "FGA0002,B,60,673,FGA0001,,",
     ]
+
+
+def _catalog_subject(code, name):
+    return PublicSubject(
+        code=code,
+        name=name,
+        sigaa_id=1,
+        hours=90,
+        level=TeachingLevel.GRADUACAO,
+        type=SubjectType.DISCIPLINA,
+    )
+
+
+async def test_completa_referencias_dos_tres_campos_por_prefixo(
+    completion_script, subjects_script, monkeypatch
+):
+    rows = subjects_script.subject_rows(
+        [
+            (
+                673,
+                SubjectDetails(
+                    code="FGA0001",
+                    name="OFERTADA",
+                    hours=60,
+                    prerequisites="( IQD0051 OU IQD0125 )",
+                    corequisites="IQD0051",
+                    equivalences="IQD0099",
+                ),
+            ),
+            (610, SubjectDetails(code="IQD0125", name="NOME PRESERVADO", hours=60)),
+        ]
+    )
+    calls = []
+
+    async def search(*, code):
+        calls.append(code)
+        return SubjectSearchResult(
+            items=(
+                _catalog_subject("IQD0051", "QUÍMICA GERAL"),
+                _catalog_subject("IQD0099", "EQUIVALENTE"),
+                _catalog_subject("IQD0125", "OUTRO NOME"),
+                _catalog_subject("IQD9999", "NÃO REFERENCIADA"),
+            )
+        )
+
+    monkeypatch.setattr(
+        FakeClient, "subjects", SimpleNamespace(search=search), raising=False
+    )
+    completed = await completion_script.complete_subjects(rows)
+    by_code = {row["code"]: row for row in completed}
+
+    assert calls == ["IQD"]
+    assert set(by_code) == {"FGA0001", "IQD0051", "IQD0099", "IQD0125"}
+    assert by_code["IQD0051"] == {
+        "code": "IQD0051",
+        "name": "QUÍMICA GERAL",
+        "hours": 90,
+        "unity_id": None,
+        "prerequisites": None,
+        "corequisites": None,
+        "equivalences": None,
+    }
+    assert all(by_code[row["code"]] == row for row in rows)
+
+
+async def test_catalogo_truncado_busca_codigos_que_faltam_exatamente(
+    completion_script, subjects_script, monkeypatch
+):
+    rows = subjects_script.subject_rows(
+        [
+            (
+                673,
+                SubjectDetails(
+                    code="FGA0001",
+                    name="OFERTADA",
+                    prerequisites="IQD0051 OU IQD0052",
+                ),
+            )
+        ]
+    )
+    calls = []
+
+    async def search(*, code):
+        calls.append(code)
+        if code == "IQD":
+            return SubjectSearchResult(
+                items=(_catalog_subject("IQD0051", "QUÍMICA GERAL"),),
+                truncated=True,
+            )
+        return SubjectSearchResult(items=(_catalog_subject("IQD0052", "OUTRA"),))
+
+    monkeypatch.setattr(
+        FakeClient, "subjects", SimpleNamespace(search=search), raising=False
+    )
+    completed = await completion_script.complete_subjects(rows)
+
+    assert calls == ["IQD", "IQD0052"]
+    assert {row["code"] for row in completed} == {"FGA0001", "IQD0051", "IQD0052"}
+
+
+async def test_referencia_ausente_na_origem_nao_ganha_nome_inventado(
+    completion_script, subjects_script, monkeypatch
+):
+    rows = subjects_script.subject_rows(
+        [
+            (
+                673,
+                SubjectDetails(
+                    code="FGA0001",
+                    name="OFERTADA",
+                    prerequisites="IQD0051",
+                ),
+            )
+        ]
+    )
+
+    async def search(**_):
+        return SubjectSearchResult()
+
+    monkeypatch.setattr(
+        FakeClient, "subjects", SimpleNamespace(search=search), raising=False
+    )
+    assert await completion_script.complete_subjects(rows) == rows
+
+
+async def test_catalogo_completo_nao_abre_sessao(completion_script, monkeypatch):
+    def forbidden(**_):
+        pytest.fail("O catálogo já está completo")
+
+    monkeypatch.setattr(completion_script, "SigaaPublicClient", forbidden)
+    assert await completion_script.complete_subjects([]) == []
+
+
+async def test_falha_da_origem_nao_devolve_catalogo_parcial(
+    completion_script, subjects_script, monkeypatch
+):
+    rows = subjects_script.subject_rows(
+        [
+            (
+                673,
+                SubjectDetails(
+                    code="FGA0001",
+                    name="OFERTADA",
+                    prerequisites="IQD0051 E MAT0024",
+                ),
+            ),
+        ]
+    )
+
+    async def search(*, code):
+        if code == "IQD":
+            return SubjectSearchResult(
+                items=(_catalog_subject("IQD0051", "QUÍMICA GERAL"),)
+            )
+        raise SigaaError("indisponível")
+
+    monkeypatch.setattr(
+        FakeClient, "subjects", SimpleNamespace(search=search), raising=False
+    )
+    with pytest.raises(SigaaError, match="indisponível"):
+        await completion_script.complete_subjects(rows)
+    assert [row["code"] for row in rows] == ["FGA0001"]

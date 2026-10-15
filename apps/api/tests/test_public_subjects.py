@@ -1,6 +1,7 @@
 import pytest
 
 from api.db.models import Classroom, Subject, Unity
+from api.db.seed.subjects import read_subjects
 from api.sigaa import get_sigaa_public_client
 
 
@@ -65,9 +66,18 @@ def test_componente_traz_as_turmas_do_semestre_mais_recente(catalog):
             "name": "COMPILAÇÃO DE PROGRAMAS",
             "hours": 60,
             "unity": "FCTE",
-            "prerequisites": [["FGA0001", "FGA0002"], ["FGA0010"]],
+            "prerequisites": [
+                [
+                    {
+                        "code": "FGA0001",
+                        "subject": {"code": "FGA0001", "name": "CÁLCULO 1"},
+                    },
+                    {"code": "FGA0002", "subject": None},
+                ],
+                [{"code": "FGA0010", "subject": None}],
+            ],
             "corequisites": None,
-            "equivalences": [["CIC0004"]],
+            "equivalences": [[{"code": "CIC0004", "subject": None}]],
             "classrooms": [
                 {
                     "sigaa_id": 10,
@@ -109,11 +119,14 @@ def test_semester_escolhe_as_turmas_e_componente_sem_oferta_vem_vazio(catalog):
     [
         ("  calculo   1 ", ["FGA0001"]),
         ("CÁLCULO", ["FCE0001", "FGA0001"]),
-        ("fga0003", []),
+        ("fga0003", ["FGA0003"]),
+        ("fga", ["FGA0001", "FGA0003"]),
+        ("FULANO", ["FGA0003"]),
+        ("ano", ["FGA0003"]),
         ("inexistente", []),
     ],
 )
-def test_q_busca_trecho_do_nome_sem_acento_nem_caixa(catalog, q, expected):
+def test_q_busca_codigo_nome_e_docente_sem_acento_nem_caixa(catalog, q, expected):
     assert [s["code"] for s in _search(catalog, q=q)] == expected
 
 
@@ -149,6 +162,92 @@ def test_filtros_invalidos_sao_422(catalog, params, detail):
 )
 def test_validacao_de_parametros(catalog, params):
     assert catalog.get("/public/subjects", params=params).status_code == 422
+
+
+@pytest.mark.parametrize("q", ["", "a", "ab", "a" * 25, " a ", "   "])
+def test_q_invalida_nao_consulta_o_catalogo(catalog, monkeypatch, q):
+    from unittest.mock import AsyncMock
+
+    search = AsyncMock(side_effect=AssertionError("Query inválida consultou o banco"))
+    monkeypatch.setattr(
+        "api.modules.public_subjects.repository.SubjectCatalogRepository.list_subjects",
+        search,
+    )
+    assert catalog.get("/public/subjects", params={"q": q}).status_code == 422
+    search.assert_not_called()
+
+
+@pytest.mark.parametrize("length", [3, 24])
+def test_q_aceita_os_limites(catalog, database, length):
+    q = "x" * length
+    with database.begin() as session:
+        session.add(Subject(code="TEST0001", name=q))
+    assert [s["code"] for s in _search(catalog, q=q)] == ["TEST0001"]
+
+
+def test_docentes_respeitam_semestre_e_unidade_sem_duplicar(catalog, database):
+    with database.begin() as session:
+        classrooms = session.query(Classroom).filter_by(subject_code="FGA0003").all()
+        for classroom in classrooms:
+            classroom.professors = (
+                ["Cárlos Silva", "Carlos Sousa"]
+                if classroom.semester == "2026.2"
+                else ["Docente Antigo"]
+            )
+
+    for q in ["  carlos   silva ", "Carlos"]:
+        assert [s["code"] for s in _search(catalog, q=q)] == ["FGA0003"]
+    assert _search(catalog, q="Professor Inexistente") == []
+    assert _search(catalog, q="Carlos", unit="FCE") == []
+    assert _search(catalog, q="Carlos", semester="2026.1") == []
+    assert _search(catalog, q="Docente Antigo") == []
+    assert [
+        s["code"] for s in _search(catalog, q="Docente Antigo", semester="2026.1")
+    ] == ["FGA0003"]
+
+
+@pytest.mark.parametrize("field", ["prerequisites", "corequisites", "equivalences"])
+def test_requisitos_resolvem_nomes_sem_perder_codigos_ou_grupos(
+    catalog, database, field
+):
+    with database.begin() as session:
+        setattr(
+            session.get(Subject, "FGA0003"),
+            field,
+            [["FCE0001", "AUSENTE"], ["FGA0001"]],
+        )
+
+    requirements = _search(catalog, code="FGA0003")[0][field]
+    assert requirements == [
+        [
+            {
+                "code": "FCE0001",
+                "subject": {"code": "FCE0001", "name": "CÁLCULO APLICADO"},
+            },
+            {"code": "AUSENTE", "subject": None},
+        ],
+        [{"code": "FGA0001", "subject": {"code": "FGA0001", "name": "CÁLCULO 1"}}],
+    ]
+
+
+@pytest.mark.parametrize("field", ["prerequisites", "corequisites", "equivalences"])
+@pytest.mark.parametrize(
+    ("code", "name"),
+    [
+        ("IQD0051", "QUÍMICA GERAL"),
+        ("FGA0138", "MÉTODOS DE DESENVOLVIMENTO DE SOFTWARE"),
+    ],
+)
+def test_referencia_sem_oferta_resolve_nome_acrescentado_pela_coleta(
+    catalog, database, field, code, name
+):
+    referenced = next(subject for subject in read_subjects() if subject.code == code)
+    with database.begin() as session:
+        session.add(referenced)
+        setattr(session.get(Subject, "FGA0003"), field, [[code]])
+
+    result = _search(catalog, code="FGA0003")[0][field]
+    assert result == [[{"code": code, "subject": {"code": code, "name": name}}]]
 
 
 def test_sem_turmas_gravadas_os_componentes_vem_sem_turmas(client, database):

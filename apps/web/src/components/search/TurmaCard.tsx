@@ -23,11 +23,16 @@ export interface TurmaProps {
     prerequisitesMet: boolean | null;
 }
 
-export function TurmaCard({ subject, classroom, prerequisitesMet }: TurmaProps) {
+export function TurmaCard({
+    subject,
+    classroom,
+    prerequisitesMet,
+    onOpenDetails
+}: TurmaProps & { onOpenDetails?: () => void }) {
     const reasons = lockedReasons(classroom, prerequisitesMet);
 
     return (
-        <Dialog>
+        <Dialog onOpenChange={(open) => open && onOpenDetails?.()}>
             <ClassCard
                 variant="row"
                 title={subject.name}

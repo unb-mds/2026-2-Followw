@@ -1,6 +1,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Query
+from pydantic import StringConstraints
 
 from api.cache import NoStore
 from api.modules.public_classrooms.code import CLASSROOM_CODE_PATTERN
@@ -26,10 +27,12 @@ async def search_subjects(
     q: Annotated[
         str | None,
         Query(
-            min_length=1,
+            min_length=3,
+            max_length=24,
             pattern=r"\S",
-            description="Trecho do nome do componente, ignorando acentos, maiúsculas e espaços extras.",
+            description="Trecho do código, nome do componente ou docente, de 3 a 24 caracteres, ignorando acentos, maiúsculas e espaços extras.",
         ),
+        StringConstraints(strip_whitespace=True),
     ] = None,
     code: Annotated[
         str | None,

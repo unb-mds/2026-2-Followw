@@ -1,9 +1,13 @@
-import { keepPreviousData, noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import {
+    keepPreviousData,
+    noop,
+    useQuery,
+    useQueryClient,
+    useSuspenseQuery
+} from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { Clock, ListFilter, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-
-import type { Availability, Turno } from '#/queries/subjects';
 
 import { ErrorCard, ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
@@ -12,15 +16,19 @@ import { FilterSelect } from '#/components/search/FilterSelect';
 import { TurmaSection } from '#/components/search/TurmaSection';
 import { Input } from '#/components/ui/input';
 import { useOnline } from '#/lib/online';
+import { loadSearchParams, useSearchState, validateSearch } from '#/lib/search-params';
 import { allClassroomsQueryOptions } from '#/queries/classrooms';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
+import { refreshQuery } from '#/queries/refresh';
 import {
     approvedCodes,
     AVAILABILITIES,
     filterSubjects,
     isAvailability,
     isTurno,
+    SEARCH_MAX_LENGTH,
+    SEARCH_MIN_LENGTH,
     subjectsQuery,
     subjectsQueryOptions,
     TURNOS
@@ -28,12 +36,15 @@ import {
 
 export const Route = createFileRoute('/_app/buscar')({
     head: () => ({ meta: [{ title: 'Buscar Turmas | Followw' }] }),
-    loader: async ({ context: { queryClient } }) => {
+    validateSearch,
+    // O componente consulta após o debounce; o loader só pré-carrega ao entrar na página.
+    shouldReload: ({ cause }) => cause !== 'stay',
+    loader: async ({ context: { queryClient }, location }) => {
         const user = await loadQuery(queryClient, meQueryOptions);
-        if (!user) return;
-        const query = subjectsQuery('', user.unity);
+        const { q } = loadSearchParams(location.searchStr);
+        const query = subjectsQuery(q, user?.unity ?? null);
         await Promise.all([
-            loadQuery(queryClient, allClassroomsQueryOptions).catch(noop),
+            user && loadQuery(queryClient, allClassroomsQueryOptions).catch(noop),
             query && loadQuery(queryClient, subjectsQueryOptions(query)).catch(noop)
         ]);
     },
@@ -49,20 +60,22 @@ export const Route = createFileRoute('/_app/buscar')({
 });
 
 function BuscarTurmasPage() {
+    const queryClient = useQueryClient();
     const { data: user } = useSuspenseQuery(meQueryOptions);
-    const [busca, setBusca] = useState('');
-    const [debounced, setDebounced] = useState('');
-    const [turno, setTurno] = useState<Turno>('Todos');
-    const [disponibilidade, setDisponibilidade] = useState<Availability>('Todas');
+    const [{ q: busca, turno, disponibilidade }, setSearch] = useSearchState();
+    const unit = user?.unity ?? null;
+    // Consulta aplicada após o debounce de 300 ms; texto inválido mantém a anterior.
+    const [query, setQuery] = useState(() => subjectsQuery(busca, unit));
     const online = useOnline();
 
     useEffect(() => {
-        const timer = setTimeout(() => setDebounced(busca), 300);
+        const timer = setTimeout(
+            () => setQuery((previous) => subjectsQuery(busca, unit, previous)),
+            300
+        );
         return () => clearTimeout(timer);
-    }, [busca]);
+    }, [busca, unit]);
 
-    const unit = user?.unity ?? null;
-    const query = subjectsQuery(debounced, unit);
     const { data, isPending, isFetching, isLoadingError, isError, refetch } = useQuery({
         ...subjectsQueryOptions(query ?? {}),
         enabled: query != null,
@@ -74,6 +87,9 @@ function BuscarTurmasPage() {
     const subjects = filterSubjects(data ?? [], { turno, disponibilidade }, approved);
     const semester = subjects[0]?.classrooms[0]?.semester;
     const title = query?.unit ? `Matérias da ${query.unit}` : 'Resultados da busca';
+    const refreshSubjects = () => {
+        if (query) void refreshQuery(queryClient, subjectsQueryOptions(query)).catch(noop);
+    };
 
     return (
         <div className="flex flex-col gap-5">
@@ -85,10 +101,13 @@ function BuscarTurmasPage() {
                 <Input
                     type="search"
                     value={busca}
-                    onChange={(e) => setBusca(e.target.value)}
-                    maxLength={200}
-                    placeholder="Busque pelo nome ou código da matéria..."
-                    aria-label="Busque pelo nome ou código da matéria"
+                    onChange={(e) => {
+                        const value = e.target.value.slice(0, SEARCH_MAX_LENGTH);
+                        void setSearch({ q: value.trim() ? value : null });
+                    }}
+                    maxLength={SEARCH_MAX_LENGTH}
+                    placeholder="Busque por matéria, código ou professor..."
+                    aria-label="Busque pelo nome, código da matéria ou professor"
                     className="h-11 bg-card pl-10 text-sm"
                 />
             </div>
@@ -98,20 +117,22 @@ function BuscarTurmasPage() {
                     icon={<Clock className="size-4" />}
                     value={turno}
                     options={TURNOS}
-                    onChange={(value) => isTurno(value) && setTurno(value)}
+                    onChange={(value) => isTurno(value) && void setSearch({ turno: value })}
                 />
                 <FilterSelect
                     label="Disponibilidade"
                     icon={<ListFilter className="size-4" />}
                     value={disponibilidade}
                     options={AVAILABILITIES}
-                    onChange={(value) => isAvailability(value) && setDisponibilidade(value)}
+                    onChange={(value) =>
+                        isAvailability(value) && void setSearch({ disponibilidade: value })
+                    }
                 />
             </div>
             <div aria-live="polite" aria-busy={isFetching} className="flex flex-col gap-5 pb-8">
                 {!query ? (
                     <p className="py-8 text-center text-sm text-muted-foreground">
-                        Digite o nome ou o código de uma matéria para ver as turmas.
+                        {`Digite de ${SEARCH_MIN_LENGTH} a ${SEARCH_MAX_LENGTH} caracteres do nome, código da matéria ou professor para ver as turmas.`}
                     </p>
                 ) : isPending ? (
                     <LoadingText>Buscando turmas...</LoadingText>
@@ -137,6 +158,7 @@ function BuscarTurmasPage() {
                             title={semester ? `${title} · ${semester}` : title}
                             subjects={subjects}
                             approved={approved}
+                            onOpenDetails={refreshSubjects}
                         />
                         {subjects.length === 0 && (
                             <p className="py-8 text-center text-sm text-muted-foreground">

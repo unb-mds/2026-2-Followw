@@ -6,7 +6,7 @@ import { finalGrade } from '#/queries/classrooms';
 
 export type CatalogSubject = components['schemas']['CatalogSubject'];
 export type SubjectClassroom = components['schemas']['SubjectClassroom'];
-export type Requirements = components['schemas']['Requirements'];
+export type Requirements = components['schemas']['CatalogRequirements'];
 type SubjectsQuery = NonNullable<
     operations['search_subjects_public_subjects_get']['parameters']['query']
 >;
@@ -22,15 +22,20 @@ export const isTurno = (value: string): value is Turno =>
 export const isAvailability = (value: string): value is Availability =>
     (AVAILABILITIES as readonly string[]).includes(value);
 
-const CODE = /^[A-Za-z]+[0-9]+$/;
+export const SEARCH_MIN_LENGTH = 3;
+export const SEARCH_MAX_LENGTH = 24;
 const APPROVED = new Set(['SS', 'MS', 'MM']);
 
-/** Texto com cara de código vai em `code`; sem texto, lista a unidade; sem nenhum, não busca. */
-export function subjectsQuery(busca: string, unit: string | null): SubjectsQuery | null {
+/** Sem texto, lista a unidade; texto fora dos limites mantém a consulta anterior. */
+export function subjectsQuery(
+    busca: string,
+    unit: string | null,
+    previous: SubjectsQuery | null = unit ? { unit } : null
+): SubjectsQuery | null {
     const text = busca.trim();
-    if (CODE.test(text)) return { code: text };
-    if (text) return { q: text };
-    return unit ? { unit } : null;
+    if (!text) return unit ? { unit } : null;
+    if (text.length < SEARCH_MIN_LENGTH || text.length > SEARCH_MAX_LENGTH) return previous;
+    return { q: text };
 }
 
 export const subjectsQueryOptions = (query: SubjectsQuery) =>
@@ -49,17 +54,19 @@ export function prerequisitesMet(
 ): boolean | null {
     if (!requirements?.length) return true;
     if (!approved) return null;
-    return requirements.some((group) => group.every((code) => approved.has(code)));
+    return requirements.some((group) => group.every(({ code }) => approved.has(code)));
 }
 
-/** `[["A", "B"], ["C"]]` -> `(A e B) ou C`. */
+export const subjectRequirementLabel = ({ code, subject }: Requirements[number][number]) =>
+    subject?.name ?? code;
+
+/** Mantém os grupos E/OU e usa o código quando a matéria não existe no catálogo. */
 export function formatRequirements(requirements: Requirements): string {
     return requirements
-        .map((group) =>
-            group.length > 1 && requirements.length > 1
-                ? `(${group.join(' e ')})`
-                : group.join(' e ')
-        )
+        .map((group) => {
+            const text = group.map(subjectRequirementLabel).join(' e ');
+            return group.length > 1 && requirements.length > 1 ? `(${text})` : text;
+        })
         .join(' ou ');
 }
 
