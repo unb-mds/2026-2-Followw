@@ -5,6 +5,7 @@ import { useState } from 'react';
 
 import type { components } from '#/queries/schema.gen';
 
+import { ClassroomPosts } from '#/components/classroom/ClassroomPosts';
 import { ClassroomSummary } from '#/components/classroom/ClassroomSummary';
 import { FrequencyContent } from '#/components/classroom/FrequencyContent';
 import { ErrorCard, ErrorState, SIGAA_DOWN_MESSAGE } from '#/components/ErrorState';
@@ -12,43 +13,27 @@ import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
 import { LoginPromptCard } from '#/components/home/LoginPromptCard';
 import { ListCard } from '#/components/ListCard';
 import { LoadingText } from '#/components/LoadingText';
-import {
-    Accordion,
-    AccordionContent,
-    AccordionItem,
-    AccordionTrigger
-} from '#/components/ui/accordion';
 import { buttonVariants } from '#/components/ui/button';
 import { Card, CardContent } from '#/components/ui/card';
 import { PersonPhoto } from '#/components/ui/person-photo';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
-import {
-    daysFrom,
-    formatClassroomDateTime,
-    formatRelativeDays,
-    groupMembers
-} from '#/lib/classroom-details';
-import { Markdown } from '#/lib/markdown';
+import { groupMembers } from '#/lib/classroom-details';
 import { titleCase } from '#/lib/profile';
-import { nowInBrasilia } from '#/lib/schedule';
 import {
     allClassroomsQueryOptions,
     classroomFrequencyQueryOptions,
     classroomMembersQueryOptions,
-    classroomNewsDetailQueryOptions,
-    classroomNewsQueryOptions,
     useMarkLesson
 } from '#/queries/classrooms';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
 
-type Tab = 'news' | 'frequency' | 'members';
-type News = components['schemas']['News'];
+type Tab = 'posts' | 'frequency' | 'members';
 type Member = components['schemas']['ClassroomMember'];
 
 const tabs: { id: Tab; label: string }[] = [
     { id: 'frequency', label: 'Frequência' },
-    { id: 'news', label: 'Notícias' },
+    { id: 'posts', label: 'Postagens' },
     { id: 'members', label: 'Participantes' }
 ];
 
@@ -116,7 +101,7 @@ function ClassroomPage() {
                     <Tabs
                         value={tab}
                         onValueChange={(value) => {
-                            if (value === 'news' || value === 'frequency' || value === 'members') {
+                            if (value === 'posts' || value === 'frequency' || value === 'members') {
                                 setTab(value);
                             }
                         }}
@@ -137,8 +122,8 @@ function ClassroomPage() {
                                 </TabsTrigger>
                             ))}
                         </TabsList>
-                        <TabsContent value="news">
-                            <NewsTab id={id} />
+                        <TabsContent value="posts">
+                            <ClassroomPosts key={id} id={id} />
                         </TabsContent>
                         <TabsContent value="frequency">
                             <FrequencyTab id={id} />
@@ -173,97 +158,6 @@ function InformationCard({ children }: { children: React.ReactNode }) {
 
 function TabError({ onRetry }: { onRetry: () => void }) {
     return <ErrorCard message={SIGAA_DOWN_MESSAGE} onRetry={onRetry} />;
-}
-
-function NewsTab({ id }: { id: string }) {
-    const news = useQuery(classroomNewsQueryOptions(id));
-    const [openedId, setOpenedId] = useState<number | null>(null);
-
-    if (news.isPending) return <TabLoading />;
-    if (news.isLoadingError) return <TabError onRetry={() => news.refetch()} />;
-    if (news.data.length === 0)
-        return <InformationCard>Nenhuma notícia publicada.</InformationCard>;
-
-    return (
-        <ListCard>
-            <Accordion
-                value={openedId == null ? [] : [openedId]}
-                onValueChange={(value) => {
-                    const nextId = value[0];
-                    setOpenedId(typeof nextId === 'number' ? nextId : null);
-                }}
-            >
-                {news.data.map((item) =>
-                    item.id != null ? (
-                        <AccordionItem key={item.id} value={item.id}>
-                            <AccordionTrigger className="gap-3 py-3 hover:no-underline">
-                                <NewsHeading news={item} />
-                            </AccordionTrigger>
-                            <AccordionContent className="pb-3">
-                                {openedId === item.id && (
-                                    <NewsDetail classroomId={id} newsId={item.id} />
-                                )}
-                            </AccordionContent>
-                        </AccordionItem>
-                    ) : (
-                        <h3 key={item.published_on + item.title} className="py-3 not-last:border-b">
-                            <NewsHeading news={item} />
-                        </h3>
-                    )
-                )}
-            </Accordion>
-        </ListCard>
-    );
-}
-
-function NewsHeading({ news }: { news: News }) {
-    return (
-        <span className="flex min-w-0 flex-1 items-baseline justify-between gap-3">
-            <span className="text-sm font-semibold text-foreground">{news.title}</span>
-            <span className="shrink-0 text-xs font-medium text-muted-foreground tabular-nums">
-                {formatRelativeDays(daysFrom(nowInBrasilia().date, news.published_on))}
-            </span>
-        </span>
-    );
-}
-
-function NewsDetail({ classroomId, newsId }: { classroomId: string; newsId: number }) {
-    const detail = useQuery(classroomNewsDetailQueryOptions(classroomId, newsId));
-
-    if (detail.isPending)
-        return (
-            <p className="text-sm text-muted-foreground">
-                <LoadingText>Carregando notícia...</LoadingText>
-            </p>
-        );
-    if (detail.isLoadingError) return <TabError onRetry={() => detail.refetch()} />;
-
-    return (
-        <div>
-            {detail.data.content && <Markdown>{detail.data.content}</Markdown>}
-            {detail.data.attachments.length > 0 && (
-                <div className="mt-4 flex flex-col gap-1">
-                    <p className="text-xs font-medium text-muted-foreground">Anexos</p>
-                    {detail.data.attachments.map((attachment) => (
-                        <a
-                            key={attachment.url}
-                            href={attachment.url}
-                            target="_blank"
-                            rel="external noopener noreferrer"
-                            className="block text-sm font-medium text-primary underline decoration-primary/30"
-                        >
-                            {attachment.name}
-                        </a>
-                    ))}
-                </div>
-            )}
-            {detail.data.published_at && (
-                <p className="mt-4 text-xs text-muted-foreground tabular-nums">
-                    Publicada em {formatClassroomDateTime(detail.data.published_at)}
-                </p>
-            )}
-        </div>
-    );
 }
 
 function FrequencyTab({ id }: { id: string }) {

@@ -4,8 +4,8 @@ import {
     allClassroomsQueryOptions,
     classroomFrequencyQueryOptions,
     classroomMembersQueryOptions,
-    classroomNewsDetailQueryOptions,
-    classroomNewsQueryOptions
+    classroomPostDetailQueryOptions,
+    classroomPostsQueryOptions
 } from '#/queries/classrooms';
 
 describe('queries de turma', () => {
@@ -15,19 +15,34 @@ describe('queries de turma', () => {
         });
     });
 
-    test('isola notícias, frequência e participantes pelo ID da turma', () => {
+    test('isola postagens, frequência e participantes pelo ID da turma', () => {
         const first = 'TURMA-1';
         const second = 'TURMA-2';
 
         for (const query of [
-            classroomNewsQueryOptions,
+            classroomPostsQueryOptions,
             classroomFrequencyQueryOptions,
             classroomMembersQueryOptions
         ]) {
             expect(query(first).queryKey).not.toEqual(query(second).queryKey);
         }
-        expect(classroomNewsDetailQueryOptions(first, 1).queryKey).not.toEqual(
-            classroomNewsDetailQueryOptions(first, 2).queryKey
+        expect(classroomPostDetailQueryOptions(first, 'news:1').queryKey).not.toEqual(
+            classroomPostDetailQueryOptions(first, 'assessment:1').queryKey
         );
+    });
+
+    test('usa as rotas de posts com IDs opacos e filtro por categoria', () => {
+        expect(classroomPostsQueryOptions('TURMA-1').queryKey[1]).toBe(
+            '/classrooms/{classroom_id}/posts'
+        );
+        expect(classroomPostsQueryOptions('TURMA-1', 'material').queryKey).toContainEqual({
+            params: { path: { classroom_id: 'TURMA-1' }, query: { type: 'material' } }
+        });
+        expect(classroomPostsQueryOptions('TURMA-1').queryKey).not.toEqual(
+            classroomPostsQueryOptions('TURMA-1', 'material').queryKey
+        );
+        expect(classroomPostDetailQueryOptions('TURMA-1', 'material:abc').queryKey).toContainEqual({
+            params: { path: { classroom_id: 'TURMA-1', post_id: 'material:abc' } }
+        });
     });
 });
