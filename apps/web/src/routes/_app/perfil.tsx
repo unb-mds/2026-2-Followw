@@ -1,6 +1,6 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { Navigate, createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
-import { ChevronRight, LogOut, Pencil } from 'lucide-react';
+import { LogOut, Pencil } from 'lucide-react';
 import { useState } from 'react';
 
 import { ErrorState } from '#/components/ErrorState';
@@ -87,7 +87,9 @@ function AccountSection({ name, displayName }: { name: string; displayName?: str
     return (
         <ProfileSection title="Conta">
             <ListCard>
-                <DisplayNameButton name={name} displayName={displayName} />
+                <div className="-mx-3">
+                    <DisplayNameButton name={name} displayName={displayName} />
+                </div>
                 <DocumentDownloads />
                 <LogoutButton />
             </ListCard>
@@ -128,7 +130,7 @@ function DisplayNameButton({ name, displayName }: { name: string; displayName?: 
                 render={
                     <Button
                         variant="ghost"
-                        className="-mx-3 h-auto min-h-12 justify-start gap-3 rounded-none px-3 py-2.5"
+                        className="h-auto min-h-12 w-full justify-start gap-3 rounded-none px-3 py-2.5"
                     />
                 }
             >
@@ -141,7 +143,6 @@ function DisplayNameButton({ name, displayName }: { name: string; displayName?: 
                         {displayName || name}
                     </span>
                 </span>
-                <ChevronRight className="text-muted-foreground" />
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
@@ -220,7 +221,6 @@ function LogoutButton() {
                     <LogOut className="size-4" />
                 </span>
                 <span className="flex-1 text-left">Desconectar</span>
-                <ChevronRight className="text-muted-foreground" />
             </AlertDialogTrigger>
             <AlertDialogContent size="sm">
                 <AlertDialogHeader>
