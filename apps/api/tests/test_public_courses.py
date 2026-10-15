@@ -128,12 +128,12 @@ def catalog(client, database):
     return client
 
 
-def _post(client, entry="2026.1", **params):
-    return client.post(URL, params={"entry_semester": entry, **params})
+def _get(client, entry="2026.1", **params):
+    return client.get(URL, params={"entry_semester": entry, **params})
 
 
 def test_curriculo_por_ingresso_traz_materias_agrupadas_e_requisitos(catalog):
-    response = _post(catalog)
+    response = _get(catalog)
     assert response.status_code == 200, response.text
     assert "no-store" in response.headers["cache-control"]
     assert "set-cookie" not in response.headers
@@ -219,7 +219,7 @@ def test_curriculo_por_ingresso_traz_materias_agrupadas_e_requisitos(catalog):
 def test_selecao_por_vigencia_e_fallback_mais_antigo(
     catalog, entry, expected, fallback
 ):
-    response = _post(catalog, entry)
+    response = _get(catalog, entry)
     assert response.status_code == 200
     assert response.json()["sigaa_id"] == expected
     assert response.json()["fallback_used"] is fallback
@@ -253,7 +253,7 @@ def _add_tie(database, *, oldest=False):
 def test_empate_retorna_opcoes_e_permite_escolher_matriz(catalog, database, oldest):
     _add_tie(database, oldest=oldest)
     entry = "2021.1" if oldest else "2026.1"
-    response = _post(catalog, entry)
+    response = _get(catalog, entry)
     assert response.status_code == 409
     detail = response.json()["detail"]
     assert "curriculum_sigaa_id" in detail["message"]
@@ -268,7 +268,7 @@ def test_empate_retorna_opcoes_e_permite_escolher_matriz(catalog, database, olde
         "matrix": "OUTRA HABILITAÇÃO",
         "shift": "N",
     }
-    selected = _post(catalog, entry, curriculum_sigaa_id=202)
+    selected = _get(catalog, entry, curriculum_sigaa_id=202)
     assert selected.status_code == 200
     result = selected.json()
     assert result["sigaa_id"] == 202
@@ -279,13 +279,13 @@ def test_empate_retorna_opcoes_e_permite_escolher_matriz(catalog, database, olde
 
 @pytest.mark.parametrize("wanted", [101, 301, 401, 501, 999])
 def test_id_escolhido_deve_pertencer_as_opcoes_do_curso_e_ingresso(catalog, wanted):
-    assert _post(catalog, curriculum_sigaa_id=wanted).status_code == 404
+    assert _get(catalog, curriculum_sigaa_id=wanted).status_code == 404
 
 
 @pytest.mark.parametrize("course", [79, 999, 414924])
 def test_curso_sem_matriz_ou_inexistente_retorna_404(catalog, course):
     assert (
-        catalog.post(
+        catalog.get(
             f"/public/courses/{course}/curriculum", params={"entry_semester": "2026.1"}
         ).status_code
         == 404
@@ -303,12 +303,12 @@ def test_curso_sem_matriz_ou_inexistente_retorna_404(catalog, course):
     ],
 )
 def test_parametros_invalidos_retorna_422(client, params):
-    assert client.post(URL, params=params).status_code == 422
+    assert client.get(URL, params=params).status_code == 422
 
 
 def test_id_local_deve_ser_positivo(client):
     assert (
-        client.post(
+        client.get(
             "/public/courses/0/curriculum", params={"entry_semester": "2026.1"}
         ).status_code
         == 422
@@ -318,8 +318,8 @@ def test_id_local_deve_ser_positivo(client):
 def test_openapi_documenta_selecao_e_conflitos(client):
     schema = client.get("/openapi.json").json()
     path = schema["paths"]["/public/courses/{course_id}/curriculum"]
-    assert set(path) == {"post"}
-    operation = path["post"]
+    assert set(path) == {"get"}
+    operation = path["get"]
     assert operation["tags"] == ["Public Courses"]
     assert set(operation["responses"]) == {"200", "404", "409", "422"}
     assert {item["name"] for item in operation["parameters"] if item["required"]} == {
@@ -331,7 +331,7 @@ def test_openapi_documenta_selecao_e_conflitos(client):
     ].endswith("/CurriculumConflict")
 
 
-def test_get_nao_e_permitido(client):
-    response = client.get(URL, params={"entry_semester": "2026.1"})
+def test_post_nao_e_permitido(client):
+    response = client.post(URL, params={"entry_semester": "2026.1"})
     assert response.status_code == 405
-    assert response.headers["allow"] == "POST"
+    assert response.headers["allow"] == "GET"

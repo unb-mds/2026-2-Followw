@@ -12,7 +12,7 @@ from api.modules.public_courses.service import (
 router = APIRouter()
 
 
-@router.post(
+@router.get(
     "/{course_id}/curriculum",
     response_model=CourseCurriculum,
     summary="Consultar currículo do curso pelo ingresso",

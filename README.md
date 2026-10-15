@@ -59,7 +59,7 @@ Recursos públicos, consultáveis sem login, usam o prefixo `/public`:
 - `GET /public/classrooms`: busca pública de turmas por unidade, semestre, código (`code`), número
   da turma (`number`), disciplina/professor (`contains`) e local.
 - `GET /public/classrooms/units`: unidades disponíveis na busca pública.
-- `POST /public/courses/{course_id}/curriculum?entry_semester=2026.1`: currículo ativo do curso
+- `GET /public/courses/{course_id}/curriculum?entry_semester=2026.1`: currículo ativo do curso
   (ID local do Followw) pela vigência mais recente anterior ou igual ao ingresso. Se não houver,
   retorna o mais antigo e marca `fallback_used`. Empates retornam `409` com `detail.options`;
   repita a consulta com `curriculum_sigaa_id` de uma dessas opções. A resposta agrupa as matérias
