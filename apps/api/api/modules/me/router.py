@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, Request, Response
 from sigaa_client import RestaurantCredentials, RestaurantStatement
 
-from api.cache import NoStore
+from api.cache import CacheControl, NoStore
 from api.db.main import DatabaseDep
 from api.errors import SIGAA_ERRORS
 from api.modules.me.profile import ProfileServiceDep, UserProfile
@@ -11,7 +11,7 @@ from api.modules.me.settings import (
     read_settings,
     save_settings,
 )
-from api.sigaa import SigaaClientDep, SigaaConnectionDep
+from api.sigaa import SigaaClientDep, SigaaConnection, SigaaConnectionDep
 
 router = APIRouter()
 _PDF_RESPONSES = {
@@ -41,8 +41,19 @@ async def get_me(service: ProfileServiceDep) -> UserProfile:
     responses=SIGAA_ERRORS,
     dependencies=[NoStore],
 )
-async def get_statement(client: SigaaClientDep) -> RestaurantStatement:
-    return await client.restaurant.get_restaurant_statement()
+async def get_statement(
+    request: Request, connection: SigaaConnectionDep
+) -> RestaurantStatement:
+    if not CacheControl.parse(request.headers.get("Cache-Control")).no_cache:
+        client = await connection.client()
+        return await client.restaurant.get_restaurant_statement()
+
+    fresh = SigaaConnection(connection.credentials)
+    try:
+        client = await fresh.client()
+        return await client.restaurant.get_restaurant_statement()
+    finally:
+        await fresh.aclose(logout=True)
 
 
 @router.get(
