@@ -66,4 +66,29 @@ describe('refreshQuery', () => {
         const cached: unknown = queryClient.getQueryData(options.queryKey);
         expect(cached).toBe(data);
     });
+
+    test('permite impedir retentativas de um refresh sem mudar as consultas normais', async () => {
+        const queryClient = new QueryClient({
+            defaultOptions: { queries: { retry: 2, retryDelay: 0 } }
+        });
+        let attempts = 0;
+        const options = queryOptions({
+            queryKey: ['get', '/me/ru-statement'] as const,
+            queryFn: async () => {
+                attempts++;
+                throw new Error('SIGAA indisponível');
+            }
+        });
+
+        const failure = await refreshQuery(queryClient, options, { retry: false }).catch(
+            (error: unknown) => error
+        );
+        expect(failure).toEqual(new Error('SIGAA indisponível'));
+        expect(attempts).toBe(1);
+
+        attempts = 0;
+        await queryClient.query(options).catch(() => undefined);
+        expect(attempts).toBe(3);
+        queryClient.clear();
+    });
 });

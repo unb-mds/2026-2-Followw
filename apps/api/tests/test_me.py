@@ -1,11 +1,11 @@
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+from http.cookies import SimpleCookie
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import httpx
 import pytest
-import respx
 from pydantic import SecretStr
 from sigaa_client import (
     AuthenticationFailed,
@@ -433,27 +433,28 @@ def test_extrato_sem_saldo_ou_grupo_nao_presume_valores(client, cookies, restaur
     assert response.json()["group"] is None
 
 
-def test_extrato_repetido_na_api_preserva_sessao_e_consulta_saldo_atual(
-    client, cookies
+def test_refresh_do_extrato_abre_sessao_nova_para_obter_saldo_atual(
+    client, cookies, sigaa, qstash, monkeypatch
 ):
-    client.cookies.update(cookies(access="tok", refresh=CREDENCIAIS))
-    opened = False
+    sigaa.valid_tokens.add("app14~VIVO")
+    client.cookies.update(cookies(access="app14~VIVO", refresh=CREDENCIAIS))
+    opened = set()
+    balances = {}
     amount = "49,50"
-    methods = []
 
     def dashboard(request):
-        nonlocal opened
-        assert "JSESSIONID=tok" in request.headers["cookie"]
-        methods.append(request.method)
+        token = SimpleCookie(request.headers["cookie"])["JSESSIONID"].value
+        assert token in sigaa.valid_tokens
+        balance = balances.setdefault(token, amount)
         if request.method == "POST":
-            assert not opened
-            opened = True
-        if opened:
+            assert token not in opened
+            opened.add(token)
+        if token in opened:
             return httpx.Response(
                 200,
                 text=f"""
                 <h4>Extrato no Restaurante Universitário</h4><table>
-                <tr><td>25/09/2026 22:15</td><td>Saldo</td><td>{amount}</td></tr>
+                <tr><td>25/09/2026 22:15</td><td>Saldo</td><td>{balance}</td></tr>
                 <tr><td>25/09/2026 12:00</td><td>Grupo 3 Almoço</td><td>-R$ 4,50</td></tr>
                 <tr><td>18/09/2026 22:15</td><td>Saldo Anterior</td><td>49,50</td></tr>
                 </table>
@@ -473,19 +474,78 @@ def test_extrato_repetido_na_api_preserva_sessao_e_consulta_saldo_atual(
         """,
         )
 
-    with respx.mock as network:
-        network.route(
-            host="sigaa.unb.br", path="/sigaa/portais/discente/discente.jsf"
-        ).mock(side_effect=dashboard)
-        for amount in ("49,50", "51,00", "40,00"):
-            response = client.get("/me/ru-statement")
-            assert response.status_code == 200
-            assert response.headers["cache-control"] == "no-store"
-            assert response.json()["balance"] == amount.replace(",", ".")
-            assert response.json()["group"] == 3
-            assert len(response.json()["entries"]) == 3
-            assert response.json()["entries"][1]["amount"] == "-4.50"
-    assert methods == ["GET", "POST", "GET", "GET"]
+    original = sigaa._sigaa
+    monkeypatch.setattr(
+        sigaa,
+        "_sigaa",
+        lambda request: (
+            dashboard(request)
+            if request.url.path == "/sigaa/portais/discente/discente.jsf"
+            else original(request)
+        ),
+    )
+    assert client.get("/me/ru-statement").json()["balance"] == "49.50"
+    amount = "51,00"
+    assert client.get("/me/ru-statement").json()["balance"] == "49.50"
+    assert sigaa.logins == 0
+
+    response = client.get("/me/ru-statement", headers=NO_CACHE)
+
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    assert response.json()["balance"] == "51.00"
+    assert response.json()["group"] == 3
+    assert len(response.json()["entries"]) == 3
+    assert response.json()["entries"][1]["amount"] == "-4.50"
+    assert "set-cookie" not in response.headers
+    assert (sigaa.logins, sigaa.logouts) == (1, 1)
+    assert sigaa.valid_tokens == {"app14~VIVO"}
+    assert client.get("/me/ru-statement").json()["balance"] == "49.50"
+    assert qstash.published == []
+
+
+@pytest.mark.parametrize("access", [None, "app14~VIVO"])
+@pytest.mark.parametrize("error", [None, SigaaParseError("layout mudou")])
+def test_refresh_do_extrato_fecha_client_e_sessao_mesmo_em_falha(
+    client, cookies, restaurant, stub_sigaa, qstash, access, error
+):
+    def banco_proibido():
+        pytest.fail("Refresh do RU não deve usar banco")
+
+    client.app.dependency_overrides[get_sessionmaker] = banco_proibido
+    client.cookies.update(cookies(access=access, refresh=CREDENCIAIS))
+    restaurant.get_restaurant_statement.side_effect = error
+
+    response = client.get("/me/ru-statement", headers=NO_CACHE)
+
+    assert response.status_code == (502 if error else 200)
+    assert "set-cookie" not in response.headers
+    stub_sigaa.created.assert_called_once()
+    assert stub_sigaa.created.call_args.kwargs["session_token"] is None
+    assert stub_sigaa.created.call_args.kwargs["credentials"] == CREDENCIAIS
+    stub_sigaa.authenticate.assert_awaited_once()
+    stub_sigaa.logout.assert_awaited_once()
+    stub_sigaa.aclose.assert_awaited_once()
+    restaurant.get_restaurant_statement.assert_awaited_once()
+    assert qstash.published == []
+
+
+def test_refresh_do_extrato_com_login_recusado_fecha_client_e_limpa_cookies(
+    client, cookies, restaurant, stub_sigaa, ler_cookies
+):
+    client.cookies.update(cookies(access="app14~VIVO", refresh=CREDENCIAIS))
+    stub_sigaa.authenticate.side_effect = AuthenticationFailed()
+
+    response = client.get("/me/ru-statement", headers=NO_CACHE)
+
+    assert response.status_code == 401
+    expired = ler_cookies(response)
+    for name in (ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME):
+        assert expired[name].value == ""
+        assert expired[name]["max-age"] == "0"
+    stub_sigaa.aclose.assert_awaited_once()
+    stub_sigaa.logout.assert_not_awaited()
+    restaurant.get_restaurant_statement.assert_not_awaited()
 
 
 @pytest.mark.parametrize("path", ["statement", "token"])

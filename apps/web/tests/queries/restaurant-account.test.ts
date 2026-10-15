@@ -68,13 +68,13 @@ describe('conta do RU', () => {
         );
     });
 
-    test('o saldo salvo só é refeito depois de 30 minutos', async () => {
+    test('o saldo salvo só é refeito depois de 90 minutos', async () => {
         const { queryKey } = statementQueryOptions(registration);
-        client.setQueryData(queryKey, statement, { updatedAt: Date.now() - 29 * 60_000 });
+        client.setQueryData(queryKey, statement, { updatedAt: Date.now() - 89 * 60_000 });
         await client.query(statementQueryOptions(registration));
         expect(requests).toHaveLength(0);
 
-        client.setQueryData(queryKey, statement, { updatedAt: Date.now() - 31 * 60_000 });
+        client.setQueryData(queryKey, statement, { updatedAt: Date.now() - 91 * 60_000 });
         await client.query(statementQueryOptions(registration));
         expect(requests).toHaveLength(1);
     });

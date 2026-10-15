@@ -19,7 +19,8 @@ const freshInit = createIsomorphicFn()
 /** Refaz a query pedindo à API que ignore o cache dela, e grava o resultado na mesma queryKey. */
 export function refreshQuery<TQueryFnData, TQueryKey extends ApiQueryKey>(
     queryClient: QueryClient,
-    { queryKey, queryFn }: ApiQueryOptions<TQueryFnData, TQueryKey>
+    { queryKey, queryFn }: ApiQueryOptions<TQueryFnData, TQueryKey>,
+    options: { retry?: boolean } = {}
 ): Promise<TQueryFnData> {
     if (typeof queryFn !== 'function') throw new Error('refreshQuery precisa de um queryFn');
 
@@ -29,6 +30,7 @@ export function refreshQuery<TQueryFnData, TQueryKey extends ApiQueryKey>(
     return queryClient.query({
         queryKey,
         queryFn: (context) => queryFn({ ...context, queryKey: freshKey }),
-        staleTime: 0
+        staleTime: 0,
+        ...options
     });
 }

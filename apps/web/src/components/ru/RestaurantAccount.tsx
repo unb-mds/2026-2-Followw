@@ -3,7 +3,7 @@ import type { UseQueryResult } from '@tanstack/react-query';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { QrCode, RefreshCw } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import type { Day } from '#/lib/schedule';
 import type { RestaurantCredentials, RestaurantStatement } from '#/queries/restaurant-account';
@@ -54,16 +54,43 @@ export function RestaurantAccount({ registration }: { registration: string }) {
     const statement = useQuery(statementOptions);
     const credentials = useQuery(credentialsOptions);
     const [refreshing, setRefreshing] = useState(false);
-    const refresh = async () => {
+    const [coolingDown, setCoolingDown] = useState(false);
+    const cooldownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(
+        () => () => {
+            if (cooldownTimer.current !== null) clearTimeout(cooldownTimer.current);
+        },
+        []
+    );
+
+    const refreshDisabled =
+        coolingDown || refreshing || statement.isFetching || credentials.isFetching;
+    const refresh = async (target: 'statement' | 'credentials' | 'all' = 'all') => {
+        if (cooldownTimer.current !== null || refreshDisabled) return;
+        cooldownTimer.current = setTimeout(() => {
+            cooldownTimer.current = null;
+            setCoolingDown(false);
+        }, 10_000);
+        setCoolingDown(true);
         setRefreshing(true);
-        await Promise.allSettled([
-            refreshQuery(queryClient, statementOptions),
-            refreshQuery(queryClient, credentialsOptions)
-        ]);
+        const pending: Promise<unknown>[] = [];
+        if (target !== 'credentials') {
+            pending.push(refreshQuery(queryClient, statementOptions, { retry: false }));
+        }
+        if (target !== 'statement') {
+            pending.push(refreshQuery(queryClient, credentialsOptions, { retry: false }));
+        }
+        await Promise.allSettled(pending);
         setRefreshing(false);
     };
 
-    const cardDrawer = <StudentCardDrawer credentials={credentials} />;
+    const cardDrawer = (
+        <StudentCardDrawer
+            credentials={credentials}
+            onRetry={() => refresh('credentials')}
+            retryDisabled={refreshDisabled}
+        />
+    );
 
     return (
         <section className="mt-8 flex flex-col gap-3" aria-label="Minha conta">
@@ -72,8 +99,8 @@ export function RestaurantAccount({ registration }: { registration: string }) {
                 <Button
                     variant="ghost"
                     size="xs"
-                    onClick={refresh}
-                    disabled={refreshing || statement.isFetching || credentials.isFetching}
+                    onClick={() => refresh()}
+                    disabled={refreshDisabled}
                     className="text-primary"
                 >
                     {refreshing ? (
@@ -81,7 +108,7 @@ export function RestaurantAccount({ registration }: { registration: string }) {
                     ) : (
                         <RefreshCw className="size-4" aria-hidden="true" />
                     )}
-                    {refreshing ? 'Atualizando...' : 'Atualizar'}
+                    {refreshing ? 'Atualizando...' : coolingDown ? 'Aguarde...' : 'Atualizar'}
                 </Button>
             </div>
 
@@ -100,6 +127,8 @@ export function RestaurantAccount({ registration }: { registration: string }) {
                         query={statement}
                         hasData={Boolean(statement.data)}
                         label="saldo e extrato"
+                        onRetry={() => refresh('statement')}
+                        retryDisabled={refreshDisabled}
                     />
                 </CardContent>
             </Card>
@@ -108,9 +137,13 @@ export function RestaurantAccount({ registration }: { registration: string }) {
 }
 
 function StudentCardDrawer({
-    credentials
+    credentials,
+    onRetry,
+    retryDisabled
 }: {
     credentials: UseQueryResult<RestaurantCredentials>;
+    onRetry: () => Promise<void>;
+    retryDisabled: boolean;
 }) {
     return (
         <Drawer showSwipeHandle>
@@ -141,6 +174,8 @@ function StudentCardDrawer({
                         hasData={Boolean(credentials.data)}
                         label="carteirinha"
                         showUpdatedAt={false}
+                        onRetry={onRetry}
+                        retryDisabled={retryDisabled}
                     />
                 </div>
                 <DrawerFooter>
@@ -268,12 +303,16 @@ function AccountStatus({
     query,
     hasData,
     label,
-    showUpdatedAt = true
+    showUpdatedAt = true,
+    onRetry,
+    retryDisabled
 }: {
-    query: Pick<UseQueryResult, 'isPending' | 'isError' | 'dataUpdatedAt' | 'refetch'>;
+    query: Pick<UseQueryResult, 'isPending' | 'isError' | 'dataUpdatedAt'>;
     hasData: boolean;
     label: string;
     showUpdatedAt?: boolean;
+    onRetry: () => Promise<void>;
+    retryDisabled: boolean;
 }) {
     const online = useOnline();
     const failureMessage = useFailureMessage(
@@ -291,7 +330,8 @@ function AccountStatus({
                     <Button
                         variant="link"
                         size="xs"
-                        onClick={() => query.refetch()}
+                        onClick={onRetry}
+                        disabled={retryDisabled}
                         className="h-auto p-0"
                     >
                         Tentar novamente
