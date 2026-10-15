@@ -26,7 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
 import { WeekDayPicker } from '#/components/WeekDayPicker';
 import { useFailureMessage } from '#/lib/online';
 import { currentOrNextMeal, highlightMenu, MEAL_TIMES } from '#/lib/restaurant';
-import { nowInBrasilia, weekDays } from '#/lib/schedule';
+import { addDays, nowInBrasilia, weekDays } from '#/lib/schedule';
 import { publicPageHead } from '#/lib/seo';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
@@ -122,15 +122,24 @@ function RUPage() {
     const menu = data?.[0];
     const meal = MEALS.find((item) => item.key === selectedMeal) ?? MEALS[1];
     const sections = menu?.[selectedMeal] ?? [];
+    // Só esta semana e a próxima; trocar de semana mantém o dia da semana.
+    const days = weekDays(selectedDate, 7);
+    const isNextWeek = days[0].date > weekDays(today, 7)[0].date;
+    const shiftWeek = (weeks: number) => () => setSelectedDate(addDays(selectedDate, 7 * weeks));
 
     return (
         <>
             {filtersOpen && (
                 <div>
                     <WeekDayPicker
-                        days={weekDays(today)}
+                        days={days}
                         selectedDate={selectedDate}
                         onSelect={(day) => setSelectedDate(day.date)}
+                        week={{
+                            label: isNextWeek ? 'Próxima semana' : 'Esta semana',
+                            onPrevious: isNextWeek ? shiftWeek(-1) : undefined,
+                            onNext: isNextWeek ? undefined : shiftWeek(1)
+                        }}
                     />
 
                     <div className="mb-5">

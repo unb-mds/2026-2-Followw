@@ -165,7 +165,7 @@ function HomePage() {
                                     title={item.subject.name}
                                     code={item.subject.code}
                                     classNumber={item.number}
-                                    time={`${start} - ${end}`}
+                                    time={`${start}–${end}`}
                                     location={item.room ?? 'Local não informado'}
                                     status={status}
                                     onClick={() =>
