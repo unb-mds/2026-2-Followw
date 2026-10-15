@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 
 import sigaa_client
 from sigaa_client import AttendanceStatus
-from sqlalchemy import ColumnElement, delete, exists, select, tuple_
+from sqlalchemy import ColumnElement, delete, exists, func, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import contains_eager, joinedload
 
@@ -14,8 +14,8 @@ from api.db.enums import ClassroomRole, ClassroomStatus, LessonStatus
 from api.db.models import (
     USER_WITHOUT_IDS,
     Classroom,
-    ClassroomNews,
     ClassroomParticipant,
+    ClassroomPosts,
     ClassroomStatistic,
     Lesson,
     LessonAttendance,
@@ -425,66 +425,96 @@ class LessonRepository:
         classroom.lessons_created_at = None
 
 
-class NewsRepository:
+class PostsRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def list_by_classroom(self, classroom_id: UUID) -> list[ClassroomNews]:
+    async def list_by_classroom(self, classroom_id: UUID) -> list[ClassroomPosts]:
         return list(
             await self._session.scalars(
-                select(ClassroomNews)
-                .where(ClassroomNews.classroom_id == classroom_id)
+                select(ClassroomPosts)
+                .where(ClassroomPosts.classroom_id == classroom_id)
                 .order_by(
-                    ClassroomNews.published_on.desc(), ClassroomNews.sigaa_id.desc()
+                    func.coalesce(ClassroomPosts.published_on, ClassroomPosts.starts_on)
+                    .desc()
+                    .nulls_last(),
+                    ClassroomPosts.source_id.desc(),
                 )
             )
         )
 
-    async def get(self, classroom_id: UUID, news_id: int) -> ClassroomNews | None:
+    async def get(self, classroom_id: UUID, post_id: str) -> ClassroomPosts | None:
         return await self._session.scalar(
-            select(ClassroomNews).where(
-                ClassroomNews.classroom_id == classroom_id,
-                ClassroomNews.sigaa_id == news_id,
+            select(ClassroomPosts).where(
+                ClassroomPosts.classroom_id == classroom_id,
+                ClassroomPosts.source_id == post_id,
             )
         )
 
     async def save_list(
-        self, classroom_id: UUID, news: Sequence[sigaa_client.News], synced_at: datetime
+        self,
+        classroom_id: UUID,
+        posts: Sequence[sigaa_client.ClassroomPost],
+        synced_at: datetime,
     ) -> None:
         existing = {
-            item.sigaa_id: item for item in await self.list_by_classroom(classroom_id)
+            item.source_id: item for item in await self.list_by_classroom(classroom_id)
         }
-        for item in news:
-            assert item.id is not None
-            cached = existing.get(item.id)
-            if cached is None:
-                cached = ClassroomNews(classroom_id=classroom_id, sigaa_id=item.id)
-                self._session.add(cached)
-                existing[item.id] = cached
-            cached.title = item.title
-            cached.published_on = item.published_on
-        # A lista pode estar vazia; notícias antigas e seus conteúdos são preservados.
+        # Salva os tópicos antes dos materiais que os referenciam.
+        for has_topic in (False, True):
+            for item in posts:
+                if (item.topic_id is not None) != has_topic:
+                    continue
+                cached = existing.get(item.id)
+                if cached is None:
+                    cached = ClassroomPosts(
+                        classroom_id=classroom_id, source_id=item.id
+                    )
+                    self._session.add(cached)
+                    existing[item.id] = cached
+                cached.type = item.type
+                cached.sigaa_id = item.sigaa_id
+                cached.topic_id = item.topic_id
+                cached.title = item.title
+                cached.published_on = item.published_on
+                if item.type != sigaa_client.PostType.NEWS:
+                    self._save_content(cached, item, synced_at)
+            await self._session.flush()
+        # A lista pode estar vazia; posts antigos e seus conteúdos são preservados.
         classroom = await self._session.get_one(Classroom, classroom_id)
-        classroom.news_synced_at = synced_at
+        classroom.posts_synced_at = synced_at
         await self._session.flush()
 
     async def save_content(
         self, classroom_id: UUID, news: sigaa_client.News, synced_at: datetime
     ) -> None:
-        assert news.id is not None
-        cached = await self.get(classroom_id, news.id)
+        post = sigaa_client.ClassroomPost.from_news(news)
+        cached = await self.get(classroom_id, post.id)
         if cached is None:
-            cached = ClassroomNews(classroom_id=classroom_id, sigaa_id=news.id)
+            cached = ClassroomPosts(classroom_id=classroom_id, source_id=post.id)
             self._session.add(cached)
-        cached.title = news.title
-        cached.published_on = news.published_on
-        cached.published_at = news.published_at
-        cached.content = news.content
+        cached.type = post.type
+        cached.sigaa_id = post.sigaa_id
+        cached.title = post.title
+        cached.published_on = post.published_on
+        self._save_content(cached, post, synced_at)
+        await self._session.flush()
+
+    @staticmethod
+    def _save_content(
+        cached: ClassroomPosts, post: sigaa_client.ClassroomPost, synced_at: datetime
+    ) -> None:
+        cached.published_at = post.published_at
+        cached.starts_on = post.starts_on
+        cached.ends_on = post.ends_on
+        cached.starts_at = post.starts_at
+        cached.time_label = post.time_label
+        cached.url = post.url
+        cached.content = post.content
         cached.attachments = [
-            attachment.model_dump(mode="json") for attachment in news.attachments
+            attachment.model_dump(mode="json") for attachment in post.attachments
         ]
         cached.content_synced_at = synced_at
-        await self._session.flush()
 
 
 class FrequencyRepository:

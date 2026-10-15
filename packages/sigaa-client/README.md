@@ -100,3 +100,23 @@ não há.
 mesmo sem oferta no semestre. Para completar um CSV existente, rode da raiz do monorepo:
 `uv run python packages/sigaa-client/scripts/complete_subjects.py`.
 Depois execute `uv run db-init` em `apps/api/` para carregar o catálogo no banco local.
+
+### Posts da turma
+
+`await client.classrooms.list_classroom_posts(classroom_id)` reúne notícias, tópicos
+de aula, materiais dos tópicos e a agenda de avaliações em `ClassroomPost`.
+`type` usa `PostType`: `news`, `topic`, `material` ou `assessment`. `id` é uma chave
+opaca por turma, com prefixo da categoria; `topic_id` vincula cada material ao tópico.
+A lista principal é aberta em modo lista, mesmo se a sessão estiver paginada.
+
+Tópicos expõem `starts_on`, `ends_on` e texto em Markdown. Como a lista do SIGAA
+não expõe seus IDs, a chave do tópico deriva do título e período; editar esses
+campos produz outra chave. Materiais preservam o identificador de origem em
+`sigaa_id`; `url` só é preenchida quando há um link HTTP direto. Arquivos que
+exigem postback não recebem URLs fictícias, e seus bytes não são armazenados.
+Avaliações preservam data e horário (`starts_at` quando preciso, `time_label`
+para textos como “Hora da aula”), sem notas individuais nem datas de publicação
+inventadas. O vínculo da avaliação ao tópico só existe se informado pela origem.
+
+Notícias da lista trazem título e dia; use `get_classroom_news` com o `sigaa_id`
+para texto e anexos. O feed recente da home continua disponível em `profile.list_news`.

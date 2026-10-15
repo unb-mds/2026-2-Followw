@@ -31,6 +31,7 @@ from ..models import (
     ClassroomFrequency,
     ClassroomGrade,
     ClassroomMember,
+    ClassroomPost,
     ClassroomProgress,
     ClassroomRole,
     Grade,
@@ -57,6 +58,7 @@ from ..utils.parsing import (
     to_markdown,
     visible_text,
 )
+from .posts import _parse_assessments, _parse_topics
 from .session import Session
 
 CLASSROOM_ID_FIELD = "frontEndIdTurma"
@@ -73,6 +75,10 @@ NEWS_MENU_LABEL = "Notícias"
 NEWS_ID_FIELD = "id"
 NEWS_DETAIL_LEGEND = "Visualização de Notícia"
 PROGRESS_PANEL_LABEL = "Andamento das Aulas"
+ASSESSMENTS_MENU_LABEL = "Avaliações"
+CLASSROOM_MAIN_MENU_LABEL = "Principal"
+TOPICS_LIST_BUTTON = "formAcoesTurma:visualizarAulasEmLista"
+TOPICS_LIST_LINK = "formAcoesTurma:linkExibirEmLista"
 
 # O gráfico de situação não escreve os rótulos em lugar nenhum além da própria
 # imagem — a legenda traz sempre estas situações, sempre nesta ordem.
@@ -167,6 +173,17 @@ class Classrooms:
         page = await self._read_screen(classroom_id, _open_news)
         return _parse_news_list(BeautifulSoup(page, "lxml"))
 
+    async def list_classroom_posts(self, classroom_id: str) -> list[ClassroomPost]:
+        page = await self._read_screen(classroom_id, _open_topics)
+        posts = _parse_topics(BeautifulSoup(page, "lxml"))
+        page = await self._read_screen(classroom_id, _open_assessments)
+        posts.extend(_parse_assessments(BeautifulSoup(page, "lxml")))
+        posts.extend(
+            ClassroomPost.from_news(news)
+            for news in await self.list_classroom_news(classroom_id)
+        )
+        return posts
+
     async def get_classroom_news(self, classroom_id: str, news_id: int) -> News:
         page = await self._read_screen(
             classroom_id, partial(_open_news_detail, news_id)
@@ -259,6 +276,27 @@ async def _open_statistics(session: Session, allow_renewal: bool) -> str:
 
 async def _open_news(session: Session, allow_renewal: bool) -> str:
     return await _open_menu(session, NEWS_MENU_LABEL, allow_renewal)
+
+
+async def _open_assessments(session: Session, allow_renewal: bool) -> str:
+    return await _open_menu(session, ASSESSMENTS_MENU_LABEL, allow_renewal)
+
+
+async def _open_topics(session: Session, allow_renewal: bool) -> str:
+    page = await _open_menu(session, CLASSROOM_MAIN_MENU_LABEL, allow_renewal)
+    soup = BeautifulSoup(page, "lxml")
+    button = soup.find(id=TOPICS_LIST_BUTTON)
+    if button is None:
+        return page
+    anchor = soup.find(id=TOPICS_LIST_LINK)
+    if not isinstance(anchor, Tag):
+        raise SigaaParseError("Link para exibir os tópicos em lista não encontrado.")
+    form = button.find_parent("form")
+    if not isinstance(form, Tag):
+        raise SigaaParseError("Botão de tópicos em lista sem form.")
+    action, payload = build_postback(form, link_params(anchor), read_viewstate(soup))
+    response = await session.post(action, data=payload, allow_renewal=allow_renewal)
+    return response.text
 
 
 async def _open_news_detail(news_id: int, session: Session, allow_renewal: bool) -> str:

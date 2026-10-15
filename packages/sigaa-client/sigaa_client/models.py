@@ -432,3 +432,41 @@ class News(BaseModel):
     published_at: datetime | None = None
     content: str | None = None
     attachments: tuple[NewsAttachment, ...] = ()
+
+
+class PostType(str, enum.Enum):
+    NEWS = "news"
+    TOPIC = "topic"
+    MATERIAL = "material"
+    ASSESSMENT = "assessment"
+
+
+class ClassroomPost(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    id: str
+    type: PostType
+    sigaa_id: str | None = None
+    classroom_sigaa_id: int | None = None
+    topic_id: str | None = None
+    title: str
+    content: str | None = None
+    published_on: date | None = None
+    published_at: datetime | None = None
+    starts_on: date | None = None
+    ends_on: date | None = None
+    starts_at: datetime | None = None
+    time_label: str | None = None
+    url: str | None = None
+    attachments: tuple[NewsAttachment, ...] = ()
+
+    @classmethod
+    def from_news(cls, news: News) -> ClassroomPost:
+        if news.id is None:
+            raise ValueError("Notícia de turma sem ID.")
+        return cls(
+            id=f"news:{news.id}",
+            type=PostType.NEWS,
+            sigaa_id=str(news.id),
+            **news.model_dump(exclude={"id"}),
+        )
