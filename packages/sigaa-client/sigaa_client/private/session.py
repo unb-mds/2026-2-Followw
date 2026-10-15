@@ -22,8 +22,13 @@ from ..exceptions import (
     SigaaParseError,
 )
 from ..models import Credentials
+from ..utils.parsing import clean_text, lookup_key
 
 OnSessionRenewed = Callable[[str], None | Awaitable[None]]
+
+# Só esta mensagem do CAS é senha errada; bloqueio, manutenção etc. são da origem.
+_CAS_ERROR_SELECTOR = "#errors"
+_CAS_INVALID_CREDENTIALS = "credenciais invalidas"
 
 # Telas para onde o SIGAA joga quem chega sem sessão válida.
 _UNAUTHENTICATED_PATHS = (
@@ -148,7 +153,12 @@ class Session:
         response.raise_for_status()
 
         if CAS_BASE_URL in str(response.url):
-            raise AuthenticationFailed("Matrícula ou senha inválida.")
+            raise _cas_error(response.text)
+        # O CAS aceitou a senha: se o SIGAA não abriu a sessão, a falha é dele.
+        if _is_unauthenticated(response):
+            raise SigaaParseError(
+                f"Login aceito pelo CAS, mas o SIGAA parou em {response.url}."
+            )
 
         token = self._read_token_from_jar()
         if token is None:
@@ -187,6 +197,16 @@ class Session:
 def _is_unauthenticated(response: httpx.Response) -> bool:
     url = str(response.url)
     return any(path in url for path in _UNAUTHENTICATED_PATHS)
+
+
+def _cas_error(html: str) -> AuthenticationFailed | SigaaParseError:
+    error = BeautifulSoup(html, "lxml").select_one(_CAS_ERROR_SELECTOR)
+    message = clean_text(error) if error else None
+    if message and _CAS_INVALID_CREDENTIALS in lookup_key(message):
+        return AuthenticationFailed("Matrícula ou senha inválida.")
+    return SigaaParseError(
+        f"O CAS não liberou o login: {message or 'tela sem mensagem'}."
+    )
 
 
 def _build_login_payload(

@@ -331,7 +331,7 @@ def test_download_documento_exige_login(client, stub_sigaa, documents, path, met
     "error,status",
     [
         (AuthenticationFailed(), 401),
-        (SessionExpired(), 401),
+        (SessionExpired(), 502),
         (SigaaParseError("PDF inválido"), 502),
         (httpx.ReadTimeout("fora"), 502),
     ],
@@ -565,7 +565,7 @@ def test_dados_privados_exigem_login(client, stub_sigaa, restaurant, path):
     "error,status",
     [
         (AuthenticationFailed(), 401),
-        (SessionExpired(), 401),
+        (SessionExpired(), 502),
         (SigaaParseError("layout mudou"), 502),
         (httpx.ReadTimeout("fora"), 502),
     ],

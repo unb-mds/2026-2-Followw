@@ -301,17 +301,17 @@ def test_falta_marcada_conta_a_aula_toda_e_a_do_sigaa_suas_horas():
     ]
 
 
-def test_totais_somam_marcacoes_em_horas_aula_e_ignoram_canceladas():
+def test_totais_somam_marcacoes_em_horas_aula():
     marks = [
         _row(date(2026, 9, 24), LessonStatus.FALTA, marked=True),
         _row(date(2026, 9, 25), LessonStatus.PRESENTE, marked=True),
         _row(date(2026, 9, 28), LessonStatus.CANCELADA, marked=True),
     ]
     assert _view([*_sigaa_rows(), *marks]).totals == FrequencyTotals(
-        presences=2, absences=4, percentage=88.2, max_absences=22, estimated=True
+        presences=4, absences=4, percentage=88.9, max_absences=22, estimated=True
     )
     assert _view([*_sigaa_rows(), _row(date(2026, 9, 24))]).totals == FrequencyTotals(
-        presences=1, absences=2, percentage=93.8, max_absences=22, estimated=False
+        presences=2, absences=2, percentage=93.8, max_absences=22, estimated=False
     )
 
 
@@ -326,10 +326,10 @@ def test_maximo_de_faltas_pela_carga_horaria(hours, expected):
 def test_aula_sem_chamada_conta_como_presenca_so_na_porcentagem():
     # 28 de 30 horas-aula do SIGAA + a aula de 24/09 (2h) sem chamada.
     totals = _view([*_sigaa_rows(), _row(date(2026, 9, 24))]).totals
-    assert (totals.presences, totals.absences, totals.percentage) == (1, 2, 93.8)
-    # Cancelada fica de fora: a porcentagem volta à do SIGAA.
+    assert (totals.presences, totals.absences, totals.percentage) == (2, 2, 93.8)
+    # Cancelada conta como a aula sem chamada.
     cancelada = _row(date(2026, 9, 24), LessonStatus.CANCELADA, marked=True)
-    assert _view([*_sigaa_rows(), cancelada]).totals.percentage == 93.3
+    assert _view([*_sigaa_rows(), cancelada]).totals.percentage == 93.8
 
 
 def test_totais_sem_chamada_do_sigaa_vem_so_das_marcacoes():
@@ -338,7 +338,7 @@ def test_totais_sem_chamada_do_sigaa_vem_so_das_marcacoes():
         _row(date(2026, 9, 25), LessonStatus.FALTA, marked=True),
     ]
     assert _view(marks, NOT_REGISTERED).totals == FrequencyTotals(
-        presences=1, absences=2, percentage=50, max_absences=22, estimated=True
+        presences=2, absences=2, percentage=50, max_absences=22, estimated=True
     )
     cancelada = _row(date(2026, 9, 24), LessonStatus.CANCELADA, marked=True)
     assert _view([cancelada], NOT_REGISTERED).totals is None
@@ -939,7 +939,7 @@ def test_frequencia_exige_autenticacao(client, account, path):
 @pytest.mark.parametrize(
     "error,status",
     [
-        (SessionExpired(), 401),
+        (SessionExpired(), 502),
         (SigaaParseError("fora"), 502),
         (ClassroomNotFound(), 404),
     ],
@@ -952,7 +952,7 @@ def test_erros_de_consulta_nao_viram_frequencia_vazia(logged, account, error, st
 @pytest.mark.parametrize(
     "error,status",
     [
-        (SessionExpired(), 401),
+        (SessionExpired(), 200),
         (ClassroomNotFound(), 404),
         (SigaaParseError("fora"), 200),
     ],

@@ -78,6 +78,7 @@ def test_componente_traz_as_turmas_do_semestre_mais_recente(catalog):
             ],
             "corequisites": None,
             "equivalences": [[{"code": "CIC0004", "subject": None}]],
+            "unity_name": "CAMPUS UNB GAMA",
             "classrooms": [
                 {
                     "sigaa_id": 10,

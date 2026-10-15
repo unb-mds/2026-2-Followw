@@ -79,6 +79,7 @@ class FrequencyTotals(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
+    # Horas-aula, como as faltas.
     presences: int
     absences: int
     percentage: float
@@ -223,19 +224,17 @@ def _totals(
     lessons: Iterable[Lesson],
     subject_hours: int | None,
 ) -> FrequencyTotals | None:
-    # `None` sem aula com presença ou falta; aula sem chamada vale presença na porcentagem.
+    # `None` sem aula com presença ou falta; aula sem chamada ou cancelada vale presença na porcentagem.
     attended, registered = summary.attended or 0, summary.registered or 0
     presences = absences = recorded = 0
     estimated = False
     for lesson in lessons:
-        if lesson.status is LessonStatus.NAO_REGISTRADA:
+        if lesson.status in (LessonStatus.NAO_REGISTRADA, LessonStatus.CANCELADA):
             registered += lesson.hours
             attended += lesson.hours
             continue
-        if lesson.status is LessonStatus.CANCELADA:
-            continue
         present = lesson.status is LessonStatus.PRESENTE
-        presences += present
+        presences += lesson.hours if present else 0
         absences += lesson.absences
         if not lesson.marked:
             recorded += 1

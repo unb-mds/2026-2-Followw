@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 
-import { localStorageRepository } from '#/lib/local-storage';
+import { isStorageBlocked, localStorageRepository } from '#/lib/local-storage';
 
 import { MemoryStorage } from '../helpers/memory-storage';
 
@@ -136,5 +136,40 @@ describe('localStorageRepository', () => {
         expect(() => localStorageRepository.set('test', 123)).not.toThrow();
         expect(() => localStorageRepository.remove('test')).not.toThrow();
         expect(() => localStorageRepository.clear()).not.toThrow();
+    });
+
+    test('detecta storage liberado', () => {
+        Object.defineProperty(globalThis, 'window', {
+            value: { localStorage: memoryStorage, navigator: { cookieEnabled: true } },
+            writable: true,
+            configurable: true
+        });
+
+        expect(isStorageBlocked()).toBe(false);
+    });
+
+    test('detecta storage bloqueado quando o acesso ao localStorage lança SecurityError', () => {
+        Object.defineProperty(globalThis, 'window', {
+            value: {
+                navigator: { cookieEnabled: true },
+                get localStorage() {
+                    throw new DOMException('Access is denied', 'SecurityError');
+                }
+            },
+            writable: true,
+            configurable: true
+        });
+
+        expect(isStorageBlocked()).toBe(true);
+    });
+
+    test('detecta cookies desativados pelo navigator', () => {
+        Object.defineProperty(globalThis, 'window', {
+            value: { localStorage: memoryStorage, navigator: { cookieEnabled: false } },
+            writable: true,
+            configurable: true
+        });
+
+        expect(isStorageBlocked()).toBe(true);
     });
 });

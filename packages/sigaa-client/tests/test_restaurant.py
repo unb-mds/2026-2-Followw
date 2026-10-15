@@ -6,7 +6,7 @@ import httpx
 import pytest
 from bs4 import BeautifulSoup
 
-from sigaa_client import RestaurantStatement, SigaaClient
+from sigaa_client import Credentials, RestaurantStatement, SigaaClient
 from sigaa_client.exceptions import SigaaParseError
 from sigaa_client.private.documents import _STUDENT_CARD_MENU_ACTION
 from sigaa_client.private.restaurant import (
@@ -103,6 +103,48 @@ async def test_get_restaurant_statement_faz_get_e_postback():
     assert statement.group == 1
     assert statement.entries[0].description == "Saldo"
     assert statement.entries[1].amount == Decimal("8.50")
+
+
+async def test_extrato_refaz_o_postback_quando_a_sessao_cai_no_meio():
+    sigaa = FakeDashboard()
+    form = (
+        '<form action="/sso-server/login"><input type="text" name="u" />'
+        '<input type="password" name="p" /></form>'
+    )
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        cookie = request.headers.get("cookie", "")
+        match request.url.host, request.url.path:
+            case "autenticacao.unb.br", _:
+                if request.method == "GET":
+                    return httpx.Response(200, text=form)
+                return httpx.Response(
+                    302, headers={"location": "https://sigaa.unb.br/sigaa/login/cas"}
+                )
+            case _, "/sigaa/login/cas":
+                return httpx.Response(
+                    302,
+                    headers={
+                        "location": "/sigaa/portais/discente/discente.jsf",
+                        "set-cookie": "JSESSIONID=novo; Path=/",
+                    },
+                )
+            case _, "/sigaa/verTelaLogin.do":
+                return httpx.Response(200, text=form)
+        # A sessão antiga ainda abre o portal, mas morre antes do postback.
+        if request.method == "POST" and "velho" in cookie:
+            return httpx.Response(
+                302, headers={"location": "https://sigaa.unb.br/sigaa/verTelaLogin.do"}
+            )
+        return sigaa(request)
+
+    credentials = Credentials(registration="251000000", password="senha")
+    async with SigaaClient(
+        credentials, session_token="velho", transport=httpx.MockTransport(handle)
+    ) as client:
+        statement = await client.restaurant.get_restaurant_statement()
+
+    assert statement.balance == Decimal("0.00")
 
 
 async def test_extrato_com_debito_antes_do_simbolo_da_moeda():

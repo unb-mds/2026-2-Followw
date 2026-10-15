@@ -12,11 +12,13 @@ import { prerequisitesMet } from '#/queries/subjects';
 export function TurmaSection({
     title,
     subjects,
+    total = subjects.length,
     approved,
     onOpenDetails
 }: {
     title: string;
     subjects: CatalogSubject[];
+    total?: number;
     approved: Set<string> | null;
     onOpenDetails?: () => void;
 }) {
@@ -24,7 +26,12 @@ export function TurmaSection({
 
     return (
         <section className="flex flex-col gap-3">
-            <h2 className="text-base font-bold text-foreground">{title}</h2>
+            <div className="flex items-baseline justify-between gap-3">
+                <h2 className="text-base font-bold text-foreground">{title}</h2>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                    {`${total} ${total === 1 ? 'resultado' : 'resultados'}`}
+                </span>
+            </div>
             <Accordion multiple className="gap-2">
                 {subjects.map((subject) => (
                     <AccordionItem

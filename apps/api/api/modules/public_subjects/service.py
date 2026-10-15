@@ -41,6 +41,7 @@ class CatalogSubject(UserSubject):
     prerequisites: CatalogRequirements | None = None
     corequisites: CatalogRequirements | None = None
     equivalences: CatalogRequirements | None = None
+    unity_name: str | None = None
     classrooms: list[SubjectClassroom]
 
 
@@ -111,6 +112,7 @@ async def _search(
             name=subject.name,
             hours=subject.hours,
             unity=subject.unity.code if subject.unity else None,
+            unity_name=subject.unity.name if subject.unity else None,
             prerequisites=_requirements(subject.prerequisites, names),
             corequisites=_requirements(subject.corequisites, names),
             equivalences=_requirements(subject.equivalences, names),

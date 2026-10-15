@@ -231,7 +231,7 @@ function RUPage() {
             {user ? (
                 <RestaurantAccount key={user.registration} registration={user.registration} />
             ) : (
-                <Card className="mt-8">
+                <Card className="mt-4">
                     <CardContent className="text-muted-foreground">
                         <Link to="/login" className="font-bold text-primary hover:underline">
                             Entre com o SIGAA

@@ -4,14 +4,14 @@ import { Lock } from 'lucide-react';
 import type { TurmaProps } from '#/components/search/TurmaCard';
 
 import { RequirementList } from '#/components/search/RequirementList';
-import { Progress } from '#/components/ui/progress';
+import { titleCase } from '#/lib/profile';
 import { describeSchedule } from '#/lib/schedule';
-import { availableSeats, lockedReasons } from '#/queries/subjects';
+import { lockedReasons } from '#/queries/subjects';
 
 export function TurmaDetails({ subject, classroom, prerequisitesMet }: TurmaProps) {
-    const seats = availableSeats(classroom);
     const reasons = lockedReasons(classroom, prerequisitesMet);
     const { vacancies, occupied } = classroom;
+    const remaining = vacancies == null || occupied == null ? null : vacancies - occupied;
 
     return (
         <div className="flex flex-col gap-4">
@@ -22,7 +22,11 @@ export function TurmaDetails({ subject, classroom, prerequisitesMet }: TurmaProp
                     </span>
                 </Detail>
                 <Detail label="Local">{classroom.room ?? 'Local não informado'}</Detail>
-                <Detail label="Unidade">{subject.unity ?? 'Unidade não informada'}</Detail>
+                <Detail label="Unidade">
+                    {subject.unity_name
+                        ? titleCase(subject.unity_name)
+                        : (subject.unity ?? 'Unidade não informada')}
+                </Detail>
                 <Detail label="Docentes" className="col-span-2">
                     {classroom.professors.length > 0
                         ? classroom.professors.join(', ')
@@ -46,25 +50,18 @@ export function TurmaDetails({ subject, classroom, prerequisitesMet }: TurmaProp
                         <RequirementList requirements={subject.equivalences} />
                     </Detail>
                 ) : null}
-                <Detail label="Vagas" className="col-span-2">
-                    {vacancies == null || occupied == null ? (
-                        'Vagas não informadas'
-                    ) : (
-                        <div className="flex flex-col gap-2">
-                            <p className="tabular-nums">{`${occupied} de ${vacancies} vagas ocupadas`}</p>
-                            <Progress
-                                className="**:data-[slot=progress-track]:h-2"
-                                value={
-                                    vacancies > 0 ? Math.min(100, (occupied / vacancies) * 100) : 0
-                                }
-                                aria-label="Ocupação da turma"
-                                aria-valuetext={`${occupied} de ${vacancies} vagas ocupadas`}
-                            />
-                            <p className="text-xs text-muted-foreground">
-                                {`${seats} ${seats === 1 ? 'vaga disponível' : 'vagas disponíveis'}`}
-                            </p>
-                        </div>
-                    )}
+                <Detail label="Vagas">
+                    <span
+                        className={cn(
+                            'tabular-nums',
+                            remaining != null && remaining <= 0 && 'text-destructive',
+                            remaining != null && remaining > 0 && remaining <= 3 && 'text-warning'
+                        )}
+                    >
+                        {vacancies == null || occupied == null
+                            ? 'Não informadas'
+                            : `${occupied}/${vacancies}`}
+                    </span>
                 </Detail>
             </dl>
             {reasons.length > 0 && (

@@ -12,7 +12,6 @@ from sigaa_client import (
     ClassroomNotFound,
     Credentials,
     NewsNotFound,
-    SessionExpired,
     SigaaClient,
     SigaaError,
 )
@@ -30,7 +29,7 @@ ORIGIN_ERRORS = (SigaaError, httpx.HTTPError)
 # Sumiu do SIGAA: nem o cache vencido nem uma nova tentativa o trazem de volta.
 GONE_ERRORS = (ClassroomNotFound, NewsNotFound)
 # Falhas que nem o cache vencido nem uma nova tentativa resolvem.
-_CLIENT_ERRORS = (AuthenticationFailed, SessionExpired, *GONE_ERRORS)
+_CLIENT_ERRORS = (AuthenticationFailed, *GONE_ERRORS)
 
 
 class Cached[T](NamedTuple):

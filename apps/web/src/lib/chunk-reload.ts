@@ -8,8 +8,10 @@ export function reloadOnPreloadError(
         removeEventListener: (type: string, fn: (event: Event) => void) => void;
         location: { reload: () => void };
     } = window,
-    storage: Pick<Storage, 'getItem' | 'setItem'> = sessionStorage
+    storage: Pick<Storage, 'getItem' | 'setItem'> | null = sessionStorageOrNull()
 ) {
+    // sem storage (cookies bloqueados) não há como evitar um loop de recargas
+    if (!storage) return () => {};
     const handler = (event: Event) => {
         const last = Number(storage.getItem(RELOAD_KEY) ?? 0);
         // já recarregou há pouco: deixa o erro seguir para a tela de erro, sem loop
@@ -20,4 +22,12 @@ export function reloadOnPreloadError(
     };
     target.addEventListener('vite:preloadError', handler);
     return () => target.removeEventListener('vite:preloadError', handler);
+}
+
+function sessionStorageOrNull() {
+    try {
+        return sessionStorage;
+    } catch {
+        return null;
+    }
 }

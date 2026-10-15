@@ -153,15 +153,12 @@ function LessonRow({
     const tinted = lesson.status === 'presente' || lesson.status === 'falta';
     const days = daysFrom(nowInBrasilia().date, lesson.occurred_on);
     const relativeDay = days === 0 || days === -1 ? formatRelativeDay(days) : null;
+    const struck = lesson.status === 'cancelada' ? 'line-through' : undefined;
     const secondary = tinted ? 'text-xs opacity-70' : 'text-xs text-muted-foreground';
 
     return (
         <div
-            className={cn(
-                'flex flex-wrap items-center gap-2 py-2.5 text-sm',
-                tinted && view.color,
-                lesson.status === 'cancelada' && 'line-through'
-            )}
+            className={cn('flex flex-wrap items-center gap-2 py-2.5 text-sm', tinted && view.color)}
         >
             {editable ? (
                 <DropdownMenu>
@@ -201,10 +198,12 @@ function LessonRow({
                 <view.icon className={cn('size-4 shrink-0', view.color)} aria-hidden />
             )}
             {relativeDay ? (
-                <span>{relativeDay}</span>
+                <span className={struck}>{relativeDay}</span>
             ) : (
                 <>
-                    <span className="tabular-nums">{formatClassroomDate(lesson.occurred_on)}</span>
+                    <span className={cn('tabular-nums', struck)}>
+                        {formatClassroomDate(lesson.occurred_on)}
+                    </span>
                     <span className={secondary}>{formatClassroomWeekday(lesson.occurred_on)}</span>
                 </>
             )}

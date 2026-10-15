@@ -5,26 +5,24 @@ import {
     Dialog,
     DialogClose,
     DialogContent,
-    DialogDescription,
     DialogHeader,
     DialogTitle,
     DialogTrigger
 } from '#/components/ui/dialog';
-
 export function LoginPrivacyInfo() {
     return (
         <Dialog>
             <div className="mt-8 max-w-90 text-center text-xs leading-5 text-muted-foreground">
                 <p>
-                    Suas credenciais <strong>não são armazenadas</strong> nos servidores do Followw.
+                    Suas credenciais <strong>não são armazenadas</strong> nos servidores do Followw.{' '}
+                    <DialogTrigger
+                        render={
+                            <Button variant="link" className="h-auto p-0 text-xs font-semibold" />
+                        }
+                    >
+                        Saiba mais
+                    </DialogTrigger>
                 </p>
-                <DialogTrigger
-                    render={
-                        <Button variant="link" className="mt-1 h-auto p-0 text-xs font-semibold" />
-                    }
-                >
-                    Saiba mais
-                </DialogTrigger>
             </div>
 
             <DialogContent className="max-w-110 gap-0 p-6 pb-8" showCloseButton={false}>
@@ -44,15 +42,27 @@ export function LoginPrivacyInfo() {
                     <DialogTitle className="text-xl font-bold tracking-tight">
                         Seu acesso é protegido
                     </DialogTitle>
-                    <DialogDescription className="mt-1 leading-6">
-                        Você entra com sua conta do SIGAA. Suas credenciais são usadas para
-                        autenticar nos servidores oficiais da UnB e não são armazenadas nos
-                        servidores do Followw.
-                    </DialogDescription>
                 </DialogHeader>
                 <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                    A sessão fica em cookies cifrados no seu navegador para manter o acesso entre
-                    visitas.
+                    Ao conectar com o SIGAA, suas credenciais são usadas para autenticar nos
+                    servidores oficiais da UnB e não são armazenadas nos servidores do Followw.
+                </p>
+                <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                    A sessão fica salva em seu navegador de forma criptografada, para que você não
+                    precise se autenticar novamente a cada visita.
+                </p>
+                <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                    O Followw é um projeto de código aberto, e você pode conferir todo o
+                    código-fonte no{' '}
+                    <a
+                        className="text-primary"
+                        href="https://github.com/unb-mds/2026-2-Followw"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        GitHub
+                    </a>
+                    .
                 </p>
                 <DialogClose
                     render={<Button className="mt-6 h-11 w-full rounded-full font-bold" />}

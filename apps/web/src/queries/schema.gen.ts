@@ -459,6 +459,8 @@ export interface components {
             prerequisites?: components["schemas"]["CatalogRequirements"] | null;
             corequisites?: components["schemas"]["CatalogRequirements"] | null;
             equivalences?: components["schemas"]["CatalogRequirements"] | null;
+            /** Unity Name */
+            unity_name?: string | null;
             /** Classrooms */
             classrooms: components["schemas"]["SubjectClassroom"][];
         };
