@@ -175,14 +175,6 @@ async def test_historico_completo_marca_as_turmas_atuais():
     ]
 
 
-async def test_turmas_atuais_so_leem_o_portal():
-    session = PagesSession({DASHBOARD_PATH: DASHBOARD})
-
-    turmas = await Classrooms(session).list_current_classrooms()  # type: ignore[arg-type]
-
-    assert [(t.id, t.sigaa_id) for t in turmas] == [("AAA", 1617644)]
-
-
 async def test_turma_fora_do_historico_nao_e_erro_de_layout():
     session = PagesSession({CLASSROOMS_PATH: HISTORY})
 

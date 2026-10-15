@@ -5,7 +5,13 @@ import httpx
 import pytest
 from bs4 import BeautifulSoup
 
-from sigaa_client import ClassroomPost, News, PostType, SigaaParseError
+from sigaa_client import (
+    ClassroomPost,
+    DashboardPost,
+    News,
+    PostType,
+    SigaaParseError,
+)
 from sigaa_client.private.classrooms import Classrooms, _open_topics
 from sigaa_client.private.posts import _parse_assessments, _parse_topics
 
@@ -170,3 +176,107 @@ async def test_listagem_unificada_usa_leitura_com_contexto_para_cada_tela():
     assert posts[-1] == ClassroomPost.from_news(
         resource.list_classroom_news.return_value[0]
     )
+
+
+HOME = """
+<html><body>
+<div id="turmas-portal"><table><tbody>
+  <tr><td colspan="5">2026.2</td></tr>
+  <tr class="odd"><td class="descricao">
+    <form id="form_acessarTurmaVirtualj_id_1">
+      <a href="#" onclick="jsfcljs(x,{'frontEndIdTurma':'AAA'},'');">MATEM&Aacute;TICA DISCRETA 2</a>
+    </form>
+  </td><td class="info">FCTE - S1</td><td class="info"><center>35M34</center></td><td></td></tr>
+  <tr><td colspan="5" id="linha_1615025" style="display: none;"></td></tr>
+</tbody></table></div>
+<div id="atualizacoes-turma"><div class="rotator">
+  <table>
+    <tr><td>
+      07/10/2026 -
+      <a href="#" onclick="jsfcljs(x,{'formAtualizacoesTurmas:j_id':'formAtualizacoesTurmas:j_id','idTurma':'1615025'},'');">MATEM&Aacute;TICA DISCRETA 2 (2026.2)</a>
+    </td></tr>
+    <tr><td>Nova Not&#237;cia: Planilha de Notas MD2 - 2026.2</td></tr>
+  </table>
+  <table>
+    <tr><td>
+      15/07/2026 -
+      <a href="#" onclick="jsfcljs(x,{'idTurma':'1615025'},'');">MATEM&Aacute;TICA DISCRETA 2 (2026.2)</a>
+    </td></tr>
+    <tr><td>Avalia&#231;&#227;o marcada para o dia 21/05/2026</td></tr>
+  </table>
+</div></div>
+<div id="avaliacao-portal" class="simple-panel">
+  <h4> Minhas atividades  </h4>
+  <table>
+    <thead><tr><th></th><th>Data</th><th>Atividade</th></tr></thead>
+    <tbody>
+      <tr><td colspan="5">2026.2</td></tr>
+      <tr class="odd">
+        <td><img src='/sigaa/img/prova_mes.png'></td>
+        <td>29/10/2026 (14 dias)</td>
+        <td><small>MATEM&#193;TICA DISCRETA 2<br> <strong>Avalia&#231;&#227;o:</strong> Avalia&#231;&#227;o A2</small></td>
+      </tr>
+      <tr>
+        <td><img src='/sigaa/img/prova_mes.png'></td>
+        <td>30/10/2026 (15 dias)</td>
+        <td><small>C&#193;LCULO 1<br> <strong>Avalia&#231;&#227;o:</strong> Prova 2</small></td>
+      </tr>
+      <tr>
+        <td><img src='/sigaa/img/tarefa.png'></td>
+        <td>31/10/2026 (16 dias)</td>
+        <td><small>MATEM&#193;TICA DISCRETA 2<br> <strong>Tarefa:</strong> Lista 3</small></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+</body></html>
+"""
+
+
+async def _dashboard_posts(page: str) -> list[DashboardPost]:
+    session = AsyncMock()
+    session.get.return_value = httpx.Response(200, text=page)
+    return await Classrooms(session).list_dashboard_posts()
+
+
+async def test_home_reune_noticias_e_avaliacoes_das_turmas():
+    assert await _dashboard_posts(HOME) == [
+        DashboardPost(
+            type=PostType.NEWS,
+            classroom_sigaa_id=1615025,
+            title="Planilha de Notas MD2 - 2026.2",
+            published_on=date(2026, 10, 7),
+        ),
+        DashboardPost(
+            type=PostType.ASSESSMENT,
+            classroom_sigaa_id=1615025,
+            title="Avaliação A2",
+            starts_on=date(2026, 10, 29),
+        ),
+        # Disciplina fora das turmas do portal fica sem turma.
+        DashboardPost(
+            type=PostType.ASSESSMENT,
+            title="Prova 2",
+            starts_on=date(2026, 10, 30),
+        ),
+    ]
+
+
+async def test_home_sem_paineis_nao_tem_posts():
+    assert await _dashboard_posts("<html><body></body></html>") == []
+
+
+@pytest.mark.parametrize(
+    "broken",
+    [
+        HOME.replace("'idTurma':'1615025'", "", 1),
+        HOME.replace("29/10/2026 (14 dias)", "(14 dias)"),
+        HOME.replace(
+            "<strong>Avalia&#231;&#227;o:</strong> Avalia&#231;&#227;o A2",
+            "Avaliação A2",
+        ),
+    ],
+)
+async def test_post_da_home_fora_do_formato_e_barulhento(broken):
+    with pytest.raises(SigaaParseError):
+        await _dashboard_posts(broken)

@@ -418,7 +418,7 @@ export interface paths {
         patch: operations["update_settings_me_settings_patch"];
         trace?: never;
     };
-    "/news": {
+    "/posts": {
         parameters: {
             query?: never;
             header?: never;
@@ -426,10 +426,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Consultar notícias recentes das turmas na home do SIGAA
-         * @description Notícias recentes da home, sem cache.
+         * Consultar posts recentes das turmas na home do SIGAA
+         * @description Notícias recentes e avaliações agendadas das turmas atuais, sem cache. A home não traz IDs: o detalhe fica em /classrooms/{classroom_sigaa_id}/posts. Avaliação de disciplina não encontrada entre as turmas do portal vem com classroom_sigaa_id null.
          */
-        get: operations["get_news_news_get"];
+        get: operations["get_posts_posts_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -622,6 +622,21 @@ export interface components {
             dinner?: components["schemas"]["MenuSection"][] | null;
         };
         /**
+         * DashboardPost
+         * @description Post recente da home: sem ID, o detalhe fica nos posts da turma.
+         */
+        DashboardPost: {
+            type: components["schemas"]["PostType"];
+            /** Classroom Sigaa Id */
+            classroom_sigaa_id?: number | null;
+            /** Title */
+            title: string;
+            /** Published On */
+            published_on?: string | null;
+            /** Starts On */
+            starts_on?: string | null;
+        };
+        /**
          * FrequencyStatus
          * @description Quanto das entradas publicadas o docente já registrou.
          * @enum {string}
@@ -707,32 +722,6 @@ export interface components {
          * @enum {string}
          */
         MenuSectionKey: "drink" | "bread" | "extra" | "spread" | "complement" | "complement_vegetarian" | "complement_vegan" | "fruit" | "salad_1" | "salad_2" | "salad_dressing" | "main_dish" | "main_dish_vegetarian" | "main_dish_vegan" | "side_dish" | "accompaniments" | "soup" | "toast" | "dessert";
-        /**
-         * News
-         * @description A home não traz `id`; hora, texto e anexos só vêm de `get_classroom_news`.
-         */
-        News: {
-            /** Id */
-            id?: number | null;
-            /** Classroom Sigaa Id */
-            classroom_sigaa_id?: number | null;
-            /** Title */
-            title: string;
-            /**
-             * Published On
-             * Format: date
-             */
-            published_on: string;
-            /** Published At */
-            published_at?: string | null;
-            /** Content */
-            content?: string | null;
-            /**
-             * Attachments
-             * @default []
-             */
-            attachments: components["schemas"]["NewsAttachment"][];
-        };
         /** NewsAttachment */
         NewsAttachment: {
             /** Name */
@@ -2134,12 +2123,9 @@ export interface operations {
             };
         };
     };
-    get_news_news_get: {
+    get_posts_posts_get: {
         parameters: {
-            query?: {
-                /** @description Resolve os IDs com uma consulta adicional à listagem de notícias por turma. */
-                resolve_ids?: boolean;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
@@ -2152,7 +2138,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["News"][];
+                    "application/json": components["schemas"]["DashboardPost"][];
                 };
             };
             /** @description Credenciais ausentes ou inválidas. */
@@ -2161,15 +2147,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
             };
             /** @description SIGAA indisponível. */
             502: {

@@ -34,6 +34,7 @@ from ..models import (
     ClassroomPost,
     ClassroomProgress,
     ClassroomRole,
+    DashboardPost,
     Grade,
     News,
     NewsAttachment,
@@ -58,7 +59,7 @@ from ..utils.parsing import (
     to_markdown,
     visible_text,
 )
-from .posts import _parse_assessments, _parse_topics
+from .posts import _parse_assessments, _parse_dashboard_posts, _parse_topics
 from .session import Session
 
 CLASSROOM_ID_FIELD = "frontEndIdTurma"
@@ -135,9 +136,12 @@ class Classrooms:
         merged = [_merge(entry, active.get(key)) for key, entry in history.items()]
         return merged + [entry for key, entry in active.items() if key not in history]
 
-    async def list_current_classrooms(self) -> list[Classroom]:
-        """Só as turmas do portal: sem código e CH, mas com `sigaa_id`, numa request."""
-        return list(_parse_dashboard(await self._get(DASHBOARD_PATH)).values())
+    async def list_dashboard_posts(self) -> list[DashboardPost]:
+        """Notícias e avaliações recentes da home, de todas as turmas atuais."""
+        page = await self._get(DASHBOARD_PATH)
+        return _parse_dashboard_posts(
+            BeautifulSoup(page, "lxml"), _parse_dashboard(page).values()
+        )
 
     async def list_classroom_members(self, classroom_id: str) -> list[ClassroomMember]:
         page = await self._read_screen(classroom_id, _open_participants)

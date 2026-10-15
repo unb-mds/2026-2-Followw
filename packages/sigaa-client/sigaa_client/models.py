@@ -421,12 +421,11 @@ class NewsAttachment(BaseModel):
 
 
 class News(BaseModel):
-    """A home não traz `id`; hora, texto e anexos só vêm de `get_classroom_news`."""
+    """Hora, texto e anexos só vêm de `get_classroom_news`."""
 
     model_config = ConfigDict(frozen=True)
 
-    id: int | None = None
-    classroom_sigaa_id: int | None = None
+    id: int
     title: str
     published_on: date
     published_at: datetime | None = None
@@ -462,11 +461,21 @@ class ClassroomPost(BaseModel):
 
     @classmethod
     def from_news(cls, news: News) -> ClassroomPost:
-        if news.id is None:
-            raise ValueError("Notícia de turma sem ID.")
         return cls(
             id=f"news:{news.id}",
             type=PostType.NEWS,
             sigaa_id=str(news.id),
             **news.model_dump(exclude={"id"}),
         )
+
+
+class DashboardPost(BaseModel):
+    """Post recente da home: sem ID, o detalhe fica nos posts da turma."""
+
+    model_config = ConfigDict(frozen=True)
+
+    type: PostType
+    classroom_sigaa_id: int | None = None
+    title: str
+    published_on: date | None = None
+    starts_on: date | None = None

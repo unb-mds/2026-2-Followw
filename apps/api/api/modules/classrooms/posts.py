@@ -85,14 +85,14 @@ class ClassroomPostsService:
 
 
 def _to_post(
-    item: ClassroomPosts, sigaa_id: int | None, *, detail: bool = False
+    item: ClassroomPosts, classroom_sigaa_id: int | None, *, detail: bool = False
 ) -> ClassroomPost:
     include_content = detail or item.type != PostType.NEWS
     return ClassroomPost(
         id=item.source_id,
         type=item.type,
         sigaa_id=item.sigaa_id,
-        classroom_sigaa_id=sigaa_id,
+        classroom_sigaa_id=classroom_sigaa_id,
         topic_id=item.topic_id,
         title=item.title,
         published_on=item.published_on,

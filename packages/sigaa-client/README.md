@@ -119,4 +119,10 @@ para textos como “Hora da aula”), sem notas individuais nem datas de publica
 inventadas. O vínculo da avaliação ao tópico só existe se informado pela origem.
 
 Notícias da lista trazem título e dia; use `get_classroom_news` com o `sigaa_id`
-para texto e anexos. O feed recente da home continua disponível em `profile.list_news`.
+para texto e anexos.
+
+`await client.classrooms.list_dashboard_posts()` lê a home do SIGAA e devolve
+`DashboardPost`: as notícias das "Últimas Atualizações" e as avaliações de
+"Minhas atividades". A home não traz IDs, então o detalhe fica nos posts da turma
+(`classroom_sigaa_id`); avaliação de disciplina que não casa com uma única turma
+do portal vem sem turma.

@@ -104,7 +104,7 @@ O job roda as tarefas **sem rechecar o TTL**.
 - **Turma ou notícia sumiu do SIGAA** (`ClassroomNotFound`, `NewsNotFound`) ou **gravação concorrente**
   (`IntegrityError`): a tarefa é descartada, sem retentativa.
 - **Rotas sem cache**, que não sincronizam porque nada é guardado: `/me/ru-statement`, `/me/ru-token`,
-  `/news` (home do SIGAA) e `/public/classrooms` sempre vão à origem; `/me/settings` só usa o banco.
+  `/posts` (home do SIGAA) e `/public/classrooms` sempre vão à origem; `/me/settings` só usa o banco.
 
 ## Falhas e retentativas
 
@@ -147,8 +147,8 @@ agenda de avaliações. `source_id` identifica o post dentro da turma, `type` in
 
 `GET /classrooms/{classroom_id}/posts` aceita `?type=material` (ou outra categoria).
 `GET /classrooms/{classroom_id}/posts/{post_id}` usa o `id` opaco da listagem.
-Essas rotas substituem as antigas rotas de notícias da turma. `/news` continua
-sendo o feed recente da home do SIGAA, sem cache.
+`/posts` é o feed recente da home do SIGAA (notícias e avaliações de todas as
+turmas atuais), sem cache e sem IDs.
 
 `sync_posts` atualiza a lista completa a cada 60 minutos nas turmas atuais;
 listas históricas não vencem. Tópicos, materiais e avaliações atualizam seus

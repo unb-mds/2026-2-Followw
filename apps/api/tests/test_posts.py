@@ -10,6 +10,7 @@ from sigaa_client import (
     ClassroomNotFound,
     ClassroomPost,
     Credentials,
+    DashboardPost,
     News,
     NewsAttachment,
     NewsNotFound,
@@ -29,14 +30,25 @@ from api.sync.engine import Job, Step
 CREDENTIALS = Credentials(registration="251000000", password=SecretStr("senha123"))
 DETAIL_PATH = "/classrooms/AAA/posts/news:1"
 DETAIL_PATHS = [DETAIL_PATH, "/classrooms/123/posts/news:1"]
-PATHS = ["/news", "/classrooms/AAA/posts", "/classrooms/123/posts", *DETAIL_PATHS]
+PATHS = ["/posts", "/classrooms/AAA/posts", "/classrooms/123/posts", *DETAIL_PATHS]
 
 
 @pytest.fixture
-def news_sigaa(stub_sigaa):
-    stub_sigaa.profile.list_news = AsyncMock(
+def posts_sigaa(stub_sigaa):
+    stub_sigaa.classrooms.list_dashboard_posts = AsyncMock(
         return_value=[
-            News(title="Aviso", published_on=date(2026, 9, 24), classroom_sigaa_id=123)
+            DashboardPost(
+                type=PostType.NEWS,
+                classroom_sigaa_id=123,
+                title="Aviso",
+                published_on=date(2026, 9, 24),
+            ),
+            DashboardPost(
+                type=PostType.ASSESSMENT,
+                classroom_sigaa_id=123,
+                title="Avaliação A2",
+                starts_on=date(2026, 10, 29),
+            ),
         ]
     )
     stub_sigaa.classrooms.list_classroom_news = AsyncMock(
@@ -56,21 +68,16 @@ def news_sigaa(stub_sigaa):
             ),
         )
     )
-    stub_sigaa.classrooms.list_current_classrooms = AsyncMock(
-        return_value=[
-            Classroom(
-                id="AAA",
-                sigaa_id=123,
-                number="01",
-                current=True,
-                semester="2026.2",
-                subject=Subject(code="FGA0146", name="ESTRUTURAS DE DADOS 1"),
-            )
-        ]
-    )
-    stub_sigaa.classrooms.list_classrooms.return_value = (
-        stub_sigaa.classrooms.list_current_classrooms.return_value
-    )
+    stub_sigaa.classrooms.list_classrooms.return_value = [
+        Classroom(
+            id="AAA",
+            sigaa_id=123,
+            number="01",
+            current=True,
+            semester="2026.2",
+            subject=Subject(code="FGA0146", name="ESTRUTURAS DE DADOS 1"),
+        )
+    ]
     stub_sigaa.classrooms.list_classroom_posts = AsyncMock(
         return_value=[
             ClassroomPost.from_news(n)
@@ -84,77 +91,76 @@ def _fetch(stub, path):
     if path in DETAIL_PATHS:
         return stub.classrooms.get_classroom_news
     return (
-        stub.profile.list_news
-        if path == "/news"
+        stub.classrooms.list_dashboard_posts
+        if path == "/posts"
         else stub.classrooms.list_classroom_posts
     )
 
 
 def test_feed_geral_sempre_consulta_sigaa_sem_banco_ou_fila(
-    client, cookies, news_sigaa, qstash
+    client, cookies, posts_sigaa, qstash
 ):
     def banco_proibido():
         pytest.fail("O feed geral não deve abrir o banco")
 
     client.app.dependency_overrides[get_sessionmaker] = banco_proibido
     client.cookies.update(cookies(refresh=CREDENTIALS))
-    fetch = news_sigaa.profile.list_news
-    first = client.get("/news")
+    fetch = posts_sigaa.classrooms.list_dashboard_posts
+    first = client.get("/posts")
     assert first.status_code == 200
     assert first.json() == [n.model_dump(mode="json") for n in fetch.return_value]
     assert first.headers["cache-control"] == "no-store"
     fetch.return_value = []
-    second = client.get("/news")
+    second = client.get("/posts")
     assert second.status_code == 200
     assert second.json() == []
     assert fetch.await_count == 2
-    assert news_sigaa.aclose.await_count == 2
+    assert posts_sigaa.aclose.await_count == 2
     assert qstash.published == []
 
 
 @pytest.mark.parametrize("path", PATHS)
-def test_noticias_exigem_autenticacao(client, news_sigaa, path):
+def test_noticias_exigem_autenticacao(client, posts_sigaa, path):
     assert client.get(path).status_code == 401
-    news_sigaa.created.assert_not_called()
+    posts_sigaa.created.assert_not_called()
 
 
 @pytest.mark.parametrize("path", PATHS[1:])
-def test_noticias_recusam_turma_fora_do_historico(client, cookies, news_sigaa, path):
+def test_noticias_recusam_turma_fora_do_historico(client, cookies, posts_sigaa, path):
     client.cookies.update(cookies(refresh=CREDENTIALS))
-    _fetch(news_sigaa, path).side_effect = ClassroomNotFound()
+    _fetch(posts_sigaa, path).side_effect = ClassroomNotFound()
 
     response = client.get(path)
     assert response.status_code == 404
     assert response.json() == {"detail": "Classroom not found"}
 
 
-def test_noticias_de_turma_do_historico(client, cookies, news_sigaa):
+def test_noticias_de_turma_do_historico(client, cookies, posts_sigaa):
     client.cookies.update(cookies(refresh=CREDENTIALS))
-    historical = news_sigaa.classrooms.list_classrooms.return_value[0].model_copy(
+    historical = posts_sigaa.classrooms.list_classrooms.return_value[0].model_copy(
         update={"id": "BBB", "sigaa_id": None, "current": False}
     )
-    news_sigaa.classrooms.list_classrooms.return_value = [historical]
+    posts_sigaa.classrooms.list_classrooms.return_value = [historical]
     response = client.get("/classrooms/BBB/posts")
     assert response.status_code == 200
     assert response.json()[0]["classroom_sigaa_id"] is None
-    news_sigaa.classrooms.list_classroom_posts.assert_awaited_once_with("BBB")
-    news_sigaa.classrooms.list_current_classrooms.assert_not_awaited()
+    posts_sigaa.classrooms.list_classroom_posts.assert_awaited_once_with("BBB")
 
 
-def test_detalhe_recusa_noticia_ausente_na_turma(client, cookies, news_sigaa):
+def test_detalhe_recusa_noticia_ausente_na_turma(client, cookies, posts_sigaa):
     client.cookies.update(cookies(refresh=CREDENTIALS))
-    news_sigaa.classrooms.get_classroom_news.side_effect = NewsNotFound()
+    posts_sigaa.classrooms.get_classroom_news.side_effect = NewsNotFound()
     response = client.get("/classrooms/AAA/posts/news:2")
     assert response.status_code == 404
     assert response.json() == {"detail": "News not found"}
-    news_sigaa.classrooms.get_classroom_news.assert_awaited_once_with("AAA", 2)
+    posts_sigaa.classrooms.get_classroom_news.assert_awaited_once_with("AAA", 2)
 
 
 @pytest.mark.parametrize("news_id", ["abc", "0", "-1"])
-def test_detalhe_exige_id_inteiro_positivo(client, cookies, news_sigaa, news_id):
+def test_detalhe_exige_id_inteiro_positivo(client, cookies, posts_sigaa, news_id):
     client.cookies.update(cookies(refresh=CREDENTIALS))
     assert client.get(f"/classrooms/AAA/posts/news:{news_id}").status_code == 422
-    news_sigaa.classrooms.get_classroom_news.assert_not_awaited()
+    posts_sigaa.classrooms.get_classroom_news.assert_not_awaited()
 
 
 @pytest.mark.parametrize("path", PATHS)
@@ -168,27 +174,27 @@ def test_detalhe_exige_id_inteiro_positivo(client, cookies, news_sigaa, news_id)
     ],
 )
 def test_erro_do_sigaa_em_noticias_nao_retorna_dados_antigos(
-    client, cookies, news_sigaa, path, error, code
+    client, cookies, posts_sigaa, path, error, code
 ):
     client.cookies.update(cookies(refresh=CREDENTIALS))
     assert client.get(path).status_code == 200
-    _fetch(news_sigaa, path).side_effect = error
+    _fetch(posts_sigaa, path).side_effect = error
 
     assert client.get(path, headers={"Cache-Control": "no-cache"}).status_code == code
 
 
 def test_openapi_documenta_cache_apenas_nas_noticias_de_turma(client):
     paths = client.get("/openapi.json").json()["paths"]
-    for path in ("/news", "/classrooms/{classroom_id}/posts"):
+    for path in ("/posts", "/classrooms/{classroom_id}/posts"):
         route = paths[path]["get"]
         assert {"401", "502"} <= route["responses"].keys()
         assert any(
             p["name"] == "Cache-Control" for p in route.get("parameters", [])
-        ) == (path != "/news")
+        ) == (path != "/posts")
         schema = route["responses"]["200"]["content"]["application/json"]["schema"]
         assert schema["items"]["$ref"] == (
-            "#/components/schemas/News"
-            if path == "/news"
+            "#/components/schemas/DashboardPost"
+            if path == "/posts"
             else "#/components/schemas/ClassroomPost"
         )
     assert "404" in paths["/classrooms/{classroom_id}/posts"]["get"]["responses"]
@@ -200,101 +206,31 @@ def test_openapi_documenta_cache_apenas_nas_noticias_de_turma(client):
     )
 
 
-def test_feed_resolve_ids_uma_vez_por_turma_e_permite_abrir_detalhe(
-    client, cookies, news_sigaa
-):
-    client.cookies.update(cookies(refresh=CREDENTIALS))
-    home = news_sigaa.profile.list_news.return_value[0]
-    news_sigaa.profile.list_news.return_value = [
-        home,
-        home.model_copy(update={"title": "Outro &#127916;"}),
-    ]
-    news_sigaa.classrooms.list_classroom_news.return_value.append(
-        home.model_copy(update={"id": 2, "title": "Outro 🎬"})
-    )
-    response = client.get("/news?resolve_ids=true")
-    assert response.status_code == 200
-    assert [n["id"] for n in response.json()] == [1, 2]
-    news_sigaa.classrooms.list_current_classrooms.assert_awaited_once()
-    news_sigaa.classrooms.list_classroom_news.assert_awaited_once_with("AAA")
-    news_sigaa.classrooms.get_classroom_news.assert_not_awaited()
-
-    item = response.json()[0]
-    detail = client.get(
-        f"/classrooms/{item['classroom_sigaa_id']}/posts/news:{item['id']}"
-    )
-    assert detail.status_code == 200
-    assert detail.json()["content"] == "Leia o **material** antes da aula."
-    news_sigaa.classrooms.list_classroom_news.assert_awaited_once()
-
-
-@pytest.mark.parametrize("case", ["titulo", "data", "duplicado", "turma"])
-def test_feed_nao_inventa_id_quando_associacao_nao_e_inequivoca(
-    client, cookies, news_sigaa, case
-):
-    client.cookies.update(cookies(refresh=CREDENTIALS))
-    item = news_sigaa.classrooms.list_classroom_news.return_value[0]
-    if case == "titulo":
-        news_sigaa.classrooms.list_classroom_news.return_value = [
-            item.model_copy(update={"title": "Outra notícia"})
-        ]
-    elif case == "data":
-        news_sigaa.classrooms.list_classroom_news.return_value = [
-            item.model_copy(update={"published_on": date(2026, 9, 23)})
-        ]
-    elif case == "duplicado":
-        news_sigaa.classrooms.list_classroom_news.return_value.append(
-            item.model_copy(update={"id": 2})
-        )
-    else:
-        news_sigaa.classrooms.list_current_classrooms.return_value = []
-    response = client.get("/news?resolve_ids=true")
-    assert response.status_code == 200
-    assert response.json()[0]["id"] is None
-
-
-def test_feed_padrao_e_feed_vazio_nao_consultam_turmas(client, cookies, news_sigaa):
-    client.cookies.update(cookies(refresh=CREDENTIALS))
-    assert client.get("/news").status_code == 200
-    news_sigaa.profile.list_news.return_value = []
-    assert client.get("/news?resolve_ids=true").json() == []
-    news_sigaa.classrooms.list_current_classrooms.assert_not_awaited()
-    news_sigaa.classrooms.list_classroom_news.assert_not_awaited()
-
-
-def test_feed_enriquecido_tambem_reconsulta_sigaa(client, cookies, news_sigaa):
-    client.cookies.update(cookies(refresh=CREDENTIALS))
-    assert client.get("/news?resolve_ids=true").json()[0]["id"] == 1
-    news_sigaa.classrooms.list_classroom_news.return_value = []
-    assert client.get("/news?resolve_ids=true").json()[0]["id"] is None
-    assert news_sigaa.classrooms.list_classroom_news.await_count == 2
-
-
 @pytest.mark.parametrize("path", PATHS[1:])
-def test_cache_de_turma_evita_nova_consulta(client, cookies, news_sigaa, qstash, path):
+def test_cache_de_turma_evita_nova_consulta(client, cookies, posts_sigaa, qstash, path):
     client.cookies.update(cookies(refresh=CREDENTIALS))
     first = client.get(path)
     assert first.status_code == 200
     assert first.headers["cache-control"] == "private, no-cache"
-    news_sigaa.created.reset_mock()
+    posts_sigaa.created.reset_mock()
     second = client.get(path)
     assert second.json() == first.json()
     assert "age" in second.headers
-    _fetch(news_sigaa, path).assert_awaited_once()
-    news_sigaa.created.assert_not_called()
+    _fetch(posts_sigaa, path).assert_awaited_once()
+    posts_sigaa.created.assert_not_called()
     assert qstash.published == []
 
 
-def test_lista_vazia_tambem_tem_cache(client, cookies, news_sigaa):
+def test_lista_vazia_tambem_tem_cache(client, cookies, posts_sigaa):
     client.cookies.update(cookies(refresh=CREDENTIALS))
-    news_sigaa.classrooms.list_classroom_posts.return_value = []
+    posts_sigaa.classrooms.list_classroom_posts.return_value = []
     assert client.get("/classrooms/AAA/posts").json() == []
     assert client.get("/classrooms/AAA/posts").json() == []
-    news_sigaa.classrooms.list_classroom_posts.assert_awaited_once()
+    posts_sigaa.classrooms.list_classroom_posts.assert_awaited_once()
 
 
 def test_lista_vencida_retorna_cache_e_atualiza_pela_fila(
-    client, cookies, news_sigaa, database, qstash
+    client, cookies, posts_sigaa, database, qstash
 ):
     client.cookies.update(cookies(refresh=CREDENTIALS))
     original = client.get("/classrooms/AAA/posts").json()
@@ -302,7 +238,7 @@ def test_lista_vencida_retorna_cache_e_atualiza_pela_fila(
         classroom = session.scalar(select(DBClassroom))
         classroom.posts_synced_at = datetime.now(UTC) - timedelta(minutes=61)
         session.commit()
-    news_sigaa.classrooms.list_classroom_posts.return_value = [
+    posts_sigaa.classrooms.list_classroom_posts.return_value = [
         _post(id=2, title="Novo aviso", published_on=date(2026, 9, 25))
     ]
     response = client.get("/classrooms/AAA/posts")
@@ -315,17 +251,17 @@ def test_lista_vencida_retorna_cache_e_atualiza_pela_fila(
         "news:2",
         "news:1",
     ]
-    assert news_sigaa.classrooms.list_classroom_posts.await_count == 2
+    assert posts_sigaa.classrooms.list_classroom_posts.await_count == 2
 
 
 def test_lista_de_turma_do_historico_nao_vence(
-    client, cookies, news_sigaa, database, qstash
+    client, cookies, posts_sigaa, database, qstash
 ):
     client.cookies.update(cookies(refresh=CREDENTIALS))
-    historical = news_sigaa.classrooms.list_classrooms.return_value[0].model_copy(
+    historical = posts_sigaa.classrooms.list_classrooms.return_value[0].model_copy(
         update={"id": "BBB", "sigaa_id": None, "current": False}
     )
-    news_sigaa.classrooms.list_classrooms.return_value = [historical]
+    posts_sigaa.classrooms.list_classrooms.return_value = [historical]
     original = client.get("/classrooms/BBB/posts").json()
     with database() as session:
         classroom = session.scalar(select(DBClassroom))
@@ -333,35 +269,35 @@ def test_lista_de_turma_do_historico_nao_vence(
         session.commit()
     assert client.get("/classrooms/BBB/posts").json() == original
     assert qstash.published == []
-    news_sigaa.classrooms.list_classroom_posts.assert_awaited_once()
+    posts_sigaa.classrooms.list_classroom_posts.assert_awaited_once()
 
 
 @pytest.mark.parametrize("remaining", [True, False])
 def test_atualizar_lista_preserva_conteudo_e_noticias_removidas(
-    client, cookies, news_sigaa, database, remaining
+    client, cookies, posts_sigaa, database, remaining
 ):
     client.cookies.update(cookies(refresh=CREDENTIALS))
     detail = client.get(DETAIL_PATH).json()
     assert client.get("/classrooms/AAA/posts").status_code == 200
     if not remaining:
-        news_sigaa.classrooms.list_classroom_posts.return_value = []
+        posts_sigaa.classrooms.list_classroom_posts.return_value = []
     response = client.get(
         "/classrooms/AAA/posts", headers={"Cache-Control": "no-cache"}
     )
     assert [n["id"] for n in response.json()] == ["news:1"]
     assert response.json()[0]["content"] is None
     assert client.get(DETAIL_PATH).json() == detail
-    news_sigaa.classrooms.get_classroom_news.assert_awaited_once()
+    posts_sigaa.classrooms.get_classroom_news.assert_awaited_once()
     with database() as session:
         assert len(list(session.scalars(select(ClassroomPosts)))) == 1
 
 
 @pytest.mark.parametrize("content", [None, "", "Texto"])
 def test_conteudo_nao_expira_inclusive_quando_vazio(
-    client, cookies, news_sigaa, database, qstash, content
+    client, cookies, posts_sigaa, database, qstash, content
 ):
     client.cookies.update(cookies(refresh=CREDENTIALS))
-    fetch = news_sigaa.classrooms.get_classroom_news
+    fetch = posts_sigaa.classrooms.get_classroom_news
     fetch.return_value = fetch.return_value.model_copy(update={"content": content})
     assert client.get(DETAIL_PATH).status_code == 200
     with database() as session:
@@ -376,33 +312,33 @@ def test_conteudo_nao_expira_inclusive_quando_vazio(
     assert qstash.published == []
 
 
-def test_no_cache_atualiza_conteudo_quando_solicitado(client, cookies, news_sigaa):
+def test_no_cache_atualiza_conteudo_quando_solicitado(client, cookies, posts_sigaa):
     client.cookies.update(cookies(refresh=CREDENTIALS))
     assert client.get(DETAIL_PATH).status_code == 200
-    fetch = news_sigaa.classrooms.get_classroom_news
+    fetch = posts_sigaa.classrooms.get_classroom_news
     fetch.return_value = fetch.return_value.model_copy(update={"content": "Atualizado"})
     response = client.get(DETAIL_PATH, headers={"Cache-Control": "no-cache"})
     assert response.json()["content"] == "Atualizado"
     assert fetch.await_count == 2
 
 
-def test_cache_nao_da_acesso_a_usuario_sem_vinculo(client, cookies, news_sigaa):
+def test_cache_nao_da_acesso_a_usuario_sem_vinculo(client, cookies, posts_sigaa):
     client.cookies.update(cookies(refresh=CREDENTIALS))
     assert client.get(DETAIL_PATH).status_code == 200
     other = Credentials(registration="251000001", password=SecretStr("senha"))
     client.cookies.clear()
     client.cookies.update(cookies(refresh=other))
-    news_sigaa.profile.get_profile.return_value = (
-        news_sigaa.profile.get_profile.return_value.model_copy(
+    posts_sigaa.profile.get_profile.return_value = (
+        posts_sigaa.profile.get_profile.return_value.model_copy(
             update={"registration": other.registration}
         )
     )
-    news_sigaa.classrooms.list_classrooms.return_value = []
+    posts_sigaa.classrooms.list_classrooms.return_value = []
     assert client.get(DETAIL_PATH).status_code == 404
-    news_sigaa.classrooms.get_classroom_news.assert_awaited_once()
+    posts_sigaa.classrooms.get_classroom_news.assert_awaited_once()
 
 
-def test_only_if_cached_nao_busca_noticia_ausente(client, cookies, news_sigaa):
+def test_only_if_cached_nao_busca_noticia_ausente(client, cookies, posts_sigaa):
     client.cookies.update(cookies(refresh=CREDENTIALS))
     assert client.get("/classrooms").status_code == 200
     for path in ("/classrooms/AAA/posts", DETAIL_PATH):
@@ -410,17 +346,17 @@ def test_only_if_cached_nao_busca_noticia_ausente(client, cookies, news_sigaa):
             client.get(path, headers={"Cache-Control": "only-if-cached"}).status_code
             == 504
         )
-    news_sigaa.classrooms.list_classroom_posts.assert_not_awaited()
-    news_sigaa.classrooms.get_classroom_news.assert_not_awaited()
+    posts_sigaa.classrooms.list_classroom_posts.assert_not_awaited()
+    posts_sigaa.classrooms.get_classroom_news.assert_not_awaited()
 
 
 @pytest.mark.parametrize("path", ["/classrooms/AAA/posts", DETAIL_PATH])
 def test_stale_if_error_preserva_resposta_em_falha_do_sigaa(
-    client, cookies, news_sigaa, path
+    client, cookies, posts_sigaa, path
 ):
     client.cookies.update(cookies(refresh=CREDENTIALS))
     original = client.get(path).json()
-    _fetch(news_sigaa, path).side_effect = SigaaParseError("indisponível")
+    _fetch(posts_sigaa, path).side_effect = SigaaParseError("indisponível")
     response = client.get(path, headers={"Cache-Control": "no-cache, stale-if-error"})
     assert response.status_code == 200
     assert response.json() == original
@@ -437,19 +373,19 @@ def test_jobs_de_conteudos_distintos_nao_sao_deduplicados():
     assert job(1).key != job(2).key
 
 
-def test_lista_nao_busca_conteudo_ate_primeira_abertura(client, cookies, news_sigaa):
+def test_lista_nao_busca_conteudo_ate_primeira_abertura(client, cookies, posts_sigaa):
     client.cookies.update(cookies(refresh=CREDENTIALS))
     assert client.get("/classrooms/AAA/posts").status_code == 200
-    news_sigaa.classrooms.get_classroom_news.assert_not_awaited()
+    posts_sigaa.classrooms.get_classroom_news.assert_not_awaited()
     first = client.get(DETAIL_PATH)
     assert first.status_code == 200
     assert first.json()["content"] is not None
     assert client.get(DETAIL_PATH).json() == first.json()
-    news_sigaa.classrooms.get_classroom_news.assert_awaited_once()
+    posts_sigaa.classrooms.get_classroom_news.assert_awaited_once()
 
 
 def test_ttl_do_conteudo_pode_ser_ativado(
-    client, cookies, news_sigaa, database, monkeypatch, qstash
+    client, cookies, posts_sigaa, database, monkeypatch, qstash
 ):
     monkeypatch.setattr(
         "api.modules.classrooms.posts.NEWS_CONTENT_TTL", timedelta(minutes=60)
@@ -460,7 +396,7 @@ def test_ttl_do_conteudo_pode_ser_ativado(
         item = session.scalar(select(ClassroomPosts))
         item.content_synced_at = datetime.now(UTC) - timedelta(minutes=61)
         session.commit()
-    fetch = news_sigaa.classrooms.get_classroom_news
+    fetch = posts_sigaa.classrooms.get_classroom_news
     fetch.return_value = fetch.return_value.model_copy(update={"content": "Novo texto"})
     assert client.get(DETAIL_PATH).json() == original
     assert len(qstash.published) == 1
@@ -470,15 +406,15 @@ def test_ttl_do_conteudo_pode_ser_ativado(
 
 
 def test_mesmo_id_de_noticia_em_turmas_distintas_nao_mistura_conteudo(
-    client, cookies, news_sigaa
+    client, cookies, posts_sigaa
 ):
     client.cookies.update(cookies(refresh=CREDENTIALS))
-    classrooms = news_sigaa.classrooms.list_classrooms.return_value
+    classrooms = posts_sigaa.classrooms.list_classrooms.return_value
     classrooms.append(
         classrooms[0].model_copy(update={"id": "BBB", "number": "02", "sigaa_id": 456})
     )
     original = client.get(DETAIL_PATH).json()
-    fetch = news_sigaa.classrooms.get_classroom_news
+    fetch = posts_sigaa.classrooms.get_classroom_news
     fetch.return_value = fetch.return_value.model_copy(
         update={"content": "Outra turma"}
     )
@@ -494,7 +430,7 @@ def _post(**kwargs):
 
 
 def test_posts_unificam_categorias_e_material_referencia_topico(
-    client, cookies, news_sigaa, database
+    client, cookies, posts_sigaa, database
 ):
     client.cookies.update(cookies(refresh=CREDENTIALS))
     topic = ClassroomPost(
@@ -521,7 +457,7 @@ def test_posts_unificam_categorias_e_material_referencia_topico(
         starts_at=datetime(2026, 10, 29, 16),
         time_label="16:00",
     )
-    fetch = news_sigaa.classrooms.list_classroom_posts
+    fetch = posts_sigaa.classrooms.list_classroom_posts
     fetch.return_value += [material, assessment, topic]
     response = client.get("/classrooms/AAA/posts")
     assert response.status_code == 200
@@ -554,13 +490,13 @@ def test_posts_unificam_categorias_e_material_referencia_topico(
 
 
 def test_posts_atualizam_conteudo_e_vinculo_sem_duplicar(
-    client, cookies, news_sigaa, database
+    client, cookies, posts_sigaa, database
 ):
     client.cookies.update(cookies(refresh=CREDENTIALS))
     topic = ClassroomPost(
         id="topic:" + "a" * 64, type=PostType.TOPIC, title="Aula 1", content="Original"
     )
-    fetch = news_sigaa.classrooms.list_classroom_posts
+    fetch = posts_sigaa.classrooms.list_classroom_posts
     fetch.return_value = [topic]
     assert client.get("/classrooms/AAA/posts").status_code == 200
     fetch.return_value = [topic.model_copy(update={"content": "Atualizado"})]

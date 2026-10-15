@@ -77,7 +77,7 @@ def test_sqlite_sem_fuso_vale_como_utc():
 @pytest.mark.parametrize(
     "path",
     [
-        "/news",
+        "/posts",
         "/me/ru-statement",
         "/me/ru-token",
         "/public/classrooms",

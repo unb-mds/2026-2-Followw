@@ -1,4 +1,5 @@
 import re
+from collections.abc import Iterable
 from hashlib import sha256
 from urllib.parse import urljoin, urlsplit
 
@@ -6,14 +7,22 @@ from bs4 import BeautifulSoup, Tag
 
 from ..config import SIGAA_BASE_URL
 from ..exceptions import SigaaParseError
-from ..models import ClassroomPost, PostType
+from ..models import Classroom, ClassroomPost, DashboardPost, PostType
 from ..utils.jsf import link_params
 from ..utils.parsing import clean_text, parse_datetime, to_markdown
+
+UPDATES_ID = "atualizacoes-turma"
+ACTIVITIES_ID = "avaliacao-portal"
+CLASSROOM_SIGAA_ID_FIELD = "idTurma"
+ACTIVITY_TYPES = {"Avaliação": PostType.ASSESSMENT}
 
 _TOPIC_DATES_RE = re.compile(
     r"^(.*?)\s*\((\d{2}/\d{2}/\d{4})\s*-\s*(\d{2}/\d{2}/\d{4})\)"
 )
 _CLOCK_RE = re.compile(r"^\d{2}:\d{2}$")
+_DAY_RE = re.compile(r"(\d{2}/\d{2}/\d{4})")
+# As "Últimas Atualizações" misturam notícias com outros avisos da turma.
+_NEWS_UPDATE_RE = re.compile(r"^Nova Notícia:\s*(.+)$")
 
 
 def _fingerprint(value: str) -> str:
@@ -115,6 +124,88 @@ def _parse_assessments(soup: BeautifulSoup) -> list[ClassroomPost]:
                 if _CLOCK_RE.fullmatch(hour)
                 else None,
                 time_label=hour or None,
+            )
+        )
+    return posts
+
+
+def _parse_dashboard_posts(
+    soup: BeautifulSoup, classrooms: Iterable[Classroom]
+) -> list[DashboardPost]:
+    return [*_parse_home_news(soup), *_parse_home_activities(soup, classrooms)]
+
+
+def _parse_home_news(soup: BeautifulSoup) -> list[DashboardPost]:
+    updates = soup.find("div", id=UPDATES_ID)
+    # Sem turmas no semestre, o portal não desenha o painel.
+    if not isinstance(updates, Tag):
+        return []
+    posts = []
+    for entry in updates.find_all("table"):
+        cells = entry.find_all("td")
+        if len(cells) != 2:
+            raise SigaaParseError("Atualização de turma fora do formato na home.")
+        title = _NEWS_UPDATE_RE.match(clean_text(cells[1]))
+        if title is None:
+            continue
+        day = _DAY_RE.search(clean_text(cells[0]))
+        anchor = cells[0].find("a")
+        classroom_id = (
+            link_params(anchor).get(CLASSROOM_SIGAA_ID_FIELD)
+            if isinstance(anchor, Tag)
+            else None
+        )
+        if day is None or classroom_id is None:
+            raise SigaaParseError("Notícia da home sem data ou sem turma.")
+        posts.append(
+            DashboardPost(
+                type=PostType.NEWS,
+                classroom_sigaa_id=int(classroom_id),
+                title=title.group(1),
+                published_on=parse_datetime(
+                    day.group(1), "%d/%m/%Y", "da notícia na home"
+                ).date(),
+            )
+        )
+    return posts
+
+
+def _parse_home_activities(
+    soup: BeautifulSoup, classrooms: Iterable[Classroom]
+) -> list[DashboardPost]:
+    panel = soup.find("div", id=ACTIVITIES_ID)
+    if not isinstance(panel, Tag):
+        return []
+    # A atividade só cita o nome da disciplina; nome repetido não é associado.
+    sigaa_ids: dict[str, int | None] = {}
+    for classroom in classrooms:
+        name = classroom.subject.name
+        sigaa_ids[name] = None if name in sigaa_ids else classroom.sigaa_id
+    posts = []
+    for row in panel.select("tbody tr"):
+        cells = row.find_all("td", recursive=False)
+        if len(cells) == 1:  # cabeçalho do semestre
+            continue
+        day = _DAY_RE.search(clean_text(cells[1])) if len(cells) == 3 else None
+        label = cells[2].find("strong") if day else None
+        if day is None or not isinstance(label, Tag):
+            raise SigaaParseError("Atividade da home sem data ou tipo.")
+        post_type = ACTIVITY_TYPES.get(clean_text(label).rstrip(":").strip())
+        if post_type is None:
+            continue
+        # `NOME DA DISCIPLINA<br><strong>Avaliação:</strong> descrição`
+        name, _, title = clean_text(cells[2]).partition(clean_text(label))
+        name, title = name.strip(), title.strip()
+        if not name or not title:
+            raise SigaaParseError("Atividade da home sem turma ou descrição.")
+        posts.append(
+            DashboardPost(
+                type=post_type,
+                classroom_sigaa_id=sigaa_ids.get(name),
+                title=title,
+                starts_on=parse_datetime(
+                    day.group(1), "%d/%m/%Y", "da atividade na home"
+                ).date(),
             )
         )
     return posts
