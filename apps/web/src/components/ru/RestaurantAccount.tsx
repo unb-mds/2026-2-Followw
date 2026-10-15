@@ -108,7 +108,7 @@ export function RestaurantAccount({ registration }: { registration: string }) {
                     ) : (
                         <RefreshCw className="size-4" aria-hidden="true" />
                     )}
-                    {refreshing ? 'Atualizando...' : coolingDown ? 'Aguarde...' : 'Atualizar'}
+                    {refreshing ? 'Atualizando...' : 'Atualizar'}
                 </Button>
             </div>
 
