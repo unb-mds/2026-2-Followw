@@ -3,8 +3,16 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
-from sigaa_client import FrequencyStatus, Grade
-from sqlalchemy import JSON, DateTime, ForeignKey, Index, Text, UniqueConstraint
+from sigaa_client import FrequencyStatus, Grade, PostType
+from sqlalchemy import (
+    JSON,
+    DateTime,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -167,7 +175,7 @@ class Classroom(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     occupied: Mapped[int | None] = mapped_column()
     subject_code: Mapped[str] = mapped_column(ForeignKey("subjects.code"))
     members_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    news_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    posts_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     statistics_synced_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True)
     )
@@ -297,19 +305,31 @@ class ClassroomStatistic(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     classroom: Mapped[Classroom] = relationship(back_populates="statistics")
 
 
-class ClassroomNews(Base, UUIDPrimaryKeyMixin, TimestampMixin):
-    __tablename__ = "classroom_news"
+class ClassroomPosts(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "classroom_posts"
     __table_args__ = (
-        UniqueConstraint("classroom_id", "sigaa_id", name="uq_classroom_news_sigaa_id"),
+        UniqueConstraint("classroom_id", "source_id", name="uq_classroom_post_source"),
+        ForeignKeyConstraint(
+            ["classroom_id", "topic_id"],
+            ["classroom_posts.classroom_id", "classroom_posts.source_id"],
+        ),
     )
 
     classroom_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("classrooms.id", ondelete="CASCADE")
     )
-    sigaa_id: Mapped[int] = mapped_column()
+    source_id: Mapped[str] = mapped_column()
+    type: Mapped[PostType] = mapped_column(_enum(PostType, "post_type"))
+    sigaa_id: Mapped[str | None] = mapped_column()
+    topic_id: Mapped[str | None] = mapped_column()
     title: Mapped[str] = mapped_column()
-    published_on: Mapped[dt.date] = mapped_column()
+    published_on: Mapped[dt.date | None] = mapped_column()
     published_at: Mapped[datetime | None] = mapped_column()
+    starts_on: Mapped[dt.date | None] = mapped_column()
+    ends_on: Mapped[dt.date | None] = mapped_column()
+    starts_at: Mapped[datetime | None] = mapped_column()
+    time_label: Mapped[str | None] = mapped_column()
+    url: Mapped[str | None] = mapped_column()
     content: Mapped[str | None] = mapped_column(Text)
     attachments: Mapped[list[dict[str, str]]] = mapped_column(JSON, default=list)
     content_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

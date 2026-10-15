@@ -1,6 +1,6 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { Navigate, createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
-import { ChevronRight, LogOut, Pencil } from 'lucide-react';
+import { LogOut, Pencil } from 'lucide-react';
 import { useState } from 'react';
 
 import { ErrorState } from '#/components/ErrorState';
@@ -39,7 +39,6 @@ import {
 import { Input } from '#/components/ui/input';
 import { Label } from '#/components/ui/label';
 import { useOnline } from '#/lib/online';
-import { titleCase } from '#/lib/profile';
 import { useLogout } from '#/queries/auth';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
@@ -77,17 +76,19 @@ function PerfilPage() {
                 <InstallPromptCard />
                 <AcademicPerformance user={user} />
                 <ProgressSection user={user} />
-                <AccountSection name={titleCase(user.name)} displayName={settings.displayName} />
+                <AccountSection displayName={settings.displayName} />
             </div>
         </>
     );
 }
 
-function AccountSection({ name, displayName }: { name: string; displayName?: string | null }) {
+function AccountSection({ displayName }: { displayName?: string | null }) {
     return (
         <ProfileSection title="Conta">
             <ListCard>
-                <DisplayNameButton name={name} displayName={displayName} />
+                <div className="-mx-3">
+                    <DisplayNameButton displayName={displayName} />
+                </div>
                 <DocumentDownloads />
                 <LogoutButton />
             </ListCard>
@@ -95,7 +96,7 @@ function AccountSection({ name, displayName }: { name: string; displayName?: str
     );
 }
 
-function DisplayNameButton({ name, displayName }: { name: string; displayName?: string | null }) {
+function DisplayNameButton({ displayName }: { displayName?: string | null }) {
     const [open, setOpen] = useState(false);
     const [value, setValue] = useState('');
     const update = useUpdateSettings();
@@ -128,7 +129,7 @@ function DisplayNameButton({ name, displayName }: { name: string; displayName?: 
                 render={
                     <Button
                         variant="ghost"
-                        className="-mx-3 h-auto min-h-12 justify-start gap-3 rounded-none px-3 py-2.5"
+                        className="h-auto min-h-12 w-full justify-start gap-3 rounded-none px-3 py-2.5"
                     />
                 }
             >
@@ -138,10 +139,9 @@ function DisplayNameButton({ name, displayName }: { name: string; displayName?: 
                 <span className="min-w-0 flex-1 text-left">
                     <span className="block">Nome de exibição</span>
                     <span className="block truncate text-xs text-muted-foreground">
-                        {displayName || name}
+                        {displayName || 'Clique para editar'}
                     </span>
                 </span>
-                <ChevronRight className="text-muted-foreground" />
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
@@ -220,7 +220,6 @@ function LogoutButton() {
                     <LogOut className="size-4" />
                 </span>
                 <span className="flex-1 text-left">Desconectar</span>
-                <ChevronRight className="text-muted-foreground" />
             </AlertDialogTrigger>
             <AlertDialogContent size="sm">
                 <AlertDialogHeader>

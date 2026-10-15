@@ -104,7 +104,7 @@ O job roda as tarefas **sem rechecar o TTL**.
 - **Turma ou notícia sumiu do SIGAA** (`ClassroomNotFound`, `NewsNotFound`) ou **gravação concorrente**
   (`IntegrityError`): a tarefa é descartada, sem retentativa.
 - **Rotas sem cache**, que não sincronizam porque nada é guardado: `/me/ru-statement`, `/me/ru-token`,
-  `/news` (home do SIGAA) e `/public/classrooms` sempre vão à origem; `/me/settings` só usa o banco.
+  `/posts` (home do SIGAA) e `/public/classrooms` sempre vão à origem; `/me/settings` só usa o banco.
 
 ## Falhas e retentativas
 
@@ -136,3 +136,27 @@ Não passa pelo `Sync`: o cardápio é público e vem do site da UnB, sem login.
 
 O front tem outra camada, independente: o TanStack Query persiste os dados da API por 14 dias para o modo
 offline. Veja [offline.md](offline.md).
+
+
+## Posts das turmas
+
+`ClassroomPosts` (`classroom_posts`) reúne notícias, tópicos de aula, materiais e
+agenda de avaliações. `source_id` identifica o post dentro da turma, `type` indica
+`news`, `topic`, `material` ou `assessment`, e a chave estrangeira composta de
+`topic_id` impede vincular um material a um tópico de outra turma.
+
+`GET /classrooms/{classroom_id}/posts` aceita `?type=material` (ou outra categoria).
+`GET /classrooms/{classroom_id}/posts/{post_id}` usa o `id` opaco da listagem.
+`/posts` é o feed recente da home do SIGAA (notícias e avaliações de todas as
+turmas atuais), sem cache e sem IDs.
+
+`sync_posts` atualiza a lista completa a cada 60 minutos nas turmas atuais;
+listas históricas não vencem. Tópicos, materiais e avaliações atualizam seus
+conteúdos junto com a lista. Notícias mantêm o carregamento de conteúdo sob
+demanda por `sync_news_content`, com revalidação por `Cache-Control: no-cache`.
+Posts removidos da origem são preservados, assim como os conteúdos de notícias
+já consultados. Datas de publicação ausentes continuam nulas; a agenda usa
+campos próprios para data e horário. Resultados individuais ficam fora dos posts.
+
+Não há migração do cache antigo: conforme a convenção do projeto, a mudança de
+`classrooms.news_synced_at` para `posts_synced_at` exige recriar o banco existente.

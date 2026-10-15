@@ -64,7 +64,7 @@ export function DocumentDownloads() {
                             {isPending ? (
                                 <Spinner aria-label="Preparando download" />
                             ) : (
-                                <Download aria-hidden="true" />
+                                <Download aria-hidden="true" className="text-muted-foreground" />
                             )}
                         </Button>
                     </div>

@@ -5,7 +5,8 @@ from fastapi import APIRouter, Path, Query
 from pydantic import BaseModel
 from sigaa_client import (
     ClassroomMember,
-    News,
+    ClassroomPost,
+    PostType,
     StatisticsShare,
 )
 
@@ -17,7 +18,7 @@ from api.modules.classrooms.frequency import (
     FrequencyServiceDep,
 )
 from api.modules.classrooms.lessons import ClassroomFrequencyView
-from api.modules.classrooms.news import ClassroomNewsServiceDep
+from api.modules.classrooms.posts import ClassroomPostsServiceDep
 from api.modules.classrooms.service import ClassroomServiceDep, ParticipantClassroom
 
 router = APIRouter()
@@ -26,9 +27,6 @@ CLASSROOM_ERRORS = {
     **SIGAA_ERRORS,
     404: {"description": "Turma não encontrada entre as turmas do usuário."},
 }
-NewsClassroomId = Annotated[
-    str, Path(description="Classroom.id ou o classroom_sigaa_id de /news.")
-]
 ClassroomId = Annotated[str, Path(description="Classroom.id ou Classroom.sigaa_id.")]
 LessonId = Annotated[UUID, Path(description="Lesson.id de uma aula da turma.")]
 
@@ -42,45 +40,52 @@ class LessonMarkBody(BaseModel):
 
 
 @router.get(
-    "/{classroom_id}/news",
-    response_model=list[News],
-    summary="Consultar notícias de uma turma do usuário",
-    description="ID, título e dia das notícias da turma. Cache de 60 minutos, atualizado em segundo plano após vencer; notícias removidas no SIGAA são preservadas.",
+    "/{classroom_id}/posts",
+    response_model=list[ClassroomPost],
+    summary="Consultar posts de uma turma",
+    description="Notícias, tópicos, materiais e agenda de avaliações. Materiais referenciam o tópico por topic_id. Conteúdo de notícias é carregado no detalhe. Cache de 60 minutos nas turmas atuais; posts removidos são preservados.",
     responses={
         **CLASSROOM_ERRORS,
         503: {"description": "Cache em atualização."},
-        504: {"description": "Notícias ainda não disponíveis no cache."},
+        504: {"description": "Posts ainda não disponíveis no cache."},
     },
 )
-async def get_classroom_news(
-    service: ClassroomNewsServiceDep,
-    classroom_id: NewsClassroomId,
-) -> list[News]:
-    return await service.list_classroom_news(classroom_id)
+async def get_classroom_posts(
+    service: ClassroomPostsServiceDep,
+    classroom_id: ClassroomId,
+    post_type: Annotated[
+        PostType | None,
+        Query(alias="type", description="Filtrar por categoria do post."),
+    ] = None,
+) -> list[ClassroomPost]:
+    posts = await service.list_posts(classroom_id)
+    return [post for post in posts if post_type is None or post.type == post_type]
 
 
 @router.get(
-    "/{classroom_id}/news/{news_id}",
-    response_model=News,
-    summary="Consultar conteúdo e anexos de uma notícia da turma",
-    description="Texto em Markdown, data e hora e anexos. Conteúdo salvo no primeiro acesso, sem revalidação automática. Cache-Control: no-cache força uma nova consulta.",
+    "/{classroom_id}/posts/{post_id}",
+    response_model=ClassroomPost,
+    summary="Consultar um post da turma",
+    description="Use o id retornado na listagem. Notícias trazem texto em Markdown e anexos, salvos sob demanda; no-cache força revalidação. Avaliações não incluem notas individuais.",
     responses={
-        **SIGAA_ERRORS,
-        404: {
-            "description": "Turma fora da lista do usuário ou notícia ausente na turma."
-        },
+        **CLASSROOM_ERRORS,
+        404: {"description": "Turma ou post não encontrado."},
         503: {"description": "Cache em atualização."},
-        504: {"description": "Conteúdo ainda não disponível no cache."},
+        504: {"description": "Post ainda não disponível no cache."},
     },
 )
-async def get_classroom_news_detail(
-    service: ClassroomNewsServiceDep,
-    classroom_id: NewsClassroomId,
-    news_id: Annotated[
-        int, Path(gt=0, description="ID da notícia na listagem da turma.")
+async def get_classroom_post(
+    service: ClassroomPostsServiceDep,
+    classroom_id: ClassroomId,
+    post_id: Annotated[
+        str,
+        Path(
+            pattern=r"^(news:[1-9][0-9]*|assessment:[1-9][0-9]*|topic:[a-f0-9]{64}|material:[a-f0-9]{64})$",
+            description="ID do post na listagem da turma.",
+        ),
     ],
-) -> News:
-    return await service.get_classroom_news(classroom_id, news_id)
+) -> ClassroomPost:
+    return await service.get_post(classroom_id, post_id)
 
 
 @router.get(

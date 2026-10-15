@@ -44,7 +44,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/classrooms/{classroom_id}/news": {
+    "/classrooms/{classroom_id}/posts": {
         parameters: {
             query?: never;
             header?: never;
@@ -52,10 +52,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Consultar notícias de uma turma do usuário
-         * @description ID, título e dia das notícias da turma. Cache de 60 minutos, atualizado em segundo plano após vencer; notícias removidas no SIGAA são preservadas.
+         * Consultar posts de uma turma
+         * @description Notícias, tópicos, materiais e agenda de avaliações. Materiais referenciam o tópico por topic_id. Conteúdo de notícias é carregado no detalhe. Cache de 60 minutos nas turmas atuais; posts removidos são preservados.
          */
-        get: operations["get_classroom_news_classrooms__classroom_id__news_get"];
+        get: operations["get_classroom_posts_classrooms__classroom_id__posts_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -64,7 +64,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/classrooms/{classroom_id}/news/{news_id}": {
+    "/classrooms/{classroom_id}/posts/{post_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -72,10 +72,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Consultar conteúdo e anexos de uma notícia da turma
-         * @description Texto em Markdown, data e hora e anexos. Conteúdo salvo no primeiro acesso, sem revalidação automática. Cache-Control: no-cache força uma nova consulta.
+         * Consultar um post da turma
+         * @description Use o id retornado na listagem. Notícias trazem texto em Markdown e anexos, salvos sob demanda; no-cache força revalidação. Avaliações não incluem notas individuais.
          */
-        get: operations["get_classroom_news_detail_classrooms__classroom_id__news__news_id__get"];
+        get: operations["get_classroom_post_classrooms__classroom_id__posts__post_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -418,7 +418,7 @@ export interface paths {
         patch: operations["update_settings_me_settings_patch"];
         trace?: never;
     };
-    "/news": {
+    "/posts": {
         parameters: {
             query?: never;
             header?: never;
@@ -426,10 +426,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Consultar notícias recentes das turmas na home do SIGAA
-         * @description Notícias recentes da home, sem cache.
+         * Consultar posts recentes das turmas na home do SIGAA
+         * @description Notícias recentes e avaliações agendadas das turmas atuais, sem cache. A home não traz IDs: o detalhe fica em /classrooms/{classroom_sigaa_id}/posts. Avaliação de disciplina não encontrada entre as turmas do portal vem com classroom_sigaa_id null.
          */
-        get: operations["get_news_news_get"];
+        get: operations["get_posts_posts_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -495,6 +495,41 @@ export interface components {
             unity?: string | null;
             /** Person Id */
             person_id?: number | null;
+        };
+        /** ClassroomPost */
+        ClassroomPost: {
+            /** Id */
+            id: string;
+            type: components["schemas"]["PostType"];
+            /** Sigaa Id */
+            sigaa_id?: string | null;
+            /** Classroom Sigaa Id */
+            classroom_sigaa_id?: number | null;
+            /** Topic Id */
+            topic_id?: string | null;
+            /** Title */
+            title: string;
+            /** Content */
+            content?: string | null;
+            /** Published On */
+            published_on?: string | null;
+            /** Published At */
+            published_at?: string | null;
+            /** Starts On */
+            starts_on?: string | null;
+            /** Ends On */
+            ends_on?: string | null;
+            /** Starts At */
+            starts_at?: string | null;
+            /** Time Label */
+            time_label?: string | null;
+            /** Url */
+            url?: string | null;
+            /**
+             * Attachments
+             * @default []
+             */
+            attachments: components["schemas"]["NewsAttachment"][];
         };
         /**
          * ClassroomProgress
@@ -587,6 +622,21 @@ export interface components {
             dinner?: components["schemas"]["MenuSection"][] | null;
         };
         /**
+         * DashboardPost
+         * @description Post recente da home: sem ID, o detalhe fica nos posts da turma.
+         */
+        DashboardPost: {
+            type: components["schemas"]["PostType"];
+            /** Classroom Sigaa Id */
+            classroom_sigaa_id?: number | null;
+            /** Title */
+            title: string;
+            /** Published On */
+            published_on?: string | null;
+            /** Starts On */
+            starts_on?: string | null;
+        };
+        /**
          * FrequencyStatus
          * @description Quanto das entradas publicadas o docente já registrou.
          * @enum {string}
@@ -672,32 +722,6 @@ export interface components {
          * @enum {string}
          */
         MenuSectionKey: "drink" | "bread" | "extra" | "spread" | "complement" | "complement_vegetarian" | "complement_vegan" | "fruit" | "salad_1" | "salad_2" | "salad_dressing" | "main_dish" | "main_dish_vegetarian" | "main_dish_vegan" | "side_dish" | "accompaniments" | "soup" | "toast" | "dessert";
-        /**
-         * News
-         * @description A home não traz `id`; hora, texto e anexos só vêm de `get_classroom_news`.
-         */
-        News: {
-            /** Id */
-            id?: number | null;
-            /** Classroom Sigaa Id */
-            classroom_sigaa_id?: number | null;
-            /** Title */
-            title: string;
-            /**
-             * Published On
-             * Format: date
-             */
-            published_on: string;
-            /** Published At */
-            published_at?: string | null;
-            /** Content */
-            content?: string | null;
-            /**
-             * Attachments
-             * @default []
-             */
-            attachments: components["schemas"]["NewsAttachment"][];
-        };
         /** NewsAttachment */
         NewsAttachment: {
             /** Name */
@@ -745,6 +769,11 @@ export interface components {
             subject: components["schemas"]["UserSubject"];
             grade?: components["schemas"]["Grade"] | null;
         };
+        /**
+         * PostType
+         * @enum {string}
+         */
+        PostType: "news" | "topic" | "material" | "assessment";
         /**
          * PublicClassroom
          * @description Turma da busca pública.
@@ -1092,15 +1121,18 @@ export interface operations {
             };
         };
     };
-    get_classroom_news_classrooms__classroom_id__news_get: {
+    get_classroom_posts_classrooms__classroom_id__posts_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Filtrar por categoria do post. */
+                type?: components["schemas"]["PostType"] | null;
+            };
             header?: {
                 /** @description `no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache). */
                 "Cache-Control"?: string | null;
             };
             path: {
-                /** @description Classroom.id ou o classroom_sigaa_id de /news. */
+                /** @description Classroom.id ou Classroom.sigaa_id. */
                 classroom_id: string;
             };
             cookie?: never;
@@ -1113,7 +1145,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["News"][];
+                    "application/json": components["schemas"]["ClassroomPost"][];
                 };
             };
             /** @description Credenciais ausentes ou inválidas. */
@@ -1153,7 +1185,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Notícias ainda não disponíveis no cache. */
+            /** @description Posts ainda não disponíveis no cache. */
             504: {
                 headers: {
                     [name: string]: unknown;
@@ -1162,7 +1194,7 @@ export interface operations {
             };
         };
     };
-    get_classroom_news_detail_classrooms__classroom_id__news__news_id__get: {
+    get_classroom_post_classrooms__classroom_id__posts__post_id__get: {
         parameters: {
             query?: never;
             header?: {
@@ -1170,10 +1202,10 @@ export interface operations {
                 "Cache-Control"?: string | null;
             };
             path: {
-                /** @description Classroom.id ou o classroom_sigaa_id de /news. */
+                /** @description Classroom.id ou Classroom.sigaa_id. */
                 classroom_id: string;
-                /** @description ID da notícia na listagem da turma. */
-                news_id: number;
+                /** @description ID do post na listagem da turma. */
+                post_id: string;
             };
             cookie?: never;
         };
@@ -1185,7 +1217,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["News"];
+                    "application/json": components["schemas"]["ClassroomPost"];
                 };
             };
             /** @description Credenciais ausentes ou inválidas. */
@@ -1195,7 +1227,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Turma fora da lista do usuário ou notícia ausente na turma. */
+            /** @description Turma ou post não encontrado. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -1225,7 +1257,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Conteúdo ainda não disponível no cache. */
+            /** @description Post ainda não disponível no cache. */
             504: {
                 headers: {
                     [name: string]: unknown;
@@ -2091,12 +2123,9 @@ export interface operations {
             };
         };
     };
-    get_news_news_get: {
+    get_posts_posts_get: {
         parameters: {
-            query?: {
-                /** @description Resolve os IDs com uma consulta adicional à listagem de notícias por turma. */
-                resolve_ids?: boolean;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
@@ -2109,7 +2138,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["News"][];
+                    "application/json": components["schemas"]["DashboardPost"][];
                 };
             };
             /** @description Credenciais ausentes ou inválidas. */
@@ -2118,15 +2147,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
             };
             /** @description SIGAA indisponível. */
             502: {

@@ -65,7 +65,7 @@ describe('QueryClient do app no navegador', () => {
                 queryFn: () => {
                     attempts += 1;
                     // a primeira falha decide o retry online; a conexão cai durante a espera
-                    setTimeout(() => onlineManager.setOnline(false), 0);
+                    if (attempts === 1) setTimeout(() => onlineManager.setOnline(false), 0);
                     return Promise.reject(new ApiError(503, 'fora'));
                 }
             })

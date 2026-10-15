@@ -34,7 +34,7 @@ export const Route = createFileRoute('/_app/')({
             path: '/',
             title: 'Followw — SIGAA UnB e cardápio do RU',
             description:
-                'Acompanhe suas turmas, horários e notícias do SIGAA, consulte o cardápio do RU e muito mais.'
+                'Acompanhe suas turmas, horários e postagens do SIGAA, consulte o cardápio do RU e muito mais.'
         }),
         scripts: [
             {
