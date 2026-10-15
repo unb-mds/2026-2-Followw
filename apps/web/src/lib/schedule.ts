@@ -23,6 +23,11 @@ const SLOTS: Record<string, [string, string][]> = {
     ]
 };
 
+// Intervalo máximo entre blocos para juntá-los, como o T6 (até 18:55) e o N1 (a partir de 19:00).
+const MERGE_GAP_MINUTES = 5;
+
+const getMinutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
+
 const WEEKDAYS_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 export interface ClassTime {
@@ -46,13 +51,18 @@ export function parseSchedule(code: string | null | undefined): ClassTime[] {
             });
         }
     }
-    // Junta blocos colados no mesmo dia, como `M5T1` (12:00–13:50).
+    // Junta blocos colados no mesmo dia, como `M5T1` (12:00–13:50) e `T6N1` (18:00–19:50).
     const merged: ClassTime[] = [];
     for (const time of times.toSorted(
         (a, b) => a.weekday - b.weekday || a.start.localeCompare(b.start)
     )) {
         const last = merged.at(-1);
-        if (last && last.weekday === time.weekday && last.end === time.start) last.end = time.end;
+        if (
+            last &&
+            last.weekday === time.weekday &&
+            getMinutes(time.start) - getMinutes(last.end) <= MERGE_GAP_MINUTES
+        )
+            last.end = time.end;
         else merged.push(time);
     }
     return merged;
@@ -108,11 +118,20 @@ export function nextDays(start: string, count: number): Day[] {
     });
 }
 
-/** Segunda a sábado da semana de `date`; no domingo, a semana que começa. */
-export function weekDays(date: string): Day[] {
+/** `2026-10-14` + 7 -> `2026-10-21`. */
+export function addDays(date: string, days: number): string {
+    const day = new Date(`${date}T00:00:00Z`);
+    day.setUTCDate(day.getUTCDate() + days);
+    return day.toISOString().slice(0, 10);
+}
+
+/** Segunda a sábado da semana de `date`; com `count = 7`, vai de segunda a domingo da mesma semana. */
+export function weekDays(date: string, count = 6): Day[] {
     const monday = new Date(`${date}T00:00:00Z`);
-    monday.setUTCDate(monday.getUTCDate() + 1 - monday.getUTCDay());
-    return nextDays(monday.toISOString().slice(0, 10), 6);
+    const day = monday.getUTCDay();
+    const diff = count === 7 && day === 0 ? -6 : 1 - day;
+    monday.setUTCDate(monday.getUTCDate() + diff);
+    return nextDays(monday.toISOString().slice(0, 10), count);
 }
 
 export interface ScheduledClass<T> extends ClassTime {
