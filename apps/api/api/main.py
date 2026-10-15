@@ -45,7 +45,7 @@ tags_metadata = [
     {
         "name": "Public Courses",
         "x-displayName": "Courses",
-        "description": "Currículos dos cursos por semestre de ingresso, sem autenticação.",
+        "description": "Cursos cadastrados e seus currículos por semestre de ingresso, sem autenticação.",
     },
     {
         "name": "Public Restaurant",

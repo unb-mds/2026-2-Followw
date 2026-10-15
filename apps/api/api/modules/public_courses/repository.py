@@ -6,9 +6,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.db.models import Course, Curriculum, CurriculumComponent, Subject
 
 
-class CourseCurriculumRepository:
+class PublicCourseRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+
+    async def list_courses(self) -> list[Course]:
+        return list(
+            await self._session.scalars(select(Course).order_by(Course.name, Course.id))
+        )
 
     async def get_course(self, course_id: int) -> Course | None:
         return await self._session.get(Course, course_id)

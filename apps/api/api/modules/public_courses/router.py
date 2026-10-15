@@ -6,10 +6,27 @@ from api.cache import NoStore
 from api.modules.public_courses.service import (
     CourseCurriculum,
     CurriculumConflict,
+    PublicCourse,
     PublicCourseServiceDep,
 )
 
 router = APIRouter()
+
+
+@router.get(
+    "",
+    response_model=list[PublicCourse],
+    summary="Listar cursos cadastrados",
+    description=(
+        "Lista os cursos gravados no Followw, ordenados por nome e ID local, sem autenticação. "
+        "Inclui cursos sem currículo e os criados pelo sync, cujo sigaa_id pode ser nulo. "
+        "O campo id é o course_id usado na consulta de currículo; unity traz a sigla da unidade "
+        "e shift preserva o turno cadastrado, como no perfil. Banco sem cursos retorna lista vazia."
+    ),
+    dependencies=[NoStore],
+)
+async def list_courses(service: PublicCourseServiceDep) -> list[PublicCourse]:
+    return await service.list_courses()
 
 
 @router.get(
