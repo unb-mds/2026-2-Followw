@@ -14,6 +14,17 @@ class SubjectCatalogRepository:
     async def list_unities(self) -> list[Unity]:
         return list(await self._session.scalars(select(Unity).order_by(Unity.id)))
 
+    async def subject_names(self, codes: set[str]) -> dict[str, str]:
+        if not codes:
+            return {}
+        return dict(
+            (
+                await self._session.execute(
+                    select(Subject.code, Subject.name).where(Subject.code.in_(codes))
+                )
+            ).all()
+        )
+
     async def list_subjects(
         self,
         *,

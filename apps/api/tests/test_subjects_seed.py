@@ -27,9 +27,16 @@ def test_csv_do_repositorio_aponta_para_unidades_que_existem():
     unities = {unity.id for unity in read_unities(UNITIES_CSV)}
     subjects = read_subjects(SUBJECTS_CSV)
 
-    assert {s.unity_id for s in subjects} <= unities
+    assert {s.unity_id for s in subjects if s.unity_id is not None} <= unities
     assert all(s.hours for s in subjects)
     assert any(s.prerequisites for s in subjects)
+
+
+def test_catalogo_inclui_nomes_dos_requisitos_sem_oferta():
+    subjects = {subject.code: subject for subject in read_subjects(SUBJECTS_CSV)}
+
+    assert subjects["IQD0051"].name == "QUÍMICA GERAL"
+    assert subjects["FGA0138"].name == "MÉTODOS DE DESENVOLVIMENTO DE SOFTWARE"
 
 
 @pytest.mark.parametrize(

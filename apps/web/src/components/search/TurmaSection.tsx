@@ -12,11 +12,13 @@ import { prerequisitesMet } from '#/queries/subjects';
 export function TurmaSection({
     title,
     subjects,
-    approved
+    approved,
+    onOpenDetails
 }: {
     title: string;
     subjects: CatalogSubject[];
     approved: Set<string> | null;
+    onOpenDetails?: () => void;
 }) {
     if (subjects.length === 0) return null;
 
@@ -50,6 +52,7 @@ export function TurmaSection({
                                         key={classroom.number}
                                         subject={subject}
                                         classroom={classroom}
+                                        onOpenDetails={onOpenDetails}
                                         prerequisitesMet={prerequisitesMet(
                                             subject.prerequisites,
                                             approved

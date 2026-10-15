@@ -10,6 +10,7 @@ from _by_unit import (
     parse_semester,
     write_csv,
 )
+from complete_subjects import complete_subjects
 
 from sigaa_client import SigaaPublicClient, SubjectDetails, TeachingLevel, Unit
 
@@ -83,8 +84,9 @@ def subject_rows(
 def main():
     args = parse_args(__doc__, OUTPUT)
     subjects = asyncio.run(collect_subjects(args.semester, args.unit, args.workers))
-    write_csv(subject_rows(subjects), COLUMNS, args.output)
-    print(f"Salvo em {args.output}: {len(subjects)} componentes.")
+    rows = asyncio.run(complete_subjects(subject_rows(subjects)))
+    write_csv(rows, COLUMNS, args.output)
+    print(f"Salvo em {args.output}: {len(rows)} componentes.")
 
 
 if __name__ == "__main__":

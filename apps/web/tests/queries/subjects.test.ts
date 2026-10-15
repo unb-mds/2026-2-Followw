@@ -4,7 +4,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 
 import type { Classroom } from '#/queries/classrooms';
-import type { CatalogSubject, SubjectClassroom } from '#/queries/subjects';
+import type { CatalogSubject, Requirements, SubjectClassroom } from '#/queries/subjects';
 
 import { apiClient } from '#/queries/client';
 import {
@@ -29,10 +29,12 @@ const morning: SubjectClassroom = {
     occupied: 48
 };
 const night: SubjectClassroom = { ...morning, number: '02', schedule: '24N12', occupied: 50 };
+const requirements = (groups: string[][]): Requirements =>
+    groups.map((group) => group.map((code) => ({ code, subject: null })));
 const subject: CatalogSubject = {
     code: 'FGA0003',
     name: 'COMPILADORES',
-    prerequisites: [['FGA0001', 'FGA0002'], ['FGA0010']],
+    prerequisites: requirements([['FGA0001', 'FGA0002'], ['FGA0010']]),
     classrooms: [morning, night]
 };
 
@@ -65,13 +67,25 @@ describe('busca de matérias', () => {
     });
 
     test.each([
-        ['FGA0003', 'FCTE', { code: 'FGA0003' }],
-        [' fga0003 ', null, { code: 'fga0003' }],
+        ['FGA0003', 'FCTE', { q: 'FGA0003' }],
+        [' fga0003 ', null, { q: 'fga0003' }],
         [' cálculo 1 ', 'FCTE', { q: 'cálculo 1' }],
+        ['Carlos Silva', null, { q: 'Carlos Silva' }],
+        ['ab', 'FCTE', { unit: 'FCTE' }],
+        ['ab', null, null],
+        ['abc', null, { q: 'abc' }],
+        ['a'.repeat(24), null, { q: 'a'.repeat(24) }],
+        ['a'.repeat(25), 'FCTE', { unit: 'FCTE' }],
         ['  ', 'FCTE', { unit: 'FCTE' }],
         ['', null, null]
     ])('"%s" com unidade %s busca %p', (busca, unit, expected) => {
         expect(subjectsQuery(busca, unit)).toEqual(expected);
+    });
+
+    test('texto fora dos limites mantém a consulta anterior', () => {
+        expect(subjectsQuery('ab', 'FCTE', { q: 'calculo' })).toEqual({ q: 'calculo' });
+        expect(subjectsQuery('a'.repeat(25), null, null)).toBeNull();
+        expect(subjectsQuery('', 'FCTE', { q: 'calculo' })).toEqual({ unit: 'FCTE' });
     });
 });
 
@@ -97,19 +111,30 @@ describe('pré-requisitos', () => {
     });
 
     test('avalia OU de Es pelos códigos aprovados', () => {
-        const requirements = subject.prerequisites;
-        expect(prerequisitesMet(requirements, new Set(['FGA0001', 'FGA0002']))).toBe(true);
-        expect(prerequisitesMet(requirements, new Set(['FGA0010']))).toBe(true);
-        expect(prerequisitesMet(requirements, new Set(['FGA0001']))).toBe(false);
-        expect(prerequisitesMet(requirements, null)).toBeNull();
+        const groups = subject.prerequisites;
+        expect(prerequisitesMet(groups, new Set(['FGA0001', 'FGA0002']))).toBe(true);
+        expect(prerequisitesMet(groups, new Set(['FGA0010']))).toBe(true);
+        expect(prerequisitesMet(groups, new Set(['FGA0001']))).toBe(false);
+        expect(prerequisitesMet(groups, null)).toBeNull();
         expect(prerequisitesMet(null, new Set())).toBe(true);
         expect(prerequisitesMet([], null)).toBe(true);
     });
 
     test('formata a expressão para leitura', () => {
-        expect(formatRequirements([['A', 'B'], ['C']])).toBe('(A e B) ou C');
-        expect(formatRequirements([['A', 'B']])).toBe('A e B');
-        expect(formatRequirements([['A'], ['B']])).toBe('A ou B');
+        expect(formatRequirements(requirements([['A', 'B'], ['C']]))).toBe('(A e B) ou C');
+        expect(formatRequirements(requirements([['A', 'B']]))).toBe('A e B');
+        expect(formatRequirements(requirements([['A'], ['B']]))).toBe('A ou B');
+    });
+
+    test('mostra nomes resolvidos e mantém códigos sem relacionamento', () => {
+        const groups = [
+            [
+                { code: 'MAT0023', subject: { code: 'MAT0023', name: 'Cálculo 1' } },
+                { code: 'ANTIGO', subject: null }
+            ]
+        ];
+        expect(formatRequirements(groups)).toBe('Cálculo 1 e ANTIGO');
+        expect(prerequisitesMet(groups, new Set(['MAT0023', 'ANTIGO']))).toBe(true);
     });
 });
 
