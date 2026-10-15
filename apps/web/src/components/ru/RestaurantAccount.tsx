@@ -93,7 +93,7 @@ export function RestaurantAccount({ registration }: { registration: string }) {
     );
 
     return (
-        <section className="mt-8 flex flex-col gap-3" aria-label="Minha conta">
+        <section className="mt-4 flex flex-col gap-3" aria-label="Minha conta">
             <div className="flex items-center justify-between px-1">
                 <h2 className="text-lg font-extrabold text-foreground">Minha conta</h2>
                 <Button

@@ -12,7 +12,8 @@ describe('titleCase', () => {
         ["MARIA-JOSÉ D'ÁVILA", "Maria-José D'Ávila"],
         ['CIÊNCIAS AMBIENTAIS (PROFISSIONAL)', 'Ciências Ambientais (Profissional)'],
         ['PEDRO DE ALCÂNTARA II', 'Pedro de Alcântara II'],
-        ['VIVIANE XAVIER', 'Viviane Xavier']
+        ['VIVIANE XAVIER', 'Viviane Xavier'],
+        ['CAMPUS UNB GAMA', 'Campus UnB Gama']
     ])('formata %s', (text, expected) => {
         expect(titleCase(text)).toBe(expected);
     });

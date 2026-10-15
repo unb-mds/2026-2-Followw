@@ -4,6 +4,7 @@ import type { Middleware } from 'openapi-fetch';
 import { QueryClient, QueryClientProvider, environmentManager } from '@tanstack/react-query';
 import {
     Outlet,
+    RouterContextProvider,
     RouterProvider,
     createMemoryHistory,
     createRootRoute,
@@ -70,6 +71,12 @@ function makeSearchRouter(isServer: boolean) {
     });
     router.ssr = { manifest: undefined };
     return router;
+}
+
+function makeLoginRouter() {
+    const root = createRootRoute();
+    const login = createRoute({ getParentRoute: () => root, path: '/login' });
+    return createRouter({ routeTree: root.addChildren([login]) });
 }
 
 beforeAll(async () => {
@@ -161,14 +168,16 @@ describe('página de busca com estado na URL', () => {
     const renderPage = (searchParams = '') =>
         testing.render(
             <QueryClientProvider client={client}>
-                <NuqsTestingAdapter
-                    searchParams={searchParams}
-                    hasMemory
-                    onUrlUpdate={(event) => updates.push(event)}
-                >
-                    <BuscarTurmasPage />
-                    <ResetFilters />
-                </NuqsTestingAdapter>
+                <RouterContextProvider router={makeLoginRouter()}>
+                    <NuqsTestingAdapter
+                        searchParams={searchParams}
+                        hasMemory
+                        onUrlUpdate={(event) => updates.push(event)}
+                    >
+                        <BuscarTurmasPage />
+                        <ResetFilters />
+                    </NuqsTestingAdapter>
+                </RouterContextProvider>
             </QueryClientProvider>
         );
 
@@ -247,6 +256,24 @@ describe('página de busca com estado na URL', () => {
         expect(updates.at(-1)?.searchParams.has('disponibilidade')).toBe(false);
         expect(updates.at(-1)?.searchParams.get('q')).toBe('calculo');
         await testing.waitFor(() => expect(page.getByText('2 turmas')).toBeDefined());
+    });
+
+    test('mostra as matérias em lotes de 20', async () => {
+        const subjects = Array.from({ length: 45 }, (_, i) => ({
+            code: `MAT${String(i).padStart(4, '0')}`,
+            name: `Matéria ${i}`,
+            classrooms: [{ number: '01', semester: '2026.2', professors: [] }]
+        }));
+        client.setQueryData(subjectsQueryOptions({ q: 'materia' }).queryKey, subjects);
+        const page = renderPage('?q=materia');
+        const items = () => page.container.querySelectorAll('[data-slot="accordion-item"]');
+        expect(items()).toHaveLength(20);
+        expect(page.getByText('45 resultados')).toBeDefined();
+        testing.fireEvent.click(page.getByRole('button', { name: 'Mostrar mais' }));
+        expect(items()).toHaveLength(40);
+        testing.fireEvent.click(page.getByRole('button', { name: 'Mostrar mais' }));
+        expect(items()).toHaveLength(45);
+        expect(page.queryByRole('button', { name: 'Mostrar mais' })).toBeNull();
     });
 
     test('abrir detalhes atualiza no cache os nomes ausentes dos requisitos', async () => {

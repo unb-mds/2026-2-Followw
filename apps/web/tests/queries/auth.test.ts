@@ -1,11 +1,14 @@
+import type { Middleware } from 'openapi-fetch';
+
 import { noop } from '@tanstack/react-query';
 import { afterEach, describe, expect, test } from 'bun:test';
 
 import type { components } from '#/queries/schema.gen.ts';
 
 import { getContext } from '#/integrations/tanstack-query/root-provider.tsx';
-import { clearSession } from '#/queries/auth.ts';
+import { SessionNotStoredError, clearSession, startSession } from '#/queries/auth.ts';
 import { classroomPostsQueryOptions, classroomsQueryOptions } from '#/queries/classrooms.ts';
+import { apiClient } from '#/queries/client.ts';
 import { ApiError } from '#/queries/errors.ts';
 import { meQueryOptions } from '#/queries/me.ts';
 import { menuQueryOptions } from '#/queries/restaurant.ts';
@@ -126,5 +129,82 @@ describe('clearSession', () => {
             .catch(noop);
 
         expect(queryClient.getQueryData(meQueryOptions.queryKey)).not.toBeNull();
+    });
+});
+
+describe('startSession', () => {
+    let middleware: Middleware | undefined;
+
+    // devolve o corpo, ou falha como o errorHandlingMiddleware faria
+    function respond(response: () => Response | ApiError) {
+        middleware = {
+            onRequest: () => {
+                const result = response();
+                if (result instanceof ApiError) throw result;
+                return result;
+            }
+        };
+        apiClient.use(middleware);
+    }
+
+    afterEach(() => {
+        if (middleware) apiClient.eject(middleware);
+    });
+
+    test('busca o perfil de novo mesmo com o /me nulo em cache', async () => {
+        const { queryClient } = getContext();
+        queryClient.setQueryData(meQueryOptions.queryKey, null);
+        respond(() => Response.json(user));
+
+        expect(await startSession(queryClient)).toEqual(user);
+        expect(queryClient.getQueryData(meQueryOptions.queryKey)).toEqual(user);
+    });
+
+    test('não reaproveita um /me que saiu antes dos cookies do login', async () => {
+        const { queryClient } = getContext();
+        let release = noop;
+        let markStarted = noop;
+        const started = new Promise<void>((resolve) => (markStarted = resolve));
+        let calls = 0;
+        middleware = {
+            onRequest: async () => {
+                calls += 1;
+                if (calls > 1) {
+                    release();
+                    return Response.json(user);
+                }
+                markStarted();
+                await new Promise<void>((resolve) => {
+                    release = resolve;
+                    setTimeout(resolve, 100);
+                });
+                throw new ApiError(401, 'Not authenticated');
+            }
+        };
+        apiClient.use(middleware);
+
+        // ex.: refetch ao voltar o foco enquanto o POST do login ainda não respondeu
+        const stale = queryClient.query({ ...meQueryOptions, staleTime: 0 }).catch(noop);
+        await started;
+
+        expect(await startSession(queryClient)).toEqual(user);
+        await stale;
+        expect(queryClient.getQueryData(meQueryOptions.queryKey)).toEqual(user);
+    });
+
+    test('falha se o /me logo após o login ainda vier sem sessão', async () => {
+        const { queryClient } = getContext();
+        respond(() => new ApiError(401, 'Not authenticated'));
+
+        const error = await startSession(queryClient).catch((reason: unknown) => reason);
+        expect(error).toBeInstanceOf(SessionNotStoredError);
+    });
+
+    test('repassa a falha do SIGAA em vez de seguir deslogado', async () => {
+        const { queryClient } = getContext();
+        respond(() => new ApiError(502, 'SIGAA is unavailable'));
+
+        const error = await startSession(queryClient).catch((reason: unknown) => reason);
+        expect(error).toMatchObject({ status: 502 });
     });
 });

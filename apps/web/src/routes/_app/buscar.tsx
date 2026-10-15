@@ -5,7 +5,7 @@ import {
     useQueryClient,
     useSuspenseQuery
 } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { Clock, ListFilter, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -14,6 +14,7 @@ import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
 import { LoadingText } from '#/components/LoadingText';
 import { FilterSelect } from '#/components/search/FilterSelect';
 import { TurmaSection } from '#/components/search/TurmaSection';
+import { Button } from '#/components/ui/button';
 import { Input } from '#/components/ui/input';
 import { useOnline } from '#/lib/online';
 import { loadSearchParams, useSearchState, validateSearch } from '#/lib/search-params';
@@ -33,6 +34,8 @@ import {
     subjectsQueryOptions,
     TURNOS
 } from '#/queries/subjects';
+
+const PAGE_SIZE = 20;
 
 export const Route = createFileRoute('/_app/buscar')({
     head: () => ({ meta: [{ title: 'Buscar Turmas | Followw' }] }),
@@ -66,6 +69,9 @@ function BuscarTurmasPage() {
     const unit = user?.unity ?? null;
     // Consulta aplicada após o debounce de 300 ms; texto inválido mantém a anterior.
     const [query, setQuery] = useState(() => subjectsQuery(busca, unit));
+    const [pagination, setPagination] = useState({ key: '', limit: PAGE_SIZE });
+    const paginationKey = JSON.stringify([query, turno, disponibilidade]);
+    const limit = pagination.key === paginationKey ? pagination.limit : PAGE_SIZE;
     const online = useOnline();
 
     useEffect(() => {
@@ -85,6 +91,7 @@ function BuscarTurmasPage() {
     const approved = useMemo(() => (history ? approvedCodes(history) : null), [history]);
 
     const subjects = filterSubjects(data ?? [], { turno, disponibilidade }, approved);
+    const visible = subjects.slice(0, limit);
     const semester = subjects[0]?.classrooms[0]?.semester;
     const title = query?.unit ? `Matérias da ${query.unit}` : 'Resultados da busca';
     const refreshSubjects = () => {
@@ -135,7 +142,7 @@ function BuscarTurmasPage() {
                         {`Digite de ${SEARCH_MIN_LENGTH} a ${SEARCH_MAX_LENGTH} caracteres do nome, código da matéria ou professor para ver as turmas.`}
                     </p>
                 ) : isPending ? (
-                    <LoadingText>Buscando turmas...</LoadingText>
+                    <LoadingText className="justify-center">Buscando turmas...</LoadingText>
                 ) : isLoadingError ? (
                     <ErrorCard
                         message="Não foi possível buscar as turmas."
@@ -150,16 +157,34 @@ function BuscarTurmasPage() {
                             />
                         )}
                         {!user && (
-                            <p className="text-xs text-muted-foreground">
-                                Entre na sua conta para verificar os pré-requisitos das matérias.
+                            <p className="text-sm text-muted-foreground">
+                                <Link
+                                    className="font-bold text-primary hover:underline"
+                                    to="/login"
+                                >
+                                    Entre na sua conta
+                                </Link>{' '}
+                                para visualizar seu fluxo.
                             </p>
                         )}
                         <TurmaSection
                             title={semester ? `${title} · ${semester}` : title}
-                            subjects={subjects}
+                            subjects={visible}
+                            total={subjects.length}
                             approved={approved}
                             onOpenDetails={refreshSubjects}
                         />
+                        {subjects.length > visible.length && (
+                            <Button
+                                variant="outline"
+                                className="self-center"
+                                onClick={() =>
+                                    setPagination({ key: paginationKey, limit: limit + PAGE_SIZE })
+                                }
+                            >
+                                Mostrar mais
+                            </Button>
+                        )}
                         {subjects.length === 0 && (
                             <p className="py-8 text-center text-sm text-muted-foreground">
                                 Nenhuma turma encontrada. Tente mudar a busca ou os filtros.

@@ -8,7 +8,6 @@ from sigaa_client import (
     AuthenticationFailed,
     ClassroomNotFound,
     NewsNotFound,
-    SessionExpired,
     SigaaError,
     SigaaSearchError,
 )
@@ -40,10 +39,10 @@ async def _authentication_failed(_: Request, __: Exception) -> JSONResponse:
     return response
 
 
-# O Starlette escolhe o handler pela classe mais específica da exceção.
+# O Starlette escolhe o handler pela classe mais específica da exceção. Sessão do
+# SIGAA que morre mesmo após o relogin é falha da origem (502), não do login.
 EXCEPTION_HANDLERS: dict[type[Exception], Handler] = {
     AuthenticationFailed: _authentication_failed,
-    SessionExpired: _error(401, "Session expired"),
     ClassroomNotFound: _error(404, "Classroom not found"),
     NewsNotFound: _error(404, "News not found"),
     SigaaSearchError: _error(422),

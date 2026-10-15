@@ -116,7 +116,7 @@ def test_credenciais_recusadas_viram_401_e_apagam_os_cookies(
     assert jar[REFRESH_COOKIE_NAME]["max-age"] == "0"
 
 
-def test_sessao_irrecuperavel_vira_401_sem_apagar_os_cookies(
+def test_sessao_irrecuperavel_vira_502_sem_apagar_os_cookies(
     probe_app, sigaa, cookies, ler_cookies
 ):
     """A senha ainda vale: uma falha de sessão não pode deslogar o usuário."""
@@ -128,7 +128,8 @@ def test_sessao_irrecuperavel_vira_401_sem_apagar_os_cookies(
     sonda.cookies.update(cookies(refresh=CREDENCIAIS))
     response = sonda.get("/probe")
 
-    assert response.status_code == 401
+    # 401 faria o front encerrar a sessão.
+    assert response.status_code == 502
     assert REFRESH_COOKIE_NAME not in ler_cookies(response)
 
 

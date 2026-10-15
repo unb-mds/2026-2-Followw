@@ -46,4 +46,11 @@ describe('recarga por chunk ausente', () => {
 
         expect(listeners.size).toBe(0);
     });
+
+    test('sem storage não registra o listener, para não recarregar em loop', () => {
+        const { target, listeners } = setup();
+        reloadOnPreloadError(target, null);
+
+        expect(listeners.size).toBe(0);
+    });
 });

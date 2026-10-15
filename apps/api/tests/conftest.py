@@ -63,6 +63,12 @@ FORM_CAS = """
 </form></body></html>
 """
 
+# Recorte da resposta real do CAS a credenciais inválidas.
+FORM_CAS_RECUSADO = FORM_CAS.replace(
+    'method="post">',
+    'method="post"><p id="errors" class="login-error">Credenciais inválidas.</p>',
+)
+
 
 class FakeSigaa:
     """SIGAA de mentira no nível HTTP: valida a senha e exige o JSESSIONID.
@@ -102,8 +108,7 @@ class FakeSigaa:
 
         payload = dict(httpx.QueryParams(request.content.decode()))
         if payload.get("password") != self.password:
-            # O CAS reexibe o próprio form: é assim que o client detecta a recusa.
-            return httpx.Response(200, text=FORM_CAS)
+            return httpx.Response(200, text=FORM_CAS_RECUSADO)
 
         return httpx.Response(
             302,

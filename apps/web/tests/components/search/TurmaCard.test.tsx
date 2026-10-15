@@ -108,8 +108,7 @@ describe('TurmaDetails', () => {
             'FGA0001',
             'FGA0002',
             'FGA0010',
-            '38 de 40 vagas ocupadas',
-            '2 vagas disponíveis'
+            '38/40'
         ])
             expect(markup).toContain(text);
         expect(markup).not.toContain('Correquisitos');
@@ -148,24 +147,25 @@ describe('TurmaDetails', () => {
         expect(markup).not.toContain('<details');
     });
 
-    test.each([
-        [38, 40, 95],
-        [42, 40, 100],
-        [0, 0, 0]
-    ])('barra de %s/%s não ultrapassa o total', (occupied, vacancies, percent) => {
-        const markup = details({ occupied, vacancies });
-        expect(markup).toContain(`aria-valuenow="${percent}"`);
-        expect(markup).not.toContain('NaN');
-    });
-
     test.each([{ vacancies: null }, { occupied: null }])('não inventa ocupação: %p', (missing) => {
         const markup = details(missing);
-        expect(markup).toContain('Vagas não informadas');
-        expect(markup).not.toContain('role="progressbar"');
+        expect(markup).toContain('Não informadas');
+        expect(markup).not.toContain('text-destructive');
+        expect(markup).not.toContain('text-warning');
     });
 
-    test('indica uma única vaga no singular', () => {
-        expect(details({ occupied: 39 })).toContain('1 vaga disponível');
+    test.each([
+        [37, 'text-warning'],
+        [40, 'text-destructive'],
+        [42, 'text-destructive']
+    ])('vagas ocupadas %s destacam com %s', (occupied, color) => {
+        expect(details({ occupied, vacancies: 40 })).toContain(color);
+    });
+
+    test('mais de 3 vagas restantes não destaca', () => {
+        const markup = details({ occupied: 30, vacancies: 40 });
+        expect(markup).not.toContain('text-destructive');
+        expect(markup).not.toContain('text-warning');
     });
 
     test('mostra os impedimentos da turma', () => {
@@ -182,7 +182,7 @@ describe('TurmaDetails', () => {
             { unity: null, hours: null, prerequisites: null }
         );
         for (const text of [
-            'Vagas não informadas',
+            'Não informadas',
             'Horário a definir',
             'Local não informado',
             'Unidade não informada',
@@ -201,6 +201,7 @@ describe('TurmaSection', () => {
             <TurmaSection title="Resultados" subjects={[subject, other]} approved={null} />
         );
         expect(markup).toContain('Resultados');
+        expect(markup).toContain('2 resultados');
         expect(markup.match(/data-slot="accordion-item"/g)).toHaveLength(2);
         expect(markup).toContain('1 turma<');
         expect(markup).toContain('2 turmas');

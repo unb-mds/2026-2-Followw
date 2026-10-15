@@ -1,17 +1,19 @@
 import { createFileRoute, Link, redirect, useNavigate } from '@tanstack/react-router';
 import { Eye, EyeOff } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 
 import { LoginPrivacyInfo } from '#/components/auth/LoginPrivacyInfo';
 import { LoginSubmitButton } from '#/components/auth/LoginSubmitButton';
+import { CookiesBlockedPage } from '#/components/CookiesBlockedPage';
 import { ErrorState } from '#/components/ErrorState';
 import { FollowwLogo } from '#/components/FollowwLogo';
 import { Button, buttonVariants } from '#/components/ui/button';
 import { Input } from '#/components/ui/input';
 import { Label } from '#/components/ui/label';
+import { isStorageBlocked } from '#/lib/local-storage';
 import { OFFLINE_MESSAGE, useOnline } from '#/lib/online';
 import { cn } from '#/lib/shadcn';
-import { useLogin } from '#/queries/auth';
+import { SessionNotStoredError, useLogin } from '#/queries/auth';
 import { ApiError } from '#/queries/errors';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
@@ -31,6 +33,8 @@ export const Route = createFileRoute('/login')({
     component: LoginPage
 });
 
+const subscribeNever = () => () => {};
+
 function LoginPage() {
     const navigate = useNavigate();
     const login = useLogin();
@@ -38,11 +42,18 @@ function LoginPage() {
     const [registration, setRegistration] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    // o SSR não sabe: decide na hidratação
+    const storageBlocked = useSyncExternalStore(subscribeNever, isStorageBlocked, () => false);
+
+    if (storageBlocked) return <CookiesBlockedPage />;
 
     let error: string | undefined;
     if (!online) error = OFFLINE_MESSAGE;
     else if (login.error instanceof ApiError && login.error.isUnauthorized)
         error = 'Matrícula ou senha incorretas.';
+    else if (login.error instanceof SessionNotStoredError)
+        error =
+            'Seu navegador bloqueou o login. Permita cookies para o Followw ou abra no navegador.';
     else if (login.error) error = 'Não foi possível conectar ao SIGAA. Tente novamente.';
 
     return (

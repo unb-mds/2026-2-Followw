@@ -17,6 +17,7 @@ export function creditsLabel(hours: number) {
 
 const LOWERCASE_WORDS = new Set(['a', 'as', 'da', 'das', 'de', 'do', 'dos', 'e', 'em', 'o', 'os']);
 const ROMAN_NUMERAL = /^[ivx]+$/;
+const SPECIAL_WORDS: Record<string, string> = { unb: 'UnB' };
 // início de palavra, inclusive após hífen, apóstrofo, parêntese ou barra
 const WORD_START = /(^|[-'’(/])(\p{L})/gu;
 
@@ -27,6 +28,7 @@ export function titleCase(text: string) {
         .split(/\s+/)
         .filter(Boolean)
         .map((word, index) => {
+            if (word in SPECIAL_WORDS) return SPECIAL_WORDS[word];
             if (index === 0) return capitalize(word);
             if (LOWERCASE_WORDS.has(word)) return word;
             if (ROMAN_NUMERAL.test(word)) return word.toLocaleUpperCase('pt-BR');
