@@ -146,9 +146,9 @@ async def test_seed_recusa_curso_desconhecido_antes_de_gravar(async_database, tm
         assert not (await session.scalars(select(Curriculum))).all()
 
 
-async def test_seed_parcial_preserva_componentes_dos_outros_cursos(
-    async_database, tmp_path
-):
+async def test_seed_remove_matrizes_que_sairam_do_csv(async_database, tmp_path):
+    newer = MATRIX.replace("456,", "789,").replace("2020", "2024")
+    newer_components = [row.replace(",456,", ",789,") for row in COMPONENTS]
     other_matrix = MATRIX.replace("414112", "414113")
     other_components = [row.replace("414112", "414113") for row in COMPONENTS]
     async with async_database.begin() as session:
@@ -161,28 +161,32 @@ async def test_seed_parcial_preserva_componentes_dos_outros_cursos(
         await session.flush()
         await seed_curricula(
             session,
-            *_csvs(tmp_path, [MATRIX, other_matrix], COMPONENTS + other_components),
+            *_csvs(
+                tmp_path,
+                [MATRIX, newer, other_matrix],
+                COMPONENTS + newer_components + other_components,
+            ),
         )
         await seed_curricula(
-            session, *_csvs(tmp_path, components=["414112,456,0,optional,NOVO"])
+            session,
+            *_csvs(tmp_path, [newer], ["414112,789,0,optional,NOVO"]),
         )
     async with async_database() as session:
         rows = (
             await session.execute(
-                select(Course.sigaa_id, CurriculumComponent.subject_code)
+                select(
+                    Course.sigaa_id,
+                    Curriculum.sigaa_id,
+                    CurriculumComponent.subject_code,
+                )
                 .join(Curriculum, Curriculum.course_id == Course.id)
-                .join(
+                .outerjoin(
                     CurriculumComponent,
                     CurriculumComponent.curriculum_id == Curriculum.id,
                 )
             )
         ).all()
-        assert set(rows) == {
-            (414112, "NOVO"),
-            (414113, "ADM0023"),
-            (414113, "ADM0002"),
-            (414113, "ADM0100"),
-        }
+        assert rows == [(414112, 789, "NOVO")]
 
 
 async def test_dataset_completo_pode_ser_semeado_duas_vezes(async_database):
