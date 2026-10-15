@@ -54,6 +54,44 @@ Index(
 )
 
 
+class Curriculum(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "curricula"
+    __table_args__ = (
+        UniqueConstraint("course_id", "sigaa_id", name="uq_curriculum_course_sigaa"),
+        Index("ix_curriculum_course_valid_from", "course_id", "valid_from"),
+    )
+
+    course_id: Mapped[int] = mapped_column(ForeignKey("courses.id"))
+    sigaa_id: Mapped[int] = mapped_column()
+    code: Mapped[str] = mapped_column()
+    valid_from: Mapped[str] = mapped_column()
+    created_year: Mapped[int] = mapped_column()
+    active: Mapped[bool] = mapped_column()
+    shift: Mapped[str | None] = mapped_column()
+    matrix: Mapped[str] = mapped_column()
+
+    course: Mapped[Course] = relationship()
+
+
+class CurriculumComponent(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "curriculum_components"
+    __table_args__ = (
+        UniqueConstraint(
+            "curriculum_id",
+            "subject_code",
+            "kind",
+            "period",
+            name="uq_curriculum_component",
+        ),
+        Index("ix_curriculum_component_period", "curriculum_id", "period"),
+    )
+
+    curriculum_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("curricula.id"))
+    subject_code: Mapped[str] = mapped_column()
+    period: Mapped[int | None] = mapped_column()
+    kind: Mapped[str] = mapped_column()
+
+
 class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "users"
 

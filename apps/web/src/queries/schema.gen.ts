@@ -235,6 +235,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/public/courses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Listar cursos cadastrados
+         * @description Lista os cursos gravados no Followw, ordenados por nome e ID local, sem autenticação. Inclui cursos sem currículo e os criados pelo sync, cujo sigaa_id pode ser nulo. O campo id é o course_id usado na consulta de currículo; unity traz a sigla da unidade e shift preserva o turno cadastrado, como no perfil. Banco sem cursos retorna lista vazia.
+         */
+        get: operations["list_courses_public_courses_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/courses/{course_id}/curriculum": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Consultar currículo do curso pelo ingresso
+         * @description Seleciona, entre as matrizes ativas cadastradas, a vigência mais recente anterior ou igual ao ingresso; antes da primeira vigência, usa a mais antiga. Entre matrizes da mesma vigência, vale a de maior revisão do código, salvo se curriculum_sigaa_id escolher outra. As matérias vêm agrupadas por período, com optativas no período 0 e complementares em uma lista própria. Nome, carga horária e requisitos vêm do catálogo gravado; dados ausentes ficam nulos. Não consulta o SIGAA.
+         */
+        get: operations["get_curriculum_public_courses__course_id__curriculum_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/public/restaurant": {
         parameters: {
             query?: never;
@@ -472,6 +512,48 @@ export interface components {
          * @enum {string}
          */
         ClassroomRole: "aluno" | "professor" | "monitor";
+        /** CourseCurriculum */
+        CourseCurriculum: {
+            /** Sigaa Id */
+            sigaa_id: number;
+            /** Code */
+            code: string;
+            /** Valid From */
+            valid_from: string;
+            /** Matrix */
+            matrix: string;
+            /** Shift */
+            shift: ("D" | "N") | null;
+            /** Course Id */
+            course_id: number;
+            /** Entry Semester */
+            entry_semester: string;
+            /** Periods */
+            periods: components["schemas"]["CurriculumPeriod"][];
+            /** Complementary */
+            complementary: components["schemas"]["CurriculumSubject"][];
+        };
+        /** CurriculumPeriod */
+        CurriculumPeriod: {
+            /** Period */
+            period: number;
+            /** Subjects */
+            subjects: components["schemas"]["CurriculumSubject"][];
+        };
+        /** CurriculumSubject */
+        CurriculumSubject: {
+            /** Code */
+            code: string;
+            /** Name */
+            name?: string | null;
+            /** Hours */
+            hours?: number | null;
+            /** Unity */
+            unity?: string | null;
+            prerequisites?: components["schemas"]["Requirements"] | null;
+            corequisites?: components["schemas"]["Requirements"] | null;
+            equivalences?: components["schemas"]["Requirements"] | null;
+        };
         /**
          * CurriculumWorkload
          * @description Carga horária do currículo e o que falta integralizar, em horas.
@@ -690,6 +772,21 @@ export interface components {
              */
             teachers: components["schemas"]["Teacher"][];
             subject: components["schemas"]["Subject"];
+        };
+        /** PublicCourse */
+        PublicCourse: {
+            /** Id */
+            id: number;
+            /** Sigaa Id */
+            sigaa_id: number | null;
+            /** Name */
+            name: string;
+            /** Shift */
+            shift: string | null;
+            /** Unity Id */
+            unity_id: number;
+            /** Unity */
+            unity: string | null;
         };
         Requirements: string[][];
         /** RestaurantCredentials */
@@ -1564,6 +1661,70 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    list_courses_public_courses_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicCourse"][];
+                };
+            };
+        };
+    };
+    get_curriculum_public_courses__course_id__curriculum_get: {
+        parameters: {
+            query: {
+                /** @description Semestre de ingresso, no formato AAAA.P. */
+                entry_semester: string;
+                /** @description ID no SIGAA de outra matriz com a mesma vigência selecionada. */
+                curriculum_sigaa_id?: number | null;
+            };
+            header?: never;
+            path: {
+                /** @description ID local do curso no Followw (courses.id), distinto do ID do SIGAA. */
+                course_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourseCurriculum"];
+                };
+            };
+            /** @description Curso inexistente, sem currículo ativo ou matriz indisponível para o ingresso. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };

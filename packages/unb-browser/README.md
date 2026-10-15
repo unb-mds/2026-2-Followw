@@ -1,7 +1,7 @@
 # `unb-browser`
 
-O UnB browser é uma biblioteca python que lê os sites públicos da UnB fora do SIGAA e
-devolve modelos Pydantic. Hoje estão cobertos o cardápio do RU e o calendário acadêmico.
+O UnB browser é uma biblioteca python que lê os sites públicos da UnB fora do SIGAA e devolve
+modelos Pydantic. Hoje estão cobertos o cardápio do RU e o calendário acadêmico.
 
 ## Exemplo de uso
 
@@ -16,9 +16,8 @@ async with UnbBrowser() as browser:
 ```
 
 - **Cardápio:** traz todos os dias do período informado nos links do campus. Cada dia tem
-  `breakfast`, `lunch` e `dinner`, com as seções do PDF; refeição que não é
-  servida vem `null`.
-- **Calendário:** os dados oficiais de 2026 e 2027 ficam em um JSON estático,
-  sem requisição de rede.
+  `breakfast`, `lunch` e `dinner`, com as seções do PDF; refeição que não é servida vem `null`.
+- **Calendário:** os dados oficiais de 2026 e 2027 ficam em um JSON estático, sem requisição de
+  rede.
 
 Os erros derivam de `UnbBrowserError`.

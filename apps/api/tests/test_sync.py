@@ -118,11 +118,16 @@ def test_cache_vencido_responde_na_hora_e_revalida_em_background(
     assert stub_sigaa.profile.get_profile.await_count == 2
 
 
-def test_cache_em_dia_nao_revalida(logado, stub_sigaa, database):
+def test_cache_em_dia_nao_revalida(logado, stub_sigaa, database, monkeypatch):
     logado.get("/me")
     _envelhecer(database, User.profile_synced_at, hours=23)
 
-    logado.get("/me")
+    def criar_client(*args, **kwargs):
+        pytest.fail("Cache em dia não deve construir o cliente do QStash")
+
+    monkeypatch.setattr("api.sync.queue.AsyncQStash", criar_client)
+
+    assert logado.get("/me").status_code == 200
 
     assert stub_sigaa.profile.get_profile.await_count == 1
 
@@ -762,7 +767,7 @@ def test_job_que_nao_decifra_retorna_400(client, stub_sigaa, qstash):
 
 
 def test_cada_requisicao_fecha_o_proprio_client_do_qstash(
-    client, stub_sigaa, qstash, monkeypatch
+    client, stub_sigaa, qstash, monkeypatch, database
 ):
     from api.sync.queue import QStashQueue
 
@@ -775,11 +780,15 @@ def test_cada_requisicao_fecha_o_proprio_client_do_qstash(
 
     monkeypatch.setattr(QStashQueue, "aclose", registrar)
 
-    # O login e a entrega do job dele.
+    # Cada login publica um job; a entrega sem retentativa não abre outro cliente.
+    client.post("/auth/sigaa", json=LOGIN)
+    _envelhecer(database, User.profile_synced_at, hours=25)
     client.post("/auth/sigaa", json=LOGIN)
 
-    assert len(fechadas) == 2 and fechadas[0] is not fechadas[1]
-    assert all(queue._client.http._client.is_closed for queue in fechadas)
+    clients = [queue._client for queue in fechadas if queue._client is not None]
+    assert len(clients) == 2 and clients[0] is not clients[1]
+    assert all(client.http._client.is_closed for client in clients)
+    assert any(queue._client is None for queue in fechadas)
 
 
 def test_qstash_fora_nao_derruba_o_login(client, stub_sigaa, qstash, caplog):

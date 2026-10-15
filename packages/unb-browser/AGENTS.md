@@ -25,8 +25,8 @@ Os mesmos do `sigaa-client`:
 - Uma classe de resource por site, métodos `async` com verbos explícitos; parse em funções privadas
   de módulo.
 - Modelos `frozen`; dado ausente é `None`, nunca string vazia.
-- Estrutura ausente levanta `UnbParseError` dizendo o que faltou: o pacote é barulhento quando o site
-  muda.
+- Estrutura ausente levanta `UnbParseError` dizendo o que faltou: o pacote é barulhento quando o
+  site muda.
 - Nenhuma URL literal fora de `config.py`; regex compilada em `_ALGO_RE`.
 - Novo site é exposto no `browser.py`, exportado em `__init__.py` (`__all__` em ordem alfabética) e
   documentado no README.

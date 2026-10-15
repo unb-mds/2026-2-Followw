@@ -1,3 +1,4 @@
+import csv
 import importlib
 from pathlib import Path
 from types import SimpleNamespace
@@ -5,6 +6,8 @@ from types import SimpleNamespace
 import pytest
 
 from sigaa_client import (
+    Curriculum,
+    CurriculumSummary,
     PublicClassroom,
     SigaaError,
     Subject,
@@ -16,6 +19,127 @@ from sigaa_client import (
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 GAMA = Unit(id=673, name="GAMA")
 CEILANDIA = Unit(id=518, name="CEILANDIA")
+
+
+@pytest.fixture
+def curricula_script(monkeypatch):
+    monkeypatch.syspath_prepend(str(SCRIPTS))
+    module = importlib.import_module("collect_curricula")
+    monkeypatch.setattr(module, "DELAY", 0)
+    monkeypatch.setattr(module, "RETRY_DELAY", 0)
+    return module
+
+
+def test_curriculos_recentes_incluem_base_anterior_e_preservam_turno(curricula_script):
+    def item(id, year, active=True, shift="D"):
+        return CurriculumSummary(
+            sigaa_id=id,
+            course_sigaa_id=1,
+            code=str(id),
+            created_year=year,
+            active=active,
+            shift=shift,
+        )
+
+    items = [
+        item(1, 2018),
+        item(2, 2021),
+        item(3, 2023),
+        item(4, 2026),
+        item(5, 2025, False),
+        item(6, 2027),
+        item(7, 2020, shift="N"),
+        item(8, 2026),
+    ]
+    assert {x.sigaa_id for x in curricula_script.select_curricula(items, 2026)} == {
+        2,
+        3,
+        4,
+        7,
+        8,
+    }
+    assert {
+        x.sigaa_id for x in curricula_script.select_curricula(items, 2026, True)
+    } == {4, 7, 8}
+    assert curricula_script.select_curricula([item(9, 2020, False)], 2026) == []
+    assert curricula_script.select_curricula([item(10, 2027)], 2026) == [item(10, 2027)]
+
+
+def test_falha_na_coleta_de_curriculos_nao_substitui_dataset(
+    curricula_script, monkeypatch, tmp_path
+):
+    class BrokenCurricula:
+        async def list_curricula(self, course_id):
+            raise SigaaError("indisponível")
+
+    class Client(FakeClient):
+        curricula = BrokenCurricula()
+
+    monkeypatch.setattr(curricula_script, "SigaaPublicClient", Client)
+    courses = tmp_path / "courses.csv"
+    courses.write_text("id,name\n1,Curso\n", encoding="utf-8")
+    output = tmp_path / "curricula.csv"
+    output.write_text("preservado", encoding="utf-8")
+    components = tmp_path / "curriculum_components.csv"
+    components.write_text("componentes preservados", encoding="utf-8")
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "collect_curricula",
+            "--courses",
+            str(courses),
+            "--output-dir",
+            str(tmp_path),
+            "--year",
+            "2026",
+        ],
+    )
+    with pytest.raises(RuntimeError, match="dataset não foi substituído"):
+        curricula_script.main()
+    assert output.read_text(encoding="utf-8") == "preservado"
+    assert components.read_text(encoding="utf-8") == "componentes preservados"
+
+
+def test_coleta_grava_matrizes_e_componentes_com_optativas_no_periodo_zero(
+    curricula_script, tmp_path
+):
+    item = Curriculum(
+        sigaa_id=456,
+        course_sigaa_id=414112,
+        code="8117/1",
+        created_year=2020,
+        active=True,
+        shift=None,
+        valid_from="2020.1",
+        matrix='ADMINISTRAÇÃO, "D"',
+        required_by_period=[
+            {"period": 1, "required": ["ADM0023", "ADM0024"]},
+            {"period": 2, "required": []},
+        ],
+        optional=["ADM0002", "ADM0003"],
+        complementary=["ADM0100"],
+    )
+    curricula_script.write_csvs([item], tmp_path)
+    with (tmp_path / "curricula.csv").open(encoding="utf-8", newline="") as file:
+        (matrix,) = list(csv.DictReader(file))
+    with (tmp_path / "curriculum_components.csv").open(
+        encoding="utf-8", newline=""
+    ) as file:
+        rows = list(csv.DictReader(file))
+    assert matrix["matrix"] == item.matrix
+    assert matrix["shift"] == ""
+    assert matrix["active"] == "true"
+    assert {(row["subject_codes"], row["period"], row["kind"]) for row in rows} == {
+        ("ADM0023 ADM0024", "1", "required"),
+        ("", "2", "required"),
+        ("ADM0002 ADM0003", "0", "optional"),
+        ("ADM0100", "", "complementary"),
+    }
+    assert len({row["period"] for row in rows}) == len(rows)
+    assert all(
+        row["curriculum_sigaa_id"] == "456" and row["course_sigaa_id"] == "414112"
+        for row in rows
+    )
 
 
 class FakeClient:
