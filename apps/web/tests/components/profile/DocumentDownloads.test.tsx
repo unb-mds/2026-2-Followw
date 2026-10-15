@@ -12,9 +12,11 @@ describe('DocumentDownloads', () => {
                 <DocumentDownloads />
             </QueryClientProvider>
         );
-        expect(markup.match(/<button\b/g)).toHaveLength(2);
+        expect(markup.match(/<button\b/g)).toHaveLength(4);
         expect(markup).toContain('aria-label="Baixar carteirinha estudantil"');
+        expect(markup).toContain('aria-label="Compartilhar carteirinha estudantil"');
         expect(markup).toContain('aria-label="Baixar histórico acadêmico"');
+        expect(markup).toContain('aria-label="Compartilhar histórico acadêmico"');
         expect(markup.indexOf('Carteirinha estudantil')).toBeLessThan(
             markup.indexOf('Histórico acadêmico')
         );
