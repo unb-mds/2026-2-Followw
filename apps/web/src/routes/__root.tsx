@@ -3,6 +3,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import { TanStackDevtools } from '@tanstack/react-devtools';
 import { HeadContent, Outlet, Scripts, createRootRouteWithContext } from '@tanstack/react-router';
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools';
+import { NuqsAdapter } from 'nuqs/adapters/tanstack-router';
 import { useEffect } from 'react';
 
 import { ErrorPage } from '#/components/ErrorPage';
@@ -55,7 +56,11 @@ function RootComponent() {
     useEffect(() => initializeInstallSupport(), []);
     useOfflineSupport();
 
-    return <Outlet />;
+    return (
+        <NuqsAdapter>
+            <Outlet />
+        </NuqsAdapter>
+    );
 }
 
 function RootDocument({ children }: { children: React.ReactNode }) {

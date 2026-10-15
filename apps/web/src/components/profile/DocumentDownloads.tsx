@@ -1,11 +1,10 @@
-import { Download, GraduationCap, IdCard, Share } from 'lucide-react';
+import { Download, GraduationCap, IdCard } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '#/components/ui/button';
 import { Spinner } from '#/components/ui/spinner';
 import { saveFile } from '#/lib/download';
 import { useOnline } from '#/lib/online';
-import { prepareOrShareFile } from '#/lib/share-file';
 import { getDocumentDownload, studentDocuments, type StudentDocument } from '#/queries/documents';
 
 const documents = [
@@ -16,36 +15,16 @@ const documents = [
 export function DocumentDownloads() {
     const [pending, setPending] = useState<StudentDocument | null>(null);
     const [message, setMessage] = useState<string | null>(null);
-    const [files, setFiles] = useState<Partial<Record<StudentDocument, File>>>({});
     const online = useOnline();
 
-    async function handleDocument(document: StudentDocument, share: boolean) {
+    async function handleDownload(document: StudentDocument) {
         setPending(document);
         setMessage(null);
         try {
-            if (!share) {
-                const file = files[document];
-                if (file) saveFile(file, file.name);
-                else {
-                    const { blob, filename } = await getDocumentDownload(document);
-                    saveFile(blob, filename);
-                }
-                return;
-            }
-
-            const result = await prepareOrShareFile(files[document], async () => {
-                const { blob, filename } = await getDocumentDownload(document);
-                return new File([blob], filename, { type: 'application/pdf' });
-            });
-            setFiles((current) => ({ ...current, [document]: result.file }));
-            if (result.status === 'unsupported') {
-                setMessage(
-                    'Compartilhamento de PDF indisponível neste navegador. Baixe o arquivo para compartilhá-lo pelo app Arquivos.'
-                );
-            }
-        } catch (error) {
-            if (error instanceof DOMException && error.name === 'AbortError') return;
-            setMessage('Não foi possível preparar o documento. Tente novamente.');
+            const { blob, filename } = await getDocumentDownload(document);
+            saveFile(blob, filename);
+        } catch {
+            setMessage('Não foi possível baixar o documento. Tente novamente.');
         } finally {
             setPending(null);
         }
@@ -70,34 +49,17 @@ export function DocumentDownloads() {
                                 className="block text-xs text-muted-foreground"
                                 aria-live="polite"
                             >
-                                {isPending
-                                    ? 'Processando documento...'
-                                    : files[document] && 'PDF pronto. Toque em compartilhar.'}
+                                {isPending && 'Processando documento...'}
                             </span>
                         </span>
                         <Button
                             type="button"
                             size="icon-sm"
                             variant="ghost"
-                            disabled={(!online && !files[document]) || pending !== null}
-                            aria-label={`${files[document] ? 'Compartilhar' : 'Preparar para compartilhar'} ${label.toLowerCase()}`}
-                            aria-busy={isPending}
-                            onClick={() => handleDocument(document, true)}
-                        >
-                            {isPending ? (
-                                <Spinner aria-label="Preparando compartilhamento" />
-                            ) : (
-                                <Share aria-hidden="true" />
-                            )}
-                        </Button>
-                        <Button
-                            type="button"
-                            size="icon-sm"
-                            variant="ghost"
-                            disabled={(!online && !files[document]) || pending !== null}
+                            disabled={!online || pending !== null}
                             aria-label={`Baixar ${label.toLowerCase()}`}
                             aria-busy={isPending}
-                            onClick={() => handleDocument(document, false)}
+                            onClick={() => handleDownload(document)}
                         >
                             {isPending ? (
                                 <Spinner aria-label="Preparando download" />

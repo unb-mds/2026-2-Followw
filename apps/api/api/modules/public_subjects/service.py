@@ -1,7 +1,7 @@
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
-from pydantic import ConfigDict
+from pydantic import BaseModel, ConfigDict
 from sigaa_client import lookup_key
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,13 +21,26 @@ class SubjectClassroom(ClassroomOffer):
     room: str | None = None
 
 
+class SubjectReference(BaseModel):
+    code: str
+    name: str
+
+
+class SubjectRequirement(BaseModel):
+    code: str
+    subject: SubjectReference | None = None
+
+
+type CatalogRequirements = list[list[SubjectRequirement]]
+
+
 class CatalogSubject(UserSubject):
     """O componente com as turmas do semestre consultado e os requisitos."""
 
     # OU de Es: `[["A", "B"], ["C"]]` é `(A E B) OU C`; nulo quando desconhecido.
-    prerequisites: Requirements | None = None
-    corequisites: Requirements | None = None
-    equivalences: Requirements | None = None
+    prerequisites: CatalogRequirements | None = None
+    corequisites: CatalogRequirements | None = None
+    equivalences: CatalogRequirements | None = None
     classrooms: list[SubjectClassroom]
 
 
@@ -67,22 +80,65 @@ async def _search(
         semester=semester,
     )
     needle = lookup_key(q or "")
+    subjects = [
+        subject
+        for subject in subjects
+        if any(
+            needle in lookup_key(text)
+            for text in (
+                subject.code,
+                subject.name,
+                *(p for c in subject.classrooms for p in c.professors),
+            )
+        )
+    ]
+    names = await repository.subject_names(
+        {
+            code
+            for subject in subjects
+            for requirements in (
+                subject.prerequisites,
+                subject.corequisites,
+                subject.equivalences,
+            )
+            for group in requirements or []
+            for code in group
+        }
+    )
     return [
         CatalogSubject(
             code=subject.code,
             name=subject.name,
             hours=subject.hours,
             unity=subject.unity.code if subject.unity else None,
-            prerequisites=subject.prerequisites,
-            corequisites=subject.corequisites,
-            equivalences=subject.equivalences,
+            prerequisites=_requirements(subject.prerequisites, names),
+            corequisites=_requirements(subject.corequisites, names),
+            equivalences=_requirements(subject.equivalences, names),
             classrooms=[
                 SubjectClassroom.model_validate(classroom)
                 for classroom in sorted(subject.classrooms, key=lambda c: c.number)
             ],
         )
         for subject in subjects
-        if needle in lookup_key(subject.name)
+    ]
+
+
+def _requirements(
+    requirements: Requirements | None, names: dict[str, str]
+) -> CatalogRequirements | None:
+    if requirements is None:
+        return None
+    return [
+        [
+            SubjectRequirement(
+                code=code,
+                subject=SubjectReference(code=code, name=names[code])
+                if code in names
+                else None,
+            )
+            for code in group
+        ]
+        for group in requirements
     ]
 
 

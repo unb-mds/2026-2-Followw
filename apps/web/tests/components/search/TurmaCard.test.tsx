@@ -22,7 +22,7 @@ const subject: CatalogSubject = {
     name: 'Matemática Discreta 2',
     hours: 60,
     unity: 'FCTE',
-    prerequisites: [['FGA0001', 'FGA0002'], ['FGA0010']],
+    prerequisites: [[{ code: 'FGA0001' }, { code: 'FGA0002' }], [{ code: 'FGA0010' }]],
     classrooms: [classroom]
 };
 
@@ -80,6 +80,23 @@ describe('TurmaCard', () => {
 });
 
 describe('TurmaDetails', () => {
+    test.each(['prerequisites', 'corequisites', 'equivalences'] as const)(
+        '%s usa o nome do catálogo e o código quando a matéria falta',
+        (field) => {
+            const markup = details({}, true, {
+                [field]: [
+                    [
+                        { code: 'MAT0023', subject: { code: 'MAT0023', name: 'Cálculo 1' } },
+                        { code: 'ANTIGO', subject: null }
+                    ]
+                ]
+            });
+            expect(markup).toContain('Cálculo 1');
+            expect(markup).toContain('ANTIGO');
+            expect(markup).not.toContain('MAT0023');
+        }
+    );
+
     test('organiza os dados da turma e os requisitos da matéria', () => {
         const markup = details();
         for (const text of [
@@ -88,13 +105,47 @@ describe('TurmaDetails', () => {
             'Ana Silva, João Costa',
             '60 horas',
             'Pré-requisitos',
-            '(FGA0001 e FGA0002) ou FGA0010',
+            'FGA0001',
+            'FGA0002',
+            'FGA0010',
             '38 de 40 vagas ocupadas',
             '2 vagas disponíveis'
         ])
             expect(markup).toContain(text);
         expect(markup).not.toContain('Correquisitos');
         expect(markup).not.toContain('Turma indisponível');
+    });
+
+    test('vários requisitos ficam numa lista expansível com alternativas completas', () => {
+        const markup = details();
+        expect(markup).toContain('<details');
+        expect(markup).toContain('<summary');
+        expect(markup).toContain('Ver 2 alternativas');
+        expect(markup).toContain('Uma alternativa completa é suficiente.');
+        expect(markup).toContain('Alternativa 1 · Todas as disciplinas deste grupo');
+        expect(markup).toContain('Alternativa 2');
+        expect(markup.match(/<li\b/g)).toHaveLength(3);
+        expect(markup).not.toMatch(/<details[^>]*\bopen=/);
+    });
+
+    test('grupo único informa que todas as disciplinas são exigidas', () => {
+        const markup = details({}, true, {
+            prerequisites: [[{ code: 'FGA0001' }, { code: 'FGA0002' }]]
+        });
+        expect(markup).toContain('Ver 2 disciplinas');
+        expect(markup).toContain('Todas as disciplinas abaixo são necessárias.');
+        expect(markup.match(/<li\b/g)).toHaveLength(2);
+        expect(markup).not.toContain('Alternativa 1');
+    });
+
+    test('um requisito simples continua legível sem exigir expansão', () => {
+        const name = 'INTRODUÇÃO ÀS CIÊNCIAS DA COMPUTAÇÃO E À ENGENHARIA DE SOFTWARE';
+        const markup = details({}, true, {
+            prerequisites: [[{ code: 'CIC0001', subject: { code: 'CIC0001', name } }]]
+        });
+        expect(markup).toContain(name);
+        expect(markup).not.toContain('CIC0001');
+        expect(markup).not.toContain('<details');
     });
 
     test.each([

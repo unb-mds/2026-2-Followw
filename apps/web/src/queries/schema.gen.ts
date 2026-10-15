@@ -442,6 +442,7 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        CatalogRequirements: components["schemas"]["SubjectRequirement"][][];
         /**
          * CatalogSubject
          * @description O componente com as turmas do semestre consultado e os requisitos.
@@ -455,9 +456,9 @@ export interface components {
             hours?: number | null;
             /** Unity */
             unity?: string | null;
-            prerequisites?: components["schemas"]["Requirements"] | null;
-            corequisites?: components["schemas"]["Requirements"] | null;
-            equivalences?: components["schemas"]["Requirements"] | null;
+            prerequisites?: components["schemas"]["CatalogRequirements"] | null;
+            corequisites?: components["schemas"]["CatalogRequirements"] | null;
+            equivalences?: components["schemas"]["CatalogRequirements"] | null;
             /** Classrooms */
             classrooms: components["schemas"]["SubjectClassroom"][];
         };
@@ -891,6 +892,19 @@ export interface components {
             schedule?: string | null;
             /** Room */
             room?: string | null;
+        };
+        /** SubjectReference */
+        SubjectReference: {
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+        };
+        /** SubjectRequirement */
+        SubjectRequirement: {
+            /** Code */
+            code: string;
+            subject?: components["schemas"]["SubjectReference"] | null;
         };
         /**
          * Teacher
@@ -1781,7 +1795,7 @@ export interface operations {
     search_subjects_public_subjects_get: {
         parameters: {
             query?: {
-                /** @description Trecho do nome do componente, ignorando acentos, maiúsculas e espaços extras. */
+                /** @description Trecho do código, nome do componente ou docente, de 3 a 24 caracteres, ignorando acentos, maiúsculas e espaços extras. */
                 q?: string | null;
                 /** @description Código completo do componente, como FGA0003. */
                 code?: string | null;

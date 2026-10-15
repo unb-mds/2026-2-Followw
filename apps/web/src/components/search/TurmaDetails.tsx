@@ -1,10 +1,12 @@
+import { cn } from 'cn';
 import { Lock } from 'lucide-react';
 
 import type { TurmaProps } from '#/components/search/TurmaCard';
 
+import { RequirementList } from '#/components/search/RequirementList';
 import { Progress } from '#/components/ui/progress';
 import { describeSchedule } from '#/lib/schedule';
-import { availableSeats, formatRequirements, lockedReasons } from '#/queries/subjects';
+import { availableSeats, lockedReasons } from '#/queries/subjects';
 
 export function TurmaDetails({ subject, classroom, prerequisitesMet }: TurmaProps) {
     const seats = availableSeats(classroom);
@@ -31,12 +33,17 @@ export function TurmaDetails({ subject, classroom, prerequisitesMet }: TurmaProp
                 </Detail>
                 {subject.prerequisites?.length ? (
                     <Detail label="Pré-requisitos" className="col-span-2">
-                        {formatRequirements(subject.prerequisites)}
+                        <RequirementList requirements={subject.prerequisites} />
                     </Detail>
                 ) : null}
                 {subject.corequisites?.length ? (
                     <Detail label="Correquisitos" className="col-span-2">
-                        {formatRequirements(subject.corequisites)}
+                        <RequirementList requirements={subject.corequisites} />
+                    </Detail>
+                ) : null}
+                {subject.equivalences?.length ? (
+                    <Detail label="Equivalências" className="col-span-2">
+                        <RequirementList requirements={subject.equivalences} />
                     </Detail>
                 ) : null}
                 <Detail label="Vagas" className="col-span-2">
@@ -83,9 +90,9 @@ function Detail({
     className?: string;
 }) {
     return (
-        <div className={className}>
+        <div className={cn('min-w-0', className)}>
             <dt className="text-xs text-muted-foreground">{label}</dt>
-            <dd className="mt-1 text-sm font-medium wrap-break-word">{children}</dd>
+            <dd className="mt-1 min-w-0 text-sm font-medium wrap-anywhere">{children}</dd>
         </div>
     );
 }
