@@ -15,6 +15,7 @@ from api.modules.classrooms.router import router as classrooms_router
 from api.modules.me.router import router as me_router
 from api.modules.news.router import router as news_router
 from api.modules.public_classrooms.router import router as public_classrooms_router
+from api.modules.public_courses.router import router as public_courses_router
 from api.modules.public_restaurant.router import router as public_restaurant_router
 from api.modules.public_subjects.router import router as public_subjects_router
 from api.sync.router import router as jobs_router
@@ -40,6 +41,11 @@ tags_metadata = [
         "name": "Public Classrooms",
         "x-displayName": "Classrooms",
         "description": "Busca pública de turmas e unidades do SIGAA, sem autenticação.",
+    },
+    {
+        "name": "Public Courses",
+        "x-displayName": "Courses",
+        "description": "Currículos dos cursos por semestre de ingresso, sem autenticação.",
     },
     {
         "name": "Public Restaurant",
@@ -90,7 +96,12 @@ def custom_openapi() -> dict[str, Any]:
         app.openapi_schema["x-tagGroups"] = [
             {
                 "name": "Public",
-                "tags": ["Public Classrooms", "Public Restaurant", "Public Subjects"],
+                "tags": [
+                    "Public Classrooms",
+                    "Public Courses",
+                    "Public Restaurant",
+                    "Public Subjects",
+                ],
             },
             {
                 "name": "SIGAA",
@@ -146,6 +157,9 @@ app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 app.include_router(classrooms_router, prefix="/classrooms", tags=["Classrooms"])
 app.include_router(
     public_classrooms_router, prefix="/public/classrooms", tags=["Public Classrooms"]
+)
+app.include_router(
+    public_courses_router, prefix="/public/courses", tags=["Public Courses"]
 )
 app.include_router(
     public_restaurant_router, prefix="/public/restaurant", tags=["Public Restaurant"]
