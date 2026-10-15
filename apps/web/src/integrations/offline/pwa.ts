@@ -1,7 +1,7 @@
 import { type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
-import { pagesCacheName } from './pages-cache';
+import { pagesCacheName } from '#/integrations/offline/pages-cache.ts';
 
 // o vite-plugin-pwa não conhece environments: sem isso também roda no build do SSR
 const clientOnly = (plugins: Plugin[]): Plugin[] =>
