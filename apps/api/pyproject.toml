@@ -27,7 +27,6 @@ entrypoint = "api.main:app"
 [project.scripts]
 api = "api:main"
 db-init = "api.db.main:db_init"
-db-seed-curricula = "api.db.seed.curricula:main"
 
 [build-system]
 requires = ["uv_build>=0.13.0,<0.14.0"]

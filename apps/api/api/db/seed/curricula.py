@@ -1,4 +1,3 @@
-import asyncio
 import csv
 from pathlib import Path
 
@@ -152,32 +151,10 @@ async def seed_curricula(
                 }
                 for code in codes
             )
-    await session.execute(
-        delete(CurriculumComponent).where(
-            CurriculumComponent.curriculum_id.in_(identifiers)
-        )
-    )
+    # O CSV é o dataset completo: matrizes fora dele saem do banco.
+    await session.execute(delete(CurriculumComponent))
+    await session.execute(delete(Curriculum).where(Curriculum.id.not_in(identifiers)))
     for start in range(0, len(components), 1000):
         await session.execute(
             insert(CurriculumComponent), components[start : start + 1000]
         )
-
-
-async def _run() -> None:
-    from api.db.main import async_session, engine
-
-    try:
-        async with engine.begin() as connection:
-            for table in (Curriculum.__table__, CurriculumComponent.__table__):
-                await connection.run_sync(
-                    lambda conn, table=table: table.create(conn, checkfirst=True)
-                )
-        async with async_session.begin() as session:
-            await seed_curricula(session)
-        print(f"Seed concluído: {len(read_curricula())} currículos e seus componentes.")
-    finally:
-        await engine.dispose()
-
-
-def main() -> None:
-    asyncio.run(_run())

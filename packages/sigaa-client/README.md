@@ -59,12 +59,9 @@ em `valid_from`; o ano de criação serve apenas para selecionar o conjunto a co
 `--course ID` permite uma coleta parcial, exigindo um `--output-dir` diferente de `data/`.
 
 O `uv run db-init` da API cria as tabelas `curricula` e `curriculum_components` e executa seu
-seed após o de cursos.
-Para carregar somente currículos em um banco que já tenha cursos, execute
-`uv run db-seed-curricula` em `apps/api` (usa o `.env` dessa pasta e cria as tabelas se necessário).
-O seed resolve `course_sigaa_id` para a chave local de `courses`, valida os dois CSVs e atualiza
-as matrizes sem duplicá-las. Os componentes das matrizes carregadas são substituídos na mesma
-transação, expandindo os códigos de cada período em vínculos individuais e removendo vínculos obsoletos.
+seed após o de cursos. O seed resolve `course_sigaa_id` para a chave local de `courses`, valida os dois CSVs e atualiza
+as matrizes sem duplicá-las; matrizes ausentes do CSV são removidas. Os componentes são substituídos
+na mesma transação, expandindo os códigos de cada período em vínculos individuais.
 Seus códigos não exigem uma entrada em `subjects`,
 pois o catálogo de disciplinas ofertadas não contém todos os componentes históricos.
 
