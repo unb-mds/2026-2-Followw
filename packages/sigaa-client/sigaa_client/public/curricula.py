@@ -145,6 +145,10 @@ def _parse_details(soup: BeautifulSoup, summary: CurriculumSummary) -> Curriculu
     periods = []
     for section in form.find_all("div", id=_PERIOD_RE):
         period = int(_PERIOD_RE.fullmatch(section["id"])[1])
+        if period == 0:
+            raise SigaaParseError(
+                f"Período zero não suportado na seção {section['id']} do currículo {summary.sigaa_id}; os períodos devem ser positivos."
+            )
         periods.append(
             CurriculumPeriod(
                 period=period,

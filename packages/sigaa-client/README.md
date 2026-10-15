@@ -35,7 +35,8 @@ código, ano de criação, turno e status. `get_curriculum(course_sigaa_id, siga
 o turno em letras (`D` para diurno ou `N` para noturno; `None` quando indefinido) e
 também a matriz, `valid_from` (semestre de entrada em vigor), `required_by_period` (array de
 objetos com `period` e array `required` de códigos), `optional` e `complementary` (arrays de
-códigos). O período é o nível informado pelo SIGAA, inclusive zero quando presente.
+códigos). Os períodos devem ser positivos; uma seção `semestre0` gera `SigaaParseError`
+antes da exportação. O período zero no dataset é reservado às optativas.
 Optativas indicadas dentro dos períodos também entram em `optional`, sem duplicatas.
 
 ```sh

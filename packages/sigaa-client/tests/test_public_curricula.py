@@ -1,7 +1,13 @@
 import httpx
 import pytest
+from pydantic import ValidationError
 
-from sigaa_client import SigaaParseError, SigaaPublicClient, SigaaSearchError
+from sigaa_client import (
+    CurriculumPeriod,
+    SigaaParseError,
+    SigaaPublicClient,
+    SigaaSearchError,
+)
 from sigaa_client.config import PUBLIC_CURRICULA_PATH, PUBLIC_HOME_PATH
 
 LIST = """
@@ -125,6 +131,20 @@ async def test_layout_inesperado_nao_vira_dataset_parcial(detail):
     ) as client:
         with pytest.raises(SigaaParseError):
             await client.curricula.get_curriculum(414112, 456)
+
+
+@pytest.mark.parametrize("section", ["semestre1", "semestre3"])
+async def test_periodo_zero_falha_no_scraper_mesmo_quando_vazio(section):
+    fake = FakeSigaa(detail=DETAIL.replace(section, "semestre0"))
+    async with SigaaPublicClient(transport=httpx.MockTransport(fake)) as client:
+        with pytest.raises(SigaaParseError, match=r"Período zero.*semestre0.*456"):
+            await client.curricula.get_curriculum(414112, 456)
+
+
+@pytest.mark.parametrize("period", [0, -1])
+def test_modelo_recusa_periodos_nao_positivos(period):
+    with pytest.raises(ValidationError):
+        CurriculumPeriod(period=period, required=("ADM0023",))
 
 
 async def test_curriculo_inexistente_nao_submete_outro():

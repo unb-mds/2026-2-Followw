@@ -21,7 +21,7 @@ class CurriculumSummary(BaseModel):
 class CurriculumPeriod(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    period: int = Field(ge=0)
+    period: int = Field(gt=0)
     required: tuple[str, ...]
 
 
