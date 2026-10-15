@@ -13,7 +13,7 @@ const SLOTS: Record<string, [string, string][]> = {
         ['14:55', '15:50'],
         ['16:00', '16:55'],
         ['16:55', '17:50'],
-        ['18:00', '19:00']
+        ['18:00', '18:55']
     ],
     N: [
         ['19:00', '19:50'],
@@ -22,6 +22,11 @@ const SLOTS: Record<string, [string, string][]> = {
         ['21:40', '22:30']
     ]
 };
+
+// Intervalo máximo entre blocos para juntá-los, como o T6 (até 18:55) e o N1 (a partir de 19:00).
+const MERGE_GAP_MINUTES = 5;
+
+const getMinutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
 
 const WEEKDAYS_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
@@ -46,13 +51,18 @@ export function parseSchedule(code: string | null | undefined): ClassTime[] {
             });
         }
     }
-    // Junta blocos colados no mesmo dia, como `M5T1` (12:00–13:50).
+    // Junta blocos colados no mesmo dia, como `M5T1` (12:00–13:50) e `T6N1` (18:00–19:50).
     const merged: ClassTime[] = [];
     for (const time of times.toSorted(
         (a, b) => a.weekday - b.weekday || a.start.localeCompare(b.start)
     )) {
         const last = merged.at(-1);
-        if (last && last.weekday === time.weekday && last.end === time.start) last.end = time.end;
+        if (
+            last &&
+            last.weekday === time.weekday &&
+            getMinutes(time.start) - getMinutes(last.end) <= MERGE_GAP_MINUTES
+        )
+            last.end = time.end;
         else merged.push(time);
     }
     return merged;

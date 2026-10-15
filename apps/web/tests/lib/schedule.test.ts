@@ -34,6 +34,9 @@ describe('parseSchedule', () => {
             { weekday: 3, start: '18:00', end: '19:50' }
         ]);
         expect(parseSchedule('2M5 3T1')).toHaveLength(2);
+        expect(parseSchedule('2T6')).toEqual([{ weekday: 1, start: '18:00', end: '18:55' }]);
+        expect(parseSchedule('2T4 2T5')).toEqual([{ weekday: 1, start: '16:00', end: '17:50' }]);
+        expect(parseSchedule('2T3 2T4')).toHaveLength(2);
     });
 
     test('ignora código vazio ou inválido', () => {
