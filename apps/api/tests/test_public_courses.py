@@ -1,9 +1,108 @@
 import pytest
 
-from api.db.models import Course, Curriculum, CurriculumComponent, Subject
+from api.db.models import Course, Curriculum, CurriculumComponent, Subject, Unity
 from api.sigaa import get_sigaa_public_client
 
 URL = "/public/courses/77/curriculum"
+
+
+def test_lista_cursos_com_ids_turnos_e_unidades(client, database):
+    def forbidden():
+        pytest.fail("A listagem de cursos não deve ir ao SIGAA")
+
+    client.app.dependency_overrides[get_sigaa_public_client] = forbidden
+    with database.begin() as session:
+        session.add(Unity(id=999, name="UNIDADE SEM SIGLA"))
+        session.flush()
+        session.add_all(
+            [
+                Course(
+                    id=50, sigaa_id=500, name="TURISMO", shift="INTEGRAL", unity_id=673
+                ),
+                Course(id=12, name="CRIADO NO SYNC", unity_id=999),
+                Course(
+                    id=11,
+                    sigaa_id=101,
+                    name="ADMINISTRAÇÃO",
+                    shift="NOTURNO",
+                    unity_id=673,
+                ),
+                Course(
+                    id=10,
+                    sigaa_id=100,
+                    name="ADMINISTRAÇÃO",
+                    shift="DIURNO",
+                    unity_id=673,
+                ),
+            ]
+        )
+    response = client.get("/public/courses")
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    assert "set-cookie" not in response.headers
+    assert response.json() == [
+        {
+            "id": 10,
+            "sigaa_id": 100,
+            "name": "ADMINISTRAÇÃO",
+            "shift": "DIURNO",
+            "unity_id": 673,
+            "unity": "FCTE",
+        },
+        {
+            "id": 11,
+            "sigaa_id": 101,
+            "name": "ADMINISTRAÇÃO",
+            "shift": "NOTURNO",
+            "unity_id": 673,
+            "unity": "FCTE",
+        },
+        {
+            "id": 12,
+            "sigaa_id": None,
+            "name": "CRIADO NO SYNC",
+            "shift": None,
+            "unity_id": 999,
+            "unity": None,
+        },
+        {
+            "id": 50,
+            "sigaa_id": 500,
+            "name": "TURISMO",
+            "shift": "INTEGRAL",
+            "unity_id": 673,
+            "unity": "FCTE",
+        },
+    ]
+
+
+def test_lista_vazia_quando_nao_ha_cursos(client):
+    response = client.get("/public/courses")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_id_da_listagem_pode_ser_usado_para_consultar_curriculo(catalog):
+    response = catalog.get("/public/courses")
+    assert response.status_code == 200
+    courses = response.json()
+    assert [course["id"] for course in courses] == [77, 78, 79]
+    selected = next(course for course in courses if course["sigaa_id"] == 414924)
+    curriculum = catalog.get(
+        f"/public/courses/{selected['id']}/curriculum",
+        params={"entry_semester": "2026.1"},
+    )
+    assert curriculum.status_code == 200
+    assert curriculum.json()["course_id"] == selected["id"]
+
+
+def test_openapi_documenta_listagem_publica_de_cursos(client):
+    schema = client.get("/openapi.json").json()
+    operation = schema["paths"]["/public/courses"]["get"]
+    assert operation["tags"] == ["Public Courses"]
+    result = operation["responses"]["200"]["content"]["application/json"]["schema"]
+    assert result["type"] == "array"
+    assert result["items"]["$ref"].endswith("/PublicCourse")
 
 
 @pytest.fixture

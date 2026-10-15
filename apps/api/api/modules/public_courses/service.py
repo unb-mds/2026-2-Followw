@@ -6,7 +6,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.main import DatabaseDep
 from api.db.models import Curriculum, Requirements, Subject
-from api.modules.public_courses.repository import CourseCurriculumRepository
+from api.modules.public_courses.repository import PublicCourseRepository
+
+
+class PublicCourse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    id: int
+    sigaa_id: int | None
+    name: str
+    shift: str | None
+    unity_id: int
+    unity: str | None
 
 
 class CurriculumOption(BaseModel):
@@ -59,6 +70,9 @@ class PublicCourseService:
     def __init__(self, db: DatabaseDep) -> None:
         self._db = db
 
+    async def list_courses(self) -> list[PublicCourse]:
+        return await self._db.read(_list_courses)
+
     async def get_curriculum(
         self,
         course_id: int,
@@ -72,13 +86,28 @@ class PublicCourseService:
         )
 
 
+async def _list_courses(session: AsyncSession) -> list[PublicCourse]:
+    courses = await PublicCourseRepository(session).list_courses()
+    return [
+        PublicCourse(
+            id=course.id,
+            sigaa_id=course.sigaa_id,
+            name=course.name,
+            shift=course.shift,
+            unity_id=course.unity_id,
+            unity=course.unity.code if course.unity else None,
+        )
+        for course in courses
+    ]
+
+
 async def _load(
     session: AsyncSession,
     course_id: int,
     entry_semester: str,
     curriculum_sigaa_id: int | None,
 ) -> CourseCurriculum:
-    repository = CourseCurriculumRepository(session)
+    repository = PublicCourseRepository(session)
     if await repository.get_course(course_id) is None:
         raise HTTPException(404, "Curso não encontrado.")
     curricula = await repository.list_curricula(course_id)
