@@ -12,12 +12,12 @@ from api.db.seed.unities import seed_unities
 MATRIX_COLUMNS = (
     "sigaa_id,course_sigaa_id,code,created_year,active,shift,valid_from,matrix"
 )
-COMPONENT_COLUMNS = "course_sigaa_id,curriculum_sigaa_id,subject_code,period,kind"
-MATRIX = "456,414112,8117/1,2020,true,MV,2020.1,ADMINISTRAÇÃO - D"
+COMPONENT_COLUMNS = "course_sigaa_id,curriculum_sigaa_id,period,kind,subject_codes"
+MATRIX = "456,414112,8117/1,2020,true,D,2020.1,ADMINISTRAÇÃO - D"
 COMPONENTS = [
-    "414112,456,ADM0023,1,required",
-    "414112,456,ADM0002,0,optional",
-    "414112,456,ADM0100,,complementary",
+    "414112,456,1,required,ADM0023",
+    "414112,456,0,optional,ADM0002",
+    "414112,456,,complementary,ADM0100",
 ]
 
 
@@ -49,6 +49,12 @@ def test_dataset_tem_curriculos_validos_e_cursos_conhecidos():
     with COMPONENTS_CSV.open(encoding="utf-8", newline="") as file:
         components = list(csv.DictReader(file))
     assert components
+    assert len(
+        {
+            (row["course_sigaa_id"], row["curriculum_sigaa_id"], row["period"])
+            for row in components
+        }
+    ) == len(components)
     assert all(row["period"] == "0" for row in components if row["kind"] == "optional")
     assert any(row["kind"] == "complementary" for row in components)
 
@@ -59,11 +65,12 @@ def test_dataset_tem_curriculos_validos_e_cursos_conhecidos():
         ([MATRIX, MATRIX], COMPONENTS, "repetido"),
         ([], [], "vazio"),
         ([MATRIX], COMPONENTS + [COMPONENTS[0]], "repetido"),
-        ([MATRIX], ["414112,999,ADM0023,1,required"], "Matriz ausente"),
-        ([MATRIX], ["414112,456,ADM0023,1,optional"], "inválido"),
-        ([MATRIX], ["414112,456,ADM0023,0,required"], "inválido"),
-        ([MATRIX], ["414112,456,ADM0023,-1,required"], "inválido"),
-        ([MATRIX], ["414112,456,ADM0023,0,complementary"], "inválido"),
+        ([MATRIX], ["414112,456,1,required,ADM0023 ADM0023"], "repetido"),
+        ([MATRIX], ["414112,999,1,required,ADM0023"], "Matriz ausente"),
+        ([MATRIX], ["414112,456,1,optional,ADM0023"], "inválido"),
+        ([MATRIX], ["414112,456,0,required,ADM0023"], "inválido"),
+        ([MATRIX], ["414112,456,-1,required,ADM0023"], "inválido"),
+        ([MATRIX], ["414112,456,0,complementary,ADM0023"], "inválido"),
         ([MATRIX], [], "sem componentes"),
     ],
 )
@@ -75,6 +82,27 @@ def test_csvs_invalidos_sao_barulhentos(tmp_path, matrices, components, error):
 def test_vigencia_invalida_e_rejeitada(tmp_path):
     with pytest.raises(ValidationError):
         read_curricula(*_csvs(tmp_path, [MATRIX.replace("2020.1", "2020")]))
+
+
+def test_periodos_agrupados_preservam_listas_e_periodos_vazios(tmp_path):
+    (item,) = read_curricula(
+        *_csvs(
+            tmp_path,
+            components=[
+                "414112,456,1,required,ADM0023 ADM0024",
+                "414112,456,2,required,",
+                "414112,456,0,optional,ADM0002 ADM0003",
+                "414112,456,,complementary,ADM0100 ADM0101",
+            ],
+        )
+    )
+    assert item.shift == "D"
+    assert [(p.period, p.required) for p in item.required_by_period] == [
+        (1, ("ADM0023", "ADM0024")),
+        (2, ()),
+    ]
+    assert item.optional == ("ADM0002", "ADM0003")
+    assert item.complementary == ("ADM0100", "ADM0101")
 
 
 async def test_seed_resolve_id_local_atualiza_e_remove_componentes_obsoletos(
@@ -94,7 +122,7 @@ async def test_seed_resolve_id_local_atualiza_e_remove_componentes_obsoletos(
             ("ADM0002", 0, "optional"),
             ("ADM0100", None, "complementary"),
         }
-    updated = ["414112,456,ADM0023,2,required", "414112,456,ADM0315,0,optional"]
+    updated = ["414112,456,2,required,ADM0023", "414112,456,0,optional,ADM0315"]
     async with async_database.begin() as session:
         paths = _csvs(tmp_path, [MATRIX.replace("2020.1", "2020.2")], updated)
         await seed_curricula(session, *paths)
@@ -136,7 +164,7 @@ async def test_seed_parcial_preserva_componentes_dos_outros_cursos(
             *_csvs(tmp_path, [MATRIX, other_matrix], COMPONENTS + other_components),
         )
         await seed_curricula(
-            session, *_csvs(tmp_path, components=["414112,456,NOVO,0,optional"])
+            session, *_csvs(tmp_path, components=["414112,456,0,optional,NOVO"])
         )
     async with async_database() as session:
         rows = (

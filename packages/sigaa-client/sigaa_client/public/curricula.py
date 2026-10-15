@@ -17,7 +17,7 @@ _SUBJECT_RE = re.compile(r"(\S+) - .+ - \d+h$")
 _SEMESTER_RE = re.compile(r"\d{4}\.\d")
 _COUNT_RE = re.compile(r"(\d+) estruturas curriculares disponiveis")
 _SHIFT_SEPARATOR_RE = re.compile(r"\s*(?:,|\be\b)\s*")
-_SHIFT_CODES = {"matutino": "M", "vespertino": "V", "noturno": "N"}
+_SHIFT_NAMES = {"matutino", "vespertino", "noturno", "integral"}
 
 
 def _parse_shift(text: str) -> str | None:
@@ -25,9 +25,9 @@ def _parse_shift(text: str) -> str | None:
     if label in {"", "turno indefinido"}:
         return None
     shifts = set(_SHIFT_SEPARATOR_RE.split(label))
-    if not shifts <= _SHIFT_CODES.keys():
+    if not shifts <= _SHIFT_NAMES:
         raise SigaaParseError(f"Turno desconhecido na lista de currículos: {text}.")
-    return "".join(code for name, code in _SHIFT_CODES.items() if name in shifts)
+    return "N" if "noturno" in shifts else "D"
 
 
 class PublicCurricula:

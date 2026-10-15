@@ -15,7 +15,7 @@ class CurriculumSummary(BaseModel):
     code: str = Field(min_length=1)
     created_year: int = Field(ge=1900)
     active: bool
-    shift: str | None = Field(default=None, pattern=r"^(?:M|V|N|MV|MN|VN|MVN)$")
+    shift: Literal["D", "N"] | None = None
 
 
 class CurriculumPeriod(BaseModel):

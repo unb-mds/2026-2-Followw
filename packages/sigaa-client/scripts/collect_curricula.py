@@ -24,9 +24,9 @@ MATRIX_COLUMNS = (
 COMPONENT_COLUMNS = (
     "course_sigaa_id",
     "curriculum_sigaa_id",
-    "subject_code",
     "period",
     "kind",
+    "subject_codes",
 )
 DELAY = 0.3
 RETRY_DELAY = 2
@@ -124,16 +124,17 @@ def write_csvs(curricula: list[Curriculum], directory: Path) -> None:
             (None, "complementary", item.complementary),
         ]
         for period, kind, codes in groups:
-            for code in codes:
-                components.append(
-                    {
-                        "course_sigaa_id": item.course_sigaa_id,
-                        "curriculum_sigaa_id": item.sigaa_id,
-                        "subject_code": code,
-                        "period": period,
-                        "kind": kind,
-                    }
-                )
+            if kind == "complementary" and not codes:
+                continue
+            components.append(
+                {
+                    "course_sigaa_id": item.course_sigaa_id,
+                    "curriculum_sigaa_id": item.sigaa_id,
+                    "period": period,
+                    "kind": kind,
+                    "subject_codes": " ".join(codes),
+                }
+            )
     outputs = [
         ("curricula.csv", MATRIX_COLUMNS, matrices),
         ("curriculum_components.csv", COMPONENT_COLUMNS, components),

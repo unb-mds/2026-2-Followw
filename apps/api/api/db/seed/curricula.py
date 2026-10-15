@@ -45,7 +45,7 @@ def read_curricula(
                 raise ValueError(
                     f"Matriz ausente para componente em {components_path.name}: {key}."
                 )
-            code = row["subject_code"].strip()
+            codes = row["subject_codes"].split()
             kind = row["kind"]
             period = int(row["period"]) if row["period"] else None
             valid = (
@@ -53,25 +53,33 @@ def read_curricula(
                 or (kind == "optional" and period == 0)
                 or (kind == "complementary" and period is None)
             )
-            if not code or not valid:
+            if not valid:
                 raise ValueError(
                     f"Componente ou período inválido em {components_path.name}: {row}."
                 )
-            identity = (*key, code, kind, period)
+            identity = (*key, period)
             if identity in seen:
                 raise ValueError(
-                    f"Componente repetido em {components_path.name}: {identity}."
+                    f"Período repetido em {components_path.name}: {identity}."
                 )
             seen.add(identity)
+            if len(codes) != len(set(codes)):
+                raise ValueError(
+                    f"Componente repetido no período {period} em {components_path.name}: {key}."
+                )
             if kind == "required":
-                periods[key].setdefault(period, []).append(code)
+                periods[key][period] = codes
             elif kind == "optional":
-                optional[key].append(code)
+                optional[key] = codes
             else:
-                complementary[key].append(code)
+                complementary[key] = codes
     result = []
     for key, fields in matrices.items():
-        if not periods[key] and not optional[key] and not complementary[key]:
+        if (
+            not any(periods[key].values())
+            and not optional[key]
+            and not complementary[key]
+        ):
             raise ValueError(
                 f"Matriz sem componentes em {components_path.name}: {key}."
             )

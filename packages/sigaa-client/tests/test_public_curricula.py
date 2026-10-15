@@ -88,7 +88,7 @@ async def test_lista_e_detalhes_preservam_vigencia_e_separam_componentes():
         (455, False),
     ]
     assert curriculum.valid_from == "2020.1"
-    assert curriculum.shift == "MV"
+    assert curriculum.shift == "D"
     assert curriculum.required_by_period[0].required == ("ADM0023",)
     assert curriculum.required_by_period[1].period == 3
     assert curriculum.required_by_period[1].required == ()
@@ -155,14 +155,15 @@ async def test_contagem_divergente_nao_omite_curriculos_silenciosamente():
 @pytest.mark.parametrize(
     ("label", "expected"),
     [
-        ("Matutino", "M"),
-        ("Vespertino", "V"),
+        ("Matutino", "D"),
+        ("Vespertino", "D"),
+        ("Integral", "D"),
         ("Noturno", "N"),
-        ("Matutino e Vespertino", "MV"),
-        ("Matutino e Noturno", "MN"),
-        ("Vespertino e Noturno", "VN"),
-        ("Matutino, Vespertino e Noturno", "MVN"),
-        ("ENGENHARIA DE INTELIGÊNCIA ARTIFICIAL - Matutino e Vespertino", "MV"),
+        ("Matutino e Vespertino", "D"),
+        ("Matutino e Noturno", "N"),
+        ("Vespertino e Noturno", "N"),
+        ("Matutino, Vespertino e Noturno", "N"),
+        ("ENGENHARIA DE INTELIGÊNCIA ARTIFICIAL - Matutino e Vespertino", "D"),
         ("CONSERVAÇÃO E USO DA BIODIVERSIDADE - Noturno", "N"),
         ("Turno Indefinido", None),
         ("", None),

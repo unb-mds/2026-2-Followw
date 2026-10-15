@@ -32,7 +32,7 @@ Todos os erros derivam de `SigaaError`.
 
 `client.curricula.list_curricula(course_sigaa_id)` lista as estruturas de um curso, com ID,
 código, ano de criação, turno e status. `get_curriculum(course_sigaa_id, sigaa_id)` retorna
-o turno em letras (`M`, `V`, `N` ou combinações como `MV`; `None` quando indefinido) e
+o turno em letras (`D` para diurno ou `N` para noturno; `None` quando indefinido) e
 também a matriz, `valid_from` (semestre de entrada em vigor), `required_by_period` (array de
 objetos com `period` e array `required` de códigos), `optional` e `complementary` (arrays de
 códigos). O período é o nível informado pelo SIGAA, inclusive zero quando presente.
@@ -44,7 +44,8 @@ uv run python packages/sigaa-client/scripts/collect_curricula.py --latest-only
 ```
 
 A coleta usa os IDs de `data/courses.csv` e gera `data/curricula.csv` (metadados das matrizes)
-e `data/curriculum_components.csv` (componentes de cada matriz) após concluir todos os cursos.
+e `data/curriculum_components.csv` (uma linha por período de cada matriz) após concluir todos os cursos.
+Cada linha reúne os códigos em `subject_codes`, separados por espaço; períodos vazios têm o campo vazio.
 As optativas têm período `0`, as obrigatórias mantêm seu período e as complementares ficam
 com período vazio. A coluna `kind` distingue `required`, `optional` e `complementary`.
 Os arquivos se relacionam por curso e ID da matriz no SIGAA. Por padrão seleciona estruturas
@@ -63,7 +64,8 @@ Para carregar somente currículos em um banco que já tenha cursos, execute
 `uv run db-seed-curricula` em `apps/api` (usa o `.env` dessa pasta e cria as tabelas se necessário).
 O seed resolve `course_sigaa_id` para a chave local de `courses`, valida os dois CSVs e atualiza
 as matrizes sem duplicá-las. Os componentes das matrizes carregadas são substituídos na mesma
-transação, removendo vínculos obsoletos. Seus códigos não exigem uma entrada em `subjects`,
+transação, expandindo os códigos de cada período em vínculos individuais e removendo vínculos obsoletos.
+Seus códigos não exigem uma entrada em `subjects`,
 pois o catálogo de disciplinas ofertadas não contém todos os componentes históricos.
 
 `client.subjects.search(unit=None, level=TeachingLevel.GRADUACAO, type=None, code=None, name=None)`

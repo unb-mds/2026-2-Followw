@@ -31,7 +31,7 @@ def curricula_script(monkeypatch):
 
 
 def test_curriculos_recentes_incluem_base_anterior_e_preservam_turno(curricula_script):
-    def item(id, year, active=True, shift="MV"):
+    def item(id, year, active=True, shift="D"):
         return CurriculumSummary(
             sigaa_id=id,
             course_sigaa_id=1,
@@ -113,10 +113,10 @@ def test_coleta_grava_matrizes_e_componentes_com_optativas_no_periodo_zero(
         valid_from="2020.1",
         matrix='ADMINISTRAÇÃO, "D"',
         required_by_period=[
-            {"period": 1, "required": ["ADM0023"]},
+            {"period": 1, "required": ["ADM0023", "ADM0024"]},
             {"period": 2, "required": []},
         ],
-        optional=["ADM0002"],
+        optional=["ADM0002", "ADM0003"],
         complementary=["ADM0100"],
     )
     curricula_script.write_csvs([item], tmp_path)
@@ -129,11 +129,13 @@ def test_coleta_grava_matrizes_e_componentes_com_optativas_no_periodo_zero(
     assert matrix["matrix"] == item.matrix
     assert matrix["shift"] == ""
     assert matrix["active"] == "true"
-    assert {(row["subject_code"], row["period"], row["kind"]) for row in rows} == {
-        ("ADM0023", "1", "required"),
-        ("ADM0002", "0", "optional"),
+    assert {(row["subject_codes"], row["period"], row["kind"]) for row in rows} == {
+        ("ADM0023 ADM0024", "1", "required"),
+        ("", "2", "required"),
+        ("ADM0002 ADM0003", "0", "optional"),
         ("ADM0100", "", "complementary"),
     }
+    assert len({row["period"] for row in rows}) == len(rows)
     assert all(
         row["curriculum_sigaa_id"] == "456" and row["course_sigaa_id"] == "414112"
         for row in rows
