@@ -20,51 +20,49 @@ async with SigaaPublicClient() as client:
     componentes = await client.subjects.search("gama", code="FGA00")
 ```
 
-| Client              | Login | Módulos                                  |
-| ------------------- | ----- | ---------------------------------------- |
+| Client              | Login | Módulos                                                |
+| ------------------- | ----- | ------------------------------------------------------ |
 | `SigaaClient`       | sim   | `.profile`, `.classrooms`, `.documents`, `.restaurant` |
-| `SigaaPublicClient` | não   | `.classrooms`, `.subjects`, `.curricula`  |
+| `SigaaPublicClient` | não   | `.classrooms`, `.subjects`, `.curricula`               |
 
 O login é feito sob demanda. O token retornado por `authenticate()` pode ser reutilizado com
 `SigaaClient(session_token=...)`: sem credenciais, uma sessão expirada levanta `SessionExpired`.
 
 Todos os erros derivam de `SigaaError`.
 
-`client.curricula.list_curricula(course_sigaa_id)` lista as estruturas de um curso, com ID,
-código, ano de criação, turno e status. `get_curriculum(course_sigaa_id, sigaa_id)` retorna
-o turno em letras (`D` para diurno ou `N` para noturno; `None` quando indefinido) e
-também a matriz, `valid_from` (semestre de entrada em vigor), `required_by_period` (array de
-objetos com `period` e array `required` de códigos), `optional` e `complementary` (arrays de
-códigos). Os períodos devem ser positivos; uma seção `semestre0` gera `SigaaParseError`
-antes da exportação. O período zero no dataset é reservado às optativas.
-Optativas indicadas dentro dos períodos também entram em `optional`, sem duplicatas.
+`client.curricula.list_curricula(course_sigaa_id)` lista as estruturas de um curso, com ID, código,
+ano de criação, turno e status. `get_curriculum(course_sigaa_id, sigaa_id)` retorna o turno em
+letras (`D` para diurno ou `N` para noturno; `None` quando indefinido) e também a matriz,
+`valid_from` (semestre de entrada em vigor), `required_by_period` (array de objetos com `period` e
+array `required` de códigos), `optional` e `complementary` (arrays de códigos). O período é o nível
+informado pelo SIGAA, inclusive zero quando presente. Optativas indicadas dentro dos períodos também
+entram em `optional`, sem duplicatas.
 
 ```sh
 uv run python packages/sigaa-client/scripts/collect_curricula.py --year 2026
 uv run python packages/sigaa-client/scripts/collect_curricula.py --latest-only
 ```
 
-A coleta usa os IDs de `data/courses.csv` e gera `data/curricula.csv` (metadados das matrizes)
-e `data/curriculum_components.csv` (uma linha por período de cada matriz) após concluir todos os cursos.
-Cada linha reúne os códigos em `subject_codes`, separados por espaço; períodos vazios têm o campo vazio.
-As optativas têm período `0`, as obrigatórias mantêm seu período e as complementares ficam
-com período vazio. A coluna `kind` distingue `required`, `optional` e `complementary`.
-Os arquivos se relacionam por curso e ID da matriz no SIGAA. Por padrão seleciona estruturas
-ativas criadas no ano de referência e nos
-três anteriores, mais a última versão anterior à janela, por turno, para cobrir ingressos
-antes da primeira revisão. Sem revisões recentes, fica a mais recente; empates são preservados.
-Se a única estrutura ativa for futura, ela é preservada com sua vigência original; consultas
-por ingresso devem respeitar `valid_from`. Cursos sem estruturas ativas ficam fora dos CSVs.
-`--latest-only` mantém apenas o ano mais recente por turno. O semestre efetivo é preservado
-em `valid_from`; o ano de criação serve apenas para selecionar o conjunto a coletar.
+A coleta usa os IDs de `data/courses.csv` e gera `data/curricula.csv` (metadados das matrizes) e
+`data/curriculum_components.csv` (uma linha por período de cada matriz) após concluir todos os
+cursos. Cada linha reúne os códigos em `subject_codes`, separados por espaço; períodos vazios têm o
+campo vazio. As optativas têm período `0`, as obrigatórias mantêm seu período e as complementares
+ficam com período vazio. A coluna `kind` distingue `required`, `optional` e `complementary`. Os
+arquivos se relacionam por curso e ID da matriz no SIGAA. Por padrão seleciona estruturas ativas
+criadas no ano de referência e nos três anteriores, mais a última versão anterior à janela, por
+turno, para cobrir ingressos antes da primeira revisão. Sem revisões recentes, fica a mais recente;
+empates são preservados. Se a única estrutura ativa for futura, ela é preservada com sua vigência
+original; consultas por ingresso devem respeitar `valid_from`. Cursos sem estruturas ativas ficam
+fora dos CSVs. `--latest-only` mantém apenas o ano mais recente por turno. O semestre efetivo é
+preservado em `valid_from`; o ano de criação serve apenas para selecionar o conjunto a coletar.
 `--course ID` permite uma coleta parcial, exigindo um `--output-dir` diferente de `data/`.
 
-O `uv run db-init` da API cria as tabelas `curricula` e `curriculum_components` e executa seu
-seed após o de cursos. O seed resolve `course_sigaa_id` para a chave local de `courses`, valida os dois CSVs e atualiza
-as matrizes sem duplicá-las; matrizes ausentes do CSV são removidas. Os componentes são substituídos
-na mesma transação, expandindo os códigos de cada período em vínculos individuais.
-Seus códigos não exigem uma entrada em `subjects`,
-pois o catálogo de disciplinas ofertadas não contém todos os componentes históricos.
+O `uv run db-init` da API cria as tabelas `curricula` e `curriculum_components` e executa seu seed
+após o de cursos. O seed resolve `course_sigaa_id` para a chave local de `courses`, valida os dois
+CSVs e atualiza as matrizes sem duplicá-las; matrizes ausentes do CSV são removidas. Os componentes
+são substituídos na mesma transação, expandindo os códigos de cada período em vínculos individuais.
+Seus códigos não exigem uma entrada em `subjects`, pois o catálogo de disciplinas ofertadas não
+contém todos os componentes históricos.
 
 `client.subjects.search(unit=None, level=TeachingLevel.GRADUACAO, type=None, code=None, name=None)`
 consulta o catálogo público com filtros combináveis. `unit` aceita `Unit`, ID ou trecho não ambíguo
@@ -85,13 +83,13 @@ uma nova busca que exceda o limite faz o aviso reaparecer. O client preserva seu
 `client.restaurant.get_restaurant_statement()` retorna saldo, extrato e grupo (1 a 4), com saldo e
 grupo ausentes representados por `None`.
 
-`client.classrooms.list_grades()` retorna todas as menções de "Ensino > Consultar Minhas Notas"
-num único relatório. Cada `ClassroomGrade` traz `subject_code`, `semester` e a menção (`Grade`)
-do "Resultado", ou `None` enquanto não houver nota lançada.
-`client.documents.get_student_card_pdf()` retorna os bytes do PDF original da carteirinha
-estudantil. `client.restaurant.get_restaurant_credentials()` usa esse mesmo download para extrair o token do QR code
-e a validade, sem persistir o arquivo.
-`client.documents.get_transcript_pdf()` baixa o PDF original do histórico acadêmico.
+`client.classrooms.list_grades()` retorna todas as menções de "Ensino > Consultar Minhas Notas" num
+único relatório. Cada `ClassroomGrade` traz `subject_code`, `semester` e a menção (`Grade`) do
+"Resultado", ou `None` enquanto não houver nota lançada. `client.documents.get_student_card_pdf()`
+retorna os bytes do PDF original da carteirinha estudantil.
+`client.restaurant.get_restaurant_credentials()` usa esse mesmo download para extrair o token do QR
+code e a validade, sem persistir o arquivo. `client.documents.get_transcript_pdf()` baixa o PDF
+original do histórico acadêmico.
 
 `SigaaPublicClient().classrooms.iter_subjects(unidade)` percorre os componentes de graduação
 ofertados por uma unidade e entrega cada um como `SubjectDetails`: o `Subject` com `prerequisites`,

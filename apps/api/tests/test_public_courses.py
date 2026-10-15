@@ -245,7 +245,6 @@ def test_curriculo_por_ingresso_traz_materias_agrupadas_e_requisitos(catalog):
         "valid_from": "2024.2",
         "shift": "D",
         "entry_semester": "2026.1",
-        "fallback_used": False,
         "periods": [
             {
                 "period": 0,
@@ -305,31 +304,38 @@ def test_curriculo_por_ingresso_traz_materias_agrupadas_e_requisitos(catalog):
 
 
 @pytest.mark.parametrize(
-    ("entry", "expected", "fallback"),
+    ("entry", "expected"),
     [
-        ("2021.1", 101, True),
-        ("2022.2", 101, False),
-        ("2024.1", 101, False),
-        ("2024.2", 201, False),
-        ("2027.2", 201, False),
-        ("2028.1", 301, False),
+        ("2021.1", 101),
+        ("2022.2", 101),
+        ("2024.1", 101),
+        ("2024.2", 201),
+        ("2027.2", 201),
+        ("2028.1", 301),
     ],
 )
-def test_selecao_por_vigencia_e_fallback_mais_antigo(
-    catalog, entry, expected, fallback
+def test_selecao_pela_maior_vigencia_ate_o_ingresso_ou_a_mais_antiga(
+    catalog, entry, expected
 ):
     response = _get(catalog, entry)
     assert response.status_code == 200
     assert response.json()["sigaa_id"] == expected
-    assert response.json()["fallback_used"] is fallback
+    assert "fallback_used" not in response.json()
 
 
-def _add_tie(database, *, oldest=False):
+def test_todo_semestre_tem_curriculo(catalog, database):
+    _add_tie(database, code="HABILITAÇÃO/2")
+    for year in range(2000, 2031):
+        for period in range(10):
+            assert _get(catalog, f"{year}.{period}").status_code == 200
+
+
+def _add_tie(database, *, code, oldest=False):
     with database.begin() as session:
         matrix = Curriculum(
             course_id=77,
             sigaa_id=202,
-            code="HABILITAÇÃO",
+            code=code,
             valid_from="2022.2" if oldest else "2024.2",
             created_year=2022 if oldest else 2024,
             active=True,
@@ -348,32 +354,30 @@ def _add_tie(database, *, oldest=False):
         )
 
 
-@pytest.mark.parametrize("oldest", [False, True])
-def test_empate_retorna_opcoes_e_permite_escolher_matriz(catalog, database, oldest):
-    _add_tie(database, oldest=oldest)
+@pytest.mark.parametrize(
+    ("code", "oldest", "expected"),
+    [
+        ("HABILITAÇÃO/2", False, 202),
+        ("HABILITAÇÃO/2", True, 202),
+        ("HABILITAÇÃO/-2", False, 201),
+        ("HABILITAÇÃO/-2", True, 101),
+    ],
+)
+def test_empate_usa_maior_revisao_e_permite_escolher_matriz(
+    catalog, database, code, oldest, expected
+):
+    _add_tie(database, code=code, oldest=oldest)
     entry = "2021.1" if oldest else "2026.1"
     response = _get(catalog, entry)
-    assert response.status_code == 409
-    detail = response.json()["detail"]
-    assert "curriculum_sigaa_id" in detail["message"]
-    assert {item["sigaa_id"] for item in detail["options"]} == {
-        101 if oldest else 201,
-        202,
-    }
-    assert next(item for item in detail["options"] if item["sigaa_id"] == 202) == {
-        "sigaa_id": 202,
-        "code": "HABILITAÇÃO",
-        "valid_from": "2022.2" if oldest else "2024.2",
-        "matrix": "OUTRA HABILITAÇÃO",
-        "shift": "N",
-    }
-    selected = _get(catalog, entry, curriculum_sigaa_id=202)
+    assert response.status_code == 200
+    assert response.json()["sigaa_id"] == expected
+    other = 202 if expected != 202 else (101 if oldest else 201)
+    selected = _get(catalog, entry, curriculum_sigaa_id=other)
     assert selected.status_code == 200
-    result = selected.json()
-    assert result["sigaa_id"] == 202
-    assert result["fallback_used"] is oldest
-    assert result["periods"][0] == {"period": 0, "subjects": []}
-    assert result["periods"][1]["subjects"][0]["code"] == "EXCLUSIVA"
+    assert selected.json()["sigaa_id"] == other
+    exclusive = _get(catalog, entry, curriculum_sigaa_id=202).json()
+    assert exclusive["periods"][0] == {"period": 0, "subjects": []}
+    assert exclusive["periods"][1]["subjects"][0]["code"] == "EXCLUSIVA"
 
 
 @pytest.mark.parametrize("wanted", [101, 301, 401, 501, 999])
@@ -414,20 +418,17 @@ def test_id_local_deve_ser_positivo(client):
     )
 
 
-def test_openapi_documenta_selecao_e_conflitos(client):
+def test_openapi_documenta_selecao(client):
     schema = client.get("/openapi.json").json()
     path = schema["paths"]["/public/courses/{course_id}/curriculum"]
     assert set(path) == {"get"}
     operation = path["get"]
     assert operation["tags"] == ["Public Courses"]
-    assert set(operation["responses"]) == {"200", "404", "409", "422"}
+    assert set(operation["responses"]) == {"200", "404", "422"}
     assert {item["name"] for item in operation["parameters"] if item["required"]} == {
         "course_id",
         "entry_semester",
     }
-    assert operation["responses"]["409"]["content"]["application/json"]["schema"][
-        "$ref"
-    ].endswith("/CurriculumConflict")
 
 
 def test_post_nao_e_permitido(client):

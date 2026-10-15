@@ -59,22 +59,23 @@ Recursos públicos, consultáveis sem login, usam o prefixo `/public`:
 - `GET /public/classrooms`: busca pública de turmas por unidade, semestre, código (`code`), número
   da turma (`number`), disciplina/professor (`contains`) e local.
 - `GET /public/classrooms/units`: unidades disponíveis na busca pública.
-- `GET /public/courses`: cursos cadastrados, ordenados por nome, com ID local (`id`), ID do
-  SIGAA (`sigaa_id`), nome, turno e unidade (`unity_id` e sigla em `unity`). Inclui cursos sem
-  currículo e cursos criados pelo sync, cujo ID do SIGAA pode ser nulo.
-- `GET /public/courses/{course_id}/curriculum?entry_semester=2026.1`: currículo ativo do curso
-  (ID local do Followw) pela vigência mais recente anterior ou igual ao ingresso. Se não houver,
-  retorna o mais antigo e marca `fallback_used`. Empates retornam `409` com `detail.options`;
-  repita a consulta com `curriculum_sigaa_id` de uma dessas opções. A resposta agrupa as matérias
-  em `periods` (optativas no `0`) e traz `complementary` separado, com nome, horas e requisitos
-  do catálogo quando disponíveis; campos desconhecidos ficam nulos. Curso sem currículo retorna `404`.
+- `GET /public/courses`: cursos cadastrados, ordenados por nome, com ID local (`id`), ID do SIGAA
+  (`sigaa_id`), nome, turno e unidade (`unity_id` e sigla em `unity`). Inclui cursos sem currículo e
+  cursos criados pelo sync, cujo ID do SIGAA pode ser nulo.
+- `GET /public/courses/{course_id}/curriculum?entry_semester=2026.1`: currículo ativo do curso (ID
+  local do Followw) pela vigência mais recente anterior ou igual ao ingresso. Se não houver, retorna
+  o mais antigo. Na mesma vigência vale a maior revisão do código (ex.: `2680/4`);
+  `curriculum_sigaa_id` escolhe outra matriz dessa vigência. A resposta agrupa as matérias em
+  `periods` (optativas no `0`) e traz `complementary` separado, com nome, horas e requisitos do
+  catálogo quando disponíveis; campos desconhecidos ficam nulos. Curso sem currículo retorna `404`.
 
 Extrato/saldo e token exigem autenticação e ficam em `GET /me/ru-statement` e `GET /me/ru-token`,
 substituindo `/restaurant/statement` e `/restaurant/token`. `/classrooms` lista somente turmas do
 usuário autenticado, sem lógica de busca pública. Rotas de autenticação, documentação e callbacks
 mantêm seus caminhos próprios.
 
-Na documentação, a categoria **Public** reúne **Classrooms**, **Courses**, **Restaurant** e **Subjects**.
+Na documentação, a categoria **Public** reúne **Classrooms**, **Courses**, **Restaurant** e
+**Subjects**.
 
 ### Web
 

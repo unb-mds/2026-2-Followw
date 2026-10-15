@@ -1,3 +1,4 @@
+import re
 from typing import Annotated, Literal
 
 from fastapi import Depends, HTTPException
@@ -7,6 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.db.main import DatabaseDep
 from api.db.models import Curriculum, Requirements, Subject
 from api.modules.public_courses.repository import PublicCourseRepository
+
+_REVISION_RE = re.compile(r"/(-?\d+)$")
 
 
 class PublicCourse(BaseModel):
@@ -52,18 +55,8 @@ class CurriculumPeriod(BaseModel):
 class CourseCurriculum(CurriculumOption):
     course_id: int
     entry_semester: str
-    fallback_used: bool
     periods: list[CurriculumPeriod]
     complementary: list[CurriculumSubject]
-
-
-class CurriculumConflictDetail(BaseModel):
-    message: str
-    options: list[CurriculumOption]
-
-
-class CurriculumConflict(BaseModel):
-    detail: CurriculumConflictDetail
 
 
 class PublicCourseService:
@@ -133,7 +126,6 @@ async def _load(
         **CurriculumOption.model_validate(selected).model_dump(),
         course_id=course_id,
         entry_semester=entry_semester,
-        fallback_used=not previous,
         periods=[
             CurriculumPeriod(period=period, subjects=items)
             for period, items in sorted(periods.items())
@@ -150,13 +142,13 @@ def _select(options: list[Curriculum], wanted: int | None) -> Curriculum:
         raise HTTPException(
             404, "Matriz não disponível para o curso e semestre de ingresso informados."
         )
-    if len(options) > 1:
-        detail = CurriculumConflictDetail(
-            message="Há mais de uma matriz para o semestre selecionado; informe curriculum_sigaa_id.",
-            options=[CurriculumOption.model_validate(item) for item in options],
-        )
-        raise HTTPException(409, detail.model_dump(mode="json"))
-    return options[0]
+    return max(options, key=_revision)
+
+
+def _revision(item: Curriculum) -> tuple[int, int]:
+    # O sufixo do código é a revisão da matriz (ex.: 2680/4).
+    match = _REVISION_RE.search(item.code)
+    return (int(match[1]) if match else 0, item.sigaa_id)
 
 
 def _subject(code: str, subject: Subject | None) -> CurriculumSubject:

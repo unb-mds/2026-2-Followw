@@ -5,7 +5,6 @@ from fastapi import APIRouter, Path, Query
 from api.cache import NoStore
 from api.modules.public_courses.service import (
     CourseCurriculum,
-    CurriculumConflict,
     PublicCourse,
     PublicCourseServiceDep,
 )
@@ -34,19 +33,15 @@ async def list_courses(service: PublicCourseServiceDep) -> list[PublicCourse]:
     response_model=CourseCurriculum,
     summary="Consultar currículo do curso pelo ingresso",
     description=(
-        "Seleciona, entre as matrizes ativas cadastradas, a vigência mais recente anterior ou igual ao ingresso. "
-        "Se não houver, usa a mais antiga disponível e sinaliza fallback_used. "
-        "Em caso de empate, retorna 409 com as opções; repita a consulta com curriculum_sigaa_id. "
+        "Seleciona, entre as matrizes ativas cadastradas, a vigência mais recente anterior ou igual ao ingresso; "
+        "antes da primeira vigência, usa a mais antiga. "
+        "Entre matrizes da mesma vigência, vale a de maior revisão do código, salvo se curriculum_sigaa_id escolher outra. "
         "As matérias vêm agrupadas por período, com optativas no período 0 e complementares em uma lista própria. "
         "Nome, carga horária e requisitos vêm do catálogo gravado; dados ausentes ficam nulos. Não consulta o SIGAA."
     ),
     responses={
         404: {
             "description": "Curso inexistente, sem currículo ativo ou matriz indisponível para o ingresso."
-        },
-        409: {
-            "model": CurriculumConflict,
-            "description": "Várias matrizes com a mesma vigência; escolha uma das opções.",
         },
     },
     dependencies=[NoStore],
@@ -71,7 +66,7 @@ async def get_curriculum(
         int | None,
         Query(
             gt=0,
-            description="ID da matriz no SIGAA, escolhido entre as opções retornadas no 409.",
+            description="ID no SIGAA de outra matriz com a mesma vigência selecionada.",
         ),
     ] = None,
 ) -> CourseCurriculum:
