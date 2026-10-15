@@ -17,6 +17,7 @@ LOGOUT_PATH = "/sigaa/logar.do?dispatch=logOff"
 PUBLIC_HOME_PATH = "/sigaa/public/home.jsf"
 PUBLIC_CLASSROOMS_PATH = "/sigaa/public/turmas/listar.jsf"
 PUBLIC_SUBJECTS_PATH = "/sigaa/public/componentes/busca_componentes.jsf"
+PUBLIC_CURRICULA_PATH = "/sigaa/public/curso/curriculo.jsf"
 
 DEFAULT_TIMEOUT = 15
 PARTICIPANTS_TIMEOUT = 60

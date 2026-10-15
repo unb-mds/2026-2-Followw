@@ -4,7 +4,33 @@ from decimal import Decimal
 from functools import cached_property
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, SecretStr, computed_field
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, computed_field
+
+
+class CurriculumSummary(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    sigaa_id: int = Field(gt=0)
+    course_sigaa_id: int = Field(gt=0)
+    code: str = Field(min_length=1)
+    created_year: int = Field(ge=1900)
+    active: bool
+    shift: Literal["D", "N"] | None = None
+
+
+class CurriculumPeriod(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    period: int = Field(gt=0)
+    required: tuple[str, ...]
+
+
+class Curriculum(CurriculumSummary):
+    valid_from: str = Field(pattern=r"^[0-9]{4}\.[0-9]$")
+    matrix: str = Field(min_length=1)
+    required_by_period: tuple[CurriculumPeriod, ...]
+    optional: tuple[str, ...]
+    complementary: tuple[str, ...] = ()
 
 
 class Credentials(BaseModel):
