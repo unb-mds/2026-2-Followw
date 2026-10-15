@@ -77,7 +77,7 @@ def test_sqlite_sem_fuso_vale_como_utc():
 @pytest.mark.parametrize(
     "path",
     [
-        "/news",
+        "/posts",
         "/me/ru-statement",
         "/me/ru-token",
         "/public/classrooms",
@@ -99,8 +99,8 @@ def test_rotas_sem_cache_nao_documentam_diretivas(client, path):
         "/classrooms/{classroom_id}/frequency",
         "/classrooms/{classroom_id}/members",
         "/classrooms/{classroom_id}/statistics",
-        "/classrooms/{classroom_id}/news",
-        "/classrooms/{classroom_id}/news/{news_id}",
+        "/classrooms/{classroom_id}/posts",
+        "/classrooms/{classroom_id}/posts/{post_id}",
         "/public/restaurant",
     ],
 )

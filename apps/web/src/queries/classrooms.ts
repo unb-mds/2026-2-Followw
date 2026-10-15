@@ -6,6 +6,8 @@ import { api } from '#/queries/api.ts';
 import { apiClient } from '#/queries/client.ts';
 
 export type Classroom = components['schemas']['ParticipantClassroom'];
+export type ClassroomPost = components['schemas']['ClassroomPost'];
+export type PostType = components['schemas']['PostType'];
 
 /** A menção vale nas turmas encerradas; nas atuais, quem ocupa o lugar dela é o local. */
 export const finalGrade = (classroom: Classroom) =>
@@ -17,14 +19,14 @@ export const allClassroomsQueryOptions = api.queryOptions('get', '/classrooms', 
     params: { query: { semester: 'all' } }
 });
 
-export const classroomNewsQueryOptions = (id: string) =>
-    api.queryOptions('get', '/classrooms/{classroom_id}/news', {
-        params: { path: { classroom_id: id } }
+export const classroomPostsQueryOptions = (id: string, type?: PostType) =>
+    api.queryOptions('get', '/classrooms/{classroom_id}/posts', {
+        params: { path: { classroom_id: id }, ...(type ? { query: { type } } : {}) }
     });
 
-export const classroomNewsDetailQueryOptions = (id: string, newsId: number) =>
-    api.queryOptions('get', '/classrooms/{classroom_id}/news/{news_id}', {
-        params: { path: { classroom_id: id, news_id: newsId } }
+export const classroomPostDetailQueryOptions = (id: string, postId: string) =>
+    api.queryOptions('get', '/classrooms/{classroom_id}/posts/{post_id}', {
+        params: { path: { classroom_id: id, post_id: postId } }
     });
 
 export const classroomFrequencyQueryOptions = (id: string) =>

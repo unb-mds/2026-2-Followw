@@ -5,7 +5,7 @@ import type { components } from '#/queries/schema.gen.ts';
 
 import { getContext } from '#/integrations/tanstack-query/root-provider.tsx';
 import { clearSession } from '#/queries/auth.ts';
-import { classroomNewsQueryOptions, classroomsQueryOptions } from '#/queries/classrooms.ts';
+import { classroomPostsQueryOptions, classroomsQueryOptions } from '#/queries/classrooms.ts';
 import { ApiError } from '#/queries/errors.ts';
 import { meQueryOptions } from '#/queries/me.ts';
 import { menuQueryOptions } from '#/queries/restaurant.ts';
@@ -59,15 +59,15 @@ describe('clearSession', () => {
 
     test('remove todos os dados da conta e mantém os públicos', async () => {
         const { queryClient } = getContext();
-        const news = classroomNewsQueryOptions('turma-1').queryKey;
+        const posts = classroomPostsQueryOptions('turma-1').queryKey;
         const menu = menuQueryOptions({ date: '2026-10-06' }).queryKey;
         queryClient.setQueryData(meQueryOptions.queryKey, user);
-        queryClient.setQueryData(news, []);
+        queryClient.setQueryData(posts, []);
         queryClient.setQueryData(menu, []);
 
         await clearSession(queryClient);
 
-        expect(queryClient.getQueryState(news)).toBeUndefined();
+        expect(queryClient.getQueryState(posts)).toBeUndefined();
         const cachedMenu: unknown = queryClient.getQueryData(menu);
         expect(cachedMenu).toEqual([]);
     });

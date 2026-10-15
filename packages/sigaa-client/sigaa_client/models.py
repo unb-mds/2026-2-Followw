@@ -421,14 +421,61 @@ class NewsAttachment(BaseModel):
 
 
 class News(BaseModel):
-    """A home não traz `id`; hora, texto e anexos só vêm de `get_classroom_news`."""
+    """Hora, texto e anexos só vêm de `get_classroom_news`."""
 
     model_config = ConfigDict(frozen=True)
 
-    id: int | None = None
-    classroom_sigaa_id: int | None = None
+    id: int
     title: str
     published_on: date
     published_at: datetime | None = None
     content: str | None = None
     attachments: tuple[NewsAttachment, ...] = ()
+
+
+class PostType(str, enum.Enum):
+    NEWS = "news"
+    TOPIC = "topic"
+    MATERIAL = "material"
+    ASSESSMENT = "assessment"
+
+
+class ClassroomPost(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    id: str
+    type: PostType
+    sigaa_id: str | None = None
+    classroom_sigaa_id: int | None = None
+    topic_id: str | None = None
+    title: str
+    content: str | None = None
+    published_on: date | None = None
+    published_at: datetime | None = None
+    starts_on: date | None = None
+    ends_on: date | None = None
+    starts_at: datetime | None = None
+    time_label: str | None = None
+    url: str | None = None
+    attachments: tuple[NewsAttachment, ...] = ()
+
+    @classmethod
+    def from_news(cls, news: News) -> ClassroomPost:
+        return cls(
+            id=f"news:{news.id}",
+            type=PostType.NEWS,
+            sigaa_id=str(news.id),
+            **news.model_dump(exclude={"id"}),
+        )
+
+
+class DashboardPost(BaseModel):
+    """Post recente da home: sem ID, o detalhe fica nos posts da turma."""
+
+    model_config = ConfigDict(frozen=True)
+
+    type: PostType
+    classroom_sigaa_id: int | None = None
+    title: str
+    published_on: date | None = None
+    starts_on: date | None = None

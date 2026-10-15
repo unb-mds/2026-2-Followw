@@ -13,7 +13,7 @@ from api.logger import RequestLoggingMiddleware
 from api.modules.auth.router import router as auth_router
 from api.modules.classrooms.router import router as classrooms_router
 from api.modules.me.router import router as me_router
-from api.modules.news.router import router as news_router
+from api.modules.posts.router import router as posts_router
 from api.modules.public_classrooms.router import router as public_classrooms_router
 from api.modules.public_courses.router import router as public_courses_router
 from api.modules.public_restaurant.router import router as public_restaurant_router
@@ -58,8 +58,8 @@ tags_metadata = [
         "description": "Componentes curriculares de graduação e suas turmas, sem autenticação.",
     },
     {
-        "name": "News",
-        "description": "Notícias recentes das turmas, consultadas diretamente no SIGAA.",
+        "name": "Posts",
+        "description": "Notícias e avaliações recentes das turmas, consultadas diretamente na home do SIGAA.",
     },
 ]
 
@@ -105,7 +105,7 @@ def custom_openapi() -> dict[str, Any]:
             },
             {
                 "name": "SIGAA",
-                "tags": ["Auth", "Classrooms", "Me", "News"],
+                "tags": ["Auth", "Classrooms", "Me", "Posts"],
             },
         ]
     return app.openapi_schema
@@ -168,5 +168,5 @@ app.include_router(
     public_subjects_router, prefix="/public/subjects", tags=["Public Subjects"]
 )
 app.include_router(me_router, prefix="/me", tags=["Me"])
-app.include_router(news_router, prefix="/news", tags=["News"])
+app.include_router(posts_router, prefix="/posts", tags=["Posts"])
 app.include_router(jobs_router, prefix="/jobs", tags=["Jobs"])
