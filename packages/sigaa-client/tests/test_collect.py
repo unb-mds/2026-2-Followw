@@ -1,3 +1,4 @@
+import csv
 import importlib
 from pathlib import Path
 from types import SimpleNamespace
@@ -5,6 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 from sigaa_client import (
+    Curriculum,
     CurriculumSummary,
     PublicClassroom,
     SigaaError,
@@ -76,16 +78,18 @@ def test_falha_na_coleta_de_curriculos_nao_substitui_dataset(
     monkeypatch.setattr(curricula_script, "SigaaPublicClient", Client)
     courses = tmp_path / "courses.csv"
     courses.write_text("id,name\n1,Curso\n", encoding="utf-8")
-    output = tmp_path / "curricula.json"
+    output = tmp_path / "curricula.csv"
     output.write_text("preservado", encoding="utf-8")
+    components = tmp_path / "curriculum_components.csv"
+    components.write_text("componentes preservados", encoding="utf-8")
     monkeypatch.setattr(
         "sys.argv",
         [
             "collect_curricula",
             "--courses",
             str(courses),
-            "--output",
-            str(output),
+            "--output-dir",
+            str(tmp_path),
             "--year",
             "2026",
         ],
@@ -93,6 +97,47 @@ def test_falha_na_coleta_de_curriculos_nao_substitui_dataset(
     with pytest.raises(RuntimeError, match="dataset não foi substituído"):
         curricula_script.main()
     assert output.read_text(encoding="utf-8") == "preservado"
+    assert components.read_text(encoding="utf-8") == "componentes preservados"
+
+
+def test_coleta_grava_matrizes_e_componentes_com_optativas_no_periodo_zero(
+    curricula_script, tmp_path
+):
+    item = Curriculum(
+        sigaa_id=456,
+        course_sigaa_id=414112,
+        code="8117/1",
+        created_year=2020,
+        active=True,
+        shift=None,
+        valid_from="2020.1",
+        matrix='ADMINISTRAÇÃO, "D"',
+        required_by_period=[
+            {"period": 1, "required": ["ADM0023"]},
+            {"period": 2, "required": []},
+        ],
+        optional=["ADM0002"],
+        complementary=["ADM0100"],
+    )
+    curricula_script.write_csvs([item], tmp_path)
+    with (tmp_path / "curricula.csv").open(encoding="utf-8", newline="") as file:
+        (matrix,) = list(csv.DictReader(file))
+    with (tmp_path / "curriculum_components.csv").open(
+        encoding="utf-8", newline=""
+    ) as file:
+        rows = list(csv.DictReader(file))
+    assert matrix["matrix"] == item.matrix
+    assert matrix["shift"] == ""
+    assert matrix["active"] == "true"
+    assert {(row["subject_code"], row["period"], row["kind"]) for row in rows} == {
+        ("ADM0023", "1", "required"),
+        ("ADM0002", "0", "optional"),
+        ("ADM0100", "", "complementary"),
+    }
+    assert all(
+        row["curriculum_sigaa_id"] == "456" and row["course_sigaa_id"] == "414112"
+        for row in rows
+    )
 
 
 class FakeClient:

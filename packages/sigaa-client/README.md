@@ -42,22 +42,28 @@ uv run python packages/sigaa-client/scripts/collect_curricula.py --year 2026
 uv run python packages/sigaa-client/scripts/collect_curricula.py --latest-only
 ```
 
-A coleta usa os IDs de `data/courses.csv` e substitui `data/curricula.json` somente ao concluir
-todos os cursos. Por padrão seleciona estruturas ativas criadas no ano de referência e nos
+A coleta usa os IDs de `data/courses.csv` e gera `data/curricula.csv` (metadados das matrizes)
+e `data/curriculum_components.csv` (componentes de cada matriz) após concluir todos os cursos.
+As optativas têm período `0`, as obrigatórias mantêm seu período e as complementares ficam
+com período vazio. A coluna `kind` distingue `required`, `optional` e `complementary`.
+Os arquivos se relacionam por curso e ID da matriz no SIGAA. Por padrão seleciona estruturas
+ativas criadas no ano de referência e nos
 três anteriores, mais a última versão anterior à janela, por turno, para cobrir ingressos
 antes da primeira revisão. Sem revisões recentes, fica a mais recente; empates são preservados.
 Se a única estrutura ativa for futura, ela é preservada com sua vigência original; consultas
-por ingresso devem respeitar `valid_from`. Cursos sem estruturas ativas ficam fora do JSON.
+por ingresso devem respeitar `valid_from`. Cursos sem estruturas ativas ficam fora dos CSVs.
 `--latest-only` mantém apenas o ano mais recente por turno. O semestre efetivo é preservado
 em `valid_from`; o ano de criação serve apenas para selecionar o conjunto a coletar.
-`--course ID` permite uma coleta parcial, exigindo um `--output` diferente do dataset oficial.
+`--course ID` permite uma coleta parcial, exigindo um `--output-dir` diferente de `data/`.
 
-O `uv run db-init` da API cria a tabela `curricula` e executa seu seed após o de cursos.
+O `uv run db-init` da API cria as tabelas `curricula` e `curriculum_components` e executa seu
+seed após o de cursos.
 Para carregar somente currículos em um banco que já tenha cursos, execute
-`uv run db-seed-curricula` em `apps/api` (usa o `.env` dessa pasta e cria a tabela se necessário).
-O seed resolve `course_sigaa_id` para a chave local de `courses`, valida o JSON e atualiza
-currículos existentes sem duplicá-los. Os componentes ficam em JSON, pois o catálogo de
-disciplinas ofertadas não contém necessariamente todos os componentes de um currículo.
+`uv run db-seed-curricula` em `apps/api` (usa o `.env` dessa pasta e cria as tabelas se necessário).
+O seed resolve `course_sigaa_id` para a chave local de `courses`, valida os dois CSVs e atualiza
+as matrizes sem duplicá-las. Os componentes das matrizes carregadas são substituídos na mesma
+transação, removendo vínculos obsoletos. Seus códigos não exigem uma entrada em `subjects`,
+pois o catálogo de disciplinas ofertadas não contém todos os componentes históricos.
 
 `client.subjects.search(unit=None, level=TeachingLevel.GRADUACAO, type=None, code=None, name=None)`
 consulta o catálogo público com filtros combináveis. `unit` aceita `Unit`, ID ou trecho não ambíguo

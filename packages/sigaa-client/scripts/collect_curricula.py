@@ -1,9 +1,8 @@
-"""Coleta currículos ativos por curso e salva o dataset JSON usado pelo seed."""
+"""Coleta currículos ativos e salva os CSVs de matrizes e componentes usados pelo seed."""
 
 import argparse
 import asyncio
 import csv
-import json
 from datetime import date
 from pathlib import Path
 
@@ -12,7 +11,23 @@ import httpx
 from sigaa_client import Curriculum, CurriculumSummary, SigaaError, SigaaPublicClient
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
-OUTPUT = DATA_DIR / "curricula.json"
+MATRIX_COLUMNS = (
+    "sigaa_id",
+    "course_sigaa_id",
+    "code",
+    "created_year",
+    "active",
+    "shift",
+    "valid_from",
+    "matrix",
+)
+COMPONENT_COLUMNS = (
+    "course_sigaa_id",
+    "curriculum_sigaa_id",
+    "subject_code",
+    "period",
+    "kind",
+)
 DELAY = 0.3
 RETRY_DELAY = 2
 
@@ -94,38 +109,75 @@ async def collect_curricula(
     return results
 
 
-def write_json(curricula: list[Curriculum], path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(".tmp")
-    temporary.write_text(
-        json.dumps(
-            [item.model_dump(mode="json") for item in curricula],
-            ensure_ascii=False,
-            indent=2,
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-    temporary.replace(path)
+def write_csvs(curricula: list[Curriculum], directory: Path) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    matrices = []
+    components = []
+    for item in curricula:
+        matrices.append(item.model_dump() | {"active": str(item.active).lower()})
+        groups = [
+            (group.period, "required", group.required)
+            for group in item.required_by_period
+        ]
+        groups += [
+            (0, "optional", item.optional),
+            (None, "complementary", item.complementary),
+        ]
+        for period, kind, codes in groups:
+            for code in codes:
+                components.append(
+                    {
+                        "course_sigaa_id": item.course_sigaa_id,
+                        "curriculum_sigaa_id": item.sigaa_id,
+                        "subject_code": code,
+                        "period": period,
+                        "kind": kind,
+                    }
+                )
+    outputs = [
+        ("curricula.csv", MATRIX_COLUMNS, matrices),
+        ("curriculum_components.csv", COMPONENT_COLUMNS, components),
+    ]
+    temporary = []
+    try:
+        for name, columns, rows in outputs:
+            path = directory / name
+            stage = path.with_suffix(".tmp")
+            temporary.append((stage, path))
+            with stage.open("w", encoding="utf-8", newline="") as file:
+                writer = csv.DictWriter(
+                    file, columns, extrasaction="ignore", lineterminator="\n"
+                )
+                writer.writeheader()
+                writer.writerows(rows)
+        for stage, path in temporary:
+            stage.replace(path)
+    finally:
+        for stage, _ in temporary:
+            stage.unlink(missing_ok=True)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--courses", type=Path, default=DATA_DIR / "courses.csv")
-    parser.add_argument("--output", type=Path, default=OUTPUT)
+    parser.add_argument("--output-dir", type=Path, default=DATA_DIR)
     parser.add_argument("--year", type=int, default=date.today().year)
     parser.add_argument("--latest-only", action="store_true")
     parser.add_argument("--course", type=int, action="append")
     args = parser.parse_args()
-    if args.course and args.output.resolve() == OUTPUT.resolve():
-        parser.error("--course exige --output para não substituir o dataset completo.")
+    if args.course and args.output_dir.resolve() == DATA_DIR.resolve():
+        parser.error(
+            "--course exige --output-dir para não substituir o dataset completo."
+        )
     curricula = asyncio.run(
         collect_curricula(
             args.courses, year=args.year, latest_only=args.latest_only, only=args.course
         )
     )
-    write_json(curricula, args.output)
-    print(f"Salvo em {args.output}: {len(curricula)} currículos.")
+    write_csvs(curricula, args.output_dir)
+    print(
+        f"Salvo em {args.output_dir}: {len(curricula)} currículos e seus componentes."
+    )
 
 
 if __name__ == "__main__":

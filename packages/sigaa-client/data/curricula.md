@@ -1,7 +1,7 @@
 # Dataset de currículos
 
 Coletado em 14/10/2026 do portal público do SIGAA UnB, usando os 158 IDs de `courses.csv`.
-`curricula.json` contém 189 estruturas ativas de 151 cursos. A janela é 2023–2026, incluindo
+`curricula.csv` contém 189 estruturas ativas de 151 cursos. A janela é 2023–2026, incluindo
 a versão anterior à janela por turno; sem versões nesse intervalo, fica a mais recente.
 Engenharia Automotiva (414919) só tem uma estrutura ativa futura, preservada com vigência em 2027.
 
@@ -17,9 +17,12 @@ Cursos sem estruturas ativas na data da coleta:
 | 414662 | Física Computacional | Uma estrutura inativa |
 | 414882 | Educação do Campo — Ciências da Natureza e Matemática | Nenhuma estrutura |
 
-Os arrays guardam códigos de componentes: `required_by_period` contém `{period, required}`;
-`optional` reúne as optativas, inclusive as recomendadas dentro dos períodos, sem duplicatas.
-`complementary` preserva componentes complementares. `valid_from` é o semestre de entrada em vigor
-informado pelo SIGAA, e deve ser considerado ao selecionar um currículo por ingresso.
+`curricula.csv` guarda `sigaa_id,course_sigaa_id,code,created_year,active,shift,valid_from,matrix`.
+`curriculum_components.csv` guarda `course_sigaa_id,curriculum_sigaa_id,subject_code,period,kind`.
+O par curso e ID da matriz relaciona os arquivos. `kind` distingue obrigatórias (`required`,
+período maior que zero), optativas (`optional`, período zero) e complementares (`complementary`,
+período vazio). Optativas recomendadas em períodos também ficam no período zero, sem duplicatas.
+Períodos sem componentes não geram linhas. `valid_from` é o semestre de entrada em vigor
+informado pelo SIGAA e deve ser considerado ao selecionar uma matriz por ingresso.
 
 Para atualizar o dataset e carregar o banco, veja os comandos no [README](../README.md).
