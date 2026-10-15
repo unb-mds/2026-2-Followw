@@ -33,13 +33,18 @@ class QStashQueue:
     """Publica os jobs no QStash, que os entrega de volta em `POST /jobs`."""
 
     def __init__(self) -> None:
-        self._client = AsyncQStash(settings.qstash_token, base_url=settings.qstash_url)
+        self._client: AsyncQStash | None = None
 
     async def enqueue(self, *jobs: Job) -> None:
         """Agenda os jobs. Uma falha ao agendar não chega a quem chamou."""
         if not jobs:
             return
 
+        # Respostas do cache não precisam construir o cliente HTTP/TLS da fila.
+        if self._client is None:
+            self._client = AsyncQStash(
+                settings.qstash_token, base_url=settings.qstash_url
+            )
         messages: list[BatchRequest] = [_message(job) for job in jobs]
         try:
             with operation("queue.publish", job_count=len(jobs)):
@@ -51,7 +56,8 @@ class QStashQueue:
 
     async def aclose(self) -> None:
         # O AsyncQStash não expõe como fechar o próprio httpx.AsyncClient.
-        await self._client.http._client.aclose()
+        if self._client is not None:
+            await self._client.http._client.aclose()
 
 
 async def get_job_queue() -> AsyncGenerator[QStashQueue]:
