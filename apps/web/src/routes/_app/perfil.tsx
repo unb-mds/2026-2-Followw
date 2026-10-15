@@ -39,7 +39,6 @@ import {
 import { Input } from '#/components/ui/input';
 import { Label } from '#/components/ui/label';
 import { useOnline } from '#/lib/online';
-import { titleCase } from '#/lib/profile';
 import { useLogout } from '#/queries/auth';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
@@ -77,18 +76,18 @@ function PerfilPage() {
                 <InstallPromptCard />
                 <AcademicPerformance user={user} />
                 <ProgressSection user={user} />
-                <AccountSection name={titleCase(user.name)} displayName={settings.displayName} />
+                <AccountSection displayName={settings.displayName} />
             </div>
         </>
     );
 }
 
-function AccountSection({ name, displayName }: { name: string; displayName?: string | null }) {
+function AccountSection({ displayName }: { displayName?: string | null }) {
     return (
         <ProfileSection title="Conta">
             <ListCard>
                 <div className="-mx-3">
-                    <DisplayNameButton name={name} displayName={displayName} />
+                    <DisplayNameButton displayName={displayName} />
                 </div>
                 <DocumentDownloads />
                 <LogoutButton />
@@ -97,7 +96,7 @@ function AccountSection({ name, displayName }: { name: string; displayName?: str
     );
 }
 
-function DisplayNameButton({ name, displayName }: { name: string; displayName?: string | null }) {
+function DisplayNameButton({ displayName }: { displayName?: string | null }) {
     const [open, setOpen] = useState(false);
     const [value, setValue] = useState('');
     const update = useUpdateSettings();
@@ -140,7 +139,7 @@ function DisplayNameButton({ name, displayName }: { name: string; displayName?: 
                 <span className="min-w-0 flex-1 text-left">
                     <span className="block">Nome de exibição</span>
                     <span className="block truncate text-xs text-muted-foreground">
-                        {displayName || name}
+                        {displayName || 'Clique para editar'}
                     </span>
                 </span>
             </DialogTrigger>
