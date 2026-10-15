@@ -32,6 +32,7 @@ Todos os erros derivam de `SigaaError`.
 
 `client.curricula.list_curricula(course_sigaa_id)` lista as estruturas de um curso, com ID,
 código, ano de criação, turno e status. `get_curriculum(course_sigaa_id, sigaa_id)` retorna
+o turno em letras (`M`, `V`, `N` ou combinações como `MV`; `None` quando indefinido) e
 também a matriz, `valid_from` (semestre de entrada em vigor), `required_by_period` (array de
 objetos com `period` e array `required` de códigos), `optional` e `complementary` (arrays de
 códigos). O período é o nível informado pelo SIGAA, inclusive zero quando presente.

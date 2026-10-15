@@ -16,6 +16,18 @@ _PERIOD_RE = re.compile(r"semestre(\d+)$")
 _SUBJECT_RE = re.compile(r"(\S+) - .+ - \d+h$")
 _SEMESTER_RE = re.compile(r"\d{4}\.\d")
 _COUNT_RE = re.compile(r"(\d+) estruturas curriculares disponiveis")
+_SHIFT_SEPARATOR_RE = re.compile(r"\s*(?:,|\be\b)\s*")
+_SHIFT_CODES = {"matutino": "M", "vespertino": "V", "noturno": "N"}
+
+
+def _parse_shift(text: str) -> str | None:
+    label = lookup_key(text).rsplit(" - ", 1)[-1]
+    if label in {"", "turno indefinido"}:
+        return None
+    shifts = set(_SHIFT_SEPARATOR_RE.split(label))
+    if not shifts <= _SHIFT_CODES.keys():
+        raise SigaaParseError(f"Turno desconhecido na lista de currículos: {text}.")
+    return "".join(code for name, code in _SHIFT_CODES.items() if name in shifts)
 
 
 class PublicCurricula:
@@ -73,7 +85,7 @@ def _parse_list(
     for row in table.find_all("tr"):
         cells = row.find_all("td", recursive=False)
         if "campos" in row.get("class", []):
-            shift = clean_text(row) or None
+            shift = _parse_shift(clean_text(row))
             continue
         if not cells or len(cells) == 1:
             continue

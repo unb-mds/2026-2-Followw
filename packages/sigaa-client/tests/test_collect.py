@@ -31,7 +31,7 @@ def curricula_script(monkeypatch):
 
 
 def test_curriculos_recentes_incluem_base_anterior_e_preservam_turno(curricula_script):
-    def item(id, year, active=True, shift="D"):
+    def item(id, year, active=True, shift="MV"):
         return CurriculumSummary(
             sigaa_id=id,
             course_sigaa_id=1,

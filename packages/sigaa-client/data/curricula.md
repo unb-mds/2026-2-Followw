@@ -18,6 +18,7 @@ Cursos sem estruturas ativas na data da coleta:
 | 414882 | Educação do Campo — Ciências da Natureza e Matemática | Nenhuma estrutura |
 
 `curricula.csv` guarda `sigaa_id,course_sigaa_id,code,created_year,active,shift,valid_from,matrix`.
+`shift` usa `M`, `V`, `N` ou combinações como `MV`; turno indefinido fica vazio.
 `curriculum_components.csv` guarda `course_sigaa_id,curriculum_sigaa_id,subject_code,period,kind`.
 O par curso e ID da matriz relaciona os arquivos. `kind` distingue obrigatórias (`required`,
 período maior que zero), optativas (`optional`, período zero) e complementares (`complementary`,

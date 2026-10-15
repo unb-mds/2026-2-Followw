@@ -88,6 +88,7 @@ async def test_lista_e_detalhes_preservam_vigencia_e_separam_componentes():
         (455, False),
     ]
     assert curriculum.valid_from == "2020.1"
+    assert curriculum.shift == "MV"
     assert curriculum.required_by_period[0].required == ("ADM0023",)
     assert curriculum.required_by_period[1].period == 3
     assert curriculum.required_by_period[1].required == ()
@@ -148,4 +149,34 @@ async def test_contagem_divergente_nao_omite_curriculos_silenciosamente():
     fake = FakeSigaa(listing=LIST.replace("2 Estruturas", "3 Estruturas"))
     async with SigaaPublicClient(transport=httpx.MockTransport(fake)) as client:
         with pytest.raises(SigaaParseError, match="Contagem"):
+            await client.curricula.list_curricula(414112)
+
+
+@pytest.mark.parametrize(
+    ("label", "expected"),
+    [
+        ("Matutino", "M"),
+        ("Vespertino", "V"),
+        ("Noturno", "N"),
+        ("Matutino e Vespertino", "MV"),
+        ("Matutino e Noturno", "MN"),
+        ("Vespertino e Noturno", "VN"),
+        ("Matutino, Vespertino e Noturno", "MVN"),
+        ("ENGENHARIA DE INTELIGÊNCIA ARTIFICIAL - Matutino e Vespertino", "MV"),
+        ("CONSERVAÇÃO E USO DA BIODIVERSIDADE - Noturno", "N"),
+        ("Turno Indefinido", None),
+        ("", None),
+    ],
+)
+async def test_turnos_retornam_letras(label, expected):
+    fake = FakeSigaa(listing=LIST.replace("Matutino e Vespertino", label))
+    async with SigaaPublicClient(transport=httpx.MockTransport(fake)) as client:
+        summaries = await client.curricula.list_curricula(414112)
+    assert all(item.shift == expected for item in summaries)
+
+
+async def test_turno_desconhecido_nao_e_descartado():
+    fake = FakeSigaa(listing=LIST.replace("Matutino e Vespertino", "Outro turno"))
+    async with SigaaPublicClient(transport=httpx.MockTransport(fake)) as client:
+        with pytest.raises(SigaaParseError, match="Turno desconhecido"):
             await client.curricula.list_curricula(414112)

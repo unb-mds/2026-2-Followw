@@ -13,7 +13,7 @@ MATRIX_COLUMNS = (
     "sigaa_id,course_sigaa_id,code,created_year,active,shift,valid_from,matrix"
 )
 COMPONENT_COLUMNS = "course_sigaa_id,curriculum_sigaa_id,subject_code,period,kind"
-MATRIX = "456,414112,8117/1,2020,true,Matutino e Vespertino,2020.1,ADMINISTRAÇÃO - D"
+MATRIX = "456,414112,8117/1,2020,true,MV,2020.1,ADMINISTRAÇÃO - D"
 COMPONENTS = [
     "414112,456,ADM0023,1,required",
     "414112,456,ADM0002,0,optional",
