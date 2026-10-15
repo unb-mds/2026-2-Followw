@@ -24,13 +24,34 @@ export function clearSession(queryClient: QueryClient) {
     return cleared;
 }
 
+/** O login deu certo, mas o /me seguinte não levou os cookies que ele gravou. */
+export class SessionNotStoredError extends Error {
+    constructor() {
+        super('O navegador não guardou os cookies do login');
+        this.name = 'SessionNotStoredError';
+    }
+}
+
+/** Troca os dados da conta anterior pelo perfil da nova; falha se ele não vier. */
+export async function startSession(queryClient: QueryClient) {
+    await clearUserData(queryClient);
+    const user = await queryClient.query({ ...meQueryOptions, staleTime: 0 });
+    if (!user) throw new SessionNotStoredError();
+    return user;
+}
+
 export function useLogin() {
     const queryClient = useQueryClient();
+    const posthog = usePostHog();
     // retorna a promise para o login seguir pendente até o perfil chegar
     return api.useMutation('post', '/auth/sigaa', {
         onSuccess: async () => {
-            await clearUserData(queryClient);
-            await queryClient.invalidateQueries({ queryKey: meQueryOptions.queryKey });
+            try {
+                await startSession(queryClient);
+            } catch (error) {
+                if (error instanceof SessionNotStoredError) posthog.capture('login_session_lost');
+                throw error;
+            }
         }
     });
 }

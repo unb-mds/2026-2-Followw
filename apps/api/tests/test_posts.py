@@ -168,7 +168,7 @@ def test_detalhe_exige_id_inteiro_positivo(client, cookies, posts_sigaa, news_id
     "error,code",
     [
         (AuthenticationFailed(), 401),
-        (SessionExpired(), 401),
+        (SessionExpired(), 502),
         (SigaaParseError("layout mudou"), 502),
         (httpx.ReadTimeout("SIGAA indisponível"), 502),
     ],

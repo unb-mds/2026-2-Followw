@@ -5,7 +5,7 @@ from decimal import Decimal
 from bs4 import BeautifulSoup, Tag
 
 from ..config import DASHBOARD_PATH
-from ..exceptions import SigaaParseError
+from ..exceptions import SessionRenewed, SigaaParseError
 from ..models import (
     RestaurantCredentials,
     RestaurantStatement,
@@ -52,30 +52,38 @@ class Restaurant:
         Relê o portal a cada chamada. Só faz postback com o `ViewState`
         atual se o extrato ainda não estiver aberto na sessão do SIGAA.
         """
-        page = await self._session.get(DASHBOARD_PATH)
-        soup = BeautifulSoup(page.text, "lxml")
-
-        statement = _statement(soup)
-        if statement is not None:
-            return statement
-
-        form = soup.find("form", id=_STATEMENT_FORM_ID)
-        anchor = form.find("a") if isinstance(form, Tag) else None
-        if not (isinstance(form, Tag) and isinstance(anchor, Tag)):
-            return RestaurantStatement()
-
-        action, payload = build_postback(
-            form, link_params(anchor), read_viewstate(soup)
-        )
-        page = await self._session.post(action, data=payload)
-        statement = _statement(BeautifulSoup(page.text, "lxml"))
-        if statement is None:
-            raise SigaaParseError("Extrato do RU não encontrado após o postback.")
-        return statement
+        # O relogin invalida o ViewState do postback: relê o portal uma vez.
+        try:
+            return await _read_statement(self._session, allow_renewal=True)
+        except SessionRenewed:
+            return await _read_statement(self._session, allow_renewal=False)
 
     async def get_restaurant_credentials(self) -> RestaurantCredentials:
         """Token do QR code e validade da carteirinha estudantil (lida no RU)."""
         return _credentials(await download_student_card_pdf(self._session))
+
+
+async def _read_statement(
+    session: Session, *, allow_renewal: bool
+) -> RestaurantStatement:
+    page = await session.get(DASHBOARD_PATH, allow_renewal=allow_renewal)
+    soup = BeautifulSoup(page.text, "lxml")
+
+    statement = _statement(soup)
+    if statement is not None:
+        return statement
+
+    form = soup.find("form", id=_STATEMENT_FORM_ID)
+    anchor = form.find("a") if isinstance(form, Tag) else None
+    if not (isinstance(form, Tag) and isinstance(anchor, Tag)):
+        return RestaurantStatement()
+
+    action, payload = build_postback(form, link_params(anchor), read_viewstate(soup))
+    page = await session.post(action, data=payload, allow_renewal=allow_renewal)
+    statement = _statement(BeautifulSoup(page.text, "lxml"))
+    if statement is None:
+        raise SigaaParseError("Extrato do RU não encontrado após o postback.")
+    return statement
 
 
 def _statement(page: BeautifulSoup) -> RestaurantStatement | None:

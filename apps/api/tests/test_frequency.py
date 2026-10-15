@@ -939,7 +939,7 @@ def test_frequencia_exige_autenticacao(client, account, path):
 @pytest.mark.parametrize(
     "error,status",
     [
-        (SessionExpired(), 401),
+        (SessionExpired(), 502),
         (SigaaParseError("fora"), 502),
         (ClassroomNotFound(), 404),
     ],
@@ -952,7 +952,7 @@ def test_erros_de_consulta_nao_viram_frequencia_vazia(logged, account, error, st
 @pytest.mark.parametrize(
     "error,status",
     [
-        (SessionExpired(), 401),
+        (SessionExpired(), 200),
         (ClassroomNotFound(), 404),
         (SigaaParseError("fora"), 200),
     ],

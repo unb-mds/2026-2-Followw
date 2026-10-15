@@ -22,6 +22,12 @@ LOGIN_FORM = """
 </form></body></html>
 """
 
+# Recorte da resposta real do CAS a credenciais inválidas.
+REJECTED_FORM = LOGIN_FORM.replace(
+    'method="post">',
+    'method="post">\n  <p id="errors" class="login-error">Credenciais inválidas.</p>',
+)
+
 LOGIN_URL = "https://autenticacao.unb.br/sso-server/login"
 
 
@@ -31,6 +37,7 @@ class FakeSigaa:
     def __init__(self, password: str = "senha", form: str = LOGIN_FORM) -> None:
         self.password = password
         self.form = form
+        self.rejection = REJECTED_FORM
         self.valid_tokens: set[str] = set()
         self.logins = 0
         self.payloads: list[dict[str, str]] = []
@@ -49,7 +56,7 @@ class FakeSigaa:
             payload = dict(httpx.QueryParams(request.content.decode()))
             self.payloads.append(payload)
             if payload.get("password") != self.password:
-                return httpx.Response(200, text=self.form)
+                return httpx.Response(200, text=self.rejection)
             return httpx.Response(
                 302,
                 headers={
@@ -172,6 +179,45 @@ async def test_credenciais_invalidas():
     sigaa = FakeSigaa(password="outra")
     async with SigaaClient(CREDENTIALS, transport=sigaa.transport) as client:
         with pytest.raises(AuthenticationFailed):
+            await client.authenticate()
+
+
+async def test_sigaa_que_nao_abre_sessao_apos_o_cas_nao_e_senha_errada():
+    sigaa = FakeSigaa()
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/sigaa/login/cas":
+            return httpx.Response(
+                302,
+                headers={
+                    "location": "https://sigaa.unb.br/sigaa/verTelaLogin.do",
+                    "set-cookie": "JSESSIONID=app14~SEMSESSAO; Path=/",
+                },
+            )
+        return sigaa(request)
+
+    transport = httpx.MockTransport(handle)
+    async with SigaaClient(CREDENTIALS, transport=transport) as client:
+        with pytest.raises(SigaaParseError, match="verTelaLogin"):
+            await client.authenticate()
+
+
+@pytest.mark.parametrize(
+    "rejection",
+    [
+        LOGIN_FORM.replace(
+            'method="post">',
+            'method="post"><p id="errors">Esta conta foi bloqueada.</p>',
+        ),
+        LOGIN_FORM,
+        "<html><body><h1>Erro interno</h1></body></html>",
+    ],
+)
+async def test_outras_telas_do_cas_nao_sao_senha_errada(rejection):
+    sigaa = FakeSigaa(password="outra")
+    sigaa.rejection = rejection
+    async with SigaaClient(CREDENTIALS, transport=sigaa.transport) as client:
+        with pytest.raises(SigaaParseError, match="O CAS não liberou o login"):
             await client.authenticate()
 
 
