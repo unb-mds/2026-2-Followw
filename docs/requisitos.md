@@ -2,7 +2,6 @@
 
 **Versão:** 0.2.0 (Escopo da Release 2 / Sprints 1 a 7)  
 **Data:** 16 de Outubro de 2026  
-**Autores:** Equipe Followw UnB (MDS 2026.2)  
 
 ---
 
