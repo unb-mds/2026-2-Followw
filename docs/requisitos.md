@@ -26,33 +26,6 @@ A solução combina uma **API pública e independente** (FastAPI) e um **front-e
 
 Os requisitos funcionais estão estruturados em **4 Épicos Centrais**, englobando suas Histórias de Usuário, requisitos formais e critérios de aceitação testáveis.
 
-```mermaid
-mindmap
-  root((Followw UnB))
-    Épico 1: Autenticação, Perfil e Preferências
-      Login Seguro e Visualização de Senha
-      Logout e Invalidação
-      Perfil e Carga Horária Pendente
-      Configurações Pessoais
-    Épico 2: Turmas, Frequência e Rotina
-      Listagem e Histórico com Menções
-      Detalhes da Turma e Participantes
-      Controle Manual de Frequência
-      Notícias com Markdown
-      Agenda Diária e Calendário
-      Sincronização e Cache
-    Épico 3: Busca, Catálogo e Estatísticas
-      Busca em Turmas Matriculadas
-      Catálogo Público de Ofertas
-      Análise de Vagas e Requisitos
-      Estatísticas de Aprovação
-    Épico 4: RU e Serviços Estudantis
-      Cardápio Multi-Campus
-      Saldo e Extrato com Alertas
-      Carteirinha QR Code
-      Download de Declarações
-```
-
 ---
 
 ### ÉPICO 1: Autenticação, Perfil e Preferências do Estudante
@@ -329,14 +302,6 @@ Melhorias técnicas internas que sustentam as capacidades funcionais do produto,
 ## 5. Escopo das Releases e Evolução do Projeto
 
 O desenvolvimento do Followw UnB é conduzido de forma incremental através de sprints ágeis:
-
-```mermaid
-timeline
-  title Evolução do Escopo por Releases
-  Release 1 : MVP Inicial (15/09/2026) : Login SIGAA : Perfil Básico : Turmas Matriculadas : Busca Simples : API Core
-  Release 2 : Consolidação Atual (16/10/2026) : Cardápio e Conta RU : Carteirinha Digital : Frequência Estimada : Histórico com Menções : Notícias Markdown : Agenda e Calendário : PWA Offline : Catálogo e Vagas
-  Futuro : Backlog Evolutivo : Trancamento Interativo : Mensageria de Turma : Notificações Push
-```
 
 ### Funcionalidades Entregues na Release 1 (MVP — 15/09/2026)
 * Autenticação via SIGAA sem retenção de senhas e Logout seguro.
