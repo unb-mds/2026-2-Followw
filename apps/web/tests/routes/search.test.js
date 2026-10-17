@@ -51,3 +51,25 @@ describe('loader da busca de turmas', () => {
         expect(Route.options.shouldReload({ cause: 'enter' })).toBe(true);
     });
 });
+
+describe('recomendações somente na busca', () => {
+    const student = { registration: '1', unity: 'FCTE', level: 'Graduação' };
+    test('graduação sem texto e filtros carrega recomendações em vez da lista da unidade', async () => {
+        expect((await loadWith(student)).map((key) => key[1])).toEqual([
+            '/me',
+            '/classrooms',
+            '/me/recommendations'
+        ]);
+    });
+    test.each(['?q=calculo', '?turno=Noite', '?disponibilidade=Disponíveis'])(
+        'pesquisa ou filtro %s mantém a busca padrão',
+        async (search) => {
+            const paths = (await loadWith(student, search)).map((key) => key[1]);
+            expect(paths).toContain('/public/subjects');
+            expect(paths).not.toContain('/me/recommendations');
+        }
+    );
+    test('visitante não carrega recomendações', async () => {
+        expect((await loadWith(null)).map((key) => key[1])).toEqual(['/me']);
+    });
+});

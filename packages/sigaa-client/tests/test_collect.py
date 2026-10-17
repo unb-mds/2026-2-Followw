@@ -278,6 +278,7 @@ def test_uma_turma_por_linha_ainda_que_apareca_em_mais_de_uma_unidade(
             "vacancies": None,
             "occupied": 10,
             "teachers": "A; B",
+            "snapshot_complete": "false",
         },
         {
             "subject_code": "FGA0030",
@@ -288,6 +289,7 @@ def test_uma_turma_por_linha_ainda_que_apareca_em_mais_de_uma_unidade(
             "vacancies": 100,
             "occupied": None,
             "teachers": "",
+            "snapshot_complete": "false",
         },
     ]
 
@@ -301,7 +303,7 @@ def test_csv_de_turmas_escreve_as_colunas_na_ordem_e_vazio_para_nulo(
 
     assert path.read_text(encoding="utf-8").splitlines() == [
         ",".join(classrooms_script.COLUMNS),
-        "FGA0030,01,2026.2,,S3,,,",
+        "FGA0030,01,2026.2,,S3,,,,false",
     ]
 
 
@@ -347,7 +349,7 @@ def test_csv_de_componentes_tem_a_unidade_e_os_requisitos(subjects_script, tmp_p
 
     assert path.read_text(encoding="utf-8").splitlines() == [
         ",".join(subjects_script.COLUMNS),
-        "FGA0002,B,60,673,FGA0001,,",
+        "FGA0002,B,60,673,FGA0001,,,true",
     ]
 
 
@@ -407,6 +409,7 @@ async def test_completa_referencias_dos_tres_campos_por_prefixo(
         "name": "QUÍMICA GERAL",
         "hours": 90,
         "unity_id": None,
+        "catalog_complete": "false",
         "prerequisites": None,
         "corequisites": None,
         "equivalences": None,
@@ -511,3 +514,33 @@ async def test_falha_da_origem_nao_devolve_catalogo_parcial(
     with pytest.raises(SigaaError, match="indisponível"):
         await completion_script.complete_subjects(rows)
     assert [row["code"] for row in rows] == ["FGA0001"]
+
+
+def test_coleta_parcial_nao_sobrescreve_snapshot_padrao(classrooms_script, monkeypatch):
+    monkeypatch.setattr("sys.argv", ["collect_classrooms", "--unit", "673"])
+    with pytest.raises(ValueError, match="parcial"):
+        classrooms_script.main()
+
+
+async def test_coleta_de_turmas_certifica_apenas_todas_unidades(
+    classrooms_script, monkeypatch
+):
+    async def load_units(only):
+        return [GAMA]
+
+    async def collect(*args):
+        return {673: [_classroom("FGA0001", "01")]}
+
+    monkeypatch.setattr(classrooms_script, "load_units", load_units)
+    monkeypatch.setattr(classrooms_script, "collect_by_unit", collect)
+    assert (await classrooms_script.collect_classrooms())[0][
+        "snapshot_complete"
+    ] == "true"
+    assert (await classrooms_script.collect_classrooms(only=["673"]))[0][
+        "snapshot_complete"
+    ] == "false"
+
+
+def test_catalogo_sem_dados_minimos_nao_certifica(subjects_script):
+    rows = subjects_script.subject_rows([(673, SubjectDetails(code="A", name="A"))])
+    assert rows[0]["catalog_complete"] == "false"

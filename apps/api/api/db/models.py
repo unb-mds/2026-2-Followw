@@ -147,6 +147,7 @@ class Subject(Base, TimestampMixin):
     name: Mapped[str] = mapped_column()
     hours: Mapped[int | None] = mapped_column()
     unity_id: Mapped[int | None] = mapped_column(ForeignKey("unities.id"))
+    catalog_complete: Mapped[bool] = mapped_column(default=False)
     # Expressões em OU de Es: `[["A", "B"], ["C"]]` é `(A E B) OU C`.
     prerequisites: Mapped[Requirements | None] = mapped_column(JSON)
     corequisites: Mapped[Requirements | None] = mapped_column(JSON)
@@ -169,6 +170,7 @@ class Classroom(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     semester: Mapped[str] = mapped_column()
     schedule: Mapped[str | None] = mapped_column()
     room: Mapped[str | None] = mapped_column()
+    listed_in_offer: Mapped[bool] = mapped_column(default=False, index=True)
     # Docentes, vagas e ocupação vêm da busca pública, pelo seed.
     professors: Mapped[list[str]] = mapped_column(JSON, default=list)
     vacancies: Mapped[int | None] = mapped_column()

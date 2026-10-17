@@ -312,6 +312,37 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/recommendations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Recomenda matérias pela última oferta carregada
+         * @description Ranking v2, com contexto estimado automaticamente e score explicado.
+         *
+         *     Usa somente catálogo certificado e turmas marcadas no último snapshot carregado,
+         *     sem prometer oferta vigente ou disponibilidade em tempo real. Turmas cheias permanecem.
+         *     Pré/correquisitos exigem aprovação anterior. Módulo livre é excluído: fora da matriz,
+         *     só entram equivalentes a obrigatórias pendentes. Sem matriz, a lista fica vazia.
+         *     O próximo período é o inferido + 1 quando há obrigatórias em andamento.
+         *     Pesos: obrigatória 50, próximo período 40, unidade 30, desbloqueios até 20,
+         *     atrasada 15, equivalência 10 e optativa 5.
+         *     O histórico pode omitir dispensas e aproveitamentos. Não constitui autorização de matrícula.
+         *     Fontes seguem SWR; `Cache-Control: no-cache` revalida fontes não congeladas.
+         *     A resposta personalizada sempre usa `no-store`; sem oferta, retorna lista vazia.
+         */
+        get: operations["recommendations_me_recommendations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me": {
         parameters: {
             query?: never;
@@ -442,6 +473,17 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** Badge */
+        Badge: {
+            /**
+             * Code
+             * @default equivalent
+             * @constant
+             */
+            code: "equivalent";
+            /** Text */
+            text: string;
+        };
         CatalogRequirements: components["schemas"]["SubjectRequirement"][][];
         /**
          * CatalogSubject
@@ -550,6 +592,42 @@ export interface components {
          * @enum {string}
          */
         ClassroomRole: "aluno" | "professor" | "monitor";
+        /** Context */
+        Context: {
+            /** Offer Semester */
+            offer_semester: string | null;
+            /**
+             * Offer Method
+             * @default latest_listed_snapshot
+             */
+            offer_method: string;
+            /** Course Id */
+            course_id: number | null;
+            /** Unity Id */
+            unity_id: number | null;
+            curriculum: components["schemas"]["CurriculumInfo"] | null;
+            /**
+             * Curriculum Selection
+             * @default estimated
+             * @constant
+             */
+            curriculum_selection: "estimated";
+            /** Curriculum Method */
+            curriculum_method: string;
+            /** History Reference */
+            history_reference: string | null;
+            /**
+             * History Reference Method
+             * @default earliest_own_student_semester
+             */
+            history_reference_method: string;
+            /** Period */
+            period: number | null;
+            /** Period Method */
+            period_method: string;
+            /** Target Period */
+            target_period?: number | null;
+        };
         /** CourseCurriculum */
         CourseCurriculum: {
             /** Sigaa Id */
@@ -570,6 +648,24 @@ export interface components {
             periods: components["schemas"]["CurriculumPeriod"][];
             /** Complementary */
             complementary: components["schemas"]["CurriculumSubject"][];
+        };
+        /** CurriculumInfo */
+        CurriculumInfo: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Sigaa Id */
+            sigaa_id: number;
+            /** Code */
+            code: string;
+            /** Valid From */
+            valid_from: string;
+            /** Shift */
+            shift: string | null;
+            /** Matrix */
+            matrix: string;
         };
         /** CurriculumPeriod */
         CurriculumPeriod: {
@@ -638,6 +734,29 @@ export interface components {
             /** Starts On */
             starts_on?: string | null;
         };
+        /** Diagnostics */
+        Diagnostics: {
+            /** Offered Subjects */
+            offered_subjects: number;
+            /** Offered Classrooms */
+            offered_classrooms: number;
+            /** Excluded */
+            excluded: {
+                [key: string]: number;
+            };
+            /**
+             * Context State
+             * @enum {string}
+             */
+            context_state: "estimated" | "reduced" | "offer_unavailable";
+        };
+        /** Equivalent */
+        Equivalent: {
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+        };
         /**
          * FrequencyStatus
          * @description Quanto das entradas publicadas o docente já registrou.
@@ -669,6 +788,57 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** History */
+        History: {
+            /**
+             * Sources
+             * @default [
+             *       "profile",
+             *       "own_student_classrooms",
+             *       "grades"
+             *     ]
+             */
+            sources: string[];
+            /**
+             * Profile Synced At
+             * Format: date-time
+             */
+            profile_synced_at: string;
+            /**
+             * Classrooms Synced At
+             * Format: date-time
+             */
+            classrooms_synced_at: string;
+            /** Profile Freshness */
+            profile_freshness: string;
+            /** Classrooms Freshness */
+            classrooms_freshness: string;
+            /** Grades */
+            grades: components["schemas"]["HistoryEntry"][];
+        };
+        /** HistoryEntry */
+        HistoryEntry: {
+            /** Code */
+            code: string;
+            /** Semester */
+            semester: string;
+            /** Approved */
+            approved: boolean;
+            /** Enrolled */
+            enrolled: boolean;
+            /**
+             * Classroom Id
+             * Format: uuid
+             */
+            classroom_id: string;
+            /** Grade Synced At */
+            grade_synced_at: string | null;
+            /**
+             * Freshness
+             * @enum {string}
+             */
+            freshness: "fresh" | "stale" | "frozen";
         };
         /**
          * Lesson
@@ -730,6 +900,43 @@ export interface components {
             name: string;
             /** Url */
             url: string;
+        };
+        /** Offer */
+        Offer: {
+            /** Professors */
+            professors: string[] | null;
+            /**
+             * Vacancies
+             * @description Vagas na coleta do seed, não em tempo real.
+             */
+            vacancies?: number | null;
+            /**
+             * Occupied
+             * @description Ocupação na coleta do seed, não em tempo real.
+             */
+            occupied?: number | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Sigaa Id */
+            sigaa_id: number | null;
+            /** Number */
+            number: string;
+            /** Semester */
+            semester: string;
+            /** Schedule */
+            schedule: string | null;
+            /** Room */
+            room: string | null;
+            /**
+             * Availability
+             * @enum {string}
+             */
+            availability: "available" | "full" | "unknown";
+            /** Is Locked */
+            is_locked: boolean;
         };
         /**
          * ParticipantClassroom
@@ -819,6 +1026,54 @@ export interface components {
             unity_id: number;
             /** Unity */
             unity: string | null;
+        };
+        /** Reason */
+        Reason: {
+            /**
+             * Code
+             * @enum {string}
+             */
+            code: "target_period" | "same_unity" | "required" | "unlocks" | "overdue" | "optional" | "equivalent";
+            /** Points */
+            points: number;
+        };
+        /** Recommendation */
+        Recommendation: {
+            subject: components["schemas"]["SubjectInfo"];
+            /** Kind */
+            kind: string | null;
+            /** Period */
+            period: number | null;
+            /** Score */
+            score: number;
+            /** Reasons */
+            reasons: components["schemas"]["Reason"][];
+            /** Unlocked Subject Codes */
+            unlocked_subject_codes: string[];
+            /** Equivalent To */
+            equivalent_to: components["schemas"]["Equivalent"][];
+            /** Badges */
+            badges: components["schemas"]["Badge"][];
+            /** Classrooms */
+            classrooms: components["schemas"]["Offer"][];
+        };
+        /** Recommendations */
+        Recommendations: {
+            /**
+             * Score Version
+             * @default v2
+             * @constant
+             */
+            score_version: "v2";
+            /** Total */
+            total: number;
+            /** Items */
+            items: components["schemas"]["Recommendation"][];
+            context: components["schemas"]["Context"];
+            history: components["schemas"]["History"];
+            diagnostics: components["schemas"]["Diagnostics"];
+            /** Warnings */
+            warnings: components["schemas"]["Warning"][];
         };
         Requirements: string[][];
         /** RestaurantCredentials */
@@ -924,6 +1179,19 @@ export interface components {
             /** Room */
             room?: string | null;
         };
+        /** SubjectInfo */
+        SubjectInfo: {
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+            /** Hours */
+            hours: number | null;
+            /** Unity Id */
+            unity_id: number | null;
+            /** Unity */
+            unity: string | null;
+        };
         /** SubjectReference */
         SubjectReference: {
             /** Code */
@@ -1028,6 +1296,13 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /** Warning */
+        Warning: {
+            /** Code */
+            code: string;
+            /** Message */
+            message: string;
         };
     };
     responses: never;
@@ -1855,6 +2130,66 @@ export interface operations {
             };
             /** @description Nenhum filtro informado, filtro inválido, unidade inexistente ou nome de unidade ambíguo. */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    recommendations_me_recommendations_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: {
+                /** @description `no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache). */
+                "Cache-Control"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Recommendations"];
+                };
+            };
+            /** @description Sessão ausente ou inválida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Limite inválido, parâmetro desconhecido ou usuário fora da graduação. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Falha na origem durante sincronização. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Cache necessário ainda indisponível. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description only-if-cached sem fontes sincronizadas. */
+            504: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -13,6 +13,7 @@ import { ErrorCard, ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
 import { LoadingText } from '#/components/LoadingText';
 import { FilterSelect } from '#/components/search/FilterSelect';
+import { RecommendationsSection } from '#/components/search/RecommendationsSection';
 import { TurmaSection } from '#/components/search/TurmaSection';
 import { Button } from '#/components/ui/button';
 import { Input } from '#/components/ui/input';
@@ -21,6 +22,7 @@ import { loadSearchParams, useSearchState, validateSearch } from '#/lib/search-p
 import { allClassroomsQueryOptions } from '#/queries/classrooms';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
+import { recommendationsQueryOptions, showRecommendations } from '#/queries/recommendations';
 import { refreshQuery } from '#/queries/refresh';
 import {
     approvedCodes,
@@ -44,11 +46,13 @@ export const Route = createFileRoute('/_app/buscar')({
     shouldReload: ({ cause }) => cause !== 'stay',
     loader: async ({ context: { queryClient }, location }) => {
         const user = await loadQuery(queryClient, meQueryOptions);
-        const { q } = loadSearchParams(location.searchStr);
-        const query = subjectsQuery(q, user?.unity ?? null);
+        const search = loadSearchParams(location.searchStr);
+        const recommendations = showRecommendations(user, search);
+        const query = recommendations ? null : subjectsQuery(search.q, user?.unity ?? null);
         await Promise.all([
             user && loadQuery(queryClient, allClassroomsQueryOptions).catch(noop),
-            query && loadQuery(queryClient, subjectsQueryOptions(query)).catch(noop)
+            query && loadQuery(queryClient, subjectsQueryOptions(query)).catch(noop),
+            recommendations && loadQuery(queryClient, recommendationsQueryOptions).catch(noop)
         ]);
     },
     staticData: {
@@ -66,6 +70,7 @@ function BuscarTurmasPage() {
     const queryClient = useQueryClient();
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const [{ q: busca, turno, disponibilidade }, setSearch] = useSearchState();
+    const recommendations = showRecommendations(user, { q: busca, turno, disponibilidade });
     const unit = user?.unity ?? null;
     // Consulta aplicada após o debounce de 300 ms; texto inválido mantém a anterior.
     const [query, setQuery] = useState(() => subjectsQuery(busca, unit));
@@ -84,7 +89,7 @@ function BuscarTurmasPage() {
 
     const { data, isPending, isFetching, isLoadingError, isError, refetch } = useQuery({
         ...subjectsQueryOptions(query ?? {}),
-        enabled: query != null,
+        enabled: !recommendations && query != null,
         placeholderData: keepPreviousData
     });
     const { data: history } = useQuery({ ...allClassroomsQueryOptions, enabled: Boolean(user) });
@@ -137,7 +142,9 @@ function BuscarTurmasPage() {
                 />
             </div>
             <div aria-live="polite" aria-busy={isFetching} className="flex flex-col gap-5 pb-8">
-                {!query ? (
+                {recommendations ? (
+                    <RecommendationsSection />
+                ) : !query ? (
                     <p className="py-8 text-center text-sm text-muted-foreground">
                         {`Digite de ${SEARCH_MIN_LENGTH} a ${SEARCH_MAX_LENGTH} caracteres do nome, código da matéria ou professor para ver as turmas.`}
                     </p>

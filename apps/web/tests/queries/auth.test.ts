@@ -162,8 +162,8 @@ describe('startSession', () => {
 
     test('não reaproveita um /me que saiu antes dos cookies do login', async () => {
         const { queryClient } = getContext();
-        let release = noop;
-        let markStarted = noop;
+        let release: () => void = noop;
+        let markStarted: () => void = noop;
         const started = new Promise<void>((resolve) => (markStarted = resolve));
         let calls = 0;
         middleware = {

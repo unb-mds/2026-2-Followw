@@ -24,6 +24,7 @@ COLUMNS = (
     "vacancies",
     "occupied",
     "teachers",
+    "snapshot_complete",
 )
 TEACHER_SEPARATOR = "; "
 
@@ -45,6 +46,8 @@ async def collect_classrooms(
         units, collect_unit, lambda found: f"{len(found)} turmas", workers
     )
     rows = classroom_rows(found_by_unit.values())
+    for row in rows:
+        row["snapshot_complete"] = "false" if only else "true"
     if not rows:
         raise RuntimeError("Nenhuma turma encontrada; nada foi salvo.")
 
@@ -69,6 +72,7 @@ def classroom_rows(
                 shared += 1
                 continue
             rows[key] = {
+                "snapshot_complete": "false",
                 "subject_code": code,
                 "number": classroom.number,
                 "semester": classroom.semester,
@@ -85,6 +89,8 @@ def classroom_rows(
 
 def main():
     args = parse_args(__doc__, OUTPUT)
+    if args.unit and args.output.resolve() == OUTPUT.resolve():
+        raise ValueError("Coleta parcial exige --output fora do snapshot de produção.")
     rows = asyncio.run(collect_classrooms(args.semester, args.unit, args.workers))
     write_csv(rows, COLUMNS, args.output)
     print(f"Salvo em {args.output}: {len(rows)} turmas.")

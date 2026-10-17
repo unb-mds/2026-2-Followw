@@ -51,6 +51,8 @@ uv run api                        # sobe a API em http://localhost:8000
 ```
 
 A documentação interativa fica em `http://localhost:8000/docs`.
+O [recomendador de matérias](docs/recommendations.md) está em `GET /me/recommendations`;
+a documentação descreve a inferência automática, os snapshots e a atualização do banco de desenvolvimento.
 
 Recursos públicos, consultáveis sem login, usam o prefixo `/public`:
 

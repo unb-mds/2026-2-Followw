@@ -18,6 +18,7 @@ from api.modules.public_classrooms.router import router as public_classrooms_rou
 from api.modules.public_courses.router import router as public_courses_router
 from api.modules.public_restaurant.router import router as public_restaurant_router
 from api.modules.public_subjects.router import router as public_subjects_router
+from api.modules.recommendations.router import router as recommendations_router
 from api.sync.router import router as jobs_router
 
 # desativa logs "HTTP Request: ..." que o httpx emite pra cada chamada ao SIGAA
@@ -25,6 +26,10 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 tags_metadata = [
+    {
+        "name": "Recommendations",
+        "description": "Recomendações explicadas de matérias com contexto acadêmico estimado.",
+    },
     {
         "name": "Auth",
         "description": "Autenticação via SIGAA/CAS da UnB e gerenciamento de sessão stateless por cookies.",
@@ -105,7 +110,7 @@ def custom_openapi() -> dict[str, Any]:
             },
             {
                 "name": "SIGAA",
-                "tags": ["Auth", "Classrooms", "Me", "Posts"],
+                "tags": ["Auth", "Classrooms", "Me", "Posts", "Recommendations"],
             },
         ]
     return app.openapi_schema
@@ -166,6 +171,9 @@ app.include_router(
 )
 app.include_router(
     public_subjects_router, prefix="/public/subjects", tags=["Public Subjects"]
+)
+app.include_router(
+    recommendations_router, prefix="/me/recommendations", tags=["Recommendations"]
 )
 app.include_router(me_router, prefix="/me", tags=["Me"])
 app.include_router(posts_router, prefix="/posts", tags=["Posts"])
