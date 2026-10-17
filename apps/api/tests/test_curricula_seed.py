@@ -146,7 +146,9 @@ async def test_seed_recusa_curso_desconhecido_antes_de_gravar(async_database, tm
         assert not (await session.scalars(select(Curriculum))).all()
 
 
-async def test_seed_remove_matrizes_que_sairam_do_csv(async_database, tmp_path):
+async def test_seed_inativa_matrizes_que_sairam_do_csv(
+    async_database, tmp_path, caplog
+):
     newer = MATRIX.replace("456,", "789,").replace("2020", "2024")
     newer_components = [row.replace(",456,", ",789,") for row in COMPONENTS]
     other_matrix = MATRIX.replace("414112", "414113")
@@ -167,6 +169,7 @@ async def test_seed_remove_matrizes_que_sairam_do_csv(async_database, tmp_path):
                 COMPONENTS + newer_components + other_components,
             ),
         )
+        assert "without_active" not in caplog.text
         await seed_curricula(
             session,
             *_csvs(tmp_path, [newer], ["414112,789,0,optional,NOVO"]),
@@ -174,19 +177,25 @@ async def test_seed_remove_matrizes_que_sairam_do_csv(async_database, tmp_path):
     async with async_database() as session:
         rows = (
             await session.execute(
-                select(
-                    Course.sigaa_id,
-                    Curriculum.sigaa_id,
-                    CurriculumComponent.subject_code,
-                )
+                select(Course.sigaa_id, Curriculum.sigaa_id, Curriculum.active)
                 .join(Curriculum, Curriculum.course_id == Course.id)
-                .outerjoin(
-                    CurriculumComponent,
-                    CurriculumComponent.curriculum_id == Curriculum.id,
-                )
+                .order_by(Course.sigaa_id, Curriculum.sigaa_id)
             )
         ).all()
-        assert rows == [(414112, 789, "NOVO")]
+        assert rows == [
+            (414112, 456, False),
+            (414112, 789, True),
+            (414113, 456, False),
+        ]
+        components = (
+            await session.scalars(
+                select(CurriculumComponent.subject_code)
+                .join(Curriculum, Curriculum.id == CurriculumComponent.curriculum_id)
+                .where(Curriculum.sigaa_id == 789)
+            )
+        ).all()
+        assert components == ["NOVO"]
+    assert "courses_without_active_curriculum" in caplog.text
 
 
 async def test_dataset_completo_pode_ser_semeado_duas_vezes(async_database):

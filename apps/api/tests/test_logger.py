@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 from api.logger import RequestLoggingMiddleware, event, operation
 
 
-def test_event_is_emitted_once_when_runtime_has_root_handler(monkeypatch):
+def test_evento_sai_uma_vez_quando_o_runtime_tem_handler_na_raiz(monkeypatch):
     output = io.StringIO()
     logger = logging.getLogger("followw")
     handler = logging.StreamHandler(output)
@@ -32,7 +32,7 @@ def records(caplog):
     return [json.loads(r.message) for r in caplog.records if r.name == "followw"]
 
 
-def test_login_logs_nested_tasks_without_secrets(client, sigaa, caplog):
+def test_login_registra_tarefas_aninhadas_sem_segredos(client, sigaa, caplog):
     response = client.post(
         "/auth/sigaa?token=query-secret",
         json={"registration": "251000000", "password": "senha123"},
@@ -66,7 +66,7 @@ def test_login_logs_nested_tasks_without_secrets(client, sigaa, caplog):
         assert secret not in output
 
 
-def test_failed_connection_logs_only_exception_type(client, stub_sigaa, caplog):
+def test_conexao_com_falha_registra_so_o_tipo_da_excecao(client, stub_sigaa, caplog):
     stub_sigaa.authenticate.side_effect = httpx.ConnectError("Cookie: secret-error")
     response = client.post(
         "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
@@ -77,7 +77,7 @@ def test_failed_connection_logs_only_exception_type(client, stub_sigaa, caplog):
     assert all(r.exc_info is None for r in caplog.records if r.name == "followw")
 
 
-def test_request_error_and_unknown_path_do_not_log_input(caplog):
+def test_erro_de_requisicao_e_rota_desconhecida_nao_registram_a_entrada(caplog):
     app = FastAPI()
     app.add_middleware(RequestLoggingMiddleware)
 
@@ -96,7 +96,7 @@ def test_request_error_and_unknown_path_do_not_log_input(caplog):
     assert "secret-" not in caplog.text
 
 
-def test_included_route_logs_template_without_path_parameters(caplog):
+def test_rota_incluida_registra_o_template_sem_parametros_do_path(caplog):
     app = FastAPI()
     router = APIRouter()
 
@@ -112,7 +112,7 @@ def test_included_route_logs_template_without_path_parameters(caplog):
     assert "secret-value" not in caplog.text
 
 
-async def test_operation_context_is_isolated_and_filters_objects(caplog):
+async def test_contexto_da_operacao_e_isolado_e_filtra_objetos(caplog):
     async def run(task):
         with operation("sync.task", task=task, cookies={"session": "secret"}):
             await asyncio.sleep(0)
@@ -129,7 +129,7 @@ async def test_operation_context_is_isolated_and_filters_objects(caplog):
     assert "secret" not in caplog.text
 
 
-def test_cancellation_is_logged_and_context_reset(caplog):
+def test_cancelamento_e_registrado_e_o_contexto_restaurado(caplog):
     with pytest.raises(asyncio.CancelledError), operation("sync.task", task="profile"):
         raise asyncio.CancelledError("secret")
     event("outside")

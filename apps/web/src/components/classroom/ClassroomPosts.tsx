@@ -18,6 +18,7 @@ import { Button } from '#/components/ui/button';
 import { Card, CardContent } from '#/components/ui/card';
 import { postDateLabel, postLink, postTypeLabels } from '#/lib/classroom-posts';
 import { Markdown } from '#/lib/markdown';
+import { cn } from '#/lib/shadcn';
 import { classroomPostDetailQueryOptions, classroomPostsQueryOptions } from '#/queries/classrooms';
 import { refreshQuery } from '#/queries/refresh';
 
@@ -93,7 +94,7 @@ export function ClassroomPosts({ id }: { id: string }) {
                         ]).catch(() => {});
                     }}
                 >
-                    <RefreshCw className={posts.isFetching ? 'size-4 animate-spin' : 'size-4'} />
+                    <RefreshCw className={cn('size-4', posts.isFetching && 'animate-spin')} />
                     Atualizar postagens
                 </Button>
             </div>

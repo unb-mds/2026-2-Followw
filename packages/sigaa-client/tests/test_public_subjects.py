@@ -82,7 +82,7 @@ async def search(fake, **kwargs):
         return await client.subjects.search(**kwargs)
 
 
-async def test_defaults_clear_previous_filters_and_parse_identity():
+async def test_padroes_limpam_filtros_anteriores_e_leem_a_identidade():
     fake = FakeSigaa()
     result = await search(fake)
     payload = fake.payloads[0]
@@ -111,7 +111,7 @@ async def test_defaults_clear_previous_filters_and_parse_identity():
         (SubjectType.MODULO, "3"),
     ],
 )
-async def test_combined_filters(level, type, value):
+async def test_filtros_combinados(level, type, value):
     fake = FakeSigaa()
     result = await search(
         fake, level=level, type=type, code="0003", name="compilação", unit="gama"
@@ -138,7 +138,7 @@ async def test_combined_filters(level, type, value):
         ({"unit": 673}, "Unidade"),
     ],
 )
-async def test_independent_checkboxes(kwargs, check):
+async def test_checkboxes_independentes(kwargs, check):
     fake = FakeSigaa()
     await search(fake, **kwargs)
     assert {key for key in fake.payloads[0] if "check" in key} == {f"form:check{check}"}
@@ -147,7 +147,7 @@ async def test_independent_checkboxes(kwargs, check):
 @pytest.mark.parametrize(
     "unit", [673, "673", " GAMA ", Unit(id=673, name="GAMA"), "ceilandia"]
 )
-async def test_resolve_units(unit):
+async def test_resolve_unidades(unit):
     fake = FakeSigaa()
     await search(fake, unit=unit)
     assert fake.payloads[0]["form:unidades"] == (
@@ -169,14 +169,14 @@ async def test_resolve_units(unit):
         {"unit": "absent"},
     ],
 )
-async def test_invalid_filters(kwargs):
+async def test_filtros_invalidos(kwargs):
     fake = FakeSigaa()
     with pytest.raises(SigaaSearchError):
         await search(fake, **kwargs)
     assert not fake.payloads
 
 
-async def test_notices_preserved():
+async def test_avisos_preservados():
     result = await search(FakeSigaa(notice(LIMIT) + RESULTS))
     assert result.truncated and result.returned_count == 1
     assert result.messages[0].text == LIMIT
@@ -199,18 +199,18 @@ async def test_notices_preserved():
         RESULTS.replace(ROW, ""),
     ],
 )
-async def test_malformed_results(result):
+async def test_resultados_malformados(result):
     with pytest.raises(SigaaParseError):
         await search(FakeSigaa(result))
 
 
 @pytest.mark.parametrize("hours,expected", [("0h", 0), ("-", None), ("", None)])
-async def test_optional_workload(hours, expected):
+async def test_carga_horaria_opcional(hours, expected):
     result = await search(FakeSigaa(RESULTS.replace("60h", hours)))
     assert result.items[0].hours == expected
 
 
-async def test_retry_refreshes_view_once():
+async def test_nova_tentativa_renova_a_view_uma_vez():
     fake = FakeSigaa(expired=1)
     assert (await search(fake)).returned_count == 1
     assert fake.views == 2
@@ -220,7 +220,7 @@ async def test_retry_refreshes_view_once():
     assert len(fake.payloads) == 2
 
 
-async def test_ids_not_codes_define_identity():
+async def test_ids_e_nao_codigos_definem_a_identidade():
     result = await search(
         FakeSigaa(RESULTS.replace(ROW, ROW + ROW.replace("176389", "176390")))
     )
@@ -243,7 +243,7 @@ async def test_ids_not_codes_define_identity():
         "form:buscar",
     ],
 )
-async def test_missing_form_fields_fail_before_submit(field):
+async def test_campos_ausentes_do_formulario_falham_antes_do_envio(field):
     fake = FakeSigaa()
     form = BeautifulSoup(FORM, "lxml")
     form.find(attrs={"name": field}).decompose()
@@ -253,7 +253,7 @@ async def test_missing_form_fields_fail_before_submit(field):
     assert not fake.payloads
 
 
-async def test_truncation_depends_on_warning_not_count():
+async def test_truncamento_depende_do_aviso_e_nao_da_contagem():
     rows = "".join(ROW.replace("176389", str(index + 1)) for index in range(2000))
     result = await search(FakeSigaa(RESULTS.replace(ROW, rows)))
     assert result.returned_count == 2000

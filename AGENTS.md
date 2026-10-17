@@ -46,6 +46,9 @@ uv run ruff format .    # sempre formate ao alterar o código
   anteriores (migrações de dados, chaves legadas, aliases), a menos que seja solicitado
   explicitamente
 - Crie testes ao implementar novas features/fixes. Se possível, centralize todos os testes
-  pertencentes a um mesmo módulo em um único arquivo.
+  pertencentes a um mesmo módulo em um único arquivo. Nomeie os testes em português (ex.:
+  `test_turma_fora_da_lista_retorna_404`, `test('carrega a conta autenticada')`).
 - Evite longos blocos de comentários/documentação. Tente usar apenas uma linha e apenas onde for
   necessário/muito útil.
+- Use meios de validar suas alterações, se necessário, você pode utilizar as envs TEST_REGISTRATION
+  e TEST_PASSWORD para fazer login pela api ou pelo navegador.

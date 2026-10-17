@@ -130,7 +130,7 @@ async def scalar_docs() -> HTMLResponse:
             <script
               id="api-reference"
               data-url="{app.root_path}{app.openapi_url}"
-              data-configuration='{{"theme":"purple","layout":"modern","darkMode":true}}'
+              data-configuration='{{"theme":"bluePlanet","layout":"modern","darkMode":true}}'
             ></script>
             <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
           </body>

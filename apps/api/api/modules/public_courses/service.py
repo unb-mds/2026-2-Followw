@@ -1,10 +1,12 @@
 import re
-from typing import Annotated, Literal
+from collections.abc import Iterable
+from typing import Annotated, Literal, Protocol
 
 from fastapi import Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.academic_calendar import parse_semester
 from api.db.main import DatabaseDep
 from api.db.models import Curriculum, Requirements, Subject
 from api.modules.public_courses.repository import PublicCourseRepository
@@ -103,16 +105,9 @@ async def _load(
     repository = PublicCourseRepository(session)
     if await repository.get_course(course_id) is None:
         raise HTTPException(404, "Curso não encontrado.")
-    curricula = await repository.list_curricula(course_id)
-    if not curricula:
+    options = in_force(await repository.list_curricula(course_id), entry_semester)
+    if not options:
         raise HTTPException(404, "Curso sem currículos ativos cadastrados.")
-    previous = [
-        item.valid_from for item in curricula if item.valid_from <= entry_semester
-    ]
-    valid_from = (
-        max(previous) if previous else min(item.valid_from for item in curricula)
-    )
-    options = [item for item in curricula if item.valid_from == valid_from]
     selected = _select(options, curriculum_sigaa_id)
     periods: dict[int, list[CurriculumSubject]] = {0: []}
     complementary = []
@@ -142,10 +137,27 @@ def _select(options: list[Curriculum], wanted: int | None) -> Curriculum:
         raise HTTPException(
             404, "Matriz não disponível para o curso e semestre de ingresso informados."
         )
-    return max(options, key=_revision)
+    return max(options, key=revision)
 
 
-def _revision(item: Curriculum) -> tuple[int, int]:
+class Versioned(Protocol):
+    sigaa_id: int
+    code: str
+    valid_from: str
+
+
+def in_force[T: Versioned](curricula: Iterable[T], entry_semester: str) -> list[T]:
+    """As matrizes da vigência mais recente até a entrada; se ela preceder todas, a mais antiga."""
+    dated = [(term, c) for c in curricula if (term := parse_semester(c.valid_from))]
+    if not dated:
+        return []
+    entry = parse_semester(entry_semester)
+    previous = [term for term, _ in dated if entry is not None and term <= entry]
+    valid_from = max(previous) if previous else min(term for term, _ in dated)
+    return [c for term, c in dated if term == valid_from]
+
+
+def revision(item: Versioned) -> tuple[int, int]:
     # O sufixo do código é a revisão da matriz (ex.: 2680/4).
     match = _REVISION_RE.search(item.code)
     return (int(match[1]) if match else 0, item.sigaa_id)

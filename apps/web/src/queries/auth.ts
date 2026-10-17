@@ -9,9 +9,8 @@ import { apiClient } from '#/queries/client.ts';
 import { ApiError } from '#/queries/errors.ts';
 import { meQueryOptions } from '#/queries/me.ts';
 
-// só o que é público sobrevive à troca de conta; o /me fica a cargo de quem chama
-const isAccountQuery = ({ queryKey: [, path] }: Query) =>
-    !(typeof path === 'string' && (path.startsWith('/public/') || path === '/me'));
+// todo o cache é apagado no logout; só o /me fica a cargo de quem chama
+const isAccountQuery = ({ queryKey: [, path] }: Query) => path !== '/me';
 
 async function clearUserData(queryClient: QueryClient) {
     queryClient.removeQueries({ predicate: isAccountQuery });

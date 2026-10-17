@@ -82,7 +82,7 @@ export const ClassCard: React.FC<ClassCardProps> = ({
                 {statusInfo && (
                     <Badge
                         variant={statusInfo.variant}
-                        className={cn('h-4 px-1.5 py-0', statusInfo.className)}
+                        className={cn('px-1.5 py-0', statusInfo.className)}
                     >
                         {active && (
                             <span className="size-1.5 animate-pulse rounded-full bg-primary" />

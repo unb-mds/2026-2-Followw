@@ -80,14 +80,13 @@ class SigaaConnection:
             set_access_cookie(self._response, token)
 
 
-async def get_sigaa_connection(
+async def get_optional_sigaa_connection(
     request: Request, response: Response
-) -> AsyncGenerator[SigaaConnection]:
+) -> AsyncGenerator[SigaaConnection | None]:
     credentials = read_refresh_cookie(request)
     if credentials is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated"
-        )
+        yield None
+        return
 
     connection = SigaaConnection(
         credentials, read_access_cookie(request), response=response
@@ -96,6 +95,21 @@ async def get_sigaa_connection(
         yield connection
     finally:
         await connection.aclose()
+
+
+OptionalSigaaConnectionDep = Annotated[
+    SigaaConnection | None, Depends(get_optional_sigaa_connection)
+]
+
+
+async def get_sigaa_connection(
+    connection: OptionalSigaaConnectionDep,
+) -> SigaaConnection:
+    if connection is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated"
+        )
+    return connection
 
 
 SigaaConnectionDep = Annotated[SigaaConnection, Depends(get_sigaa_connection)]

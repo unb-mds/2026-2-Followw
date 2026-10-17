@@ -18,6 +18,8 @@ class ClassroomStatus(str, enum.Enum):
     REMOVIDO = "removido"
     TRANCADO = "trancado"
     CONCLUIDO = "concluido"
+    PENDING_ENROLLMENT = "pending_enrollment"
+    DENIED = "denied"
 
 
 class LessonStatus(str, enum.Enum):

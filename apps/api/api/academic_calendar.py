@@ -1,6 +1,7 @@
 """Regras que dependem do calendário acadêmico da UnB (`unb_browser`)."""
 
 import enum
+import re
 from collections.abc import Iterator
 from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -10,6 +11,7 @@ from unb_browser import CalendarEventCategory, load_academic_calendar
 from api.db.enums import ClassroomStatus
 
 _BRASILIA = ZoneInfo("America/Sao_Paulo")
+_SEMESTER = re.compile(r"([0-9]{4})\.([0-9])")
 # Dá tempo de o último sync da turma marcar os alunos como concluídos.
 MEMBERS_TOLERANCE = timedelta(days=3)
 # Docente que consolida a turma com atraso ainda tem a menção lida.
@@ -53,6 +55,12 @@ def local_date(at: datetime) -> date:
     if at.tzinfo is None:
         at = at.replace(tzinfo=UTC)
     return at.astimezone(_BRASILIA).date()
+
+
+def parse_semester(value: str) -> tuple[int, int] | None:
+    """O semestre `AAAA.P` como (ano, período) ordenável; `None` fora do formato."""
+    match = _SEMESTER.fullmatch(value)
+    return (int(match[1]), int(match[2])) if match else None
 
 
 def members_closed(semester: str) -> bool:

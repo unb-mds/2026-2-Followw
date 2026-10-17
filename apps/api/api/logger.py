@@ -33,6 +33,7 @@ _FIELDS = {
     "job_count",
     "failed_count",
     "skipped_count",
+    "course_count",
     "reused_session",
 }
 

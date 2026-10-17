@@ -6,7 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.courses import course_ids
 from api.db.enums import UserLevel
-from api.db.models import User
+from api.db.models import Course, User
+from api.modules.public_courses.repository import PublicCourseRepository
+from api.modules.recommendations.ranking import CurriculumInfo, select_curriculum
 
 
 class UserRepository:
@@ -46,13 +48,18 @@ class UserRepository:
         user.bio = profile.bio
         pair = (profile.course, profile.unity)
         shift = profile.shift.value if profile.shift else None
-        user.course_id = (await course_ids(self._session, [pair], shift)).get(pair)
+        course_id = (await course_ids(self._session, [pair], shift)).get(pair)
+        if course_id != user.course_id:
+            user.curriculum_id = None
+        user.course_id = course_id
+        user.entry_semester = profile.entry_semester
         user.integralization = profile.integralization
         user.workload = profile.workload.model_dump() if profile.workload else None
         user.ira = profile.ira
         user.mp = profile.mp
         user.level = UserLevel(profile.level.value)
         user.profile_synced_at = synced_at
+        await self._infer_curriculum(user)
         await self._session.flush()
 
         return user
@@ -75,3 +82,22 @@ class UserRepository:
         user.settings = current
         await self._session.flush()
         return user.settings
+
+    async def _infer_curriculum(self, user: User) -> None:
+        """Define a matriz pelo semestre de entrada, só enquanto ela ainda não existe."""
+        if (
+            user.curriculum_id is not None
+            or user.course_id is None
+            or user.entry_semester is None
+        ):
+            return
+        course = await self._session.get(Course, user.course_id)
+        assert course is not None
+        options = [
+            CurriculumInfo.model_validate(c)
+            for c in await PublicCourseRepository(self._session).list_curricula(
+                user.course_id
+            )
+        ]
+        selected = select_curriculum(options, user.entry_semester, course.shift)
+        user.curriculum_id = selected.id if selected else None
