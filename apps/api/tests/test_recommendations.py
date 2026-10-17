@@ -29,6 +29,7 @@ from api.db.models import (
     Unity,
     User,
 )
+from api.modules.classrooms.repository import ClassroomRepository
 from api.modules.me.repository import UserRepository
 from api.modules.recommendations.ranking import (
     Component,
@@ -37,7 +38,7 @@ from api.modules.recommendations.ranking import (
     descendants,
     target_period,
 )
-from api.modules.recommendations.repository import RecommendationRepository
+from api.modules.recommendations.service import _rank
 
 NOW = datetime.now(UTC)
 URL = "/public/subjects"
@@ -187,21 +188,34 @@ def ranked(scene, async_database):
 
     async def run():
         async with async_database() as session:
-            repository = RecommendationRepository(session)
-            return await repository.recommend(
-                "251000000", await repository.offer_semester()
-            )
+            reference = await ClassroomRepository(session).offer_semester()
+            return await _rank(session, "251000000", reference)
 
     return run
 
 
 @pytest.fixture
 def assign(scene, async_database):
-    """Estima a matriz como o sync das turmas faz, a partir do estado atual."""
+    """Sincroniza o perfil, que infere a matriz pelo semestre de entrada."""
 
-    async def run():
+    async def run(entry="2025.1", course="ENGENHARIA DE SOFTWARE"):
+        profile = SigaaUserProfile(
+            name="Aluno",
+            registration="251000000",
+            photo=None,
+            bio=None,
+            unity="FCTE",
+            course=course,
+            shift=None,
+            entry_semester=entry,
+            integralization=None,
+            workload=None,
+            ira=None,
+            mp=None,
+            level=SigaaUserLevel.GRADUACAO,
+        )
         async with async_database() as session:
-            await RecommendationRepository(session).assign_curriculum("251000000")
+            await UserRepository(session).save_profile(profile, NOW)
             await session.commit()
 
     return run
@@ -411,92 +425,58 @@ async def test_curriculum_selection_shift_revision_and_entry(scene, assign):
 
 async def test_old_entry_fallback_and_unknown_shift_fallback(scene, assign):
     scene.subject("A", kind=None)
-    scene.user(entry_semester="2010.1", curriculum_id=None)
+    scene.user(curriculum_id=None)
     with scene.db.begin() as session:
         session.get(Curriculum, scene.matrix).shift = "N"
     fallback = scene.curriculum(shift=None, valid_from="2024.1")
     scene.component("A", kind="optional", matrix=fallback)
-    await assign()
+    await assign(entry="2010.1")
     assert codes(scene.get()) == ["A"]
 
 
-async def test_without_entry_the_latest_curriculum_is_used(scene, assign):
-    scene.subject("A", kind=None)
-    latest = scene.curriculum(valid_from="2024.1")
-    scene.component("A", kind="optional", matrix=latest)
-    scene.user(entry_semester=None, curriculum_id=None)
-    await assign()
-    assert codes(scene.get()) == ["A"]
-
-
-@pytest.mark.parametrize("mode", ["future", "opposite_shift", "no_course"])
-async def test_without_curriculum_nothing_is_recommended(scene, assign, mode):
+@pytest.mark.parametrize("mode", ["opposite_shift", "other_course", "no_entry"])
+async def test_without_curriculum_recommendations_are_rejected(scene, assign, mode):
     scene.subject("A", kind="required", period=None)
     scene.user(curriculum_id=None)
-    with scene.db.begin() as session:
-        if mode == "no_course":
-            session.get(User, scene.user_id).course_id = None
-        else:
-            row = session.get(Curriculum, scene.matrix)
-            if mode == "future":
-                row.valid_from = "2027.1"
-            else:
-                row.shift = "N"
-    await assign()
-    assert scene.get() == []
+    entry, course = "2025.1", "ENGENHARIA DE SOFTWARE"
+    if mode == "opposite_shift":
+        with scene.db.begin() as session:
+            session.get(Curriculum, scene.matrix).shift = "N"
+    elif mode == "other_course":
+        course = "OUTRO CURSO"
+    else:
+        entry = None
+    await assign(entry=entry, course=course)
+    assert scene.client.get(URL).status_code == 422
 
 
-async def test_curriculum_is_assigned_only_while_null(scene, assign):
-    scene.subject("A", kind=None)
+def test_without_curriculum_the_plain_search_still_works(scene, stub_sigaa):
+    scene.subject("A")
+    scene.user(curriculum_id=None)
+    (item,) = scene.client.get(URL, params={"unit": "673"}).json()
+    assert item["kind"] is None
+    stub_sigaa.classrooms.list_classrooms.assert_not_awaited()
+
+
+async def test_curriculum_is_inferred_only_while_null(scene, assign):
     scene.curriculum(valid_from="2024.1")
-    scene.user(curriculum_id=None, entry_semester="2020.1")
-    await assign()
-    scene.user(entry_semester="2025.1")
-    await assign()
-    with scene.db.begin() as session:
-        assert session.get(User, scene.user_id).curriculum_id == scene.matrix
-
-
-def test_classrooms_sync_assigns_the_curriculum(scene, stub_sigaa):
-    scene.subject("A", kind="required", period=1)
-    scene.user(curriculum_id=None, classrooms_synced_at=None)
-    assert codes(scene.get()) == ["A"]
-    stub_sigaa.classrooms.list_classrooms.assert_awaited_once()
+    scene.user(curriculum_id=None)
+    await assign(entry="2020.1")
+    await assign(entry="2025.1")
     with scene.db.begin() as session:
         assert session.get(User, scene.user_id).curriculum_id == scene.matrix
 
 
 async def test_profile_sync_resets_the_curriculum_only_when_the_course_changes(
-    scene, async_database
+    scene, assign
 ):
-    profile = SigaaUserProfile(
-        name="Aluno",
-        registration="251000000",
-        photo=None,
-        bio=None,
-        unity="FCTE",
-        course="ENGENHARIA DE SOFTWARE",
-        shift=None,
-        entry_semester="2025.1",
-        integralization=None,
-        workload=None,
-        ira=None,
-        mp=None,
-        level=SigaaUserLevel.GRADUACAO,
-    )
-
-    async def save(profile):
-        async with async_database() as session:
-            await UserRepository(session).save_profile(profile, NOW)
-            await session.commit()
-
     def curriculum_id():
         with scene.db.begin() as session:
             return session.get(User, scene.user_id).curriculum_id
 
-    await save(profile)
+    await assign()
     assert curriculum_id() == scene.matrix
-    await save(profile.model_copy(update={"course": "OUTRO CURSO"}))
+    await assign(course="OUTRO CURSO")
     assert curriculum_id() is None
 
 

@@ -1884,7 +1884,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Visitante sem filtro, usuário fora da graduação sem filtro, filtro inválido, unidade inexistente ou nome de unidade ambíguo. */
+            /** @description Visitante sem filtro, usuário fora da graduação ou sem matriz identificada sem filtro, filtro inválido, unidade inexistente ou nome de unidade ambíguo. */
             422: {
                 headers: {
                     [name: string]: unknown;

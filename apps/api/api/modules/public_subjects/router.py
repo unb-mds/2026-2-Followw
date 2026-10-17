@@ -19,7 +19,7 @@ router = APIRouter()
     responses={
         401: {"description": "Sessão inválida ao buscar recomendações."},
         422: {
-            "description": "Visitante sem filtro, usuário fora da graduação sem filtro, filtro inválido, unidade inexistente ou nome de unidade ambíguo."
+            "description": "Visitante sem filtro, usuário fora da graduação ou sem matriz identificada sem filtro, filtro inválido, unidade inexistente ou nome de unidade ambíguo."
         },
         502: {
             "description": "Falha no SIGAA ao sincronizar o histórico das recomendações."

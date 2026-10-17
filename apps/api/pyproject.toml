@@ -6,13 +6,13 @@ requires-python = ">=3.14"
 dependencies = [
     "asyncpg>=0.32.0",
     "cryptography>=50.0.2",
-    "fastapi[standard]>=0.143.0",
+    "fastapi[standard]>=0.143.3",
     "joserfc>=1.7.5",
     "pydantic>=2.14.1",
-    "pydantic-settings>=2.15.0",
+    "pydantic-settings>=2.16.0",
     "qstash>=3.4.0",
     "sigaa-client",
-    "sqlalchemy[asyncio]>=2.1.4",
+    "sqlalchemy[asyncio]>=2.1.5",
     "tzdata>=2026.5",
     "unb-browser",
 ]
@@ -45,5 +45,5 @@ dev = [
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "respx>=0.23.1",
-    "ruff>=0.17.0",
+    "ruff>=0.17.1",
 ]

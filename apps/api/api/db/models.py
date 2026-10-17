@@ -113,7 +113,9 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     bio: Mapped[str | None] = mapped_column(Text)
     course_id: Mapped[int | None] = mapped_column(ForeignKey("courses.id"))
     # Matriz estimada na primeira sincronização das turmas; só zera se o curso mudar.
-    curriculum_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("curricula.id"))
+    curriculum_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("curricula.id", ondelete="SET NULL")
+    )
     entry_semester: Mapped[str | None] = mapped_column()
     integralization: Mapped[int | None] = mapped_column(SmallInteger)
     workload: Mapped[dict[str, int] | None] = mapped_column(JSON)

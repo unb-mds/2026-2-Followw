@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import contains_eager, joinedload
 
 from api import academic_calendar
+from api.academic_calendar import parse_semester
 from api.db.courses import course_ids
 from api.db.enums import ClassroomRole, ClassroomStatus, LessonStatus
 from api.db.models import (
@@ -58,6 +59,37 @@ class ClassroomRepository:
             )
         )
         return [OwnLink.of(row) for row in rows]
+
+    async def list_student_links(
+        self, user_id: UUID, until: str | None
+    ) -> list[OwnLink]:
+        """Vínculos de aluno da lista do próprio usuário, até o semestre `until`."""
+        limit = parse_semester(until) if until else None
+        if limit is None:
+            return []
+        return [
+            link
+            for link in await self.list_by_user_id(user_id)
+            if link.row.role == ClassroomRole.ALUNO
+            and (term := parse_semester(link.row.classroom.semester))
+            and term <= limit
+        ]
+
+    async def offer_semester(self) -> str | None:
+        """O semestre mais recente entre as turmas gravadas."""
+        values = await self._session.scalars(select(Classroom.semester).distinct())
+        return max(
+            (value for value in values if parse_semester(value)),
+            key=parse_semester,
+            default=None,
+        )
+
+    async def offered_subject_codes(self, semester: str | None) -> list[str]:
+        return list(
+            await self._session.scalars(
+                select(Classroom.subject_code).where(Classroom.semester == semester)
+            )
+        )
 
     async def get(self, classroom_id: UUID) -> Classroom | None:
         return await self._session.get(Classroom, classroom_id)

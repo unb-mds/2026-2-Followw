@@ -2,7 +2,7 @@
 
 `GET /public/subjects` sem `q`, `code` e `unit` devolve as recomendações do aluno de
 graduação logado, no lugar da listagem padrão da unidade. Visitantes recebem 422, como
-antes, e usuários fora da graduação também. Com qualquer filtro, a busca é a comum.
+antes, e usuários fora da graduação ou sem matriz identificada também. Com qualquer filtro, a busca é a comum.
 
 A resposta é a mesma lista de `CatalogSubject` da busca, com as turmas do semestre da oferta,
 ordenada pelo ranking e com `recommendation: {reasons}` em cada matéria. Score e pontos não
@@ -12,14 +12,15 @@ a quantidade medida (semestres, matérias ou horas).
 
 Para quem está logado, toda resposta do `/public/subjects` (busca ou recomendação) traz
 `kind`: `mandatory`, `optional` (inclui complementares) ou `free` (fora da matriz). Na busca
-comum, a matriz é estimada só com o que está gravado, sem ir ao SIGAA; sem login ou sem
-matriz, `kind` é `null`.
+comum, a matriz é a gravada no usuário, sem ir ao SIGAA; sem login ou sem matriz, `kind` é
+`null`.
 
 A aba de busca exibe as recomendações, seus motivos e turmas para alunos de graduação quando
 não há texto ou filtros aplicados. A pontuação não é persistida no cache offline.
 
 O código fica em `api/modules/recommendations`: `ranking.py` é puro (sem banco ou rede),
-`repository.py` carrega histórico, matriz e oferta, e `service.py` sincroniza as fontes.
+`repository.py` só lê a matriz e o catálogo, e `service.py` sincroniza as fontes, carrega
+histórico e oferta (pelo `ClassroomRepository`) e monta o ranking.
 O `public_subjects` só anexa o resultado ao catálogo.
 
 ## Fontes e inferência
@@ -34,18 +35,18 @@ próprios de aluno com semestre válido até a oferta entram no histórico. A re
 concluídas, saem da lista e satisfazem pré/correquisitos. Reprovações posteriores não
 apagam aprovações.
 
-A matriz ativa é estimada pelo curso/turno do perfil armazenado, vigência e semestre de entrada
-do perfil (`entry_semester`). A estimativa é gravada em `users.curriculum_id` no sync das turmas,
-só enquanto estiver nula, e não é revalidada; trocar de curso no perfil a zera. Sem entrada usa-se
-a vigência elegível mais recente; se a entrada preceder todas, a mais antiga elegível. Revisão do
-código e ID SIGAA desempatam. Nenhuma matriz futura ou de turno oposto é escolhida silenciosamente.
-O turno disponível vem do curso resolvido pelo sync, não de uma confirmação adicional.
+A matriz é inferida só pelo semestre de entrada do perfil (`entry_semester`), com curso e turno
+do perfil armazenado: vale a vigência mais recente até a entrada; se a entrada preceder todas, a
+mais antiga. Revisão do código e ID SIGAA desempatam, e matriz de turno oposto nunca é escolhida.
+O turno vem do curso resolvido pelo sync, não de uma confirmação adicional. A inferência roda no
+sync do perfil e é gravada em `users.curriculum_id` só enquanto nula, sem revalidação; trocar
+de curso a zera. Sem entrada ou sem matriz elegível, o usuário fica sem matriz e a recomendação
+responde como para visitante (422).
 
 O período alvo é a mediana inferior dos períodos obrigatórios em andamento + 1. Sem eles,
 é o primeiro período com menos da metade das obrigatórias concluídas; depois, o último com
 pendências; se todas foram concluídas, último + 1. Códigos sem detalhes de catálogo também
-contam no fluxo. Sem matriz utilizável, nenhuma matéria é recomendada, porque não é possível
-distinguir módulo livre. Com matriz e sem período inferível, permanecem os demais critérios.
+contam no fluxo. Sem período inferível, permanecem os demais critérios.
 Atraso é uma obrigatória pendente de período anterior ao alvo.
 
 ## Elegibilidade e score
@@ -87,7 +88,7 @@ permanecem; as turmas vêm como na busca comum.
 As fontes seguem SWR, `FRESH`/`FROZEN` e diretivas de entrada `Cache-Control`.
 `no-cache` revalida fontes não congeladas. A resposta sempre usa `Cache-Control: no-store`.
 
-Sessão inválida: 401. Sem filtros, visitante ou usuário fora da graduação: 422. Falhas de
+Sessão inválida: 401. Sem filtros, visitante, usuário fora da graduação ou sem matriz: 422. Falhas de
 fontes seguem os handlers existentes (502/503/504). Sem oferta ou candidatas: lista vazia.
 O histórico não inclui todas as dispensas/aproveitamentos. O resultado não é uma grade
 pronta nem autorização de matrícula.

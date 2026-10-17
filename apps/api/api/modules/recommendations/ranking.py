@@ -1,13 +1,12 @@
-import re
 from collections import defaultdict
 from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
+from api.academic_calendar import parse_semester
 from api.modules.public_courses.service import _revision
 
-_SEMESTER = re.compile(r"([0-9]{4})\.([0-9])")
 _KIND_ORDER = {"required": 0, "optional": 1, "complementary": 2}
 type Rules = list[list[str]] | None
 
@@ -62,11 +61,6 @@ class Recommendation(Model):
     reasons: list[Reason]
 
 
-def semester(value: str) -> tuple[int, int] | None:
-    match = _SEMESTER.fullmatch(value)
-    return (int(match[1]), int(match[2])) if match else None
-
-
 def normalize(code: str) -> str:
     return code.strip().upper()
 
@@ -78,21 +72,13 @@ def satisfies(rules: Rules, approved: set[str]) -> bool:
 
 
 def select_curriculum(
-    options: list[CurriculumInfo],
-    offer: str | None,
-    entry: str | None,
-    shift: str | None,
+    options: list[CurriculumInfo], entry: str, shift: str | None
 ) -> CurriculumInfo | None:
-    """A matriz vigente na oferta, do turno do curso, pelo semestre de entrada."""
-    target = semester(offer) if offer else None
-    eligible = [
-        c
-        for c in options
-        if target and semester(c.valid_from) and semester(c.valid_from) <= target
-    ]
+    """A matriz vigente no semestre de entrada, do turno do curso."""
     shift = {"DIURNO": "D", "NOTURNO": "N", "MATUTINO": "D", "VESPERTINO": "D"}.get(
         shift, shift
     )
+    eligible = [c for c in options if parse_semester(c.valid_from)]
     if shift:
         eligible = [c for c in eligible if c.shift == shift] or [
             c for c in eligible if c.shift is None
@@ -100,16 +86,16 @@ def select_curriculum(
     if not eligible:
         return None
     previous = [
-        c for c in eligible if entry and semester(c.valid_from) <= semester(entry)
+        c for c in eligible if parse_semester(c.valid_from) <= parse_semester(entry)
     ]
-    if previous:
-        valid_from = max(semester(c.valid_from) for c in previous)
-    elif entry:
-        valid_from = min(semester(c.valid_from) for c in eligible)
-    else:
-        valid_from = max(semester(c.valid_from) for c in eligible)
+    valid_from = (
+        max(parse_semester(c.valid_from) for c in previous)
+        if previous
+        else min(parse_semester(c.valid_from) for c in eligible)
+    )
     return max(
-        (c for c in eligible if semester(c.valid_from) == valid_from), key=_revision
+        (c for c in eligible if parse_semester(c.valid_from) == valid_from),
+        key=_revision,
     )
 
 

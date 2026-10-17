@@ -20,7 +20,6 @@ from api.db.models import ClassroomParticipant, OwnLink, User
 from api.modules.classrooms.repository import ClassroomRepository
 from api.modules.me.profile import sync_profile
 from api.modules.me.repository import UserRepository
-from api.modules.recommendations.repository import RecommendationRepository
 from api.schemas import ClassroomOffer, UserSubject
 from api.sync import Cached, Context, SyncDep
 from api.sync.engine import Task
@@ -91,7 +90,6 @@ async def sync_classrooms(ctx: Context[None]) -> None:
         await ClassroomRepository(session).save_classroom_participants(
             user, classrooms, datetime.now(UTC), refresh=ctx.refresh
         )
-        await RecommendationRepository(session).assign_curriculum(registration)
 
     await ctx.sync.db.write(write)
 

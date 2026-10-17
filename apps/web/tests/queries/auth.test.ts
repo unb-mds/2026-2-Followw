@@ -61,7 +61,7 @@ describe('clearSession', () => {
         expect(queryClient.getQueryState(classroomsQueryOptions.queryKey)).toBeUndefined();
     });
 
-    test('remove todos os dados da conta e mantém os públicos', async () => {
+    test('remove todos os dados da conta, inclusive os públicos', async () => {
         const { queryClient } = getContext();
         const posts = classroomPostsQueryOptions('turma-1').queryKey;
         const menu = menuQueryOptions({ date: '2026-10-06' }).queryKey;
@@ -72,8 +72,7 @@ describe('clearSession', () => {
         await clearSession(queryClient);
 
         expect(queryClient.getQueryState(posts)).toBeUndefined();
-        const cachedMenu: unknown = queryClient.getQueryData(menu);
-        expect(cachedMenu).toEqual([]);
+        expect(queryClient.getQueryState(menu)).toBeUndefined();
     });
 
     test('remove também queries com chave fora do padrão da API', async () => {
