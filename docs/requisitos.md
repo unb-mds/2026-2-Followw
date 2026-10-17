@@ -48,7 +48,7 @@ Conjunto de funcionalidades responsáveis por mediar o acesso autenticado ao SIG
 
 #### 1.2: Logout Seguro
 **Histórias de Usuário:**
-* **US05:** Como estudante, quero poder encerrar minha sessão a qualquer momento em qualquer tela do aplicativo.
+* **US05:** Como estudante, quero poder encerrar minha sessão a qualquer momento. 
 * **US06:** Como estudante, quero ter a garantia de que ao sair da conta todos os dados privados temporariamente salvos no dispositivo sejam removidos.
 
 * **RF02 — Logout Seguro e Limpeza de Sessão:** O sistema deve fornecer encerramento de sessão (`POST /auth/logout`) que invalida imediatamente os tokens emitidos e expurga os dados pessoais cacheados no navegador do discente.
@@ -74,7 +74,7 @@ Conjunto de funcionalidades responsáveis por mediar o acesso autenticado ao SIG
 #### 1.4: Configurações e Preferências Pessoais
 **Histórias de Usuário:**
 * **US10:** Como estudante, quero poder escolher como meu nome é exibido no Followw, sem alterar meu registro civil no SIGAA.
-* **US11:** Como estudante, quero configurar meu campus universitário padrão para que as informações do Restaurante Universitário abram automaticamente no meu campus de preferência.
+* **US11:** Como estudante, quero ter meu campus universitário inferido corretamente sem a necessidade de configuração, para que as informações do Restaurante Universitário abram automaticamente no meu campus de preferência.
 
 * **RF04 — Configurações Pessoais do Usuário (`GET` e `PATCH /me/settings`):** O sistema deve permitir ao estudante consultar e atualizar preferências locais sincronizadas com a API, incluindo `display_name` e `default_campus`, mantendo preferências visuais de tema persistidas no cliente.
 
@@ -217,7 +217,7 @@ Módulo dedicado aos serviços do RU e facilidades da vida universitária, agreg
 
 #### 4.2: Gestão de Saldo e Extrato do RU
 **Histórias de Usuário:**
-* **US35:** Como estudante cadastrado no RU, quero consultar meu saldo financeiro atual e o grupo tarifário em que estou enquadrado.
+* **US35:** Como estudante cadastrado no RU, quero consultar o meu grupo tarifário e horário atual.
 * **US36:** Como estudante, quero visualizar meu extrato com créditos (recargas) e débitos (refeições) consumidos recentemente.
 * **US37:** Como estudante, quero receber um aviso preventivo quando meu saldo for menor que o custo da refeição correspondente ao horário atual.
 
@@ -323,8 +323,7 @@ O desenvolvimento do Followw UnB é conduzido de forma incremental através de s
 
 ### Backlog Evolutivo (Próximas Releases)
 * **Ações Ativas de Matrícula:** Solicitação interativa de trancamento de matrícula e ajuste de inscrição direto pelo Followw.
-* **Mensageria e Fóruns de Turma:** Canal de comunicação direta entre discentes e docentes da mesma disciplina.
-* **Notificações Push PWA:** Alertas no dispositivo sobre novos comunicados lançados e lançamento oficial de menções.
+* **Realização de Matrícula e visualização de resultados:** Realização de matrícula, rematrícula e matrícula extraordinária no período oficial permitido e exposição dos resultados obtidos nas tentativas diretamente no Followw.  
 
 ---
 
@@ -340,8 +339,12 @@ O desenvolvimento do Followw UnB é conduzido de forma incremental através de s
 
 * **Repositório do Projeto no GitHub:** [unb-mds/2026-2-Followw](https://github.com/unb-mds/2026-2-Followw)
 * **Quadro de Requisitos e Storymap (FigJam / Figma):** [Quadro MDS Followw](https://www.figma.com/board/JqtNZhLBFlsVIbthMYOdzB/Template-MDS--c%C3%B3pia-limpa-?node-id=0-1&p=f&t=PFwLBexPkq3KOM8L-0)
-* **Documentação de Arquitetura C4-PlantUML:** [`docs/arquitetura.md`](file:///c:/Users/Admin/OneDrive/Desktop/Followw%20SIGAA/docs/arquitetura.md)
-* **Documentação de Cache e Sincronização:** [`docs/cache-e-sincronizacao.md`](file:///c:/Users/Admin/OneDrive/Desktop/Followw%20SIGAA/docs/cache-e-sincronizacao.md)
-* **Documentação de Uso Offline:** [`docs/offline.md`](file:///c:/Users/Admin/OneDrive/Desktop/Followw%20SIGAA/docs/offline.md)
-* **Documentação de Segurança:** [`docs/segurança.md`](file:///c:/Users/Admin/OneDrive/Desktop/Followw%20SIGAA/docs/seguran%C3%A7a.md)
-* **Atas de Sprints:** Diretório [`docs/sprints/`](file:///c:/Users/Admin/OneDrive/Desktop/Followw%20SIGAA/docs/sprints/) (Sprints 01 a 07)
+* **Documentação de Arquitetura C4-PlantUML:** [`docs/arquitetura.md`](https://github.com/unb-mds/2026-2-Followw/blob/main/docs/arquitetura.md)
+* **Documentação de Cache e Sincronização:** [`docs/cache-e-sincronizacao.md`](https://github.com/unb-mds/2026-2-Followw/blob/main/docs/cache-e-sincronizacao.md)
+* **Documentação de Uso Offline:** [`docs/offline.md`](https://github.com/unb-mds/2026-2-Followw/blob/main/docs/offline.md)
+* **Documentação de Segurança:** [`docs/segurança.md`](https://github.com/unb-mds/2026-2-Followw/blob/main/docs/seguran%C3%A7a.md)
+* **Documentação de Recomendação de Matérias:** [`docs/recommendations.md`](https://github.com/unb-mds/2026-2-Followw/blob/main/docs/recommendations.md)
+* **Documentação de Observabilidade e Logs:** [`docs/observability.md`](https://github.com/unb-mds/2026-2-Followw/blob/main/docs/observability.md)
+* **Registro de Uso de IA:** [`docs/AI-USAGE.md`](https://github.com/unb-mds/2026-2-Followw/blob/main/docs/AI-USAGE.md)
+* **Atas de Sprints:** Diretório [`docs/sprints/`](https://github.com/unb-mds/2026-2-Followw/tree/main/docs/sprints) (Sprints 01 a 07)
+
