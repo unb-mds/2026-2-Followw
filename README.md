@@ -44,41 +44,13 @@ cp .env.example .env              # preencha JWT_SECRET_KEY (openssl rand -base6
 
 # QStash local (fila dos jobs de sincronização), em outro terminal.
 # Copie o token e as signing keys exibidos para o .env.
-bunx --allow-scripts=@upstash/qstash-cli @upstash/qstash-cli dev
+npx @upstash/qstash-cli dev
 
 uv run db-init                    # cria as tabelas
 uv run api                        # sobe a API em http://localhost:8000
 ```
 
-A documentação interativa fica em `http://localhost:8000/docs`.
-O [recomendador de matérias](docs/recommendations.md) responde em `GET /public/subjects` sem
-filtros, para alunos de graduação logados; a documentação descreve a inferência e o score.
-
-Recursos públicos, consultáveis sem login, usam o prefixo `/public`:
-
-- `GET /public/restaurant`: cardápio do RU, com os filtros `campus`, `date`, `start_date`,
-  `end_date`, `meal` e `refresh`. Substitui `/restaurant/menu`, preservando o comportamento do
-  cache.
-- `GET /public/classrooms`: busca pública de turmas por unidade, semestre, código (`code`), número
-  da turma (`number`), disciplina/professor (`contains`) e local.
-- `GET /public/classrooms/units`: unidades disponíveis na busca pública.
-- `GET /public/courses`: cursos cadastrados, ordenados por nome, com ID local (`id`), ID do SIGAA
-  (`sigaa_id`), nome, turno e unidade (`unity_id` e sigla em `unity`). Inclui cursos sem currículo e
-  cursos criados pelo sync, cujo ID do SIGAA pode ser nulo.
-- `GET /public/courses/{course_id}/curriculum?entry_semester=2026.1`: currículo ativo do curso (ID
-  local do Followw) pela vigência mais recente anterior ou igual ao ingresso. Se não houver, retorna
-  o mais antigo. Na mesma vigência vale a maior revisão do código (ex.: `2680/4`);
-  `curriculum_sigaa_id` escolhe outra matriz dessa vigência. A resposta agrupa as matérias em
-  `periods` (optativas no `0`) e traz `complementary` separado, com nome, horas e requisitos do
-  catálogo quando disponíveis; campos desconhecidos ficam nulos. Curso sem currículo retorna `404`.
-
-Extrato/saldo e token exigem autenticação e ficam em `GET /me/ru-statement` e `GET /me/ru-token`,
-substituindo `/restaurant/statement` e `/restaurant/token`. `/classrooms` lista somente turmas do
-usuário autenticado, sem lógica de busca pública. Rotas de autenticação, documentação e callbacks
-mantêm seus caminhos próprios.
-
-Na documentação, a categoria **Public** reúne **Classrooms**, **Courses**, **Restaurant** e
-**Subjects**.
+A documentação interativa fica disponível em `http://localhost:8000/docs`.
 
 ### Web
 

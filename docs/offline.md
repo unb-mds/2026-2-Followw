@@ -3,10 +3,10 @@
 O site abre e navega sem internet usando duas camadas independentes, ambas em
 `apps/web/src/integrations/offline/`:
 
-| Camada | O que guarda | Onde | Código |
-| :--- | :--- | :--- | :--- |
-| **Service worker** | JS/CSS/fontes do build e o HTML das páginas | Cache Storage | `pwa.ts` (`vite-plugin-pwa`/Workbox) |
-| **Cache do TanStack Query** | Dados da API (perfil, turmas, frequência, notícias, RU, cardápio...) | IndexedDB (`idb-keyval`, chave `followw-query-cache`) | `storage.ts` |
+| Camada                      | O que guarda                                                         | Onde                                                  | Código                               |
+| :-------------------------- | :------------------------------------------------------------------- | :---------------------------------------------------- | :----------------------------------- |
+| **Service worker**          | JS/CSS/fontes do build e o HTML das páginas                          | Cache Storage                                         | `pwa.ts` (`vite-plugin-pwa`/Workbox) |
+| **Cache do TanStack Query** | Dados da API (perfil, turmas, frequência, notícias, RU, cardápio...) | IndexedDB (`idb-keyval`, chave `followw-query-cache`) | `storage.ts`                         |
 
 O SW **nunca** cacheia respostas da API: os dados vivem só no cache do Query. O `useOfflineSupport`
 (`use-offline-support.ts`, chamado no `__root.tsx`) liga as duas camadas.
@@ -27,8 +27,8 @@ sozinho (`autoUpdate`: `skipWaiting` + `clientsClaim`).
 ## Cache dos dados
 
 - `persistQueryCache` restaura o IndexedDB e passa a salvar cada mudança. Roda **depois da
-  hidratação**, para o dado restaurado não divergir do HTML do SSR. Na restauração vence o dado
-  mais novo (SSR ou salvo).
+  hidratação**, para o dado restaurado não divergir do HTML do SSR. Na restauração vence o dado mais
+  novo (SSR ou salvo).
 - Validade: **14 dias** (`PERSIST_MAX_AGE`: `maxAge` do persister e `gcTime` das queries no
   navegador). Query sem atualização há mais tempo deixa de ser salva (`shouldPersistQuery`); só o
   `gcTime` não bastaria, já que a restauração reinicia o prazo a cada sessão.
@@ -51,8 +51,8 @@ sozinho (`autoUpdate`: `skipWaiting` + `clientsClaim`).
 - `OfflineBanner` no `AppLayout`: "Você está offline".
 - `useFailureMessage` (`src/lib/online.ts`) troca a mensagem de falha por `OFFLINE_MESSAGE` ("Você
   está sem conexão com a internet.") quando não há conexão. O `ErrorCard` já faz isso sozinho.
-- Login mostra `OFFLINE_MESSAGE` e não envia sem conexão; logout fica desabilitado (o banner explica);
-  a renovação da sessão espera a rede voltar.
+- Login mostra `OFFLINE_MESSAGE` e não envia sem conexão; logout fica desabilitado (o banner
+  explica); a renovação da sessão espera a rede voltar.
 
 ## Logout e sessão expirada
 
@@ -68,6 +68,6 @@ bun run build
 PORT=3100 node .output/server/index.mjs
 ```
 
-O SW só registra em produção. No DevTools: _Application → Service workers_ e _Network → Offline_.
-A API local só aceita CORS de `localhost:3000`; para outra porta, suba com
+O SW só registra em produção. No DevTools: _Application → Service workers_ e _Network → Offline_. A
+API local só aceita CORS de `localhost:3000`; para outra porta, suba com
 `CORS_ORIGINS='["http://localhost:3100"]' uv run api`.
