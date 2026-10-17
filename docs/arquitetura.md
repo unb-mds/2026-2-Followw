@@ -16,16 +16,18 @@ O sistema não possui contas proprietárias: a autenticação é delegada ao **C
 
 | Camada / Função | Tecnologia | Justificativa |
 | :--- | :--- | :--- |
-| **Frontend Web** | TanStack Start (React 19 / Vite) | SSR/SPA unificado, tipagem estrita de rotas com TanStack Router e cache de estado via TanStack Query. |
-| **Estilização** | Tailwind CSS v4 | Estilização utilitária atômica e performática. |
-| **API Client (Web)** | `openapi-fetch` + `openapi-react-query` | Consumo type-safe sincronizado diretamente com o schema OpenAPI da API FastAPI. |
-| **Backend API** | FastAPI (Python >= 3.14) | Assíncrono nativo, alta performance, geração automática de documentação OpenAPI e injeção de dependências robusta. |
-| **Scraper SIGAA** | `sigaa-client` | Abstração que gerencia o ciclo de vida JSF (ViewState, postback), decodificação de PDFs e sessões CAS. |
-| **Scraper Sites UnB**| `unb-browser` | Extração resiliente de cardápios do RU (parser geométrico via `pdfplumber`) e calendários acadêmicos. |
-| **Banco de Dados** | PostgreSQL 18+ (SQLAlchemy assíncrono) | Armazenamento de cache de turmas, cardápios e participantes, com suporte a campos JSON estruturados. |
-| **Fila Assíncrona** | Upstash QStash | Execução desacoplada de jobs de sincronização via webhooks autenticados, com *flow control* e deduplicação. |
-| **Segurança/Sessão**| JWE (AES-256-GCM) + HKDF | Sessão *stateless*: token e credenciais residem em cookies HttpOnly cifrados; nenhuma senha persistida no servidor. |
-| **Gerenciadores** | `uv` (monorepo Python) e `bun` (web) | Resolução instantânea de dependências e execução ultra-rápida. |
+| **Frontend Web** | TanStack Start (React 19 / Vite / Nitro) | SSR/SPA unificado, tipagem estrita de rotas com TanStack Router e cache de estado via TanStack Query. |
+| **Estilização** | Tailwind CSS v4 | Estilização utilitária atômica e performática com tema customizado (`@theme`). |
+| **API Client (Web)** | `openapi-fetch` + `openapi-react-query` | Consumo *type-safe* sincronizado diretamente com o schema OpenAPI da API FastAPI (`schema.gen.ts`). |
+| **Offline & PWA** | `vite-plugin-pwa` (Workbox) + `idb-keyval` | Service Worker para precache de assets/HTML SSR e persistência do cache do TanStack Query no IndexedDB por 14 dias. |
+| **Backend API** | FastAPI (Python >= 3.14) | Assíncrono nativo, alta performance, geração automática de documentação OpenAPI (Scalar) e injeção de dependências robusta. |
+| **Scraper SIGAA** | `sigaa-client` (`httpx`, `bs4`, `lxml`, `pypdf`, `zxing-cpp`, `markdownify`) | Abstração que gerencia o ciclo de vida JSF (ViewState, postback), emissão de documentos PDF, leitura de QR Code/código de barras do RU e conversão de HTML para Markdown. |
+| **Scraper Sites UnB**| `unb-browser` (`httpx`, `bs4`, `pdfplumber`) | Extração resiliente de cardápios do RU (parser geométrico via `pdfplumber`) e calendários acadêmicos. |
+| **Banco de Dados** | PostgreSQL 18+ (SQLAlchemy assíncrono + `asyncpg`) | Armazenamento de cache de turmas, postagens, currículos, disciplinas, cardápios e participantes. |
+| **Fila Assíncrona** | Upstash QStash | Execução desacoplada de jobs de sincronização via webhooks HTTP autenticados, com *flow control* e deduplicação. |
+| **Segurança/Sessão**| JWE (`AES-256-GCM`) + Fernet + HKDF | Sessão *stateless*: tokens e credenciais residem em cookies `HttpOnly` cifrados (JWE) e jobs em payloads Fernet; nenhuma senha persistida no servidor. |
+| **Observabilidade** | Logger JSON (`api/logger.py`) + PostHog (Web) | Telemetria de produto no cliente e logs estruturados por evento com `request_id` e `duration_ms` sem exposição de dados sensíveis. |
+| **Infra & Qualidade**| Vercel (`gru1`), GitHub Actions, `uv`, `bun`, Ruff, Oxlint/Oxfmt | Hospedagem Serverless Multi-Service, resolução instantânea de dependências e pipeline de CI com lint e testes automatizados. |
 
 ---
 
@@ -87,10 +89,23 @@ Apresenta a organização interna dos componentes do Frontend (`apps/web`), do B
 
 ### Orquestração de Background Jobs (QStash)
 - Operações lentas de sincronização são desacopladas da requisição síncrona do usuário.
-- **Sessão efêmera por job**: o job nunca usa a sessão do usuário. Ele leva a credencial cifrada, faz login numa sessão própria do SIGAA, roda as tarefas e faz logout no fim. Sessões diferentes da mesma conta não interferem entre si.
+- **Sessão efêmera por job**: o job nunca usa a sessão do usuário. Ele leva a credencial cifrada (Fernet com chave própria derivada via HKDF), faz login numa sessão própria do SIGAA, roda as tarefas e faz logout no fim. Sessões diferentes da mesma conta não interferem entre si.
 - **Um job por turma**: a requisição junta as tarefas vencidas e publica um job por turma (e um da conta, com perfil e lista de turmas). O sync do login abre um job para cada turma com telas vencidas.
 - **Paralelismo**: o *flow control* por matrícula (`parallelism: 4`) só poupa o CAS de rajadas de login; os jobs não disputam sessão.
 - **Falhas**: uma tarefa que falha na origem não impede as outras e ganha uma única retentativa, com 1 min de espera. Senha recusada descarta o job.
+
+### Arquitetura Offline-First e PWA (Frontend)
+- O cliente web funciona sem conexão à internet combinando duas camadas independentes em `apps/web/src/integrations/offline/` (detalhadas em [`docs/offline.md`](offline.md)):
+  - **Service Worker (`vite-plugin-pwa` / Workbox)**: faz precache dos assets de build e armazena o HTML das navegações SSR em estratégia *network-first* (com timeout de 3 s) em cache versionado por build (`followw-pages-<build>`).
+  - **Persistência do TanStack Query (`IndexedDB`)**: salva os dados retornados pela API por até **14 dias** (`idb-keyval`), restaurando-os após a hidratação e descartando o cache automaticamente quando o contrato da API muda (via hash SHA-256 de `schema.gen.ts`).
+
+### Seed Estático de Dados Públicos e Regras do Calendário Acadêmico
+- **Semeadura de Dados (`api/db/seed/`)**: na inicialização do banco (`db-init`), arquivos CSV pré-coletados em `packages/sigaa-client/data/` populam automaticamente unidades acadêmicas (`unities`), cursos de graduação (`courses`), estruturas curriculares (`curriculums`), componentes curriculares (`subjects`) e turmas (`classrooms`).
+- **Congelamento por Calendário Acadêmico (`api/academic_calendar.py`)**: utiliza as datas oficiais do período letivo para congelar automaticamente a ressincronização de turmas encerradas (passados 3 dias do término do semestre, após um último sync consolidado), evitando requisições desnecessárias ao SIGAA em semestres passados.
+
+### Observabilidade Estruturada e Privacidade por Design
+- **Logs Estruturados (`api/logger.py`)**: a API emite eventos em formato JSON por linha em `stderr`, correlacionando todas as operações da requisição (`sigaa.connect`, `queue.publish`, `job`, `sync.task`) sob um mesmo `request_id` e registrando o tempo decorrido (`duration_ms`), conforme detalhado em [`docs/observability.md`](observability.md).
+- **Allowlist Estrita de Campos**: o logger aceita apenas metadados operacionais pré-definidos, garantindo por construção que cookies, cabeçalhos, parâmetros de URL, senhas ou tracebacks com dados pessoais jamais sejam gravados nos logs.
 
 ---
 
@@ -99,32 +114,38 @@ Apresenta a organização interna dos componentes do Frontend (`apps/web`), do B
 ```
 .
 ├── apps/
-│   ├── api/                   # Backend FastAPI
+│   ├── api/                        # Backend FastAPI
 │   │   ├── api/
-│   │   │   ├── core/          # Configurações e variáveis de ambiente
-│   │   │   ├── db/            # Modelos SQLAlchemy e inicialização do banco
-│   │   │   ├── modules/       # Uma pasta por feature: router, service e repository
-│   │   │   ├── sync/          # Motor de cache (SWR), jobs do QStash e rota /jobs
-│   │   │   ├── sigaa.py       # Conexão com o SIGAA da requisição
-│   │   │   ├── cookies.py     # Cookies de sessão cifrados (JWE)
-│   │   │   ├── cache.py       # Diretivas de Cache-Control
-│   │   │   └── errors.py      # Erros do SIGAA e do RU traduzidos para HTTP
-│   │   └── tests/             # Testes da API, um arquivo por módulo
+│   │   │   ├── core/               # Configurações e variáveis de ambiente
+│   │   │   ├── db/                 # Modelos SQLAlchemy, inicialização e seed (unidades, cursos, currículos, turmas)
+│   │   │   ├── modules/            # Uma pasta por feature: auth, classrooms, me, posts, public_*
+│   │   │   ├── sync/               # Motor de cache (SWR), fila do QStash e rota /jobs
+│   │   │   ├── academic_calendar.py# Regras de congelamento de sync e status pelo calendário acadêmico
+│   │   │   ├── sigaa.py            # Conexão com o SIGAA da requisição
+│   │   │   ├── cookies.py          # Cookies de sessão cifrados (JWE)
+│   │   │   ├── cache.py            # Diretivas de Cache-Control
+│   │   │   ├── errors.py           # Erros do SIGAA e do RU traduzidos para HTTP
+│   │   │   └── logger.py           # Logs estruturados JSON e middleware de requisição
+│   │   └── tests/                  # Testes da API, um arquivo por módulo
 │   │
-│   └── web/                   # Frontend TanStack Start
-│       └── src/
-│           ├── components/    # Componentes React de interface
-│           ├── queries/       # Clientes de API (openapi-fetch e queries tipadas)
-│           └── routes/        # Rotas da aplicação (file-based routing)
+│   └── web/                        # Frontend TanStack Start
+│       ├── src/
+│       │   ├── components/         # Componentes React de interface
+│       │   ├── integrations/       # Suporte offline (PWA/Workbox + IndexedDB), TanStack Query e PostHog
+│       │   ├── lib/                # Utilitários de domínio, grade horária, status online/offline e downloads
+│       │   ├── queries/            # Clientes de API (openapi-fetch, schema.gen.ts e queries tipadas)
+│       │   └── routes/             # Rotas da aplicação (file-based routing: /, /turmas, /buscar, /ru, /perfil, /login)
+│       └── tests/                  # Testes unitários e de componentes do frontend
 │
 ├── packages/
-│   ├── sigaa-client/          # Scraper e cliente assíncrono do SIGAA
-│   └── unb-browser/           # Scraper do RU e calendários acadêmicos
+│   ├── sigaa-client/               # Scraper assíncrono do SIGAA e datasets públicos (data/*.csv)
+│   └── unb-browser/                # Scraper do RU e calendários acadêmicos
 │
-├── docs/                      # Documentação de arquitetura, requisitos e sprints
-│   ├── assets/                # Diagramas renderizados em SVG e imagens
-│   └── diagrams/              # Diagramas como código em C4-PlantUML (.puml)
+├── docs/                           # Documentação de arquitetura, cache, offline, observabilidade e sprints
+│   ├── assets/                     # Diagramas renderizados em SVG e imagens
+│   └── diagrams/                   # Diagramas como código em C4-PlantUML (.puml)
 │
-├── scripts/                   # Scripts utilitários locais (ex: geração de diagramas)
-└── compose.yml                # Configuração do PostgreSQL local
+├── scripts/                        # Scripts utilitários locais (ex: geração de diagramas)
+├── compose.yml                     # Configuração do PostgreSQL 18 local
+└── vercel.json                     # Configuração Serverless Multi-Service (web + api) na Vercel
 ```
