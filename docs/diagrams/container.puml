@@ -8,9 +8,9 @@ title Diagrama de Containers — Followw UnB
 Person(estudante, "Estudante UnB", "Usuário final interagindo com a plataforma.")
 
 System_Boundary(c1, "Followw UnB") {
-    Container(web, "Frontend Web", "TanStack Start, React 19, Tailwind CSS", "Interface web reativa para consulta de turmas, frequência e cardápio.")
-    Container(api, "Backend API", "FastAPI, Python 3.14", "API REST assíncrona, orquestra cache, valida cookies JWE e executa scrapers.")
-    ContainerDb(db, "Banco de Dados", "PostgreSQL 16+", "Cache de turmas, participantes, estatísticas e cardápio do RU.")
+    Container(web, "Frontend Web", "TanStack Start, React 19, Tailwind CSS, PWA", "Interface web reativa com suporte offline (Service Worker + IndexedDB).")
+    Container(api, "Backend API", "FastAPI, Python 3.14", "API REST assíncrona, orquestra cache SWR, valida cookies JWE e executa scrapers.")
+    ContainerDb(db, "Banco de Dados", "PostgreSQL 18+", "Cache de turmas, postagens, participantes, currículos, disciplinas e cardápio do RU.")
 }
 
 System_Ext(sigaa, "SIGAA / CAS UnB", "Sistema Acadêmico Legado")
