@@ -208,6 +208,24 @@ describe('TurmaSection', () => {
         expect(markup).toContain('aria-expanded="false"');
     });
 
+    test('exibe o tipo da matéria só quando informado', () => {
+        const markup = renderToStaticMarkup(
+            <TurmaSection
+                title="Resultados"
+                subjects={[
+                    { ...subject, kind: 'optional' },
+                    { ...subject, code: 'FGA0002', kind: 'free' },
+                    { ...subject, code: 'FGA0003' }
+                ]}
+                approved={null}
+            />
+        );
+        expect(markup).toContain('Optativa');
+        expect(markup).toContain('Módulo livre');
+        expect(markup).not.toContain('Obrigatória');
+        expect(markup.match(/group\/badge/g)).toHaveLength(2);
+    });
+
     test('seção vazia não é exibida', () => {
         expect(
             renderToStaticMarkup(<TurmaSection title="Vazio" subjects={[]} approved={null} />)

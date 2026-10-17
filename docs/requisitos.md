@@ -193,6 +193,7 @@ inscrito, histórico letivo, controle de frequência, avisos dos professores e a
 - As turmas de semestres anteriores devem exibir com destaque visual a menção recebida (colorida
   conforme a escala de rendimento).
 - Turmas sem sala informada pelo SIGAA devem exibir `"Local não informado"`, sem omitir a matéria.
+- Turmas com matrícula em processamento devem exibir a badge amarela `"Em processamento"`.
 
 #### 2.2: Detalhes da Turma e Participantes
 

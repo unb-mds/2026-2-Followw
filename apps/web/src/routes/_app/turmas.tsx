@@ -87,6 +87,7 @@ function Classrooms() {
                         }
                         classNumber={classroom.number}
                         grade={finalGrade(classroom)}
+                        status={classroom.status === 'pending_enrollment' ? 'pending' : 'normal'}
                         onClick={() =>
                             navigate({ to: '/turmas/$id', params: { id: classroom.id } })
                         }

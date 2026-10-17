@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api import academic_calendar
 from api.cache import Freshness, freshness
+from api.db.enums import ClassroomStatus
 from api.db.models import ClassroomParticipant, OwnLink, User
 from api.modules.classrooms.repository import ClassroomRepository
 from api.modules.me.profile import sync_profile
@@ -137,6 +138,7 @@ class ParticipantClassroom(Classroom, ClassroomOffer):
 
     subject: UserSubject
     grade: Grade | None = None
+    status: ClassroomStatus | None = None
 
 
 class ClassroomService:
@@ -258,6 +260,7 @@ def to_classroom(link: OwnLink) -> ParticipantClassroom:
             unity=subject.unity.code if subject.unity else None,
         ),
         grade=link.row.grade,
+        status=link.row.status,
         professors=classroom.professors,
         vacancies=classroom.vacancies,
         occupied=classroom.occupied,
