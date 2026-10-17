@@ -52,3 +52,6 @@ uv run ruff format .    # sempre formate ao alterar o código
   necessário/muito útil.
 - Use meios de validar suas alterações, se necessário, você pode utilizar as envs TEST_REGISTRATION
   e TEST_PASSWORD para fazer login pela api ou pelo navegador.
+- Ao terminar uma feature, adicione sua História de Usuário (US), Requisito Funcional (RF) ou
+  Requisito Não Funcional (RNF) e descrição (se necessária) em `docs/requisitos.md`, na sua devida
+  seção e épico, sem alterar o modelo e a estrutura atual do documento.
