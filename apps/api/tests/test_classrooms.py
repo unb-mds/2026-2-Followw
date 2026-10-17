@@ -18,6 +18,7 @@ from sigaa_client import (
 )
 from sqlalchemy import event, func, select, update
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import undefer
 
 from api.cookies import (
     ACCESS_COOKIE_NAME,
@@ -452,9 +453,8 @@ def test_participantes_sem_cache_buscam_as_turmas_antes(client, turmas, cookies)
 def test_turma_fora_da_lista_do_usuario_retorna_404(client, turmas, cookies):
     client.cookies.update(cookies(refresh=CREDENCIAIS))
 
-    for screen in ("members", "statistics"):
-        response = client.get(f"/classrooms/DE-OUTRO-ALUNO/{screen}")
-        assert response.status_code == 404
+    response = client.get("/classrooms/DE-OUTRO-ALUNO/members")
+    assert response.status_code == 404
     turmas.classrooms.list_classroom_members.assert_not_awaited()
 
 
@@ -502,38 +502,20 @@ def test_refresh_dos_participantes_busca_no_sigaa(client, sigaa, turmas):
     assert [m["name"] for m in client.get("/classrooms/AAA/members").json()] == ["ZECA"]
 
 
-def test_estatisticas_na_ordem_da_legenda(client, turmas, cookies):
-    client.cookies.update(cookies(refresh=CREDENCIAIS))
-
-    primeira = client.get("/classrooms/AAA/statistics")
-    segunda = client.get("/classrooms/AAA/statistics")
-
-    assert primeira.status_code == 200
-    assert (
-        primeira.json()
-        == segunda.json()
-        == [
-            {"situation": "aprovado", "percentage": 90.0},
-            {"situation": "matriculado", "percentage": 10.0},
-        ]
-    )
-    assert turmas.classrooms.get_classroom_statistics.await_count == 1
-
-
 def test_detalhes_com_sigaa_fora_retornam_502(client, turmas, cookies):
     client.cookies.update(cookies(refresh=CREDENCIAIS))
-    turmas.classrooms.get_classroom_statistics.side_effect = SigaaError("fora")
+    turmas.classrooms.list_classroom_members.side_effect = SigaaError("fora")
 
-    assert client.get("/classrooms/AAA/statistics").status_code == 502
+    assert client.get("/classrooms/AAA/members").status_code == 502
 
 
-def test_openapi_documenta_participantes_e_estatisticas(client):
+def test_openapi_documenta_participantes_sem_estatisticas(client):
     paths = client.get("/openapi.json").json()["paths"]
 
-    for screen in ("members", "statistics"):
-        route = paths[f"/classrooms/{{classroom_id}}/{screen}"]["get"]
-        assert {"401", "404", "502"} <= route["responses"].keys()
-        assert any(p["name"] == "Cache-Control" for p in route["parameters"])
+    route = paths["/classrooms/{classroom_id}/members"]["get"]
+    assert {"401", "404", "502"} <= route["responses"].keys()
+    assert any(p["name"] == "Cache-Control" for p in route["parameters"])
+    assert "/classrooms/{classroom_id}/statistics" not in paths
 
 
 def test_refresh_atualiza_turmas_antigas(client, sigaa, turmas):
@@ -550,10 +532,7 @@ def test_refresh_atualiza_turmas_antigas(client, sigaa, turmas):
     assert client.get("/classrooms?semester=2025.2").json() == response.json()
 
 
-@pytest.mark.parametrize("screen", ["members", "statistics"])
-def test_detalhes_revalidam_a_lista_de_turmas_vencida(
-    client, sigaa, turmas, database, screen
-):
+def test_detalhes_revalidam_a_lista_de_turmas_vencida(client, sigaa, turmas, database):
     client.post(
         "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
     )
@@ -567,22 +546,21 @@ def test_detalhes_revalidam_a_lista_de_turmas_vencida(
     # A turma foi trancada: o acesso a ela some depois da revalidação.
     turmas.classrooms.list_classrooms.return_value = [ANTIGA]
 
-    assert client.get(f"/classrooms/AAA/{screen}").status_code == 200
+    assert client.get("/classrooms/AAA/members").status_code == 200
     assert turmas.classrooms.list_classrooms.await_count == 2
-    assert client.get(f"/classrooms/AAA/{screen}").status_code == 404
+    assert client.get("/classrooms/AAA/members").status_code == 404
 
 
-@pytest.mark.parametrize("screen", ["members", "statistics"])
-def test_detalhes_aceitam_sigaa_id(client, turmas, cookies, screen):
+def test_detalhes_aceitam_sigaa_id(client, turmas, cookies):
     turmas.classrooms.list_classrooms.return_value = [
         ATUAL.model_copy(update={"sigaa_id": 1614100})
     ]
     client.cookies.update(cookies(refresh=CREDENCIAIS))
 
-    por_sigaa_id = client.get(f"/classrooms/1614100/{screen}")
+    por_sigaa_id = client.get("/classrooms/1614100/members")
 
     assert por_sigaa_id.status_code == 200
-    assert client.get(f"/classrooms/AAA/{screen}").json() == por_sigaa_id.json()
+    assert client.get("/classrooms/AAA/members").json() == por_sigaa_id.json()
     assert turmas.classrooms.list_classrooms.await_count == 1
 
 
@@ -1298,7 +1276,9 @@ async def test_estatisticas_substituem_as_anteriores(async_database, usuarios):
             await session.commit()
 
     async with async_database() as session:
-        classroom = await session.get_one(ClassroomModel, classroom_id)
+        classroom = await session.get_one(
+            ClassroomModel, classroom_id, options=[undefer(ClassroomModel.statistics)]
+        )
     assert sorted((s["situation"], s["percentage"]) for s in classroom.statistics) == [
         ("aprovado", 90),
         ("matriculado", 10),
@@ -1308,7 +1288,9 @@ async def test_estatisticas_substituem_as_anteriores(async_database, usuarios):
     async with async_database() as session:
         await ClassroomRepository(session).save_statistics(classroom_id, [], AGORA)
         await session.commit()
-        classroom = await session.get_one(ClassroomModel, classroom_id)
+        classroom = await session.get_one(
+            ClassroomModel, classroom_id, options=[undefer(ClassroomModel.statistics)]
+        )
         assert classroom.statistics == []
 
 

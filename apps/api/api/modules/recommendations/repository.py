@@ -1,7 +1,7 @@
 from collections.abc import Collection
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.models import CurriculumComponent, Subject
@@ -38,10 +38,10 @@ class RecommendationRepository:
         )
 
     async def catalog(self, codes: Collection[str]) -> dict[str, CatalogSubject]:
-        """Os componentes pelos códigos normalizados."""
+        """Os componentes pelos códigos normalizados, como os grava o seed."""
         return {
             normalize(subject.code): CatalogSubject.model_validate(subject)
             for subject in await self._session.scalars(
-                select(Subject).where(func.upper(func.trim(Subject.code)).in_(codes))
+                select(Subject).where(Subject.code.in_(codes))
             )
         }

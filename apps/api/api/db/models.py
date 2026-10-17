@@ -112,7 +112,7 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     email: Mapped[str | None] = mapped_column()
     bio: Mapped[str | None] = mapped_column(Text)
     course_id: Mapped[int | None] = mapped_column(ForeignKey("courses.id"))
-    # Matriz estimada na primeira sincronização das turmas; só zera se o curso mudar.
+    # Matriz estimada no sync do perfil; só zera se o curso mudar.
     curriculum_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("curricula.id", ondelete="SET NULL")
     )
@@ -184,7 +184,9 @@ class Classroom(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     subject_code: Mapped[str] = mapped_column(ForeignKey("subjects.code"))
     members_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     posts_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    statistics: Mapped[list[dict[str, object]] | None] = mapped_column(JSON)
+    statistics: Mapped[list[dict[str, object]] | None] = mapped_column(
+        JSON, deferred=True
+    )
     statistics_synced_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True)
     )

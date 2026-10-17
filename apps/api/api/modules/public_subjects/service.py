@@ -89,9 +89,7 @@ class PublicSubjectService:
             if sync is None:
                 raise _invalid("Informe `q`, `code` ou `unit`.")
             ranking = await RecommendationService(sync).recommend()
-            return await self._db.read(
-                lambda session: _recommended(session, ranking, registration)
-            )
+            return await self._db.read(lambda session: _recommended(session, ranking))
         return await self._db.read(
             lambda session: _search(session, q, code, unit, semester, registration)
         )
@@ -115,9 +113,12 @@ async def _search(
         semester=semester,
     )
     needle = lookup_key(q or "")
+    curriculum = None
+    if registration is not None:
+        curriculum = await RecommendationRepository(session).curriculum(registration)
     return await _catalog(
         session,
-        registration,
+        curriculum,
         [
             subject
             for subject in subjects
@@ -133,9 +134,7 @@ async def _search(
     )
 
 
-async def _recommended(
-    session: AsyncSession, ranking: Ranking, registration: str | None
-) -> list[CatalogSubject]:
+async def _recommended(session: AsyncSession, ranking: Ranking) -> list[CatalogSubject]:
     if not ranking.items:
         return []
     repository = SubjectCatalogRepository(session)
@@ -152,16 +151,15 @@ async def _recommended(
                 )
             }
         )
-        for subject in await _catalog(session, registration, subjects)
+        for subject in await _catalog(session, ranking.curriculum, subjects)
     ]
 
 
 async def _catalog(
-    session: AsyncSession, registration: str | None, subjects: list[Subject]
+    session: AsyncSession,
+    curriculum: dict[str, Component] | None,
+    subjects: list[Subject],
 ) -> list[CatalogSubject]:
-    curriculum: dict[str, Component] | None = None
-    if registration is not None:
-        curriculum = await RecommendationRepository(session).curriculum(registration)
     names = await SubjectCatalogRepository(session).subject_names(
         {
             code

@@ -4,10 +4,10 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from api.academic_calendar import parse_semester
-from api.modules.public_courses.service import _revision
+from api.modules.public_courses.service import in_force, revision
 
 _KIND_ORDER = {"required": 0, "optional": 1, "complementary": 2}
+_SHIFTS = {"DIURNO": "D", "NOTURNO": "N"}
 type Rules = list[list[str]] | None
 
 
@@ -75,28 +75,12 @@ def select_curriculum(
     options: list[CurriculumInfo], entry: str, shift: str | None
 ) -> CurriculumInfo | None:
     """A matriz vigente no semestre de entrada, do turno do curso."""
-    shift = {"DIURNO": "D", "NOTURNO": "N", "MATUTINO": "D", "VESPERTINO": "D"}.get(
-        shift, shift
-    )
-    eligible = [c for c in options if parse_semester(c.valid_from)]
+    shift = _SHIFTS.get(shift, shift)
     if shift:
-        eligible = [c for c in eligible if c.shift == shift] or [
-            c for c in eligible if c.shift is None
+        options = [c for c in options if c.shift == shift] or [
+            c for c in options if c.shift is None
         ]
-    if not eligible:
-        return None
-    previous = [
-        c for c in eligible if parse_semester(c.valid_from) <= parse_semester(entry)
-    ]
-    valid_from = (
-        max(parse_semester(c.valid_from) for c in previous)
-        if previous
-        else min(parse_semester(c.valid_from) for c in eligible)
-    )
-    return max(
-        (c for c in eligible if parse_semester(c.valid_from) == valid_from),
-        key=_revision,
-    )
+    return max(in_force(options, entry), key=revision, default=None)
 
 
 def components_by_code(components: list[Component]) -> dict[str, Component]:

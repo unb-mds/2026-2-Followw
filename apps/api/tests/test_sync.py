@@ -691,25 +691,6 @@ def test_requisicao_junta_as_tarefas_num_job_por_turma(
     }
 
 
-def test_estatistica_salva_nao_vence_e_so_o_no_cache_revalida(
-    client, turma, cookies, qstash, database
-):
-    client.cookies.update(cookies(refresh=CREDENCIAIS))
-    client.get("/classrooms/AAA/statistics")
-    _envelhecer(database, Classroom.statistics_synced_at, hours=24 * 365)
-    qstash.published.clear()
-    turma.reset()
-
-    client.get("/classrooms/AAA/statistics")
-    assert not [
-        s for job in qstash.jobs() for s in job.steps if s == Step.of(sync_statistics)
-    ]
-    turma.classrooms.get_classroom_statistics.assert_not_awaited()
-
-    client.get("/classrooms/AAA/statistics", headers=NO_CACHE)
-    turma.classrooms.get_classroom_statistics.assert_awaited_once()
-
-
 def test_login_nao_sincroniza_estatistica_de_turma_atual_nem_a_ja_salva(
     client, conta, database, qstash
 ):

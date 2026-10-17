@@ -31,8 +31,9 @@ O `classrooms.csv` é mantido com as turmas do semestre corrente; lotação não
 Perfil, lista própria de turmas e menções usam `Sync.resolve` e as tarefas existentes.
 Cache ausente exige sincronização; histórico sincronizado vazio é válido. Só vínculos
 próprios de aluno com semestre válido até a oferta entram no histórico. A recomendação
-é para o próximo semestre: matérias aprovadas (SS/MS/MM) ou em andamento contam como
-concluídas, saem da lista e satisfazem pré/correquisitos. Reprovações posteriores não
+é para o próximo semestre: matérias aprovadas (SS/MS/MM) ou em andamento (inclusive as
+encerradas cuja menção ainda não foi consolidada) contam como concluídas, saem da lista e
+satisfazem pré/correquisitos. Reprovações posteriores não
 apagam aprovações.
 
 A matriz é inferida só pelo semestre de entrada do perfil (`entry_semester`), com curso e turno

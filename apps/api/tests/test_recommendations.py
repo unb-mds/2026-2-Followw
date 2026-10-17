@@ -18,6 +18,7 @@ from sigaa_client import UserLevel as SigaaUserLevel
 from sigaa_client import UserProfile as SigaaUserProfile
 from sqlalchemy import select
 
+from api import academic_calendar
 from api.db.enums import ClassroomRole, ClassroomStatus, UserLevel
 from api.db.models import (
     Classroom,
@@ -38,7 +39,7 @@ from api.modules.recommendations.ranking import (
     descendants,
     target_period,
 )
-from api.modules.recommendations.service import _rank
+from api.modules.recommendations.service import _rank, _student
 
 NOW = datetime.now(UTC)
 URL = "/public/subjects"
@@ -188,8 +189,10 @@ def ranked(scene, async_database):
 
     async def run():
         async with async_database() as session:
+            user = await UserRepository(session).get_by_registration("251000000")
+            student = await _student(session, user)
             reference = await ClassroomRepository(session).offer_semester()
-            return await _rank(session, "251000000", reference)
+            return await _rank(session, student, reference)
 
     return run
 
@@ -238,18 +241,18 @@ def points(items, code):
     return {reason.code: reason.points for reason in item.reasons}
 
 
-def test_visitor_without_filters_is_rejected(client):
+def test_visitante_sem_filtros_e_rejeitado(client):
     assert client.get(URL).status_code == 422
 
 
-def test_filters_keep_the_plain_search(scene, stub_sigaa):
+def test_filtros_mantem_a_busca_comum(scene, stub_sigaa):
     scene.subject("A")
     (item,) = scene.client.get(URL, params={"unit": "673"}).json()
     assert item["recommendation"] is None
     stub_sigaa.profile.get_profile.assert_not_awaited()
 
 
-def test_plain_search_shows_curriculum_kind_from_cache(scene, stub_sigaa):
+def test_busca_comum_mostra_o_tipo_na_matriz_pelo_cache(scene, stub_sigaa):
     scene.subject("REQ", kind="required", period=1)
     scene.subject("OPT", kind="optional")
     scene.subject("COMP", kind="complementary")
@@ -270,7 +273,7 @@ def test_plain_search_shows_curriculum_kind_from_cache(scene, stub_sigaa):
     }
 
 
-def test_kind_is_null_without_curriculum_or_login(scene):
+def test_tipo_e_nulo_sem_matriz_ou_sem_login(scene):
     scene.subject("A")
     with scene.db.begin() as session:
         user = session.get(User, scene.user_id)
@@ -284,13 +287,13 @@ def test_kind_is_null_without_curriculum_or_login(scene):
     assert kinds() == [None]
 
 
-def test_undergraduate_only(scene):
+def test_somente_graduacao(scene):
     with scene.db.begin() as session:
         session.get(User, scene.user_id).level = UserLevel.MESTRADO
     assert scene.client.get(URL).status_code == 422
 
 
-async def test_whole_offer_is_ranked_with_empty_history(scene, ranked):
+async def test_toda_a_oferta_entra_no_ranking_com_historico_vazio(scene, ranked):
     for n in range(12):
         scene.subject(f"X{n:02}", unity_id=99, kind="complementary")
     scene.component("MISSING", period=1)
@@ -300,7 +303,7 @@ async def test_whole_offer_is_ranked_with_empty_history(scene, ranked):
     assert scene.get() == result
 
 
-def test_disjoint_exclusions(scene):
+def test_exclusoes_disjuntas(scene):
     scene.subject("OK")
     scene.subject("APPROVED")
     scene.history("APPROVED", grade=Grade.MM)
@@ -312,7 +315,7 @@ def test_disjoint_exclusions(scene):
 
 
 @pytest.mark.parametrize("grade", [Grade.SS, Grade.MS, Grade.MM])
-def test_approved_grades_and_repetition(scene, grade):
+def test_mencoes_aprovadas_e_repeticao(scene, grade):
     scene.subject("A")
     scene.subject("B", prerequisites=[["A"]])
     scene.history("A", grade=grade, term="2025.2")
@@ -320,7 +323,7 @@ def test_approved_grades_and_repetition(scene, grade):
     assert codes(scene.get()) == ["B"]
 
 
-def test_target_and_in_progress_count_as_completed(scene):
+def test_oferta_e_em_andamento_contam_como_concluidas(scene):
     for code in ("TARGET", "FAILED", "REMOVED", "LOCKED"):
         scene.subject(code)
     scene.subject("NEEDS_TARGET", prerequisites=[["TARGET"]])
@@ -332,7 +335,18 @@ def test_target_and_in_progress_count_as_completed(scene):
     assert set(codes(scene.get())) == {"NEEDS_TARGET", "FAILED", "REMOVED", "LOCKED"}
 
 
-def test_only_own_student_links_and_user_isolation(scene):
+@pytest.mark.parametrize(("closed", "expected"), [(False, ["B"]), (True, ["A"])])
+def test_encerrada_sem_mencao_consolidada_conta_como_em_andamento(
+    scene, monkeypatch, closed, expected
+):
+    monkeypatch.setattr(academic_calendar, "grades_closed", lambda semester: closed)
+    scene.subject("A")
+    scene.subject("B", prerequisites=[["A"]])
+    scene.history("A")
+    assert codes(scene.get()) == expected
+
+
+def test_so_vinculos_proprios_de_aluno_e_isolamento_entre_usuarios(scene):
     scene.subject("A", prerequisites=[["B"]])
     scene.history("B", grade=Grade.SS, role=ClassroomRole.MONITOR)
     scene.history("B", grade=Grade.SS, role=ClassroomRole.PROFESSOR)
@@ -346,7 +360,7 @@ def test_only_own_student_links_and_user_isolation(scene):
     assert scene.get() == []
 
 
-def test_requirements_and_or_with_in_progress_but_no_equivalent_credit(scene):
+def test_requisitos_e_ou_com_em_andamento_mas_sem_credito_por_equivalencia(scene):
     scene.history("A", grade=Grade.MM)
     scene.subject("PASS", prerequisites=[["A", "B"], ["A"]], corequisites=[["A"]])
     scene.subject("AND", prerequisites=[["A", "B"]])
@@ -374,11 +388,11 @@ FLOW = [
         ({"A", "B", "C", "D"}, 3),
     ],
 )
-def test_target_period_from_half_threshold_and_completion(done, expected):
+def test_periodo_alvo_pela_metade_e_pela_conclusao(done, expected):
     assert target_period(components_by_code(FLOW), done, set()) == expected
 
 
-def test_target_period_after_enrolled_lower_median_and_duplicates():
+def test_periodo_alvo_apos_mediana_inferior_das_matriculadas_e_duplicadas():
     flow = components_by_code(
         [
             Component(subject_code=code, kind="required", period=period)
@@ -392,7 +406,7 @@ def test_target_period_after_enrolled_lower_median_and_duplicates():
     assert target_period(components_by_code(optional), set(), set()) is None
 
 
-def test_overdue_after_in_progress_period(scene):
+def test_atrasada_apos_o_periodo_em_andamento(scene):
     for code, period in (("A", 2), ("B", 4), ("C", 4), ("D", 6)):
         scene.component(code, period=period)
         scene.history(code, enrolled=True, term="2026.2")
@@ -407,7 +421,7 @@ def test_overdue_after_in_progress_period(scene):
     ]
 
 
-async def test_curriculum_selection_shift_revision_and_entry(scene, assign):
+async def test_selecao_de_matriz_por_turno_revisao_e_entrada(scene, assign):
     scene.subject("A", kind=None)
     scene.curriculum(code="100/2", valid_from="2024.1", sigaa_id=12)
     selected = scene.curriculum(code="100/3", valid_from="2024.1", sigaa_id=13)
@@ -423,7 +437,7 @@ async def test_curriculum_selection_shift_revision_and_entry(scene, assign):
     assert codes(scene.get()) == ["A"]
 
 
-async def test_old_entry_fallback_and_unknown_shift_fallback(scene, assign):
+async def test_entrada_antiga_e_turno_desconhecido_tem_alternativa(scene, assign):
     scene.subject("A", kind=None)
     scene.user(curriculum_id=None)
     with scene.db.begin() as session:
@@ -435,7 +449,7 @@ async def test_old_entry_fallback_and_unknown_shift_fallback(scene, assign):
 
 
 @pytest.mark.parametrize("mode", ["opposite_shift", "other_course", "no_entry"])
-async def test_without_curriculum_recommendations_are_rejected(scene, assign, mode):
+async def test_sem_matriz_recomendacoes_sao_rejeitadas(scene, assign, mode):
     scene.subject("A", kind="required", period=None)
     scene.user(curriculum_id=None)
     entry, course = "2025.1", "ENGENHARIA DE SOFTWARE"
@@ -450,7 +464,7 @@ async def test_without_curriculum_recommendations_are_rejected(scene, assign, mo
     assert scene.client.get(URL).status_code == 422
 
 
-def test_without_curriculum_the_plain_search_still_works(scene, stub_sigaa):
+def test_sem_matriz_a_busca_comum_continua_funcionando(scene, stub_sigaa):
     scene.subject("A")
     scene.user(curriculum_id=None)
     (item,) = scene.client.get(URL, params={"unit": "673"}).json()
@@ -458,7 +472,7 @@ def test_without_curriculum_the_plain_search_still_works(scene, stub_sigaa):
     stub_sigaa.classrooms.list_classrooms.assert_not_awaited()
 
 
-async def test_curriculum_is_inferred_only_while_null(scene, assign):
+async def test_matriz_e_inferida_so_enquanto_nula(scene, assign):
     scene.curriculum(valid_from="2024.1")
     scene.user(curriculum_id=None)
     await assign(entry="2020.1")
@@ -467,9 +481,7 @@ async def test_curriculum_is_inferred_only_while_null(scene, assign):
         assert session.get(User, scene.user_id).curriculum_id == scene.matrix
 
 
-async def test_profile_sync_resets_the_curriculum_only_when_the_course_changes(
-    scene, assign
-):
+async def test_sync_do_perfil_zera_a_matriz_so_quando_o_curso_muda(scene, assign):
     def curriculum_id():
         with scene.db.begin() as session:
             return session.get(User, scene.user_id).curriculum_id
@@ -480,7 +492,7 @@ async def test_profile_sync_resets_the_curriculum_only_when_the_course_changes(
     assert curriculum_id() is None
 
 
-async def test_chain_length_and_width_count_pending_required_descendants(scene, ranked):
+async def test_cadeias_contam_as_obrigatorias_pendentes_descendentes(scene, ranked):
     scene.subject("X", kind="required", period=1)
     scene.history("A", grade=Grade.MM)
     for code, rules, period in (
@@ -519,13 +531,13 @@ async def test_chain_length_and_width_count_pending_required_descendants(scene, 
     assert x["chain_length"] == 30 and x["chain_width"] == 30
 
 
-def test_chains_tolerate_cyclic_prerequisites():
+def test_cadeias_toleram_pre_requisitos_ciclicos():
     graph = {"A": {"B"}, "B": {"A", "C"}}
     assert chain_length("A", graph) == 2
     assert descendants("A", graph) == {"B", "C"}
 
 
-def test_classrooms_come_from_the_offer_semester(scene):
+def test_turmas_vem_do_semestre_da_oferta(scene):
     scene.subject("A")
     with scene.db.begin() as session:
         session.add(Classroom(subject_code="A", number="00", semester="2026.2"))
@@ -537,12 +549,12 @@ def test_classrooms_come_from_the_offer_semester(scene):
     ]
 
 
-def test_without_classrooms_nothing_is_recommended(scene):
+def test_sem_turmas_nada_e_recomendado(scene):
     scene.subject("A", offer=False)
     assert scene.get() == []
 
 
-async def test_score_examples(scene, ranked):
+async def test_exemplos_de_score(scene, ranked):
     for code, period, unlocks in (("ED", 3, 4), ("BD", 3, 2), ("CALC", 1, 3)):
         scene.subject(code, kind="required", period=period, unity_id=99)
         for n in range(unlocks):
@@ -559,7 +571,7 @@ async def test_score_examples(scene, ranked):
     assert scores(await ranked()) == [("ED", 109), ("BD", 99), ("CALC", 94)]
 
 
-async def test_optional_and_complementary_have_no_kind_bonus(scene, ranked):
+async def test_optativas_e_complementares_nao_ganham_bonus_de_tipo(scene, ranked):
     scene.subject("X", kind="required", period=1)
     scene.subject("OPT", kind="optional", period=9)
     scene.subject("COMP", kind="complementary", period=9, hours=59)
@@ -571,7 +583,7 @@ async def test_optional_and_complementary_have_no_kind_bonus(scene, ranked):
     assert scores(await ranked()) == [("X", 114), ("OPT", 9), ("COMP", 8)]
 
 
-def test_missing_grades_sync_before_ranking(scene, stub_sigaa):
+def test_mencoes_ausentes_sincronizam_antes_do_ranking(scene, stub_sigaa):
     scene.subject("A")
     scene.subject("B", prerequisites=[["A"]])
     scene.history("A", synced=None)
@@ -582,7 +594,7 @@ def test_missing_grades_sync_before_ranking(scene, stub_sigaa):
     stub_sigaa.classrooms.list_grades.assert_awaited_once()
 
 
-def test_missing_history_differs_from_synced_empty(scene, stub_sigaa):
+def test_historico_ausente_difere_de_sincronizado_vazio(scene, stub_sigaa):
     scene.subject("A")
     scene.get()
     stub_sigaa.classrooms.list_classrooms.assert_not_awaited()
@@ -592,7 +604,7 @@ def test_missing_history_differs_from_synced_empty(scene, stub_sigaa):
     stub_sigaa.classrooms.list_classrooms.assert_awaited_once()
 
 
-def test_only_cached_missing_history_and_origin_failure(scene, stub_sigaa):
+def test_only_if_cached_sem_historico_e_falha_na_origem(scene, stub_sigaa):
     scene.subject("A")
     scene.history("B", synced=None)
     assert (
@@ -603,9 +615,15 @@ def test_only_cached_missing_history_and_origin_failure(scene, stub_sigaa):
     assert scene.client.get(URL).status_code == 502
 
 
-def test_stale_grades_swr_and_no_cache(scene, stub_sigaa, qstash):
+def test_mencoes_vencidas_com_swr_e_no_cache(scene, stub_sigaa, qstash):
     scene.subject("A")
-    link_id = scene.history("A", term="2026.2", synced=NOW - timedelta(days=2))
+    # Trancada: sem menção, não conta como em andamento.
+    link_id = scene.history(
+        "A",
+        term="2026.2",
+        synced=NOW - timedelta(days=2),
+        status=ClassroomStatus.TRANCADO,
+    )
     stub_sigaa.classrooms.list_grades.return_value = [
         ClassroomGrade(subject_code="A", semester="2026.2", grade=Grade.MM)
     ]
@@ -637,7 +655,7 @@ def test_stale_grades_swr_and_no_cache(scene, stub_sigaa, qstash):
     assert stub_sigaa.classrooms.list_grades.await_count == 2
 
 
-def test_frozen_grades_are_not_revalidated(scene, stub_sigaa):
+def test_mencoes_congeladas_nao_sao_revalidadas(scene, stub_sigaa):
     scene.subject("A")
     scene.history("H", grade=Grade.MM, term="2020.1")
     scene.get(headers={"Cache-Control": "only-if-cached"})
@@ -645,7 +663,7 @@ def test_frozen_grades_are_not_revalidated(scene, stub_sigaa):
     stub_sigaa.classrooms.list_grades.assert_not_awaited()
 
 
-def test_profile_missing_sync_and_failures(scene, stub_sigaa):
+def test_perfil_ausente_sincroniza_e_falhas(scene, stub_sigaa):
     scene.subject("A")
     with scene.db.begin() as session:
         session.get(User, scene.user_id).profile_synced_at = None
@@ -657,7 +675,30 @@ def test_profile_missing_sync_and_failures(scene, stub_sigaa):
     stub_sigaa.profile.get_profile.assert_awaited_once()
 
 
-async def test_ties_required_then_positive_period_then_code(scene, ranked):
+def test_perfil_vencido_sem_matriz_sincroniza_antes_do_422(scene, stub_sigaa, qstash):
+    scene.subject("A")
+    scene.user(curriculum_id=None, profile_synced_at=NOW - timedelta(days=2))
+    profile = stub_sigaa.profile.get_profile
+    profile.return_value = profile.return_value.model_copy(
+        update={"entry_semester": "2025.1"}
+    )
+    assert (
+        scene.client.get(URL, headers={"Cache-Control": "only-if-cached"}).status_code
+        == 504
+    )
+    profile.assert_not_awaited()
+    assert codes(scene.get()) == ["A"]
+    profile.assert_awaited_once()
+    assert not any(
+        step.task == "sync_profile" for job in qstash.jobs() for step in job.steps
+    )
+    # Perfil em dia sem matriz responde 422 sem ir ao SIGAA.
+    scene.user(curriculum_id=None)
+    assert scene.client.get(URL).status_code == 422
+    profile.assert_awaited_once()
+
+
+async def test_empates_por_obrigatoria_periodo_positivo_e_codigo(scene, ranked):
     # Optativa com carga alta empata com obrigatórias atrasadas.
     scene.subject("R", kind="required", period=1, unity_id=99)
     scene.subject("Z", kind="required", period=2, unity_id=99)
@@ -668,7 +709,7 @@ async def test_ties_required_then_positive_period_then_code(scene, ranked):
     assert scores(await ranked()) == [("R", 69), ("Z", 69), ("A", 69)]
 
 
-def test_latest_offer_and_invalid_semesters(scene):
+def test_oferta_mais_recente_e_semestres_invalidos(scene):
     scene.subject("A")
     scene.subject("OLD", offer=False)
     with scene.db.begin() as session:
@@ -677,7 +718,7 @@ def test_latest_offer_and_invalid_semesters(scene):
     assert codes(scene.get()) == ["A"]
 
 
-async def test_normalized_curricular_reference_counts_without_offer(scene, ranked):
+async def test_referencia_normalizada_da_matriz_conta_sem_oferta(scene, ranked):
     scene.subject("X", kind="required", period=1)
     scene.subject("Y", offer=False, prerequisites=[[" x "]])
     scene.component(" y ", period=2)
@@ -686,7 +727,9 @@ async def test_normalized_curricular_reference_counts_without_offer(scene, ranke
     assert x["chain_length"] == 10 and x["chain_width"] == 5
 
 
-def test_frozen_dates_do_not_age_mutable_grades_stale_if_error(scene, stub_sigaa):
+def test_datas_congeladas_nao_envelhecem_mencoes_mutaveis_com_stale_if_error(
+    scene, stub_sigaa
+):
     scene.subject("A")
     scene.subject("B")
     scene.history(
@@ -714,7 +757,7 @@ def test_frozen_dates_do_not_age_mutable_grades_stale_if_error(scene, stub_sigaa
     assert codes(result) == ["B"]
 
 
-def test_free_modules_excluded_even_same_unity_or_unlocking(scene):
+def test_modulo_livre_fica_de_fora_mesmo_da_unidade_ou_destravando(scene):
     scene.subject("FREE", kind=None)
     scene.subject(
         "UNLOCK", offer=False, kind="required", period=2, prerequisites=[["FREE"]]
@@ -724,7 +767,7 @@ def test_free_modules_excluded_even_same_unity_or_unlocking(scene):
     assert codes(scene.get()) == ["COMPLEMENTARY", "OPTIONAL"]
 
 
-async def test_next_period_bonus_and_current_period_pending_is_overdue(scene, ranked):
+async def test_bonus_do_proximo_periodo_e_pendente_do_atual_e_atrasada(scene, ranked):
     scene.subject("CURRENT_PENDING", kind="required", period=2)
     scene.subject("NEXT", kind="required", period=3)
     scene.subject("OLD", kind="required", period=1)
@@ -738,7 +781,7 @@ async def test_next_period_bonus_and_current_period_pending_is_overdue(scene, ra
     ]
 
 
-async def test_without_enrollment_targets_inferred_pending_period(scene, ranked):
+async def test_sem_matricula_mira_o_periodo_pendente_inferido(scene, ranked):
     scene.subject("NEXT", kind="required", period=2)
     scene.component("DONE", period=1)
     scene.history("DONE", grade=Grade.MM)
@@ -757,7 +800,7 @@ async def test_without_enrollment_targets_inferred_pending_period(scene, ranked)
     }
 
 
-async def test_concurrent_history_removal_during_grade_sync_is_valid_empty_history(
+async def test_historico_removido_durante_sync_das_mencoes_e_vazio_valido(
     scene, async_database, stub_sigaa
 ):
     scene.subject("A")
@@ -773,7 +816,7 @@ async def test_concurrent_history_removal_during_grade_sync_is_valid_empty_histo
     assert codes(scene.get()) == ["A"]
 
 
-def test_new_unsynced_history_after_grade_resolution_requires_retry(scene, monkeypatch):
+def test_historico_novo_apos_resolver_mencoes_pede_nova_tentativa(scene, monkeypatch):
     from api.sync.engine import Sync
 
     scene.subject("A")

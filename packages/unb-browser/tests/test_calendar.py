@@ -7,7 +7,7 @@ from unb_browser import (
 )
 
 
-def test_calendar_resource_semesters() -> None:
+def test_calendario_traz_os_semestres_do_recurso() -> None:
     cal = Calendar()
     sem_2026_1 = cal.get_semester("2026.1")
     assert sem_2026_1 is not None
@@ -36,7 +36,7 @@ def test_calendar_resource_semesters() -> None:
     assert len(enrollment_events) > 0
 
 
-def test_calendar_enrollment_cycle_all_semesters() -> None:
+def test_calendario_tem_ciclo_de_matricula_em_todos_os_semestres() -> None:
     cal = Calendar()
     expected_regular_cycle = {
         "regular_enrollment",
@@ -81,7 +81,7 @@ def test_calendar_enrollment_cycle_all_semesters() -> None:
         assert not missing, f"Semestre de verão {sem_id} está sem as etapas: {missing}"
 
 
-def test_calendar_resource_2027() -> None:
+def test_calendario_traz_o_recurso_de_2027() -> None:
     cal = Calendar()
     sem_2027_1 = cal.get_semester("2027.1")
     assert sem_2027_1 is not None
@@ -93,12 +93,12 @@ def test_calendar_resource_2027() -> None:
     assert sem_2027_2.classes.instructional_days == 107
 
 
-def test_calendar_non_existent_semester() -> None:
+def test_calendario_devolve_none_para_semestre_inexistente() -> None:
     cal = Calendar()
     assert cal.get_semester("9999.1") is None
 
 
-def test_calendar_list_semesters() -> None:
+def test_calendario_lista_os_semestres() -> None:
     cal = Calendar()
     semesters = cal.list_semesters()
     sem_ids = [s.semester for s in semesters]
@@ -110,7 +110,7 @@ def test_calendar_list_semesters() -> None:
     assert "2027.4" in sem_ids
 
 
-async def test_unb_browser_calendar_attribute() -> None:
+async def test_unb_browser_expoe_o_calendario() -> None:
     async with UnbBrowser() as browser:
         assert isinstance(browser.calendar, Calendar)
         sem = browser.calendar.get_semester("2026.1")

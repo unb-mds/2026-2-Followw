@@ -181,23 +181,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/classrooms/{classroom_id}/statistics": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Consultar a situação dos discentes de uma turma do usuário */
-        get: operations["get_classroom_statistics_classrooms__classroom_id__statistics_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/public/classrooms": {
         parameters: {
             query?: never;
@@ -868,24 +851,6 @@ export interface components {
             password: string;
         };
         /**
-         * StatisticsShare
-         * @description Uma fatia do gráfico de estatísticas: a porcentagem dos discentes da turma.
-         *
-         *     O SIGAA arredonda cada fatia em uma casa, então a soma pode fechar em 99.9
-         *     ou 100.1. O gráfico não expõe a contagem de alunos, só a porcentagem.
-         */
-        StatisticsShare: {
-            situation: components["schemas"]["StudentSituation"];
-            /** Percentage */
-            percentage: number;
-        };
-        /**
-         * StudentSituation
-         * @description As situações do gráfico "Situação dos Discentes", na ordem da legenda.
-         * @enum {string}
-         */
-        StudentSituation: "aprovado" | "reprovado" | "reprovado_por_faltas" | "reprovado_por_media_e_por_faltas" | "aprovado_por_nota" | "reprovado_por_nota" | "reprovado_por_nota_e_faltas" | "trancado" | "matriculado";
-        /**
          * Subject
          * @description Componente curricular, nos campos da tabela `subjects`.
          */
@@ -937,7 +902,7 @@ export interface components {
         };
         /**
          * SubjectRecommendation
-         * @description Motivos da posição no ranking v3, do mais ao menos relevante.
+         * @description Motivos da posição no ranking, do mais ao menos relevante.
          */
         SubjectRecommendation: {
             /** Reasons */
@@ -1550,62 +1515,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClassroomMember"][];
-                };
-            };
-            /** @description Credenciais ausentes ou inválidas. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Turma não encontrada entre as turmas do usuário. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            /** @description SIGAA indisponível. */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    get_classroom_statistics_classrooms__classroom_id__statistics_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description `no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache). */
-                "Cache-Control"?: string | null;
-            };
-            path: {
-                /** @description Classroom.id ou Classroom.sigaa_id. */
-                classroom_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StatisticsShare"][];
                 };
             };
             /** @description Credenciais ausentes ou inválidas. */

@@ -12,21 +12,6 @@ from api.sync.queue import JobQueueDep
 __all__ = ["Cached", "Context", "Item", "OptionalSyncDep", "Sync", "SyncDep"]
 
 
-async def get_sync(
-    db: DatabaseDep,
-    sigaa: SigaaConnectionDep,
-    cache: CacheControlDep,
-    queue: JobQueueDep,
-) -> AsyncGenerator[Sync]:
-    sync = Sync(db, sigaa, cache)
-    yield sync
-    # Nada roda depois da resposta: os jobs saem antes dela.
-    await queue.enqueue(*sync.jobs())
-
-
-SyncDep = Annotated[Sync, Depends(get_sync, scope="function")]
-
-
 async def get_optional_sync(
     db: DatabaseDep,
     sigaa: OptionalSigaaConnectionDep,
@@ -39,7 +24,17 @@ async def get_optional_sync(
         return
     sync = Sync(db, sigaa, cache)
     yield sync
+    # Nada roda depois da resposta: os jobs saem antes dela.
     await queue.enqueue(*sync.jobs())
 
 
 OptionalSyncDep = Annotated[Sync | None, Depends(get_optional_sync, scope="function")]
+
+
+async def get_sync(_authenticated: SigaaConnectionDep, sync: OptionalSyncDep) -> Sync:
+    # `SigaaConnectionDep` já respondeu 401 aos visitantes.
+    assert sync is not None
+    return sync
+
+
+SyncDep = Annotated[Sync, Depends(get_sync)]
