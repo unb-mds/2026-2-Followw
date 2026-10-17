@@ -62,7 +62,7 @@ Conjunto de funcionalidades responsáveis por mediar o acesso autenticado ao SIG
 **Histórias de Usuário:**
 * **US07:** Como estudante autenticado, quero visualizar meus dados acadêmicos básicos (nome, matrícula, curso, unidade e foto).
 * **US08:** Como estudante autenticado, quero consultar meu Índice de Rendimento Acadêmico (IRA), Média Ponderada (MP) e percentual de integralização curricular.
-* **US09:** Como estudante próximo da formatura, quero visualizar quantas horas de componentes curriculares ainda faltam concluir, divididas entre obrigatórias, optativas e complementares.
+* **US09:** Como estudante autenticado, quero visualizar quantas horas de componentes curriculares ainda faltam para a conclusão do curso, divididas entre obrigatórias, optativas e complementares.
 
 * **RF03 — Perfil Acadêmico e Integralização Curricular (`GET /me`):** O sistema deve disponibilizar endpoint protegido e tela de perfil que retorna `name`, `registration`, `photo`, `email`, `bio`, `unity`, `course`, `integralization`, `ira`, `mp`, `level` e o detalhamento das horas pendentes (obrigatórias, optativas e complementares) obtidas do extrato de integralização do SIGAA.
 
@@ -74,7 +74,8 @@ Conjunto de funcionalidades responsáveis por mediar o acesso autenticado ao SIG
 #### 1.4: Configurações e Preferências Pessoais
 **Histórias de Usuário:**
 * **US10:** Como estudante, quero poder escolher como meu nome é exibido no Followw, sem alterar meu registro civil no SIGAA.
-* **US11:** Como estudante, quero ter meu campus universitário inferido corretamente sem a necessidade de configuração, para que as informações do Restaurante Universitário abram automaticamente no meu campus de preferência.
+* **US11:** Como estudante, quero ter meu campus universitário inferido corretamente sem a necessidade de configuração manual. 
+* **US12:** Como estudante, quero que as informações do Restaurante Universitário abram automaticamente no meu campus de preferência.
 
 * **RF04 — Configurações Pessoais do Usuário (`GET` e `PATCH /me/settings`):** O sistema deve permitir ao estudante consultar e atualizar preferências locais sincronizadas com a API, incluindo `display_name` e `default_campus`, mantendo preferências visuais de tema persistidas no cliente.
 
@@ -90,8 +91,8 @@ Compreende a sincronização, organização e acompanhamento das disciplinas em 
 
 #### 2.1: Listagem de Turmas e Histórico de Semestres com Menções
 **Histórias de Usuário:**
-* **US12:** Como estudante matriculado, quero listar rapidamente minhas turmas do semestre atual com horário, sala e código da disciplina.
-* **US13:** Como estudante, quero consultar as turmas cursadas em semestres anteriores com o histórico das menções finais obtidas (SS, MS, MM, MI, II, SR).
+* **US13:** Como estudante matriculado, quero listar rapidamente minhas turmas do semestre atual com horário, sala, número de turma e código da disciplina.
+* **US14:** Como estudante, quero consultar as turmas cursadas em semestres anteriores com o histórico das menções finais obtidas (SS, MS, MM, MI, II, SR).
 
 * **RF05 — Listagem de Turmas e Histórico Letivo (`GET /classrooms`):** O sistema deve fornecer endpoint protegido para listar turmas atuais e anteriores (`?semester=all` ou `?semester=AAAA.P`), informando código, nome da disciplina, turma, horários, local, carga horária e a menção final quando consolidada.
 
@@ -101,8 +102,8 @@ Compreende a sincronização, organização e acompanhamento das disciplinas em 
 
 #### 2.2: Detalhes da Turma e Participantes
 **Histórias de Usuário:**
-* **US14:** Como estudante, quero abrir uma turma específica e navegar em abas dedicadas para Aulas/Frequência, Notícias e Participantes.
-* **US15:** Como estudante, quero consultar a lista de docentes e colegas de classe matriculados na mesma turma para contato e trabalhos em grupo.
+* **US15:** Como estudante, quero abrir uma turma específica e navegar em abas dedicadas para Aulas/Frequência, Postagens e Participantes.
+* **US16:** Como estudante, quero consultar a lista de docentes e colegas de classe matriculados na mesma turma para contato e trabalhos em grupo.
 
 * **RF06 — Detalhes da Turma e Participantes (`GET /classrooms/{id}/members`):** O sistema deve disponibilizar página de detalhes da disciplina com abas dedicadas e listar discentes e docentes da turma (`name`, `role`, `registration`, `photo`, `email`, `course`, `unity`).
 
@@ -112,9 +113,9 @@ Compreende a sincronização, organização e acompanhamento das disciplinas em 
 
 #### 2.3: Controle e Estimativa de Frequência
 **Histórias de Usuário:**
-* **US16:** Como estudante, quero poder marcar manualmente presença, falta ou aula cancelada nas datas que já ocorreram e ainda não receberam chamada oficial no SIGAA.
-* **US17:** Como estudante, quero acompanhar o percentual consolidado e estimado de frequência para não correr risco de reprovação por falta (< 75%).
-* **US18:** Como estudante, quero que as chamadas oficiais lançadas posteriormente pelo docente no SIGAA tenham precedência sobre as marcações manuais que fiz.
+* **US17:** Como estudante, quero poder marcar manualmente presença, falta ou aula cancelada nas datas que já ocorreram e ainda não receberam chamada oficial no SIGAA.
+* **US18:** Como estudante, quero acompanhar o percentual consolidado e estimado de frequência para não correr risco de reprovação por falta (< 75%).
+* **US19:** Como estudante, quero que as chamadas oficiais lançadas posteriormente pelo docente no SIGAA tenham precedência sobre as marcações manuais realizadas.
 
 * **RF07 — Gestão e Estimativa de Frequência (`GET` e `PUT /classrooms/{id}/frequency`):** O sistema deve permitir ao aluno registrar marcações locais de frequência em aulas sem chamada oficial, calculando o percentual projetado e sinalizando em cores de alerta o risco de reprovação.
 
@@ -125,8 +126,8 @@ Compreende a sincronização, organização e acompanhamento das disciplinas em 
 
 #### 2.4: Notícias da Disciplina em Markdown
 **Histórias de Usuário:**
-* **US19:** Como estudante, quero ler os comunicados postados pelo docente com formatação completa (Markdown), incluindo tabelas, listas e links.
-* **US20:** Como estudante, quero acessar os comunicados da matéria mesmo se estiver sem internet ou se a publicação for apagada do portal legado.
+* **US20:** Como estudante, quero ler os comunicados postados pelo docente com formatação completa (Markdown), incluindo tabelas, listas e links.
+* **US21:** Como estudante, quero acessar os comunicados da matéria mesmo se estiver sem internet ou se a publicação for apagada do portal legado.
 
 * **RF08 — Notícias da Disciplina com Suporte a Markdown (`GET /classrooms/{id}/news`):** O sistema deve extrair e exibir comunicados das turmas convertendo a marcação para Markdown higienizado, salvando-os em cache com validade de 60 minutos e retenção persistente.
 
@@ -136,8 +137,8 @@ Compreende a sincronização, organização e acompanhamento das disciplinas em 
 
 #### 2.5: Agenda Diária e Calendário Acadêmico
 **Histórias de Usuário:**
-* **US21:** Como estudante, quero consultar na tela inicial minhas aulas do dia atual ordenadas por horário, sabendo qual está em andamento e qual será a próxima.
-* **US22:** Como estudante, quero ser avisado quando não houver aula em um determinado dia em virtude de feriado, ponto facultativo, Semana Universitária ou período de férias.
+* **US22:** Como estudante, quero consultar na tela inicial minhas aulas do dia atual ordenadas por horário, sabendo qual está em andamento e qual será a próxima.
+* **US23:** Como estudante, quero poder verificar se vai haver aula em um determinado dia em virtude de feriado, ponto facultativo, Semana Universitária ou período de férias.
 
 * **RF09 — Agenda Diária e Sincronização com o Calendário Acadêmico:** O sistema deve integrar o horário das turmas ao calendário oficial da UnB, exibindo a sequência de aulas do dia selecionado, destacando status `"Em andamento"` / `"Próxima"` e unificando horários contínuos entre turnos (ex.: `12:00–13:50` e `18:00–19:50`).
 
@@ -147,8 +148,8 @@ Compreende a sincronização, organização e acompanhamento das disciplinas em 
 
 #### 2.6: Sincronização Concorrente e Atualização de Cache
 **Histórias de Usuário:**
-* **US23:** Como estudante, quero que as páginas carreguem de imediato com os últimos dados salvos, enquanto atualizações ocorrem em segundo plano.
-* **US24:** Como estudante, quero poder forçar uma revalidação imediata das turmas com o SIGAA puxando a tela para atualizar.
+* **US24:** Como estudante, quero que as páginas carreguem de imediato com os últimos dados salvos, enquanto atualizações ocorrem em segundo plano.
+* **US25:** Como estudante, quero poder forçar uma revalidação imediata das turmas com o SIGAA puxando a tela para atualizar.
 
 * **RF10 — Sincronização Paralela e Invalidação de Cache:** A API deve suportar requisições concorrentes com sessões independentes do SIGAA, servindo respostas imediatas via cache e aceitando o parâmetro `?refresh=true` ou cabeçalho `Cache-Control: no-cache` para atualização manual.
 
@@ -160,37 +161,28 @@ Compreende a sincronização, organização e acompanhamento das disciplinas em 
 
 ### ÉPICO 3: Busca, Catálogo e Descoberta de Turmas
 
-Funcionalidades de pesquisa e descoberta, permitindo tanto filtrar as próprias turmas quanto consultar todo o catálogo geral da UnB, analisar concorrência de vagas, pré-requisitos e estatísticas históricas de aprovação.
+Funcionalidades de pesquisa e descoberta, permitindo consultar todo o catálogo geral da UnB, analisar concorrência de vagas, pré-requisitos e estatísticas históricas de aprovação.
 
-#### 3.1: Busca em Turmas Matriculadas
-**Histórias de Usuário:**
-* **US25:** Como estudante, quero realizar buscas textuais rápidas por nome da disciplina, código ou docente dentro da minha própria grade.
-
-* **RF11 — Busca em Turmas Matriculadas:** O sistema deve permitir filtragem textual instantânea sobre a relação de turmas do próprio estudante, insensível a maiúsculas, minúsculas e acentuação.
-
-**Critérios de Aceitação:**
-* O filtro deve atuar dinamicamente no front-end sobre os dados previamente carregados.
-
-#### 3.2: Catálogo Geral e Consulta Pública de Turmas da UnB
+#### 3.1: Catálogo Geral e Consulta Pública de Turmas da UnB
 **Histórias de Usuário:**
 * **US26:** Como qualquer estudante ou visitante, quero pesquisar as turmas ofertadas na UnB sem precisar de login, filtrando por departamento, código, nome ou professor.
 * **US27:** Como estudante, quero consultar uma matéria diretamente pelo código da disciplina (ex.: `MAT0031` ou `FGA0312`) sem saber previamente o departamento ofertante.
 * **US28:** Como estudante em fase de matrícula, quero visualizar o total de vagas e a ocupação em tempo real de cada turma, identificando turmas lotadas.
 * **US29:** Como estudante autenticado, quero que o catálogo me informe se já atendi aos pré-requisitos ou equivalências da turma com base no meu histórico acadêmico.
 
-* **RF12 — Catálogo Geral e Pesquisa Pública de Turmas (`GET /public/classrooms`):** O sistema deve oferecer busca pública aberta no catálogo geral da UnB, suportando filtros por unidade, código completo ou prefixo, nome da matéria e docente, integrando dataset estruturado para respostas em milissegundos.
+* **RF11 — Catálogo Geral e Pesquisa Pública de Turmas (`GET /public/classrooms`):** O sistema deve oferecer busca pública aberta no catálogo geral da UnB, suportando filtros por unidade, código completo ou prefixo, nome da matéria e docente, integrando dataset estruturado para respostas em milissegundos.
 
 **Critérios de Aceitação:**
 * A busca pública não deve exigir autenticação e deve tolerar variações de acentuação e caixa alta/baixa.
 * A visualização da turma deve exibir barra de progresso com vagas ocupadas sobre o total (ex.: `64 de 80 vagas ocupadas`).
 * Para estudantes autenticados, o sistema deve avaliar o histórico escolar e indicar se a turma está liberada ou impedida por pré-requisitos não atendidos.
 
-#### 3.3: Estatísticas Históricas de Aprovação
+#### 3.2: Estatísticas Históricas de Aprovação
 **Histórias de Usuário:**
 * **US30:** Como estudante planejando minha matrícula, quero consultar a taxa histórica consolidada de aprovação e reprovação de cada professor na matéria.
 * **US31:** Como estudante, quero compartilhar um link direto com as estatísticas de aprovação da disciplina com meus colegas.
 
-* **RF13 — Estatísticas Consolidadas de Rendimento (`GET /classrooms/{id}/statistics`):** O sistema deve prover métricas históricas de aprovação e reprovação agrupadas por disciplina e docente, permitindo compartilhamento via URL pública.
+* **RF12 — Estatísticas Consolidadas de Rendimento (`GET /classrooms/{id}/statistics`):** O sistema deve prover métricas históricas de aprovação e reprovação agrupadas por disciplina e docente, permitindo compartilhamento via URL pública.
 
 **Critérios de Aceitação:**
 * Nenhuma informação ou menção individual de alunos pode ser exposta nas estatísticas públicas.
@@ -208,7 +200,7 @@ Módulo dedicado aos serviços do RU e facilidades da vida universitária, agreg
 * **US33:** Como estudante com restrição alimentar, quero identificar claramente os pratos principais e complementos nas opções padrão, ovolactovegetariana e vegetariana estrita (vegana).
 * **US34:** Como estudante residente ou frequentador do RU aos fins de semana, quero poder consultar o cardápio aos domingos e ser informado em datas sem expediente ou sem cardápio publicado.
 
-* **RF14 — Consulta Pública do Cardápio do RU (`GET /public/restaurant`):** O sistema deve extrair, estruturar e disponibilizar o cardápio semanal das refeições (café da manhã, almoço e jantar) para todos os campi da universidade, cobrindo o ciclo completo de Segunda a Domingo e sinalizando feriados e dias sem refeição.
+* **RF13 — Consulta Pública do Cardápio do RU (`GET /public/restaurant`):** O sistema deve extrair, estruturar e disponibilizar o cardápio semanal das refeições (café da manhã, almoço e jantar) para todos os campi da universidade, cobrindo o ciclo completo de Segunda a Domingo e sinalizando feriados e dias sem refeição.
 
 **Critérios de Aceitação:**
 * O seletor de dias deve exibir 7 dias (`SEG` a `DOM`), mantendo a semana correta mesmo quando consultado no domingo.
@@ -221,7 +213,7 @@ Módulo dedicado aos serviços do RU e facilidades da vida universitária, agreg
 * **US36:** Como estudante, quero visualizar meu extrato com créditos (recargas) e débitos (refeições) consumidos recentemente.
 * **US37:** Como estudante, quero receber um aviso preventivo quando meu saldo for menor que o custo da refeição correspondente ao horário atual.
 
-* **RF15 — Saldo, Extrato e Alertas Financeiros do RU (`GET /me/ru-statement`):** O sistema deve consultar a conta do estudante no sistema do RU e fornecer saldo, grupo de gratuidade/tarifa e histórico recente de transações, calculando o saldo faltante para a refeição iminente.
+* **RF14 — Saldo, Extrato e Alertas Financeiros do RU (`GET /me/ru-statement`):** O sistema deve consultar a conta do estudante no sistema do RU e fornecer saldo, grupo de gratuidade/tarifa e histórico recente de transações, calculando o saldo faltante para a refeição iminente.
 
 **Critérios de Aceitação:**
 * Caso o estudante pertença a grupo com isenção total (refeição gratuita) ou tenha saldo suficiente, o alerta de saldo faltante não deve ser exibido.
@@ -233,7 +225,7 @@ Módulo dedicado aos serviços do RU e facilidades da vida universitária, agreg
 * **US39:** Como estudante, quero ser informado caso minha carteirinha estudantil esteja com a validade mensal expirada, recebendo instruções para emissão de nova via.
 * **US40:** Como estudante, quero realizar o download direto do PDF da minha carteirinha estudantil e da declaração de vínculo do SIGAA pelo Followw.
 
-* **RF16 — Carteirinha Digital e Emissão de Documentos Estudantis (`GET /me/ru-token` e `/me/documents`):** O sistema deve extrair o código de barras/QR Code da carteirinha estudantil do SIGAA, gerar o SVG local com verificação de vigência mensal e disponibilizar o download de comprovantes acadêmicos em formato PDF.
+* **RF15 — Carteirinha Digital e Emissão de Documentos Estudantis (`GET /me/ru-token` e `/me/documents`):** O sistema deve extrair o código de barras/QR Code da carteirinha estudantil do SIGAA, gerar o SVG local com verificação de vigência mensal e disponibilizar o download de comprovantes acadêmicos em formato PDF.
 
 **Critérios de Aceitação:**
 * O QR Code deve ser gerado e renderizado localmente no cliente no momento da exibição, abrindo em gaveta/gaveta modal (*drawer*) sem expor dados desnecessários na tela.
