@@ -5,9 +5,10 @@ graduação logado, no lugar da listagem padrão da unidade. Visitantes recebem 
 antes, e usuários fora da graduação também. Com qualquer filtro, a busca é a comum.
 
 A resposta é a mesma lista de `CatalogSubject` da busca, com as turmas do semestre da oferta,
-ordenada pelo ranking e com `recommendation: {score, reasons}` em cada matéria. Na busca
-comum, `recommendation` é `null`. A soma de `reasons[].points` é o score; nos critérios
-acumulativos, `reasons[].value` traz a quantidade medida (semestres, matérias ou horas).
+ordenada pelo ranking e com `recommendation: {reasons}` em cada matéria. Score e pontos não
+são expostos: os motivos vêm do que mais pesou ao que menos pesou, e o front segue essa ordem.
+Na busca comum, `recommendation` é `null`. Nos critérios acumulativos, `reasons[].value` traz
+a quantidade medida (semestres, matérias ou horas).
 
 Para quem está logado, toda resposta do `/public/subjects` (busca ou recomendação) traz
 `kind`: `mandatory`, `optional` (inclui complementares) ou `free` (fora da matriz). Na busca
@@ -33,10 +34,11 @@ próprios de aluno com semestre válido até a oferta entram no histórico. A re
 concluídas, saem da lista e satisfazem pré/correquisitos. Reprovações posteriores não
 apagam aprovações.
 
-A matriz ativa é estimada pelo curso/turno do perfil armazenado, vigência e primeiro
-semestre disponível do histórico. Sem histórico usa-se a vigência elegível mais recente;
-se o histórico preceder todas, a mais antiga elegível. Revisão do código e
-ID SIGAA desempatam. Nenhuma matriz futura ou de turno oposto é escolhida silenciosamente.
+A matriz ativa é estimada pelo curso/turno do perfil armazenado, vigência e semestre de entrada
+do perfil (`entry_semester`). A estimativa é gravada em `users.curriculum_id` no sync das turmas,
+só enquanto estiver nula, e não é revalidada; trocar de curso no perfil a zera. Sem entrada usa-se
+a vigência elegível mais recente; se a entrada preceder todas, a mais antiga elegível. Revisão do
+código e ID SIGAA desempatam. Nenhuma matriz futura ou de turno oposto é escolhida silenciosamente.
 O turno disponível vem do curso resolvido pelo sync, não de uma confirmação adicional.
 
 O período alvo é a mediana inferior dos períodos obrigatórios em andamento + 1. Sem eles,

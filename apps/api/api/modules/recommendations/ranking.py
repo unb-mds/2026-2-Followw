@@ -1,5 +1,3 @@
-"""Ranking v3 das recomendações: funções puras, sem banco ou rede."""
-
 import re
 from collections import defaultdict
 from typing import Literal
@@ -40,16 +38,19 @@ class Component(Model):
     period: int | None
 
 
+type ReasonCode = Literal[
+    "required",
+    "target_period",
+    "overdue",
+    "same_unity",
+    "chain_length",
+    "chain_width",
+    "hours",
+]
+
+
 class Reason(Model):
-    code: Literal[
-        "required",
-        "target_period",
-        "overdue",
-        "same_unity",
-        "chain_length",
-        "chain_width",
-        "hours",
-    ]
+    code: ReasonCode
     points: int
     # Quantidade medida nos critérios acumulativos: semestres, matérias ou horas.
     value: int | None = None
@@ -79,10 +80,10 @@ def satisfies(rules: Rules, approved: set[str]) -> bool:
 def select_curriculum(
     options: list[CurriculumInfo],
     offer: str | None,
-    reference: str | None,
+    entry: str | None,
     shift: str | None,
 ) -> CurriculumInfo | None:
-    """A matriz vigente na oferta, do turno do curso, pela entrada do histórico."""
+    """A matriz vigente na oferta, do turno do curso, pelo semestre de entrada."""
     target = semester(offer) if offer else None
     eligible = [
         c
@@ -99,13 +100,11 @@ def select_curriculum(
     if not eligible:
         return None
     previous = [
-        c
-        for c in eligible
-        if reference and semester(c.valid_from) <= semester(reference)
+        c for c in eligible if entry and semester(c.valid_from) <= semester(entry)
     ]
     if previous:
         valid_from = max(semester(c.valid_from) for c in previous)
-    elif reference:
+    elif entry:
         valid_from = min(semester(c.valid_from) for c in eligible)
     else:
         valid_from = max(semester(c.valid_from) for c in eligible)
@@ -266,10 +265,13 @@ def rank(
             period if period and period > 0 else float("inf"),
             code,
         )
-        reasons = [
-            Reason(code=k, points=v, value=values.get(k))
-            for k, v in points.items()
-            if v
-        ]
+        reasons = sorted(
+            (
+                Reason(code=k, points=v, value=values.get(k))
+                for k, v in points.items()
+                if v
+            ),
+            key=lambda reason: -reason.points,
+        )
         ranked.append((order, Recommendation(code=code, score=score, reasons=reasons)))
     return [recommendation for _, recommendation in sorted(ranked)]

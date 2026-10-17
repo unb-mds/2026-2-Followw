@@ -23,7 +23,7 @@ from sqlalchemy import select, update
 
 from api.cache import is_stale
 from api.cookies import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME
-from api.db.models import Classroom, ClassroomParticipant, ClassroomStatistic, User
+from api.db.models import Classroom, ClassroomParticipant, User
 from api.modules.auth.account import sync_account
 from api.modules.classrooms.service import sync_members, sync_statistics
 from api.modules.me.profile import sync_profile
@@ -398,8 +398,8 @@ def test_primeiro_login_sincroniza_tudo(client, conta, database):
         assert all(c.members_synced_at for c in classrooms)
         # Só a turma passada tem estatística sincronizada.
         assert [c.semester for c in classrooms if c.statistics_synced_at] == ["2025.2"]
+        assert [c.semester for c in classrooms if c.statistics] == ["2025.2"]
         assert session.scalar(select(User).where(User.registration == "2"))
-        assert len(list(session.scalars(select(ClassroomStatistic)))) == 1
     lidas = conta.classrooms.list_classroom_members.await_args_list
     assert sorted(c.args for c in lidas) == [("AAA",), ("BBB",)]
 

@@ -31,7 +31,6 @@ from api.db.enums import (
 from api.db.models import Classroom as ClassroomModel
 from api.db.models import (
     ClassroomParticipant,
-    ClassroomStatistic,
     User,
 )
 from api.db.models import Subject as SubjectModel
@@ -1299,21 +1298,18 @@ async def test_estatisticas_substituem_as_anteriores(async_database, usuarios):
             await session.commit()
 
     async with async_database() as session:
-        statistics = await ClassroomRepository(session).get_statistics(classroom_id)
         classroom = await session.get_one(ClassroomModel, classroom_id)
-    assert sorted((s["situation"], s["percentage"]) for s in statistics.data) == [
+    assert sorted((s["situation"], s["percentage"]) for s in classroom.statistics) == [
         ("aprovado", 90),
         ("matriculado", 10),
     ]
     assert classroom.statistics_synced_at is not None
-    assert await _contar(async_database, ClassroomStatistic) == 1
 
     async with async_database() as session:
         await ClassroomRepository(session).save_statistics(classroom_id, [], AGORA)
         await session.commit()
-        cached = await ClassroomRepository(session).get_statistics(classroom_id)
-        assert cached.data == []
-    assert await _contar(async_database, ClassroomStatistic) == 1
+        classroom = await session.get_one(ClassroomModel, classroom_id)
+        assert classroom.statistics == []
 
 
 async def test_banco_barra_docente_duplicado_em_syncs_concorrentes(async_database):

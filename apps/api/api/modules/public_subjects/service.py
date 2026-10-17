@@ -10,7 +10,7 @@ from api.db.models import Requirements, Subject, Unity
 from api.modules.public_subjects.repository import SubjectCatalogRepository
 from api.modules.recommendations.ranking import (
     Component,
-    Reason,
+    ReasonCode,
     normalize,
     subject_kind,
 )
@@ -43,11 +43,18 @@ class SubjectRequirement(BaseModel):
 type CatalogRequirements = list[list[SubjectRequirement]]
 
 
-class SubjectRecommendation(BaseModel):
-    """Score do ranking v3; a soma dos pontos dos motivos."""
+class SubjectReason(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
 
-    score: int
-    reasons: list[Reason]
+    code: ReasonCode
+    # Quantidade medida nos critérios acumulativos: semestres, matérias ou horas.
+    value: int | None = None
+
+
+class SubjectRecommendation(BaseModel):
+    """Motivos da posição no ranking, do mais ao menos relevante."""
+
+    reasons: list[SubjectReason]
 
 
 class CatalogSubject(UserSubject):

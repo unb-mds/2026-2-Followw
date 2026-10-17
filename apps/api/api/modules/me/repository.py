@@ -46,7 +46,11 @@ class UserRepository:
         user.bio = profile.bio
         pair = (profile.course, profile.unity)
         shift = profile.shift.value if profile.shift else None
-        user.course_id = (await course_ids(self._session, [pair], shift)).get(pair)
+        course_id = (await course_ids(self._session, [pair], shift)).get(pair)
+        if course_id != user.course_id:
+            user.curriculum_id = None
+        user.course_id = course_id
+        user.entry_semester = profile.entry_semester
         user.integralization = profile.integralization
         user.workload = profile.workload.model_dump() if profile.workload else None
         user.ira = profile.ira

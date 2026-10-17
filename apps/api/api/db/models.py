@@ -112,6 +112,9 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     email: Mapped[str | None] = mapped_column()
     bio: Mapped[str | None] = mapped_column(Text)
     course_id: Mapped[int | None] = mapped_column(ForeignKey("courses.id"))
+    # Matriz estimada na primeira sincronização das turmas; só zera se o curso mudar.
+    curriculum_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("curricula.id"))
+    entry_semester: Mapped[str | None] = mapped_column()
     integralization: Mapped[int | None] = mapped_column(SmallInteger)
     workload: Mapped[dict[str, int] | None] = mapped_column(JSON)
     ira: Mapped[float | None] = mapped_column()
@@ -174,9 +177,12 @@ class Classroom(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     professors: Mapped[list[str]] = mapped_column(JSON, default=list)
     vacancies: Mapped[int | None] = mapped_column(SmallInteger)
     occupied: Mapped[int | None] = mapped_column(SmallInteger)
+    enrollment_requests: Mapped[int | None] = mapped_column(SmallInteger)
+    reenrollment_requests: Mapped[int | None] = mapped_column(SmallInteger)
     subject_code: Mapped[str] = mapped_column(ForeignKey("subjects.code"))
     members_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     posts_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    statistics: Mapped[list[dict[str, object]] | None] = mapped_column(JSON)
     statistics_synced_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True)
     )
@@ -185,9 +191,6 @@ class Classroom(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     subject: Mapped[Subject] = relationship(back_populates="classrooms")
     participant_links: Mapped[list[ClassroomParticipant]] = relationship(
-        back_populates="classroom", cascade="all, delete-orphan"
-    )
-    statistics: Mapped[ClassroomStatistic | None] = relationship(
         back_populates="classroom", cascade="all, delete-orphan"
     )
 
@@ -293,17 +296,6 @@ class LessonAttendance(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     marked: Mapped[bool] = mapped_column()
     # Horas-aula de falta pela chamada do SIGAA; a falta marcada conta a aula toda.
     absences: Mapped[int | None] = mapped_column(SmallInteger)
-
-
-class ClassroomStatistic(Base, UUIDPrimaryKeyMixin, TimestampMixin):
-    __tablename__ = "classroom_statistics"
-
-    classroom_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("classrooms.id", ondelete="CASCADE"), unique=True
-    )
-    data: Mapped[list[dict[str, object]]] = mapped_column(JSON)
-
-    classroom: Mapped[Classroom] = relationship(back_populates="statistics")
 
 
 class ClassroomPosts(Base, UUIDPrimaryKeyMixin, TimestampMixin):

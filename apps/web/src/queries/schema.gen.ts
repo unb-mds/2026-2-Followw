@@ -823,18 +823,8 @@ export interface components {
             /** Unity */
             unity: string | null;
         };
-        /** Reason */
-        Reason: {
-            /**
-             * Code
-             * @enum {string}
-             */
-            code: "required" | "target_period" | "overdue" | "same_unity" | "chain_length" | "chain_width" | "hours";
-            /** Points */
-            points: number;
-            /** Value */
-            value?: number | null;
-        };
+        /** @enum {string} */
+        ReasonCode: "required" | "target_period" | "overdue" | "same_unity" | "chain_length" | "chain_width" | "hours";
         Requirements: string[][];
         /** RestaurantCredentials */
         RestaurantCredentials: {
@@ -939,15 +929,19 @@ export interface components {
             /** Room */
             room?: string | null;
         };
+        /** SubjectReason */
+        SubjectReason: {
+            code: components["schemas"]["ReasonCode"];
+            /** Value */
+            value?: number | null;
+        };
         /**
          * SubjectRecommendation
-         * @description Score do ranking v3; a soma dos pontos dos motivos.
+         * @description Motivos da posição no ranking v3, do mais ao menos relevante.
          */
         SubjectRecommendation: {
-            /** Score */
-            score: number;
             /** Reasons */
-            reasons: components["schemas"]["Reason"][];
+            reasons: components["schemas"]["SubjectReason"][];
         };
         /** SubjectReference */
         SubjectReference: {
@@ -1008,6 +1002,8 @@ export interface components {
             course: string | null;
             /** Shift */
             shift: string | null;
+            /** Entry Semester */
+            entry_semester: string | null;
             /** Integralization */
             integralization: number | null;
             workload: components["schemas"]["CurriculumWorkload"] | null;

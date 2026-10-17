@@ -54,16 +54,14 @@ export function RecommendationCard({ subject }: { subject: CatalogSubject }) {
                 </div>
                 <div className="flex flex-col gap-3 border-t p-3">
                     <ul aria-label="Critérios atendidos" className="flex flex-col gap-2 text-sm">
-                        {reasons
-                            .toSorted((a, b) => b.points - a.points)
-                            .map((reason) => (
-                                <li key={reason.code} className="flex items-center gap-2">
-                                    <Badge className="size-5 rounded-full bg-primary/10 p-0 text-primary">
-                                        <Check aria-hidden="true" />
-                                    </Badge>
-                                    <span>{reasonLabel(reason)}</span>
-                                </li>
-                            ))}
+                        {reasons.map((reason) => (
+                            <li key={reason.code} className="flex items-center gap-2">
+                                <Badge className="size-5 rounded-full bg-primary/10 p-0 text-primary">
+                                    <Check aria-hidden="true" />
+                                </Badge>
+                                <span>{reasonLabel(reason)}</span>
+                            </li>
+                        ))}
                         {reasons.length === 0 && (
                             <li>Atende aos critérios para cursar, sem bônus de prioridade.</li>
                         )}

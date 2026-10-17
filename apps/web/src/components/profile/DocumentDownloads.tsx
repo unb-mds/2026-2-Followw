@@ -38,7 +38,7 @@ export function DocumentDownloads() {
                 return (
                     <div
                         key={document}
-                        className="-mx-3 flex min-h-12 items-center gap-1 px-3 py-2.5"
+                        className="-mx-3 flex min-h-12 items-center gap-3 px-3 py-2.5"
                     >
                         <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                             <Icon className="size-4" aria-hidden="true" />

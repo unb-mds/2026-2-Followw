@@ -63,6 +63,7 @@ def _to_profile(user: User) -> UserProfile:
         unity=user.course.unity.code if user.course else None,
         course=user.course.name if user.course else None,
         shift=user.course.shift if user.course else None,
+        entry_semester=user.entry_semester,
         integralization=user.integralization,
         workload=CurriculumWorkload.model_validate(user.workload)
         if user.workload

@@ -1,9 +1,11 @@
+from uuid import UUID
+
 from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.enums import ClassroomRole, ClassroomStatus
-from api.db.models import Classroom, CurriculumComponent, OwnLink, Subject, User
+from api.db.models import Classroom, CurriculumComponent, OwnLink, Subject
 from api.modules.classrooms.repository import ClassroomRepository
 from api.modules.me.repository import UserRepository
 from api.modules.public_courses.repository import PublicCourseRepository
@@ -46,13 +48,32 @@ class RecommendationRepository:
         ]
 
     async def curriculum(self, registration: str) -> dict[str, Component] | None:
-        """Os componentes da matriz estimada do aluno, só pelo que já está gravado."""
+        """Os componentes da matriz gravada do aluno, sem estimar nada."""
         user = await UserRepository(self._session).get_by_registration(registration)
-        if user is None:
+        if user is None or user.curriculum_id is None:
             return None
-        reference = await self.offer_semester()
-        links = await self.student_links(registration, reference)
-        return await self._curriculum(user, links, reference)
+        return await self._components(user.curriculum_id)
+
+    async def assign_curriculum(self, registration: str) -> None:
+        """Estima e grava a matriz do aluno, só enquanto ela ainda não existe."""
+        user = await UserRepository(self._session).get_by_registration(registration)
+        if user is None or user.curriculum_id is not None or user.course is None:
+            return
+        options = [
+            CurriculumInfo.model_validate(c)
+            for c in await PublicCourseRepository(self._session).list_curricula(
+                user.course.id
+            )
+        ]
+        selected = select_curriculum(
+            options,
+            await self.offer_semester(),
+            user.entry_semester,
+            user.course.shift,
+        )
+        if selected is not None:
+            user.curriculum_id = selected.id
+            await self._session.flush()
 
     async def recommend(
         self, registration: str, reference: str | None
@@ -64,7 +85,9 @@ class RecommendationRepository:
             raise HTTPException(
                 503, "Histórico atualizado durante a consulta; tente novamente."
             )
-        curriculum = await self._curriculum(user, links, reference)
+        if user.curriculum_id is None:
+            return []
+        curriculum = await self._components(user.curriculum_id)
         if not curriculum:
             return []
         completed = {
@@ -100,30 +123,13 @@ class RecommendationRepository:
             unity_id=user.course.unity_id,
         )
 
-    async def _curriculum(
-        self, user: User, links: list[OwnLink], reference: str | None
-    ) -> dict[str, Component] | None:
-        course = user.course
-        if course is None:
-            return None
-        options = [
-            CurriculumInfo.model_validate(c)
-            for c in await PublicCourseRepository(self._session).list_curricula(
-                course.id
-            )
-        ]
-        entry = min(
-            (link.row.classroom.semester for link in links), key=semester, default=None
-        )
-        curriculum = select_curriculum(options, reference, entry, course.shift)
-        if curriculum is None:
-            return None
+    async def _components(self, curriculum_id: UUID) -> dict[str, Component]:
         return components_by_code(
             [
                 Component.model_validate(c)
                 for c in await self._session.scalars(
                     select(CurriculumComponent).where(
-                        CurriculumComponent.curriculum_id == curriculum.id
+                        CurriculumComponent.curriculum_id == curriculum_id
                     )
                 )
             ]

@@ -71,13 +71,12 @@ const result: CatalogSubject[] = [
         equivalences: null,
         kind: 'mandatory',
         recommendation: {
-            score: 104,
             reasons: [
-                { code: 'target_period', points: 30 },
-                { code: 'required', points: 50 },
-                { code: 'chain_width', points: 10, value: 2 },
-                { code: 'chain_length', points: 10, value: 1 },
-                { code: 'hours', points: 4, value: 60 }
+                { code: 'target_period' },
+                { code: 'required' },
+                { code: 'chain_width', value: 2 },
+                { code: 'chain_length', value: 1 },
+                { code: 'hours', value: 60 }
             ]
         },
         classrooms: [
@@ -157,8 +156,8 @@ describe('seção de recomendações', () => {
         );
         const criteria = page.getByRole('list', { name: 'Critérios atendidos' });
         expect(Array.from(criteria.querySelectorAll('li'), (item) => item.textContent)).toEqual([
-            'Obrigatória',
             'Próximo período do fluxo',
+            'Obrigatória',
             'É pré-requisito de 2 disciplinas',
             'Inicia uma cadeia de 1 semestre',
             'Carga horária de 60 horas'

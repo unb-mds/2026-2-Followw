@@ -16,7 +16,6 @@ from api.db.models import (
     Classroom,
     ClassroomParticipant,
     ClassroomPosts,
-    ClassroomStatistic,
     Lesson,
     LessonAttendance,
     OwnLink,
@@ -206,25 +205,14 @@ class ClassroomRepository:
         classroom.members_synced_at = synced_at
         await self._session.flush()
 
-    async def get_statistics(self, classroom_id: UUID) -> ClassroomStatistic | None:
-        return await self._session.scalar(
-            select(ClassroomStatistic).where(
-                ClassroomStatistic.classroom_id == classroom_id
-            )
-        )
-
     async def save_statistics(
         self,
         classroom_id: UUID,
         shares: Sequence[sigaa_client.StatisticsShare],
         synced_at: datetime,
     ) -> None:
-        cached = await self.get_statistics(classroom_id)
-        if cached is None:
-            cached = ClassroomStatistic(classroom_id=classroom_id)
-            self._session.add(cached)
-        cached.data = [share.model_dump(mode="json") for share in shares]
         classroom = await self._session.get_one(Classroom, classroom_id)
+        classroom.statistics = [share.model_dump(mode="json") for share in shares]
         classroom.statistics_synced_at = synced_at
         await self._session.flush()
 

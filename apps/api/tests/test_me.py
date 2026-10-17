@@ -43,6 +43,7 @@ PERFIL = """
     <tr><td>Matrícula:</td><td>251000000</td></tr>
     <tr><td>Curso:</td><td>ENGENHARIA DE SOFTWARE/FCTE - Bacharelado</td></tr>
     <tr><td>Nível:</td><td>GRADUAÇÃO</td></tr>
+    <tr><td>Entrada:</td><td>2025.1</td></tr>
     <tr><td colspan="2"><table>
       <tr><td><acronym>IRA:</acronym></td><td>3.9524</td></tr>
       <tr><td><acronym>MP:</acronym></td><td>4.1724</td></tr>
@@ -79,6 +80,7 @@ def test_login_seguido_de_me_responde_do_cache(client, sigaa):
         "unity": "FCTE",
         "course": "ENGENHARIA DE SOFTWARE",
         "shift": None,
+        "entry_semester": "2025.1",
         "integralization": 35,
         "workload": {
             "total": 3525,
@@ -106,7 +108,16 @@ def test_me_sem_campos_opcionais_retorna_null(client, sigaa, cookies):
     response = client.get("/me")
 
     assert response.status_code == 200
-    for field in ("photo", "email", "bio", "integralization", "workload", "ira", "mp"):
+    for field in (
+        "photo",
+        "email",
+        "bio",
+        "entry_semester",
+        "integralization",
+        "workload",
+        "ira",
+        "mp",
+    ):
         assert response.json()[field] is None
 
 
@@ -232,6 +243,7 @@ def test_me_documenta_campos_e_erros(client):
         "bio",
         "unity",
         "course",
+        "entry_semester",
         "integralization",
         "workload",
         "ira",
@@ -671,6 +683,7 @@ PERFIL_LIDO = UserProfile(
     unity="FCTE",
     course="ENGENHARIA DE SOFTWARE",
     shift=None,
+    entry_semester="2025.1",
     integralization=35,
     workload=CurriculumWorkload(
         total=3525,
@@ -723,6 +736,7 @@ async def test_perfil_cria_usuario_com_data_de_sync(async_database):
         UserLevel.GRADUACAO,
     )
     assert user.workload == PERFIL_LIDO.workload.model_dump()
+    assert user.entry_semester == "2025.1"
     assert user.profile_synced_at is not None
 
 
