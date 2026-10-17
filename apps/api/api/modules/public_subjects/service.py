@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict
@@ -6,9 +6,18 @@ from sigaa_client import lookup_key
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.main import DatabaseDep
-from api.db.models import Requirements, Unity
+from api.db.models import Requirements, Subject, Unity
 from api.modules.public_subjects.repository import SubjectCatalogRepository
+from api.modules.recommendations.ranking import (
+    Component,
+    Reason,
+    normalize,
+    subject_kind,
+)
+from api.modules.recommendations.repository import RecommendationRepository
+from api.modules.recommendations.service import Ranking, RecommendationService
 from api.schemas import ClassroomOffer, UserSubject
+from api.sync import Sync
 
 
 class SubjectClassroom(ClassroomOffer):
@@ -34,6 +43,13 @@ class SubjectRequirement(BaseModel):
 type CatalogRequirements = list[list[SubjectRequirement]]
 
 
+class SubjectRecommendation(BaseModel):
+    """Score do ranking v3; a soma dos pontos dos motivos."""
+
+    score: int
+    reasons: list[Reason]
+
+
 class CatalogSubject(UserSubject):
     """O componente com as turmas do semestre consultado e os requisitos."""
 
@@ -43,6 +59,9 @@ class CatalogSubject(UserSubject):
     equivalences: CatalogRequirements | None = None
     unity_name: str | None = None
     classrooms: list[SubjectClassroom]
+    # Tipo na matriz estimada de quem está logado; nulo sem login ou sem matriz.
+    kind: Literal["mandatory", "optional", "free"] | None = None
+    recommendation: SubjectRecommendation | None = None
 
 
 class PublicSubjectService:
@@ -56,11 +75,18 @@ class PublicSubjectService:
         code: str | None = None,
         unit: str | None = None,
         semester: str | None = None,
+        sync: Sync | None = None,
     ) -> list[CatalogSubject]:
+        registration = sync.registration if sync else None
         if q is None and code is None and unit is None:
-            raise _invalid("Informe `q`, `code` ou `unit`.")
+            if sync is None:
+                raise _invalid("Informe `q`, `code` ou `unit`.")
+            ranking = await RecommendationService(sync).recommend()
+            return await self._db.read(
+                lambda session: _recommended(session, ranking, registration)
+            )
         return await self._db.read(
-            lambda session: _search(session, q, code, unit, semester)
+            lambda session: _search(session, q, code, unit, semester, registration)
         )
 
 
@@ -70,6 +96,7 @@ async def _search(
     code: str | None,
     unit: str | None,
     semester: str | None,
+    registration: str | None,
 ) -> list[CatalogSubject]:
     repository = SubjectCatalogRepository(session)
     unity_id = None
@@ -81,19 +108,54 @@ async def _search(
         semester=semester,
     )
     needle = lookup_key(q or "")
-    subjects = [
-        subject
-        for subject in subjects
-        if any(
-            needle in lookup_key(text)
-            for text in (
-                subject.code,
-                subject.name,
-                *(p for c in subject.classrooms for p in c.professors),
+    return await _catalog(
+        session,
+        registration,
+        [
+            subject
+            for subject in subjects
+            if any(
+                needle in lookup_key(text)
+                for text in (
+                    subject.code,
+                    subject.name,
+                    *(p for c in subject.classrooms for p in c.professors),
+                )
             )
+        ],
+    )
+
+
+async def _recommended(
+    session: AsyncSession, ranking: Ranking, registration: str | None
+) -> list[CatalogSubject]:
+    if not ranking.items:
+        return []
+    repository = SubjectCatalogRepository(session)
+    order = {item.code: index for index, item in enumerate(ranking.items)}
+    subjects = await repository.list_subjects(
+        codes=set(order), semester=ranking.semester
+    )
+    subjects.sort(key=lambda subject: order[normalize(subject.code)])
+    return [
+        subject.model_copy(
+            update={
+                "recommendation": SubjectRecommendation.model_validate(
+                    ranking.items[order[normalize(subject.code)]], from_attributes=True
+                )
+            }
         )
+        for subject in await _catalog(session, registration, subjects)
     ]
-    names = await repository.subject_names(
+
+
+async def _catalog(
+    session: AsyncSession, registration: str | None, subjects: list[Subject]
+) -> list[CatalogSubject]:
+    curriculum: dict[str, Component] | None = None
+    if registration is not None:
+        curriculum = await RecommendationRepository(session).curriculum(registration)
+    names = await SubjectCatalogRepository(session).subject_names(
         {
             code
             for subject in subjects
@@ -120,6 +182,9 @@ async def _search(
                 SubjectClassroom.model_validate(classroom)
                 for classroom in sorted(subject.classrooms, key=lambda c: c.number)
             ],
+            kind=subject_kind(curriculum, subject.code)
+            if curriculum is not None
+            else None,
         )
         for subject in subjects
     ]

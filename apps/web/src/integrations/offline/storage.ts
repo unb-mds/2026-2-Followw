@@ -1,11 +1,12 @@
 import type { Query, QueryClient } from '@tanstack/react-query';
 
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
-import { noop } from '@tanstack/react-query';
+import { hashKey, noop } from '@tanstack/react-query';
 import { persistQueryClient } from '@tanstack/react-query-persist-client';
 import { del, get, set } from 'idb-keyval';
 
 import { PAGES_CACHE_PREFIX, pagesCacheName } from '#/integrations/offline/pages-cache';
+import { recommendationsQueryOptions } from '#/queries/recommendations';
 
 // também é o gcTime das queries no navegador, senão a query sai do cache antes de vencer no disco
 export const PERSIST_MAX_AGE = 14 * 24 * 60 * 60 * 1000;
@@ -22,7 +23,7 @@ const persister =
 // sem isso, query sem uso (ex.: cardápio de semana antiga) é salva de novo a cada sessão e nunca sai
 export function shouldPersistQuery(query: Query, now = Date.now()) {
     return (
-        query.queryKey[1] !== '/me/recommendations' &&
+        query.queryHash !== hashKey(recommendationsQueryOptions.queryKey) &&
         query.state.status === 'success' &&
         now - query.state.dataUpdatedAt < PERSIST_MAX_AGE
     );

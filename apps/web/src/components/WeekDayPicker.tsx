@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Day } from '#/lib/schedule';
 
 import { Button } from '#/components/ui/button';
+import { cn } from '#/lib/shadcn';
 
 const WEEKDAYS = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
 const dayMonth = new Intl.DateTimeFormat('pt-BR', {
@@ -90,9 +91,10 @@ function DayButtons({ days, selectedDate, onSelect }: Omit<WeekDayPickerProps, '
                         className="h-16 min-w-0 flex-1 flex-col gap-1 px-0"
                     >
                         <span
-                            className={`text-xs font-bold tracking-wider uppercase ${
+                            className={cn(
+                                'text-xs font-bold tracking-wider uppercase',
                                 isActive ? 'text-primary-foreground/90' : 'text-muted-foreground'
-                            }`}
+                            )}
                         >
                             {WEEKDAYS[day.weekday]}
                         </span>

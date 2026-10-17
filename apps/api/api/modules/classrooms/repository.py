@@ -277,16 +277,8 @@ class ClassroomRepository:
             subject = subjects[code] = Subject(code=code)
             self._session.add(subject)
 
-        hours = item.hours or subject.hours
-        unity_id = subject.unity_id or unities.get(item.unity or "")
-        if (subject.name, subject.hours, subject.unity_id) != (
-            item.name,
-            hours,
-            unity_id,
-        ):
-            subject.catalog_complete = False
         subject.name = item.name
-        subject.hours = hours
+        subject.hours = item.hours or subject.hours
         # A unidade ofertante do seed vale mais que o palpite pelo prefixo do local.
         subject.unity_id = subject.unity_id or unities.get(item.unity or "")
 

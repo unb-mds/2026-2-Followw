@@ -27,9 +27,16 @@ from api.db.models import (
     Unity,
     User,
 )
+from api.modules.recommendations.ranking import (
+    Component,
+    chain_length,
+    components_by_code,
+    descendants,
+    target_period,
+)
 
 NOW = datetime.now(UTC)
-URL = "/me/recommendations"
+URL = "/public/subjects"
 
 
 class Scenario:
@@ -86,18 +93,12 @@ class Scenario:
                 name=fields.pop("name", code),
                 hours=fields.pop("hours", 60),
                 unity_id=fields.pop("unity_id", 673),
-                catalog_complete=fields.pop("catalog_complete", True),
                 **fields,
             )
             session.add(row)
             if offer:
                 session.add(
-                    Classroom(
-                        subject_code=code,
-                        number="01",
-                        semester="2026.2",
-                        listed_in_offer=True,
-                    )
+                    Classroom(subject_code=code, number="01", semester="2026.2")
                 )
         if kind:
             self.component(code, kind=kind, period=period)
@@ -154,8 +155,11 @@ class Scenario:
         assert response.status_code == 200, response.text
         assert response.headers["cache-control"] == "no-store"
         result = response.json()
-        for item in result["items"]:
-            assert item["score"] == sum(r["points"] for r in item["reasons"])
+        for item in result:
+            recommendation = item["recommendation"]
+            assert recommendation["score"] == sum(
+                r["points"] for r in recommendation["reasons"]
+            )
         return result
 
 
@@ -168,19 +172,60 @@ def scene(database, client, cookies, stub_sigaa):
 
 
 def codes(result):
-    return [i["subject"]["code"] for i in result["items"]]
+    return [i["code"] for i in result]
 
 
-def test_authentication(client):
-    assert client.get(URL).status_code == 401
+def scores(result):
+    return [(i["code"], i["recommendation"]["score"]) for i in result]
 
 
-@pytest.mark.parametrize(
-    "query",
-    ["limit=0", "limit=101", "limit=x", "semester=2026.1", "period=1", "course_id=1"],
-)
-def test_only_limit_is_accepted(scene, query):
-    assert scene.client.get(URL + "?" + query).status_code == 422
+def reasons(item):
+    return {r["code"]: r["points"] for r in item["recommendation"]["reasons"]}
+
+
+def test_visitor_without_filters_is_rejected(client):
+    assert client.get(URL).status_code == 422
+
+
+def test_filters_keep_the_plain_search(scene, stub_sigaa):
+    scene.subject("A")
+    (item,) = scene.client.get(URL, params={"unit": "673"}).json()
+    assert item["recommendation"] is None
+    stub_sigaa.profile.get_profile.assert_not_awaited()
+
+
+def test_plain_search_shows_curriculum_kind_from_cache(scene, stub_sigaa):
+    scene.subject("REQ", kind="required", period=1)
+    scene.subject("OPT", kind="optional")
+    scene.subject("COMP", kind="complementary")
+    scene.subject("FREE", kind=None)
+    result = scene.client.get(URL, params={"unit": "673"}).json()
+    assert {i["code"]: i["kind"] for i in result} == {
+        "COMP": "optional",
+        "FREE": "free",
+        "OPT": "optional",
+        "REQ": "mandatory",
+    }
+    stub_sigaa.profile.get_profile.assert_not_awaited()
+    stub_sigaa.classrooms.list_classrooms.assert_not_awaited()
+    assert {i["code"]: i["kind"] for i in scene.get()} == {
+        "REQ": "mandatory",
+        "COMP": "optional",
+        "OPT": "optional",
+    }
+
+
+def test_kind_is_null_without_curriculum_or_login(scene):
+    scene.subject("A")
+    with scene.db.begin() as session:
+        session.get(User, scene.user_id).course_id = None
+
+    def kinds():
+        return [i["kind"] for i in scene.client.get(URL, params={"unit": "673"}).json()]
+
+    assert kinds() == [None]
+    scene.client.cookies.clear()
+    assert kinds() == [None]
 
 
 def test_undergraduate_only(scene):
@@ -189,50 +234,24 @@ def test_undergraduate_only(scene):
     assert scene.client.get(URL).status_code == 422
 
 
-def test_eligible_universe_default_limit_order_and_empty_history(scene):
+def test_whole_offer_is_ranked_with_empty_history(scene):
     for n in range(12):
         scene.subject(f"X{n:02}", unity_id=99, kind="complementary")
     scene.component("MISSING", period=1)
     result = scene.get()
-    assert result["total"] == 12
-    assert codes(result) == [f"X{n:02}" for n in range(10)]
-    assert codes(scene.get(params={"limit": 100})) == [f"X{n:02}" for n in range(12)]
-    assert result["context"]["period"] == 1
-    assert result["context"]["curriculum_method"] == "latest_without_history"
-    assert result["history"]["grades"] == []
-    assert all(
-        i["score"] == 0 and i["kind"] == "complementary" for i in result["items"]
-    )
+    assert scores(result) == [(f"X{n:02}", 4) for n in range(12)]
     assert scene.get() == result
 
 
-def test_catalog_validations_and_disjoint_exclusions(scene):
+def test_disjoint_exclusions(scene):
     scene.subject("OK")
-    scene.subject("PARTIAL", catalog_complete=False)
-    scene.subject("ZERO", hours=0)
-    scene.subject("NO_HOURS", hours=None)
-    scene.subject("NO_UNITY", unity_id=None)
-    scene.subject("BAD_UNITY", unity_id=999999)
-    scene.subject("NAME", name=" ")
     scene.subject("APPROVED")
     scene.history("APPROVED", grade=Grade.MM)
-    scene.history("PARTIAL", grade=Grade.SS)
     scene.subject("ENROLLED")
     scene.history("ENROLLED", enrolled=True, term="2026.2")
     scene.subject("PRE", prerequisites=[["UNKNOWN"]], corequisites=[["OTHER"]])
     scene.subject("CO", prerequisites=[], corequisites=[["UNKNOWN"]])
-    result = scene.get()
-    assert codes(result) == ["OK"]
-    assert result["diagnostics"]["excluded"] == {
-        "catalog_incomplete": 6,
-        "completed": 1,
-        "enrolled": 1,
-        "prerequisites": 1,
-        "corequisites": 1,
-        "curriculum_unavailable": 0,
-        "free_module": 0,
-    }
-    assert result["total"] == 1
+    assert codes(scene.get()) == ["OK"]
 
 
 @pytest.mark.parametrize("grade", [Grade.SS, Grade.MS, Grade.MM])
@@ -244,21 +263,16 @@ def test_approved_grades_and_repetition(scene, grade):
     assert codes(scene.get()) == ["B"]
 
 
-def test_target_future_invalid_history_and_removed_enrollments(scene):
-    for code in ("TARGET", "FUTURE", "FAILED", "REMOVED", "LOCKED"):
+def test_target_and_in_progress_count_as_completed(scene):
+    for code in ("TARGET", "FAILED", "REMOVED", "LOCKED"):
         scene.subject(code)
     scene.subject("NEEDS_TARGET", prerequisites=[["TARGET"]])
-    scene.subject("NEEDS_FUTURE", prerequisites=[["FUTURE"]])
     scene.history("TARGET", grade=Grade.MM, term="2026.2", enrolled=True)
-    scene.history("FUTURE", grade=Grade.SS, term="2027.1")
     scene.history("FAILED", grade=Grade.MI)
     scene.history("REMOVED", term="2026.2", status=ClassroomStatus.REMOVIDO)
     scene.history("LOCKED", term="2026.2", status=ClassroomStatus.TRANCADO)
     scene.history("FAILED", grade=Grade.SS, term="invalid")
-    result = scene.get()
-    assert set(codes(result)) == {"FUTURE", "FAILED", "REMOVED", "LOCKED"}
-    assert result["context"]["offer_semester"] == "2026.2"
-    assert len(result["history"]["grades"]) == 4
+    assert set(codes(scene.get())) == {"NEEDS_TARGET", "FAILED", "REMOVED", "LOCKED"}
 
 
 def test_only_own_student_links_and_user_isolation(scene):
@@ -272,12 +286,10 @@ def test_only_own_student_links_and_user_isolation(scene):
         session.flush()
         other = user.id
     scene.history("B", grade=Grade.SS, user_id=other)
-    result = scene.get()
-    assert result["items"] == []
-    assert result["history"]["grades"] == []
+    assert scene.get() == []
 
 
-def test_requirements_and_or_no_concurrent_or_equivalent_credit(scene):
+def test_requirements_and_or_with_in_progress_but_no_equivalent_credit(scene):
     scene.history("A", grade=Grade.MM)
     scene.subject("PASS", prerequisites=[["A", "B"], ["A"]], corequisites=[["A"]])
     scene.subject("AND", prerequisites=[["A", "B"]])
@@ -286,51 +298,55 @@ def test_requirements_and_or_no_concurrent_or_equivalent_credit(scene):
     scene.subject("EQUIV", prerequisites=[["Y"]])
     scene.subject("Y", offer=False, equivalences=[["A"]])
     scene.history("C", enrolled=True, term="2026.2")
-    assert codes(scene.get()) == ["PASS"]
+    assert codes(scene.get()) == ["CO", "CURRENT", "PASS"]
+
+
+FLOW = [
+    Component(subject_code=code, kind="required", period=period)
+    for code, period in (("A", 1), ("B", 1), ("C", 2), ("D", 2))
+]
 
 
 @pytest.mark.parametrize(
-    ("approved", "expected", "method"),
+    ("done", "expected"),
     [
-        ([], 1, "first_below_half"),
-        (["A"], 2, "first_below_half"),
-        (["A", "C"], 2, "last_pending"),
-        (["A", "B", "C"], 2, "last_pending"),
-        (["A", "B", "C", "D"], 3, "required_flow_completed"),
+        (set(), 1),
+        ({"A"}, 2),
+        ({"A", "C"}, 2),
+        ({"A", "B", "C"}, 2),
+        ({"A", "B", "C", "D"}, 3),
     ],
 )
-def test_half_threshold_missing_catalog_and_completion(
-    scene, approved, expected, method
-):
-    for code, period in (("A", 1), ("B", 1), ("C", 2), ("D", 2)):
-        scene.component(code, period=period)
-    scene.subject("OFFER")
-    for code in approved:
-        scene.history(code, grade=Grade.MM)
-    result = scene.get()
-    assert result["context"]["period"] == expected
-    assert result["context"]["period_method"] == method
+def test_target_period_from_half_threshold_and_completion(done, expected):
+    assert target_period(components_by_code(FLOW), done, set()) == expected
 
 
-def test_enrolled_lower_median_and_normalized_duplicate_components(scene):
+def test_target_period_after_enrolled_lower_median_and_duplicates():
+    flow = components_by_code(
+        [
+            Component(subject_code=code, kind="required", period=period)
+            for code, period in (("A", 2), ("B", 4), ("C", 4), ("D", 6), (" a ", 8))
+        ]
+        + [Component(subject_code="A", kind="optional", period=0)]
+    )
+    assert flow["A"].period == 2
+    assert target_period(flow, set(), {"A", "B", "C", "D"}) == 5
+    optional = [Component(subject_code="X", kind="optional", period=0)]
+    assert target_period(components_by_code(optional), set(), set()) is None
+
+
+def test_overdue_after_in_progress_period(scene):
     for code, period in (("A", 2), ("B", 4), ("C", 4), ("D", 6)):
         scene.component(code, period=period)
         scene.history(code, enrolled=True, term="2026.2")
-    scene.component(" a ", period=8)
-    scene.component("A", kind="optional", period=0)
     scene.subject("OLD", kind="required", period=1)
     scene.component("OLD", kind="optional", period=0)
-    result = scene.get()
-    assert result["context"]["period"] == 4
-    assert result["context"]["target_period"] == 5
-    assert result["context"]["period_method"] == "enrolled_lower_median"
-    item = result["items"][0]
-    assert item["kind"] == "required" and item["period"] == 1
-    assert {r["code"] for r in item["reasons"]} == {"same_unity", "required", "overdue"}
+    (item,) = scene.get()
+    assert set(reasons(item)) == {"same_unity", "required", "overdue", "hours"}
 
 
 def test_curriculum_selection_shift_revision_and_history(scene):
-    scene.subject("A")
+    scene.subject("A", kind=None)
     scene.curriculum(code="100/2", valid_from="2024.1", sigaa_id=12)
     selected = scene.curriculum(code="100/3", valid_from="2024.1", sigaa_id=13)
     scene.curriculum(code="100/3", valid_from="2024.1", sigaa_id=11)
@@ -339,169 +355,99 @@ def test_curriculum_selection_shift_revision_and_history(scene):
     scene.curriculum(code="100/99", valid_from="2027.1")
     scene.curriculum(code="100/4", valid_from="2026.1")
     scene.history("H", term="2025.1", grade=Grade.MI)
-    result = scene.get()
-    assert result["context"]["curriculum"]["id"] == str(selected)
-    assert result["context"]["curriculum_selection"] == "estimated"
-    assert result["context"]["history_reference"] == "2025.1"
-    assert result["context"]["curriculum_method"] == "history_reference"
+    assert scene.get() == []
+    scene.component("A", kind="optional", matrix=selected)
+    assert codes(scene.get()) == ["A"]
 
 
 def test_old_history_fallback_and_unknown_shift_fallback(scene):
-    scene.subject("A")
+    scene.subject("A", kind=None)
     scene.history("H", term="2010.1")
     with scene.db.begin() as session:
         session.get(Curriculum, scene.matrix).shift = "N"
     fallback = scene.curriculum(shift=None, valid_from="2024.1")
-    result = scene.get()
-    assert result["context"]["curriculum"]["id"] == str(fallback)
-    assert result["context"]["curriculum_method"] == "earliest_eligible_fallback"
+    scene.component("A", kind="optional", matrix=fallback)
+    assert codes(scene.get()) == ["A"]
 
 
-@pytest.mark.parametrize(
-    "mode", ["future", "opposite_shift", "no_course", "no_required_period"]
-)
-def test_reduced_context(scene, mode):
-    scene.subject("A", kind="required", period=None, equivalences=[["X"]])
-    scene.subject("X")
+@pytest.mark.parametrize("mode", ["future", "opposite_shift", "no_course"])
+def test_without_curriculum_nothing_is_recommended(scene, mode):
+    scene.subject("A", kind="required", period=None)
     with scene.db.begin() as session:
         if mode == "no_course":
             session.get(User, scene.user_id).course_id = None
-        elif mode != "no_required_period":
+        else:
             row = session.get(Curriculum, scene.matrix)
             if mode == "future":
                 row.valid_from = "2027.1"
             else:
                 row.shift = "N"
-    result = scene.get()
-    assert result["context"]["period"] is None
-    assert result["diagnostics"]["context_state"] == "reduced"
-    if mode != "no_required_period":
-        assert result["context"]["curriculum"] is None
-        assert result["items"] == []
-        assert result["diagnostics"]["excluded"]["curriculum_unavailable"] == 2
+    assert scene.get() == []
 
 
-def test_incremental_unlock_and_cap(scene):
-    scene.subject("X")
+def test_chain_length_and_width_count_pending_required_descendants(scene):
+    scene.subject("X", kind="required", period=1)
     scene.history("A", grade=Grade.MM)
-    for n in range(6):
-        scene.subject(
-            f"Y{n}", offer=False, kind="required", period=2, prerequisites=[["X"]]
-        )
-    scene.subject(
-        "AND", offer=False, kind="required", period=2, prerequisites=[["X", "B"]]
-    )
-    scene.subject(
-        "OR", offer=False, kind="required", period=2, prerequisites=[["X"], ["A"]]
-    )
-    scene.subject(
-        "TRANSITIVE", offer=False, kind="required", period=3, prerequisites=[["Y0"]]
-    )
-    scene.subject(
-        "CO",
-        offer=False,
-        kind="required",
-        period=2,
-        prerequisites=[["X"]],
-        corequisites=[["B"]],
-    )
-    scene.subject(
-        "CO_X",
-        offer=False,
-        kind="required",
-        period=2,
-        prerequisites=[["X"]],
-        corequisites=[["X"]],
-    )
-    scene.subject(
-        "PARTIAL",
-        offer=False,
-        kind="required",
-        period=2,
-        prerequisites=[["X"]],
-        catalog_complete=False,
-    )
-    result = scene.get()["items"][0]
-    assert result["unlocked_subject_codes"] == ["CO_X", *[f"Y{n}" for n in range(6)]]
-    assert next(r["points"] for r in result["reasons"] if r["code"] == "unlocks") == 20
-
-
-def test_directional_equivalence_incremental_and_single_bonus(scene):
-    scene.subject("X", kind=None, equivalences=[["WRONG_DIRECTION"]])
-    scene.subject("WRONG_DIRECTION", kind=None)
-    scene.history("A", grade=Grade.MM)
-    for code, rules in (
-        ("Y", [["X", "A"]]),
-        ("Z", [["X"]]),
-        ("AND", [["X", "B"]]),
-        ("OR", [["X"], ["A"]]),
+    for code, rules, period in (
+        ("Y0", [["X"]], 2),
+        ("Y1", [["X"]], 2),
+        ("AND", [["X", "B"]], 2),
+        ("OR", [["X"], ["A"]], 2),
+        ("T", [["Y0"]], 3),
+        ("DEEP", [["T"]], 4),
+        ("DONE", [["X"]], 2),
     ):
-        scene.subject(code, offer=False, kind="required", period=1, equivalences=rules)
-    scene.subject("DONE", offer=False, kind="required", period=1, equivalences=[["X"]])
+        scene.subject(
+            code, offer=False, kind="required", period=period, prerequisites=rules
+        )
     scene.history("DONE", grade=Grade.MM)
+    scene.subject("FREE", offer=False, kind=None, prerequisites=[["X"]])
+    scene.subject("OPT", offer=False, kind="optional", prerequisites=[["X"]])
     scene.subject(
-        "ONGOING", offer=False, kind="required", period=1, equivalences=[["X"]]
+        "AFTER_OPT", offer=False, kind="required", period=5, prerequisites=[["OPT"]]
     )
-    scene.history("ONGOING", term="2026.2", enrolled=True)
-    result = scene.get()
-    item = result["items"][0]
-    assert item["subject"]["code"] == "X"
-    assert item["score"] == 40 and item["kind"] is None and item["period"] is None
-    assert item["equivalent_to"] == [
-        {"code": "Y", "name": "Y"},
-        {"code": "Z", "name": "Z"},
-    ]
-    assert item["badges"] == [
-        {"code": "equivalent", "text": f"Equivalente a {c} — {c}"} for c in ("Y", "Z")
-    ]
-    assert len(result["items"]) == 1
-    assert result["diagnostics"]["excluded"]["free_module"] == 1
+    scene.subject("O", kind="optional")
+    scene.subject(
+        "NEEDS_O", offer=False, kind="required", period=2, prerequisites=[["O"]]
+    )
+    items = {i["code"]: i for i in scene.get()}
+    assert reasons(items["X"])["chain_length"] == 30
+    assert reasons(items["X"])["chain_width"] == 30
+    assert {r["code"]: r["value"] for r in items["X"]["recommendation"]["reasons"]} == {
+        "required": None,
+        "target_period": None,
+        "same_unity": None,
+        "chain_length": 3,
+        "chain_width": 6,
+        "hours": 60,
+    }
+    assert set(reasons(items["O"])) == {"same_unity", "hours"}
 
 
-@pytest.mark.parametrize(
-    ("vacancies", "occupied", "availability"),
-    [
-        (10, 9, "available"),
-        (10, 10, "full"),
-        (10, 11, "full"),
-        (None, 0, "unknown"),
-        (10, None, "unknown"),
-    ],
-)
-def test_classrooms_availability_and_unknown_operational_details(
-    scene, vacancies, occupied, availability
-):
+def test_chains_tolerate_cyclic_prerequisites():
+    graph = {"A": {"B"}, "B": {"A", "C"}}
+    assert chain_length("A", graph) == 2
+    assert descendants("A", graph) == {"B", "C"}
+
+
+def test_classrooms_come_from_the_offer_semester(scene):
     scene.subject("A")
     with scene.db.begin() as session:
-        classroom = session.scalar(
-            select(Classroom).where(Classroom.subject_code == "A")
-        )
-        classroom.vacancies, classroom.occupied = vacancies, occupied
-        session.add(
-            Classroom(
-                subject_code="A", number="00", semester="2026.2", listed_in_offer=True
-            )
-        )
-    result = scene.get()
-    assert result["total"] == 1
-    offers = result["items"][0]["classrooms"]
-    assert [c["number"] for c in offers] == ["00", "01"]
-    assert offers[1]["availability"] == availability
-    assert offers[1]["is_locked"] == (availability == "full")
-    assert offers[1]["schedule"] is None and offers[1]["room"] is None
-    assert offers[1]["professors"] is None and offers[1]["sigaa_id"] is None
+        session.add(Classroom(subject_code="A", number="00", semester="2026.2"))
+        session.add(Classroom(subject_code="A", number="02", semester="2026.1"))
+    (item,) = scene.get()
+    assert [(c["number"], c["semester"]) for c in item["classrooms"]] == [
+        ("00", "2026.2"),
+        ("01", "2026.2"),
+    ]
 
 
-def test_unmarked_history_is_never_offer_fallback(scene):
+def test_without_classrooms_nothing_is_recommended(scene):
     scene.subject("A", offer=False)
-    scene.history("A", term="2099.2")
-    result = scene.get()
-    assert result["items"] == []
-    assert result["context"]["offer_semester"] is None
-    assert "offer_unavailable" in {w["code"] for w in result["warnings"]}
+    assert scene.get() == []
 
 
-def test_score_examples_110_100_80(scene):
+def test_score_examples(scene):
     for code, period, unlocks in (("ED", 3, 4), ("BD", 3, 2), ("CALC", 1, 3)):
         scene.subject(code, kind="required", period=period, unity_id=99)
         for n in range(unlocks):
@@ -514,25 +460,18 @@ def test_score_examples_110_100_80(scene):
             )
     scene.component("CURRENT", period=2)
     scene.history("CURRENT", enrolled=True, term="2026.2")
-    result = scene.get()
-    assert [(i["subject"]["code"], i["score"]) for i in result["items"]] == [
-        ("ED", 110),
-        ("BD", 100),
-        ("CALC", 80),
-    ]
+    assert scores(scene.get()) == [("ED", 109), ("BD", 99), ("CALC", 94)]
 
 
-def test_maximum_150_and_optional_complementary(scene):
+def test_optional_and_complementary_have_no_kind_bonus(scene):
     scene.subject("X", kind="required", period=1)
     scene.subject("OPT", kind="optional", period=9)
-    scene.subject("COMP", kind="complementary", period=9)
+    scene.subject("COMP", kind="complementary", period=9, hours=59)
     for n in range(4):
         scene.subject(
             f"Y{n}", offer=False, kind="required", period=2, prerequisites=[["X"]]
         )
-    scene.subject("Z", offer=False, kind="required", period=2, equivalences=[["X"]])
-    items = scene.get()["items"]
-    assert [(i["score"], i["period"]) for i in items] == [(150, 1), (35, 0), (30, None)]
+    assert scores(scene.get()) == [("X", 114), ("OPT", 9), ("COMP", 8)]
 
 
 def test_missing_grades_sync_before_ranking(scene, stub_sigaa):
@@ -573,13 +512,11 @@ def test_stale_grades_swr_and_no_cache(scene, stub_sigaa, qstash):
     stub_sigaa.classrooms.list_grades.return_value = [
         ClassroomGrade(subject_code="A", semester="2026.2", grade=Grade.MM)
     ]
-    first = scene.get()
-    assert codes(first) == ["A"]
-    assert "stale_history" in {w["code"] for w in first["warnings"]}
+    assert codes(scene.get()) == ["A"]
     assert any(
         step.task == "sync_grades" for job in qstash.jobs() for step in job.steps
     )
-    assert scene.get()["items"] == []
+    assert scene.get() == []
     with scene.db.begin() as session:
         row = session.get(ClassroomParticipant, link_id)
         row.grade = None
@@ -597,79 +534,18 @@ def test_stale_grades_swr_and_no_cache(scene, stub_sigaa, qstash):
                 subject=SigaaSubject(code="A", name="A", hours=60),
             )
         ]
-    assert scene.get(headers={"Cache-Control": "no-cache"})["items"] == []
+    assert scene.get(headers={"Cache-Control": "no-cache"}) == []
     stub_sigaa.profile.get_profile.assert_awaited_once()
     stub_sigaa.classrooms.list_classrooms.assert_awaited_once()
     assert stub_sigaa.classrooms.list_grades.await_count == 2
-
-
-def test_openapi_tag_and_contract(scene):
-    schema = scene.client.get("/openapi.json").json()
-    operation = schema["paths"][URL]["get"]
-    assert operation["tags"] == ["Recommendations"]
-    assert {p["name"] for p in operation["parameters"] if p["in"] == "query"} == {
-        "limit"
-    }
-    assert any("Recommendations" in group["tags"] for group in schema["x-tagGroups"])
-
-
-@pytest.mark.parametrize(
-    ("changes", "expected"),
-    [({}, True), ({"name": "Outro"}, False), ({"hours": 90}, False)],
-)
-def test_sync_preserves_only_unchanged_certified_fields(
-    scene, stub_sigaa, changes, expected
-):
-    scene.subject("A")
-    stub_sigaa.classrooms.list_classrooms.return_value = [
-        SigaaClassroom(
-            id="a",
-            number="01",
-            semester="2026.2",
-            current=True,
-            subject=SigaaSubject(code="A", **({"name": "A", "hours": 60} | changes)),
-        )
-    ]
-    assert (
-        scene.client.get(
-            "/classrooms", headers={"Cache-Control": "no-cache"}
-        ).status_code
-        == 200
-    )
-    with scene.db() as session:
-        assert session.get(Subject, "A").catalog_complete is expected
-        assert session.scalar(select(Classroom)).listed_in_offer is True
-
-
-def test_sync_partial_subjects_do_not_gain_certification_or_public_offer(
-    scene, stub_sigaa
-):
-    stub_sigaa.classrooms.list_classrooms.return_value = [
-        SigaaClassroom(
-            id="a",
-            number="01",
-            semester="2026.2",
-            current=True,
-            subject=SigaaSubject(code="A", name="A", hours=60, unity="FCTE"),
-        )
-    ]
-    assert (
-        scene.client.get(
-            "/classrooms", headers={"Cache-Control": "no-cache"}
-        ).status_code
-        == 200
-    )
-    with scene.db() as session:
-        assert not session.get(Subject, "A").catalog_complete
-        assert not session.scalar(select(Classroom)).listed_in_offer
 
 
 def test_frozen_grades_are_not_revalidated(scene, stub_sigaa):
     scene.subject("A")
     scene.history("H", grade=Grade.MM, term="2020.1")
     scene.get(headers={"Cache-Control": "only-if-cached"})
+    scene.get()
     stub_sigaa.classrooms.list_grades.assert_not_awaited()
-    assert scene.get()["history"]["grades"][0]["freshness"] == "frozen"
 
 
 def test_profile_missing_sync_and_failures(scene, stub_sigaa):
@@ -685,62 +561,30 @@ def test_profile_missing_sync_and_failures(scene, stub_sigaa):
 
 
 def test_ties_required_then_positive_period_then_code(scene):
-    # Optativa com desbloqueios e equivalência empata com obrigatórias atrasadas.
+    # Optativa com carga alta empata com obrigatórias atrasadas.
     scene.subject("R", kind="required", period=1, unity_id=99)
     scene.subject("Z", kind="required", period=2, unity_id=99)
-    scene.subject("A")
-    for n in range(4):
-        scene.subject(
-            f"UNLOCK{n}", offer=False, kind="required", period=6, prerequisites=[["A"]]
-        )
-    scene.subject("EQUIV", offer=False, kind="required", period=6, equivalences=[["A"]])
+    scene.subject("A", hours=960)
     scene.component("CURRENT", period=4)
     scene.history("CURRENT", term="2026.2", enrolled=True)
-    items = scene.get()["items"]
-    assert [(i["subject"]["code"], i["score"]) for i in items] == [
-        ("R", 65),
-        ("Z", 65),
-        ("A", 65),
-    ]
+    assert scores(scene.get()) == [("R", 69), ("Z", 69), ("A", 69)]
 
 
-def test_latest_marked_offer_and_invalid_semesters(scene):
+def test_latest_offer_and_invalid_semesters(scene):
     scene.subject("A")
     scene.subject("OLD", offer=False)
     with scene.db.begin() as session:
-        session.add(
-            Classroom(
-                subject_code="OLD", number="01", semester="2025.2", listed_in_offer=True
-            )
-        )
-        session.add(
-            Classroom(
-                subject_code="OLD",
-                number="01",
-                semester="invalid",
-                listed_in_offer=True,
-            )
-        )
+        session.add(Classroom(subject_code="OLD", number="01", semester="2025.2"))
+        session.add(Classroom(subject_code="OLD", number="01", semester="invalid"))
     assert codes(scene.get()) == ["A"]
 
 
-def test_equivalence_candidate_must_satisfy_own_rules_and_does_not_propagate(scene):
-    scene.subject("X", prerequisites=[["MISSING"]])
-    scene.subject("A")
-    scene.subject("Y", offer=False, kind="required", period=1, equivalences=[["X"]])
-    scene.subject("X_ALIAS", offer=False, equivalences=[["A"]])
-    scene.subject(
-        "Z", offer=False, kind="required", period=1, equivalences=[["X_ALIAS"]]
-    )
-    (item,) = scene.get()["items"]
-    assert item["subject"]["code"] == "A" and not item["equivalent_to"]
-
-
-def test_normalized_curricular_reference_can_unlock_without_offer(scene):
-    scene.subject("X")
+def test_normalized_curricular_reference_counts_without_offer(scene):
+    scene.subject("X", kind="required", period=1)
     scene.subject("Y", offer=False, prerequisites=[[" x "]])
     scene.component(" y ", period=2)
-    assert scene.get()["items"][0]["unlocked_subject_codes"] == ["Y"]
+    (item,) = scene.get()
+    assert reasons(item)["chain_length"] == 10 and reasons(item)["chain_width"] == 5
 
 
 def test_frozen_dates_do_not_age_mutable_grades_stale_if_error(scene, stub_sigaa):
@@ -769,20 +613,6 @@ def test_frozen_dates_do_not_age_mutable_grades_stale_if_error(scene, stub_sigaa
     stub_sigaa.classrooms.list_grades.side_effect = httpx.ConnectError("offline")
     result = scene.get(headers={"Cache-Control": "no-cache, stale-if-error=259200"})
     assert codes(result) == ["B"]
-    assert "stale_history" in {w["code"] for w in result["warnings"]}
-    frozen = next(e for e in result["history"]["grades"] if e["code"] == "OLD")
-    assert frozen["approved"] and frozen["freshness"] == "frozen"
-
-
-@pytest.mark.parametrize("kind", ["optional", "complementary"])
-def test_equivalence_only_scores_pending_required_targets(scene, kind):
-    scene.subject("X", kind="required", period=1)
-    scene.subject("Y", offer=False, kind=kind, period=0, equivalences=[["X"]])
-    (item,) = scene.get()["items"]
-    assert item["equivalent_to"] == []
-    assert item["badges"] == []
-    assert "equivalent" not in {reason["code"] for reason in item["reasons"]}
-    assert scene.get()["score_version"] == "v2"
 
 
 def test_free_modules_excluded_even_same_unity_or_unlocking(scene):
@@ -792,32 +622,19 @@ def test_free_modules_excluded_even_same_unity_or_unlocking(scene):
     )
     scene.subject("OPTIONAL", kind="optional")
     scene.subject("COMPLEMENTARY", kind="complementary")
-    result = scene.get()
-    assert codes(result) == ["OPTIONAL", "COMPLEMENTARY"]
-    assert result["diagnostics"]["excluded"]["free_module"] == 1
+    assert codes(scene.get()) == ["COMPLEMENTARY", "OPTIONAL"]
 
 
-def test_external_equivalence_to_optional_does_not_bypass_free_module_filter(scene):
-    scene.subject("FREE", kind=None)
-    scene.subject("TARGET", offer=False, kind="optional", equivalences=[["FREE"]])
-    result = scene.get()
-    assert result["items"] == []
-    assert result["diagnostics"]["excluded"]["free_module"] == 1
-
-
-def test_next_period_bonus_advances_current_flow_without_marking_current_overdue(scene):
+def test_next_period_bonus_and_current_period_pending_is_overdue(scene):
     scene.subject("CURRENT_PENDING", kind="required", period=2)
     scene.subject("NEXT", kind="required", period=3)
     scene.subject("OLD", kind="required", period=1)
     scene.component("ENROLLED", period=2)
     scene.history("ENROLLED", term="2026.2", enrolled=True)
-    result = scene.get()
-    assert result["context"]["period"] == 2
-    assert result["context"]["target_period"] == 3
-    assert [(item["subject"]["code"], item["score"]) for item in result["items"]] == [
-        ("NEXT", 120),
-        ("OLD", 95),
-        ("CURRENT_PENDING", 80),
+    assert scores(scene.get()) == [
+        ("NEXT", 84),
+        ("OLD", 74),
+        ("CURRENT_PENDING", 74),
     ]
 
 
@@ -825,12 +642,12 @@ def test_without_enrollment_targets_inferred_pending_period(scene):
     scene.subject("NEXT", kind="required", period=2)
     scene.component("DONE", period=1)
     scene.history("DONE", grade=Grade.MM)
-    result = scene.get()
-    assert result["context"]["period"] == result["context"]["target_period"] == 2
-    assert {r["code"]: r["points"] for r in result["items"][0]["reasons"]} == {
+    (item,) = scene.get()
+    assert reasons(item) == {
         "required": 50,
-        "target_period": 40,
-        "same_unity": 30,
+        "target_period": 25,
+        "same_unity": 5,
+        "hours": 4,
     }
 
 
@@ -848,25 +665,6 @@ async def test_concurrent_history_removal_during_grade_sync_is_valid_empty_histo
 
     stub_sigaa.classrooms.list_grades.side_effect = grades_after_history_refresh
     assert codes(scene.get()) == ["A"]
-
-
-def test_recommendation_flags_do_not_filter_public_catalog(scene):
-    scene.subject("FGA0001", catalog_complete=False)
-    scene.subject("FGA0002", kind=None)
-    with scene.db.begin() as session:
-        session.scalar(
-            select(Classroom).where(Classroom.subject_code == "FGA0002")
-        ).listed_in_offer = False
-    assert scene.get()["items"] == []
-    for code in ("FGA0001", "FGA0002"):
-        response = scene.client.get(
-            "/public/subjects", params={"code": code, "semester": "2026.2"}
-        )
-        assert response.status_code == 200
-        (item,) = response.json()
-        assert item["code"] == code
-        assert len(item["classrooms"]) == 1
-        assert "catalog_complete" not in item
 
 
 def test_new_unsynced_history_after_grade_resolution_requires_retry(scene, monkeypatch):

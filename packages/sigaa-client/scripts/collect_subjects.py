@@ -23,7 +23,6 @@ COLUMNS = (
     "prerequisites",
     "corequisites",
     "equivalences",
-    "catalog_complete",
 )
 DETAIL_DELAY = 0.3
 
@@ -78,20 +77,7 @@ def subject_rows(
     subjects: list[tuple[int, SubjectDetails]],
 ) -> list[dict[str, object]]:
     return [
-        subject.model_dump()
-        | {
-            "unity_id": unity_id,
-            "catalog_complete": "true"
-            if (
-                subject.code
-                and subject.name.strip()
-                and subject.hours
-                and subject.hours > 0
-                and unity_id > 0
-            )
-            else "false",
-        }
-        for unity_id, subject in subjects
+        subject.model_dump() | {"unity_id": unity_id} for unity_id, subject in subjects
     ]
 
 

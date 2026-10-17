@@ -15,8 +15,8 @@ from api.modules.public_classrooms.repository import UnitIndexRepository
 def _csv(tmp_path, *lines):
     path = tmp_path / "subjects.csv"
     path.write_text(
-        "code,name,hours,unity_id,prerequisites,corequisites,equivalences,catalog_complete\n"
-        + "\n".join(line + ",true" for line in lines)
+        "code,name,hours,unity_id,prerequisites,corequisites,equivalences\n"
+        + "\n".join(lines)
         + "\n",
         encoding="utf-8",
     )
@@ -110,31 +110,3 @@ async def test_indice_acha_as_unidades_pelo_prefixo_e_ignora_prefixo_maior(
             518: "DEPTO MATEMÁTICA",
             673: "CAMPUS UNB GAMA",
         }
-
-
-def test_certificacao_explicita_sem_inferencia(tmp_path):
-    path = _csv(tmp_path, "A,NOME,60,673,,,")
-    (complete,) = read_subjects(path)
-    assert complete.catalog_complete is True
-    path.write_text(path.read_text().replace(",true", ",false"))
-    (partial,) = read_subjects(path)
-    assert partial.catalog_complete is False
-    path.write_text(path.read_text().replace(",false", ",unknown"))
-    with pytest.raises(ValueError, match="catalog_complete"):
-        read_subjects(path)
-
-
-def test_certificacao_dataset_corresponde_a_proveniencia():
-    for subject in read_subjects(SUBJECTS_CSV):
-        if subject.catalog_complete:
-            assert (
-                subject.code and subject.name and subject.hours > 0 and subject.unity_id
-            )
-        else:
-            assert subject.unity_id is None
-            assert (
-                subject.prerequisites
-                is subject.corequisites
-                is subject.equivalences
-                is None
-            )

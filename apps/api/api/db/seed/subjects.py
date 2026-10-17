@@ -21,7 +21,6 @@ def read_subjects(path: Path = SUBJECTS_CSV) -> list[Subject]:
     return read_csv(
         path,
         lambda row: Subject(
-            catalog_complete=parse_certification(row["catalog_complete"]),
             code=row["code"].strip(),
             name=row["name"].strip(),
             hours=int(row["hours"]) if row["hours"] else None,
@@ -39,7 +38,7 @@ async def seed_subjects(session: AsyncSession, path: Path = SUBJECTS_CSV) -> Non
         Subject,
         read_subjects(path),
         ("code",),
-        ("name", "hours", "unity_id", "catalog_complete", *REQUIREMENTS),
+        ("name", "hours", "unity_id", *REQUIREMENTS),
     )
 
 
@@ -84,9 +83,3 @@ def _atom(tokens: deque[str]) -> _Terms:
     if token in _OPERATORS:
         raise ValueError
     return [(token,)]
-
-
-def parse_certification(value: str) -> bool:
-    if value not in ("true", "false"):
-        raise ValueError("catalog_complete deve ser true ou false.")
-    return value == "true"

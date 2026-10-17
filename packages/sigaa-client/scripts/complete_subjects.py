@@ -50,7 +50,6 @@ async def complete_subjects(rows: list[dict[str, object]]) -> list[dict[str, obj
                         "name": subject.name,
                         "hours": subject.hours,
                         "unity_id": None,
-                        "catalog_complete": "false",
                         **dict.fromkeys(REQUIREMENTS),
                     }
             print(

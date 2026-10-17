@@ -10,6 +10,7 @@ from sqlalchemy import (
     ForeignKey,
     ForeignKeyConstraint,
     Index,
+    SmallInteger,
     Text,
     UniqueConstraint,
 )
@@ -73,7 +74,7 @@ class Curriculum(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     sigaa_id: Mapped[int] = mapped_column()
     code: Mapped[str] = mapped_column()
     valid_from: Mapped[str] = mapped_column()
-    created_year: Mapped[int] = mapped_column()
+    created_year: Mapped[int] = mapped_column(SmallInteger)
     active: Mapped[bool] = mapped_column()
     shift: Mapped[str | None] = mapped_column()
     matrix: Mapped[str] = mapped_column()
@@ -96,7 +97,7 @@ class CurriculumComponent(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     curriculum_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("curricula.id"))
     subject_code: Mapped[str] = mapped_column()
-    period: Mapped[int | None] = mapped_column()
+    period: Mapped[int | None] = mapped_column(SmallInteger)
     kind: Mapped[str] = mapped_column()
 
 
@@ -111,7 +112,7 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     email: Mapped[str | None] = mapped_column()
     bio: Mapped[str | None] = mapped_column(Text)
     course_id: Mapped[int | None] = mapped_column(ForeignKey("courses.id"))
-    integralization: Mapped[int | None] = mapped_column()
+    integralization: Mapped[int | None] = mapped_column(SmallInteger)
     workload: Mapped[dict[str, int] | None] = mapped_column(JSON)
     ira: Mapped[float | None] = mapped_column()
     mp: Mapped[float | None] = mapped_column()
@@ -145,9 +146,8 @@ class Subject(Base, TimestampMixin):
 
     code: Mapped[str] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column()
-    hours: Mapped[int | None] = mapped_column()
+    hours: Mapped[int | None] = mapped_column(SmallInteger)
     unity_id: Mapped[int | None] = mapped_column(ForeignKey("unities.id"))
-    catalog_complete: Mapped[bool] = mapped_column(default=False)
     # Expressões em OU de Es: `[["A", "B"], ["C"]]` é `(A E B) OU C`.
     prerequisites: Mapped[Requirements | None] = mapped_column(JSON)
     corequisites: Mapped[Requirements | None] = mapped_column(JSON)
@@ -170,11 +170,10 @@ class Classroom(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     semester: Mapped[str] = mapped_column()
     schedule: Mapped[str | None] = mapped_column()
     room: Mapped[str | None] = mapped_column()
-    listed_in_offer: Mapped[bool] = mapped_column(default=False, index=True)
     # Docentes, vagas e ocupação vêm da busca pública, pelo seed.
     professors: Mapped[list[str]] = mapped_column(JSON, default=list)
-    vacancies: Mapped[int | None] = mapped_column()
-    occupied: Mapped[int | None] = mapped_column()
+    vacancies: Mapped[int | None] = mapped_column(SmallInteger)
+    occupied: Mapped[int | None] = mapped_column(SmallInteger)
     subject_code: Mapped[str] = mapped_column(ForeignKey("subjects.code"))
     members_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     posts_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -224,12 +223,12 @@ class ClassroomParticipant(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     frequency_status: Mapped[FrequencyStatus | None] = mapped_column(
         _enum(FrequencyStatus, "frequency_status")
     )
-    progress_taught: Mapped[int | None] = mapped_column()
-    progress_total: Mapped[int | None] = mapped_column()
-    progress_percentage: Mapped[int | None] = mapped_column()
+    progress_taught: Mapped[int | None] = mapped_column(SmallInteger)
+    progress_total: Mapped[int | None] = mapped_column(SmallInteger)
+    progress_percentage: Mapped[int | None] = mapped_column(SmallInteger)
     # Horas-aula que o SIGAA soma; `None` enquanto o docente não lança frequência.
-    attended_hours: Mapped[int | None] = mapped_column()
-    registered_hours: Mapped[int | None] = mapped_column()
+    attended_hours: Mapped[int | None] = mapped_column(SmallInteger)
+    registered_hours: Mapped[int | None] = mapped_column(SmallInteger)
 
     user: Mapped[User] = relationship(back_populates="classroom_links")
     classroom: Mapped[Classroom] = relationship(back_populates="participant_links")
@@ -293,7 +292,7 @@ class LessonAttendance(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     status: Mapped[LessonStatus] = mapped_column(_enum(LessonStatus, "lesson_status"))
     marked: Mapped[bool] = mapped_column()
     # Horas-aula de falta pela chamada do SIGAA; a falta marcada conta a aula toda.
-    absences: Mapped[int | None] = mapped_column()
+    absences: Mapped[int | None] = mapped_column(SmallInteger)
 
 
 class ClassroomStatistic(Base, UUIDPrimaryKeyMixin, TimestampMixin):

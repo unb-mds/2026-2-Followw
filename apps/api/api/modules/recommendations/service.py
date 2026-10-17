@@ -1,6 +1,6 @@
-from typing import Annotated
+from typing import NamedTuple
 
-from fastapi import Depends, HTTPException
+from fastapi import HTTPException
 from sigaa_client import UserLevel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,16 +12,22 @@ from api.modules.classrooms.service import (
 )
 from api.modules.me.profile import ProfileService
 from api.modules.me.repository import UserRepository
-from api.modules.recommendations.ranking import Recommendations
+from api.modules.recommendations.ranking import Recommendation
 from api.modules.recommendations.repository import RecommendationRepository
-from api.sync import Cached, SyncDep
+from api.sync import Cached, Sync
+
+
+class Ranking(NamedTuple):
+    semester: str | None
+    items: list[Recommendation]
 
 
 class RecommendationService:
-    def __init__(self, sync: SyncDep) -> None:
+    def __init__(self, sync: Sync) -> None:
         self._sync = sync
 
-    async def recommend(self, limit: int) -> Recommendations:
+    async def recommend(self) -> Ranking:
+        """As matérias da oferta mais recente, ordenadas para o próximo semestre do aluno."""
         profile = await ProfileService(self._sync).get_profile()
         if profile.level != UserLevel.GRADUACAO:
             raise HTTPException(
@@ -75,11 +81,9 @@ class RecommendationService:
                 )
 
             await self._sync.resolve(sync_grades, None, load)
-        return await self._sync.db.read(
-            lambda session: RecommendationRepository(session).recommendations(
-                registration, reference, limit
+        items = await self._sync.db.read(
+            lambda session: RecommendationRepository(session).recommend(
+                registration, reference
             )
         )
-
-
-RecommendationServiceDep = Annotated[RecommendationService, Depends()]
+        return Ranking(reference, items)

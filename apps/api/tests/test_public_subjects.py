@@ -101,6 +101,8 @@ def test_componente_traz_as_turmas_do_semestre_mais_recente(catalog):
                     "occupied": None,
                 },
             ],
+            "kind": None,
+            "recommendation": None,
         }
     ]
 
@@ -266,5 +268,6 @@ def test_openapi_so_tem_os_filtros_do_banco(client):
         "code",
         "unit",
         "semester",
+        "Cache-Control",
     }
-    assert set(operation["responses"]) == {"200", "422"}
+    assert set(operation["responses"]) == {"200", "401", "422", "502", "503"}

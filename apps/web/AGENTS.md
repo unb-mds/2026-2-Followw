@@ -26,6 +26,8 @@ bun generate-api           # gera src/queries/schema.gen.ts a partir de localhos
 - Cores só pelo `@theme` de `src/styles.css`, nunca hex solto. Sem valores arbitrários
   (`text-[13px]`): use a escala do Tailwind, preferencialmente valores pares.
 - Prefira flex + gap a space- do tailwind.
+- Combine classes sempre com `cn` (`#/lib/shadcn`), nunca template literal ou `+` (regra
+  `followw/no-classname-concat`).
 - Testes em `tests/` espelhando `src/`.
 - Arquivos `*.gen.ts` são gerados: nunca edite à mão.
 

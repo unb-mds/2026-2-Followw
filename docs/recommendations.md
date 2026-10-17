@@ -1,130 +1,94 @@
-# Recomendações de matérias — MVP v2
+# Recomendações de matérias — v3
 
-`GET /me/recommendations` usa a autenticação SIGAA existente e retorna até dez
-matérias. `?limit=1..100` altera somente o tamanho da resposta. Outros parâmetros
-são rejeitados com 422; o aluno não informa curso, ingresso, período ou aprovações.
-A aba de busca de alunos de graduação autenticados exibe as recomendações, seus motivos
-e turmas quando não há texto ou filtros aplicados. Pesquisas e filtros usam a busca padrão.
-Visitantes veem a busca padrão, sem listar matérias automaticamente. As demais abas mantêm
-o comportamento original.
-A pontuação não é persistida no cache offline; atualizar força nova consulta.
+`GET /public/subjects` sem `q`, `code` e `unit` devolve as recomendações do aluno de
+graduação logado, no lugar da listagem padrão da unidade. Visitantes recebem 422, como
+antes, e usuários fora da graduação também. Com qualquer filtro, a busca é a comum.
 
-A resposta inclui `score_version`, `total` antes do limite, `items`, `context`,
-`history`, `diagnostics` e `warnings`. Cada item contém a matéria, vínculo curricular,
-score, parcelas positivas, códigos desbloqueados, alvos de equivalência, selos e turmas.
-A soma de `reasons[].points` é o score. `context.curriculum.code` identifica a versão
-selecionada; `curriculum_selection` é sempre `estimated`.
+A resposta é a mesma lista de `CatalogSubject` da busca, com as turmas do semestre da oferta,
+ordenada pelo ranking e com `recommendation: {score, reasons}` em cada matéria. Na busca
+comum, `recommendation` é `null`. A soma de `reasons[].points` é o score; nos critérios
+acumulativos, `reasons[].value` traz a quantidade medida (semestres, matérias ou horas).
+
+Para quem está logado, toda resposta do `/public/subjects` (busca ou recomendação) traz
+`kind`: `mandatory`, `optional` (inclui complementares) ou `free` (fora da matriz). Na busca
+comum, a matriz é estimada só com o que está gravado, sem ir ao SIGAA; sem login ou sem
+matriz, `kind` é `null`.
+
+A aba de busca exibe as recomendações, seus motivos e turmas para alunos de graduação quando
+não há texto ou filtros aplicados. A pontuação não é persistida no cache offline.
+
+O código fica em `api/modules/recommendations`: `ranking.py` é puro (sem banco ou rede),
+`repository.py` carrega histórico, matriz e oferta, e `service.py` sincroniza as fontes.
+O `public_subjects` só anexa o resultado ao catálogo.
 
 ## Fontes e inferência
 
-A oferta é o semestre mais recente entre as turmas com `listed_in_offer=true`,
-comparado por ano/período. O snapshot versionado é de **2026.2**: ele não comprova
-oferta futura ou lotação em tempo real. Turmas de histórico não ampliam a oferta.
-Os detalhes de horário e sala preservam os valores existentes no banco.
+A oferta é o semestre mais recente entre as turmas gravadas, comparado por ano/período.
+O `classrooms.csv` é mantido com as turmas do semestre corrente; lotação não é em tempo real.
 
 Perfil, lista própria de turmas e menções usam `Sync.resolve` e as tarefas existentes.
 Cache ausente exige sincronização; histórico sincronizado vazio é válido. Só vínculos
-próprios de aluno com semestre válido até a oferta entram no histórico. Aprovações
-SS/MS/MM no semestre alvo excluem a matéria, mas somente aprovações anteriores
-satisfazem pré/correquisitos. Reprovações posteriores não apagam aprovações.
+próprios de aluno com semestre válido até a oferta entram no histórico. A recomendação
+é para o próximo semestre: matérias aprovadas (SS/MS/MM) ou em andamento contam como
+concluídas, saem da lista e satisfazem pré/correquisitos. Reprovações posteriores não
+apagam aprovações.
 
 A matriz ativa é estimada pelo curso/turno do perfil armazenado, vigência e primeiro
 semestre disponível do histórico. Sem histórico usa-se a vigência elegível mais recente;
-se o histórico preceder todas, a mais antiga elegível, com aviso. Revisão do código e
+se o histórico preceder todas, a mais antiga elegível. Revisão do código e
 ID SIGAA desempatam. Nenhuma matriz futura ou de turno oposto é escolhida silenciosamente.
 O turno disponível vem do curso resolvido pelo sync, não de uma confirmação adicional.
 
-O período é a mediana inferior dos períodos obrigatórios em andamento. Sem eles,
-usamos o primeiro período com menos da metade dos códigos obrigatórios aprovados
-anteriormente; depois, o último com pendências; se todos foram aprovados, último + 1.
-Códigos sem detalhes de catálogo também contam no fluxo. Sem matriz utilizável, nenhuma matéria é recomendada: não é possível distinguir módulo livre.
-Com matriz e sem período inferível, permanecem os demais critérios.
-`context.period` descreve a região atual do fluxo; `context.target_period` é o alvo do bônus:
-período inferido + 1 quando há obrigatórias em andamento, ou o próprio período inferido
-pelas pendências quando não há. Atraso compara com o período atual inferido, não com o alvo.
+O período alvo é a mediana inferior dos períodos obrigatórios em andamento + 1. Sem eles,
+é o primeiro período com menos da metade das obrigatórias concluídas; depois, o último com
+pendências; se todas foram concluídas, último + 1. Códigos sem detalhes de catálogo também
+contam no fluxo. Sem matriz utilizável, nenhuma matéria é recomendada, porque não é possível
+distinguir módulo livre. Com matriz e sem período inferível, permanecem os demais critérios.
+Atraso é uma obrigatória pendente de período anterior ao alvo.
 
 ## Elegibilidade e score
 
-O universo abrange toda a universidade. Só entram matérias de catálogo certificado,
-com código/nome, carga positiva e unidade existente, e com turma marcada no semestre.
-As exclusões são contadas uma vez, nesta ordem: catálogo, aprovada, em andamento,
-pré-requisitos, correquisitos, matriz indisponível, módulo livre. Fora da matriz é módulo
-livre, exceto se a candidata completar uma equivalência a obrigatória pendente. Componentes
-complementares da matriz não são módulo livre. Regras são OU de grupos E; null/lista vazia só permitem
-matrícula quando a ausência de regra foi certificada. Equivalências não satisfazem
-requisitos e correquisitos não são projetados como matrícula simultânea.
+O universo abrange toda a universidade: entra toda matéria com turma no semestre da oferta.
+As exclusões são contadas uma vez, nesta ordem: aprovada, em andamento, pré-requisitos,
+correquisitos, matriz indisponível, módulo livre. Fora da matriz é módulo livre;
+componentes optativos e complementares da matriz não são. Regras são OU de grupos E.
+Equivalências não satisfazem requisitos e correquisitos não são projetados como matrícula
+simultânea.
+
+Critérios absolutos:
 
 | Parcela | Pontos |
 | --- | ---: |
 | Obrigatória da matriz | 50 |
-| Próximo período do fluxo | 40 |
-| Mesma unidade do curso | 30 |
-| Desbloqueio direto incremental | 5 por código, até 20 |
+| Próximo período do fluxo | 25 |
 | Obrigatória atrasada | 15 |
-| Equivalência incremental a obrigatória pendente | 10 uma vez |
-| Optativa da matriz | 5 |
+| Mesma unidade do curso | 5 |
 
-Desbloqueio compara as regras antes/depois de acrescentar a candidata às aprovações
-anteriores; só conta matérias pendentes da matriz com catálogo completo, mesmo sem
-oferta. Equivalência usa a mesma comparação na expressão cadastrada **no alvo**:
-a expressão em Y lista alternativas que substituem Y. O alvo deve ser obrigatório,
-não concluído e não estar em andamento. Optativas e complementares não dão esse bônus. Não há simetria/transitividade.
-O parser `public/classrooms.py::_parse_details` lê o campo Equivalências da tela de Y;
-a fixture `test_componentes_trazem_requisitos_e_carga_horaria_dos_detalhes` conserva
-FGA0001 como expressão de FGA0030 e ignora o histórico inativo. O teste HTTP
-`test_directional_equivalence_incremental_and_single_bonus` verifica essa direção.
+Critérios acumulativos:
 
-Score zero é válido; máximo 150. Ordenação: score decrescente, obrigatória, menor
-período positivo e código. Só depois se aplica o limite. Turmas ordenam por número/UUID.
-Turma cheia ou superlotada permanece: `availability=full`, `is_locked=true`. Se vagas
-ou ocupação estiverem ausentes, `unknown`, com campos desconhecidos nulos.
+| Parcela | Pontos |
+| --- | ---: |
+| Cadeia mais longa (`chain_length`) | 10 por semestre |
+| Cadeia mais larga (`chain_width`) | 5 por matéria |
+| Carga horária (`hours`) | 1 a cada 15 h, arredondado para baixo |
 
-## Certificação e snapshots
+As cadeias só valem para candidatas obrigatórias e usam o grafo de pré-requisitos das
+obrigatórias pendentes da matriz (não aprovadas nem em andamento), com ou sem oferta. A cadeia mais longa conta os semestres que vêm
+depois da candidata (A → B → C → D vale 30); a mais larga conta todas as descendentes,
+diretas ou indiretas. Basta a candidata aparecer em algum grupo de pré-requisito.
 
-`subjects.csv` exige `catalog_complete` (`true`/`false`). O coletor detalhado só certifica
-após ler os três campos de regras e verificar código, nome, horas e unidade. O completador
-de referências grava `false`; o sync nunca certifica e invalida a certificação ao mudar
-nome, horas ou unidade sem validar o conjunto. O seed importa a flag explicitamente.
+Ordenação: score decrescente, obrigatória, menor período positivo e código. Turmas cheias
+permanecem; as turmas vêm como na busca comum.
 
-Verificação do dataset existente em 16/10/2026:
-
-- `collect_subjects.subject_rows` associa a unidade consultada ao resultado de
-  `iter_subjects`, cujo parser exige os três campos de regras, inclusive quando vazios.
-- `complete_subjects` acrescenta referências com unidade e regras ausentes, preservando
-  as linhas originais; não há outro produtor de linhas nesse pipeline.
-- Todas as linhas com unidade possuem código, nome, carga positiva e unidade no CSV de
-  unidades. Todas as linhas sem unidade têm os três campos de regras vazios.
-- Foram certificadas as 3.487 linhas provenientes da coleta detalhada; 1.081 referências
-  permanecem parciais. A distinção depende dessa proveniência, e não de inferência do seed
-  por campos vazios. Não foi feita nova coleta online.
-
-`classrooms.csv` exige `snapshot_complete=true` em todas as linhas para ser importado.
-O coletor marca `false` com `--unit`, exige saída fora do CSV de produção e só marca
-`true` depois de concluir todas as unidades. Falha de qualquer unidade impede publicação.
-O seed rejeita arquivo vazio/parcial antes de desmarcar e troca a marcação no mesmo
-commit do upsert. Turmas removidas do arquivo e seus vínculos permanecem no banco,
-com `listed_in_offer=false`. Horário/sala de registros existentes são preservados.
-
-## Instalação e limitações
-
-As colunas novas são `Subject.catalog_complete` e `Classroom.listed_in_offer`, ambas
-com padrão false. **É necessário recriar o banco de desenvolvimento e executar o seed
-com os CSVs atualizados.** `db-init` não altera colunas existentes. Esta implementação
-não contém migrations nem aplica alterações de schema automaticamente em produção.
-Não apagar bancos com dados importantes para executar essa atualização.
-
-A pontuação é identificada como `score_version: "v2"`.
+## Cache e limitações
 
 As fontes seguem SWR, `FRESH`/`FROZEN` e diretivas de entrada `Cache-Control`.
-`no-cache` revalida fontes não congeladas; cache stale permitido é sinalizado.
-A saída personalizada sempre usa `Cache-Control: no-store`, sem cache de score.
-Os instantes em `history` são de sync local; não são datas oficiais de publicação/coleta.
+`no-cache` revalida fontes não congeladas. A resposta sempre usa `Cache-Control: no-store`.
 
-Sem autenticação: 401. Limite/parâmetros inválidos ou usuário conhecido fora da graduação:
-422. Falhas de fontes seguem os handlers existentes (502/503/504). Sem oferta válida ou
-candidatas elegíveis: 200 com lista vazia e diagnóstico. Não se completa a lista com
-matérias parciais. O histórico não inclui todas as dispensas/aproveitamentos; equivalência
-serve apenas para score/selo. O resultado não é uma grade pronta nem autorização de matrícula.
+Sessão inválida: 401. Sem filtros, visitante ou usuário fora da graduação: 422. Falhas de
+fontes seguem os handlers existentes (502/503/504). Sem oferta ou candidatas: lista vazia.
+O histórico não inclui todas as dispensas/aproveitamentos. O resultado não é uma grade
+pronta nem autorização de matrícula.
 
 ## Validação local
 

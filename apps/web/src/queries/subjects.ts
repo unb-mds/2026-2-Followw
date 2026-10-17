@@ -7,6 +7,13 @@ import { finalGrade } from '#/queries/classrooms';
 export type CatalogSubject = components['schemas']['CatalogSubject'];
 export type SubjectClassroom = components['schemas']['SubjectClassroom'];
 export type Requirements = components['schemas']['CatalogRequirements'];
+export type SubjectKind = NonNullable<CatalogSubject['kind']>;
+
+export const subjectKindLabels: Record<SubjectKind, string> = {
+    mandatory: 'Obrigatória',
+    optional: 'Optativa',
+    free: 'Módulo livre'
+};
 type SubjectsQuery = NonNullable<
     operations['search_subjects_public_subjects_get']['parameters']['query']
 >;

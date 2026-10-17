@@ -55,18 +55,18 @@ describe('loader da busca de turmas', () => {
 describe('recomendações somente na busca', () => {
     const student = { registration: '1', unity: 'FCTE', level: 'Graduação' };
     test('graduação sem texto e filtros carrega recomendações em vez da lista da unidade', async () => {
-        expect((await loadWith(student)).map((key) => key[1])).toEqual([
-            '/me',
-            '/classrooms',
-            '/me/recommendations'
-        ]);
+        const keys = await loadWith(student);
+        expect(keys.map((key) => key[1])).toEqual(['/me', '/classrooms', '/public/subjects']);
+        expect(keys[2][2]).toEqual({});
     });
     test.each(['?q=calculo', '?turno=Noite', '?disponibilidade=Disponíveis'])(
         'pesquisa ou filtro %s mantém a busca padrão',
         async (search) => {
-            const paths = (await loadWith(student, search)).map((key) => key[1]);
-            expect(paths).toContain('/public/subjects');
-            expect(paths).not.toContain('/me/recommendations');
+            const subjects = (await loadWith(student, search)).filter(
+                (key) => key[1] === '/public/subjects'
+            );
+            expect(subjects).toHaveLength(1);
+            expect(subjects[0][2]).toHaveProperty('params.query');
         }
     );
     test('visitante não carrega recomendações', async () => {

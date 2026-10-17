@@ -1,6 +1,7 @@
 import { Link, type LinkProps } from '@tanstack/react-router';
 
 import { buttonVariants } from '#/components/ui/button';
+import { cn } from '#/lib/shadcn';
 
 interface SectionHeaderProps {
     title: string;
@@ -13,10 +14,10 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
     title,
     actionLabel,
     actionTo,
-    className = ''
+    className
 }) => {
     return (
-        <div className={`mb-3 flex items-center justify-between ${className}`}>
+        <div className={cn('mb-3 flex items-center justify-between', className)}>
             <div className="flex items-center gap-2.5">
                 <h2 className="text-xl font-bold tracking-tight text-foreground">{title}</h2>
             </div>
