@@ -1,36 +1,42 @@
 {
-  "version": 1,
-  "skills": {
-    "codebase-design": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "skillPath": "skills/engineering/codebase-design/SKILL.md",
-      "computedHash": "5a17552cc1482f1a40124bf4e6c9dbd90ac0dbb47e71c07d47369f9e5f2ae3b5"
-    },
-    "grill-me": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "skillPath": "skills/productivity/grill-me/SKILL.md",
-      "computedHash": "9cdbb4b8f7a3aeaef82e6230c9e823500d4a8a1214c726cf342cf9829d34fc7d"
-    },
-    "scalar-docs": {
-      "source": "scalar/scalar",
-      "sourceType": "github",
-      "skillPath": ".agents/skills/scalar-docs/SKILL.md",
-      "computedHash": "13307156d2fc92d5fe8ab4899dcd06bf2e33d6fb2c714c821d50f59eea9f6c34"
-    },
-    "security-audit": {
-      "source": "cloudflare/security-audit-skill",
-      "sourceType": "github",
-      "skillPath": "skills/security-audit/SKILL.md",
-      "computedHash": "98b97aad2873b3b9a8e064007c25e7827b493ba27fda8bfbdb41dab586767973"
-    },
-    "thermo-nuclear-code-quality-review": {
-      "source": "cursor/plugins",
-      "ref": "main",
-      "sourceType": "github",
-      "skillPath": "cursor-team-kit/skills/thermo-nuclear-code-quality-review/SKILL.md",
-      "computedHash": "9052b01b46b1d8dbf94c45f9313ec1983443f9a460e83d49cdc7fe0f640ca476"
+    "version": 1,
+    "skills": {
+        "codebase-design": {
+            "source": "mattpocock/skills",
+            "sourceType": "github",
+            "skillPath": "skills/engineering/codebase-design/SKILL.md",
+            "computedHash": "5a17552cc1482f1a40124bf4e6c9dbd90ac0dbb47e71c07d47369f9e5f2ae3b5"
+        },
+        "frontend-design": {
+            "source": "anthropics/skills",
+            "sourceType": "github",
+            "skillPath": "skills/frontend-design/SKILL.md",
+            "computedHash": "89496d5dd00f4810205f351759594fc2742bf8eea85a2f2b2d1de59f4bd91576"
+        },
+        "grill-me": {
+            "source": "mattpocock/skills",
+            "sourceType": "github",
+            "skillPath": "skills/productivity/grill-me/SKILL.md",
+            "computedHash": "9cdbb4b8f7a3aeaef82e6230c9e823500d4a8a1214c726cf342cf9829d34fc7d"
+        },
+        "scalar-docs": {
+            "source": "scalar/scalar",
+            "sourceType": "github",
+            "skillPath": ".agents/skills/scalar-docs/SKILL.md",
+            "computedHash": "13307156d2fc92d5fe8ab4899dcd06bf2e33d6fb2c714c821d50f59eea9f6c34"
+        },
+        "security-audit": {
+            "source": "cloudflare/security-audit-skill",
+            "sourceType": "github",
+            "skillPath": "skills/security-audit/SKILL.md",
+            "computedHash": "98b97aad2873b3b9a8e064007c25e7827b493ba27fda8bfbdb41dab586767973"
+        },
+        "thermo-nuclear-code-quality-review": {
+            "source": "cursor/plugins",
+            "ref": "main",
+            "sourceType": "github",
+            "skillPath": "cursor-team-kit/skills/thermo-nuclear-code-quality-review/SKILL.md",
+            "computedHash": "9052b01b46b1d8dbf94c45f9313ec1983443f9a460e83d49cdc7fe0f640ca476"
+        }
     }
-  }
 }
