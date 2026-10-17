@@ -51,6 +51,8 @@ uv run api                        # sobe a API em http://localhost:8000
 ```
 
 A documentação interativa fica em `http://localhost:8000/docs`.
+O [recomendador de matérias](docs/recommendations.md) responde em `GET /public/subjects` sem
+filtros, para alunos de graduação logados; a documentação descreve a inferência e o score.
 
 Recursos públicos, consultáveis sem login, usam o prefixo `/public`:
 

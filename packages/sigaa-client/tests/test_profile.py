@@ -19,6 +19,7 @@ CARD = """
     <tr><td>Matrícula:</td><td>251000000</td></tr>
     <tr><td>Curso:</td><td>ENGENHARIA DE SOFTWARE/FCTE - Bacharelado</td></tr>
     <tr><td>Nível:</td><td>Graduação</td></tr>
+    <tr><td>Entrada:</td><td>2025.1</td></tr>
     <tr><td colspan="2">
       <table>
         <tr><td><acronym title="Índice de Rendimento Acadêmico">IRA:</acronym></td><td>3.9524</td></tr>
@@ -80,6 +81,7 @@ async def test_get_profile_faz_um_unico_get():
     assert profile.registration == "251000000"
     assert (profile.course, profile.unity) == ("ENGENHARIA DE SOFTWARE", "FCTE")
     assert profile.shift == CourseShift.DIURNO
+    assert profile.entry_semester == "2025.1"
     assert profile.bio == "Bio de teste."
     assert profile.ira == 3.9524
     assert profile.mp == 4.1724
@@ -119,6 +121,15 @@ async def test_get_profile_sem_indices_academicos_vem_none():
     assert profile.ira is None
     assert profile.mp is None
     assert profile.workload is None
+    assert profile.entry_semester is None
+
+
+@pytest.mark.parametrize("value", ["2025", "2025.0", "25.1", "2025/1"])
+async def test_entrada_fora_do_formato_e_barulhenta(value):
+    sigaa = FakeDashboard(page=DASHBOARD.replace("2025.1", value))
+    async with SigaaClient(session_token="tok", transport=sigaa.transport) as client:
+        with pytest.raises(SigaaParseError):
+            await client.profile.get_profile()
 
 
 async def test_carga_horaria_incompleta_e_barulhenta():

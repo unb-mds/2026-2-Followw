@@ -1,12 +1,14 @@
 import csv
+import logging
 from pathlib import Path
 
 from sigaa_client import Curriculum as PublicCurriculum
-from sqlalchemy import delete, insert, select
+from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.models import Course, Curriculum, CurriculumComponent
 from api.db.seed import DATA_DIR, upsert
+from api.logger import event
 
 CURRICULA_CSV = DATA_DIR / "curricula.csv"
 COMPONENTS_CSV = DATA_DIR / "curriculum_components.csv"
@@ -151,10 +153,27 @@ async def seed_curricula(
                 }
                 for code in codes
             )
-    # O CSV é o dataset completo: matrizes fora dele saem do banco.
-    await session.execute(delete(CurriculumComponent))
-    await session.execute(delete(Curriculum).where(Curriculum.id.not_in(identifiers)))
+    # Matrizes fora do CSV ficam inativas, com os componentes, pois usuários ainda as usam.
+    await session.execute(
+        delete(CurriculumComponent).where(
+            CurriculumComponent.curriculum_id.in_(identifiers)
+        )
+    )
+    await session.execute(
+        update(Curriculum).where(Curriculum.id.not_in(identifiers)).values(active=False)
+    )
     for start in range(0, len(components), 1000):
         await session.execute(
             insert(CurriculumComponent), components[start : start + 1000]
+        )
+    inactive = await session.scalars(
+        select(Curriculum.course_id)
+        .group_by(Curriculum.course_id)
+        .having(func.count().filter(Curriculum.active.is_(True)) == 0)
+    )
+    if count := len(inactive.all()):
+        event(
+            "seed.courses_without_active_curriculum",
+            level=logging.ERROR,
+            course_count=count,
         )

@@ -29,6 +29,7 @@ class SubjectCatalogRepository:
         self,
         *,
         code: str | None = None,
+        codes: set[str] | None = None,
         unity_id: int | None = None,
         semester: str | None = None,
     ) -> list[Subject]:
@@ -39,6 +40,8 @@ class SubjectCatalogRepository:
         query = select(Subject).order_by(Subject.code)
         if code is not None:
             query = query.where(Subject.code == code)
+        if codes is not None:
+            query = query.where(Subject.code.in_(codes))
         if unity_id is not None:
             query = query.where(Subject.unity_id == unity_id)
         # Sem semestre não há turma gravada, então o filtro não tira nada.

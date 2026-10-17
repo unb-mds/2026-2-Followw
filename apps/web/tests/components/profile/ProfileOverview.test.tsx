@@ -18,6 +18,7 @@ const user: components['schemas']['UserProfile'] = {
     unity: 'FCTE',
     course: 'ENGENHARIA DE SOFTWARE',
     shift: 'DIURNO',
+    entry_semester: null,
     integralization: 62.5,
     workload: null,
     ira: 3.5,

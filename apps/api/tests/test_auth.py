@@ -15,7 +15,7 @@ LOGIN = {"registration": "251000000", "password": "senha123"}
 
 
 @pytest.mark.parametrize("shadow", [False, True])
-def test_registered_at_marks_first_login_and_survives_refresh(
+def test_registered_at_marca_o_primeiro_login_e_sobrevive_ao_refresh(
     client, sigaa, database, shadow
 ):
     old = datetime.now(UTC) - timedelta(days=30)
@@ -49,7 +49,7 @@ def test_registered_at_marks_first_login_and_survives_refresh(
         assert session.scalar(select(User)).registered_at == registered
 
 
-def test_registered_at_does_not_depend_on_job_publication(
+def test_registered_at_nao_depende_da_publicacao_do_job(
     client, sigaa, qstash, database
 ):
     qstash.unavailable = True
@@ -60,7 +60,7 @@ def test_registered_at_does_not_depend_on_job_publication(
         assert user.profile_synced_at is None
 
 
-def test_rejected_login_does_not_register_shadow(client, sigaa, database):
+def test_login_rejeitado_nao_registra_o_usuario_sombra(client, sigaa, database):
     with database.begin() as session:
         session.add(User(name="Participante", registration=LOGIN["registration"]))
     sigaa.password = "different"

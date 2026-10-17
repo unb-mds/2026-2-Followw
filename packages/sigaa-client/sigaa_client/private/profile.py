@@ -15,6 +15,7 @@ from ..utils.parsing import (
 from .session import Session
 
 _INTEGRALIZATION_RE = re.compile(r"(\d+)\s*%\s*Integralizado")
+_SEMESTER_RE = re.compile(r"\d{4}\.[1-9]")
 
 _WORKLOAD_LABELS = {
     "total": "ch. total currículo",
@@ -56,6 +57,7 @@ class Profile:
             unity=unity,
             course=course,
             shift=course_shift(raw_course),
+            entry_semester=_entry_semester(fields),
             integralization=_integralization(card),
             workload=_workload(fields),
             ira=_academic_index(fields, "ira"),
@@ -109,6 +111,15 @@ def _photo(card: Tag) -> str | None:
 def _integralization(card: Tag) -> int | None:
     match = _INTEGRALIZATION_RE.search(clean_text(card))
     return int(match.group(1)) if match else None
+
+
+def _entry_semester(fields: dict[str, str]) -> str | None:
+    value = fields.get("entrada")
+    if not value:
+        return None
+    if not _SEMESTER_RE.fullmatch(value):
+        raise SigaaParseError(f"Entrada `{value}` do perfil fora do formato AAAA.P.")
+    return value
 
 
 def _workload(fields: dict[str, str]) -> CurriculumWorkload | None:

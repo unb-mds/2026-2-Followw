@@ -51,3 +51,25 @@ describe('loader da busca de turmas', () => {
         expect(Route.options.shouldReload({ cause: 'enter' })).toBe(true);
     });
 });
+
+describe('recomendações somente na busca', () => {
+    const student = { registration: '1', unity: 'FCTE', level: 'Graduação' };
+    test('graduação sem texto e filtros carrega recomendações em vez da lista da unidade', async () => {
+        const keys = await loadWith(student);
+        expect(keys.map((key) => key[1])).toEqual(['/me', '/classrooms', '/public/subjects']);
+        expect(keys[2][2]).toEqual({});
+    });
+    test.each(['?q=calculo', '?turno=Noite', '?disponibilidade=Disponíveis'])(
+        'pesquisa ou filtro %s mantém a busca padrão',
+        async (search) => {
+            const subjects = (await loadWith(student, search)).filter(
+                (key) => key[1] === '/public/subjects'
+            );
+            expect(subjects).toHaveLength(1);
+            expect(subjects[0][2]).toHaveProperty('params.query');
+        }
+    );
+    test('visitante não carrega recomendações', async () => {
+        expect((await loadWith(null)).map((key) => key[1])).toEqual(['/me']);
+    });
+});

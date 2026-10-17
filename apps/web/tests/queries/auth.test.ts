@@ -21,6 +21,7 @@ const user: components['schemas']['UserProfile'] = {
     unity: 'FCTE',
     course: 'Engenharia de Software',
     shift: 'DIURNO',
+    entry_semester: null,
     integralization: null,
     workload: null,
     ira: null,
@@ -60,7 +61,7 @@ describe('clearSession', () => {
         expect(queryClient.getQueryState(classroomsQueryOptions.queryKey)).toBeUndefined();
     });
 
-    test('remove todos os dados da conta e mantém os públicos', async () => {
+    test('remove todos os dados da conta, inclusive os públicos', async () => {
         const { queryClient } = getContext();
         const posts = classroomPostsQueryOptions('turma-1').queryKey;
         const menu = menuQueryOptions({ date: '2026-10-06' }).queryKey;
@@ -71,8 +72,7 @@ describe('clearSession', () => {
         await clearSession(queryClient);
 
         expect(queryClient.getQueryState(posts)).toBeUndefined();
-        const cachedMenu: unknown = queryClient.getQueryData(menu);
-        expect(cachedMenu).toEqual([]);
+        expect(queryClient.getQueryState(menu)).toBeUndefined();
     });
 
     test('remove também queries com chave fora do padrão da API', async () => {
@@ -162,8 +162,8 @@ describe('startSession', () => {
 
     test('não reaproveita um /me que saiu antes dos cookies do login', async () => {
         const { queryClient } = getContext();
-        let release = noop;
-        let markStarted = noop;
+        let release: () => void = noop;
+        let markStarted: () => void = noop;
         const started = new Promise<void>((resolve) => (markStarted = resolve));
         let calls = 0;
         middleware = {

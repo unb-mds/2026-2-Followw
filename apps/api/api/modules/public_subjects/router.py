@@ -1,11 +1,12 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Response
 from pydantic import StringConstraints
 
-from api.cache import NoStore
+from api.cache import no_store
 from api.modules.public_classrooms.code import CLASSROOM_CODE_PATTERN
 from api.modules.public_subjects.service import CatalogSubject, PublicSubjectServiceDep
+from api.sync import OptionalSyncDep
 
 router = APIRouter()
 
@@ -14,16 +15,24 @@ router = APIRouter()
     "",
     response_model=list[CatalogSubject],
     summary="Buscar matérias com suas turmas",
-    description="Consulta os componentes e turmas gravados no Followw, sem ir ao SIGAA. Informe ao menos q, code ou unit; os filtros se combinam. Cada componente traz as turmas do semestre consultado, vazias se não houver oferta.",
+    description="Consulta os componentes e turmas gravados no Followw, sem ir ao SIGAA; os filtros se combinam. Cada componente traz as turmas do semestre consultado, vazias se não houver oferta. Sem q, code e unit, um aluno de graduação logado recebe as recomendações para o próximo semestre, ordenadas e com `recommendation`; visitantes precisam informar um filtro.",
     responses={
+        401: {"description": "Sessão inválida ao buscar recomendações."},
         422: {
-            "description": "Nenhum filtro informado, filtro inválido, unidade inexistente ou nome de unidade ambíguo."
+            "description": "Visitante sem filtro, usuário fora da graduação ou sem matriz identificada sem filtro, filtro inválido, unidade inexistente ou nome de unidade ambíguo."
+        },
+        502: {
+            "description": "Falha no SIGAA ao sincronizar o histórico das recomendações."
+        },
+        503: {
+            "description": "Histórico alterado durante a consulta das recomendações."
         },
     },
-    dependencies=[NoStore],
 )
 async def search_subjects(
     service: PublicSubjectServiceDep,
+    sync: OptionalSyncDep,
+    response: Response,
     q: Annotated[
         str | None,
         Query(
@@ -57,4 +66,8 @@ async def search_subjects(
         ),
     ] = None,
 ) -> list[CatalogSubject]:
-    return await service.search(q, code=code, unit=unit, semester=semester)
+    subjects = await service.search(
+        q, code=code, unit=unit, semester=semester, sync=sync
+    )
+    no_store(response)
+    return subjects

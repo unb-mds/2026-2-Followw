@@ -56,9 +56,9 @@ sozinho (`autoUpdate`: `skipWaiting` + `clientsClaim`).
 
 ## Logout e sessão expirada
 
-`clearSession` (e o login, que espera a limpeza terminar) remove todas as queries, exceto as de
-`/public/*` e o `/me`, e chama `clearOfflineData`, que apaga o IndexedDB e o HTML em cache (que traz
-dados do SSR). O cardápio público continua salvo.
+`clearSession` (e o login, que espera a limpeza terminar) remove todas as queries, exceto o `/me`
+(zerado em seguida), e chama `clearOfflineData`, que apaga o IndexedDB e o HTML em cache (que traz
+dados do SSR).
 
 ## Testar
 

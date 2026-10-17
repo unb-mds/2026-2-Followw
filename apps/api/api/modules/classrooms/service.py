@@ -9,8 +9,6 @@ from sigaa_client import (
     ClassroomNotFound,
     ClassroomRole,
     Grade,
-    StatisticsShare,
-    StudentSituation,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,8 +25,6 @@ from api.sync.engine import Task
 CLASSROOMS_TTL = timedelta(hours=72)
 # Detalhes das turmas atuais; os de semestres passados não mudam.
 DETAILS_TTL = timedelta(hours=24)
-
-_SITUATIONS = list(StudentSituation)
 
 
 def details_ttl(link: OwnLink) -> timedelta | None:
@@ -199,29 +195,6 @@ class ClassroomService:
         return sorted(
             members, key=lambda m: (m.role != ClassroomRole.PROFESSOR, m.name)
         )
-
-    async def list_statistics(self, classroom_id: str) -> list[StatisticsShare]:
-        link = await self.get_link(classroom_id)
-
-        async def load(session: AsyncSession) -> Cached[list[StatisticsShare]] | None:
-            repository = ClassroomRepository(session)
-            classroom = await repository.get(link.row.classroom_id)
-            statistics = await repository.get_statistics(link.row.classroom_id)
-            if (
-                classroom is None
-                or classroom.statistics_synced_at is None
-                or statistics is None
-            ):
-                return None
-            return Cached(
-                [StatisticsShare.model_validate(share) for share in statistics.data],
-                classroom.statistics_synced_at,
-                statistics_freshness(classroom.statistics_synced_at),
-            )
-
-        shares = await self._sync.resolve(sync_statistics, link, load)
-
-        return sorted(shares, key=lambda s: _SITUATIONS.index(s.situation))
 
     async def get_link(self, classroom_id: str) -> OwnLink:
         """O vínculo pelo `Classroom.id` ou pelo `sigaa_id` da turma."""

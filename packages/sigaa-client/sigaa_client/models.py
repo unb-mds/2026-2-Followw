@@ -96,6 +96,7 @@ class UserProfile(BaseModel):
     unity: str
     course: str
     shift: CourseShift | None
+    entry_semester: str | None
     integralization: int | None
     workload: CurriculumWorkload | None
     ira: float | None

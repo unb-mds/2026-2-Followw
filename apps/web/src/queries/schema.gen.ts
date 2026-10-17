@@ -181,23 +181,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/classrooms/{classroom_id}/statistics": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Consultar a situação dos discentes de uma turma do usuário */
-        get: operations["get_classroom_statistics_classrooms__classroom_id__statistics_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/public/classrooms": {
         parameters: {
             query?: never;
@@ -301,7 +284,7 @@ export interface paths {
         };
         /**
          * Buscar matérias com suas turmas
-         * @description Consulta os componentes e turmas gravados no Followw, sem ir ao SIGAA. Informe ao menos q, code ou unit; os filtros se combinam. Cada componente traz as turmas do semestre consultado, vazias se não houver oferta.
+         * @description Consulta os componentes e turmas gravados no Followw, sem ir ao SIGAA; os filtros se combinam. Cada componente traz as turmas do semestre consultado, vazias se não houver oferta. Sem q, code e unit, um aluno de graduação logado recebe as recomendações para o próximo semestre, ordenadas e com `recommendation`; visitantes precisam informar um filtro.
          */
         get: operations["search_subjects_public_subjects_get"];
         put?: never;
@@ -463,6 +446,9 @@ export interface components {
             unity_name?: string | null;
             /** Classrooms */
             classrooms: components["schemas"]["SubjectClassroom"][];
+            /** Kind */
+            kind?: ("mandatory" | "optional" | "free") | null;
+            recommendation?: components["schemas"]["SubjectRecommendation"] | null;
         };
         /** ClassroomFrequencyResult */
         ClassroomFrequencyResult: {
@@ -820,6 +806,8 @@ export interface components {
             /** Unity */
             unity: string | null;
         };
+        /** @enum {string} */
+        ReasonCode: "required" | "target_period" | "overdue" | "same_unity" | "chain_length" | "chain_width" | "hours";
         Requirements: string[][];
         /** RestaurantCredentials */
         RestaurantCredentials: {
@@ -863,24 +851,6 @@ export interface components {
             password: string;
         };
         /**
-         * StatisticsShare
-         * @description Uma fatia do gráfico de estatísticas: a porcentagem dos discentes da turma.
-         *
-         *     O SIGAA arredonda cada fatia em uma casa, então a soma pode fechar em 99.9
-         *     ou 100.1. O gráfico não expõe a contagem de alunos, só a porcentagem.
-         */
-        StatisticsShare: {
-            situation: components["schemas"]["StudentSituation"];
-            /** Percentage */
-            percentage: number;
-        };
-        /**
-         * StudentSituation
-         * @description As situações do gráfico "Situação dos Discentes", na ordem da legenda.
-         * @enum {string}
-         */
-        StudentSituation: "aprovado" | "reprovado" | "reprovado_por_faltas" | "reprovado_por_media_e_por_faltas" | "aprovado_por_nota" | "reprovado_por_nota" | "reprovado_por_nota_e_faltas" | "trancado" | "matriculado";
-        /**
          * Subject
          * @description Componente curricular, nos campos da tabela `subjects`.
          */
@@ -923,6 +893,20 @@ export interface components {
             schedule?: string | null;
             /** Room */
             room?: string | null;
+        };
+        /** SubjectReason */
+        SubjectReason: {
+            code: components["schemas"]["ReasonCode"];
+            /** Value */
+            value?: number | null;
+        };
+        /**
+         * SubjectRecommendation
+         * @description Motivos da posição no ranking, do mais ao menos relevante.
+         */
+        SubjectRecommendation: {
+            /** Reasons */
+            reasons: components["schemas"]["SubjectReason"][];
         };
         /** SubjectReference */
         SubjectReference: {
@@ -983,6 +967,8 @@ export interface components {
             course: string | null;
             /** Shift */
             shift: string | null;
+            /** Entry Semester */
+            entry_semester: string | null;
             /** Integralization */
             integralization: number | null;
             workload: components["schemas"]["CurriculumWorkload"] | null;
@@ -1563,62 +1549,6 @@ export interface operations {
             };
         };
     };
-    get_classroom_statistics_classrooms__classroom_id__statistics_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description `no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache). */
-                "Cache-Control"?: string | null;
-            };
-            path: {
-                /** @description Classroom.id ou Classroom.sigaa_id. */
-                classroom_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StatisticsShare"][];
-                };
-            };
-            /** @description Credenciais ausentes ou inválidas. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Turma não encontrada entre as turmas do usuário. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            /** @description SIGAA indisponível. */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     search_classrooms_public_classrooms_get: {
         parameters: {
             query?: {
@@ -1838,7 +1768,10 @@ export interface operations {
                 /** @description Semestre das turmas, no formato AAAA.P. Sem ele, usa o mais recente gravado. */
                 semester?: string | null;
             };
-            header?: never;
+            header?: {
+                /** @description `no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache). */
+                "Cache-Control"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -1853,8 +1786,29 @@ export interface operations {
                     "application/json": components["schemas"]["CatalogSubject"][];
                 };
             };
-            /** @description Nenhum filtro informado, filtro inválido, unidade inexistente ou nome de unidade ambíguo. */
+            /** @description Sessão inválida ao buscar recomendações. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Visitante sem filtro, usuário fora da graduação ou sem matriz identificada sem filtro, filtro inválido, unidade inexistente ou nome de unidade ambíguo. */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Falha no SIGAA ao sincronizar o histórico das recomendações. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Histórico alterado durante a consulta das recomendações. */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

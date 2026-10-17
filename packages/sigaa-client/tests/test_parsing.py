@@ -33,7 +33,7 @@ def test_lookup_key_ignora_acento_caixa_e_espacos(value, expected):
     "value,expected",
     [("60h", 60), (" 30 H ", 30), ("0h", 0), ("-", None), ("60", None), ("", None)],
 )
-def test_parse_hours(value, expected):
+def test_parse_hours_le_a_carga_horaria(value, expected):
     assert parse_hours(value) == expected
 
 

@@ -2,6 +2,7 @@ import { ChevronDown } from 'lucide-react';
 
 import { FollowwLogo } from '#/components/FollowwLogo';
 import { Button } from '#/components/ui/button';
+import { cn } from '#/lib/shadcn';
 
 interface HeaderBarProps {
     children?: React.ReactNode;
@@ -44,9 +45,10 @@ export const HeaderToggle: React.FC<HeaderToggleProps> = ({ children, open, onTo
     >
         <HeaderTitle>{children}</HeaderTitle>
         <ChevronDown
-            className={`size-4 text-muted-foreground transition-transform duration-200 group-hover:text-primary ${
-                open ? 'rotate-180 text-primary' : ''
-            }`}
+            className={cn(
+                'size-4 text-muted-foreground transition-transform duration-200 group-hover:text-primary',
+                open && 'rotate-180 text-primary'
+            )}
         />
     </Button>
 );

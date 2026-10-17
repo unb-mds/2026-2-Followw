@@ -7,6 +7,7 @@
         "suspicious": "warn",
         "perf": "warn"
     },
+    "jsPlugins": ["./apps/web/lint/followw-plugin.js"],
     "options": {
         "typeAware": true,
         "reportUnusedDisableDirectives": "warn"
@@ -21,6 +22,7 @@
         "jsx-a11y/anchor-is-valid": "off",
         "jsx-a11y/no-noninteractive-element-interactions": "off",
         "typescript/no-deprecated": "error",
+        "followw/no-classname-concat": "error",
         "no-restricted-globals": [
             "error",
             { "name": "fetch", "message": "Use o client de src/queries." }
