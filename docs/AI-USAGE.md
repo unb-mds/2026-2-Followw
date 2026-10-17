@@ -19,6 +19,8 @@ da disciplina, é uma parte que exige menos esforço criativo e permite um certo
 
 - Modelos do banco: O processo de estruturação das tabelas foi planejado sem nenhum uso de IA. Porém, na tradução para o ORM e a aplicação em código, foi utilizado auxilio de agentes, buscando evitar processos repetitivos e acelarar o andamento do projeto.
 
+- Interface do Front-End: O uso de IA no processo de criação da interface visual foi moderado, apenas usado na montagem da interface. Os componentes individualmente e o planejamento do layout foram pensados e executados manualmente pela equipe Followw (execução manual apenas dos componentes, o planejamento do layout foi executado com ajuda dos agentes de IA).
+
 ## Uso irrelevante ou nulo
 
 - Documentação: Os relatórios das sprints, requisitos e segurança não tiveram uso relevante de IA, todo o emprego de agentes de IA envolvido em documentação foi na organização do arquivo final, por meio da criação de templates, especificado no caso do Template.md nas sprints e no arquivo de requisitos. 
@@ -33,13 +35,19 @@ da disciplina, é uma parte que exige menos esforço criativo e permite um certo
 
 - Modelos:
     - Claude Soonet 5 (Eliabe)
-    - Claude Opus 5.5 (Eliabe)
-    - Gemini Flash 3.8 (Gaspar, Kauã, Paizão, Samuel)
+    - Claude Opus 5.5 e 6.1 (Eliabe)
+    - Gemini Flash 3.8 (Gaspar, Kauã, Gabriel da Cruz, Samuel)
+    - Gemini 4 Argon (Samuel e Kauã)
     - GPT 5.6-Luna (Galvão)
     - GPT 6-Astra (Diego)
+    - 
 - Skills:
-    - grill-me: Todos
+    - grill-me: Uso geral
     - scalar-docs: Kauã e Samuel
+    - thermo-nuclear-code-quality-review: Elibe
+    - security-audit: Eliabe e Diego
+    - codebase-design: Uso geral
+
 - MCPs:
     - Playwright: para ajudar na criação dos scrappers (Eliabe, Diego)
     - Vercel: para criar os projetos, as configurações de deploy foram feitas manualmente
