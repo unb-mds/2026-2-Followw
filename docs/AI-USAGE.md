@@ -23,7 +23,7 @@ da disciplina, é uma parte que exige menos esforço criativo e permite um certo
 
 ## Uso irrelevante ou nulo
 
-- Documentação: Os relatórios das sprints, requisitos e segurança não tiveram uso relevante de IA, todo o emprego de agentes de IA envolvido em documentação foi na organização do arquivo final, por meio da criação de templates, especificado no caso do Template.md nas sprints e no arquivo de requisitos. 
+- Documentação: Os relatórios das sprints, requisitos e arquitetura não tiveram uso relevante de IA, todo o emprego de agentes de IA envolvido em documentação foi na organização do arquivo final, por meio da criação de templates, especificado no caso do Template.md nas sprints e no arquivo de requisitos. Na arquitetura foi usado apenas para a adição da ferramenta de diagramas dinâmicos. 
 
 - Instalação dos arquivos base: as ferramentas de cli como `uv init`, `bun create vite`, etc. já fazem este papel, não é necessário usar IA nessas etapas.
 
@@ -40,7 +40,7 @@ da disciplina, é uma parte que exige menos esforço criativo e permite um certo
     - Gemini 4 Argon (Samuel e Kauã)
     - GPT 5.6-Luna (Galvão)
     - GPT 6-Astra (Diego)
-    - 
+
 - Skills:
     - grill-me: Uso geral
     - scalar-docs: Kauã e Samuel
