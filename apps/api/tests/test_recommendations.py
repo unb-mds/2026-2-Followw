@@ -63,6 +63,7 @@ class Scenario:
                 entry_semester="2025.1",
                 profile_synced_at=NOW,
                 classrooms_synced_at=NOW,
+                grades_synced_at=NOW,
             )
             session.add(user)
             session.flush()
@@ -138,7 +139,6 @@ class Scenario:
         role=ClassroomRole.ALUNO,
         own=True,
         user_id=None,
-        synced=NOW,
         status=None,
     ):
         with self.db.begin() as session:
@@ -157,7 +157,6 @@ class Scenario:
                 or (
                     ClassroomStatus.CURSANDO if enrolled else ClassroomStatus.CONCLUIDO
                 ),
-                grade_synced_at=synced,
                 current=enrolled,
             )
             session.add(row)
@@ -586,7 +585,8 @@ async def test_optativas_e_complementares_nao_ganham_bonus_de_tipo(scene, ranked
 def test_mencoes_ausentes_sincronizam_antes_do_ranking(scene, stub_sigaa):
     scene.subject("A")
     scene.subject("B", prerequisites=[["A"]])
-    scene.history("A", synced=None)
+    scene.history("A")
+    scene.user(grades_synced_at=None)
     stub_sigaa.classrooms.list_grades.return_value = [
         ClassroomGrade(subject_code="A", semester="2026.1", grade=Grade.MM)
     ]
@@ -606,7 +606,8 @@ def test_historico_ausente_difere_de_sincronizado_vazio(scene, stub_sigaa):
 
 def test_only_if_cached_sem_historico_e_falha_na_origem(scene, stub_sigaa):
     scene.subject("A")
-    scene.history("B", synced=None)
+    scene.history("B")
+    scene.user(grades_synced_at=None)
     assert (
         scene.client.get(URL, headers={"Cache-Control": "only-if-cached"}).status_code
         == 504
@@ -618,12 +619,8 @@ def test_only_if_cached_sem_historico_e_falha_na_origem(scene, stub_sigaa):
 def test_mencoes_vencidas_com_swr_e_no_cache(scene, stub_sigaa, qstash):
     scene.subject("A")
     # Trancada: sem menção, não conta como em andamento.
-    link_id = scene.history(
-        "A",
-        term="2026.2",
-        synced=NOW - timedelta(days=2),
-        status=ClassroomStatus.TRANCADO,
-    )
+    link_id = scene.history("A", term="2026.2", status=ClassroomStatus.TRANCADO)
+    scene.user(grades_synced_at=NOW - timedelta(days=2))
     stub_sigaa.classrooms.list_grades.return_value = [
         ClassroomGrade(subject_code="A", semester="2026.2", grade=Grade.MM)
     ]
@@ -635,7 +632,7 @@ def test_mencoes_vencidas_com_swr_e_no_cache(scene, stub_sigaa, qstash):
     with scene.db.begin() as session:
         row = session.get(ClassroomParticipant, link_id)
         row.grade = None
-        row.grade_synced_at = NOW
+        session.get(User, scene.user_id).grades_synced_at = NOW
     # A revalidação das turmas precisa preservar o vínculo da fonte sintética.
     with scene.db() as session:
         row = session.get(ClassroomParticipant, link_id)
@@ -727,15 +724,12 @@ async def test_referencia_normalizada_da_matriz_conta_sem_oferta(scene, ranked):
     assert x["chain_length"] == 10 and x["chain_width"] == 5
 
 
-def test_datas_congeladas_nao_envelhecem_mencoes_mutaveis_com_stale_if_error(
-    scene, stub_sigaa
-):
+def test_mencoes_vencidas_servem_stale_if_error(scene, stub_sigaa):
     scene.subject("A")
     scene.subject("B")
-    scene.history(
-        "OLD", grade=Grade.MM, term="2020.1", synced=datetime(2021, 1, 1, tzinfo=UTC)
-    )
-    scene.history("A", term="2026.2", synced=NOW - timedelta(days=2))
+    scene.history("OLD", grade=Grade.MM, term="2020.1")
+    scene.history("A", term="2026.2")
+    scene.user(grades_synced_at=NOW - timedelta(days=2))
     with scene.db() as session:
         links = list(session.scalars(select(ClassroomParticipant)))
         stub_sigaa.classrooms.list_classrooms.return_value = [
@@ -804,7 +798,8 @@ async def test_historico_removido_durante_sync_das_mencoes_e_vazio_valido(
     scene, async_database, stub_sigaa
 ):
     scene.subject("A")
-    link_id = scene.history("OLD", synced=None)
+    link_id = scene.history("OLD")
+    scene.user(grades_synced_at=None)
 
     async def grades_after_history_refresh():
         async with async_database.begin() as session:
@@ -826,7 +821,9 @@ def test_historico_novo_apos_resolver_mencoes_pede_nova_tentativa(scene, monkeyp
     async def resolve_with_concurrent_history(self, task, target, load):
         result = await resolve(self, task, target, load)
         if task.__name__ == "sync_grades":
-            scene.history("NEW", synced=None)
+            # Como o sync das turmas: vínculo novo zera a data das menções.
+            scene.history("NEW")
+            scene.user(grades_synced_at=None)
         return result
 
     monkeypatch.setattr(Sync, "resolve", resolve_with_concurrent_history)

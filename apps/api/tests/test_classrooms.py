@@ -636,7 +636,7 @@ def _login(client) -> None:
 
 def _mencoes_sincronizadas_em(database, synced_at: datetime) -> None:
     with database() as session:
-        session.execute(update(ClassroomParticipant).values(grade_synced_at=synced_at))
+        session.execute(update(User).values(grades_synced_at=synced_at))
         session.commit()
 
 
@@ -656,27 +656,34 @@ def test_mencao_vem_com_a_turma_pelo_sync_do_login(client, sigaa, turmas, qstash
     )
 
 
-def test_mencao_vencida_revalida_e_a_de_semestre_consolidado_congela(
-    client, sigaa, turmas, database
-):
+def test_mencoes_vencidas_revalidam_no_login(client, sigaa, turmas, database):
     _login(client)
-    _mencoes_sincronizadas_em(database, datetime.now(UTC) - timedelta(days=2))
+    vencida = datetime.now(UTC) - timedelta(days=2)
+    _mencoes_sincronizadas_em(database, vencida)
     turmas.classrooms.list_grades.reset_mock()
 
     _login(client)
 
-    # 2025.2 já foi consolidado: o sync que veio depois disso é o último.
     turmas.classrooms.list_grades.assert_awaited_once_with()
     with database() as session:
-        dates = dict(
-            session.execute(
-                select(
-                    ClassroomParticipant.front_end_id,
-                    ClassroomParticipant.grade_synced_at,
-                )
-            ).all()
+        assert session.scalar(select(User.grades_synced_at)) > vencida.replace(
+            tzinfo=None
         )
-    assert dates["AAA"] > dates["BBB"]
+
+
+def test_turma_nova_na_lista_revalida_as_mencoes(client, turmas, database):
+    _login(client)
+    turmas.classrooms.list_grades.reset_mock()
+    nova = ATUAL.model_copy(update={"id": "CCC", "number": "02"})
+    turmas.classrooms.list_classrooms.return_value = [
+        *turmas.classrooms.list_classrooms.return_value,
+        nova,
+    ]
+
+    client.get("/classrooms", headers=NO_CACHE)
+    _login(client)
+
+    turmas.classrooms.list_grades.assert_awaited_once_with()
 
 
 # 2026.2 consolida em 19/12: com a tolerância, a menção congela no sync a partir de 23/12.
@@ -757,12 +764,9 @@ def test_falha_no_relatorio_preserva_mencoes_e_tenta_uma_vez(
     assert client.get("/classrooms").json()[0]["grade"] == "MS"
     assert turmas.classrooms.list_grades.await_count == 2
     with database() as session:
-        link = session.scalar(
-            select(ClassroomParticipant).where(
-                ClassroomParticipant.front_end_id == "AAA"
-            )
+        assert session.scalar(select(User.grades_synced_at)) == synced_at.replace(
+            tzinfo=None
         )
-        assert link.grade_synced_at == synced_at.replace(tzinfo=None)
     assert qstash.jobs()[-1].attempt == 2
 
 

@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from functools import partial
 from typing import Annotated
@@ -51,11 +52,17 @@ def statistics_freshness(synced_at: datetime | None) -> Freshness:
     return freshness(synced_at, None)
 
 
-def grade_freshness(link: OwnLink, synced_at: datetime | None) -> Freshness:
-    semester = link.row.classroom.semester
-    if synced_at is not None and academic_calendar.grades_frozen(semester, synced_at):
+def grades_freshness(links: Sequence[OwnLink], synced_at: datetime | None) -> Freshness:
+    """O relatório congela quando foi lido depois da consolidação de todos os semestres."""
+    pending = {
+        link.row.classroom.semester
+        for link in links
+        if synced_at is None
+        or not academic_calendar.grades_frozen(link.row.classroom.semester, synced_at)
+    }
+    if not pending:
         return Freshness.FROZEN
-    if academic_calendar.grades_closed(semester):
+    if any(academic_calendar.grades_closed(semester) for semester in pending):
         return Freshness.STALE
     return freshness(synced_at, DETAILS_TTL)
 
@@ -117,18 +124,7 @@ async def sync_grades(ctx: Context[None]) -> None:
     async def write(session: AsyncSession) -> None:
         user = await _user(ctx.sync.registration, session)
         assert user is not None
-        repository = ClassroomRepository(session)
-        links = await repository.list_by_user_id(user.id)
-        await repository.save_grades(
-            [
-                link
-                for link in links
-                if grade_freshness(link, link.row.grade_synced_at)
-                is not Freshness.FROZEN
-            ],
-            grades,
-            datetime.now(UTC),
-        )
+        await ClassroomRepository(session).save_grades(user, grades, datetime.now(UTC))
 
     await ctx.sync.db.write(write)
 
