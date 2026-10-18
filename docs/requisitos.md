@@ -202,13 +202,17 @@ inscrito, histórico letivo, controle de frequência, avisos dos professores e a
 
 **Critérios de Aceitação:**
 
-- `Cache-Control: no-cache` deve aguardar a atualização das menções ainda mutáveis.
-- Uma menção nula consultada deve ser reavaliada após 24 horas, sem gerar reconsultas a cada acesso.
+- `Cache-Control: no-cache` deve aguardar a atualização das menções, inclusive consolidadas.
+- O relatório deve vencer após 24 horas, inclusive com menções preenchidas, sem gerar reconsultas
+  a cada acesso nem congelar resultados preservados de uma leitura parcial.
 - Linhas fora de `tbody` devem ser lidas, e erros de formato devem preservar o cache anterior.
 - Uma tabela de semestre inválida deve gerar aviso e preservar suas menções, sem impedir a
   sincronização dos demais semestres; se nenhuma tabela puder ser lida, a consulta deve falhar.
 - A data de sincronização identifica a última leitura do relatório por usuário, inclusive parcial.
 - A associação das menções deve considerar simultaneamente o código da disciplina e o semestre.
+- A falha na primeira leitura de menções não deve impedir a consulta das turmas já armazenadas,
+  nem registrar o relatório como sincronizado. A tela deve consultar o cache a cada 5 segundos,
+  por até 2 minutos, enquanto houver menções históricas ausentes, parando em erro de consulta.
 
 #### 2.2: Detalhes da Turma e Participantes
 
@@ -541,6 +545,15 @@ conformidade de arquitetura e segurança da informação.
     - A API deve emitir logs estruturados padronizados contendo identificadores de requisição e
       tempos de execução, e o front-end deve integrar telemetria analítica e de erros (PostHog)
       preservando o anonimato de dados sensíveis.
+    - As logs devem correlacionar publicação, execução e retentativa por identificador de job,
+      distinguir publicação de deduplicação com o identificador retornado pela fila e indicar
+      validade do cache, contagens de menções aplicadas/preservadas e tentativas esgotadas.
+    - Login na API deve ter limite total de 45 segundos, cada tarefa de sincronização de 90 segundos
+      e logout de 10 segundos. Timeout deve admitir uma única retentativa: após 10 segundos para
+      jobs de conta/menções e 60 segundos para os demais.
+      O navegador deve limitar cada requisição à API a 240 segundos e permitir cancelamento.
+    - A renovação inicial da sessão deve pertencer à conta atual e admitir uma retentativa após
+      60 segundos em falha transitória, sem repetir credenciais recusadas.
 
 ---
 

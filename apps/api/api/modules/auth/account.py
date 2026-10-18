@@ -34,7 +34,7 @@ async def start_account(
     user, links = await db.read(partial(_account, connection.registration))
     if (
         _stale_account_tasks(user)
-        or _stale_grades(user, links)
+        or _stale_grades(user)
         or any(stale_classroom_tasks(l) for l in links)
     ):
         job = Job(credentials=connection.credentials, steps=(Step.of(sync_account),))
@@ -52,7 +52,7 @@ async def sync_account(ctx: Context[None]) -> None:
     for link in links:
         for task in stale_classroom_tasks(link):
             ctx.sync.schedule(task, link)
-    if _stale_grades(user, links):
+    if _stale_grades(user):
         await run_task(sync_grades, ctx)
 
 
@@ -65,9 +65,9 @@ async def _account(
     return user, await ClassroomRepository(session).list_by_user_id(user.id)
 
 
-def _stale_grades(user: User | None, links: list[OwnLink]) -> bool:
+def _stale_grades(user: User | None) -> bool:
     synced_at = user.grades_synced_at if user else None
-    return grades_freshness(links, synced_at) is Freshness.STALE
+    return grades_freshness(synced_at) is Freshness.STALE
 
 
 def _stale_account_tasks(user: User | None) -> list[Task[None]]:

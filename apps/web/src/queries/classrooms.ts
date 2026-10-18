@@ -13,6 +13,17 @@ export type PostType = components['schemas']['PostType'];
 export const finalGrade = (classroom: Classroom) =>
     classroom.current ? null : (classroom.grade ?? null);
 
+export function gradesPollingInterval(
+    classrooms: readonly Pick<Classroom, 'current' | 'grade'>[] | undefined,
+    openedAt: number,
+    now = Date.now()
+) {
+    return now - openedAt < 120_000 &&
+        classrooms?.some((item) => !item.current && item.grade == null)
+        ? 5_000
+        : false;
+}
+
 export const classroomsQueryOptions = api.queryOptions('get', '/classrooms');
 
 export const allClassroomsQueryOptions = api.queryOptions('get', '/classrooms', {

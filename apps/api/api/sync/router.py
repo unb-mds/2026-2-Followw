@@ -59,7 +59,9 @@ async def run_job(job: JobDep, db: DatabaseDep, queue: JobQueueDep) -> None:
             status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown task"
         )
 
-    with operation("job", attempt=job.attempt, step_count=len(job.steps)):
+    with operation(
+        "job", job_id=job.job_id, attempt=job.attempt, step_count=len(job.steps)
+    ):
         sigaa = SigaaConnection(job.credentials)
         sync = Sync(db, sigaa)
         try:
@@ -72,7 +74,12 @@ async def run_job(job: JobDep, db: DatabaseDep, queue: JobQueueDep) -> None:
             jobs.append(
                 job.model_copy(update={"steps": failed, "attempt": job.attempt + 1})
             )
-        event("job.result", failed_count=len(failed), job_count=len(jobs))
+        event(
+            "job.result",
+            failed_count=len(failed),
+            job_count=len(jobs),
+            retry_exhausted=bool(failed) and job.attempt >= MAX_ATTEMPTS,
+        )
         await queue.enqueue(*jobs)
 
 

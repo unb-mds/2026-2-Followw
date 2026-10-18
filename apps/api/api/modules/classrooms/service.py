@@ -1,4 +1,3 @@
-from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from functools import partial
 from typing import Annotated
@@ -52,22 +51,9 @@ def statistics_freshness(synced_at: datetime | None) -> Freshness:
     return freshness(synced_at, None)
 
 
-def grades_freshness(links: Sequence[OwnLink], synced_at: datetime | None) -> Freshness:
-    """Só congela o relatório quando todas as menções estão preenchidas e consolidadas."""
-    mutable = False
-    for link in links:
-        if link.row.grade is None:
-            mutable = True
-            continue
-        semester = link.row.classroom.semester
-        if synced_at is not None and academic_calendar.grades_frozen(
-            semester, synced_at
-        ):
-            continue
-        if academic_calendar.grades_closed(semester):
-            return Freshness.STALE
-        mutable = True
-    return freshness(synced_at, DETAILS_TTL) if mutable else Freshness.FROZEN
+def grades_freshness(synced_at: datetime | None) -> Freshness:
+    """A data global pode vir de relatório parcial: nunca congela menções preservadas."""
+    return freshness(synced_at, DETAILS_TTL)
 
 
 def stale_classroom_tasks(link: OwnLink) -> list[Task[OwnLink]]:
@@ -157,12 +143,10 @@ class ClassroomService:
             if user is None or user.classrooms_synced_at is None:
                 return None
             current = await ClassroomRepository(session).list_by_user_id(user.id)
-            if user.grades_synced_at is None:
-                return None
             return Cached(
                 _select_links(current, semester),
-                user.grades_synced_at,
-                grades_freshness(current, user.grades_synced_at),
+                user.grades_synced_at or user.classrooms_synced_at,
+                grades_freshness(user.grades_synced_at),
             )
 
         refreshed = await self._sync.resolve(sync_grades, None, load)

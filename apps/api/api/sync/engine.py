@@ -1,12 +1,14 @@
+import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime
 from typing import NamedTuple
+from uuid import uuid4
 
 import httpx
 from fastapi import HTTPException, status
-from pydantic import BaseModel, ConfigDict, field_serializer
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 from sigaa_client import (
     AuthenticationFailed,
     ClassroomNotFound,
@@ -25,7 +27,8 @@ from api.logger import event, operation
 from api.sigaa import SigaaConnection
 
 # Falhas da origem: o `stale-if-error` as cobre e um job as tenta de novo.
-ORIGIN_ERRORS = (SigaaError, httpx.HTTPError)
+ORIGIN_ERRORS = (SigaaError, httpx.HTTPError, TimeoutError)
+TASK_TIMEOUT = 90
 # Sumiu do SIGAA: nem o cache vencido nem uma nova tentativa o trazem de volta.
 GONE_ERRORS = (ClassroomNotFound, NewsNotFound)
 # Falhas que nem o cache vencido nem uma nova tentativa resolvem.
@@ -93,6 +96,7 @@ class Job(BaseModel):
     classroom_id: str | None = None
     steps: tuple[Step, ...]
     attempt: int = 1
+    job_id: str = Field(default_factory=lambda: uuid4().hex)
 
     @property
     def registration(self) -> str:
@@ -152,6 +156,12 @@ class Sync:
         """
         cache = self._cache
         cached = await self.db.read(load)
+        event(
+            "sync.cache",
+            task=task.__name__,
+            freshness=cached.freshness.value if cached else "missing",
+            forced=cache.no_cache,
+        )
         if cached is not None and (
             cached.freshness is Freshness.FROZEN
             or cache.only_if_cached
@@ -221,5 +231,6 @@ class Sync:
 
 
 async def run_task[T: Target](task: Task[T], ctx: Context[T]) -> None:
-    with operation("sync.task", task=task.__name__):
-        await task(ctx)
+    with operation("sync.task", task=task.__name__, timeout_seconds=TASK_TIMEOUT):
+        async with asyncio.timeout(TASK_TIMEOUT):
+            await task(ctx)

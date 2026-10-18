@@ -4,6 +4,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import UTC, datetime
+from pathlib import Path
 from time import perf_counter
 from uuid import uuid4
 
@@ -35,7 +36,33 @@ _FIELDS = {
     "skipped_count",
     "course_count",
     "reused_session",
+    "job_id",
+    "message_id",
+    "freshness",
+    "forced",
+    "timeout_seconds",
+    "row_count",
+    "matched_count",
+    "missing_count",
+    "retry_exhausted",
+    "error_file",
+    "error_function",
+    "error_line",
 }
+
+
+def error_fields(error: BaseException) -> dict:
+    fields = {"error_type": type(error).__name__}
+    frame = error.__traceback__
+    if frame is not None:
+        while frame.tb_next is not None:
+            frame = frame.tb_next
+        fields.update(
+            error_file=Path(frame.tb_frame.f_code.co_filename).name,
+            error_function=frame.tb_frame.f_code.co_name,
+            error_line=frame.tb_lineno,
+        )
+    return fields
 
 
 def event(name: str, *, level: int = logging.INFO, **fields) -> None:
@@ -68,7 +95,7 @@ def operation(name: str, **fields) -> Iterator[None]:
         event(
             f"{name}.failed",
             level=logging.WARNING,
-            error_type=type(error).__name__,
+            **error_fields(error),
             duration_ms=round((perf_counter() - started) * 1000, 2),
         )
         raise
@@ -102,9 +129,7 @@ class RequestLoggingMiddleware:
         try:
             await self.app(scope, receive, logged_send)
         except BaseException as error:
-            event(
-                "request.failed", level=logging.ERROR, error_type=type(error).__name__
-            )
+            event("request.failed", level=logging.ERROR, **error_fields(error))
             raise
         finally:
             # Routers incluídos no FastAPI guardam o caminho completo neste contexto.

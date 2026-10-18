@@ -87,7 +87,7 @@ async def get_classroom_post(
     "",
     response_model=list[ParticipantClassroom],
     summary="Consultar as turmas do usuário autenticado",
-    description="Cada turma traz a menção do usuário em grade (null até ser lançada ou sincronizada). As menções também são revalidadas nesta consulta; no-cache aguarda a origem. Somente menções preenchidas congelam depois da consolidação das turmas.",
+    description="Cada turma traz a menção do usuário em grade (null até ser lançada ou sincronizada). As menções também são revalidadas nesta consulta; no-cache aguarda a origem. O relatório vence após 24 horas, inclusive para menções consolidadas ou preservadas de uma leitura parcial.",
     responses=SIGAA_ERRORS,
 )
 async def get_classrooms(

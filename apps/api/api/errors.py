@@ -14,7 +14,7 @@ from sigaa_client import (
 from unb_browser import UnbBrowserError
 
 from api.cookies import clear_cookies
-from api.logger import event
+from api.logger import error_fields, event
 
 Handler = Callable[[Request, Exception], Awaitable[JSONResponse]]
 
@@ -24,9 +24,7 @@ def _error(status_code: int, detail: str | None = None) -> Handler:
 
     async def handle(_: Request, error: Exception) -> JSONResponse:
         if status_code >= 500:
-            event(
-                "origin.failed", level=logging.WARNING, error_type=type(error).__name__
-            )
+            event("origin.failed", level=logging.WARNING, **error_fields(error))
         return JSONResponse({"detail": detail or str(error)}, status_code=status_code)
 
     return handle
@@ -48,6 +46,7 @@ EXCEPTION_HANDLERS: dict[type[Exception], Handler] = {
     SigaaSearchError: _error(422),
     SigaaError: _error(502, "SIGAA is unavailable"),
     httpx.HTTPError: _error(502, "SIGAA is unavailable"),
+    TimeoutError: _error(502, "SIGAA timed out"),
     UnbBrowserError: _error(502, "UnB website is unavailable"),
 }
 

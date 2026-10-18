@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sigaa_client import (
@@ -52,6 +52,57 @@ def _mencoes_sincronizadas_em(database, synced_at: datetime) -> None:
         session.commit()
 
 
+@pytest.mark.parametrize(
+    "directive", [None, "stale-if-error", "only-if-cached", "no-cache, stale-if-error"]
+)
+def test_primeira_falha_nao_esconde_turmas_nem_inicia_ttl(
+    client, turmas, database, directive
+):
+    turmas.classrooms.list_grades.side_effect = SigaaError("indisponível")
+    _login(client)
+    headers = {"Cache-Control": directive} if directive else {}
+    response = client.get("/classrooms?semester=all", headers=headers)
+    assert response.status_code == 200
+    assert len(response.json()) == 2
+    assert all(row["grade"] is None for row in response.json())
+    with database() as session:
+        assert session.scalar(select(User)).grades_synced_at is None
+
+    turmas.classrooms.list_grades.side_effect = None
+    turmas.classrooms.list_grades.return_value = [
+        ClassroomGrade(subject_code="FGA0158", semester="2025.2", grade=Grade.SS)
+    ]
+    client.get("/classrooms?semester=all")
+    response = client.get("/classrooms?semester=all")
+    assert next(row for row in response.json() if row["id"] == "BBB")["grade"] == "SS"
+
+
+def test_primeira_captura_repetida_apos_dez_segundos(client, turmas, qstash):
+    turmas.classrooms.list_grades.side_effect = [
+        SigaaError("falha transitória"),
+        [ClassroomGrade(subject_code="FGA0158", semester="2025.2", grade=Grade.SS)],
+    ]
+    _login(client)
+    retries = [m for m, job in zip(qstash.published, qstash.jobs()) if job.attempt == 2]
+    assert len(retries) == 1
+    assert retries[0]["headers"]["Upstash-Delay"] == "10s"
+    assert client.get("/classrooms?semester=2025.2").json()[0]["grade"] == "SS"
+
+
+def test_turmas_respondem_antes_da_primeira_captura(
+    client, turmas, qstash, monkeypatch
+):
+    turmas.classrooms.list_grades.side_effect = SigaaError("indisponível")
+    _login(client)
+    turmas.classrooms.list_grades.reset_mock()
+    monkeypatch.setattr(qstash, "deliver", lambda _: None)
+    response = client.get("/classrooms?semester=all")
+    assert response.status_code == 200
+    assert len(response.json()) == 2
+    turmas.classrooms.list_grades.assert_not_awaited()
+    assert qstash.jobs()[-1].steps[0].task == "sync_grades"
+
+
 def test_mencao_vem_com_a_turma_pelo_sync_do_login(client, sigaa, turmas, qstash):
     turmas.classrooms.list_grades.return_value = [
         ClassroomGrade(subject_code="FGA0146", semester="2026.2"),
@@ -86,29 +137,35 @@ def test_mencoes_vencidas_revalidam_o_relatorio(client, sigaa, turmas, database)
         ).replace(tzinfo=None) - timedelta(days=2)
 
 
-# 2026.2 consolida em 19/12: com a tolerância, a menção congela no sync a partir de 23/12.
-@pytest.mark.parametrize(
-    ("synced_at", "consultas"),
-    [
-        (datetime(2026, 12, 22, 12, tzinfo=UTC), 1),
-        (datetime(2026, 12, 23, 12, tzinfo=UTC), 0),
-    ],
-)
-def test_mencao_faz_um_ultimo_sync_depois_da_consolidacao(
-    client, sigaa, turmas, database, hoje, synced_at, consultas
+@pytest.mark.parametrize("via_login", [False, True])
+def test_relatorio_parcial_nao_congela_mencao_preenchida(
+    client, turmas, database, via_login
 ):
+    turmas.classrooms.list_classrooms.return_value = [ANTIGA]
     turmas.classrooms.list_grades.return_value = [
-        ClassroomGrade(subject_code="FGA0146", semester="2026.2", grade=Grade.MS),
-        ClassroomGrade(subject_code="FGA0158", semester="2025.2", grade=Grade.SS),
+        ClassroomGrade(subject_code="FGA0158", semester="2025.2", grade=Grade.MI)
     ]
     _login(client)
-    hoje(date(2026, 12, 30))
-    _mencoes_sincronizadas_em(database, synced_at)
+    turmas.classrooms.list_grades.return_value = []
+    response = client.get(
+        "/classrooms?semester=all", headers={"Cache-Control": "no-cache"}
+    )
+    assert response.json()[0]["grade"] == "MI"
     turmas.classrooms.list_grades.reset_mock()
+    for _ in range(3):
+        client.get("/classrooms?semester=all")
+    turmas.classrooms.list_grades.assert_not_awaited()
 
-    _login(client)
-
-    assert turmas.classrooms.list_grades.await_count == consultas
+    _mencoes_sincronizadas_em(database, datetime.now(UTC) - timedelta(days=2))
+    turmas.classrooms.list_grades.return_value = [
+        ClassroomGrade(subject_code="FGA0158", semester="2025.2", grade=Grade.SS)
+    ]
+    if via_login:
+        _login(client)
+    else:
+        client.get("/classrooms?semester=all")
+    assert client.get("/classrooms?semester=all").json()[0]["grade"] == "SS"
+    turmas.classrooms.list_grades.assert_awaited_once()
 
 
 def test_mencoes_associam_codigo_e_semestre_sem_confundir_repeticao(client, turmas):
@@ -277,14 +334,15 @@ def test_only_if_cached_devolve_mencoes_vencidas(client, turmas, database):
     turmas.classrooms.list_grades.assert_awaited_once_with()
 
 
+@pytest.mark.parametrize("erro", [SigaaError("indisponível"), TimeoutError()])
 def test_falha_em_refresh_nao_apaga_mencao_e_admite_cache_antigo(
-    client, turmas, database
+    client, turmas, database, erro
 ):
     turmas.classrooms.list_grades.return_value = [
         ClassroomGrade(subject_code="FGA0146", semester="2026.2", grade=Grade.MS)
     ]
     _login(client)
-    turmas.classrooms.list_grades.side_effect = SigaaError("indisponível")
+    turmas.classrooms.list_grades.side_effect = erro
 
     assert (
         client.get("/classrooms", headers={"Cache-Control": "no-cache"}).status_code

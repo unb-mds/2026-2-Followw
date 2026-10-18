@@ -24,6 +24,7 @@ from api.db.models import (
     User,
 )
 from api.db.unities import unity_ids
+from api.logger import event
 from api.modules.classrooms.lessons import (
     FrequencySummary,
     Period,
@@ -119,14 +120,23 @@ class ClassroomRepository:
         synced_at: datetime,
     ) -> None:
         by_subject = {(item.subject_code, item.semester): item.grade for item in grades}
-        for link in await self.list_by_user_id(user.id):
+        links = await self.list_by_user_id(user.id)
+        matched = 0
+        for link in links:
             classroom = link.row.classroom
             key = (classroom.subject_code, classroom.semester)
             # Ausência no relatório não equivale a uma linha com resultado vazio.
             if key in by_subject:
                 link.row.grade = by_subject[key]
+                matched += 1
         user.grades_synced_at = synced_at
         await self._session.flush()
+        event(
+            "grades.report_applied",
+            row_count=len(grades),
+            matched_count=matched,
+            missing_count=len(links) - matched,
+        )
 
     async def save_classroom_participants(
         self,

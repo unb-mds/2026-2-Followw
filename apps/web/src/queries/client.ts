@@ -48,7 +48,9 @@ const ssrMiddleware: Middleware = {
         const request = await toSsrOrigin(original);
         const cookie = await getSsrCookie();
         if (cookie) request.headers.set('cookie', cookie);
-        return request;
+        return new Request(request, {
+            signal: AbortSignal.any([request.signal, AbortSignal.timeout(240_000)])
+        });
     },
     async onResponse({ response }) {
         const cookies = response.headers.getSetCookie();

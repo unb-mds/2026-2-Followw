@@ -259,11 +259,13 @@ def test_renova_sessao_e_retorna_as_turmas(client, classrooms_sigaa, cookies, ac
 
     assert response.status_code == 200
     assert response.json()[0]["id"] == "CURRENT"
-    assert classrooms_sigaa.logins == 1
+    assert classrooms_sigaa.logins == 2
+    assert classrooms_sigaa.logouts == 1
     assert ACCESS_COOKIE_NAME in response.cookies
     assert REFRESH_COOKIE_NAME in response.cookies
     assert client.get("/classrooms").status_code == 200
-    assert classrooms_sigaa.logins == 1
+    assert classrooms_sigaa.logins == 2
+    assert classrooms_sigaa.logouts == 1
 
 
 @pytest.mark.parametrize("access", [None, "app14~MORTO"])
@@ -362,9 +364,10 @@ def test_filtro_por_semestre_consulta_as_duas_paginas_uma_vez(
 
     assert response.status_code == 200
     assert [classroom["id"] for classroom in response.json()] == expected
-    assert classrooms_sigaa.profile_requests == (1 if not expected else 2)
+    assert classrooms_sigaa.profile_requests == (1 if not expected else 3)
     assert classrooms_sigaa.classrooms_requests == 1
-    assert classrooms_sigaa.logins == 0
+    assert classrooms_sigaa.logins == (1 if expected else 0)
+    assert classrooms_sigaa.logouts == classrooms_sigaa.logins
 
 
 def test_historico_preserva_campos_das_turmas_atuais(client, classrooms_sigaa, cookies):
@@ -418,7 +421,8 @@ def test_filtro_renova_sessao_expirada(client, classrooms_sigaa, cookies):
 
     assert response.status_code == 200
     assert any(item["id"] == "OLD" for item in response.json())
-    assert classrooms_sigaa.logins == 1
+    assert classrooms_sigaa.logins == 2
+    assert classrooms_sigaa.logouts == 1
     assert ACCESS_COOKIE_NAME in response.cookies
 
 

@@ -5,10 +5,20 @@ import {
     classroomFrequencyQueryOptions,
     classroomMembersQueryOptions,
     classroomPostDetailQueryOptions,
-    classroomPostsQueryOptions
+    classroomPostsQueryOptions,
+    gradesPollingInterval
 } from '#/queries/classrooms';
 
 describe('queries de turma', () => {
+    test('acompanha menções históricas por no máximo dois minutos', () => {
+        const pending = [{ current: false, grade: null }];
+        expect(gradesPollingInterval(pending, 1000, 1000)).toBe(5000);
+        expect(gradesPollingInterval(pending, 1000, 120999)).toBe(5000);
+        expect(gradesPollingInterval(pending, 1000, 121000)).toBe(false);
+        expect(gradesPollingInterval([{ current: false, grade: 'SS' }], 1000, 2000)).toBe(false);
+        expect(gradesPollingInterval([{ current: true, grade: null }], 1000, 2000)).toBe(false);
+        expect(gradesPollingInterval(undefined, 1000, 2000)).toBe(false);
+    });
     test('consulta todas as turmas para abrir uma rota diretamente', () => {
         expect(allClassroomsQueryOptions.queryKey).toContainEqual({
             params: { query: { semester: 'all' } }

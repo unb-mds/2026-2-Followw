@@ -5,8 +5,14 @@ import { afterEach, describe, expect, test } from 'bun:test';
 
 import type { components } from '#/queries/schema.gen.ts';
 
+import { shouldPersistQuery } from '#/integrations/offline/storage';
 import { getContext } from '#/integrations/tanstack-query/root-provider.tsx';
-import { SessionNotStoredError, clearSession, startSession } from '#/queries/auth.ts';
+import {
+    SessionNotStoredError,
+    clearSession,
+    sessionRefreshQueryOptions,
+    startSession
+} from '#/queries/auth.ts';
 import { classroomPostsQueryOptions, classroomsQueryOptions } from '#/queries/classrooms.ts';
 import { apiClient } from '#/queries/client.ts';
 import { ApiError } from '#/queries/errors.ts';
@@ -206,5 +212,51 @@ describe('startSession', () => {
 
         const error = await startSession(queryClient).catch((reason: unknown) => reason);
         expect(error).toMatchObject({ status: 502 });
+    });
+});
+
+describe('renovação da sessão', () => {
+    let middleware: Middleware;
+    afterEach(() => apiClient.eject(middleware));
+
+    test('repete falha transitória uma vez e reinicia após limpar a conta', async () => {
+        const { queryClient } = getContext();
+        let calls = 0;
+        middleware = {
+            onRequest: () => {
+                calls++;
+                if (calls === 1) throw new ApiError(502, 'temporário');
+                return new Response(null, { status: 204 });
+            }
+        };
+        apiClient.use(middleware);
+        const options = { ...sessionRefreshQueryOptions(user.registration), retryDelay: 0 };
+        expect(await queryClient.query(options)).toBe(true);
+        expect(calls).toBe(2);
+        const query = queryClient.getQueryCache().find({ queryKey: options.queryKey });
+        expect(query && shouldPersistQuery(query)).toBe(false);
+        await clearSession(queryClient);
+        expect(await queryClient.query(options)).toBe(true);
+        expect(calls).toBe(3);
+    });
+
+    test('credencial recusada não é repetida', async () => {
+        const { queryClient } = getContext();
+        let calls = 0;
+        middleware = {
+            onRequest: () => {
+                calls++;
+                throw new ApiError(401, 'inválida');
+            }
+        };
+        apiClient.use(middleware);
+        const error = await queryClient
+            .query({ ...sessionRefreshQueryOptions(user.registration), retryDelay: 0 })
+            .then(
+                () => null,
+                (failure: unknown) => failure
+            );
+        expect(error).toBeInstanceOf(ApiError);
+        expect(calls).toBe(1);
     });
 });

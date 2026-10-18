@@ -1,6 +1,12 @@
 import { usePostHog } from '@posthog/react';
-import { type Query, type QueryClient, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import {
+    type Query,
+    type QueryClient,
+    environmentManager,
+    queryOptions,
+    useQuery,
+    useQueryClient
+} from '@tanstack/react-query';
 
 import { clearOfflineData } from '#/integrations/offline/storage';
 import { useOnline } from '#/lib/online';
@@ -69,18 +75,26 @@ export function useLogout(onLoggedOut?: () => void) {
     });
 }
 
-let sessionRefreshed = false;
+export function sessionRefreshQueryOptions(registration: string | undefined) {
+    return queryOptions({
+        queryKey: ['session-refresh', registration],
+        queryFn: async ({ signal }) => {
+            await apiClient.POST('/auth/sigaa/refresh', { signal });
+            return true;
+        },
+        staleTime: Infinity,
+        gcTime: 0,
+        meta: { persist: false },
+        retry: (count, error) => count < 1 && !(error instanceof ApiError && error.isUnauthorized),
+        retryDelay: 60_000
+    });
+}
 
 export function useSessionRefresh() {
-    const queryClient = useQueryClient();
     const { data: user } = useQuery(meQueryOptions);
     const online = useOnline();
-
-    useEffect(() => {
-        if (!user || !online || sessionRefreshed) return;
-        sessionRefreshed = true;
-        apiClient.POST('/auth/sigaa/refresh').catch((error: unknown) => {
-            if (error instanceof ApiError && error.isUnauthorized) void clearSession(queryClient);
-        });
-    }, [user, online, queryClient]);
+    useQuery({
+        ...sessionRefreshQueryOptions(user?.registration),
+        enabled: !environmentManager.isServer() && !!user && online
+    });
 }
