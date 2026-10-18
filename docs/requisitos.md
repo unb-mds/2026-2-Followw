@@ -195,6 +195,21 @@ inscrito, histórico letivo, controle de frequência, avisos dos professores e a
 - Turmas sem sala informada pelo SIGAA devem exibir `"Local não informado"`, sem omitir a matéria.
 - Turmas com matrícula em processamento devem exibir a badge amarela `"Em processamento"`.
 
+- **RF17 — Recuperação de Menções Ausentes:** A consulta de turmas deve revalidar menções
+  vencidas independentemente do login. Menções nulas devem permanecer sujeitas à sincronização
+  mesmo após a consolidação do semestre; disciplinas ausentes do relatório não devem apagar
+  resultados já armazenados.
+
+**Critérios de Aceitação:**
+
+- `Cache-Control: no-cache` deve aguardar a atualização das menções ainda mutáveis.
+- Uma menção nula consultada deve ser reavaliada após 24 horas, sem gerar reconsultas a cada acesso.
+- Linhas fora de `tbody` devem ser lidas, e erros de formato devem preservar o cache anterior.
+- Uma tabela de semestre inválida deve gerar aviso e preservar suas menções, sem impedir a
+  sincronização dos demais semestres; se nenhuma tabela puder ser lida, a consulta deve falhar.
+- A data de sincronização identifica a última leitura do relatório por usuário, inclusive parcial.
+- A associação das menções deve considerar simultaneamente o código da disciplina e o semestre.
+
 #### 2.2: Detalhes da Turma e Participantes
 
 **Histórias de Usuário:**

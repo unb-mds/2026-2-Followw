@@ -53,18 +53,21 @@ def statistics_freshness(synced_at: datetime | None) -> Freshness:
 
 
 def grades_freshness(links: Sequence[OwnLink], synced_at: datetime | None) -> Freshness:
-    """O relatório congela quando foi lido depois da consolidação de todos os semestres."""
-    pending = {
-        link.row.classroom.semester
-        for link in links
-        if synced_at is None
-        or not academic_calendar.grades_frozen(link.row.classroom.semester, synced_at)
-    }
-    if not pending:
-        return Freshness.FROZEN
-    if any(academic_calendar.grades_closed(semester) for semester in pending):
-        return Freshness.STALE
-    return freshness(synced_at, DETAILS_TTL)
+    """Só congela o relatório quando todas as menções estão preenchidas e consolidadas."""
+    mutable = False
+    for link in links:
+        if link.row.grade is None:
+            mutable = True
+            continue
+        semester = link.row.classroom.semester
+        if synced_at is not None and academic_calendar.grades_frozen(
+            semester, synced_at
+        ):
+            continue
+        if academic_calendar.grades_closed(semester):
+            return Freshness.STALE
+        mutable = True
+    return freshness(synced_at, DETAILS_TTL) if mutable else Freshness.FROZEN
 
 
 def stale_classroom_tasks(link: OwnLink) -> list[Task[OwnLink]]:
@@ -144,8 +147,26 @@ class ClassroomService:
     async def list_classrooms(
         self, semester: str | None = None
     ) -> list[ParticipantClassroom]:
-        """A menção sai do cache: quem a revalida é o sync do login."""
-        return [to_classroom(link) for link in await self.list_links(semester)]
+        """Revalida as menções independentemente da validade da lista de turmas."""
+        links = await self.list_links(semester)
+        if not links:
+            return []
+
+        async def load(session: AsyncSession) -> Cached[list[OwnLink]] | None:
+            user = await _user(self._sync.registration, session)
+            if user is None or user.classrooms_synced_at is None:
+                return None
+            current = await ClassroomRepository(session).list_by_user_id(user.id)
+            if user.grades_synced_at is None:
+                return None
+            return Cached(
+                _select_links(current, semester),
+                user.grades_synced_at,
+                grades_freshness(current, user.grades_synced_at),
+            )
+
+        refreshed = await self._sync.resolve(sync_grades, None, load)
+        return [to_classroom(link) for link in refreshed]
 
     async def list_links(self, semester: str | None = None) -> list[OwnLink]:
         """Os vínculos da lista de turmas, na ordem em que ela é exibida."""
@@ -161,17 +182,7 @@ class ClassroomService:
             )
 
         links = await self._sync.resolve(sync_classrooms, None, load)
-        selected = [link for link in links if _in_semester(link, semester)]
-        selected.sort(
-            key=lambda link: (
-                link.row.classroom.subject.name,
-                link.row.classroom.number,
-            )
-        )
-
-        return sorted(
-            selected, key=lambda link: link.row.classroom.semester, reverse=True
-        )
+        return _select_links(links, semester)
 
     async def list_members(self, classroom_id: str) -> list[ClassroomMember]:
         link = await self.get_link(classroom_id)
@@ -228,6 +239,14 @@ async def find_link(
 
 async def _user(registration: str, session: AsyncSession) -> User | None:
     return await UserRepository(session).get_by_registration(registration)
+
+
+def _select_links(links: list[OwnLink], semester: str | None) -> list[OwnLink]:
+    selected = sorted(
+        (link for link in links if _in_semester(link, semester)),
+        key=lambda link: (link.row.classroom.subject.name, link.row.classroom.number),
+    )
+    return sorted(selected, key=lambda link: link.row.classroom.semester, reverse=True)
 
 
 def _in_semester(link: OwnLink, semester: str | None) -> bool:

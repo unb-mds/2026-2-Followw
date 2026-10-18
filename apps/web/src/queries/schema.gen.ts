@@ -93,7 +93,7 @@ export interface paths {
         };
         /**
          * Consultar as turmas do usuário autenticado
-         * @description Cada turma traz a menção do usuário em grade (null até ser lançada ou sincronizada). A menção é atualizada pelo sync do login e de /auth/sigaa/refresh, e congela depois da consolidação das turmas.
+         * @description Cada turma traz a menção do usuário em grade (null até ser lançada ou sincronizada). As menções também são revalidadas nesta consulta; no-cache aguarda a origem. Somente menções preenchidas congelam depois da consolidação das turmas.
          */
         get: operations["get_classrooms_classrooms_get"];
         put?: never;
