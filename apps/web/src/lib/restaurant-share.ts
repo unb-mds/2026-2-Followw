@@ -1,3 +1,12 @@
+import type { inferParserType } from 'nuqs/server';
+
+import {
+    createLoader,
+    createParser,
+    createStandardSchemaV1,
+    parseAsStringLiteral
+} from 'nuqs/server';
+
 import type { MealKey } from '#/lib/restaurant';
 import type { Campus } from '#/queries/restaurant';
 
@@ -6,35 +15,33 @@ import { nowInBrasilia } from '#/lib/schedule';
 import { publicPageHead } from '#/lib/seo';
 import { CAMPUS_LABELS, CAMPUS_OPTIONS } from '#/queries/restaurant';
 
-export interface RestaurantSearch {
-    date?: string;
-    meal?: MealKey;
-    campus?: Campus;
-    theme?: 'light' | 'dark';
-}
+const parseAsDay = createParser({
+    parse: (value) =>
+        /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+        !Number.isNaN(Date.parse(value)) &&
+        new Date(value).toISOString().slice(0, 10) === value
+            ? value
+            : null,
+    serialize: (value: string) => value
+});
+
+export const restaurantSearchParsers = {
+    date: parseAsDay,
+    meal: parseAsStringLiteral(MEAL_TIMES.map(({ key }) => key)),
+    campus: parseAsStringLiteral(CAMPUS_OPTIONS)
+};
+
+export const validateRestaurantSearch = createStandardSchemaV1(restaurantSearchParsers, {
+    partialOutput: true
+});
+export const loadRestaurantSearch = createLoader(restaurantSearchParsers);
+
+export type RestaurantSearch = Partial<inferParserType<typeof restaurantSearchParsers>>;
 
 export interface RestaurantSelection {
     date: string;
     meal: MealKey;
     campus: Campus;
-    theme?: 'light' | 'dark';
-}
-
-export function validateRestaurantSearch(search: Record<string, unknown>): RestaurantSearch {
-    const result: RestaurantSearch = {};
-    if (
-        typeof search.date === 'string' &&
-        /^\d{4}-\d{2}-\d{2}$/.test(search.date) &&
-        !Number.isNaN(Date.parse(search.date)) &&
-        new Date(search.date).toISOString().slice(0, 10) === search.date
-    )
-        result.date = search.date;
-    const meal = MEAL_TIMES.find(({ key }) => key === search.meal);
-    if (meal) result.meal = meal.key;
-    const campus = CAMPUS_OPTIONS.find((option) => option === search.campus);
-    if (campus) result.campus = campus;
-    if (search.theme === 'light' || search.theme === 'dark') result.theme = search.theme;
-    return result;
 }
 
 export function restaurantSelection(
@@ -45,8 +52,7 @@ export function restaurantSelection(
     return {
         date: search.date ?? initial.date,
         meal: search.meal ?? initial.meal.key,
-        campus: search.campus ?? campus,
-        ...(search.theme ? { theme: search.theme } : {})
+        campus: search.campus ?? campus
     };
 }
 
@@ -56,7 +62,6 @@ export function restaurantSharePath(selection: RestaurantSelection, path = '/ru'
         meal: selection.meal,
         campus: selection.campus
     });
-    if (selection.theme) params.set('theme', selection.theme);
     return `${path}?${params}`;
 }
 

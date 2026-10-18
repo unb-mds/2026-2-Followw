@@ -1,6 +1,7 @@
 import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { Coffee, Egg, Leaf, Soup, UtensilsCrossed } from 'lucide-react';
+import { useQueryStates } from 'nuqs';
 import { useSyncExternalStore } from 'react';
 
 import type { RestaurantSelection } from '#/lib/restaurant-share';
@@ -27,7 +28,9 @@ import { WeekDayPicker } from '#/components/WeekDayPicker';
 import { useFailureMessage } from '#/lib/online';
 import { currentOrNextMeal, highlightMenu, MEAL_TIMES } from '#/lib/restaurant';
 import {
+    loadRestaurantSearch,
     restaurantPageHead,
+    restaurantSearchParsers,
     restaurantSelection,
     restaurantSharePath,
     validateRestaurantSearch
@@ -63,33 +66,39 @@ const subscribe = () => () => {};
 
 export const Route = createFileRoute('/_app/ru')({
     validateSearch: validateRestaurantSearch,
-    loaderDeps: ({ search }) => search,
-    loader: async ({ context: { queryClient }, deps }) => {
+    // Trocar dia, refeição ou campus só muda a URL: o componente consulta o cardápio.
+    shouldReload: ({ cause }) => cause !== 'stay',
+    loader: async ({ context: { queryClient }, location }) => {
         const now = nowInBrasilia();
-        const initial = restaurantSelection(deps);
+        const search = loadRestaurantSearch(location.searchStr);
+        const opening = currentOrNextMeal(now);
         const user = await loadQuery(queryClient, meQueryOptions);
         await Promise.all([
             loadQuery(
                 queryClient,
-                menuQueryOptions({ date: initial.date, campus: deps.campus, user })
+                menuQueryOptions({
+                    date: search.date ?? opening.date,
+                    campus: search.campus ?? undefined,
+                    user
+                })
             ).catch(noop),
             user && loadQuery(queryClient, statementQueryOptions(user.registration)).catch(noop),
             user && loadQuery(queryClient, credentialsQueryOptions(user.registration)).catch(noop)
         ]);
+        // Só os padrões: a URL guarda apenas o que difere deles.
         return {
             today: now.date,
-            initialDate: initial.date,
-            initialMeal: initial.meal,
-            initialCampus: deps.campus ?? campusOf(user?.unity)
+            defaultDate: opening.date,
+            defaultMeal: opening.meal.key,
+            defaultCampus: campusOf(user?.unity)
         };
     },
     head: ({ loaderData, match }) =>
         restaurantPageHead(
             {
-                date: match?.search.date ?? loaderData?.initialDate ?? restaurantSelection({}).date,
-                meal: match?.search.meal ?? loaderData?.initialMeal ?? restaurantSelection({}).meal,
-                campus: match?.search.campus ?? loaderData?.initialCampus ?? 'Darcy',
-                theme: match?.search.theme
+                date: match?.search.date ?? loaderData?.defaultDate ?? restaurantSelection({}).date,
+                meal: match?.search.meal ?? loaderData?.defaultMeal ?? restaurantSelection({}).meal,
+                campus: match?.search.campus ?? loaderData?.defaultCampus ?? 'Darcy'
             },
             Boolean(match?.search.date || match?.search.meal || match?.search.campus)
         ),
@@ -107,16 +116,7 @@ function RUHeader() {
     return (
         <HeaderBar
             actions={
-                <ShareButton
-                    title="Cardápio do RU"
-                    url={() =>
-                        restaurantSharePath({
-                            ...selection,
-                            theme:
-                                document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'
-                        })
-                    }
-                />
+                <ShareButton title="Cardápio do RU" url={() => restaurantSharePath(selection)} />
             }
         >
             <HeaderToggle
@@ -131,23 +131,35 @@ function RUHeader() {
 }
 
 function useMenuSelection() {
-    const { initialDate, initialMeal, initialCampus } = Route.useLoaderData();
-    const search = Route.useSearch();
-    const navigate = Route.useNavigate();
+    const { defaultDate, defaultMeal, defaultCampus } = Route.useLoaderData();
+    const [search, setSearch] = useQueryStates(restaurantSearchParsers, {
+        history: 'replace',
+        scroll: false
+    });
     const hydrated = useSyncExternalStore(
         subscribe,
         () => true,
         () => false
     );
     const opening = hydrated ? currentOrNextMeal(nowInBrasilia()) : null;
-    const selection: RestaurantSelection = {
-        date: search.date ?? opening?.date ?? initialDate,
-        meal: search.meal ?? opening?.meal.key ?? initialMeal,
-        campus: search.campus ?? initialCampus,
-        ...(search.theme ? { theme: search.theme } : {})
+    const defaults: RestaurantSelection = {
+        date: opening?.date ?? defaultDate,
+        meal: opening?.meal.key ?? defaultMeal,
+        campus: defaultCampus
     };
+    const selection: RestaurantSelection = {
+        date: search.date ?? defaults.date,
+        meal: search.meal ?? defaults.meal,
+        campus: search.campus ?? defaults.campus
+    };
+    // O padrão sai da URL; o link de compartilhamento leva a seleção completa.
     const select = (change: Partial<RestaurantSelection>) => {
-        void navigate({ search: { ...selection, ...change }, replace: true, resetScroll: false });
+        const { date, meal, campus } = { ...selection, ...change };
+        void setSearch({
+            date: date === defaults.date ? null : date,
+            meal: meal === defaults.meal ? null : meal,
+            campus: campus === defaults.campus ? null : campus
+        });
     };
     return { selection, select };
 }

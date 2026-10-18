@@ -1,7 +1,7 @@
-import { restaurantSelection, validateRestaurantSearch } from '#/lib/restaurant-share';
+import { loadRestaurantSearch, restaurantSelection } from '#/lib/restaurant-share';
 
 export async function restaurantShareResponse(request: Request) {
-    const search = validateRestaurantSearch(Object.fromEntries(new URL(request.url).searchParams));
+    const search = loadRestaurantSearch(request);
     const selection = restaurantSelection(search);
     const [
         { ImageResponse },
@@ -24,8 +24,9 @@ export async function restaurantShareResponse(request: Request) {
         return new Response(await image.arrayBuffer(), {
             headers: {
                 'Content-Type': 'image/png',
+                // Cardápio ainda não publicado não pode ficar preso no cache.
                 'Cache-Control':
-                    search.date && search.meal && search.campus
+                    search.date && search.meal && search.campus && sections.length
                         ? 'public, max-age=5400, s-maxage=5400'
                         : 'no-store'
             }

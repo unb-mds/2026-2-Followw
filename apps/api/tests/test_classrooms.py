@@ -747,6 +747,22 @@ def test_relatorio_sem_mencao_limpa_resultado_anterior(client, turmas, database)
     assert client.get("/classrooms").json()[0]["grade"] is None
 
 
+def test_relatorio_sem_mencao_consolidada_preserva_a_gravada(client, turmas, database):
+    turmas.classrooms.list_grades.return_value = [
+        ClassroomGrade(subject_code="FGA0158", semester="2025.2", grade=Grade.MS)
+    ]
+    _login(client)
+    _mencoes_sincronizadas_em(database, datetime.now(UTC) - timedelta(days=2))
+    turmas.classrooms.list_grades.return_value = []
+
+    _login(client)
+
+    assert turmas.classrooms.list_grades.await_count == 2
+    assert {
+        c["id"]: c["grade"] for c in client.get("/classrooms?semester=all").json()
+    } == {"AAA": None, "BBB": "MS"}
+
+
 def test_falha_no_relatorio_preserva_mencoes_e_tenta_uma_vez(
     client, turmas, database, qstash
 ):

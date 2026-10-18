@@ -121,9 +121,12 @@ class ClassroomRepository:
         by_subject = {(item.subject_code, item.semester): item.grade for item in grades}
         for link in await self.list_by_user_id(user.id):
             classroom = link.row.classroom
-            link.row.grade = by_subject.get(
-                (classroom.subject_code, classroom.semester)
-            )
+            key = (classroom.subject_code, classroom.semester)
+            # Menção consolidada não some só porque o relatório deixou de trazê-la.
+            if key in by_subject or not academic_calendar.grades_closed(
+                classroom.semester
+            ):
+                link.row.grade = by_subject.get(key)
         user.grades_synced_at = synced_at
         await self._session.flush()
 

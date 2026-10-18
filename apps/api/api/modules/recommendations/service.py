@@ -25,6 +25,13 @@ from api.modules.recommendations.ranking import (
 from api.modules.recommendations.repository import RecommendationRepository
 from api.sync import Cached, Sync
 
+# Saída ou indeferimento não deixa menção pendente: a tentativa não conta.
+_WITHOUT_ATTEMPT = {
+    ClassroomStatus.TRANCADO,
+    ClassroomStatus.REMOVIDO,
+    ClassroomStatus.DENIED,
+}
+
 
 class Ranking(NamedTuple):
     semester: str | None
@@ -157,7 +164,8 @@ async def _rank(
     offered = curriculum.keys() & {
         normalize(code) for code in await classrooms.offered_subject_codes(reference)
     }
-    catalog = await RecommendationRepository(session).catalog(set(curriculum))
+    subjects = RecommendationRepository(session)
+    catalog = await subjects.catalog(set(curriculum))
     requirements = {
         normalize(code)
         for subject in catalog.values()
@@ -165,9 +173,7 @@ async def _rank(
         for group in rules or []
         for code in group
     }
-    catalog.update(
-        await RecommendationRepository(session).catalog(requirements - catalog.keys())
-    )
+    catalog.update(await subjects.catalog(requirements - catalog.keys()))
     return rank(
         catalog=catalog,
         offered=offered & catalog.keys(),
@@ -177,7 +183,7 @@ async def _rank(
         unresolved={
             normalize(link.row.classroom.subject_code)
             for link in links
-            if link.row.grade is None
+            if link.row.grade is None and link.row.status not in _WITHOUT_ATTEMPT
         },
         unity_id=student.unity_id,
     )

@@ -6,10 +6,10 @@ import type { MenuSection } from '#/queries/restaurant';
 
 import { RestaurantShareImage } from '#/components/ru/RestaurantShareImage';
 import {
+    loadRestaurantSearch,
     restaurantPageHead,
     restaurantSelection,
-    restaurantSharePath,
-    validateRestaurantSearch
+    restaurantSharePath
 } from '#/lib/restaurant-share';
 import { restaurantShareResponse } from '#/lib/restaurant-share.server';
 import { loadSharedMenu } from '#/queries/restaurant-share';
@@ -29,6 +29,7 @@ const sections: MenuSection[] = [
     { key: 'dessert', name: 'Sobremesa', items: ['Melancia'] },
     { key: 'drink', name: 'Bebida', items: ['Suco de maracujá'] }
 ];
+const EMPTY = { date: null, meal: null, campus: null };
 const handler = ({ request }: { request: Request }) => restaurantShareResponse(request);
 let fetchSpy: ReturnType<typeof spyOn<typeof globalThis, 'fetch'>> | undefined;
 afterEach(() => fetchSpy?.mockRestore());
@@ -73,47 +74,28 @@ function mockMenu(status = 200, published = true) {
 describe('compartilhamento do cardápio', () => {
     test('o link restaura dia, refeição e campus sem depender dos padrões atuais', () => {
         const url = new URL(restaurantSharePath(selection), 'https://followw.app');
-        expect(
-            restaurantSelection(validateRestaurantSearch(Object.fromEntries(url.searchParams)))
-        ).toEqual(selection);
+        expect(restaurantSelection(loadRestaurantSearch(url))).toEqual(selection);
     });
 
     test.each(['2026-02-30', '2026-13-01', 'amanhã', '2026-1-01', '0000-00-00'])(
         'ignora a data inválida %s e filtros desconhecidos',
         (date) => {
-            expect(validateRestaurantSearch({ date, meal: 'ceia', campus: '__proto__' })).toEqual(
-                {}
+            expect(loadRestaurantSearch({ date, meal: 'ceia', campus: '__proto__' })).toEqual(
+                EMPTY
             );
         }
     );
 
-    test.each(['light', 'dark'] as const)(
-        'preserva o tema %s no link e nos metadados da imagem',
-        (theme) => {
-            const chosen = { ...selection, theme };
-            const url = new URL(restaurantSharePath(chosen), 'https://followw.app');
-            expect(
-                restaurantSelection(validateRestaurantSearch(Object.fromEntries(url.searchParams)))
-            ).toEqual(chosen);
-            const head = restaurantPageHead(chosen);
-            const image = head.meta.find((tag) => 'property' in tag && tag.property === 'og:image');
-            expect(new URL(image!.content!).searchParams.get('theme')).toBe(theme);
-        }
-    );
-
-    test('tema inválido é ignorado e a imagem sem tema continua clara', () => {
-        expect(validateRestaurantSearch({ theme: 'system' })).toEqual({});
-        const light = renderToStaticMarkup(
+    test('o link e a canônica não levam tema', () => {
+        expect(restaurantSharePath(selection)).not.toContain('theme');
+        expect(loadRestaurantSearch({ theme: 'dark' })).toEqual(EMPTY);
+        expect(restaurantPageHead(selection).links[0].href).toBe(
+            'https://followw.app/ru?date=2026-10-19&meal=lunch&campus=Gama'
+        );
+        const markup = renderToStaticMarkup(
             <RestaurantShareImage selection={selection} sections={sections} />
         );
-        expect(light).toContain('background:#ffffff');
-        const dark = renderToStaticMarkup(
-            <RestaurantShareImage selection={{ ...selection, theme: 'dark' }} sections={sections} />
-        );
-        expect(dark).toContain('background:#151515');
-        expect(dark).toContain('color:#f5f5f5');
-        expect(dark).toContain('background:#203d32');
-        expect(dark).toContain('followw.app/ru');
+        expect(markup).toContain('followw.app/ru');
     });
 
     test('os metadados apontam para uma imagem PNG do mesmo dia, refeição e campus', () => {
@@ -211,26 +193,21 @@ describe('compartilhamento do cardápio', () => {
         expect(options).not.toHaveProperty('headers');
     });
 
-    test.each(['light', 'dark'] as const)(
-        'o endpoint público gera PNG %s de 1200 por 630 com cache de uma hora e meia',
-        async (theme) => {
-            mockMenu();
-            const response = await handler({
-                request: new Request(
-                    `https://followw.app${restaurantSharePath({ ...selection, theme }, '/share/ru.png')}`
-                )
-            });
-            expect(response.status).toBe(200);
-            expect(response.headers.get('content-type')).toBe('image/png');
-            expect(response.headers.get('cache-control')).toBe(
-                'public, max-age=5400, s-maxage=5400'
-            );
-            const bytes = new Uint8Array(await response.arrayBuffer());
-            expect(Array.from(bytes.slice(0, 8))).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
-            const view = new DataView(bytes.buffer);
-            expect([view.getUint32(16), view.getUint32(20)]).toEqual([1200, 630]);
-        }
-    );
+    test('o endpoint público gera PNG de 1200 por 630 com cache de uma hora e meia', async () => {
+        mockMenu();
+        const response = await handler({
+            request: new Request(
+                `https://followw.app${restaurantSharePath(selection, '/share/ru.png')}`
+            )
+        });
+        expect(response.status).toBe(200);
+        expect(response.headers.get('content-type')).toBe('image/png');
+        expect(response.headers.get('cache-control')).toBe('public, max-age=5400, s-maxage=5400');
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        expect(Array.from(bytes.slice(0, 8))).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
+        const view = new DataView(bytes.buffer);
+        expect([view.getUint32(16), view.getUint32(20)]).toEqual([1200, 630]);
+    });
 
     test('dia sem cardápio mantém a identidade e informa ausência de publicação', async () => {
         mockMenu(200, false);
@@ -244,6 +221,17 @@ describe('compartilhamento do cardápio', () => {
         );
         expect(markup).toContain('Cardápio não publicado');
         expect(markup).toContain('Followw');
+    });
+
+    test('prévia de cardápio não publicado não é cacheada', async () => {
+        mockMenu(200, false);
+        const response = await handler({
+            request: new Request(
+                `https://followw.app${restaurantSharePath(selection, '/share/ru.png')}`
+            )
+        });
+        expect(response.status).toBe(200);
+        expect(response.headers.get('cache-control')).toBe('no-store');
     });
 
     test('falha da origem não é cacheada como cardápio vazio', async () => {

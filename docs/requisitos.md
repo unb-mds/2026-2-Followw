@@ -364,8 +364,10 @@ analisar concorrência de vagas, pré-requisitos e estatísticas históricas de 
 **Critérios de Aceitação:**
 
 - A falta de menção após a consolidação não deve ser interpretada como reprovação.
+- Vínculos trancados, removidos ou indeferidos não contam como tentativa sem resultado.
 - MI, II ou SR permitem repetir somente sem aprovação, matrícula atual ou outra tentativa incerta.
-- Equivalências devem respeitar grupos E/OU e sua direção, sem inferir reciprocidade ou transitividade.
+- Equivalências devem respeitar grupos E/OU e sua direção, sem inferir reciprocidade ou
+  transitividade.
 - Tentativas sem menção devem presumir aprovação no ranking, liberar pré/correquisitos diretos e por
   equivalência e contar como concluídas no fluxo, sem alterar a menção armazenada.
 
@@ -403,11 +405,11 @@ acadêmicas.
   opções vegetarianas e veganas com ícones dedicados.
 - Dias sem cardápio disponível devem apresentar mensagem explicativa com o motivo (ex.:
   `"Cardápio não publicado para esta data"`).
-- O compartilhamento deve preservar dia, refeição e campus nos parâmetros da URL e apresentar
-  uma imagem dinâmica do cardápio com a identidade visual do Followw, acessível sem login.
-  As seções devem manter a ordem exibida no site, com os rótulos dos acompanhamentos em negrito.
-  As alternativas ovolactovegetarianas e vegetarianas estritas devem usar os ícones de ovo e folha.
-  A imagem deve ter versões clara e escura, preservando no link o tema usado ao compartilhar.
+- O compartilhamento deve preservar dia, refeição e campus nos parâmetros da URL e apresentar uma
+  imagem dinâmica do cardápio com a identidade visual do Followw, acessível sem login. As seções
+  devem manter a ordem exibida no site, com os rótulos dos acompanhamentos em negrito. As
+  alternativas ovolactovegetarianas e vegetarianas estritas devem usar os ícones de ovo e folha. A
+  imagem usa um tema fixo, definido no gerador, sem parâmetro de tema na URL.
 
 #### 4.2: Gestão de Saldo e Extrato do RU
 

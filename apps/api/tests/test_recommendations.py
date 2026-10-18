@@ -323,15 +323,23 @@ def test_mencoes_aprovadas_e_repeticao(scene, grade):
 
 
 def test_oferta_e_em_andamento_contam_como_concluidas(scene):
-    for code in ("TARGET", "FAILED", "REMOVED", "LOCKED"):
+    for code in ("TARGET", "FAILED", "REMOVED", "LOCKED", "DENIED"):
         scene.subject(code)
     scene.subject("NEEDS_TARGET", prerequisites=[["TARGET"]])
+    scene.subject("NEEDS_LOCKED", prerequisites=[["LOCKED"]])
     scene.history("TARGET", grade=Grade.MM, term="2026.2", enrolled=True)
     scene.history("FAILED", grade=Grade.MI)
     scene.history("REMOVED", term="2026.2", status=ClassroomStatus.REMOVIDO)
     scene.history("LOCKED", term="2026.2", status=ClassroomStatus.TRANCADO)
+    scene.history("DENIED", term="2026.2", status=ClassroomStatus.DENIED)
     scene.history("FAILED", grade=Grade.SS, term="invalid")
-    assert set(codes(scene.get())) == {"NEEDS_TARGET", "FAILED"}
+    assert set(codes(scene.get())) == {
+        "NEEDS_TARGET",
+        "FAILED",
+        "REMOVED",
+        "LOCKED",
+        "DENIED",
+    }
 
 
 @pytest.mark.parametrize("closed", [False, True])
@@ -706,7 +714,7 @@ def test_mencoes_vencidas_com_swr_e_no_cache(scene, stub_sigaa, qstash):
     stub_sigaa.classrooms.list_grades.return_value = [
         ClassroomGrade(subject_code="A", semester="2026.2", grade=Grade.MM)
     ]
-    assert scene.get() == []
+    assert codes(scene.get()) == ["A"]
     assert any(
         step.task == "sync_grades" for job in qstash.jobs() for step in job.steps
     )

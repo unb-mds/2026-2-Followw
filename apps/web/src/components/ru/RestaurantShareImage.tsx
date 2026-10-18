@@ -7,18 +7,33 @@ import type { MenuSection } from '#/queries/restaurant';
 import logo from '#/../public/favicon.svg?raw';
 import { highlightMenu, MEAL_TIMES } from '#/lib/restaurant';
 import { CAMPUS_LABELS } from '#/queries/restaurant';
-import theme from '#/styles.css?raw';
 
-const colors = Object.fromEntries(
-    [...theme.matchAll(/--color-share-(\w+):\s*([^;]+);/g)].map(([, key, value]) => [key, value])
-);
+// Tema da prévia compartilhada.
+const THEME: 'light' | 'dark' = 'dark';
+
+const PALETTES = {
+    light: {
+        background: '#ffffff',
+        foreground: '#171717',
+        primary: '#007c5d',
+        muted: '#737373',
+        border: '#ebebeb',
+        highlight: '#f2f8f6',
+        icon: '#e5f2ed',
+        card: '#ffffff'
+    },
+    dark: {
+        background: '#151515',
+        foreground: '#f5f5f5',
+        primary: '#5fceaa',
+        muted: '#a3a3a3',
+        border: '#30443d',
+        highlight: '#162921',
+        icon: '#203d32',
+        card: '#202020'
+    }
+};
 const column: React.CSSProperties = { display: 'flex', flexDirection: 'column' };
-const darkColors = Object.fromEntries(
-    [...theme.matchAll(/--color-share-dark-(\w+):\s*([^;]+);/g)].map(([, key, value]) => [
-        key,
-        value
-    ])
-);
 
 export function RestaurantShareImage({
     selection,
@@ -27,7 +42,7 @@ export function RestaurantShareImage({
     selection: RestaurantSelection;
     sections: MenuSection[];
 }) {
-    const palette = selection.theme === 'dark' ? darkColors : colors;
+    const palette = PALETTES[THEME];
     const alternativeIcons = {
         vegetarian: `data:image/svg+xml;base64,${btoa(renderToStaticMarkup(<Egg size={24} color={palette.primary} />))}`,
         vegan: `data:image/svg+xml;base64,${btoa(renderToStaticMarkup(<Leaf size={24} color={palette.primary} />))}`
