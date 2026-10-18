@@ -63,6 +63,7 @@ class Scenario:
                 entry_semester="2025.1",
                 profile_synced_at=NOW,
                 classrooms_synced_at=NOW,
+                grades_synced_at=NOW,
             )
             session.add(user)
             session.flush()
@@ -138,7 +139,6 @@ class Scenario:
         role=ClassroomRole.ALUNO,
         own=True,
         user_id=None,
-        synced=NOW,
         status=None,
     ):
         with self.db.begin() as session:
@@ -157,7 +157,6 @@ class Scenario:
                 or (
                     ClassroomStatus.CURSANDO if enrolled else ClassroomStatus.CONCLUIDO
                 ),
-                grade_synced_at=synced,
                 current=enrolled,
             )
             session.add(row)
@@ -324,26 +323,34 @@ def test_mencoes_aprovadas_e_repeticao(scene, grade):
 
 
 def test_oferta_e_em_andamento_contam_como_concluidas(scene):
-    for code in ("TARGET", "FAILED", "REMOVED", "LOCKED"):
+    for code in ("TARGET", "FAILED", "REMOVED", "LOCKED", "DENIED"):
         scene.subject(code)
     scene.subject("NEEDS_TARGET", prerequisites=[["TARGET"]])
+    scene.subject("NEEDS_LOCKED", prerequisites=[["LOCKED"]])
     scene.history("TARGET", grade=Grade.MM, term="2026.2", enrolled=True)
     scene.history("FAILED", grade=Grade.MI)
     scene.history("REMOVED", term="2026.2", status=ClassroomStatus.REMOVIDO)
     scene.history("LOCKED", term="2026.2", status=ClassroomStatus.TRANCADO)
+    scene.history("DENIED", term="2026.2", status=ClassroomStatus.DENIED)
     scene.history("FAILED", grade=Grade.SS, term="invalid")
-    assert set(codes(scene.get())) == {"NEEDS_TARGET", "FAILED", "REMOVED", "LOCKED"}
+    assert set(codes(scene.get())) == {
+        "NEEDS_TARGET",
+        "FAILED",
+        "REMOVED",
+        "LOCKED",
+        "DENIED",
+    }
 
 
-@pytest.mark.parametrize(("closed", "expected"), [(False, ["B"]), (True, ["A"])])
-def test_encerrada_sem_mencao_consolidada_conta_como_em_andamento(
-    scene, monkeypatch, closed, expected
+@pytest.mark.parametrize("closed", [False, True])
+def test_encerrada_sem_mencao_libera_seguinte_mesmo_apos_consolidacao(
+    scene, monkeypatch, closed
 ):
     monkeypatch.setattr(academic_calendar, "grades_closed", lambda semester: closed)
     scene.subject("A")
     scene.subject("B", prerequisites=[["A"]])
     scene.history("A")
-    assert codes(scene.get()) == expected
+    assert codes(scene.get()) == ["B"]
 
 
 def test_so_vinculos_proprios_de_aluno_e_isolamento_entre_usuarios(scene):
@@ -360,7 +367,7 @@ def test_so_vinculos_proprios_de_aluno_e_isolamento_entre_usuarios(scene):
     assert scene.get() == []
 
 
-def test_requisitos_e_ou_com_em_andamento_mas_sem_credito_por_equivalencia(scene):
+def test_requisitos_e_ou_com_em_andamento_e_equivalencia(scene):
     scene.history("A", grade=Grade.MM)
     scene.subject("PASS", prerequisites=[["A", "B"], ["A"]], corequisites=[["A"]])
     scene.subject("AND", prerequisites=[["A", "B"]])
@@ -369,7 +376,89 @@ def test_requisitos_e_ou_com_em_andamento_mas_sem_credito_por_equivalencia(scene
     scene.subject("EQUIV", prerequisites=[["Y"]])
     scene.subject("Y", offer=False, equivalences=[["A"]])
     scene.history("C", enrolled=True, term="2026.2")
-    assert codes(scene.get()) == ["CO", "CURRENT", "PASS"]
+    assert codes(scene.get()) == ["CO", "CURRENT", "EQUIV", "PASS"]
+
+
+@pytest.mark.parametrize("grade", [Grade.MI, Grade.II, Grade.SR])
+def test_so_recomenda_repeticao_com_reprovacao_confirmada(scene, grade):
+    scene.subject("FAILED")
+    scene.subject("UNKNOWN")
+    scene.history("FAILED", grade=grade)
+    scene.history("UNKNOWN", term="2020.1")
+    assert codes(scene.get()) == ["FAILED"]
+
+
+def test_reprovacao_antiga_nao_libera_materia_em_curso_ou_sem_resultado(scene):
+    for code in ("CURRENT", "UNKNOWN"):
+        scene.subject(code)
+        scene.history(code, grade=Grade.MI, term="2025.1")
+    scene.history("CURRENT", enrolled=True, term="2026.2")
+    scene.history("UNKNOWN", term="2026.1")
+    assert scene.get() == []
+
+
+def test_equivalencias_respeitam_grupos_direcao_e_nao_inferem_transitividade(scene):
+    scene.history("A", grade=Grade.MM)
+    scene.subject("B", equivalences=[["A"]])
+    scene.subject("C", equivalences=[["A", "MISSING"]])
+    scene.subject("D", equivalences=[["MISSING"], ["A"]])
+    scene.subject("E", equivalences=[["B"]])
+    scene.subject("F")
+    scene.subject("G", offer=False, equivalences=[["F"]])
+    assert codes(scene.get()) == ["C", "E", "F"]
+
+
+def test_equivalencia_sem_resultado_exclui_repeticao_e_libera_requisito(
+    scene, monkeypatch
+):
+    monkeypatch.setattr(academic_calendar, "grades_closed", lambda semester: True)
+    scene.history("A", term="2020.1")
+    scene.subject("B", equivalences=[["A"]])
+    scene.subject("C", prerequisites=[["B"]])
+    scene.subject("D", corequisites=[["B"]])
+    assert codes(scene.get()) == ["C", "D"]
+
+
+def test_sem_mencao_respeita_grupos_e_ou_dos_requisitos(scene, monkeypatch):
+    monkeypatch.setattr(academic_calendar, "grades_closed", lambda semester: True)
+    scene.history("A", term="2020.1")
+    scene.subject("B", prerequisites=[["A", "MISSING"]])
+    scene.subject("C", prerequisites=[["MISSING"], ["A"]])
+    assert codes(scene.get()) == ["C"]
+
+
+async def test_sem_mencao_conta_como_concluida_no_fluxo(scene, ranked, monkeypatch):
+    monkeypatch.setattr(academic_calendar, "grades_closed", lambda semester: True)
+    scene.subject("A", kind="required", period=1)
+    scene.subject("B", kind="required", period=2, prerequisites=[["A"]])
+    scene.history("A", term="2020.1")
+    assert codes(scene.get()) == ["B"]
+    assert points(await ranked(), "B")["target_period"] == 25
+
+
+def test_equivalencia_de_materia_em_curso_exclui_repeticao(scene):
+    scene.history("A", enrolled=True, term="2026.2")
+    scene.subject("B", equivalences=[["A"]])
+    scene.subject("C", prerequisites=[["B"]])
+    assert codes(scene.get()) == ["C"]
+
+
+@pytest.mark.parametrize("grade", [Grade.MI, Grade.II, Grade.SR])
+def test_reprovacao_em_equivalente_nao_exclui_candidata_nem_libera_requisito(
+    scene, grade
+):
+    scene.history("A", grade=grade)
+    scene.subject("B", equivalences=[["A"]])
+    scene.subject("C", prerequisites=[["B"]])
+    assert codes(scene.get()) == ["B"]
+
+
+def test_equivalencia_fora_da_matriz_satisfaz_requisito_e_correquisito(scene):
+    scene.history("A", grade=Grade.MM)
+    scene.subject("X", offer=False, kind=None, equivalences=[["A"]])
+    scene.subject("B", prerequisites=[["X"]])
+    scene.subject("C", corequisites=[["X"]])
+    assert codes(scene.get()) == ["B", "C"]
 
 
 FLOW = [
@@ -586,7 +675,8 @@ async def test_optativas_e_complementares_nao_ganham_bonus_de_tipo(scene, ranked
 def test_mencoes_ausentes_sincronizam_antes_do_ranking(scene, stub_sigaa):
     scene.subject("A")
     scene.subject("B", prerequisites=[["A"]])
-    scene.history("A", synced=None)
+    scene.history("A")
+    scene.user(grades_synced_at=None)
     stub_sigaa.classrooms.list_grades.return_value = [
         ClassroomGrade(subject_code="A", semester="2026.1", grade=Grade.MM)
     ]
@@ -606,7 +696,8 @@ def test_historico_ausente_difere_de_sincronizado_vazio(scene, stub_sigaa):
 
 def test_only_if_cached_sem_historico_e_falha_na_origem(scene, stub_sigaa):
     scene.subject("A")
-    scene.history("B", synced=None)
+    scene.history("B")
+    scene.user(grades_synced_at=None)
     assert (
         scene.client.get(URL, headers={"Cache-Control": "only-if-cached"}).status_code
         == 504
@@ -618,12 +709,8 @@ def test_only_if_cached_sem_historico_e_falha_na_origem(scene, stub_sigaa):
 def test_mencoes_vencidas_com_swr_e_no_cache(scene, stub_sigaa, qstash):
     scene.subject("A")
     # Trancada: sem menção, não conta como em andamento.
-    link_id = scene.history(
-        "A",
-        term="2026.2",
-        synced=NOW - timedelta(days=2),
-        status=ClassroomStatus.TRANCADO,
-    )
+    link_id = scene.history("A", term="2026.2", status=ClassroomStatus.TRANCADO)
+    scene.user(grades_synced_at=NOW - timedelta(days=2))
     stub_sigaa.classrooms.list_grades.return_value = [
         ClassroomGrade(subject_code="A", semester="2026.2", grade=Grade.MM)
     ]
@@ -635,7 +722,7 @@ def test_mencoes_vencidas_com_swr_e_no_cache(scene, stub_sigaa, qstash):
     with scene.db.begin() as session:
         row = session.get(ClassroomParticipant, link_id)
         row.grade = None
-        row.grade_synced_at = NOW
+        session.get(User, scene.user_id).grades_synced_at = NOW
     # A revalidação das turmas precisa preservar o vínculo da fonte sintética.
     with scene.db() as session:
         row = session.get(ClassroomParticipant, link_id)
@@ -727,15 +814,12 @@ async def test_referencia_normalizada_da_matriz_conta_sem_oferta(scene, ranked):
     assert x["chain_length"] == 10 and x["chain_width"] == 5
 
 
-def test_datas_congeladas_nao_envelhecem_mencoes_mutaveis_com_stale_if_error(
-    scene, stub_sigaa
-):
+def test_mencoes_vencidas_servem_stale_if_error(scene, stub_sigaa):
     scene.subject("A")
     scene.subject("B")
-    scene.history(
-        "OLD", grade=Grade.MM, term="2020.1", synced=datetime(2021, 1, 1, tzinfo=UTC)
-    )
-    scene.history("A", term="2026.2", synced=NOW - timedelta(days=2))
+    scene.history("OLD", grade=Grade.MM, term="2020.1")
+    scene.history("A", term="2026.2")
+    scene.user(grades_synced_at=NOW - timedelta(days=2))
     with scene.db() as session:
         links = list(session.scalars(select(ClassroomParticipant)))
         stub_sigaa.classrooms.list_classrooms.return_value = [
@@ -804,7 +888,8 @@ async def test_historico_removido_durante_sync_das_mencoes_e_vazio_valido(
     scene, async_database, stub_sigaa
 ):
     scene.subject("A")
-    link_id = scene.history("OLD", synced=None)
+    link_id = scene.history("OLD")
+    scene.user(grades_synced_at=None)
 
     async def grades_after_history_refresh():
         async with async_database.begin() as session:
@@ -826,7 +911,9 @@ def test_historico_novo_apos_resolver_mencoes_pede_nova_tentativa(scene, monkeyp
     async def resolve_with_concurrent_history(self, task, target, load):
         result = await resolve(self, task, target, load)
         if task.__name__ == "sync_grades":
-            scene.history("NEW", synced=None)
+            # Como o sync das turmas: vínculo novo zera a data das menções.
+            scene.history("NEW")
+            scene.user(grades_synced_at=None)
         return result
 
     monkeypatch.setattr(Sync, "resolve", resolve_with_concurrent_history)

@@ -11,7 +11,7 @@ from api.db.models import OwnLink, User
 from api.modules.classrooms.repository import ClassroomRepository
 from api.modules.classrooms.service import (
     ClassroomService,
-    grade_freshness,
+    grades_freshness,
     sync_grades,
 )
 from api.modules.me.profile import profile_freshness, sync_profile
@@ -24,6 +24,13 @@ from api.modules.recommendations.ranking import (
 )
 from api.modules.recommendations.repository import RecommendationRepository
 from api.sync import Cached, Sync
+
+# Saída ou indeferimento não deixa menção pendente: a tentativa não conta.
+_WITHOUT_ATTEMPT = {
+    ClassroomStatus.TRANCADO,
+    ClassroomStatus.REMOVIDO,
+    ClassroomStatus.DENIED,
+}
 
 
 class Ranking(NamedTuple):
@@ -80,33 +87,17 @@ class RecommendationService:
                 current = await ClassroomRepository(session).list_student_links(
                     student.user_id, reference
                 )
+                user = await session.get(User, student.user_id)
                 if not current:
-                    user = await session.get(User, student.user_id)
                     if user is None or user.classrooms_synced_at is None:
                         return None
                     return Cached(True, user.classrooms_synced_at, Freshness.FROZEN)
-                if any(link.row.grade_synced_at is None for link in current):
+                if user is None or user.grades_synced_at is None:
                     return None
-                states = [
-                    grade_freshness(link, link.row.grade_synced_at) for link in current
-                ]
-                state = (
-                    Freshness.STALE
-                    if Freshness.STALE in states
-                    else Freshness.FROZEN
-                    if all(s is Freshness.FROZEN for s in states)
-                    else Freshness.FRESH
-                )
-                # Datas congeladas não envelhecem o cache das menções ainda mutáveis.
-                mutable = [
-                    link
-                    for link, freshness in zip(current, states)
-                    if freshness is not Freshness.FROZEN
-                ]
                 return Cached(
                     True,
-                    min(link.row.grade_synced_at for link in mutable or current),
-                    state,
+                    user.grades_synced_at,
+                    grades_freshness(current, user.grades_synced_at),
                 )
 
             await self._sync.resolve(sync_grades, None, load)
@@ -151,7 +142,8 @@ async def _rank(
 ) -> list[Recommendation]:
     classrooms = ClassroomRepository(session)
     links = await classrooms.list_student_links(student.user_id, reference)
-    if any(link.row.grade_synced_at is None for link in links):
+    user = await session.get(User, student.user_id)
+    if links and (user is None or user.grades_synced_at is None):
         raise HTTPException(
             503, "Histórico atualizado durante a consulta; tente novamente."
         )
@@ -172,12 +164,26 @@ async def _rank(
     offered = curriculum.keys() & {
         normalize(code) for code in await classrooms.offered_subject_codes(reference)
     }
-    catalog = await RecommendationRepository(session).catalog(set(curriculum))
+    subjects = RecommendationRepository(session)
+    catalog = await subjects.catalog(set(curriculum))
+    requirements = {
+        normalize(code)
+        for subject in catalog.values()
+        for rules in (subject.prerequisites, subject.corequisites)
+        for group in rules or []
+        for code in group
+    }
+    catalog.update(await subjects.catalog(requirements - catalog.keys()))
     return rank(
         catalog=catalog,
         offered=offered & catalog.keys(),
         curriculum=curriculum,
         completed=completed,
         enrolled=enrolled - completed,
+        unresolved={
+            normalize(link.row.classroom.subject_code)
+            for link in links
+            if link.row.grade is None and link.row.status not in _WITHOUT_ATTEMPT
+        },
         unity_id=student.unity_id,
     )

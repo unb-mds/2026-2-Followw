@@ -21,6 +21,7 @@ class CatalogSubject(Model):
     unity_id: int | None
     prerequisites: Rules
     corequisites: Rules
+    equivalences: Rules = None
 
 
 class CurriculumInfo(Model):
@@ -183,14 +184,20 @@ def rank(
     curriculum: dict[str, Component],
     completed: set[str],
     enrolled: set[str],
+    unresolved: set[str],
     unity_id: int | None,
 ) -> list[Recommendation]:
     """As ofertadas que o aluno pode cursar, da mais à menos prioritária.
 
-    A recomendação é para o próximo semestre: as em andamento contam como concluídas.
+    Para o próximo semestre, em andamento e sem menção contam como concluídas.
     Fora da matriz é módulo livre, então sem matriz nada é recomendado.
     """
-    done = completed | enrolled
+    assumed = completed | enrolled | unresolved
+    done = assumed | {
+        code
+        for code, subject in catalog.items()
+        if subject.equivalences and satisfies(subject.equivalences, assumed)
+    }
     target = target_period(curriculum, done, enrolled)
     dependents = dependency_graph(
         {

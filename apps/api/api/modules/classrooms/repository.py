@@ -114,17 +114,20 @@ class ClassroomRepository:
 
     async def save_grades(
         self,
-        links: Sequence[OwnLink],
+        user: User,
         grades: Sequence[sigaa_client.ClassroomGrade],
         synced_at: datetime,
     ) -> None:
         by_subject = {(item.subject_code, item.semester): item.grade for item in grades}
-        for link in links:
+        for link in await self.list_by_user_id(user.id):
             classroom = link.row.classroom
-            link.row.grade = by_subject.get(
-                (classroom.subject_code, classroom.semester)
-            )
-            link.row.grade_synced_at = synced_at
+            key = (classroom.subject_code, classroom.semester)
+            # Menção consolidada não some só porque o relatório deixou de trazê-la.
+            if key in by_subject or not academic_calendar.grades_closed(
+                classroom.semester
+            ):
+                link.row.grade = by_subject.get(key)
+        user.grades_synced_at = synced_at
         await self._session.flush()
 
     async def save_classroom_participants(
@@ -168,6 +171,9 @@ class ClassroomRepository:
                 )
                 self._session.add(link)
                 links[classroom.id] = link
+            if link.front_end_id is None:
+                # Turma nova na lista: a menção dela só vem num novo relatório.
+                user.grades_synced_at = None
             link.front_end_id = item.id
             link.current = item.current
             if link.role == ClassroomRole.ALUNO:

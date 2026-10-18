@@ -12,6 +12,14 @@ const classroom = {
 };
 
 describe('ClassCard', () => {
+    test('matrícula em processamento exibe a badge amarela', () => {
+        const markup = renderToStaticMarkup(<ClassCard {...classroom} status="pending" />);
+
+        expect(markup).toContain('Em processamento');
+        expect(markup).toContain('bg-warning/10');
+        expect(markup).toContain('text-warning');
+    });
+
     test.each([
         ['SS', 'info'],
         ['MS', 'primary'],

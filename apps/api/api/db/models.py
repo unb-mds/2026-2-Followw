@@ -127,6 +127,8 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     classrooms_synced_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True)
     )
+    # Do relatório com as menções de todos os semestres; zera com turma nova na lista.
+    grades_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     settings: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
 
     course: Mapped[Course | None] = relationship(lazy="joined")
@@ -216,7 +218,6 @@ class ClassroomParticipant(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         _enum(ClassroomStatus, "classroom_status")
     )
     grade: Mapped[Grade | None] = mapped_column(_enum(Grade, "classroom_grade"))
-    grade_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # `frontEndIdTurma` visto pelo próprio usuário: só existe nos vínculos que
     # vieram da lista de turmas dele, não da lista de participantes.
     front_end_id: Mapped[str | None] = mapped_column()

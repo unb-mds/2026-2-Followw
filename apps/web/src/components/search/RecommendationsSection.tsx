@@ -5,6 +5,7 @@ import type { CatalogSubject } from '#/queries/subjects';
 
 import { ErrorCard } from '#/components/ErrorState';
 import { LoadingText } from '#/components/LoadingText';
+import { SubjectKindBadge } from '#/components/search/SubjectKindBadge';
 import { TurmaCard } from '#/components/search/TurmaCard';
 import { SectionHeader } from '#/components/SectionHeader';
 import {
@@ -16,7 +17,6 @@ import {
 import { Badge } from '#/components/ui/badge';
 import { reasonLabel, recommendationsQueryOptions } from '#/queries/recommendations';
 import { refreshQuery } from '#/queries/refresh';
-import { subjectKindLabels } from '#/queries/subjects';
 
 export function RecommendationCard({ subject }: { subject: CatalogSubject }) {
     const reasons = subject.recommendation?.reasons ?? [];
@@ -29,11 +29,7 @@ export function RecommendationCard({ subject }: { subject: CatalogSubject }) {
                 <span className="flex min-w-0 flex-1 flex-col gap-1">
                     <span className="flex items-center gap-2">
                         <span className="text-xs font-semibold text-primary">{subject.code}</span>
-                        {subject.kind && (
-                            <Badge variant={subject.kind === 'mandatory' ? 'secondary' : 'outline'}>
-                                {subjectKindLabels[subject.kind]}
-                            </Badge>
-                        )}
+                        <SubjectKindBadge kind={subject.kind} />
                     </span>
                     <span className="text-sm leading-snug font-semibold">{subject.name}</span>
                 </span>

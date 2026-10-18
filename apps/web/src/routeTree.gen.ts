@@ -18,6 +18,7 @@ import { Route as AppBuscarRouteImport } from './routes/_app/buscar'
 import { Route as AppPerfilRouteImport } from './routes/_app/perfil'
 import { Route as AppRuRouteImport } from './routes/_app/ru'
 import { Route as AppTurmasRouteImport } from './routes/_app/turmas'
+import { Route as ShareRuDotpngRouteImport } from './routes/share.ru[.]png'
 import { Route as AppTurmasIdRouteImport } from './routes/_app/turmas_.$id'
 
 const SplatRoute = SplatRouteImport.update({
@@ -64,6 +65,11 @@ const AppTurmasRoute = AppTurmasRouteImport.update({
   path: '/turmas',
   getParentRoute: () => AppRoute,
 } as any)
+const ShareRuDotpngRoute = ShareRuDotpngRouteImport.update({
+  id: '/share/ru.png',
+  path: '/share/ru.png',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppTurmasIdRoute = AppTurmasIdRouteImport.update({
   id: '/turmas_/$id',
   path: '/turmas/$id',
@@ -79,6 +85,7 @@ export interface FileRoutesByFullPath {
   '/perfil': typeof AppPerfilRoute
   '/ru': typeof AppRuRoute
   '/turmas': typeof AppTurmasRoute
+  '/share/ru.png': typeof ShareRuDotpngRoute
   '/turmas/$id': typeof AppTurmasIdRoute
 }
 export interface FileRoutesByTo {
@@ -89,6 +96,7 @@ export interface FileRoutesByTo {
   '/perfil': typeof AppPerfilRoute
   '/ru': typeof AppRuRoute
   '/turmas': typeof AppTurmasRoute
+  '/share/ru.png': typeof ShareRuDotpngRoute
   '/': typeof AppIndexRoute
   '/turmas/$id': typeof AppTurmasIdRoute
 }
@@ -102,6 +110,7 @@ export interface FileRoutesById {
   '/_app/perfil': typeof AppPerfilRoute
   '/_app/ru': typeof AppRuRoute
   '/_app/turmas': typeof AppTurmasRoute
+  '/share/ru.png': typeof ShareRuDotpngRoute
   '/_app/': typeof AppIndexRoute
   '/_app/turmas_/$id': typeof AppTurmasIdRoute
 }
@@ -116,6 +125,7 @@ export interface FileRouteTypes {
     | '/perfil'
     | '/ru'
     | '/turmas'
+    | '/share/ru.png'
     | '/turmas/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -126,6 +136,7 @@ export interface FileRouteTypes {
     | '/perfil'
     | '/ru'
     | '/turmas'
+    | '/share/ru.png'
     | '/'
     | '/turmas/$id'
   id:
@@ -138,6 +149,7 @@ export interface FileRouteTypes {
     | '/_app/perfil'
     | '/_app/ru'
     | '/_app/turmas'
+    | '/share/ru.png'
     | '/_app/'
     | '/_app/turmas_/$id'
   fileRoutesById: FileRoutesById
@@ -147,6 +159,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
+  ShareRuDotpngRoute: typeof ShareRuDotpngRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -214,6 +227,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTurmasRouteImport
       parentRoute: typeof AppRoute
     }
+    '/share/ru.png': {
+      id: '/share/ru.png'
+      path: '/share/ru.png'
+      fullPath: '/share/ru.png'
+      preLoaderRoute: typeof ShareRuDotpngRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/turmas_/$id': {
       id: '/_app/turmas_/$id'
       path: '/turmas/$id'
@@ -249,16 +269,8 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   PrivacidadeRoute: PrivacidadeRoute,
+  ShareRuDotpngRoute: ShareRuDotpngRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}

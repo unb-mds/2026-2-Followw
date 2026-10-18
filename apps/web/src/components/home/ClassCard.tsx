@@ -17,7 +17,7 @@ export interface ClassCardProps {
     professors?: string[];
     classNumber?: string;
     grade?: Classroom['grade'];
-    status?: 'in_progress' | 'next' | 'normal' | 'warning';
+    status?: 'in_progress' | 'next' | 'pending' | 'normal' | 'warning';
     statusText?: string;
     onLocationClick?: () => void;
     onClick?: () => void;
@@ -32,6 +32,11 @@ const STATUS = {
         className: 'bg-primary/10 text-primary'
     },
     next: { label: 'Próxima', variant: 'secondary', className: 'text-muted-foreground' },
+    pending: {
+        label: 'Em processamento',
+        variant: 'secondary',
+        className: 'bg-warning/10 text-warning'
+    },
     warning: { label: 'Atenção', variant: 'destructive', className: '' }
 } as const;
 
