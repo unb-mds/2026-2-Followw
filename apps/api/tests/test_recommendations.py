@@ -331,11 +331,11 @@ def test_oferta_e_em_andamento_contam_como_concluidas(scene):
     scene.history("REMOVED", term="2026.2", status=ClassroomStatus.REMOVIDO)
     scene.history("LOCKED", term="2026.2", status=ClassroomStatus.TRANCADO)
     scene.history("FAILED", grade=Grade.SS, term="invalid")
-    assert set(codes(scene.get())) == {"NEEDS_TARGET", "FAILED", "REMOVED", "LOCKED"}
+    assert set(codes(scene.get())) == {"NEEDS_TARGET", "FAILED"}
 
 
-@pytest.mark.parametrize(("closed", "expected"), [(False, ["B"]), (True, ["A"])])
-def test_encerrada_sem_mencao_consolidada_conta_como_em_andamento(
+@pytest.mark.parametrize(("closed", "expected"), [(False, ["B"]), (True, [])])
+def test_encerrada_sem_mencao_nao_e_recomendada_mesmo_apos_consolidacao(
     scene, monkeypatch, closed, expected
 ):
     monkeypatch.setattr(academic_calendar, "grades_closed", lambda semester: closed)
@@ -359,7 +359,7 @@ def test_so_vinculos_proprios_de_aluno_e_isolamento_entre_usuarios(scene):
     assert scene.get() == []
 
 
-def test_requisitos_e_ou_com_em_andamento_mas_sem_credito_por_equivalencia(scene):
+def test_requisitos_e_ou_com_em_andamento_e_equivalencia(scene):
     scene.history("A", grade=Grade.MM)
     scene.subject("PASS", prerequisites=[["A", "B"], ["A"]], corequisites=[["A"]])
     scene.subject("AND", prerequisites=[["A", "B"]])
@@ -368,7 +368,71 @@ def test_requisitos_e_ou_com_em_andamento_mas_sem_credito_por_equivalencia(scene
     scene.subject("EQUIV", prerequisites=[["Y"]])
     scene.subject("Y", offer=False, equivalences=[["A"]])
     scene.history("C", enrolled=True, term="2026.2")
-    assert codes(scene.get()) == ["CO", "CURRENT", "PASS"]
+    assert codes(scene.get()) == ["CO", "CURRENT", "EQUIV", "PASS"]
+
+
+@pytest.mark.parametrize("grade", [Grade.MI, Grade.II, Grade.SR])
+def test_so_recomenda_repeticao_com_reprovacao_confirmada(scene, grade):
+    scene.subject("FAILED")
+    scene.subject("UNKNOWN")
+    scene.history("FAILED", grade=grade)
+    scene.history("UNKNOWN", term="2020.1")
+    assert codes(scene.get()) == ["FAILED"]
+
+
+def test_reprovacao_antiga_nao_libera_materia_em_curso_ou_sem_resultado(scene):
+    for code in ("CURRENT", "UNKNOWN"):
+        scene.subject(code)
+        scene.history(code, grade=Grade.MI, term="2025.1")
+    scene.history("CURRENT", enrolled=True, term="2026.2")
+    scene.history("UNKNOWN", term="2026.1")
+    assert scene.get() == []
+
+
+def test_equivalencias_respeitam_grupos_direcao_e_nao_inferem_transitividade(scene):
+    scene.history("A", grade=Grade.MM)
+    scene.subject("B", equivalences=[["A"]])
+    scene.subject("C", equivalences=[["A", "MISSING"]])
+    scene.subject("D", equivalences=[["MISSING"], ["A"]])
+    scene.subject("E", equivalences=[["B"]])
+    scene.subject("F")
+    scene.subject("G", offer=False, equivalences=[["F"]])
+    assert codes(scene.get()) == ["C", "E", "F"]
+
+
+def test_equivalencia_sem_resultado_exclui_repeticao_sem_liberar_requisito(
+    scene, monkeypatch
+):
+    monkeypatch.setattr(academic_calendar, "grades_closed", lambda semester: True)
+    scene.history("A", term="2020.1")
+    scene.subject("B", equivalences=[["A"]])
+    scene.subject("C", prerequisites=[["B"]])
+    assert scene.get() == []
+
+
+def test_equivalencia_de_materia_em_curso_exclui_repeticao(scene):
+    scene.history("A", enrolled=True, term="2026.2")
+    scene.subject("B", equivalences=[["A"]])
+    scene.subject("C", prerequisites=[["B"]])
+    assert codes(scene.get()) == ["C"]
+
+
+@pytest.mark.parametrize("grade", [Grade.MI, Grade.II, Grade.SR])
+def test_reprovacao_em_equivalente_nao_exclui_candidata_nem_libera_requisito(
+    scene, grade
+):
+    scene.history("A", grade=grade)
+    scene.subject("B", equivalences=[["A"]])
+    scene.subject("C", prerequisites=[["B"]])
+    assert codes(scene.get()) == ["B"]
+
+
+def test_equivalencia_fora_da_matriz_satisfaz_requisito_e_correquisito(scene):
+    scene.history("A", grade=Grade.MM)
+    scene.subject("X", offer=False, kind=None, equivalences=[["A"]])
+    scene.subject("B", prerequisites=[["X"]])
+    scene.subject("C", corequisites=[["X"]])
+    assert codes(scene.get()) == ["B", "C"]
 
 
 FLOW = [
@@ -624,7 +688,7 @@ def test_mencoes_vencidas_com_swr_e_no_cache(scene, stub_sigaa, qstash):
     stub_sigaa.classrooms.list_grades.return_value = [
         ClassroomGrade(subject_code="A", semester="2026.2", grade=Grade.MM)
     ]
-    assert codes(scene.get()) == ["A"]
+    assert scene.get() == []
     assert any(
         step.task == "sync_grades" for job in qstash.jobs() for step in job.steps
     )

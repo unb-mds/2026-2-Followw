@@ -350,6 +350,24 @@ analisar concorrência de vagas, pré-requisitos e estatísticas históricas de 
 - Turmas sem registros históricos de rendimento devem exibir mensagem informativa orientando o
   usuário.
 
+#### 3.3: Recomendações de Disciplinas
+
+**Histórias de Usuário:**
+
+- **US42:** Como estudante autenticado, quero recomendações que excluam disciplinas já cursadas ou
+  em andamento, inclusive equivalentes, permitindo repetição somente com reprovação confirmada.
+
+- **RF16 — Exclusão de Disciplinas Cursadas e Equivalências (`GET /public/subjects`):** O sistema
+  deve excluir aprovações, matrículas atuais e tentativas sem resultado, considerando as expressões
+  de equivalência do catálogo.
+
+**Critérios de Aceitação:**
+
+- A falta de menção após a consolidação não deve ser interpretada como reprovação.
+- MI, II ou SR permitem repetir somente sem aprovação, matrícula atual ou outra tentativa incerta.
+- Equivalências devem respeitar grupos E/OU e sua direção, sem inferir reciprocidade ou transitividade.
+- Tentativas antigas incertas excluem repetições, mas não liberam pré/correquisitos por equivalência.
+
 ---
 
 ### ÉPICO 4: Restaurante Universitário (RU) e Serviços Estudantis

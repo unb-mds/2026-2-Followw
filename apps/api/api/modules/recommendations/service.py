@@ -158,11 +158,26 @@ async def _rank(
         normalize(code) for code in await classrooms.offered_subject_codes(reference)
     }
     catalog = await RecommendationRepository(session).catalog(set(curriculum))
+    requirements = {
+        normalize(code)
+        for subject in catalog.values()
+        for rules in (subject.prerequisites, subject.corequisites)
+        for group in rules or []
+        for code in group
+    }
+    catalog.update(
+        await RecommendationRepository(session).catalog(requirements - catalog.keys())
+    )
     return rank(
         catalog=catalog,
         offered=offered & catalog.keys(),
         curriculum=curriculum,
         completed=completed,
         enrolled=enrolled - completed,
+        unresolved={
+            normalize(link.row.classroom.subject_code)
+            for link in links
+            if link.row.grade is None
+        },
         unity_id=student.unity_id,
     )

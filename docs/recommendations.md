@@ -32,7 +32,11 @@ exige sincronização; histórico sincronizado vazio é válido. Só vínculos p
 semestre válido até a oferta entram no histórico. A recomendação é para o próximo semestre: matérias
 aprovadas (SS/MS/MM) ou em andamento (inclusive as encerradas cuja menção ainda não foi consolidada)
 contam como concluídas, saem da lista e satisfazem pré/correquisitos. Reprovações posteriores não
-apagam aprovações.
+apagam aprovações. Qualquer tentativa sem menção também impede recomendar a disciplina, mesmo após
+a consolidação e independentemente do status do vínculo. Só MI/II/SR confirmados permitem repetir,
+desde que não exista outra aprovação, matrícula em andamento ou tentativa sem resultado. Uma
+tentativa sem resultado após a consolidação não satisfaz pré/correquisitos nem conta como aprovação
+no fluxo.
 
 A matriz é inferida só pelo semestre de entrada do perfil (`entry_semester`), com curso e turno do
 perfil armazenado: vale a vigência mais recente até a entrada; se a entrada preceder todas, a mais
@@ -53,8 +57,12 @@ anterior ao alvo.
 O universo abrange toda a universidade: entra toda matéria com turma no semestre da oferta. As
 exclusões são contadas uma vez, nesta ordem: aprovada, em andamento, pré-requisitos, correquisitos,
 matriz indisponível, módulo livre. Fora da matriz é módulo livre; componentes optativos e
-complementares da matriz não são. Regras são OU de grupos E. Equivalências não satisfazem requisitos
-e correquisitos não são projetados como matrícula simultânea.
+complementares da matriz não são. Regras são OU de grupos E. Equivalências declaradas no catálogo
+excluem a candidata quando um grupo inteiro já foi aprovado, está em andamento ou tem resultado
+desconhecido. Para satisfazer pré/correquisitos, o grupo deve estar aprovado ou em andamento;
+tentativas incertas não bastam. A avaliação é direcional e direta, sem inferir reciprocidade ou
+transitividade, e inclui requisitos fora da matriz. Correquisitos não são projetados como matrícula
+simultânea.
 
 Critérios absolutos:
 

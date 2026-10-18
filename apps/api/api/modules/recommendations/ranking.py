@@ -21,6 +21,7 @@ class CatalogSubject(Model):
     unity_id: int | None
     prerequisites: Rules
     corequisites: Rules
+    equivalences: Rules = None
 
 
 class CurriculumInfo(Model):
@@ -183,6 +184,7 @@ def rank(
     curriculum: dict[str, Component],
     completed: set[str],
     enrolled: set[str],
+    unresolved: set[str],
     unity_id: int | None,
 ) -> list[Recommendation]:
     """As ofertadas que o aluno pode cursar, da mais à menos prioritária.
@@ -190,13 +192,25 @@ def rank(
     A recomendação é para o próximo semestre: as em andamento contam como concluídas.
     Fora da matriz é módulo livre, então sem matriz nada é recomendado.
     """
-    done = completed | enrolled
+    actual = completed | enrolled
+    done = actual | {
+        code
+        for code, subject in catalog.items()
+        if subject.equivalences and satisfies(subject.equivalences, actual)
+    }
+    # Sem menção, exclui repetições sem presumir aprovação para requisitos.
+    attempted = actual | unresolved
+    excluded = attempted | {
+        code
+        for code, subject in catalog.items()
+        if subject.equivalences and satisfies(subject.equivalences, attempted)
+    }
     target = target_period(curriculum, done, enrolled)
     dependents = dependency_graph(
         {
             code: catalog[code]
             for code, component in curriculum.items()
-            if code in catalog and code not in done and component.kind == "required"
+            if code in catalog and code not in excluded and component.kind == "required"
         }
     )
     lengths: dict[str, int] = {}
@@ -205,7 +219,7 @@ def rank(
         subject, component = catalog[code], curriculum.get(code)
         if (
             component is None
-            or code in done
+            or code in excluded
             or not satisfies(subject.prerequisites, done)
             or not satisfies(subject.corequisites, done)
         ):
