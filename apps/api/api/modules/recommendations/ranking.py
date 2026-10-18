@@ -189,28 +189,21 @@ def rank(
 ) -> list[Recommendation]:
     """As ofertadas que o aluno pode cursar, da mais à menos prioritária.
 
-    A recomendação é para o próximo semestre: as em andamento contam como concluídas.
+    Para o próximo semestre, em andamento e sem menção contam como concluídas.
     Fora da matriz é módulo livre, então sem matriz nada é recomendado.
     """
-    actual = completed | enrolled
-    done = actual | {
+    assumed = completed | enrolled | unresolved
+    done = assumed | {
         code
         for code, subject in catalog.items()
-        if subject.equivalences and satisfies(subject.equivalences, actual)
-    }
-    # Sem menção, exclui repetições sem presumir aprovação para requisitos.
-    attempted = actual | unresolved
-    excluded = attempted | {
-        code
-        for code, subject in catalog.items()
-        if subject.equivalences and satisfies(subject.equivalences, attempted)
+        if subject.equivalences and satisfies(subject.equivalences, assumed)
     }
     target = target_period(curriculum, done, enrolled)
     dependents = dependency_graph(
         {
             code: catalog[code]
             for code, component in curriculum.items()
-            if code in catalog and code not in excluded and component.kind == "required"
+            if code in catalog and code not in done and component.kind == "required"
         }
     )
     lengths: dict[str, int] = {}
@@ -219,7 +212,7 @@ def rank(
         subject, component = catalog[code], curriculum.get(code)
         if (
             component is None
-            or code in excluded
+            or code in done
             or not satisfies(subject.prerequisites, done)
             or not satisfies(subject.corequisites, done)
         ):

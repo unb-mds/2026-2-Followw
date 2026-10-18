@@ -366,7 +366,8 @@ analisar concorrência de vagas, pré-requisitos e estatísticas históricas de 
 - A falta de menção após a consolidação não deve ser interpretada como reprovação.
 - MI, II ou SR permitem repetir somente sem aprovação, matrícula atual ou outra tentativa incerta.
 - Equivalências devem respeitar grupos E/OU e sua direção, sem inferir reciprocidade ou transitividade.
-- Tentativas antigas incertas excluem repetições, mas não liberam pré/correquisitos por equivalência.
+- Tentativas sem menção devem presumir aprovação no ranking, liberar pré/correquisitos diretos e por
+  equivalência e contar como concluídas no fluxo, sem alterar a menção armazenada.
 
 ---
 

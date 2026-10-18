@@ -143,6 +143,7 @@ def classroom_json(classroom: Classroom) -> dict:
     return {
         **data,
         "grade": None,
+        "status": "cursando",
         "professors": [],
         "vacancies": None,
         "occupied": None,

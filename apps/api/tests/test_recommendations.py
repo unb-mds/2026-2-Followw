@@ -334,15 +334,15 @@ def test_oferta_e_em_andamento_contam_como_concluidas(scene):
     assert set(codes(scene.get())) == {"NEEDS_TARGET", "FAILED"}
 
 
-@pytest.mark.parametrize(("closed", "expected"), [(False, ["B"]), (True, [])])
-def test_encerrada_sem_mencao_nao_e_recomendada_mesmo_apos_consolidacao(
-    scene, monkeypatch, closed, expected
+@pytest.mark.parametrize("closed", [False, True])
+def test_encerrada_sem_mencao_libera_seguinte_mesmo_apos_consolidacao(
+    scene, monkeypatch, closed
 ):
     monkeypatch.setattr(academic_calendar, "grades_closed", lambda semester: closed)
     scene.subject("A")
     scene.subject("B", prerequisites=[["A"]])
     scene.history("A")
-    assert codes(scene.get()) == expected
+    assert codes(scene.get()) == ["B"]
 
 
 def test_so_vinculos_proprios_de_aluno_e_isolamento_entre_usuarios(scene):
@@ -400,14 +400,32 @@ def test_equivalencias_respeitam_grupos_direcao_e_nao_inferem_transitividade(sce
     assert codes(scene.get()) == ["C", "E", "F"]
 
 
-def test_equivalencia_sem_resultado_exclui_repeticao_sem_liberar_requisito(
+def test_equivalencia_sem_resultado_exclui_repeticao_e_libera_requisito(
     scene, monkeypatch
 ):
     monkeypatch.setattr(academic_calendar, "grades_closed", lambda semester: True)
     scene.history("A", term="2020.1")
     scene.subject("B", equivalences=[["A"]])
     scene.subject("C", prerequisites=[["B"]])
-    assert scene.get() == []
+    scene.subject("D", corequisites=[["B"]])
+    assert codes(scene.get()) == ["C", "D"]
+
+
+def test_sem_mencao_respeita_grupos_e_ou_dos_requisitos(scene, monkeypatch):
+    monkeypatch.setattr(academic_calendar, "grades_closed", lambda semester: True)
+    scene.history("A", term="2020.1")
+    scene.subject("B", prerequisites=[["A", "MISSING"]])
+    scene.subject("C", prerequisites=[["MISSING"], ["A"]])
+    assert codes(scene.get()) == ["C"]
+
+
+async def test_sem_mencao_conta_como_concluida_no_fluxo(scene, ranked, monkeypatch):
+    monkeypatch.setattr(academic_calendar, "grades_closed", lambda semester: True)
+    scene.subject("A", kind="required", period=1)
+    scene.subject("B", kind="required", period=2, prerequisites=[["A"]])
+    scene.history("A", term="2020.1")
+    assert codes(scene.get()) == ["B"]
+    assert points(await ranked(), "B")["target_period"] == 25
 
 
 def test_equivalencia_de_materia_em_curso_exclui_repeticao(scene):
