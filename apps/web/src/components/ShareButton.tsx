@@ -6,13 +6,15 @@ import { Button } from '#/components/ui/button';
 interface ShareButtonProps {
     title: string;
     text?: string;
+    url?: string | (() => string);
 }
 
-export const ShareButton: React.FC<ShareButtonProps> = ({ title, text }) => {
+export const ShareButton: React.FC<ShareButtonProps> = ({ title, text, url: shareUrl }) => {
     const [copied, setCopied] = useState(false);
 
     const share = async () => {
-        const url = window.location.href;
+        const path = typeof shareUrl === 'function' ? shareUrl() : shareUrl;
+        const url = path ? new URL(path, window.location.origin).href : window.location.href;
         if (navigator.share) {
             await navigator.share({ title, text, url }).catch(() => {});
             return;

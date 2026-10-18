@@ -1,10 +1,10 @@
 import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { Coffee, Egg, Leaf, Soup, UtensilsCrossed } from 'lucide-react';
-import { useState, useSyncExternalStore } from 'react';
+import { useSyncExternalStore } from 'react';
 
-import type { MealKey } from '#/lib/restaurant';
-import type { Campus, MenuSection } from '#/queries/restaurant';
+import type { RestaurantSelection } from '#/lib/restaurant-share';
+import type { MenuSection } from '#/queries/restaurant';
 
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderToggle } from '#/components/HeaderBar';
@@ -26,11 +26,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
 import { WeekDayPicker } from '#/components/WeekDayPicker';
 import { useFailureMessage } from '#/lib/online';
 import { currentOrNextMeal, highlightMenu, MEAL_TIMES } from '#/lib/restaurant';
+import {
+    restaurantPageHead,
+    restaurantSelection,
+    restaurantSharePath,
+    validateRestaurantSearch
+} from '#/lib/restaurant-share';
 import { addDays, nowInBrasilia, weekDays } from '#/lib/schedule';
-import { publicPageHead } from '#/lib/seo';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
-import { CAMPUS_LABELS, campusOf, menuQueryOptions } from '#/queries/restaurant';
+import { CAMPUS_LABELS, CAMPUS_OPTIONS, campusOf, menuQueryOptions } from '#/queries/restaurant';
 import { credentialsQueryOptions, statementQueryOptions } from '#/queries/restaurant-account';
 
 const MEAL_ICONS = { breakfast: Coffee, lunch: UtensilsCrossed, dinner: Soup };
@@ -54,28 +59,40 @@ const ALTERNATIVES: Partial<Record<NonNullable<MenuSection['key']>, AlternativeI
     complement_vegan: { label: 'Vegetariano estrito', icon: Leaf }
 };
 
-const CAMPUS_OPTIONS: Campus[] = ['Darcy', 'Gama', 'Ceilandia', 'Planaltina', 'Fazenda'];
 const subscribe = () => () => {};
 
 export const Route = createFileRoute('/_app/ru')({
-    head: () =>
-        publicPageHead({
-            path: '/ru',
-            title: 'Cardápio do RU UnB | Followw',
-            description:
-                'Consulte o cardápio do Restaurante Universitário da UnB: café da manhã, almoço e jantar por dia e campus, sem precisar de login.'
-        }),
-    loader: async ({ context: { queryClient } }) => {
+    validateSearch: validateRestaurantSearch,
+    loaderDeps: ({ search }) => search,
+    loader: async ({ context: { queryClient }, deps }) => {
         const now = nowInBrasilia();
-        const initial = currentOrNextMeal(now);
+        const initial = restaurantSelection(deps);
         const user = await loadQuery(queryClient, meQueryOptions);
         await Promise.all([
-            loadQuery(queryClient, menuQueryOptions({ date: initial.date, user })).catch(noop),
+            loadQuery(
+                queryClient,
+                menuQueryOptions({ date: initial.date, campus: deps.campus, user })
+            ).catch(noop),
             user && loadQuery(queryClient, statementQueryOptions(user.registration)).catch(noop),
             user && loadQuery(queryClient, credentialsQueryOptions(user.registration)).catch(noop)
         ]);
-        return { today: now.date, initialDate: initial.date, initialMeal: initial.meal.key };
+        return {
+            today: now.date,
+            initialDate: initial.date,
+            initialMeal: initial.meal,
+            initialCampus: deps.campus ?? campusOf(user?.unity)
+        };
     },
+    head: ({ loaderData, match }) =>
+        restaurantPageHead(
+            {
+                date: match?.search.date ?? loaderData?.initialDate ?? restaurantSelection({}).date,
+                meal: match?.search.meal ?? loaderData?.initialMeal ?? restaurantSelection({}).meal,
+                campus: match?.search.campus ?? loaderData?.initialCampus ?? 'Darcy',
+                theme: match?.search.theme
+            },
+            Boolean(match?.search.date || match?.search.meal || match?.search.campus)
+        ),
     staticData: { header: RUHeader },
     errorComponent: ErrorState,
     component: RUPage
@@ -85,9 +102,23 @@ const useFiltersOpen = () => usePageState('filters', false);
 
 function RUHeader() {
     const [filtersOpen, setFiltersOpen] = useFiltersOpen();
+    const { selection } = useMenuSelection();
 
     return (
-        <HeaderBar actions={<ShareButton title="Cardápio do RU" />}>
+        <HeaderBar
+            actions={
+                <ShareButton
+                    title="Cardápio do RU"
+                    url={() =>
+                        restaurantSharePath({
+                            ...selection,
+                            theme:
+                                document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'
+                        })
+                    }
+                />
+            }
+        >
             <HeaderToggle
                 open={filtersOpen}
                 onToggle={() => setFiltersOpen(!filtersOpen)}
@@ -99,22 +130,36 @@ function RUHeader() {
     );
 }
 
-function RUPage() {
-    const { today, initialDate, initialMeal } = Route.useLoaderData();
+function useMenuSelection() {
+    const { initialDate, initialMeal, initialCampus } = Route.useLoaderData();
+    const search = Route.useSearch();
+    const navigate = Route.useNavigate();
     const hydrated = useSyncExternalStore(
         subscribe,
         () => true,
         () => false
     );
     const opening = hydrated ? currentOrNextMeal(nowInBrasilia()) : null;
-    const [pickedDate, setSelectedDate] = useState<string | null>(null);
-    const selectedDate = pickedDate ?? opening?.date ?? initialDate;
+    const selection: RestaurantSelection = {
+        date: search.date ?? opening?.date ?? initialDate,
+        meal: search.meal ?? opening?.meal.key ?? initialMeal,
+        campus: search.campus ?? initialCampus,
+        ...(search.theme ? { theme: search.theme } : {})
+    };
+    const select = (change: Partial<RestaurantSelection>) => {
+        void navigate({ search: { ...selection, ...change }, replace: true, resetScroll: false });
+    };
+    return { selection, select };
+}
+
+function RUPage() {
+    const { today } = Route.useLoaderData();
+    const {
+        selection: { date: selectedDate, meal: selectedMeal, campus },
+        select
+    } = useMenuSelection();
     const [filtersOpen] = useFiltersOpen();
-    const [pickedMeal, setSelectedMeal] = useState<MealKey | null>(null);
-    const selectedMeal = pickedMeal ?? opening?.meal.key ?? initialMeal;
     const { data: user } = useSuspenseQuery(meQueryOptions);
-    const [pickedCampus, setPickedCampus] = useState<Campus | null>(null);
-    const campus = pickedCampus ?? campusOf(user?.unity);
     const { data, isPending, isLoadingError, refetch } = useQuery(
         menuQueryOptions({ date: selectedDate, campus })
     );
@@ -125,7 +170,7 @@ function RUPage() {
     // Só esta semana e a próxima; trocar de semana mantém o dia da semana.
     const days = weekDays(selectedDate, 7);
     const isNextWeek = days[0].date > weekDays(today, 7)[0].date;
-    const shiftWeek = (weeks: number) => () => setSelectedDate(addDays(selectedDate, 7 * weeks));
+    const shiftWeek = (weeks: number) => () => select({ date: addDays(selectedDate, 7 * weeks) });
 
     return (
         <>
@@ -134,7 +179,7 @@ function RUPage() {
                     <WeekDayPicker
                         days={days}
                         selectedDate={selectedDate}
-                        onSelect={(day) => setSelectedDate(day.date)}
+                        onSelect={(day) => select({ date: day.date })}
                         week={{
                             label: isNextWeek ? 'Próxima semana' : 'Esta semana',
                             onPrevious: isNextWeek ? shiftWeek(-1) : undefined,
@@ -157,7 +202,7 @@ function RUPage() {
                             value={campus}
                             onValueChange={(value) => {
                                 const selected = CAMPUS_OPTIONS.find((option) => option === value);
-                                if (selected) setPickedCampus(selected);
+                                if (selected) select({ campus: selected });
                             }}
                         >
                             <SelectTrigger id="menu-campus" className="w-full bg-background">
@@ -179,7 +224,7 @@ function RUPage() {
                 value={selectedMeal}
                 onValueChange={(value) => {
                     const selected = MEALS.find((item) => item.key === value);
-                    if (selected) setSelectedMeal(selected.key);
+                    if (selected) select({ meal: selected.key });
                 }}
             >
                 <TabsList

@@ -368,6 +368,8 @@ acadêmicas.
   principais e complementos nas opções padrão, ovolactovegetariana e vegetariana estrita (vegana).
 - **US34:** Como estudante residente ou frequentador do RU aos fins de semana, quero poder consultar
   o cardápio aos domingos e ser informado em datas sem expediente ou sem cardápio publicado.
+- **US41:** Como estudante, quero compartilhar o cardápio de um dia, refeição e campus específicos
+  com uma prévia visual que identifique o Followw.
 
 - **RF13 — Consulta Pública do Cardápio do RU (`GET /public/restaurant`):** O sistema deve extrair,
   estruturar e disponibilizar o cardápio semanal das refeições (café da manhã, almoço e jantar) para
@@ -382,6 +384,11 @@ acadêmicas.
   opções vegetarianas e veganas com ícones dedicados.
 - Dias sem cardápio disponível devem apresentar mensagem explicativa com o motivo (ex.:
   `"Cardápio não publicado para esta data"`).
+- O compartilhamento deve preservar dia, refeição e campus nos parâmetros da URL e apresentar
+  uma imagem dinâmica do cardápio com a identidade visual do Followw, acessível sem login.
+  As seções devem manter a ordem exibida no site, com os rótulos dos acompanhamentos em negrito.
+  As alternativas ovolactovegetarianas e vegetarianas estritas devem usar os ícones de ovo e folha.
+  A imagem deve ter versões clara e escura, preservando no link o tema usado ao compartilhar.
 
 #### 4.2: Gestão de Saldo e Extrato do RU
 
