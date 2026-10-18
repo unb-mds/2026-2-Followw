@@ -8,7 +8,7 @@ from api.db.models import OwnLink, User
 from api.modules.classrooms.repository import ClassroomRepository
 from api.modules.classrooms.service import (
     classrooms_freshness,
-    grade_freshness,
+    grades_freshness,
     stale_classroom_tasks,
     sync_classrooms,
     sync_grades,
@@ -34,7 +34,7 @@ async def start_account(
     user, links = await db.read(partial(_account, connection.registration))
     if (
         _stale_account_tasks(user)
-        or _stale_grades(links)
+        or _stale_grades(user, links)
         or any(stale_classroom_tasks(l) for l in links)
     ):
         job = Job(credentials=connection.credentials, steps=(Step.of(sync_account),))
@@ -48,11 +48,11 @@ async def sync_account(ctx: Context[None]) -> None:
     for task in _stale_account_tasks(user):
         await run_task(task, ctx)
 
-    _, links = await ctx.sync.db.read(account)
+    user, links = await ctx.sync.db.read(account)
     for link in links:
         for task in stale_classroom_tasks(link):
             ctx.sync.schedule(task, link)
-    if _stale_grades(links):
+    if _stale_grades(user, links):
         await run_task(sync_grades, ctx)
 
 
@@ -65,11 +65,9 @@ async def _account(
     return user, await ClassroomRepository(session).list_by_user_id(user.id)
 
 
-def _stale_grades(links: list[OwnLink]) -> bool:
-    return any(
-        grade_freshness(link, link.row.grade_synced_at) is Freshness.STALE
-        for link in links
-    )
+def _stale_grades(user: User | None, links: list[OwnLink]) -> bool:
+    synced_at = user.grades_synced_at if user else None
+    return grades_freshness(links, synced_at) is Freshness.STALE
 
 
 def _stale_account_tasks(user: User | None) -> list[Task[None]]:

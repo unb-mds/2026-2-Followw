@@ -536,6 +536,11 @@ export interface components {
          * @enum {string}
          */
         ClassroomRole: "aluno" | "professor" | "monitor";
+        /**
+         * ClassroomStatus
+         * @enum {string}
+         */
+        ClassroomStatus: "cursando" | "removido" | "trancado" | "concluido" | "pending_enrollment" | "denied";
         /** CourseCurriculum */
         CourseCurriculum: {
             /** Sigaa Id */
@@ -756,6 +761,7 @@ export interface components {
             current: boolean;
             subject: components["schemas"]["UserSubject"];
             grade?: components["schemas"]["Grade"] | null;
+            status?: components["schemas"]["ClassroomStatus"] | null;
         };
         /**
          * PostType

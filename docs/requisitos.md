@@ -193,6 +193,7 @@ inscrito, histórico letivo, controle de frequência, avisos dos professores e a
 - As turmas de semestres anteriores devem exibir com destaque visual a menção recebida (colorida
   conforme a escala de rendimento).
 - Turmas sem sala informada pelo SIGAA devem exibir `"Local não informado"`, sem omitir a matéria.
+- Turmas com matrícula em processamento devem exibir a badge amarela `"Em processamento"`.
 
 #### 2.2: Detalhes da Turma e Participantes
 
@@ -349,6 +350,27 @@ analisar concorrência de vagas, pré-requisitos e estatísticas históricas de 
 - Turmas sem registros históricos de rendimento devem exibir mensagem informativa orientando o
   usuário.
 
+#### 3.3: Recomendações de Disciplinas
+
+**Histórias de Usuário:**
+
+- **US42:** Como estudante autenticado, quero recomendações que excluam disciplinas já cursadas ou
+  em andamento, inclusive equivalentes, permitindo repetição somente com reprovação confirmada.
+
+- **RF16 — Exclusão de Disciplinas Cursadas e Equivalências (`GET /public/subjects`):** O sistema
+  deve excluir aprovações, matrículas atuais e tentativas sem resultado, considerando as expressões
+  de equivalência do catálogo.
+
+**Critérios de Aceitação:**
+
+- A falta de menção após a consolidação não deve ser interpretada como reprovação.
+- Vínculos trancados, removidos ou indeferidos não contam como tentativa sem resultado.
+- MI, II ou SR permitem repetir somente sem aprovação, matrícula atual ou outra tentativa incerta.
+- Equivalências devem respeitar grupos E/OU e sua direção, sem inferir reciprocidade ou
+  transitividade.
+- Tentativas sem menção devem presumir aprovação no ranking, liberar pré/correquisitos diretos e por
+  equivalência e contar como concluídas no fluxo, sem alterar a menção armazenada.
+
 ---
 
 ### ÉPICO 4: Restaurante Universitário (RU) e Serviços Estudantis
@@ -367,6 +389,8 @@ acadêmicas.
   principais e complementos nas opções padrão, ovolactovegetariana e vegetariana estrita (vegana).
 - **US34:** Como estudante residente ou frequentador do RU aos fins de semana, quero poder consultar
   o cardápio aos domingos e ser informado em datas sem expediente ou sem cardápio publicado.
+- **US41:** Como estudante, quero compartilhar o cardápio de um dia, refeição e campus específicos
+  com uma prévia visual que identifique o Followw.
 
 - **RF13 — Consulta Pública do Cardápio do RU (`GET /public/restaurant`):** O sistema deve extrair,
   estruturar e disponibilizar o cardápio semanal das refeições (café da manhã, almoço e jantar) para
@@ -381,6 +405,11 @@ acadêmicas.
   opções vegetarianas e veganas com ícones dedicados.
 - Dias sem cardápio disponível devem apresentar mensagem explicativa com o motivo (ex.:
   `"Cardápio não publicado para esta data"`).
+- O compartilhamento deve preservar dia, refeição e campus nos parâmetros da URL e apresentar uma
+  imagem dinâmica do cardápio com a identidade visual do Followw, acessível sem login. As seções
+  devem manter a ordem exibida no site, com os rótulos dos acompanhamentos em negrito. As
+  alternativas ovolactovegetarianas e vegetarianas estritas devem usar os ícones de ovo e folha. A
+  imagem usa um tema fixo, definido no gerador, sem parâmetro de tema na URL.
 
 #### 4.2: Gestão de Saldo e Extrato do RU
 

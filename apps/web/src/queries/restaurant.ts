@@ -12,6 +12,14 @@ export type Campus = NonNullable<MenuQuery['campus']>;
 export type DailyMenu = components['schemas']['DailyMenu'];
 export type MenuSection = components['schemas']['MenuSection'];
 
+export const CAMPUS_OPTIONS = [
+    'Darcy',
+    'Gama',
+    'Ceilandia',
+    'Planaltina',
+    'Fazenda'
+] as const satisfies readonly Campus[];
+
 export const CAMPUS_LABELS: Record<Campus, string> = {
     Darcy: 'Darcy Ribeiro',
     Gama: 'Gama',
