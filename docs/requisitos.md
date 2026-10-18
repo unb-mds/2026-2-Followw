@@ -145,6 +145,28 @@ interface.
   permitindo restauração do nome original a qualquer momento.
 - A alteração de preferências deve ser pontual (suportando atualização parcial de campos via PATCH).
 
+#### 1.5: Política de Privacidade e Termos de Serviço
+
+**Histórias de Usuário:**
+
+- **US41:** Como estudante ou visitante, quero consultar como o Followw trata meus dados, como
+  solicitar sua exclusão e quais são as regras de uso do serviço antes de entrar.
+
+- **RF16 — Consulta Pública de Privacidade e Termos (`/privacidade`):** O sistema deve oferecer
+  uma página curta e pública com política de privacidade e termos de serviço, acessível por um
+  único link no rodapé do login, acompanhado do aviso de concordância ao entrar.
+
+**Critérios de Aceitação:**
+
+- A política deve informar os dados mantidos em cache no servidor e no dispositivo, sua finalidade,
+  a ausência de descarte automático no servidor e o prazo de até 14 dias do cache de dados offline.
+- O texto deve distinguir cookies e tarefas com credenciais cifradas da ausência de credenciais no
+  banco e nos logs da API, e informar o uso de métricas e gravação de sessões pelo PostHog.
+- A exclusão dos dados existentes deve ser solicitada por `removal@followw.app`, com aviso de que
+  não altera registros da UnB nem impede novas coletas em sincronizações futuras.
+- Os termos devem permitir automações responsáveis e proibir sobrecarga, acesso indevido,
+  manipulação mal-intencionada de informações, perseguição e assédio.
+
 ---
 
 ### ÉPICO 2: Gestão de Turmas, Frequência e Rotina Acadêmica

@@ -14,7 +14,8 @@ export function LoginPrivacyInfo() {
         <Dialog>
             <div className="mt-8 max-w-90 text-center text-xs leading-5 text-muted-foreground">
                 <p>
-                    Suas credenciais <strong>não são armazenadas</strong> nos servidores do Followw.{' '}
+                    Suas credenciais <strong>não são armazenadas</strong> no banco de dados do
+                    Followw.{' '}
                     <DialogTrigger
                         render={
                             <Button variant="link" className="h-auto p-0 text-xs font-semibold" />
@@ -45,11 +46,12 @@ export function LoginPrivacyInfo() {
                 </DialogHeader>
                 <p className="mt-3 text-sm leading-6 text-muted-foreground">
                     Ao conectar com o SIGAA, suas credenciais são usadas para autenticar nos
-                    servidores oficiais da UnB e não são armazenadas nos servidores do Followw.
+                    servidores oficiais da UnB e não são armazenadas no banco de dados do Followw.
                 </p>
                 <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                    A sessão fica salva em seu navegador de forma criptografada, para que você não
-                    precise se autenticar novamente a cada visita.
+                    Suas credenciais e sessão ficam em cookies cifrados no navegador para manter seu
+                    acesso. Atualizações em segundo plano também usam credenciais cifradas na fila
+                    de processamento QStash (Upstash).
                 </p>
                 <p className="mt-3 text-sm leading-6 text-muted-foreground">
                     O Followw é um projeto de código aberto, e você pode conferir todo o

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SplatRouteImport } from './routes/$'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppBuscarRouteImport } from './routes/_app/buscar'
 import { Route as AppPerfilRouteImport } from './routes/_app/perfil'
@@ -31,6 +32,11 @@ const AppRoute = AppRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacidadeRoute = PrivacidadeRouteImport.update({
+  id: '/privacidade',
+  path: '/privacidade',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -68,6 +74,7 @@ export interface FileRoutesByFullPath {
   '/$': typeof SplatRoute
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
+  '/privacidade': typeof PrivacidadeRoute
   '/buscar': typeof AppBuscarRoute
   '/perfil': typeof AppPerfilRoute
   '/ru': typeof AppRuRoute
@@ -77,6 +84,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/$': typeof SplatRoute
   '/login': typeof LoginRoute
+  '/privacidade': typeof PrivacidadeRoute
   '/buscar': typeof AppBuscarRoute
   '/perfil': typeof AppPerfilRoute
   '/ru': typeof AppRuRoute
@@ -89,6 +97,7 @@ export interface FileRoutesById {
   '/$': typeof SplatRoute
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/privacidade': typeof PrivacidadeRoute
   '/_app/buscar': typeof AppBuscarRoute
   '/_app/perfil': typeof AppPerfilRoute
   '/_app/ru': typeof AppRuRoute
@@ -102,6 +111,7 @@ export interface FileRouteTypes {
     | '/$'
     | '/'
     | '/login'
+    | '/privacidade'
     | '/buscar'
     | '/perfil'
     | '/ru'
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
   to:
     | '/$'
     | '/login'
+    | '/privacidade'
     | '/buscar'
     | '/perfil'
     | '/ru'
@@ -122,6 +133,7 @@ export interface FileRouteTypes {
     | '/$'
     | '/_app'
     | '/login'
+    | '/privacidade'
     | '/_app/buscar'
     | '/_app/perfil'
     | '/_app/ru'
@@ -134,6 +146,7 @@ export interface RootRouteChildren {
   SplatRoute: typeof SplatRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  PrivacidadeRoute: typeof PrivacidadeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -157,6 +170,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacidade': {
+      id: '/privacidade'
+      path: '/privacidade'
+      fullPath: '/privacidade'
+      preLoaderRoute: typeof PrivacidadeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/': {
@@ -228,6 +248,7 @@ const rootRouteChildren: RootRouteChildren = {
   SplatRoute: SplatRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  PrivacidadeRoute: PrivacidadeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
