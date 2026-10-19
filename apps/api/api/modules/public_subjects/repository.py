@@ -45,6 +45,24 @@ class SubjectCatalogRepository:
                     result.setdefault(prerequisite, []).append((code, name))
         return result
 
+    async def offered_subject_codes(
+        self, codes: set[str], semester: str | None
+    ) -> set[str]:
+        if not codes:
+            return set()
+        semester = semester or await self._session.scalar(
+            select(func.max(Classroom.semester))
+        )
+        return set(
+            await self._session.scalars(
+                select(Classroom.subject_code)
+                .where(
+                    Classroom.subject_code.in_(codes), Classroom.semester == semester
+                )
+                .distinct()
+            )
+        )
+
     async def list_subjects(
         self,
         *,

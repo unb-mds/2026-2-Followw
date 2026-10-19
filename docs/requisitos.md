@@ -324,7 +324,8 @@ analisar concorrência de vagas, pré-requisitos e estatísticas históricas de 
 
 - **US45:** Como estudante, quero expandir “Desbloqueia” após os requisitos e equivalências, quando existirem, para ver os
   nomes das disciplinas que dependem diretamente da matéria consultada, inclusive sem oferta.
-  As listas devem exibir a quantidade, como “1 matéria” ou “2 matérias”. Os nomes e códigos
+  Listas com uma única matéria devem exibir o conteúdo diretamente, sem expansão; listas
+  com mais de uma devem ser expansíveis e exibir a quantidade, como “2 matérias”. Os nomes e códigos
   nas listas de requisitos, equivalências e desbloqueios devem ficar verdes ao passar o mouse
   e abrir a busca global pelo nome da matéria, sem filtros de turno ou disponibilidade,
   permitindo encontrar a oferta mesmo após mudança de código. O código é usado somente
@@ -333,6 +334,18 @@ analisar concorrência de vagas, pré-requisitos e estatísticas históricas de 
 
 - **US46:** Como estudante, quero clicar no nome de um docente nos detalhes da turma para abrir
   a busca global pelo nome, limitado a 90 caracteres, com destaque verde ao passar o mouse.
+
+- **US47:** Como estudante, quero ver nos pré-requisitos e correquisitos apenas alternativas
+  completas compostas por disciplinas do meu currículo atual, sem agrupar por nome. Sem
+  currículo identificado ou para visitantes, todas as alternativas devem aparecer. A validação
+  deve continuar considerando os requisitos completos, inclusive códigos fora da matriz.
+  Quando nenhuma alternativa completa pertencer ao currículo, devem aparecer as alternativas
+  completas cujas disciplinas tenham turmas no semestre consultado, mesmo sem vagas livres.
+  Sem alternativas em ambos os critérios, a seção deve informar isso.
+
+- **US48:** Como estudante ou visitante, quero ver apenas alternativas completas de equivalência
+  com turmas no semestre consultado, mesmo lotadas, ocultando a seção se nenhuma tiver oferta.
+  As equivalências sem oferta devem continuar sendo consideradas na validação e recomendação.
 
 - **RF11 — Catálogo Geral e Pesquisa Pública de Turmas (`GET /public/classrooms`):** O sistema deve
   oferecer busca pública aberta no catálogo geral da UnB, suportando filtros por unidade, código
@@ -350,8 +363,9 @@ analisar concorrência de vagas, pré-requisitos e estatísticas históricas de 
   `64 de 80 vagas ocupadas`).
 - Para estudantes autenticados, o sistema deve avaliar o histórico escolar e indicar se a turma está
   liberada ou impedida por pré-requisitos não atendidos.
-- A ocupação das vagas deve ser exibida em vermelho a partir de 90%, em amarelo de 50% a menos
-  de 90% e em verde abaixo de 50%, usando as cores do projeto.
+- A ocupação das vagas deve ser exibida em verde até 60% inclusive, em amarelo acima de 60%
+  enquanto houver vagas e em vermelho quando atingir ou ultrapassar a capacidade, usando
+  as cores do projeto.
 
 #### 3.2: Estatísticas Históricas de Aprovação
 

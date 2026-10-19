@@ -11,6 +11,7 @@ import { describeSchedule } from '#/lib/schedule';
 import { lockedReasons } from '#/queries/subjects';
 
 export function TurmaDetails({ subject, classroom, prerequisitesMet }: TurmaProps) {
+    const equivalences = subject.offered_equivalences ?? subject.equivalences;
     const reasons = lockedReasons(classroom, prerequisitesMet);
     const { vacancies, occupied } = classroom;
     const occupancy =
@@ -49,17 +50,24 @@ export function TurmaDetails({ subject, classroom, prerequisitesMet }: TurmaProp
                 </Detail>
                 {subject.prerequisites?.length ? (
                     <Detail label="Pré-requisitos" className="col-span-2">
-                        <RequirementList requirements={subject.prerequisites} />
+                        <RequirementList
+                            requirements={subject.curriculum_prerequisites ?? subject.prerequisites}
+                        />
                     </Detail>
                 ) : null}
                 {subject.corequisites?.length ? (
                     <Detail label="Correquisitos" className="col-span-2">
-                        <RequirementList requirements={subject.corequisites} />
+                        <p className="mb-2 text-xs text-muted-foreground">
+                            Podem ser cursados junto com esta matéria, conforme a regra acadêmica.
+                        </p>
+                        <RequirementList
+                            requirements={subject.curriculum_corequisites ?? subject.corequisites}
+                        />
                     </Detail>
                 ) : null}
-                {subject.equivalences?.length ? (
+                {equivalences?.length ? (
                     <Detail label="Equivalências" className="col-span-2">
-                        <RequirementList requirements={subject.equivalences} />
+                        <RequirementList requirements={equivalences} />
                     </Detail>
                 ) : null}
                 {subject.unlocks?.length ? (
@@ -84,12 +92,9 @@ export function TurmaDetails({ subject, classroom, prerequisitesMet }: TurmaProp
                     <span
                         className={cn(
                             'tabular-nums',
-                            occupancy != null && occupancy >= 0.9 && 'text-destructive',
-                            occupancy != null &&
-                                occupancy >= 0.5 &&
-                                occupancy < 0.9 &&
-                                'text-warning',
-                            occupancy != null && occupancy < 0.5 && 'text-primary'
+                            occupancy != null && occupancy >= 1 && 'text-destructive',
+                            occupancy != null && occupancy > 0.6 && occupancy < 1 && 'text-warning',
+                            occupancy != null && occupancy <= 0.6 && 'text-primary'
                         )}
                     >
                         {vacancies == null || occupied == null

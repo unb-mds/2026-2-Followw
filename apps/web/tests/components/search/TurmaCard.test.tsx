@@ -154,15 +154,16 @@ describe('TurmaDetails', () => {
         expect(markup).not.toContain('Alternativa 1');
     });
 
-    test('um requisito simples mostra a quantidade e exibe o nome ao expandir', () => {
+    test('um requisito simples exibe o nome diretamente sem expansão', () => {
         const name = 'INTRODUÇÃO ÀS CIÊNCIAS DA COMPUTAÇÃO E À ENGENHARIA DE SOFTWARE';
         const markup = details({}, true, {
             prerequisites: [[{ code: 'CIC0001', subject: { code: 'CIC0001', name } }]]
         });
         expect(markup).toContain(name);
         expect(markup).toContain(`href="/buscar?${new URLSearchParams({ q: name })}"`);
-        expect(markup).toContain('1 matéria');
-        expect(markup).toContain('<details');
+        expect(markup).not.toContain('1 matéria');
+        expect(markup).not.toContain('<details');
+        expect(markup).not.toContain('<summary');
     });
 
     test('desbloqueia aparece abaixo de pré-requisitos com nomes de dependentes', () => {
@@ -172,11 +173,34 @@ describe('TurmaDetails', () => {
         expect(markup).toContain('Desbloqueia');
         expect(markup).toContain('Outros requisitos também podem ser necessários.');
         expect(markup).not.toContain('Disciplinas que têm esta matéria');
-        expect(markup).toContain('1 matéria');
+        expect(markup).not.toContain('1 matéria');
         expect(markup).toContain('Disciplina seguinte');
         expect(markup.indexOf('Pré-requisitos')).toBeLessThan(markup.indexOf('Desbloqueia'));
         expect(details()).not.toContain('Desbloqueia');
     });
+
+    test.each([1, 2])(
+        'desbloqueia com %s disciplinas expande apenas quando há mais de uma',
+        (count) => {
+            const markup = details({}, true, {
+                prerequisites: null,
+                unlocks: Array.from({ length: count }, (_, index) => ({
+                    code: `DEP${index}`,
+                    name: `Dependente ${index}`
+                }))
+            });
+            expect(markup).toContain('Dependente 0');
+            expect(markup).toContain('href="/buscar?q=Dependente+0"');
+            if (count === 1) {
+                expect(markup).not.toContain('<details');
+                expect(markup).not.toContain('<summary');
+            } else {
+                expect(markup).toContain('<details');
+                expect(markup).toContain('2 matérias');
+                expect(markup).not.toMatch(/<details[^>]*\bopen=/);
+            }
+        }
+    );
 
     test('equivalências aparecem antes de desbloqueia quando existem', () => {
         const markup = details({}, true, {
@@ -215,11 +239,16 @@ describe('TurmaDetails', () => {
         [0, 100, 'text-primary'],
         [49, 100, 'text-primary'],
         [499, 1000, 'text-primary'],
-        [50, 100, 'text-warning'],
+        [50, 100, 'text-primary'],
+        [60, 100, 'text-primary'],
+        [24, 40, 'text-primary'],
+        [601, 1000, 'text-warning'],
+        [61, 100, 'text-warning'],
         [89, 100, 'text-warning'],
         [899, 1000, 'text-warning'],
-        [90, 100, 'text-destructive'],
-        [37, 40, 'text-destructive'],
+        [90, 100, 'text-warning'],
+        [37, 40, 'text-warning'],
+        [999, 1000, 'text-warning'],
         [40, 40, 'text-destructive'],
         [42, 40, 'text-destructive']
     ])('ocupação %s de %s colore as vagas com %s', (occupied, vacancies, color) => {

@@ -7,6 +7,9 @@ export function SubjectDisclosure({
     count: number;
     children: React.ReactNode;
 }) {
+    if (count === 1)
+        return <div className="flex min-w-0 flex-col gap-2 font-normal">{children}</div>;
+
     return (
         <details className="group/requirements min-w-0">
             <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">

@@ -55,6 +55,41 @@ def _search(client, **params):
     return response.json()
 
 
+@pytest.mark.parametrize("semester", [None, "2026.1", "2026.2"])
+def test_equivalencias_exibem_apenas_alternativas_completas_com_turmas(
+    catalog, database, semester
+):
+    with database.begin() as session:
+        session.add_all(
+            [
+                Subject(code="CIC0004", name="Equivalente atual"),
+                Subject(code="CIC0005", name="Equivalente sem oferta"),
+                Classroom(
+                    subject_code="CIC0004",
+                    number="01",
+                    semester="2026.2",
+                    vacancies=10,
+                    occupied=10,
+                ),
+            ]
+        )
+        session.get(Subject, "FGA0003").equivalences = [
+            ["FGA0001"],
+            ["CIC0004"],
+            ["CIC0004", "CIC0005"],
+            ["AUSENTE"],
+        ]
+    params = {"code": "FGA0003"}
+    if semester:
+        params["semester"] = semester
+    item = _search(catalog, **params)[0]
+    expected = "FGA0001" if semester == "2026.1" else "CIC0004"
+    assert [[r["code"] for r in g] for g in item["offered_equivalences"]] == [
+        [expected]
+    ]
+    assert len(item["equivalences"]) == 4
+
+
 def test_componente_traz_as_turmas_do_semestre_mais_recente(catalog):
     response = catalog.get("/public/subjects", params={"code": "fga0003"})
 
@@ -77,7 +112,10 @@ def test_componente_traz_as_turmas_do_semestre_mais_recente(catalog):
                 [{"code": "FGA0010", "subject": None}],
             ],
             "corequisites": None,
+            "curriculum_prerequisites": None,
+            "curriculum_corequisites": None,
             "equivalences": [[{"code": "CIC0004", "subject": None}]],
+            "offered_equivalences": [],
             "unity_name": "CAMPUS UNB GAMA",
             "classrooms": [
                 {

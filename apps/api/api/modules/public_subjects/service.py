@@ -64,6 +64,10 @@ class CatalogSubject(UserSubject):
     prerequisites: CatalogRequirements | None = None
     corequisites: CatalogRequirements | None = None
     equivalences: CatalogRequirements | None = None
+    # Apenas para exibição; os requisitos completos continuam valendo na validação.
+    curriculum_prerequisites: CatalogRequirements | None = None
+    curriculum_corequisites: CatalogRequirements | None = None
+    offered_equivalences: CatalogRequirements | None = None
     unity_name: str | None = None
     classrooms: list[SubjectClassroom]
     # Tipo na matriz estimada de quem está logado; nulo sem login ou sem matriz.
@@ -139,6 +143,7 @@ async def _search(
             )
             or (subject.classrooms and lookup_key(subject.name) in names_without_offer)
         ],
+        semester,
     )
 
 
@@ -159,7 +164,9 @@ async def _recommended(session: AsyncSession, ranking: Ranking) -> list[CatalogS
                 )
             }
         )
-        for subject in await _catalog(session, ranking.curriculum, subjects)
+        for subject in await _catalog(
+            session, ranking.curriculum, subjects, ranking.semester
+        )
     ]
 
 
@@ -167,22 +174,23 @@ async def _catalog(
     session: AsyncSession,
     curriculum: dict[str, Component] | None,
     subjects: list[Subject],
+    semester: str | None = None,
 ) -> list[CatalogSubject]:
     repository = SubjectCatalogRepository(session)
     unlocks = await repository.unlocked_subjects({subject.code for subject in subjects})
-    names = await repository.subject_names(
-        {
-            code
-            for subject in subjects
-            for requirements in (
-                subject.prerequisites,
-                subject.corequisites,
-                subject.equivalences,
-            )
-            for group in requirements or []
-            for code in group
-        }
-    )
+    requirement_codes = {
+        code
+        for subject in subjects
+        for requirements in (
+            subject.prerequisites,
+            subject.corequisites,
+            subject.equivalences,
+        )
+        for group in requirements or []
+        for code in group
+    }
+    names = await repository.subject_names(requirement_codes)
+    offered = await repository.offered_subject_codes(requirement_codes, semester)
     return [
         CatalogSubject(
             code=subject.code,
@@ -193,6 +201,15 @@ async def _catalog(
             prerequisites=_requirements(subject.prerequisites, names),
             corequisites=_requirements(subject.corequisites, names),
             equivalences=_requirements(subject.equivalences, names),
+            offered_equivalences=_offered_requirements(
+                subject.equivalences, names, offered
+            ),
+            curriculum_prerequisites=_curriculum_requirements(
+                subject.prerequisites, names, curriculum, offered
+            ),
+            curriculum_corequisites=_curriculum_requirements(
+                subject.corequisites, names, curriculum, offered
+            ),
             classrooms=[
                 SubjectClassroom.model_validate(classroom)
                 for classroom in sorted(subject.classrooms, key=lambda c: c.number)
@@ -232,6 +249,41 @@ def _requirements(
         ]
         for group in requirements
     ]
+
+
+def _curriculum_requirements(
+    requirements: Requirements | None,
+    names: dict[str, str],
+    curriculum: dict[str, Component] | None,
+    offered: set[str],
+) -> CatalogRequirements | None:
+    if not curriculum or requirements is None:
+        return None
+    selected = [
+        group
+        for group in requirements
+        if group and all(normalize(code) in curriculum for code in group)
+    ]
+    return (
+        _requirements(selected, names)
+        if selected
+        else _offered_requirements(requirements, names, offered)
+    )
+
+
+def _offered_requirements(
+    requirements: Requirements | None, names: dict[str, str], offered: set[str]
+) -> CatalogRequirements | None:
+    if requirements is None:
+        return None
+    return _requirements(
+        [
+            group
+            for group in requirements
+            if group and all(normalize(code) in offered for code in group)
+        ],
+        names,
+    )
 
 
 def _resolve_unity(unities: list[Unity], wanted: str) -> int:

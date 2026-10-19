@@ -5,16 +5,23 @@ import { SubjectSearchLink } from '#/components/search/SubjectSearchLink';
 import { subjectRequirementLabel } from '#/queries/subjects';
 
 export function RequirementList({ requirements }: { requirements: Requirements }) {
-    if (!requirements.length) return null;
+    if (!requirements.length)
+        return (
+            <p className="text-xs text-muted-foreground">
+                Nenhuma alternativa completa no currículo ou com turmas no semestre consultado.
+            </p>
+        );
     const alternatives = requirements.length > 1;
 
     return (
         <SubjectDisclosure count={new Set(requirements.flat().map(({ code }) => code)).size}>
-            <p className="text-xs text-muted-foreground">
-                {alternatives
-                    ? 'Uma alternativa completa é suficiente.'
-                    : 'Todas as disciplinas abaixo são necessárias.'}
-            </p>
+            {(alternatives || requirements[0].length > 1) && (
+                <p className="text-xs text-muted-foreground">
+                    {alternatives
+                        ? 'Uma alternativa completa é suficiente.'
+                        : 'Todas as disciplinas abaixo são necessárias.'}
+                </p>
+            )}
             {requirements.map((group, index) => (
                 <div
                     key={group.map(({ code }) => code).join('|')}
