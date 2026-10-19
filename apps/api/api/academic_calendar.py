@@ -74,15 +74,8 @@ def members_frozen(semester: str, synced_at: datetime) -> bool:
 
 
 def grades_closed(semester: str) -> bool:
-    """A tolerância da consolidação já passou: falta só o último sync da menção."""
+    """A tolerância da consolidação já passou: a menção já deveria estar lançada."""
     return ended(semester, Event.GRADES_CONSOLIDATION, GRADES_TOLERANCE)
-
-
-def grades_frozen(semester: str, synced_at: datetime) -> bool:
-    """A menção sincronizada depois da consolidação das turmas não muda mais."""
-    return ended(
-        semester, Event.GRADES_CONSOLIDATION, GRADES_TOLERANCE, local_date(synced_at)
-    )
 
 
 def member_status(semester: str) -> ClassroomStatus:

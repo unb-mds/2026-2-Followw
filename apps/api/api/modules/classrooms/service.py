@@ -1,4 +1,3 @@
-from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from functools import partial
 from typing import Annotated
@@ -52,18 +51,8 @@ def statistics_freshness(synced_at: datetime | None) -> Freshness:
     return freshness(synced_at, None)
 
 
-def grades_freshness(links: Sequence[OwnLink], synced_at: datetime | None) -> Freshness:
-    """O relatório congela quando foi lido depois da consolidação de todos os semestres."""
-    pending = {
-        link.row.classroom.semester
-        for link in links
-        if synced_at is None
-        or not academic_calendar.grades_frozen(link.row.classroom.semester, synced_at)
-    }
-    if not pending:
-        return Freshness.FROZEN
-    if any(academic_calendar.grades_closed(semester) for semester in pending):
-        return Freshness.STALE
+def grades_freshness(synced_at: datetime | None) -> Freshness:
+    # Não congela: a menção pode chegar ao relatório depois da consolidação.
     return freshness(synced_at, DETAILS_TTL)
 
 

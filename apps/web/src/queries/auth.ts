@@ -69,7 +69,8 @@ export function useLogout(onLoggedOut?: () => void) {
     });
 }
 
-let sessionRefreshed = false;
+// por matrícula: outra conta na mesma aba também renova
+let refreshedRegistration: string | undefined;
 
 export function useSessionRefresh() {
     const queryClient = useQueryClient();
@@ -77,8 +78,8 @@ export function useSessionRefresh() {
     const online = useOnline();
 
     useEffect(() => {
-        if (!user || !online || sessionRefreshed) return;
-        sessionRefreshed = true;
+        if (!user || !online || refreshedRegistration === user.registration) return;
+        refreshedRegistration = user.registration;
         apiClient.POST('/auth/sigaa/refresh').catch((error: unknown) => {
             if (error instanceof ApiError && error.isUnauthorized) void clearSession(queryClient);
         });

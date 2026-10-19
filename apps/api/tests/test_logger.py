@@ -93,6 +93,10 @@ def test_erro_de_requisicao_e_rota_desconhecida_nao_registram_a_entrada(caplog):
     assert [r["status_code"] for r in completed] == [500, 404]
     assert completed[1]["route"] is None
     assert completed[0]["request_id"] != completed[1]["request_id"]
+    failure = next(r for r in logs if r["event"] == "request.failed")
+    assert failure["error_file"] == "test_logger.py"
+    assert failure["error_function"] == "fail"
+    assert isinstance(failure["error_line"], int)
     assert "secret-" not in caplog.text
 
 

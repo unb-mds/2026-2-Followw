@@ -88,6 +88,7 @@ class FakeSigaa:
         self.unavailable = False
         self.mode = "normal"
         self.profile = PERFIL
+        self.grades = "<h3>Relatório de Notas do(a) Aluno(a)</h3>"
         self.profile_status = 200
         self.profile_requests = 0
         self.classrooms = '<html><body><table class="listagem"></table></body></html>'
@@ -143,9 +144,18 @@ class FakeSigaa:
             self.classrooms_requests += 1
             return httpx.Response(self.classrooms_status, text=self.classrooms)
 
+        if path == "/sigaa/portais/discente/discente.jsf" and request.method == "POST":
+            return httpx.Response(200, text=self.grades)
         self.profile_requests += 1
 
-        return httpx.Response(self.profile_status, text=self.profile)
+        page = self.profile.replace(
+            "</body>",
+            """
+<form id="menu:form_menu_discente" action="/sigaa/portais/discente/discente.jsf">
+<input type="hidden" name="javax.faces.ViewState" value="j_id1"/>
+</form></body>""",
+        )
+        return httpx.Response(self.profile_status, text=page)
 
 
 def _cookie(request: httpx.Request, name: str) -> str | None:
