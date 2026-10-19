@@ -317,6 +317,23 @@ analisar concorrência de vagas, pré-requisitos e estatísticas históricas de 
 - **US29:** Como estudante autenticado, quero que o catálogo me informe se já atendi aos
   pré-requisitos ou equivalências da turma com base no meu histórico acadêmico.
 
+- **US44:** Como estudante, quero ver abaixo do nome da matéria cápsulas com seu tipo e o
+  semestre previsto no meu fluxo, quando houver, na busca de turmas e nas recomendações. A cápsula
+  do semestre deve ser verde para períodos futuros e vermelha para o atual ou anteriores,
+  considerando meu ingresso e o calendário acadêmico.
+
+- **US45:** Como estudante, quero expandir “Desbloqueia” após os requisitos e equivalências, quando existirem, para ver os
+  nomes das disciplinas que dependem diretamente da matéria consultada, inclusive sem oferta.
+  As listas devem exibir a quantidade, como “1 matéria” ou “2 matérias”. Os nomes e códigos
+  nas listas de requisitos, equivalências e desbloqueios devem ficar verdes ao passar o mouse
+  e abrir a busca global pelo nome da matéria, sem filtros de turno ou disponibilidade,
+  permitindo encontrar a oferta mesmo após mudança de código. O código é usado somente
+  quando o nome estiver indisponível. A busca deve aceitar de 3 a 90 caracteres,
+  comportando o maior nome do catálogo atual e preservando os nomes completos nos links.
+
+- **US46:** Como estudante, quero clicar no nome de um docente nos detalhes da turma para abrir
+  a busca global pelo nome, limitado a 90 caracteres, com destaque verde ao passar o mouse.
+
 - **RF11 — Catálogo Geral e Pesquisa Pública de Turmas (`GET /public/classrooms`):** O sistema deve
   oferecer busca pública aberta no catálogo geral da UnB, suportando filtros por unidade, código
   completo ou prefixo, nome da matéria e docente, integrando dataset estruturado para respostas em
@@ -324,12 +341,17 @@ analisar concorrência de vagas, pré-requisitos e estatísticas históricas de 
 
 **Critérios de Aceitação:**
 
+- Ao pesquisar um código completo sem oferta no semestre consultado, a busca deve incluir
+  também componentes ofertados com o mesmo nome normalizado, preservando seus códigos e os
+  filtros de semestre e unidade. A consulta pelo parâmetro de código exato continua restrita a ele.
 - A busca pública não deve exigir autenticação e deve tolerar variações de acentuação e caixa
   alta/baixa.
 - A visualização da turma deve exibir barra de progresso com vagas ocupadas sobre o total (ex.:
   `64 de 80 vagas ocupadas`).
 - Para estudantes autenticados, o sistema deve avaliar o histórico escolar e indicar se a turma está
   liberada ou impedida por pré-requisitos não atendidos.
+- A ocupação das vagas deve ser exibida em vermelho a partir de 90%, em amarelo de 50% a menos
+  de 90% e em verde abaixo de 50%, usando as cores do projeto.
 
 #### 3.2: Estatísticas Históricas de Aprovação
 
@@ -356,6 +378,9 @@ analisar concorrência de vagas, pré-requisitos e estatísticas históricas de 
 
 - **US42:** Como estudante autenticado, quero recomendações que excluam disciplinas já cursadas ou
   em andamento, inclusive equivalentes, permitindo repetição somente com reprovação confirmada.
+
+- **US43:** Como estudante, quero abrir o botão “Por que esta matéria?” para consultar os
+  indicativos da recomendação em um card no padrão visual do projeto.
 
 - **RF16 — Exclusão de Disciplinas Cursadas e Equivalências (`GET /public/subjects`):** O sistema
   deve excluir aprovações, matrículas atuais e tentativas sem resultado, considerando as expressões

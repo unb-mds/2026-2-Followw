@@ -272,6 +272,33 @@ def test_busca_comum_mostra_o_tipo_na_matriz_pelo_cache(scene, stub_sigaa):
     }
 
 
+@pytest.mark.parametrize("period", [1, 5, 0, None])
+def test_busca_e_recomendacoes_informam_apenas_semestre_positivo_do_fluxo(
+    scene, period
+):
+    scene.subject("REQ", kind="required", period=period)
+    scene.subject("FREE", kind=None)
+    for params in ({"unit": "673"}, {}):
+        items = {
+            item["code"]: item for item in scene.client.get(URL, params=params).json()
+        }
+        assert items["REQ"]["curriculum_period"] == (
+            period if period and period > 0 else None
+        )
+        if params:
+            assert items["FREE"]["curriculum_period"] is None
+    scene.user(curriculum_id=None)
+    assert all(
+        item["curriculum_period"] is None
+        for item in scene.client.get(URL, params={"unit": "673"}).json()
+    )
+    scene.client.cookies.clear()
+    assert all(
+        item["curriculum_period"] is None
+        for item in scene.client.get(URL, params={"unit": "673"}).json()
+    )
+
+
 def test_tipo_e_nulo_sem_matriz_ou_sem_login(scene):
     scene.subject("A")
     with scene.db.begin() as session:

@@ -9,6 +9,7 @@ import type { CatalogSubject, Requirements, SubjectClassroom } from '#/queries/s
 import { apiClient } from '#/queries/client';
 import {
     approvedCodes,
+    currentCurriculumPeriod,
     availableSeats,
     filterSubjects,
     formatRequirements,
@@ -74,8 +75,8 @@ describe('busca de matérias', () => {
         ['ab', 'FCTE', { unit: 'FCTE' }],
         ['ab', null, null],
         ['abc', null, { q: 'abc' }],
-        ['a'.repeat(24), null, { q: 'a'.repeat(24) }],
-        ['a'.repeat(25), 'FCTE', { unit: 'FCTE' }],
+        ['a'.repeat(90), null, { q: 'a'.repeat(90) }],
+        ['a'.repeat(91), 'FCTE', { unit: 'FCTE' }],
         ['  ', 'FCTE', { unit: 'FCTE' }],
         ['', null, null]
     ])('"%s" com unidade %s busca %p', (busca, unit, expected) => {
@@ -84,7 +85,7 @@ describe('busca de matérias', () => {
 
     test('texto fora dos limites mantém a consulta anterior', () => {
         expect(subjectsQuery('ab', 'FCTE', { q: 'calculo' })).toEqual({ q: 'calculo' });
-        expect(subjectsQuery('a'.repeat(25), null, null)).toBeNull();
+        expect(subjectsQuery('a'.repeat(91), null, null)).toBeNull();
         expect(subjectsQuery('', 'FCTE', { q: 'calculo' })).toEqual({ unit: 'FCTE' });
     });
 });
@@ -179,4 +180,16 @@ describe('filtros no cliente', () => {
         expect(isAvailability('Disponíveis')).toBe(true);
         expect(isAvailability('Talvez')).toBe(false);
     });
+});
+
+test.each([
+    ['2025.1', '2026.2', 4],
+    ['2026.2', '2026.2', 1],
+    ['2025.2', '2026.1', 2],
+    ['2027.1', '2026.2', null],
+    [null, '2026.2', null],
+    ['2025.1', undefined, null],
+    ['2025.3', '2026.2', null]
+] as const)('calcula período atual para ingresso %s e semestre %s', (entry, semester, expected) => {
+    expect(currentCurriculumPeriod(entry, semester)).toBe(expected);
 });

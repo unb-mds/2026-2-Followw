@@ -1,7 +1,7 @@
 from typing import Annotated, Literal
 
 from fastapi import Depends, HTTPException, status
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sigaa_client import lookup_key
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -68,6 +68,8 @@ class CatalogSubject(UserSubject):
     classrooms: list[SubjectClassroom]
     # Tipo na matriz estimada de quem está logado; nulo sem login ou sem matriz.
     kind: Literal["mandatory", "optional", "free"] | None = None
+    unlocks: list[SubjectReference] = Field(default_factory=list)
+    curriculum_period: int | None = None
     recommendation: SubjectRecommendation | None = None
 
 
@@ -113,6 +115,11 @@ async def _search(
         semester=semester,
     )
     needle = lookup_key(q or "")
+    names_without_offer = {
+        lookup_key(subject.name)
+        for subject in subjects
+        if needle == lookup_key(subject.code) and not subject.classrooms
+    }
     curriculum = None
     if registration is not None:
         curriculum = await RecommendationRepository(session).curriculum(registration)
@@ -130,6 +137,7 @@ async def _search(
                     *(p for c in subject.classrooms for p in c.professors),
                 )
             )
+            or (subject.classrooms and lookup_key(subject.name) in names_without_offer)
         ],
     )
 
@@ -160,7 +168,9 @@ async def _catalog(
     curriculum: dict[str, Component] | None,
     subjects: list[Subject],
 ) -> list[CatalogSubject]:
-    names = await SubjectCatalogRepository(session).subject_names(
+    repository = SubjectCatalogRepository(session)
+    unlocks = await repository.unlocked_subjects({subject.code for subject in subjects})
+    names = await repository.subject_names(
         {
             code
             for subject in subjects
@@ -187,6 +197,16 @@ async def _catalog(
                 SubjectClassroom.model_validate(classroom)
                 for classroom in sorted(subject.classrooms, key=lambda c: c.number)
             ],
+            unlocks=[
+                SubjectReference(code=code, name=name)
+                for code, name in unlocks.get(subject.code, [])
+            ],
+            curriculum_period=component.period
+            if curriculum is not None
+            and (component := curriculum.get(normalize(subject.code))) is not None
+            and component.period is not None
+            and component.period > 0
+            else None,
             kind=subject_kind(curriculum, subject.code)
             if curriculum is not None
             else None,

@@ -39,7 +39,7 @@ describe('loader da busca de turmas', () => {
         }
     );
 
-    test.each(['ab', 'a'.repeat(25)])('query inválida %s pré-carrega a unidade', async (q) => {
+    test.each(['ab', 'a'.repeat(91)])('query inválida %s pré-carrega a unidade', async (q) => {
         const keys = await loadWith({ registration: '1', unity: 'FCTE' }, `?q=${q}`);
         const subjects = keys.filter((key) => key[1] === '/public/subjects');
         expect(subjects.map((key) => key[2])).toEqual([{ params: { query: { unit: 'FCTE' } } }]);

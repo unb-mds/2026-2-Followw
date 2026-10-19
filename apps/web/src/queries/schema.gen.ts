@@ -448,6 +448,10 @@ export interface components {
             classrooms: components["schemas"]["SubjectClassroom"][];
             /** Kind */
             kind?: ("mandatory" | "optional" | "free") | null;
+            /** Unlocks */
+            unlocks?: components["schemas"]["SubjectReference"][];
+            /** Curriculum Period */
+            curriculum_period?: number | null;
             recommendation?: components["schemas"]["SubjectRecommendation"] | null;
         };
         /** ClassroomFrequencyResult */
@@ -1765,7 +1769,7 @@ export interface operations {
     search_subjects_public_subjects_get: {
         parameters: {
             query?: {
-                /** @description Trecho do código, nome do componente ou docente, de 3 a 24 caracteres, ignorando acentos, maiúsculas e espaços extras. */
+                /** @description Trecho do código, nome do componente ou docente, de 3 a 90 caracteres, ignorando acentos, maiúsculas e espaços extras. */
                 q?: string | null;
                 /** @description Código completo do componente, como FGA0003. */
                 code?: string | null;

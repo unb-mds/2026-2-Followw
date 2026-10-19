@@ -30,7 +30,7 @@ export const isAvailability = (value: string): value is Availability =>
     (AVAILABILITIES as readonly string[]).includes(value);
 
 export const SEARCH_MIN_LENGTH = 3;
-export const SEARCH_MAX_LENGTH = 24;
+export const SEARCH_MAX_LENGTH = 90;
 const APPROVED = new Set(['SS', 'MS', 'MM']);
 
 /** Sem texto, lista a unidade; texto fora dos limites mantém a consulta anterior. */
@@ -108,4 +108,16 @@ export function filterSubjects(
         });
         return classrooms.length > 0 ? [{ ...subject, classrooms }] : [];
     });
+}
+
+export function currentCurriculumPeriod(
+    entry: string | null | undefined,
+    semester: string | undefined
+): number | null {
+    if (!entry || !semester || !/^\d{4}\.[12]$/.test(entry) || !/^\d{4}\.[12]$/.test(semester))
+        return null;
+    const [entryYear, entryTerm] = entry.split('.').map(Number);
+    const [year, term] = semester.split('.').map(Number);
+    const period = (year - entryYear) * 2 + term - entryTerm + 1;
+    return period > 0 ? period : null;
 }

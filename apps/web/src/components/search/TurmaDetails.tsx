@@ -4,6 +4,8 @@ import { Lock } from 'lucide-react';
 import type { TurmaProps } from '#/components/search/TurmaCard';
 
 import { RequirementList } from '#/components/search/RequirementList';
+import { SubjectDisclosure } from '#/components/search/SubjectDisclosure';
+import { SubjectSearchLink } from '#/components/search/SubjectSearchLink';
 import { titleCase } from '#/lib/profile';
 import { describeSchedule } from '#/lib/schedule';
 import { lockedReasons } from '#/queries/subjects';
@@ -11,7 +13,10 @@ import { lockedReasons } from '#/queries/subjects';
 export function TurmaDetails({ subject, classroom, prerequisitesMet }: TurmaProps) {
     const reasons = lockedReasons(classroom, prerequisitesMet);
     const { vacancies, occupied } = classroom;
-    const remaining = vacancies == null || occupied == null ? null : vacancies - occupied;
+    const occupancy =
+        vacancies != null && vacancies > 0 && occupied != null && occupied >= 0
+            ? occupied / vacancies
+            : null;
 
     return (
         <div className="flex flex-col gap-4">
@@ -29,7 +34,14 @@ export function TurmaDetails({ subject, classroom, prerequisitesMet }: TurmaProp
                 </Detail>
                 <Detail label="Docentes" className="col-span-2">
                     {classroom.professors.length > 0
-                        ? classroom.professors.join(', ')
+                        ? classroom.professors.map((professor, index) => (
+                              <span key={professor}>
+                                  {index > 0 && ', '}
+                                  <SubjectSearchLink query={professor}>
+                                      {professor}
+                                  </SubjectSearchLink>
+                              </span>
+                          ))
                         : 'Docentes não informados'}
                 </Detail>
                 <Detail label="Carga horária">
@@ -50,12 +62,34 @@ export function TurmaDetails({ subject, classroom, prerequisitesMet }: TurmaProp
                         <RequirementList requirements={subject.equivalences} />
                     </Detail>
                 ) : null}
+                {subject.unlocks?.length ? (
+                    <Detail label="Desbloqueia" className="col-span-2">
+                        <SubjectDisclosure count={subject.unlocks.length}>
+                            <p className="text-xs text-muted-foreground">
+                                Outros requisitos também podem ser necessários.
+                            </p>
+                            <ul className="flex min-w-0 flex-col gap-1">
+                                {subject.unlocks.map((item) => (
+                                    <li key={item.code} className="min-w-0 wrap-anywhere">
+                                        <SubjectSearchLink query={item.name}>
+                                            {item.name}
+                                        </SubjectSearchLink>
+                                    </li>
+                                ))}
+                            </ul>
+                        </SubjectDisclosure>
+                    </Detail>
+                ) : null}
                 <Detail label="Vagas">
                     <span
                         className={cn(
                             'tabular-nums',
-                            remaining != null && remaining <= 0 && 'text-destructive',
-                            remaining != null && remaining > 0 && remaining <= 3 && 'text-warning'
+                            occupancy != null && occupancy >= 0.9 && 'text-destructive',
+                            occupancy != null &&
+                                occupancy >= 0.5 &&
+                                occupancy < 0.9 &&
+                                'text-warning',
+                            occupancy != null && occupancy < 0.5 && 'text-primary'
                         )}
                     >
                         {vacancies == null || occupied == null

@@ -102,6 +102,8 @@ def test_componente_traz_as_turmas_do_semestre_mais_recente(catalog):
                 },
             ],
             "kind": None,
+            "curriculum_period": None,
+            "unlocks": [],
             "recommendation": None,
         }
     ]
@@ -167,7 +169,7 @@ def test_validacao_de_parametros(catalog, params):
     assert catalog.get("/public/subjects", params=params).status_code == 422
 
 
-@pytest.mark.parametrize("q", ["", "a", "ab", "a" * 25, " a ", "   "])
+@pytest.mark.parametrize("q", ["", "a", "ab", "a" * 91, " a ", "   "])
 def test_q_invalida_nao_consulta_o_catalogo(catalog, monkeypatch, q):
     from unittest.mock import AsyncMock
 
@@ -180,7 +182,7 @@ def test_q_invalida_nao_consulta_o_catalogo(catalog, monkeypatch, q):
     search.assert_not_called()
 
 
-@pytest.mark.parametrize("length", [3, 24])
+@pytest.mark.parametrize("length", [3, 90])
 def test_q_aceita_os_limites(catalog, database, length):
     q = "x" * length
     with database.begin() as session:
@@ -271,3 +273,123 @@ def test_openapi_so_tem_os_filtros_do_banco(client):
         "Cache-Control",
     }
     assert set(operation["responses"]) == {"200", "401", "422", "502", "503"}
+
+
+def test_desbloqueia_lista_dependentes_diretos_sem_duplicar_nem_exigir_oferta(
+    catalog, database
+):
+    with database.begin() as session:
+        session.add_all(
+            [
+                Subject(
+                    code="DEP1",
+                    name="Dependente um",
+                    prerequisites=[["FGA0003", "FGA0001"], ["FGA0003"]],
+                ),
+                Subject(
+                    code="DEP2", name="Dependente dois", prerequisites=[["fga0003 "]]
+                ),
+                Subject(code="INDIRETA", name="Indireta", prerequisites=[["DEP1"]]),
+                Subject(code="CORREQ", name="Correquisito", corequisites=[["FGA0003"]]),
+            ]
+        )
+    (item,) = _search(catalog, code="FGA0003")
+    assert item["unlocks"] == [
+        {"code": "DEP2", "name": "Dependente dois"},
+        {"code": "DEP1", "name": "Dependente um"},
+    ]
+    assert _search(catalog, code="XYZ0001")[0]["unlocks"] == []
+
+
+@pytest.mark.parametrize("query", ["OLD0001", " old0001 "])
+def test_codigo_sem_oferta_tambem_encontra_ofertas_com_mesmo_nome(
+    catalog, database, query
+):
+    with database.begin() as session:
+        session.add_all(
+            [
+                Subject(
+                    code="OLD0001", name="MÉTODOS DE DESENVOLVIMENTO", unity_id=673
+                ),
+                Subject(
+                    code="NEW0001", name="Metodos de Desenvolvimento", unity_id=673
+                ),
+                Subject(
+                    code="NEW0002", name="Métodos de Desenvolvimento 2", unity_id=673
+                ),
+                Subject(
+                    code="NEW0003", name="Métodos de Desenvolvimento", unity_id=518
+                ),
+            ]
+        )
+        session.add_all(
+            [
+                Classroom(subject_code=code, number="01", semester="2026.2")
+                for code in ["NEW0001", "NEW0002", "NEW0003"]
+            ]
+        )
+    items = _search(catalog, q=query)
+    assert [item["code"] for item in items] == ["NEW0001", "NEW0003", "OLD0001"]
+    assert items[0]["name"] == "Metodos de Desenvolvimento"
+    assert items[-1]["classrooms"] == []
+    assert [item["code"] for item in _search(catalog, q=query, unit="673")] == [
+        "NEW0001",
+        "OLD0001",
+    ]
+    assert [item["code"] for item in _search(catalog, code="OLD0001")] == ["OLD0001"]
+    assert [item["code"] for item in _search(catalog, q="OLD000")] == ["OLD0001"]
+    assert [item["code"] for item in _search(catalog, q=query, semester="2026.1")] == [
+        "OLD0001"
+    ]
+
+
+def test_codigo_com_oferta_nao_expande_para_outros_codigos_de_mesmo_nome(
+    catalog, database
+):
+    with database.begin() as session:
+        session.add(
+            Subject(code="NEW0001", name="COMPILAÇÃO DE PROGRAMAS", unity_id=673)
+        )
+        session.add(Classroom(subject_code="NEW0001", number="01", semester="2026.2"))
+    assert [item["code"] for item in _search(catalog, q="FGA0003")] == ["FGA0003"]
+
+
+@pytest.mark.parametrize(
+    "q",
+    [
+        "MÉTODOS DE DESENVOLVIMENTO DE SOFTWARE",
+        "metodos de desenvolvimento de software",
+    ],
+)
+def test_busca_por_nome_encontra_oferta_mesmo_apos_mudanca_de_codigo(
+    catalog, database, q
+):
+    with database.begin() as session:
+        session.add_all(
+            [
+                Subject(
+                    code="FGA0138",
+                    name="MÉTODOS DE DESENVOLVIMENTO DE SOFTWARE",
+                    unity_id=673,
+                ),
+                Subject(
+                    code="FGA0312",
+                    name="MÉTODOS DE DESENVOLVIMENTO DE SOFTWARE",
+                    unity_id=673,
+                ),
+            ]
+        )
+        session.add(Classroom(subject_code="FGA0312", number="01", semester="2026.2"))
+    items = _search(catalog, q=q)
+    offered = [item for item in items if item["classrooms"]]
+    assert [item["code"] for item in offered] == ["FGA0312"]
+    assert offered[0]["classrooms"][0]["semester"] == "2026.2"
+
+
+def test_busca_pelo_maior_nome_do_catalogo_encontra_nome_completo(catalog, database):
+    name = "CENÁRIOS E PRÁTICAS EM TERAPIA OCUPACIONAL EM CONTEXTOS HOSPITALARES E CUIDADOS PALIATIVOS"
+    assert len(name) == 90
+    with database.begin() as session:
+        session.add(Subject(code="LONG0001", name=name, unity_id=673))
+        session.add(Classroom(subject_code="LONG0001", number="01", semester="2026.2"))
+    assert [item["code"] for item in _search(catalog, q=name)] == ["LONG0001"]
