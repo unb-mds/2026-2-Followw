@@ -79,8 +79,12 @@ membro do time e quais resultados eles trouxeram.
     - GPT 6.1-Sol (Diego, Gaspar, Gabriel da Cruz)
 
 - Skills:
+
+    Sobre as skills, algumas foram utilizadas pontualmente e foi tomada a decisão de não
+    adicioná-las ao repo. Sendo assim, ficaram no repositório apenas as que são frequentemente
+    usadas por todo o time.
     - codebase-design: Uso geral
-    - grill-me: Uso geral
+    - grilling: Uso geral
     - scalar-docs: Kauã e Samuel
     - security-audit: Eliabe e Diego
     - thermo-nuclear-code-quality-review: Eliabe
