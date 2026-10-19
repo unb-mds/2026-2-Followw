@@ -686,25 +686,19 @@ def test_turma_nova_na_lista_revalida_as_mencoes(client, turmas, database):
     turmas.classrooms.list_grades.assert_awaited_once_with()
 
 
-# 2026.2 consolida em 19/12: com a tolerância, a menção congela no sync a partir de 23/12.
-@pytest.mark.parametrize(
-    ("synced_at", "consultas"),
-    [
-        (datetime(2026, 12, 22, 12, tzinfo=UTC), 1),
-        (datetime(2026, 12, 23, 12, tzinfo=UTC), 0),
-    ],
-)
-def test_mencao_faz_um_ultimo_sync_depois_da_consolidacao(
-    client, sigaa, turmas, database, hoje, synced_at, consultas
+def test_mencao_nula_de_semestre_consolidado_continua_revalidando(
+    client, turmas, database
 ):
+    turmas.classrooms.list_classrooms.return_value = [ANTIGA]
     _login(client)
-    hoje(date(2026, 12, 30))
-    _mencoes_sincronizadas_em(database, synced_at)
-    turmas.classrooms.list_grades.reset_mock()
+    _mencoes_sincronizadas_em(database, datetime.now(UTC) - timedelta(days=2))
+    turmas.classrooms.list_grades.return_value = [
+        ClassroomGrade(subject_code="FGA0158", semester="2025.2", grade=Grade.MS)
+    ]
 
     _login(client)
 
-    assert turmas.classrooms.list_grades.await_count == consultas
+    assert client.get("/classrooms?semester=all").json()[0]["grade"] == "MS"
 
 
 def test_mencoes_associam_codigo_e_semestre_sem_confundir_repeticao(client, turmas):
@@ -734,22 +728,25 @@ def test_mencoes_frescas_nao_releem_relatorio(client, turmas):
     turmas.classrooms.list_grades.assert_not_awaited()
 
 
-def test_relatorio_sem_mencao_limpa_resultado_anterior(client, turmas, database):
+def test_resultado_vazio_no_relatorio_limpa_a_mencao(client, turmas, database):
     turmas.classrooms.list_grades.return_value = [
         ClassroomGrade(subject_code="FGA0146", semester="2026.2", grade=Grade.MS)
     ]
     _login(client)
     _mencoes_sincronizadas_em(database, datetime.now(UTC) - timedelta(days=2))
-    turmas.classrooms.list_grades.return_value = []
+    turmas.classrooms.list_grades.return_value = [
+        ClassroomGrade(subject_code="FGA0146", semester="2026.2")
+    ]
 
     _login(client)
 
     assert client.get("/classrooms").json()[0]["grade"] is None
 
 
-def test_relatorio_sem_mencao_consolidada_preserva_a_gravada(client, turmas, database):
+def test_disciplina_ausente_do_relatorio_preserva_a_mencao(client, turmas, database):
     turmas.classrooms.list_grades.return_value = [
-        ClassroomGrade(subject_code="FGA0158", semester="2025.2", grade=Grade.MS)
+        ClassroomGrade(subject_code="FGA0146", semester="2026.2", grade=Grade.MS),
+        ClassroomGrade(subject_code="FGA0158", semester="2025.2", grade=Grade.SS),
     ]
     _login(client)
     _mencoes_sincronizadas_em(database, datetime.now(UTC) - timedelta(days=2))
@@ -760,7 +757,7 @@ def test_relatorio_sem_mencao_consolidada_preserva_a_gravada(client, turmas, dat
     assert turmas.classrooms.list_grades.await_count == 2
     assert {
         c["id"]: c["grade"] for c in client.get("/classrooms?semester=all").json()
-    } == {"AAA": None, "BBB": "MS"}
+    } == {"AAA": "MS", "BBB": "SS"}
 
 
 def test_falha_no_relatorio_preserva_mencoes_e_tenta_uma_vez(

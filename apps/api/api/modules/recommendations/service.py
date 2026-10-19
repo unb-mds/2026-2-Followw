@@ -97,7 +97,7 @@ class RecommendationService:
                 return Cached(
                     True,
                     user.grades_synced_at,
-                    grades_freshness(current, user.grades_synced_at),
+                    grades_freshness(user.grades_synced_at),
                 )
 
             await self._sync.resolve(sync_grades, None, load)
