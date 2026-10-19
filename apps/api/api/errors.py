@@ -46,7 +46,6 @@ EXCEPTION_HANDLERS: dict[type[Exception], Handler] = {
     SigaaSearchError: _error(422),
     SigaaError: _error(502, "SIGAA is unavailable"),
     httpx.HTTPError: _error(502, "SIGAA is unavailable"),
-    TimeoutError: _error(502, "SIGAA timed out"),
     UnbBrowserError: _error(502, "UnB website is unavailable"),
 }
 

@@ -23,7 +23,6 @@ const persister =
 // sem isso, query sem uso (ex.: cardápio de semana antiga) é salva de novo a cada sessão e nunca sai
 export function shouldPersistQuery(query: Query, now = Date.now()) {
     return (
-        query.meta?.persist !== false &&
         query.queryHash !== hashKey(recommendationsQueryOptions.queryKey) &&
         query.state.status === 'success' &&
         now - query.state.dataUpdatedAt < PERSIST_MAX_AGE

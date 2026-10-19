@@ -1,4 +1,3 @@
-import asyncio
 import hashlib
 import json
 import logging
@@ -522,7 +521,6 @@ def turma(client, stub_sigaa, cookies, qstash, database):
     assert client.get("/classrooms").status_code == 200
     client.cookies.clear()
     qstash.published.clear()
-    qstash.deliveries.clear()
     stub_sigaa.reset()
     return stub_sigaa
 
@@ -626,27 +624,6 @@ def test_retentativa_nao_cai_na_deduplicacao_da_primeira(client, turma, qstash):
 
     retry = qstash.published[0]["headers"]["Upstash-Deduplication-Id"]
     assert retry == hashlib.sha256(b"251000000:AAA:sync_members:#2").hexdigest()
-
-
-def test_timeout_libera_tarefa_e_esgota_apenas_uma_retentativa(
-    client, turma, qstash, monkeypatch, caplog
-):
-    async def travada(*args):
-        await asyncio.Event().wait()
-
-    monkeypatch.setattr("api.sync.engine.TASK_TIMEOUT", 1)
-    turma.classrooms.list_classroom_members.side_effect = travada
-    response = _entregar(client, qstash, encode_job(TELAS))
-
-    assert response.status_code == 204
-    turma.classrooms.get_classroom_statistics.assert_awaited_once()
-    assert turma.classrooms.list_classroom_members.await_count == 2
-    [retry] = qstash.jobs()
-    assert retry.attempt == 2
-    assert retry.job_id == TELAS.job_id
-    logs = [json.loads(r.message) for r in caplog.records if r.name == "followw"]
-    assert any(r.get("retry_exhausted") for r in logs)
-    assert any(r.get("error_type") == "TimeoutError" for r in logs)
 
 
 @pytest.mark.parametrize(

@@ -11,7 +11,7 @@ import { Card, CardContent } from '#/components/ui/card';
 import { Toggle } from '#/components/ui/toggle';
 import { groupBySemester } from '#/lib/classroom-details';
 import { describeSchedule } from '#/lib/schedule';
-import { allClassroomsQueryOptions, finalGrade, gradesPollingInterval } from '#/queries/classrooms';
+import { allClassroomsQueryOptions, finalGrade } from '#/queries/classrooms';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
 
@@ -40,17 +40,12 @@ function TurmasPage() {
 
 function Classrooms() {
     const navigate = useNavigate();
-    const [openedAt] = useState(() => Date.now());
     const {
         data: classrooms,
         isPending,
         isLoadingError,
         refetch
-    } = useQuery({
-        ...allClassroomsQueryOptions,
-        refetchInterval: (query) =>
-            query.state.error ? false : gradesPollingInterval(query.state.data, openedAt)
-    });
+    } = useQuery(allClassroomsQueryOptions);
     const [selected, setSelected] = useState<string>();
 
     const groups = groupBySemester(classrooms ?? []);

@@ -40,13 +40,13 @@ from sigaa_client.private.classrooms import (
     _open_statistics,
     _parse_dashboard,
     _parse_frequency,
+    _parse_grades,
     _parse_history,
     _parse_members,
     _parse_news_detail,
     _parse_news_list,
     _parse_statistics,
 )
-from sigaa_client.private.grades import _parse_grades
 from sigaa_client.private.session import Session
 
 from .test_auth import CREDENTIALS, FakeSigaa
@@ -549,32 +549,6 @@ def test_unidade_com_varias_avaliacoes_nao_desloca_o_resultado():
     assert _parse_grades(BeautifulSoup(pagina, "lxml"))[0].grade == Grade.MS
 
 
-@pytest.mark.parametrize(
-    "avaliacao",
-    ["", "<td>-</td>", "<td>7,5</td>", "<td>MM</td>"],
-    ids=["omitida", "nao_lancada", "numerica", "mencao_parcial"],
-)
-@pytest.mark.parametrize("historico_primeiro", [False, True])
-async def test_formato_do_semestre_atual_nao_impede_mencoes_antigas(
-    avaliacao, historico_primeiro
-):
-    pagina = GRADES.replace("<td>MM</td><td>MS</td>", f"{avaliacao}<td>--</td>")
-    if historico_primeiro:
-        soup = BeautifulSoup(pagina, "lxml")
-        tables = soup.select("table.tabelaRelatorio")
-        tables[0].insert_before(tables[1].extract())
-        pagina = str(soup)
-    session = FakeSession(GRADES_MENU, pagina)
-
-    grades = await Classrooms(session).list_grades()  # type: ignore[arg-type]
-
-    assert {(g.subject_code, g.semester): g.grade for g in grades} == {
-        ("FGA0146", "2026.2"): None,
-        ("FGA0158", "2026.2"): None,
-        ("FGA0146", "2025.2"): Grade.MI,
-    }
-
-
 @pytest.mark.parametrize("resultado", ["", "-", "--"])
 def test_notas_sem_resultado_vem_none(resultado):
     pagina = GRADES.replace("<td>MS</td>", f"<td>{resultado}</td>")
@@ -604,34 +578,8 @@ def test_relatorio_sem_disciplinas_retorna_lista_vazia():
     ],
 )
 def test_notas_fora_do_formato_sao_barulhentas(pagina):
-    soup = BeautifulSoup(pagina, "lxml")
-    tables = soup.select("table.tabelaRelatorio")
-    if len(tables) > 1:
-        tables[-1].decompose()
     with pytest.raises(SigaaParseError):
-        _parse_grades(soup)
-
-
-@pytest.mark.parametrize("historico_primeiro", [False, True])
-@pytest.mark.parametrize("defeito", ["colunas", "resultado", "linha", "duplicada"])
-def test_semestre_invalido_nao_descarta_os_demais(defeito, historico_primeiro, caplog):
-    soup = BeautifulSoup(GRADES, "lxml")
-    current, history = soup.select("table.tabelaRelatorio")
-    if defeito == "colunas":
-        current.find("th", string="Resultado").string = "Outro formato"
-    elif defeito == "resultado":
-        current.find("td", string="MS").string = "DESCONHECIDA"
-    elif defeito == "linha":
-        current.select("tbody tr")[-1].find("td").decompose()
-    else:
-        current.find("td", string="FGA0158").string = "FGA0146"
-    if historico_primeiro:
-        current.insert_before(history.extract())
-
-    assert _parse_grades(soup) == [
-        ClassroomGrade(subject_code="FGA0146", semester="2025.2", grade=Grade.MI)
-    ]
-    assert "Tabela de notas ignorada" in caplog.text
+        _parse_grades(BeautifulSoup(pagina, "lxml"))
 
 
 class GradesSigaa:
@@ -955,13 +903,3 @@ async def test_noticia_que_nao_esta_na_turma_e_barulhenta():
 def test_detalhe_ilegivel_nao_e_confundido_com_noticia_ausente(page):
     with pytest.raises(SigaaParseError):
         _parse_news_detail(BeautifulSoup(page, "lxml"), 23433316)
-
-
-@pytest.mark.parametrize("tbody", ["ausente", "fechado_antes"])
-def test_notas_nao_ignoram_linhas_fora_do_tbody(tbody):
-    pagina = GRADES.replace("<tbody>", "").replace("</tbody>", "")
-    if tbody == "fechado_antes":
-        pagina = pagina.replace("</thead>", "</thead><tbody></tbody>")
-    assert _parse_grades(BeautifulSoup(pagina, "lxml")) == _parse_grades(
-        BeautifulSoup(GRADES, "lxml")
-    )

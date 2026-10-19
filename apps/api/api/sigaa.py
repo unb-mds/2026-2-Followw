@@ -1,4 +1,3 @@
-import asyncio
 from collections.abc import AsyncGenerator
 from contextlib import suppress
 from typing import Annotated
@@ -14,9 +13,6 @@ from api.cookies import (
     set_refresh_cookie,
 )
 from api.logger import operation
-
-LOGIN_TIMEOUT = 45
-LOGOUT_TIMEOUT = 10
 
 
 class SigaaConnection:
@@ -56,8 +52,7 @@ class SigaaConnection:
             )
             try:
                 with operation("sigaa.connect", reused_session=self.authenticated):
-                    async with asyncio.timeout(LOGIN_TIMEOUT):
-                        token = self._session_token or await client.authenticate()
+                    token = self._session_token or await client.authenticate()
             except BaseException:
                 await client.aclose()
                 raise
@@ -72,12 +67,8 @@ class SigaaConnection:
             return
         try:
             if logout:
-                with (
-                    suppress(SigaaError, httpx.HTTPError, TimeoutError),
-                    operation("sigaa.logout"),
-                ):
-                    async with asyncio.timeout(LOGOUT_TIMEOUT):
-                        await client.logout()
+                with suppress(SigaaError, httpx.HTTPError), operation("sigaa.logout"):
+                    await client.logout()
         finally:
             await client.aclose()
 

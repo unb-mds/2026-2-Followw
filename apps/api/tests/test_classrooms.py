@@ -6,9 +6,11 @@ import sigaa_client
 from pydantic import SecretStr
 from sigaa_client import (
     Classroom,
+    ClassroomGrade,
     ClassroomMember,
     ClassroomRole,
     Credentials,
+    Grade,
     SigaaError,
     StatisticsShare,
     StudentSituation,
@@ -117,43 +119,6 @@ def test_login_e_listagem_retornam_apenas_turmas_atuais(client, classrooms_sigaa
     assert client.get("/me").status_code == 200
 
 
-@pytest.mark.parametrize("defeito", ["colunas", "resultado", "linha"])
-def test_formato_atual_invalido_preserva_cache_e_sincroniza_historico(
-    client, classrooms_sigaa, defeito
-):
-    title = "<h3>Relatório de Notas do(a) Aluno(a)</h3>"
-    current = """<table class="tabelaRelatorio"><caption>2026.2</caption>
-    <tr><th>Código</th><th>Disciplina</th><th>Nota 1</th><th>Resultado</th>
-    <th>Faltas</th><th>Situação</th></tr>
-    <tr><td>FGA0146</td><td>DISCIPLINA ATUAL</td><td>MS</td><td>0</td><td>--</td></tr>
-    </table>"""
-    history = current.replace("2026.2", "2025.2").replace("FGA0146", "FGA0158")
-    classrooms_sigaa.grades = title + current + history
-    assert (
-        client.post(
-            "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
-        ).status_code
-        == 200
-    )
-    if defeito == "colunas":
-        current = current.replace("Resultado", "Outro formato")
-    elif defeito == "resultado":
-        current = current.replace("<td>MS</td>", "<td>DESCONHECIDA</td>")
-    else:
-        current = current.replace("<td>MS</td>", "")
-    classrooms_sigaa.grades = (
-        title + current + history.replace("<td>MS</td>", "<td>SS</td>")
-    )
-
-    response = client.get("/classrooms?semester=all", headers=NO_CACHE)
-
-    assert response.status_code == 200
-    assert {row["id"]: row["grade"] for row in response.json()} == {
-        "CURRENT": "MS",
-        "OLD": "SS",
-    }
-
-
 def test_refresh_reflete_alteracoes_no_sigaa(client, classrooms_sigaa, cookies):
     client.cookies.update(cookies(refresh=CREDENCIAIS))
     assert client.get("/classrooms").json()[0]["room"] == "MOCAP"
@@ -259,13 +224,11 @@ def test_renova_sessao_e_retorna_as_turmas(client, classrooms_sigaa, cookies, ac
 
     assert response.status_code == 200
     assert response.json()[0]["id"] == "CURRENT"
-    assert classrooms_sigaa.logins == 2
-    assert classrooms_sigaa.logouts == 1
+    assert classrooms_sigaa.logins == 1
     assert ACCESS_COOKIE_NAME in response.cookies
     assert REFRESH_COOKIE_NAME in response.cookies
     assert client.get("/classrooms").status_code == 200
-    assert classrooms_sigaa.logins == 2
-    assert classrooms_sigaa.logouts == 1
+    assert classrooms_sigaa.logins == 1
 
 
 @pytest.mark.parametrize("access", [None, "app14~MORTO"])
@@ -364,10 +327,9 @@ def test_filtro_por_semestre_consulta_as_duas_paginas_uma_vez(
 
     assert response.status_code == 200
     assert [classroom["id"] for classroom in response.json()] == expected
-    assert classrooms_sigaa.profile_requests == (1 if not expected else 3)
+    assert classrooms_sigaa.profile_requests == 1
     assert classrooms_sigaa.classrooms_requests == 1
-    assert classrooms_sigaa.logins == (1 if expected else 0)
-    assert classrooms_sigaa.logouts == classrooms_sigaa.logins
+    assert classrooms_sigaa.logins == 0
 
 
 def test_historico_preserva_campos_das_turmas_atuais(client, classrooms_sigaa, cookies):
@@ -421,8 +383,7 @@ def test_filtro_renova_sessao_expirada(client, classrooms_sigaa, cookies):
 
     assert response.status_code == 200
     assert any(item["id"] == "OLD" for item in response.json())
-    assert classrooms_sigaa.logins == 2
-    assert classrooms_sigaa.logouts == 1
+    assert classrooms_sigaa.logins == 1
     assert ACCESS_COOKIE_NAME in response.cookies
 
 
@@ -665,6 +626,174 @@ def test_participantes_sem_cache_buscam_depois_da_tolerancia_do_semestre(
 
     assert len(client.get("/classrooms/AAA/members").json()) == 3
     assert turmas.classrooms.list_classroom_members.await_count == 1
+
+
+def _login(client) -> None:
+    client.post(
+        "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
+    )
+
+
+def _mencoes_sincronizadas_em(database, synced_at: datetime) -> None:
+    with database() as session:
+        session.execute(update(User).values(grades_synced_at=synced_at))
+        session.commit()
+
+
+def test_mencao_vem_com_a_turma_pelo_sync_do_login(client, sigaa, turmas, qstash):
+    turmas.classrooms.list_grades.return_value = [
+        ClassroomGrade(subject_code="FGA0146", semester="2026.2"),
+        ClassroomGrade(subject_code="FGA0158", semester="2025.2", grade=Grade.MS),
+    ]
+    _login(client)
+
+    response = client.get("/classrooms?semester=all")
+
+    assert {c["id"]: c["grade"] for c in response.json()} == {"AAA": None, "BBB": "MS"}
+    turmas.classrooms.list_grades.assert_awaited_once_with()
+    assert all(
+        "sync_grades" not in [step.task for step in job.steps] for job in qstash.jobs()
+    )
+
+
+def test_mencoes_vencidas_revalidam_no_login(client, sigaa, turmas, database):
+    _login(client)
+    vencida = datetime.now(UTC) - timedelta(days=2)
+    _mencoes_sincronizadas_em(database, vencida)
+    turmas.classrooms.list_grades.reset_mock()
+
+    _login(client)
+
+    turmas.classrooms.list_grades.assert_awaited_once_with()
+    with database() as session:
+        assert session.scalar(select(User.grades_synced_at)) > vencida.replace(
+            tzinfo=None
+        )
+
+
+def test_turma_nova_na_lista_revalida_as_mencoes(client, turmas, database):
+    _login(client)
+    turmas.classrooms.list_grades.reset_mock()
+    nova = ATUAL.model_copy(update={"id": "CCC", "number": "02"})
+    turmas.classrooms.list_classrooms.return_value = [
+        *turmas.classrooms.list_classrooms.return_value,
+        nova,
+    ]
+
+    client.get("/classrooms", headers=NO_CACHE)
+    _login(client)
+
+    turmas.classrooms.list_grades.assert_awaited_once_with()
+
+
+def test_mencao_nula_de_semestre_consolidado_continua_revalidando(
+    client, turmas, database
+):
+    turmas.classrooms.list_classrooms.return_value = [ANTIGA]
+    _login(client)
+    _mencoes_sincronizadas_em(database, datetime.now(UTC) - timedelta(days=2))
+    turmas.classrooms.list_grades.return_value = [
+        ClassroomGrade(subject_code="FGA0158", semester="2025.2", grade=Grade.MS)
+    ]
+
+    _login(client)
+
+    assert client.get("/classrooms?semester=all").json()[0]["grade"] == "MS"
+
+
+def test_mencoes_associam_codigo_e_semestre_sem_confundir_repeticao(client, turmas):
+    antiga = ATUAL.model_copy(
+        update={"id": "BBB", "semester": "2025.2", "current": False}
+    )
+    turmas.classrooms.list_classrooms.return_value = [ATUAL, antiga]
+    turmas.classrooms.list_grades.return_value = [
+        ClassroomGrade(subject_code="FGA0146", semester="2026.2", grade=Grade.MS),
+        ClassroomGrade(subject_code="FGA0146", semester="2025.2", grade=Grade.MI),
+        ClassroomGrade(subject_code="OUTRA", semester="2026.2", grade=Grade.SS),
+    ]
+    _login(client)
+
+    assert {
+        c["id"]: c["grade"] for c in client.get("/classrooms?semester=all").json()
+    } == {"AAA": "MS", "BBB": "MI"}
+    turmas.classrooms.list_grades.assert_awaited_once_with()
+
+
+def test_mencoes_frescas_nao_releem_relatorio(client, turmas):
+    _login(client)
+    turmas.classrooms.list_grades.reset_mock()
+
+    _login(client)
+
+    turmas.classrooms.list_grades.assert_not_awaited()
+
+
+def test_resultado_vazio_no_relatorio_limpa_a_mencao(client, turmas, database):
+    turmas.classrooms.list_grades.return_value = [
+        ClassroomGrade(subject_code="FGA0146", semester="2026.2", grade=Grade.MS)
+    ]
+    _login(client)
+    _mencoes_sincronizadas_em(database, datetime.now(UTC) - timedelta(days=2))
+    turmas.classrooms.list_grades.return_value = [
+        ClassroomGrade(subject_code="FGA0146", semester="2026.2")
+    ]
+
+    _login(client)
+
+    assert client.get("/classrooms").json()[0]["grade"] is None
+
+
+def test_disciplina_ausente_do_relatorio_preserva_a_mencao(client, turmas, database):
+    turmas.classrooms.list_grades.return_value = [
+        ClassroomGrade(subject_code="FGA0146", semester="2026.2", grade=Grade.MS),
+        ClassroomGrade(subject_code="FGA0158", semester="2025.2", grade=Grade.SS),
+    ]
+    _login(client)
+    _mencoes_sincronizadas_em(database, datetime.now(UTC) - timedelta(days=2))
+    turmas.classrooms.list_grades.return_value = []
+
+    _login(client)
+
+    assert turmas.classrooms.list_grades.await_count == 2
+    assert {
+        c["id"]: c["grade"] for c in client.get("/classrooms?semester=all").json()
+    } == {"AAA": "MS", "BBB": "SS"}
+
+
+def test_falha_no_relatorio_preserva_mencoes_e_tenta_uma_vez(
+    client, turmas, database, qstash
+):
+    turmas.classrooms.list_grades.return_value = [
+        ClassroomGrade(subject_code="FGA0146", semester="2026.2", grade=Grade.MS)
+    ]
+    _login(client)
+    synced_at = datetime.now(UTC) - timedelta(days=2)
+    _mencoes_sincronizadas_em(database, synced_at)
+    turmas.classrooms.list_grades.reset_mock()
+    turmas.classrooms.list_grades.side_effect = SigaaError("relatório indisponível")
+
+    _login(client)
+
+    assert client.get("/classrooms").json()[0]["grade"] == "MS"
+    assert turmas.classrooms.list_grades.await_count == 2
+    with database() as session:
+        assert session.scalar(select(User.grades_synced_at)) == synced_at.replace(
+            tzinfo=None
+        )
+    assert qstash.jobs()[-1].attempt == 2
+
+
+def test_falha_no_relatorio_nao_impede_jobs_das_turmas(client, turmas, qstash):
+    turmas.classrooms.list_grades.side_effect = SigaaError("relatório indisponível")
+
+    _login(client)
+
+    assert sorted(
+        call.args[0]
+        for call in turmas.classrooms.list_classroom_members.await_args_list
+    ) == ["AAA", "BBB"]
+    assert turmas.classrooms.list_grades.await_count == 2
+    assert {response.status_code for response in qstash.deliveries} == {204}
 
 
 AGORA = datetime(2026, 9, 22, tzinfo=UTC)

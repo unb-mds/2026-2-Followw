@@ -2,8 +2,6 @@ import asyncio
 import io
 import json
 import logging
-from types import SimpleNamespace
-from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -11,38 +9,6 @@ from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
 
 from api.logger import RequestLoggingMiddleware, event, operation
-
-
-@pytest.mark.parametrize("deduplicated", [False, True])
-async def test_log_distingue_publicacao_de_deduplicacao(caplog, deduplicated):
-    from qstash.message import BatchResponse
-    from sigaa_client import Credentials
-
-    from api.sync.engine import Job, Step
-    from api.sync.queue import QStashQueue
-
-    queue = QStashQueue()
-    queue._client = SimpleNamespace(
-        message=SimpleNamespace(
-            batch=AsyncMock(
-                return_value=[
-                    BatchResponse(message_id="msg-original", deduplicated=deduplicated)
-                ]
-            )
-        )
-    )
-    job = Job(
-        credentials=Credentials(registration="251000000", password="senha123"),
-        steps=(Step(task="sync_grades"),),
-    )
-    await queue.enqueue(job)
-    logs = [r for r in records(caplog) if r["event"].startswith("queue.job_")]
-    assert len(logs) == 1
-    assert logs[0]["event"] == (
-        "queue.job_deduplicated" if deduplicated else "queue.job_published"
-    )
-    assert logs[0]["message_id"] == "msg-original"
-    assert logs[0]["job_id"] == job.job_id
 
 
 def test_evento_sai_uma_vez_quando_o_runtime_tem_handler_na_raiz(monkeypatch):
@@ -64,19 +30,6 @@ def test_evento_sai_uma_vez_quando_o_runtime_tem_handler_na_raiz(monkeypatch):
 
 def records(caplog):
     return [json.loads(r.message) for r in caplog.records if r.name == "followw"]
-
-
-def test_publicacao_e_execucao_compartilham_id_do_job(client, sigaa, caplog):
-    client.post(
-        "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
-    )
-    logs = records(caplog)
-    published = {r["job_id"] for r in logs if r["event"] == "queue.job_published"}
-    executed = {r["job_id"] for r in logs if r["event"] == "job.started"}
-    assert published and published == executed
-    assert any(
-        r["event"] == "grades.report_applied" and "missing_count" in r for r in logs
-    )
 
 
 def test_login_registra_tarefas_aninhadas_sem_segredos(client, sigaa, caplog):

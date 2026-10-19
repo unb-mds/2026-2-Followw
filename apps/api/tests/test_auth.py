@@ -1,4 +1,3 @@
-import asyncio
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -13,37 +12,6 @@ from api.sync.engine import Step
 
 CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha123"))
 LOGIN = {"registration": "251000000", "password": "senha123"}
-
-
-def test_login_travado_expira_fecha_client_e_permite_nova_tentativa(
-    client, stub_sigaa, monkeypatch
-):
-    async def travada():
-        await asyncio.Event().wait()
-
-    monkeypatch.setattr("api.sigaa.LOGIN_TIMEOUT", 0.01)
-    stub_sigaa.authenticate.side_effect = travada
-    assert client.post("/auth/sigaa", json=LOGIN).status_code == 502
-    stub_sigaa.aclose.assert_awaited_once()
-    stub_sigaa.authenticate.side_effect = None
-    assert client.post("/auth/sigaa", json=LOGIN).status_code == 200
-
-
-def test_logout_travado_ainda_limpa_os_cookies(
-    client, stub_sigaa, monkeypatch, cookies
-):
-    async def travada():
-        await asyncio.Event().wait()
-
-    monkeypatch.setattr("api.modules.auth.router.LOGOUT_TIMEOUT", 0.01)
-    client.cookies.update(cookies(access="token", refresh=CREDENCIAIS))
-    stub_sigaa.logout.side_effect = travada
-    monkeypatch.setattr("api.modules.auth.router.SigaaClient.logout", stub_sigaa.logout)
-    response = client.delete("/auth/sigaa")
-    assert response.status_code == 200
-    assert all(
-        "Max-Age=0" in value for value in response.headers.get_list("set-cookie")
-    )
 
 
 @pytest.mark.parametrize("shadow", [False, True])

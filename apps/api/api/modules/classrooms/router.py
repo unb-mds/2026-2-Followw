@@ -87,7 +87,7 @@ async def get_classroom_post(
     "",
     response_model=list[ParticipantClassroom],
     summary="Consultar as turmas do usuário autenticado",
-    description="Cada turma traz a menção do usuário em grade (null até ser lançada ou sincronizada). As menções também são revalidadas nesta consulta; no-cache aguarda a origem. O relatório vence após 24 horas, inclusive para menções consolidadas ou preservadas de uma leitura parcial.",
+    description="Cada turma traz a menção do usuário em grade (null até ser lançada ou sincronizada). A menção é atualizada pelo sync do login e de /auth/sigaa/refresh.",
     responses=SIGAA_ERRORS,
 )
 async def get_classrooms(

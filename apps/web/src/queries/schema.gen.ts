@@ -93,7 +93,7 @@ export interface paths {
         };
         /**
          * Consultar as turmas do usuário autenticado
-         * @description Cada turma traz a menção do usuário em grade (null até ser lançada ou sincronizada). As menções também são revalidadas nesta consulta; no-cache aguarda a origem. O relatório vence após 24 horas, inclusive para menções consolidadas ou preservadas de uma leitura parcial.
+         * @description Cada turma traz a menção do usuário em grade (null até ser lançada ou sincronizada). A menção é atualizada pelo sync do login e de /auth/sigaa/refresh.
          */
         get: operations["get_classrooms_classrooms_get"];
         put?: never;

@@ -27,7 +27,6 @@ _PUBLISH_TIMEOUT = 3
 _PARALLELISM = 4
 # Espera da retentativa das tarefas que falharam.
 _RETRY_DELAY = 60
-_ACCOUNT_RETRY_DELAY = 10
 
 
 class QStashQueue:
@@ -50,16 +49,7 @@ class QStashQueue:
         try:
             with operation("queue.publish", job_count=len(jobs)):
                 async with asyncio.timeout(_PUBLISH_TIMEOUT):
-                    results = await self._client.message.batch(messages)
-                for job, result in zip(jobs, results, strict=True):
-                    event(
-                        "queue.job_deduplicated"
-                        if result.deduplicated
-                        else "queue.job_published",
-                        job_id=job.job_id,
-                        message_id=result.message_id,
-                        attempt=job.attempt,
-                    )
+                    await self._client.message.batch(messages)
         except QStashError, httpx.HTTPError, TimeoutError:
             # Sem o job, o cache só segue vencido até o próximo acesso agendar outro.
             event("queue.publish_abandoned", level=logging.WARNING, job_count=len(jobs))
@@ -130,11 +120,7 @@ def _message(job: Job) -> BatchRequest:
         },
     }
     if job.attempt > 1:
-        message["delay"] = (
-            _ACCOUNT_RETRY_DELAY
-            if any(step.task in {"sync_account", "sync_grades"} for step in job.steps)
-            else _RETRY_DELAY
-        )
+        message["delay"] = _RETRY_DELAY
     return message
 
 

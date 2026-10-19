@@ -6,7 +6,6 @@ from api.academic_calendar import (
     class_days,
     departure_status,
     grades_closed,
-    grades_frozen,
     member_status,
     members_closed,
     members_frozen,
@@ -51,14 +50,6 @@ def test_semestre_fora_do_calendario_usa_a_ordem_dos_semestres():
     assert not members_closed("2030.1")
     assert member_status("2030.1") == ClassroomStatus.CURSANDO
     assert departure_status("2030.1") == ClassroomStatus.REMOVIDO
-
-
-def test_mencao_congela_depois_da_consolidacao_com_tolerancia():
-    # 2026.1 consolida em 21/07.
-    assert not grades_frozen("2026.1", datetime(2026, 7, 24, 12, tzinfo=UTC))
-    assert grades_frozen("2026.1", datetime(2026, 7, 25, 12, tzinfo=UTC))
-    assert grades_frozen("2025.2", datetime(2025, 1, 1, tzinfo=UTC))
-    assert not grades_frozen("2030.1", datetime(2030, 12, 31, tzinfo=UTC))
 
 
 @pytest.mark.parametrize(
