@@ -25,6 +25,44 @@ class SubjectCatalogRepository:
             ).all()
         )
 
+    async def unlocked_subjects(
+        self, codes: set[str]
+    ) -> dict[str, list[tuple[str, str]]]:
+        if not codes:
+            return {}
+        result: dict[str, list[tuple[str, str]]] = {}
+        rows = await self._session.execute(
+            select(Subject.code, Subject.name, Subject.prerequisites)
+            .where(Subject.prerequisites.is_not(None))
+            .order_by(Subject.name, Subject.code)
+        )
+        for code, name, requirements in rows:
+            required = {
+                item.strip().upper() for group in requirements or [] for item in group
+            }
+            for prerequisite in codes & required:
+                if prerequisite != code:
+                    result.setdefault(prerequisite, []).append((code, name))
+        return result
+
+    async def offered_subject_codes(
+        self, codes: set[str], semester: str | None
+    ) -> set[str]:
+        if not codes:
+            return set()
+        semester = semester or await self._session.scalar(
+            select(func.max(Classroom.semester))
+        )
+        return set(
+            await self._session.scalars(
+                select(Classroom.subject_code)
+                .where(
+                    Classroom.subject_code.in_(codes), Classroom.semester == semester
+                )
+                .distinct()
+            )
+        )
+
     async def list_subjects(
         self,
         *,

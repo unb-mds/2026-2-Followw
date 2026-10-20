@@ -9,10 +9,14 @@ import {
 } from '@tanstack/react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 import { Window } from 'happy-dom';
+import { renderToStaticMarkup } from 'react-dom/server';
 
 import type { CatalogSubject } from '#/queries/subjects';
 
-import { RecommendationsSection } from '#/components/search/RecommendationsSection';
+import {
+    RecommendationReasons,
+    RecommendationsSection
+} from '#/components/search/RecommendationsSection';
 import { apiClient } from '#/queries/client';
 let testing: typeof import('@testing-library/react/pure');
 let browser: Window;
@@ -152,9 +156,21 @@ describe('seção de recomendações', () => {
         expect(page.queryByText('104 pontos')).toBeNull();
         testing.fireEvent.click(page.getByRole('button', { name: /FGA0001/ }));
         await testing.waitFor(() =>
-            expect(page.getByRole('list', { name: 'Critérios atendidos' })).toBeDefined()
+            expect(page.getByRole('button', { name: 'Por que esta matéria?' })).toBeDefined()
         );
-        const criteria = page.getByRole('list', { name: 'Critérios atendidos' });
+        expect(page.queryByRole('list', { name: 'Critérios atendidos' })).toBeNull();
+        const classrooms = page.getAllByRole('button', { name: 'Matéria recomendada' });
+        expect(classrooms).toHaveLength(2);
+        testing.fireEvent.click(page.getByRole('button', { name: 'Por que esta matéria?' }), {
+            button: 0
+        });
+        expect(
+            page
+                .getByRole('button', { name: 'Por que esta matéria?' })
+                .getAttribute('aria-expanded')
+        ).toBe('true');
+        const criteria = document.createElement('div');
+        criteria.innerHTML = renderToStaticMarkup(<RecommendationReasons subject={result[0]} />);
         expect(Array.from(criteria.querySelectorAll('li'), (item) => item.textContent)).toEqual([
             'Próximo período do fluxo',
             'Obrigatória',
@@ -162,12 +178,6 @@ describe('seção de recomendações', () => {
             'Inicia uma cadeia de 1 semestre',
             'Carga horária de 60 horas'
         ]);
-        expect(page.queryByText(/\+\d+/)).toBeNull();
-        const classrooms = page.getAllByRole('button', { name: 'Matéria recomendada' });
-        expect(classrooms).toHaveLength(2);
-        expect(
-            criteria.compareDocumentPosition(classrooms[1]) & Node.DOCUMENT_POSITION_PRECEDING
-        ).not.toBe(0);
         expect(classrooms[0].getAttribute('aria-haspopup')).toBe('dialog');
         testing.fireEvent.click(classrooms[0]);
         await testing.waitFor(() =>

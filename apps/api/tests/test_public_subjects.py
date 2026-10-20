@@ -55,6 +55,41 @@ def _search(client, **params):
     return response.json()
 
 
+@pytest.mark.parametrize("semester", [None, "2026.1", "2026.2"])
+def test_equivalencias_exibem_apenas_alternativas_completas_com_turmas(
+    catalog, database, semester
+):
+    with database.begin() as session:
+        session.add_all(
+            [
+                Subject(code="CIC0004", name="Equivalente atual"),
+                Subject(code="CIC0005", name="Equivalente sem oferta"),
+                Classroom(
+                    subject_code="CIC0004",
+                    number="01",
+                    semester="2026.2",
+                    vacancies=10,
+                    occupied=10,
+                ),
+            ]
+        )
+        session.get(Subject, "FGA0003").equivalences = [
+            ["FGA0001"],
+            ["CIC0004"],
+            ["CIC0004", "CIC0005"],
+            ["AUSENTE"],
+        ]
+    params = {"code": "FGA0003"}
+    if semester:
+        params["semester"] = semester
+    item = _search(catalog, **params)[0]
+    expected = "FGA0001" if semester == "2026.1" else "CIC0004"
+    assert [[r["code"] for r in g] for g in item["offered_equivalences"]] == [
+        [expected]
+    ]
+    assert len(item["equivalences"]) == 4
+
+
 def test_componente_traz_as_turmas_do_semestre_mais_recente(catalog):
     response = catalog.get("/public/subjects", params={"code": "fga0003"})
 
@@ -77,7 +112,10 @@ def test_componente_traz_as_turmas_do_semestre_mais_recente(catalog):
                 [{"code": "FGA0010", "subject": None}],
             ],
             "corequisites": None,
+            "curriculum_prerequisites": None,
+            "curriculum_corequisites": None,
             "equivalences": [[{"code": "CIC0004", "subject": None}]],
+            "offered_equivalences": [],
             "unity_name": "CAMPUS UNB GAMA",
             "classrooms": [
                 {
@@ -102,6 +140,8 @@ def test_componente_traz_as_turmas_do_semestre_mais_recente(catalog):
                 },
             ],
             "kind": None,
+            "curriculum_period": None,
+            "unlocks": [],
             "recommendation": None,
         }
     ]
@@ -167,7 +207,7 @@ def test_validacao_de_parametros(catalog, params):
     assert catalog.get("/public/subjects", params=params).status_code == 422
 
 
-@pytest.mark.parametrize("q", ["", "a", "ab", "a" * 25, " a ", "   "])
+@pytest.mark.parametrize("q", ["", "a", "ab", "a" * 33, " a ", "   "])
 def test_q_invalida_nao_consulta_o_catalogo(catalog, monkeypatch, q):
     from unittest.mock import AsyncMock
 
@@ -180,7 +220,7 @@ def test_q_invalida_nao_consulta_o_catalogo(catalog, monkeypatch, q):
     search.assert_not_called()
 
 
-@pytest.mark.parametrize("length", [3, 24])
+@pytest.mark.parametrize("length", [3, 32])
 def test_q_aceita_os_limites(catalog, database, length):
     q = "x" * length
     with database.begin() as session:
@@ -271,3 +311,114 @@ def test_openapi_so_tem_os_filtros_do_banco(client):
         "Cache-Control",
     }
     assert set(operation["responses"]) == {"200", "401", "422", "502", "503"}
+
+
+def test_desbloqueia_lista_dependentes_diretos_sem_duplicar_nem_exigir_oferta(
+    catalog, database
+):
+    with database.begin() as session:
+        session.add_all(
+            [
+                Subject(
+                    code="DEP1",
+                    name="Dependente um",
+                    prerequisites=[["FGA0003", "FGA0001"], ["FGA0003"]],
+                ),
+                Subject(
+                    code="DEP2", name="Dependente dois", prerequisites=[["fga0003 "]]
+                ),
+                Subject(code="INDIRETA", name="Indireta", prerequisites=[["DEP1"]]),
+                Subject(code="CORREQ", name="Correquisito", corequisites=[["FGA0003"]]),
+            ]
+        )
+    (item,) = _search(catalog, code="FGA0003")
+    assert item["unlocks"] == [
+        {"code": "DEP2", "name": "Dependente dois"},
+        {"code": "DEP1", "name": "Dependente um"},
+    ]
+    assert _search(catalog, code="XYZ0001")[0]["unlocks"] == []
+
+
+@pytest.mark.parametrize("query", ["OLD0001", " old0001 "])
+def test_codigo_sem_oferta_tambem_encontra_ofertas_com_mesmo_nome(
+    catalog, database, query
+):
+    with database.begin() as session:
+        session.add_all(
+            [
+                Subject(
+                    code="OLD0001", name="MÉTODOS DE DESENVOLVIMENTO", unity_id=673
+                ),
+                Subject(
+                    code="NEW0001", name="Metodos de Desenvolvimento", unity_id=673
+                ),
+                Subject(
+                    code="NEW0002", name="Métodos de Desenvolvimento 2", unity_id=673
+                ),
+                Subject(
+                    code="NEW0003", name="Métodos de Desenvolvimento", unity_id=518
+                ),
+            ]
+        )
+        session.add_all(
+            [
+                Classroom(subject_code=code, number="01", semester="2026.2")
+                for code in ["NEW0001", "NEW0002", "NEW0003"]
+            ]
+        )
+    items = _search(catalog, q=query)
+    assert [item["code"] for item in items] == ["NEW0001", "NEW0003", "OLD0001"]
+    assert items[0]["name"] == "Metodos de Desenvolvimento"
+    assert items[-1]["classrooms"] == []
+    assert [item["code"] for item in _search(catalog, q=query, unit="673")] == [
+        "NEW0001",
+        "OLD0001",
+    ]
+    assert [item["code"] for item in _search(catalog, code="OLD0001")] == ["OLD0001"]
+    assert [item["code"] for item in _search(catalog, q="OLD000")] == ["OLD0001"]
+    assert [item["code"] for item in _search(catalog, q=query, semester="2026.1")] == [
+        "OLD0001"
+    ]
+
+
+def test_codigo_com_oferta_nao_expande_para_outros_codigos_de_mesmo_nome(
+    catalog, database
+):
+    with database.begin() as session:
+        session.add(
+            Subject(code="NEW0001", name="COMPILAÇÃO DE PROGRAMAS", unity_id=673)
+        )
+        session.add(Classroom(subject_code="NEW0001", number="01", semester="2026.2"))
+    assert [item["code"] for item in _search(catalog, q="FGA0003")] == ["FGA0003"]
+
+
+@pytest.mark.parametrize(
+    "q",
+    [
+        "MÉTODOS DE DESENVOLVIMENTO",
+        "metodos de desenvolvimento de",
+    ],
+)
+def test_busca_por_nome_encontra_oferta_mesmo_apos_mudanca_de_codigo(
+    catalog, database, q
+):
+    with database.begin() as session:
+        session.add_all(
+            [
+                Subject(
+                    code="FGA0138",
+                    name="MÉTODOS DE DESENVOLVIMENTO DE SOFTWARE",
+                    unity_id=673,
+                ),
+                Subject(
+                    code="FGA0312",
+                    name="MÉTODOS DE DESENVOLVIMENTO DE SOFTWARE",
+                    unity_id=673,
+                ),
+            ]
+        )
+        session.add(Classroom(subject_code="FGA0312", number="01", semester="2026.2"))
+    items = _search(catalog, q=q)
+    offered = [item for item in items if item["classrooms"]]
+    assert [item["code"] for item in offered] == ["FGA0312"]
+    assert offered[0]["classrooms"][0]["semester"] == "2026.2"

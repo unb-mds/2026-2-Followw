@@ -9,13 +9,14 @@ import type { CatalogSubject, Requirements, SubjectClassroom } from '#/queries/s
 import { apiClient } from '#/queries/client';
 import {
     approvedCodes,
+    currentCurriculumPeriod,
     availableSeats,
     filterSubjects,
-    formatRequirements,
     isAvailability,
     isTurno,
     lockedReasons,
     prerequisitesMet,
+    subjectRequirementLabel,
     subjectsQuery,
     subjectsQueryOptions
 } from '#/queries/subjects';
@@ -74,8 +75,8 @@ describe('busca de matérias', () => {
         ['ab', 'FCTE', { unit: 'FCTE' }],
         ['ab', null, null],
         ['abc', null, { q: 'abc' }],
-        ['a'.repeat(24), null, { q: 'a'.repeat(24) }],
-        ['a'.repeat(25), 'FCTE', { unit: 'FCTE' }],
+        ['a'.repeat(32), null, { q: 'a'.repeat(32) }],
+        ['a'.repeat(33), 'FCTE', { unit: 'FCTE' }],
         ['  ', 'FCTE', { unit: 'FCTE' }],
         ['', null, null]
     ])('"%s" com unidade %s busca %p', (busca, unit, expected) => {
@@ -84,7 +85,7 @@ describe('busca de matérias', () => {
 
     test('texto fora dos limites mantém a consulta anterior', () => {
         expect(subjectsQuery('ab', 'FCTE', { q: 'calculo' })).toEqual({ q: 'calculo' });
-        expect(subjectsQuery('a'.repeat(25), null, null)).toBeNull();
+        expect(subjectsQuery('a'.repeat(33), null, null)).toBeNull();
         expect(subjectsQuery('', 'FCTE', { q: 'calculo' })).toEqual({ unit: 'FCTE' });
     });
 });
@@ -120,12 +121,6 @@ describe('pré-requisitos', () => {
         expect(prerequisitesMet([], null)).toBe(true);
     });
 
-    test('formata a expressão para leitura', () => {
-        expect(formatRequirements(requirements([['A', 'B'], ['C']]))).toBe('(A e B) ou C');
-        expect(formatRequirements(requirements([['A', 'B']]))).toBe('A e B');
-        expect(formatRequirements(requirements([['A'], ['B']]))).toBe('A ou B');
-    });
-
     test('mostra nomes resolvidos e mantém códigos sem relacionamento', () => {
         const groups = [
             [
@@ -133,7 +128,7 @@ describe('pré-requisitos', () => {
                 { code: 'ANTIGO', subject: null }
             ]
         ];
-        expect(formatRequirements(groups)).toBe('Cálculo 1 e ANTIGO');
+        expect(groups[0].map(subjectRequirementLabel)).toEqual(['Cálculo 1', 'ANTIGO']);
         expect(prerequisitesMet(groups, new Set(['MAT0023', 'ANTIGO']))).toBe(true);
     });
 });
@@ -179,4 +174,16 @@ describe('filtros no cliente', () => {
         expect(isAvailability('Disponíveis')).toBe(true);
         expect(isAvailability('Talvez')).toBe(false);
     });
+});
+
+test.each([
+    ['2025.1', '2026.2', 4],
+    ['2026.2', '2026.2', 1],
+    ['2025.2', '2026.1', 2],
+    ['2027.1', '2026.2', null],
+    [null, '2026.2', null],
+    ['2025.1', undefined, null],
+    ['2025.3', '2026.2', null]
+] as const)('calcula período atual para ingresso %s e semestre %s', (entry, semester, expected) => {
+    expect(currentCurriculumPeriod(entry, semester)).toBe(expected);
 });

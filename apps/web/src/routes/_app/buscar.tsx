@@ -9,6 +9,7 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { Clock, ListFilter, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
+import { getCurrentSemester } from '#/calendar';
 import { ErrorCard, ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
 import { LoadingText } from '#/components/LoadingText';
@@ -26,6 +27,7 @@ import { recommendationsQueryOptions, showRecommendations } from '#/queries/reco
 import { refreshQuery } from '#/queries/refresh';
 import {
     approvedCodes,
+    currentCurriculumPeriod,
     AVAILABILITIES,
     filterSubjects,
     isAvailability,
@@ -72,6 +74,10 @@ function BuscarTurmasPage() {
     const [{ q: busca, turno, disponibilidade }, setSearch] = useSearchState();
     const recommendations = showRecommendations(user, { q: busca, turno, disponibilidade });
     const unit = user?.unity ?? null;
+    const currentPeriod = currentCurriculumPeriod(
+        user?.entry_semester,
+        getCurrentSemester()?.semester
+    );
     // Consulta aplicada após o debounce de 300 ms; texto inválido mantém a anterior.
     const [query, setQuery] = useState(() => subjectsQuery(busca, unit));
     const [pagination, setPagination] = useState({ key: '', limit: PAGE_SIZE });
@@ -143,7 +149,7 @@ function BuscarTurmasPage() {
             </div>
             <div aria-live="polite" aria-busy={isFetching} className="flex flex-col gap-5 pb-8">
                 {recommendations ? (
-                    <RecommendationsSection />
+                    <RecommendationsSection currentPeriod={currentPeriod} />
                 ) : !query ? (
                     <p className="py-8 text-center text-sm text-muted-foreground">
                         {`Digite de ${SEARCH_MIN_LENGTH} a ${SEARCH_MAX_LENGTH} caracteres do nome, código da matéria ou professor para ver as turmas.`}
@@ -177,6 +183,7 @@ function BuscarTurmasPage() {
                         <TurmaSection
                             title={semester ? `${title} · ${semester}` : title}
                             subjects={visible}
+                            currentPeriod={currentPeriod}
                             total={subjects.length}
                             approved={approved}
                             onOpenDetails={refreshSubjects}

@@ -3,10 +3,11 @@ import { describe, expect, test } from 'bun:test';
 import { Route as RootRoute } from '#/routes/__root';
 
 import manifest from '../../public/manifest.json';
+import { callRoute } from '../helpers/route';
 
 describe('rota raiz e manifest PWA', () => {
     test('configura tags no head para suporte a PWA e instalação na tela inicial', async () => {
-        const head = await RootRoute.options.head?.({});
+        const head = await callRoute(RootRoute.options.head);
         expect(head).toBeDefined();
 
         const links = head?.links ?? [];
