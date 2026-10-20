@@ -1,6 +1,6 @@
 import type { CatalogSubject } from '#/queries/subjects';
 
-import { SubjectKindBadge } from '#/components/search/SubjectKindBadge';
+import { SubjectSummary } from '#/components/search/SubjectSummary';
 import { TurmaCard } from '#/components/search/TurmaCard';
 import {
     Accordion,
@@ -15,8 +15,10 @@ export function TurmaSection({
     subjects,
     total = subjects.length,
     approved,
-    onOpenDetails
+    onOpenDetails,
+    currentPeriod
 }: {
+    currentPeriod?: number | null;
     title: string;
     subjects: CatalogSubject[];
     total?: number;
@@ -41,17 +43,7 @@ export function TurmaSection({
                         className="overflow-hidden rounded-2xl border bg-card text-card-foreground"
                     >
                         <AccordionTrigger className="items-center gap-3 rounded-none px-3 py-3 hover:bg-primary/5 hover:no-underline focus-visible:ring-inset">
-                            <span className="flex min-w-0 flex-1 flex-col gap-1">
-                                <span className="flex items-center gap-2">
-                                    <span className="text-xs font-semibold text-primary">
-                                        {subject.code}
-                                    </span>
-                                    <SubjectKindBadge kind={subject.kind} />
-                                </span>
-                                <span className="text-sm leading-snug font-semibold">
-                                    {subject.name}
-                                </span>
-                            </span>
+                            <SubjectSummary subject={subject} currentPeriod={currentPeriod} />
                             <span className="shrink-0 text-xs text-muted-foreground">
                                 {`${subject.classrooms.length} ${subject.classrooms.length === 1 ? 'turma' : 'turmas'}`}
                             </span>

@@ -198,14 +198,14 @@ describe('página de busca com estado na URL', () => {
         expect(requests[0].searchParams.get('q')).toBe('calculo');
     });
 
-    test.each(['ab', 'a'.repeat(25)])('URL com query inválida %s não chama a API', async (q) => {
+    test.each(['ab', 'a'.repeat(33)])('URL com query inválida %s não chama a API', async (q) => {
         const page = renderPage(`?q=${q}`);
         expect(searchbox(page).value).toBe(q);
         await testing.act(() => new Promise((resolve) => setTimeout(resolve, 350)));
         expect(requests).toHaveLength(0);
     });
 
-    test.each(['abc', 'a'.repeat(24), 'Carlos Silva'])(
+    test.each(['abc', 'a'.repeat(32), 'Carlos Silva'])(
         'busca válida %s consulta e mostra resultados',
         async (q) => {
             const page = renderPage(`?q=${q}`);
@@ -235,18 +235,18 @@ describe('página de busca com estado na URL', () => {
         testing.fireEvent.change(searchbox(page), { target: { value: 'ca' } });
         await testing.act(() => new Promise((resolve) => setTimeout(resolve, 350)));
         expect(page.getByText('Cálculo 1')).toBeDefined();
-        expect(page.queryByText(/Digite de 3 a 24/)).toBeNull();
+        expect(page.queryByText(/Digite de 3 a 32/)).toBeNull();
         expect(requests).toHaveLength(1);
     });
 
-    test('campo impede ou trunca caracteres acima de 24', async () => {
+    test('campo impede ou trunca caracteres acima de 32', async () => {
         const page = renderPage();
         const input = searchbox(page);
-        expect(input.maxLength).toBe(24);
-        testing.fireEvent.change(input, { target: { value: 'a'.repeat(25) } });
-        expect(input.value).toBe('a'.repeat(24));
+        expect(input.maxLength).toBe(32);
+        testing.fireEvent.change(input, { target: { value: 'a'.repeat(33) } });
+        expect(input.value).toBe('a'.repeat(32));
         await testing.waitFor(() => expect(requests).toHaveLength(1));
-        expect(requests[0].searchParams.get('q')).toHaveLength(24);
+        expect(requests[0].searchParams.get('q')).toHaveLength(32);
     });
 
     test('limpar o filtro remove seu parâmetro e preserva a consulta', async () => {

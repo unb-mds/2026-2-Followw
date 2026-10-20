@@ -131,7 +131,9 @@ function RUHeader() {
 }
 
 function useMenuSelection() {
-    const { defaultDate, defaultMeal, defaultCampus } = Route.useLoaderData();
+    // sem loaderData enquanto a rota carrega ou falha, e o header já renderiza
+    const loaded = Route.useLoaderData({ select: (data) => data });
+    const { data: user } = useQuery(meQueryOptions);
     const [search, setSearch] = useQueryStates(restaurantSearchParsers, {
         history: 'replace',
         scroll: false
@@ -141,12 +143,12 @@ function useMenuSelection() {
         () => true,
         () => false
     );
-    const opening = hydrated ? currentOrNextMeal(nowInBrasilia()) : null;
-    const defaults: RestaurantSelection = {
-        date: opening?.date ?? defaultDate,
-        meal: opening?.meal.key ?? defaultMeal,
-        campus: defaultCampus
-    };
+    const opening = currentOrNextMeal(nowInBrasilia());
+    const defaultCampus = loaded?.defaultCampus ?? campusOf(user?.unity);
+    const defaults: RestaurantSelection =
+        loaded && !hydrated
+            ? { date: loaded.defaultDate, meal: loaded.defaultMeal, campus: defaultCampus }
+            : { date: opening.date, meal: opening.meal.key, campus: defaultCampus };
     const selection: RestaurantSelection = {
         date: search.date ?? defaults.date,
         meal: search.meal ?? defaults.meal,
