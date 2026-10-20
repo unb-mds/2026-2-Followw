@@ -93,8 +93,11 @@ export function TurmaDetails({ subject, classroom, prerequisitesMet }: TurmaProp
                         className={cn(
                             'tabular-nums',
                             occupancy != null && occupancy >= 1 && 'text-destructive',
-                            occupancy != null && occupancy > 0.6 && occupancy < 1 && 'text-warning',
-                            occupancy != null && occupancy <= 0.6 && 'text-primary'
+                            occupancy != null &&
+                                occupancy > 0.75 &&
+                                occupancy < 1 &&
+                                'text-warning',
+                            occupancy != null && occupancy <= 0.75 && 'text-primary'
                         )}
                     >
                         {vacancies == null || occupied == null
