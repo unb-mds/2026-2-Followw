@@ -1,5 +1,4 @@
 import { expect, test } from 'bun:test';
-import { renderToStaticMarkup } from 'react-dom/server';
 
 import type { CatalogSubject, Requirements } from '#/queries/subjects';
 
@@ -7,13 +6,15 @@ import { RequirementList } from '#/components/search/RequirementList';
 import { TurmaDetails } from '#/components/search/TurmaDetails';
 import { prerequisitesMet } from '#/queries/subjects';
 
+import { renderWithRouter } from '../../helpers/router';
+
 const requirements: Requirements = [
     [{ code: 'OLD', subject: { code: 'OLD', name: 'Nome antigo' } }],
     [{ code: 'CURRENT', subject: { code: 'CURRENT', name: 'Nome atual' } }]
 ];
 
 const renderDetails = (subject: Partial<CatalogSubject>) =>
-    renderToStaticMarkup(
+    renderWithRouter(
         <TurmaDetails
             subject={{ code: 'TARGET', name: 'Disciplina', classrooms: [], ...subject }}
             classroom={{ number: '01', semester: '2026.2', professors: [] }}
@@ -63,7 +64,7 @@ test.each(['prerequisites', 'corequisites'] as const)(
 );
 
 test('não agrupa códigos com nomes iguais e preserva combinações completas', () => {
-    const markup = renderToStaticMarkup(
+    const markup = renderWithRouter(
         <RequirementList
             requirements={[
                 [{ code: 'A', subject: { code: 'A', name: 'Mesmo nome' } }, { code: 'C' }],

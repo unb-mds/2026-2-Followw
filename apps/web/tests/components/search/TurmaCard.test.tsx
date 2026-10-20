@@ -1,11 +1,12 @@
 import { describe, expect, test } from 'bun:test';
-import { renderToStaticMarkup } from 'react-dom/server';
 
 import type { CatalogSubject, SubjectClassroom } from '#/queries/subjects';
 
 import { TurmaCard } from '#/components/search/TurmaCard';
 import { TurmaDetails } from '#/components/search/TurmaDetails';
 import { TurmaSection } from '#/components/search/TurmaSection';
+
+import { renderWithRouter } from '../../helpers/router';
 
 const classroom: SubjectClassroom = {
     number: '01',
@@ -27,7 +28,7 @@ const subject: CatalogSubject = {
 };
 
 const card = (turma: Partial<SubjectClassroom> = {}, met: boolean | null = true) =>
-    renderToStaticMarkup(
+    renderWithRouter(
         <TurmaCard
             subject={subject}
             classroom={{ ...classroom, ...turma }}
@@ -40,7 +41,7 @@ const details = (
     met: boolean | null = true,
     materia: Partial<CatalogSubject> = {}
 ) =>
-    renderToStaticMarkup(
+    renderWithRouter(
         <TurmaDetails
             subject={{ ...subject, ...materia }}
             classroom={{ ...classroom, ...turma }}
@@ -81,7 +82,7 @@ describe('TurmaCard', () => {
 
 describe('TurmaDetails', () => {
     test.each(['prerequisites', 'corequisites', 'equivalences'] as const)(
-        '%s usa o nome do catálogo e o código quando a matéria falta',
+        '%s usa o nome do catálogo e o código quando a matéria falta, buscando pelo código',
         (field) => {
             const markup = details({}, true, {
                 [field]: [
@@ -93,7 +94,8 @@ describe('TurmaDetails', () => {
             });
             expect(markup).toContain('Cálculo 1');
             expect(markup).toContain('ANTIGO');
-            expect(markup).toContain('href="/buscar?q=C%C3%A1lculo+1"');
+            expect(markup).toContain('href="/buscar?q=MAT0023"');
+            expect(markup).toContain('href="/buscar?q=ANTIGO"');
         }
     );
 
@@ -160,7 +162,7 @@ describe('TurmaDetails', () => {
             prerequisites: [[{ code: 'CIC0001', subject: { code: 'CIC0001', name } }]]
         });
         expect(markup).toContain(name);
-        expect(markup).toContain(`href="/buscar?${new URLSearchParams({ q: name })}"`);
+        expect(markup).toContain('href="/buscar?q=CIC0001"');
         expect(markup).not.toContain('1 matéria');
         expect(markup).not.toContain('<details');
         expect(markup).not.toContain('<summary');
@@ -190,7 +192,7 @@ describe('TurmaDetails', () => {
                 }))
             });
             expect(markup).toContain('Dependente 0');
-            expect(markup).toContain('href="/buscar?q=Dependente+0"');
+            expect(markup).toContain('href="/buscar?q=DEP0"');
             if (count === 1) {
                 expect(markup).not.toContain('<details');
                 expect(markup).not.toContain('<summary');
@@ -211,19 +213,21 @@ describe('TurmaDetails', () => {
         expect(markup.indexOf('Equivalências')).toBeLessThan(markup.indexOf('Desbloqueia'));
     });
 
-    test('listas de matérias pesquisam pelo nome quando disponível', () => {
+    test('listas de matérias pesquisam pelo código mesmo com nome disponível', () => {
         const markup = details({}, true, {
             prerequisites: [[{ code: 'PRE', subject: { code: 'PRE', name: 'Pré-requisito' } }]],
             corequisites: [[{ code: 'COR' }]],
             equivalences: [[{ code: 'EQU' }]],
             unlocks: [{ code: 'DEP', name: 'Dependente' }]
         });
-        for (const query of ['Pré-requisito', 'COR', 'EQU', 'Dependente']) {
-            expect(markup).toContain(`href="/buscar?${new URLSearchParams({ q: query })}"`);
+        for (const query of ['PRE', 'COR', 'EQU', 'DEP']) {
+            expect(markup).toContain(`href="/buscar?q=${query}"`);
         }
+        expect(markup).toContain('Pré-requisito');
+        expect(markup).toContain('Dependente');
         expect(markup).toContain('hover:text-primary');
-        expect(markup).not.toContain('href="/buscar?q=PRE"');
-        expect(markup).not.toContain('href="/buscar?q=DEP"');
+        expect(markup).not.toContain('q=Pr%C3%A9-requisito');
+        expect(markup).not.toContain('q=Dependente');
         expect(markup).not.toContain('disponibilidade=');
         expect(markup).not.toContain('turno=');
     });
@@ -240,10 +244,11 @@ describe('TurmaDetails', () => {
         [49, 100, 'text-primary'],
         [499, 1000, 'text-primary'],
         [50, 100, 'text-primary'],
-        [60, 100, 'text-primary'],
-        [24, 40, 'text-primary'],
-        [601, 1000, 'text-warning'],
-        [61, 100, 'text-warning'],
+        [61, 100, 'text-primary'],
+        [75, 100, 'text-primary'],
+        [30, 40, 'text-primary'],
+        [751, 1000, 'text-warning'],
+        [76, 100, 'text-warning'],
         [89, 100, 'text-warning'],
         [899, 1000, 'text-warning'],
         [90, 100, 'text-warning'],
@@ -288,7 +293,7 @@ describe('TurmaDetails', () => {
 describe('TurmaSection', () => {
     test('um accordion recolhido por matéria', () => {
         const other = { ...subject, code: 'FGA0002', classrooms: [classroom, classroom] };
-        const markup = renderToStaticMarkup(
+        const markup = renderWithRouter(
             <TurmaSection title="Resultados" subjects={[subject, other]} approved={null} />
         );
         expect(markup).toContain('Resultados');
@@ -300,7 +305,7 @@ describe('TurmaSection', () => {
     });
 
     test('exibe o tipo da matéria só quando informado', () => {
-        const markup = renderToStaticMarkup(
+        const markup = renderWithRouter(
             <TurmaSection
                 title="Resultados"
                 subjects={[
@@ -318,8 +323,8 @@ describe('TurmaSection', () => {
     });
 
     test('seção vazia não é exibida', () => {
-        expect(
-            renderToStaticMarkup(<TurmaSection title="Vazio" subjects={[]} approved={null} />)
-        ).toBe('');
+        expect(renderWithRouter(<TurmaSection title="Vazio" subjects={[]} approved={null} />)).toBe(
+            ''
+        );
     });
 });

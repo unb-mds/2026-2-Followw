@@ -10,6 +10,12 @@ import { Route as ClassroomRoute } from '#/routes/_app/turmas_.$id';
 import { Route as LoginRoute } from '#/routes/login';
 
 import vercel from '../../../../vercel.json';
+import { callRoute } from '../helpers/route';
+
+type Meta = { name?: string; content?: unknown } | undefined;
+
+const contentOf = (meta: Meta[] | undefined, name: string) =>
+    meta?.findLast((tag) => tag?.name === name)?.content;
 
 const publicRoutes = [
     {
@@ -24,21 +30,23 @@ describe('indexação das páginas', () => {
     test.each(publicRoutes)(
         '$url possui metadados e canonical próprios',
         async ({ route, url, title }) => {
-            const head = await route.options.head({});
-            expect(head.links).toEqual([{ rel: 'canonical', href: url }]);
-            expect(head.meta).toContainEqual({ title });
-            expect(head.meta).toContainEqual({ name: 'robots', content: 'index, follow' });
-            expect(head.meta).toContainEqual({ property: 'og:url', content: url });
-            const description = head.meta.find((tag) => tag.name === 'description').content;
+            const head = await callRoute(route.options.head);
+            expect(head?.links).toEqual([{ rel: 'canonical', href: url }]);
+            expect(head?.meta).toContainEqual({ title });
+            expect(head?.meta).toContainEqual({ name: 'robots', content: 'index, follow' });
+            expect(head?.meta).toContainEqual({ property: 'og:url', content: url });
+            const description = String(contentOf(head?.meta, 'description'));
             expect(description.length).toBeGreaterThan(50);
-            expect(head.meta).toContainEqual({ property: 'og:description', content: description });
+            expect(head?.meta).toContainEqual({ property: 'og:description', content: description });
         }
     );
 
     test('a página inicial identifica o nome do site em dados estruturados', async () => {
-        const head = await HomeRoute.options.head({});
-        const script = head.scripts.find((item) => item.type === 'application/ld+json');
-        expect(JSON.parse(script.children)).toEqual({
+        const head = await callRoute(HomeRoute.options.head);
+        const script = head?.scripts?.find((item) => item?.type === 'application/ld+json');
+        const json = script?.children;
+        if (typeof json !== 'string') throw new Error('JSON-LD ausente');
+        expect(JSON.parse(json)).toEqual({
             '@context': 'https://schema.org',
             '@type': 'WebSite',
             name: 'Followw',
@@ -50,13 +58,13 @@ describe('indexação das páginas', () => {
     test.each([LoginRoute, ProfileRoute, ClassroomsRoute, ClassroomRoute])(
         'telas não públicas herdam noindex sem canonical público',
         async (route) => {
-            const rootHead = await RootRoute.options.head({});
-            const head = await route.options.head?.({});
-            const meta = [...rootHead.meta, ...(head?.meta ?? [])];
-            expect(meta.findLast((tag) => tag.name === 'robots').content).toBe('noindex, follow');
+            const rootHead = await callRoute(RootRoute.options.head);
+            const head = await callRoute(route.options.head);
+            const meta = [...(rootHead?.meta ?? []), ...(head?.meta ?? [])];
+            expect(contentOf(meta, 'robots')).toBe('noindex, follow');
             expect(
-                [...(rootHead.links ?? []), ...(head?.links ?? [])].some(
-                    (link) => link.rel === 'canonical'
+                [...(rootHead?.links ?? []), ...(head?.links ?? [])].some(
+                    (link) => link?.rel === 'canonical'
                 )
             ).toBe(false);
         }
@@ -67,22 +75,22 @@ describe('indexação das páginas', () => {
         [ProfileRoute, 'Perfil | Followw'],
         [ClassroomsRoute, 'Minhas Turmas | Followw'],
         [ClassroomRoute, 'Turma | Followw']
-    ])('telas não públicas têm título próprio', async (route, title) => {
-        const head = await route.options.head({});
-        expect(head.meta).toContainEqual({ title });
+    ] as const)('telas não públicas têm título próprio', async (route, title) => {
+        const head = await callRoute(route.options.head);
+        expect(head?.meta).toContainEqual({ title });
     });
 
     test('a turma usa o nome da disciplina no título quando conhecida', async () => {
-        const head = await ClassroomRoute.options.head({
+        const head = await callRoute(ClassroomRoute.options.head, {
             loaderData: { subjectName: 'Cálculo 1' }
         });
-        expect(head.meta).toContainEqual({ title: 'Cálculo 1 | Followw' });
+        expect(head?.meta).toContainEqual({ title: 'Cálculo 1 | Followw' });
     });
 
     test('URLs inexistentes continuam redirecionando para a inicial', () => {
-        let error;
+        let error: unknown;
         try {
-            FallbackRoute.options.beforeLoad({ location: { pathname: '/nada/aqui' } });
+            callRoute(FallbackRoute.options.beforeLoad, { location: { pathname: '/nada/aqui' } });
         } catch (caught) {
             error = caught;
         }
@@ -90,9 +98,9 @@ describe('indexação das páginas', () => {
     });
 
     test('assets inexistentes dão 404 em vez de redirecionar', () => {
-        let error;
+        let error: unknown;
         try {
-            FallbackRoute.options.beforeLoad({
+            callRoute(FallbackRoute.options.beforeLoad, {
                 location: { pathname: '/assets/turmas-ANTIGO.js' }
             });
         } catch (caught) {

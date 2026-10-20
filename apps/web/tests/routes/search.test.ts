@@ -1,19 +1,26 @@
+import type { QueryKey } from '@tanstack/react-query';
+
 import { describe, expect, test } from 'bun:test';
 
 import { Route } from '#/routes/_app/buscar';
 
-const loadWith = async (user, searchStr = '') => {
-    const keys = [];
-    await Route.options.loader({
+import { callRoute, fakeQueryClient, runLoader } from '../helpers/route';
+
+interface User {
+    registration: string;
+    unity: string;
+    level?: string;
+}
+
+const loadWith = async (user: User | null, searchStr = '') => {
+    const keys: QueryKey[] = [];
+    await runLoader(Route, {
         location: { searchStr },
         context: {
-            queryClient: {
-                getQueryData: () => undefined,
-                query: async ({ queryKey }) => {
-                    keys.push(queryKey);
-                    return queryKey[1] === '/me' ? user : [];
-                }
-            }
+            queryClient: fakeQueryClient((queryKey) => {
+                keys.push(queryKey);
+                return queryKey[1] === '/me' ? user : [];
+            })
         }
     });
     return keys;
@@ -35,11 +42,11 @@ describe('loader da busca de turmas', () => {
         async (user) => {
             const keys = await loadWith(user, '?q=calculo&turno=Noite');
             const subjects = keys.find((key) => key[1] === '/public/subjects');
-            expect(subjects[2]).toEqual({ params: { query: { q: 'calculo' } } });
+            expect(subjects?.[2]).toEqual({ params: { query: { q: 'calculo' } } });
         }
     );
 
-    test.each(['ab', 'a'.repeat(91)])('query inválida %s pré-carrega a unidade', async (q) => {
+    test.each(['ab', 'a'.repeat(33)])('query inválida %s pré-carrega a unidade', async (q) => {
         const keys = await loadWith({ registration: '1', unity: 'FCTE' }, `?q=${q}`);
         const subjects = keys.filter((key) => key[1] === '/public/subjects');
         expect(subjects.map((key) => key[2])).toEqual([{ params: { query: { unit: 'FCTE' } } }]);
@@ -47,8 +54,8 @@ describe('loader da busca de turmas', () => {
     });
 
     test('mudanças na URL deixam a busca para o debounce do componente', () => {
-        expect(Route.options.shouldReload({ cause: 'stay' })).toBe(false);
-        expect(Route.options.shouldReload({ cause: 'enter' })).toBe(true);
+        expect(callRoute(Route.options.shouldReload, { cause: 'stay' })).toBe(false);
+        expect(callRoute(Route.options.shouldReload, { cause: 'enter' })).toBe(true);
     });
 });
 

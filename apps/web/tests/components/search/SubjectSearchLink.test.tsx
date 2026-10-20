@@ -1,28 +1,30 @@
 import { expect, test } from 'bun:test';
-import { renderToStaticMarkup } from 'react-dom/server';
 
 import { SubjectSearchLink } from '#/components/search/SubjectSearchLink';
-import { subjectsQuery } from '#/queries/subjects';
+import { SEARCH_MAX_LENGTH, subjectsQuery } from '#/queries/subjects';
 
-test('nome longo e acentuado gera pesquisa válida sem perder o rótulo completo', () => {
+import { renderWithRouter } from '../../helpers/router';
+
+const searchOf = (markup: string) =>
+    new URL(markup.match(/href="([^"]+)"/)![1], 'http://localhost').searchParams;
+
+test('código gera pesquisa válida mantendo o rótulo com o nome', () => {
     const name = 'MÉTODOS DE DESENVOLVIMENTO DE SOFTWARE';
-    const markup = renderToStaticMarkup(<SubjectSearchLink query={name}>{name}</SubjectSearchLink>);
-    const href = markup.match(/href="([^"]+)"/)![1];
-    const url = new URL(href, 'http://localhost');
-    const query = url.searchParams.get('q')!;
-    expect(query).toBe(name);
-    expect(subjectsQuery(query, null)).toEqual({ q: query });
+    const markup = renderWithRouter(<SubjectSearchLink query="FGA0138">{name}</SubjectSearchLink>);
+    const search = searchOf(markup);
+    expect(search.get('q')).toBe('FGA0138');
+    expect([...search.keys()]).toEqual(['q']);
+    expect(subjectsQuery('FGA0138', null)).toEqual({ q: 'FGA0138' });
     expect(markup).toContain(name);
-    expect([...url.searchParams.keys()]).toEqual(['q']);
 });
 
-test('maior nome do catálogo cabe por inteiro na pesquisa', () => {
-    const name =
-        'CENÁRIOS E PRÁTICAS EM TERAPIA OCUPACIONAL EM CONTEXTOS HOSPITALARES E CUIDADOS PALIATIVOS';
-    expect(name).toHaveLength(90);
-    const markup = renderToStaticMarkup(<SubjectSearchLink query={name}>{name}</SubjectSearchLink>);
-    const href = markup.match(/href="([^"]+)"/)![1];
-    const query = new URL(href, 'http://localhost').searchParams.get('q')!;
-    expect(query).toBe(name);
-    expect(subjectsQuery(query, null)).toEqual({ q: name });
+test('texto acima do limite é truncado para continuar pesquisável', () => {
+    const professor = 'MARIA APARECIDA DOS SANTOS OLIVEIRA PEREIRA';
+    const markup = renderWithRouter(
+        <SubjectSearchLink query={professor}>{professor}</SubjectSearchLink>
+    );
+    const query = searchOf(markup).get('q')!;
+    expect(query).toBe(professor.slice(0, SEARCH_MAX_LENGTH));
+    expect(subjectsQuery(query, null)).toEqual({ q: query });
+    expect(markup).toContain(professor);
 });

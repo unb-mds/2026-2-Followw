@@ -79,7 +79,7 @@ export function TurmaDetails({ subject, classroom, prerequisitesMet }: TurmaProp
                             <ul className="flex min-w-0 flex-col gap-1">
                                 {subject.unlocks.map((item) => (
                                     <li key={item.code} className="min-w-0 wrap-anywhere">
-                                        <SubjectSearchLink query={item.name}>
+                                        <SubjectSearchLink query={item.code}>
                                             {item.name}
                                         </SubjectSearchLink>
                                     </li>

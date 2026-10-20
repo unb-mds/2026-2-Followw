@@ -30,7 +30,7 @@ export const isAvailability = (value: string): value is Availability =>
     (AVAILABILITIES as readonly string[]).includes(value);
 
 export const SEARCH_MIN_LENGTH = 3;
-export const SEARCH_MAX_LENGTH = 90;
+export const SEARCH_MAX_LENGTH = 32;
 const APPROVED = new Set(['SS', 'MS', 'MM']);
 
 /** Sem texto, lista a unidade; texto fora dos limites mantém a consulta anterior. */
@@ -66,16 +66,6 @@ export function prerequisitesMet(
 
 export const subjectRequirementLabel = ({ code, subject }: Requirements[number][number]) =>
     subject?.name ?? code;
-
-/** Mantém os grupos E/OU e usa o código quando a matéria não existe no catálogo. */
-export function formatRequirements(requirements: Requirements): string {
-    return requirements
-        .map((group) => {
-            const text = group.map(subjectRequirementLabel).join(' e ');
-            return group.length > 1 && requirements.length > 1 ? `(${text})` : text;
-        })
-        .join(' ou ');
-}
 
 export function availableSeats(classroom: SubjectClassroom): number | null {
     if (classroom.vacancies == null || classroom.occupied == null) return null;

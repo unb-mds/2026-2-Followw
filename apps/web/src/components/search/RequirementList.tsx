@@ -36,7 +36,7 @@ export function RequirementList({ requirements }: { requirements: Requirements }
                     <ul className="flex min-w-0 flex-col gap-1">
                         {group.map((requirement) => (
                             <li key={requirement.code} className="min-w-0 wrap-anywhere">
-                                <SubjectSearchLink query={subjectRequirementLabel(requirement)}>
+                                <SubjectSearchLink query={requirement.code}>
                                     {subjectRequirementLabel(requirement)}
                                 </SubjectSearchLink>
                             </li>

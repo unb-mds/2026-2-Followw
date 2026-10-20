@@ -207,7 +207,7 @@ def test_validacao_de_parametros(catalog, params):
     assert catalog.get("/public/subjects", params=params).status_code == 422
 
 
-@pytest.mark.parametrize("q", ["", "a", "ab", "a" * 91, " a ", "   "])
+@pytest.mark.parametrize("q", ["", "a", "ab", "a" * 33, " a ", "   "])
 def test_q_invalida_nao_consulta_o_catalogo(catalog, monkeypatch, q):
     from unittest.mock import AsyncMock
 
@@ -220,7 +220,7 @@ def test_q_invalida_nao_consulta_o_catalogo(catalog, monkeypatch, q):
     search.assert_not_called()
 
 
-@pytest.mark.parametrize("length", [3, 90])
+@pytest.mark.parametrize("length", [3, 32])
 def test_q_aceita_os_limites(catalog, database, length):
     q = "x" * length
     with database.begin() as session:
@@ -395,8 +395,8 @@ def test_codigo_com_oferta_nao_expande_para_outros_codigos_de_mesmo_nome(
 @pytest.mark.parametrize(
     "q",
     [
-        "MÉTODOS DE DESENVOLVIMENTO DE SOFTWARE",
-        "metodos de desenvolvimento de software",
+        "MÉTODOS DE DESENVOLVIMENTO",
+        "metodos de desenvolvimento de",
     ],
 )
 def test_busca_por_nome_encontra_oferta_mesmo_apos_mudanca_de_codigo(
@@ -422,12 +422,3 @@ def test_busca_por_nome_encontra_oferta_mesmo_apos_mudanca_de_codigo(
     offered = [item for item in items if item["classrooms"]]
     assert [item["code"] for item in offered] == ["FGA0312"]
     assert offered[0]["classrooms"][0]["semester"] == "2026.2"
-
-
-def test_busca_pelo_maior_nome_do_catalogo_encontra_nome_completo(catalog, database):
-    name = "CENÁRIOS E PRÁTICAS EM TERAPIA OCUPACIONAL EM CONTEXTOS HOSPITALARES E CUIDADOS PALIATIVOS"
-    assert len(name) == 90
-    with database.begin() as session:
-        session.add(Subject(code="LONG0001", name=name, unity_id=673))
-        session.add(Classroom(subject_code="LONG0001", number="01", semester="2026.2"))
-    assert [item["code"] for item in _search(catalog, q=name)] == ["LONG0001"]

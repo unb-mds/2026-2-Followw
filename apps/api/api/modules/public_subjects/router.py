@@ -37,9 +37,9 @@ async def search_subjects(
         str | None,
         Query(
             min_length=3,
-            max_length=90,
+            max_length=32,
             pattern=r"\S",
-            description="Trecho do código, nome do componente ou docente, de 3 a 90 caracteres, ignorando acentos, maiúsculas e espaços extras.",
+            description="Trecho do código, nome do componente ou docente, de 3 a 32 caracteres, ignorando acentos, maiúsculas e espaços extras.",
         ),
         StringConstraints(strip_whitespace=True),
     ] = None,

@@ -1772,7 +1772,7 @@ export interface operations {
     search_subjects_public_subjects_get: {
         parameters: {
             query?: {
-                /** @description Trecho do código, nome do componente ou docente, de 3 a 90 caracteres, ignorando acentos, maiúsculas e espaços extras. */
+                /** @description Trecho do código, nome do componente ou docente, de 3 a 32 caracteres, ignorando acentos, maiúsculas e espaços extras. */
                 q?: string | null;
                 /** @description Código completo do componente, como FGA0003. */
                 code?: string | null;
