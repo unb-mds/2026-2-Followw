@@ -547,7 +547,7 @@ export interface components {
          * ClassroomStatus
          * @enum {string}
          */
-        ClassroomStatus: "cursando" | "removido" | "trancado" | "concluido" | "pending_enrollment" | "denied";
+        ClassroomStatus: "cursando" | "trancado" | "concluido" | "pending_enrollment" | "denied";
         /** CourseCurriculum */
         CourseCurriculum: {
             /** Sigaa Id */

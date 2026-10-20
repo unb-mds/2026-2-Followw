@@ -1000,6 +1000,7 @@ def test_turma_que_sai_da_lista_some_mas_guarda_o_motivo(logged, account, databa
             False,
             ClassroomStatus.TRANCADO,
         )
+        assert link.locked_at is not None
 
 
 def test_openapi_documenta_frequencia_e_marcacao(client):

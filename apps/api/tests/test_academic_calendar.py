@@ -4,7 +4,6 @@ import pytest
 
 from api.academic_calendar import (
     class_days,
-    departure_status,
     grades_closed,
     member_status,
     members_closed,
@@ -46,10 +45,8 @@ def test_participantes_congelam_no_primeiro_sync_depois_da_tolerancia(
 def test_semestre_fora_do_calendario_usa_a_ordem_dos_semestres():
     assert members_frozen("2025.2", datetime(2025, 1, 1, tzinfo=UTC))
     assert member_status("2025.2") == ClassroomStatus.CONCLUIDO
-    assert departure_status("2025.2") == ClassroomStatus.TRANCADO
     assert not members_closed("2030.1")
     assert member_status("2030.1") == ClassroomStatus.CURSANDO
-    assert departure_status("2030.1") == ClassroomStatus.REMOVIDO
 
 
 @pytest.mark.parametrize(

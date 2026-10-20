@@ -453,20 +453,18 @@ def test_mencoes_aprovadas_e_repeticao(scene, grade):
 
 
 def test_oferta_e_em_andamento_contam_como_concluidas(scene):
-    for code in ("TARGET", "FAILED", "REMOVED", "LOCKED", "DENIED"):
+    for code in ("TARGET", "FAILED", "LOCKED", "DENIED"):
         scene.subject(code)
     scene.subject("NEEDS_TARGET", prerequisites=[["TARGET"]])
     scene.subject("NEEDS_LOCKED", prerequisites=[["LOCKED"]])
     scene.history("TARGET", grade=Grade.MM, term="2026.2", enrolled=True)
     scene.history("FAILED", grade=Grade.MI)
-    scene.history("REMOVED", term="2026.2", status=ClassroomStatus.REMOVIDO)
     scene.history("LOCKED", term="2026.2", status=ClassroomStatus.TRANCADO)
     scene.history("DENIED", term="2026.2", status=ClassroomStatus.DENIED)
     scene.history("FAILED", grade=Grade.SS, term="invalid")
     assert set(codes(scene.get())) == {
         "NEEDS_TARGET",
         "FAILED",
-        "REMOVED",
         "LOCKED",
         "DENIED",
     }

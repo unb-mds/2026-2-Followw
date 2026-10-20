@@ -41,8 +41,14 @@ _OWN = (
         contains_eager(ClassroomParticipant.classroom).contains_eager(Classroom.subject)
     )
 )
-# Só quem ainda está na turma ganha o motivo de uma saída.
+# Só quem ainda está na turma pode trancá-la ao sair.
 _ENROLLED = (None, ClassroomStatus.CURSANDO)
+
+
+def _lock(link: ClassroomParticipant, locked_at: datetime) -> None:
+    if link.role == ClassroomRole.ALUNO and link.status in _ENROLLED:
+        link.status = ClassroomStatus.TRANCADO
+        link.locked_at = locked_at
 
 
 class ClassroomRepository:
@@ -139,9 +145,9 @@ class ClassroomRepository:
         links = {
             link.classroom_id: link
             for link in await self._session.scalars(
-                select(ClassroomParticipant)
-                .where(ClassroomParticipant.user_id == user.id)
-                .options(joinedload(ClassroomParticipant.classroom, innerjoin=True))
+                select(ClassroomParticipant).where(
+                    ClassroomParticipant.user_id == user.id
+                )
             )
         }
         keyed = [(key, item) for item in classrooms if (key := _classroom_key(item))]
@@ -176,6 +182,7 @@ class ClassroomRepository:
             link.current = item.current
             if link.role == ClassroomRole.ALUNO:
                 link.status = academic_calendar.member_status(classroom.semester)
+                link.locked_at = None
             seen.add(classroom.id)
 
         # Vínculos que só vieram da lista de participantes não são desta listagem.
@@ -183,13 +190,10 @@ class ClassroomRepository:
             if link.front_end_id is None or classroom_id in seen:
                 continue
             # Como na lista de participantes: a turma some da lista, mas o vínculo
-            # fica com o motivo da saída.
+            # fica como trancado.
             link.front_end_id = None
             link.current = False
-            if link.role == ClassroomRole.ALUNO and link.status in _ENROLLED:
-                link.status = academic_calendar.departure_status(
-                    link.classroom.semester
-                )
+            _lock(link, synced_at)
         # Turma de semestre passado fica só com as aulas que o SIGAA publicou.
         await self._lessons.plan(current, synced_at)
         user.classrooms_synced_at = synced_at
@@ -223,18 +227,16 @@ class ClassroomRepository:
                 links[user.id] = link
             link.role = ClassroomRole(member.role.value)
             link.status = present if link.role == ClassroomRole.ALUNO else None
+            link.locked_at = None
             link.member = True
             seen.add(user.id)
 
-        departed = academic_calendar.departure_status(classroom.semester)
         for user_id, link in links.items():
             if user_id in seen:
                 continue
             link.member = False
             if link.role == ClassroomRole.ALUNO:
-                # Aluno que sumiu fica com o motivo; quem já saiu mantém o seu.
-                if link.status in _ENROLLED:
-                    link.status = departed
+                _lock(link, synced_at)
             # O vínculo da lista de turmas do próprio usuário não é desta listagem.
             elif link.front_end_id is None:
                 await self._session.delete(link)

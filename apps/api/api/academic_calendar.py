@@ -26,7 +26,6 @@ _NO_CLASS = {
 class Event(str, enum.Enum):
     """Os ids dos eventos do calendário que as regras usam."""
 
-    EXTRAORDINARY_ENROLLMENT = "extraordinary_enrollment"
     GRADES_CONSOLIDATION = "grades_consolidation"
     SEMESTER_END = "semester_end"
 
@@ -82,12 +81,6 @@ def member_status(semester: str) -> ClassroomStatus:
     if ended(semester, Event.SEMESTER_END):
         return ClassroomStatus.CONCLUIDO
     return ClassroomStatus.CURSANDO
-
-
-def departure_status(semester: str) -> ClassroomStatus:
-    if ended(semester, Event.EXTRAORDINARY_ENROLLMENT):
-        return ClassroomStatus.TRANCADO
-    return ClassroomStatus.REMOVIDO
 
 
 def class_days(semester: str) -> Iterator[date]:

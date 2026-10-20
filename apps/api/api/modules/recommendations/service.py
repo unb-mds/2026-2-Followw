@@ -25,10 +25,9 @@ from api.modules.recommendations.ranking import (
 from api.modules.recommendations.repository import RecommendationRepository
 from api.sync import Cached, Sync
 
-# Saída ou indeferimento não deixa menção pendente: a tentativa não conta.
+# Trancamento ou indeferimento não deixa menção pendente: a tentativa não conta.
 _WITHOUT_ATTEMPT = {
     ClassroomStatus.TRANCADO,
-    ClassroomStatus.REMOVIDO,
     ClassroomStatus.DENIED,
 }
 

@@ -217,6 +217,7 @@ class ClassroomParticipant(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     status: Mapped[ClassroomStatus | None] = mapped_column(
         _enum(ClassroomStatus, "classroom_status")
     )
+    locked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     grade: Mapped[Grade | None] = mapped_column(_enum(Grade, "classroom_grade"))
     # `frontEndIdTurma` visto pelo próprio usuário: só existe nos vínculos que
     # vieram da lista de turmas dele, não da lista de participantes.
