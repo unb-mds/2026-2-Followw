@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -7,6 +9,7 @@ class Settings(BaseSettings):
 
     environment: str = "development"
     docs_url: str = "https://docs.followw.app"
+    sigaa_pdf_font_dir: Path | None = None
 
     cors_origins: list[str] = ["https://followw.app"]
 

@@ -96,6 +96,9 @@ retorna os bytes do PDF original da carteirinha estudantil.
 code e a validade, sem persistir o arquivo. `client.documents.get_transcript_pdf()` baixa o PDF
 original do histórico acadêmico. Quando o SIGAA recusa emitir o documento (ex.: perfil sem foto), os
 três levantam `DocumentUnavailable` com o motivo informado por ele (`MissingProfilePhoto` quando falta foto).
+`client.documents.get_enrollment_certificate()` emite o atestado de matrícula e retorna seu
+conteúdo estruturado (`EnrollmentCertificate`), incluindo a grade preenchida pelos scripts do
+SIGAA. A API transforma esse relatório HTML em PDF sem executar um navegador.
 
 `SigaaPublicClient().classrooms.iter_subjects(unidade)` percorre os componentes de graduação
 ofertados por uma unidade e entrega cada um como `SubjectDetails`: o `Subject` com `prerequisites`,

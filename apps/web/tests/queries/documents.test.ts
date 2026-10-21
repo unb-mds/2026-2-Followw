@@ -30,7 +30,8 @@ describe('download de documentos', () => {
 
     test.each([
         ['student-card', 'carteirinha.pdf'],
-        ['transcript', 'historico.pdf']
+        ['transcript', 'historico.pdf'],
+        ['enrollment-certificate', 'atestado-matricula.pdf']
     ] as const)('baixa %s por POST com sessão e conteúdo binário', async (document, filename) => {
         const file = await getDocumentDownload(document);
         expect(file.filename).toBe(filename);
