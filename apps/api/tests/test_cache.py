@@ -60,8 +60,9 @@ def test_age_da_resposta_e_o_do_dado_mais_velho():
     response = Response()
     cache = CacheControl.parse(None, response)
 
-    cache.served(AGORA - timedelta(seconds=100))
-    cache.served(AGORA - timedelta(seconds=10))
+    agora = datetime.now(UTC)
+    cache.served(agora - timedelta(seconds=100))
+    cache.served(agora - timedelta(seconds=10))
 
     assert 100 <= int(response.headers["age"]) < 110
     # Sem resposta (uso interno), não há onde marcar.

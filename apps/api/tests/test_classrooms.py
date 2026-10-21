@@ -640,6 +640,13 @@ def _mencoes_sincronizadas_em(database, synced_at: datetime) -> None:
         session.commit()
 
 
+def _mencoes_sincronizadas(database) -> datetime | None:
+    with database() as session:
+        return session.scalar(
+            select(User.grades_synced_at).where(User.registration == "251000000")
+        )
+
+
 def test_mencao_vem_com_a_turma_pelo_sync_do_login(client, sigaa, turmas, qstash):
     turmas.classrooms.list_grades.return_value = [
         ClassroomGrade(subject_code="FGA0146", semester="2026.2"),
@@ -665,8 +672,7 @@ def test_mencoes_vencidas_revalidam_no_login(client, sigaa, turmas, database):
     _login(client)
 
     turmas.classrooms.list_grades.assert_awaited_once_with()
-    with database() as session:
-        assert session.scalar(select(User.grades_synced_at)) > vencida
+    assert _mencoes_sincronizadas(database) > vencida
 
 
 def test_turma_nova_na_lista_revalida_as_mencoes(client, turmas, database):
@@ -774,8 +780,7 @@ def test_falha_no_relatorio_preserva_mencoes_e_tenta_uma_vez(
 
     assert client.get("/classrooms").json()[0]["grade"] == "MS"
     assert turmas.classrooms.list_grades.await_count == 2
-    with database() as session:
-        assert session.scalar(select(User.grades_synced_at)) == synced_at
+    assert _mencoes_sincronizadas(database) == synced_at
     assert qstash.jobs()[-1].attempt == 2
 
 

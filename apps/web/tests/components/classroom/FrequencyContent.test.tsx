@@ -1,10 +1,13 @@
-import { describe, expect, test } from 'bun:test';
+import { afterEach, describe, expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 
+import type { MarkLessons } from '#/components/classroom/FrequencyContent';
 import type { ClassroomFrequency, Lesson } from '#/queries/classrooms';
 
 import { FrequencyContent } from '#/components/classroom/FrequencyContent';
 import { nowInBrasilia } from '#/lib/schedule';
+
+import { useDom } from '../../helpers/dom';
 
 const progress = { taught: 30, total: 60, percentage: 50 };
 
@@ -154,5 +157,79 @@ describe('FrequencyContent', () => {
             <FrequencyContent data={registered} onMark={() => {}} pending />
         );
         expect(markup).toContain('disabled');
+    });
+});
+
+describe('marcação das aulas', () => {
+    const dom = useDom();
+    afterEach(() => dom.testing.cleanup());
+
+    const semChamada = [lesson('2026-10-08'), lesson('2026-10-06'), lesson('2026-10-01')];
+    const data: ClassroomFrequency = { ...notRegistered, lessons: semChamada };
+
+    function renderMarking(frequency = data) {
+        const calls: Parameters<MarkLessons>[] = [];
+        const page = dom.testing.render(
+            <FrequencyContent
+                data={frequency}
+                onMark={(...args) => calls.push(args)}
+                pending={false}
+            />
+        );
+        return { page, calls };
+    }
+
+    test('seleciona aulas e marca todas de uma vez pela barra', () => {
+        const { fireEvent } = dom.testing;
+        const { page, calls } = renderMarking();
+
+        fireEvent.click(page.getByRole('checkbox', { name: 'Selecionar aula de 08/10/2026' }));
+        fireEvent.click(page.getByRole('checkbox', { name: 'Selecionar aula de 01/10/2026' }));
+        const toolbar = page.getByRole('toolbar', { name: 'Marcar aulas selecionadas' });
+        expect(toolbar.textContent).toContain('2 aulas');
+        fireEvent.click(dom.testing.within(toolbar).getByRole('button', { name: 'Presença' }));
+
+        expect(calls).toEqual([[[semChamada[0], semChamada[2]], 'presente']]);
+        expect(page.queryByRole('toolbar')).toBeNull();
+    });
+
+    test('desmarcar e limpar a seleção escondem a barra sem marcar', () => {
+        const { fireEvent } = dom.testing;
+        const { page, calls } = renderMarking();
+        const primeira = page.getByRole('checkbox', { name: 'Selecionar aula de 08/10/2026' });
+
+        fireEvent.click(primeira);
+        fireEvent.click(primeira);
+        expect(page.queryByRole('toolbar')).toBeNull();
+
+        fireEvent.click(primeira);
+        fireEvent.click(page.getByRole('button', { name: 'Limpar seleção' }));
+
+        expect(page.queryByRole('toolbar')).toBeNull();
+        expect(calls).toEqual([]);
+    });
+
+    test('aula que deixa de ser selecionável sai da seleção', () => {
+        const { fireEvent } = dom.testing;
+        const { page } = renderMarking();
+        fireEvent.click(page.getByRole('checkbox', { name: 'Selecionar aula de 08/10/2026' }));
+        fireEvent.click(page.getByRole('checkbox', { name: 'Selecionar aula de 06/10/2026' }));
+
+        // a frequência relida volta com a de 08/10 já marcada
+        page.rerender(
+            <FrequencyContent
+                data={{
+                    ...data,
+                    lessons: [
+                        { ...semChamada[0], status: 'presente', marked: true },
+                        ...semChamada.slice(1)
+                    ]
+                }}
+                onMark={() => {}}
+                pending={false}
+            />
+        );
+
+        expect(page.getByRole('toolbar').textContent).toContain('1 aula');
     });
 });
