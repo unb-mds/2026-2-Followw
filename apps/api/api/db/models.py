@@ -59,7 +59,6 @@ Index(
     Course.name,
     unique=True,
     postgresql_where=COURSE_WITHOUT_SIGAA_ID,
-    sqlite_where=COURSE_WITHOUT_SIGAA_ID,
 )
 
 
@@ -144,7 +143,6 @@ Index(
     User.email,
     unique=True,
     postgresql_where=USER_WITHOUT_IDS,
-    sqlite_where=USER_WITHOUT_IDS,
 )
 
 

@@ -325,7 +325,7 @@ def test_desbloqueia_lista_dependentes_diretos_sem_duplicar_nem_exigir_oferta(
                     prerequisites=[["FGA0003", "FGA0001"], ["FGA0003"]],
                 ),
                 Subject(
-                    code="DEP2", name="Dependente dois", prerequisites=[["fga0003 "]]
+                    code="DEP2", name="Dependente dois", prerequisites=[["FGA0003"]]
                 ),
                 Subject(code="INDIRETA", name="Indireta", prerequisites=[["DEP1"]]),
                 Subject(code="CORREQ", name="Correquisito", corequisites=[["FGA0003"]]),

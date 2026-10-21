@@ -3,7 +3,7 @@
 import enum
 import re
 from collections.abc import Iterator
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from unb_browser import CalendarEventCategory, load_academic_calendar
@@ -50,9 +50,6 @@ def ended(
 
 
 def local_date(at: datetime) -> date:
-    # O SQLite devolve as datas sem fuso, em UTC.
-    if at.tzinfo is None:
-        at = at.replace(tzinfo=UTC)
     return at.astimezone(_BRASILIA).date()
 
 

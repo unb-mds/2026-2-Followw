@@ -30,8 +30,6 @@ def test_participantes_encerram_tres_dias_depois_do_fim_do_semestre(
         # 21/12 às 23h em Brasília: ainda na tolerância.
         (datetime(2026, 12, 22, 2, tzinfo=UTC), False),
         (datetime(2026, 12, 22, 3, tzinfo=UTC), True),
-        # O SQLite devolve sem fuso, em UTC.
-        (datetime(2026, 12, 22, 3, tzinfo=UTC).replace(tzinfo=None), True),
     ],
 )
 def test_participantes_congelam_no_primeiro_sync_depois_da_tolerancia(

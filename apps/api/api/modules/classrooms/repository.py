@@ -124,7 +124,10 @@ class ClassroomRepository:
         grades: Sequence[sigaa_client.ClassroomGrade],
         synced_at: datetime,
     ) -> None:
-        by_subject = {(item.subject_code, item.semester): item.grade for item in grades}
+        by_subject = {
+            (item.subject_code.strip().upper(), item.semester): item.grade
+            for item in grades
+        }
         for link in await self.list_by_user_id(user.id):
             classroom = link.row.classroom
             key = (classroom.subject_code, classroom.semester)
@@ -779,7 +782,7 @@ def _classroom_key(item: sigaa_client.Classroom) -> _ClassroomKey | None:
     # Turma só do portal vem sem número nem código: gravá-la duplicaria a do histórico.
     if not item.number or item.subject.code is None:
         return None
-    return item.subject.code, item.number, item.semester
+    return item.subject.code.strip().upper(), item.number, item.semester
 
 
 class _UserIndex:

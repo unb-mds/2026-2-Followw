@@ -50,10 +50,10 @@ tests/                  # um arquivo por módulo
 
 ## Testes
 
-Pela interface HTTP. Fixtures em `tests/conftest.py`: `client` (SQLite por teste, entrega os jobs
-publicados em `POST /jobs` antes de responder), `sigaa` (SIGAA via respx), `stub_sigaa`
-(`SigaaClient` trocado por `AsyncMock`; cada job abre o seu) e `qstash` (intercepta a API do QStash;
-`qstash.jobs()` decifra o que foi publicado).
+Pela interface HTTP. Fixtures em `tests/conftest.py`: `client` (Postgres via testcontainers, limpo
+por teste, entrega os jobs publicados em `POST /jobs` antes de responder), `sigaa` (SIGAA via respx),
+`stub_sigaa` (`SigaaClient` trocado por `AsyncMock`; cada job abre o seu) e `qstash` (intercepta a
+API do QStash; `qstash.jobs()` decifra o que foi publicado).
 
 ## Comandos
 

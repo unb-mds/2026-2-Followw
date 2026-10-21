@@ -68,12 +68,6 @@ def test_age_da_resposta_e_o_do_dado_mais_velho():
     CacheControl().served(AGORA)
 
 
-def test_sqlite_sem_fuso_vale_como_utc():
-    cache = CacheControl.parse("max-age=60")
-
-    assert not cache.revalidate(AGORA.replace(tzinfo=None))
-
-
 @pytest.mark.parametrize(
     "path",
     [

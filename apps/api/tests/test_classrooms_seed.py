@@ -26,7 +26,8 @@ def test_csv_do_repositorio_aponta_para_componentes_que_existem():
 
 
 def test_campos_vazios_ficam_nulos_e_turma_repetida_e_barulhenta(tmp_path):
-    (classroom,) = read_classrooms(_csv(tmp_path, "FGA0001,01,2026.2,,,,,"))
+    (classroom,) = read_classrooms(_csv(tmp_path, " fga0001 ,01,2026.2,,,,,"))
+    assert classroom.subject_code == "FGA0001"
     assert (classroom.schedule, classroom.room) == (None, None)
     assert (classroom.professors, classroom.vacancies, classroom.occupied) == (
         [],
@@ -45,7 +46,7 @@ def test_campos_vazios_ficam_nulos_e_turma_repetida_e_barulhenta(tmp_path):
     )
     with pytest.raises(ValueError, match="repetido"):
         read_classrooms(
-            _csv(tmp_path, "FGA0001,01,2026.2,,,,,", "FGA0001,01,2026.2,,,,,")
+            _csv(tmp_path, "fga0001,01,2026.2,,,,,", "FGA0001,01,2026.2,,,,,")
         )
 
 

@@ -66,8 +66,6 @@ def _seconds(value: str | None) -> timedelta | None:
 
 
 def age(synced_at: datetime) -> timedelta:
-    if synced_at.tzinfo is None:
-        synced_at = synced_at.replace(tzinfo=UTC)
     return datetime.now(UTC) - synced_at
 
 

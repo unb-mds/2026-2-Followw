@@ -21,7 +21,7 @@ def read_subjects(path: Path = SUBJECTS_CSV) -> list[Subject]:
     return read_csv(
         path,
         lambda row: Subject(
-            code=row["code"].strip(),
+            code=row["code"].strip().upper(),
             name=row["name"].strip(),
             hours=int(row["hours"]) if row["hours"] else None,
             unity_id=int(row["unity_id"]) if row["unity_id"] else None,
@@ -82,4 +82,4 @@ def _atom(tokens: deque[str]) -> _Terms:
         return terms
     if token in _OPERATORS:
         raise ValueError
-    return [(token,)]
+    return [(token.upper(),)]

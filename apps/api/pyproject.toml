@@ -40,10 +40,11 @@ module-root = ""
 
 [dependency-groups]
 dev = [
-    "aiosqlite>=0.22.1",
+    "psycopg[binary]>=3.3.6",
     "pyjwt>=2.15.1",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "respx>=0.23.1",
     "ruff>=0.17.1",
+    "testcontainers[postgres]>=4.15.0",
 ]

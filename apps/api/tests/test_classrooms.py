@@ -666,9 +666,7 @@ def test_mencoes_vencidas_revalidam_no_login(client, sigaa, turmas, database):
 
     turmas.classrooms.list_grades.assert_awaited_once_with()
     with database() as session:
-        assert session.scalar(select(User.grades_synced_at)) > vencida.replace(
-            tzinfo=None
-        )
+        assert session.scalar(select(User.grades_synced_at)) > vencida
 
 
 def test_turma_nova_na_lista_revalida_as_mencoes(client, turmas, database):
@@ -777,9 +775,7 @@ def test_falha_no_relatorio_preserva_mencoes_e_tenta_uma_vez(
     assert client.get("/classrooms").json()[0]["grade"] == "MS"
     assert turmas.classrooms.list_grades.await_count == 2
     with database() as session:
-        assert session.scalar(select(User.grades_synced_at)) == synced_at.replace(
-            tzinfo=None
-        )
+        assert session.scalar(select(User.grades_synced_at)) == synced_at
     assert qstash.jobs()[-1].attempt == 2
 
 
@@ -910,7 +906,7 @@ async def test_turma_que_saiu_da_lista_e_trancada(async_database, usuarios):
     assert [l.front_end_id for l in links] == ["AAA"]
     assert await _situacao_na_lista(async_database, usuarios[0]) == {
         "FGA0146": ("AAA", ClassroomStatus.CURSANDO, None),
-        "FGA0158": (None, ClassroomStatus.TRANCADO, AGORA.replace(tzinfo=None)),
+        "FGA0158": (None, ClassroomStatus.TRANCADO, AGORA),
     }
 
 
@@ -926,7 +922,7 @@ async def test_turma_que_volta_para_a_lista_volta_cursando(async_database, usuar
     assert (await _situacao_na_lista(async_database, usuarios[0]))["FGA0158"] == (
         None,
         ClassroomStatus.TRANCADO,
-        AGORA.replace(tzinfo=None),
+        AGORA,
     )
 
     await _salvar_turmas(
@@ -1210,12 +1206,12 @@ async def test_aluno_que_some_da_turma_e_trancado(async_database, usuarios):
         "Discente 0": (
             ClassroomStatus.TRANCADO,
             False,
-            AGORA.replace(tzinfo=None),
+            AGORA,
         ),
         "COLEGA": (
             ClassroomStatus.TRANCADO,
             False,
-            AGORA.replace(tzinfo=None),
+            AGORA,
         ),
     }
     # O vínculo que veio da lista do próprio usuário continua.
@@ -1235,7 +1231,7 @@ async def test_aluno_que_saiu_mantem_data_do_trancamento_e_volta_cursando(
     assert (await _situacoes(async_database, classroom_id))["COLEGA"] == (
         ClassroomStatus.TRANCADO,
         False,
-        AGORA.replace(tzinfo=None),
+        AGORA,
     )
 
     await _salvar_membros(async_database, classroom_id, [colega])
