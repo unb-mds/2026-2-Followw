@@ -1,8 +1,7 @@
 from sigaa_client import lookup_key
-from sqlalchemy import ColumnElement, cast, exists, func, literal_column, or_, select
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import ColumnElement, exists, func, literal_column, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased, selectinload
+from sqlalchemy.orm import selectinload
 
 from api.db.models import Classroom, Subject, Unity
 
@@ -17,25 +16,14 @@ def _lookup_sql(value: ColumnElement[str]) -> ColumnElement[str]:
     return func.regexp_replace(func.btrim(without_accents), r"\s+", " ", "g")
 
 
-def _has_offer(subject_code: ColumnElement[str], semester: str) -> ColumnElement[bool]:
-    return exists(
-        select(1).where(
-            Classroom.subject_code == subject_code,
-            Classroom.semester == semester,
-        )
-    )
-
-
-def _matches_query(
-    q: str, semester: str | None, unity_id: int | None
-) -> ColumnElement[bool]:
+def _matches_query(q: str, semester: str | None) -> ColumnElement[bool]:
     needle = lookup_key(q)
     conditions: list[ColumnElement[bool]] = [
         Subject.code.contains(needle.upper(), autoescape=True),
         _lookup_sql(Subject.name).contains(needle, autoescape=True),
     ]
     if semester is not None:
-        professor = func.json_array_elements_text(Classroom.professors).column_valued(
+        professor = func.jsonb_array_elements_text(Classroom.professors).column_valued(
             "professor"
         )
         conditions.append(
@@ -45,19 +33,11 @@ def _matches_query(
                 .where(
                     Classroom.subject_code == Subject.code,
                     Classroom.semester == semester,
-                    _lookup_sql(professor).contains(needle, autoescape=True),
-                )
-            )
-        )
-        old = aliased(Subject)
-        conditions.append(
-            _has_offer(Subject.code, semester)
-            & exists(
-                select(1).where(
-                    old.code == needle.upper(),
-                    _lookup_sql(old.name) == _lookup_sql(Subject.name),
-                    ~_has_offer(old.code, semester),
-                    *((old.unity_id == unity_id,) if unity_id is not None else ()),
+                    exists(
+                        select(1).where(
+                            _lookup_sql(professor).contains(needle, autoescape=True)
+                        )
+                    ),
                 )
             )
         )
@@ -91,7 +71,7 @@ class SubjectCatalogRepository:
             return {}
         prerequisite = func.jsonb_array_elements_text(
             func.jsonb_path_query_array(
-                cast(Subject.prerequisites, JSONB), literal_column("'$[*][*]'")
+                Subject.prerequisites, literal_column("'$[*][*]'")
             )
         ).column_valued("prerequisite")
         rows = await self._session.execute(
@@ -148,7 +128,7 @@ class SubjectCatalogRepository:
         if unity_id is not None:
             query = query.where(Subject.unity_id == unity_id)
         if q is not None:
-            query = query.where(_matches_query(q, semester, unity_id))
+            query = query.where(_matches_query(q, semester))
         # Sem semestre não há turma gravada, então o filtro não tira nada.
         offered = selectinload(Subject.classrooms)
         if semester is not None:
