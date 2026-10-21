@@ -1,17 +1,27 @@
 import type { Middleware } from 'openapi-fetch';
 
-import { noop } from '@tanstack/react-query';
-import { afterEach, describe, expect, test } from 'bun:test';
+import { QueryClientProvider, noop, onlineManager } from '@tanstack/react-query';
+import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
+import { posthog } from 'posthog-js';
+import { createElement, type ReactNode } from 'react';
 
 import type { components } from '#/queries/schema.gen.ts';
 
 import { getContext } from '#/integrations/tanstack-query/root-provider.tsx';
-import { SessionNotStoredError, clearSession, startSession } from '#/queries/auth.ts';
+import {
+    SessionNotStoredError,
+    clearSession,
+    startSession,
+    useLogout,
+    useSessionRefresh
+} from '#/queries/auth.ts';
 import { classroomPostsQueryOptions, classroomsQueryOptions } from '#/queries/classrooms.ts';
 import { apiClient } from '#/queries/client.ts';
 import { ApiError } from '#/queries/errors.ts';
 import { meQueryOptions } from '#/queries/me.ts';
 import { menuQueryOptions } from '#/queries/restaurant.ts';
+
+import { useDom } from '../helpers/dom';
 
 const user: components['schemas']['UserProfile'] = {
     name: 'Fulano',
@@ -206,5 +216,103 @@ describe('startSession', () => {
 
         const error = await startSession(queryClient).catch((reason: unknown) => reason);
         expect(error).toMatchObject({ status: 502 });
+    });
+});
+
+describe('hooks de sessão', () => {
+    const dom = useDom();
+    let middleware: Middleware;
+    let requests: Request[];
+    let response: () => Response | ApiError;
+
+    beforeEach(() => {
+        requests = [];
+        response = () => Response.json(null);
+        middleware = {
+            onRequest: ({ request }) => {
+                requests.push(request);
+                const result = response();
+                if (result instanceof ApiError) throw result;
+                return result;
+            }
+        };
+        apiClient.use(middleware);
+    });
+
+    afterEach(() => {
+        dom.testing.cleanup();
+        apiClient.eject(middleware);
+        onlineManager.setOnline(true);
+    });
+
+    function renderHook<T>(hook: () => T, registration = user.registration) {
+        const { queryClient } = getContext();
+        queryClient.setQueryData(meQueryOptions.queryKey, { ...user, registration });
+        const wrapper = ({ children }: { children: ReactNode }) =>
+            createElement(QueryClientProvider, { client: queryClient }, children);
+        return { queryClient, ...dom.testing.renderHook(hook, { wrapper }) };
+    }
+
+    const paths = () => requests.map((r) => `${r.method} ${new URL(r.url).pathname}`);
+
+    test('logout encerra na API, limpa a conta e avisa quem chamou', async () => {
+        const reset = spyOn(posthog, 'reset').mockImplementation(noop);
+        let saiu = false;
+        const { result, queryClient } = renderHook(() => useLogout(() => (saiu = true)));
+        queryClient.setQueryData(classroomsQueryOptions.queryKey, []);
+
+        await dom.testing.act(() => result.current.mutateAsync({}));
+
+        expect(paths()).toEqual(['DELETE /api/auth/sigaa']);
+        expect(queryClient.getQueryData(meQueryOptions.queryKey)).toBeNull();
+        expect(queryClient.getQueryState(classroomsQueryOptions.queryKey)).toBeUndefined();
+        expect(reset).toHaveBeenCalledTimes(1);
+        expect(saiu).toBe(true);
+        reset.mockRestore();
+    });
+
+    test('logout que falha mantém a sessão', async () => {
+        response = () => new ApiError(502, 'SIGAA is unavailable');
+        const { result, queryClient } = renderHook(() => useLogout());
+
+        await dom.testing.act(() => result.current.mutateAsync({}).catch(noop));
+
+        expect(queryClient.getQueryData(meQueryOptions.queryKey)).not.toBeNull();
+    });
+
+    // a renovação é lembrada por matrícula no módulo: cada teste usa uma
+    test('renova a sessão uma vez por matrícula', async () => {
+        const { rerender, unmount } = renderHook(() => useSessionRefresh(), '251000001');
+        rerender();
+        unmount();
+        renderHook(() => useSessionRefresh(), '251000001');
+
+        await dom.testing.waitFor(() => expect(requests).toHaveLength(1));
+        expect(paths()).toEqual(['POST /api/auth/sigaa/refresh']);
+    });
+
+    test('renovação recusada encerra a sessão local', async () => {
+        response = () => new ApiError(401, 'Invalid credentials');
+        const { queryClient } = renderHook(() => useSessionRefresh(), '251000002');
+
+        await dom.testing.waitFor(() =>
+            expect(queryClient.getQueryData(meQueryOptions.queryKey)).toBeNull()
+        );
+    });
+
+    test('renovação que falha por outro motivo mantém a sessão', async () => {
+        response = () => new ApiError(502, 'SIGAA is unavailable');
+        const { queryClient } = renderHook(() => useSessionRefresh(), '251000003');
+
+        await dom.testing.waitFor(() => expect(requests).toHaveLength(1));
+        await Promise.resolve();
+        expect(queryClient.getQueryData(meQueryOptions.queryKey)).not.toBeNull();
+    });
+
+    test('offline não tenta renovar', () => {
+        onlineManager.setOnline(false);
+        renderHook(() => useSessionRefresh(), '251000004');
+
+        expect(requests).toHaveLength(0);
     });
 });

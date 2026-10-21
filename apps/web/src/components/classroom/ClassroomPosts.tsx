@@ -95,7 +95,7 @@ export function ClassroomPosts({ id }: { id: string }) {
                     }}
                 >
                     <RefreshCw className={cn('size-4', posts.isFetching && 'animate-spin')} />
-                    Atualizar postagens
+                    Atualizar
                 </Button>
             </div>
             {posts.isError && (

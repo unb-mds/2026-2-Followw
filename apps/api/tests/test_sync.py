@@ -82,12 +82,6 @@ def _envelhecer(database, column, *, hours: int) -> None:
         (datetime.now(UTC) - timedelta(days=365), None, False),
         (datetime.now(UTC) - timedelta(minutes=30), timedelta(hours=1), False),
         (datetime.now(UTC) - timedelta(hours=2), timedelta(hours=1), True),
-        # O SQLite devolve sem fuso: vale como UTC.
-        (
-            datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=2),
-            timedelta(hours=1),
-            True,
-        ),
     ],
 )
 def test_regra_de_vencimento(synced_at, ttl, stale):

@@ -203,7 +203,7 @@ describe('postagens da turma com a API', () => {
         testing.fireEvent.click(page.getByRole('button', { name: 'Materiais' }));
         expect(page.getByText('Nenhuma postagem deste tipo.')).toBeDefined();
         list = [];
-        testing.fireEvent.click(page.getByRole('button', { name: 'Atualizar postagens' }));
+        testing.fireEvent.click(page.getByRole('button', { name: 'Atualizar' }));
         expect(await page.findByText('Nenhuma postagem publicada.')).toBeDefined();
     });
 
@@ -220,7 +220,7 @@ describe('postagens da turma com a API', () => {
         client.setQueryData(classroomPostsQueryOptions('AAA').queryKey, posts);
         const page = renderPosts();
         failList = true;
-        testing.fireEvent.click(page.getByRole('button', { name: 'Atualizar postagens' }));
+        testing.fireEvent.click(page.getByRole('button', { name: 'Atualizar' }));
         expect(
             await page.findByText(
                 'Não foi possível atualizar as postagens. Exibindo os dados salvos.'
@@ -245,7 +245,7 @@ describe('postagens da turma com a API', () => {
         const page = renderPosts();
         testing.fireEvent.click(await page.findByRole('button', { name: /Bem-vindos à turma/ }));
         await page.findByRole('link', { name: 'Plano.pdf' });
-        testing.fireEvent.click(page.getByRole('button', { name: 'Atualizar postagens' }));
+        testing.fireEvent.click(page.getByRole('button', { name: 'Atualizar' }));
         await testing.waitFor(() => expect(requests).toHaveLength(4));
         const refreshed = requests.slice(2);
         expect(

@@ -89,10 +89,10 @@ def test_periodos_agrupados_preservam_listas_e_periodos_vazios(tmp_path):
         *_csvs(
             tmp_path,
             components=[
-                "414112,456,1,required,ADM0023 ADM0024",
+                "414112,456,1,required,adm0023 ADM0024",
                 "414112,456,2,required,",
-                "414112,456,0,optional,ADM0002 ADM0003",
-                "414112,456,,complementary,ADM0100 ADM0101",
+                "414112,456,0,optional,adm0002 ADM0003",
+                "414112,456,,complementary,adm0100 ADM0101",
             ],
         )
     )

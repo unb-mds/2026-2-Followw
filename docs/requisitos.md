@@ -364,7 +364,7 @@ analisar concorrência de vagas, pré-requisitos e estatísticas históricas de 
 **Critérios de Aceitação:**
 
 - A falta de menção após a consolidação não deve ser interpretada como reprovação.
-- Vínculos trancados, removidos ou indeferidos não contam como tentativa sem resultado.
+- Vínculos trancados ou indeferidos não contam como tentativa sem resultado.
 - MI, II ou SR permitem repetir somente sem aprovação, matrícula atual ou outra tentativa incerta.
 - Equivalências devem respeitar grupos E/OU e sua direção, sem inferir reciprocidade ou
   transitividade.

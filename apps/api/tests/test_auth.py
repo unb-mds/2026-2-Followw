@@ -31,16 +31,16 @@ def test_registered_at_marca_o_primeiro_login_e_sobrevive_ao_refresh(
         with database() as session:
             assert session.scalar(select(User)).registered_at is None
 
-    before = datetime.now(UTC).replace(tzinfo=None)
+    before = datetime.now(UTC)
     assert client.post("/auth/sigaa", json=LOGIN).status_code == 200
     with database() as session:
         user = session.scalar(
             select(User).where(User.registration == LOGIN["registration"])
         )
         registered = user.registered_at
-        assert before <= registered <= datetime.now(UTC).replace(tzinfo=None)
+        assert before <= registered <= datetime.now(UTC)
         if shadow:
-            assert user.created_at == old.replace(tzinfo=None)
+            assert user.created_at == old
 
     assert client.post("/auth/sigaa", json=LOGIN).status_code == 200
     assert client.post("/auth/sigaa/refresh").status_code == 204

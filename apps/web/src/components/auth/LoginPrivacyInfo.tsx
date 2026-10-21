@@ -45,13 +45,12 @@ export function LoginPrivacyInfo() {
                     </DialogTitle>
                 </DialogHeader>
                 <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                    Ao conectar com o SIGAA, suas credenciais são usadas para autenticar nos
+                    Ao conectar com o SIGAA, suas credenciais são usadas apenas para autenticar nos
                     servidores oficiais da UnB e não são armazenadas no banco de dados do Followw.
                 </p>
                 <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                    Suas credenciais e sessão ficam em cookies cifrados no navegador para manter seu
-                    acesso. Atualizações em segundo plano também usam credenciais cifradas na fila
-                    de processamento QStash (Upstash).
+                    Suas credenciais e sessão ficam salvas no seu navegador para que você não
+                    precise digitar sua senha toda vez.
                 </p>
                 <p className="mt-3 text-sm leading-6 text-muted-foreground">
                     O Followw é um projeto de código aberto, e você pode conferir todo o

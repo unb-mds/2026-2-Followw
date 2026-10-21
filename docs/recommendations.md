@@ -33,7 +33,7 @@ semestre válido até a oferta entram no histórico. A recomendação é para o 
 aprovadas (SS/MS/MM) ou em andamento (inclusive as encerradas cuja menção ainda não foi consolidada)
 contam como concluídas, saem da lista e satisfazem pré/correquisitos. Reprovações posteriores não
 apagam aprovações. Qualquer tentativa sem menção também impede recomendar a disciplina, mesmo após a
-consolidação; vínculos trancados, removidos ou indeferidos não contam como tentativa. Uma menção
+consolidação; vínculos trancados ou indeferidos não contam como tentativa. Uma menção
 consolidada já gravada não é apagada quando o relatório deixa de trazê-la. Só MI/II/SR confirmados
 permitem repetir, desde que não exista outra aprovação, matrícula em andamento ou tentativa sem
 resultado. Para o ranking, toda tentativa sem menção presume aprovação: satisfaz pré/correquisitos e

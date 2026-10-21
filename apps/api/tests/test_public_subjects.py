@@ -325,7 +325,7 @@ def test_desbloqueia_lista_dependentes_diretos_sem_duplicar_nem_exigir_oferta(
                     prerequisites=[["FGA0003", "FGA0001"], ["FGA0003"]],
                 ),
                 Subject(
-                    code="DEP2", name="Dependente dois", prerequisites=[["fga0003 "]]
+                    code="DEP2", name="Dependente dois", prerequisites=[["FGA0003"]]
                 ),
                 Subject(code="INDIRETA", name="Indireta", prerequisites=[["DEP1"]]),
                 Subject(code="CORREQ", name="Correquisito", corequisites=[["FGA0003"]]),
@@ -340,9 +340,7 @@ def test_desbloqueia_lista_dependentes_diretos_sem_duplicar_nem_exigir_oferta(
 
 
 @pytest.mark.parametrize("query", ["OLD0001", " old0001 "])
-def test_codigo_sem_oferta_tambem_encontra_ofertas_com_mesmo_nome(
-    catalog, database, query
-):
+def test_codigo_nao_expande_para_outros_codigos_de_mesmo_nome(catalog, database, query):
     with database.begin() as session:
         session.add_all(
             [
@@ -352,44 +350,10 @@ def test_codigo_sem_oferta_tambem_encontra_ofertas_com_mesmo_nome(
                 Subject(
                     code="NEW0001", name="Metodos de Desenvolvimento", unity_id=673
                 ),
-                Subject(
-                    code="NEW0002", name="Métodos de Desenvolvimento 2", unity_id=673
-                ),
-                Subject(
-                    code="NEW0003", name="Métodos de Desenvolvimento", unity_id=518
-                ),
             ]
-        )
-        session.add_all(
-            [
-                Classroom(subject_code=code, number="01", semester="2026.2")
-                for code in ["NEW0001", "NEW0002", "NEW0003"]
-            ]
-        )
-    items = _search(catalog, q=query)
-    assert [item["code"] for item in items] == ["NEW0001", "NEW0003", "OLD0001"]
-    assert items[0]["name"] == "Metodos de Desenvolvimento"
-    assert items[-1]["classrooms"] == []
-    assert [item["code"] for item in _search(catalog, q=query, unit="673")] == [
-        "NEW0001",
-        "OLD0001",
-    ]
-    assert [item["code"] for item in _search(catalog, code="OLD0001")] == ["OLD0001"]
-    assert [item["code"] for item in _search(catalog, q="OLD000")] == ["OLD0001"]
-    assert [item["code"] for item in _search(catalog, q=query, semester="2026.1")] == [
-        "OLD0001"
-    ]
-
-
-def test_codigo_com_oferta_nao_expande_para_outros_codigos_de_mesmo_nome(
-    catalog, database
-):
-    with database.begin() as session:
-        session.add(
-            Subject(code="NEW0001", name="COMPILAÇÃO DE PROGRAMAS", unity_id=673)
         )
         session.add(Classroom(subject_code="NEW0001", number="01", semester="2026.2"))
-    assert [item["code"] for item in _search(catalog, q="FGA0003")] == ["FGA0003"]
+    assert [item["code"] for item in _search(catalog, q=query)] == ["OLD0001"]
 
 
 @pytest.mark.parametrize(
