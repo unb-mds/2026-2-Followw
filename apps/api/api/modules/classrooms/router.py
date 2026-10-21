@@ -2,7 +2,7 @@ from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Path, Query
-from pydantic import BaseModel
+from pydantic import AfterValidator, BaseModel, Field
 from sigaa_client import ClassroomMember, ClassroomPost, PostType
 
 from api.cache import NoStore
@@ -23,15 +23,21 @@ CLASSROOM_ERRORS = {
     404: {"description": "Turma não encontrada entre as turmas do usuário."},
 }
 ClassroomId = Annotated[str, Path(description="Classroom.id ou Classroom.sigaa_id.")]
-LessonId = Annotated[UUID, Path(description="Lesson.id de uma aula da turma.")]
 
 
-class LessonMarkBody(BaseModel):
+class LessonMark(BaseModel):
+    lesson_id: UUID = Field(description="Lesson.id de uma aula da turma.")
     # `None` remove a marcação: a aula sem chamada não é uma marcação.
     status: (
         Literal[LessonStatus.PRESENTE, LessonStatus.FALTA, LessonStatus.CANCELADA]
         | None
     )
+
+
+def _unique_lessons(marks: list[LessonMark]) -> list[LessonMark]:
+    if len({mark.lesson_id for mark in marks}) < len(marks):
+        raise ValueError("Aula repetida.")
+    return marks
 
 
 @router.get(
@@ -131,27 +137,25 @@ async def get_classroom_frequency(
 
 
 @router.patch(
-    "/{classroom_id}/frequency/lessons/{lesson_id}",
+    "/{classroom_id}/frequency/lessons",
     status_code=204,
     summary="Marcar presença, falta ou aula cancelada",
-    description="Vale enquanto o SIGAA não registra a aula: a chamada publicada substitui a marcação. status null remove a marcação, sem apagar a chamada do SIGAA. Marcar aula que ainda não aconteceu retorna 422.",
+    description="Aplica todas as marcações ou nenhuma. Vale enquanto o SIGAA não registra a aula: a chamada publicada substitui a marcação. status null remove a marcação, sem apagar a chamada do SIGAA. Aula repetida ou que ainda não aconteceu retorna 422.",
     responses={
         **CLASSROOM_ERRORS,
         404: {"description": "Turma ou aula não encontrada."},
-        409: {"description": "O SIGAA já registrou a chamada da aula."},
+        409: {"description": "O SIGAA já registrou a chamada de uma das aulas."},
     },
     dependencies=[NoStore],
 )
-async def mark_lesson(
+async def mark_lessons(
     service: FrequencyServiceDep,
     classroom_id: ClassroomId,
-    lesson_id: LessonId,
-    body: LessonMarkBody,
+    body: Annotated[list[LessonMark], AfterValidator(_unique_lessons)],
 ) -> None:
-    if body.status is None:
-        await service.unmark_lesson(classroom_id, lesson_id)
-    else:
-        await service.mark_lesson(classroom_id, lesson_id, body.status)
+    await service.mark_lessons(
+        classroom_id, {mark.lesson_id: mark.status for mark in body}
+    )
 
 
 @router.get(

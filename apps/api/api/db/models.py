@@ -235,9 +235,6 @@ class ClassroomParticipant(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     progress_taught: Mapped[int | None] = mapped_column(SmallInteger)
     progress_total: Mapped[int | None] = mapped_column(SmallInteger)
     progress_percentage: Mapped[int | None] = mapped_column(SmallInteger)
-    # Horas-aula que o SIGAA soma; `None` enquanto o docente não lança frequência.
-    attended_hours: Mapped[int | None] = mapped_column(SmallInteger)
-    registered_hours: Mapped[int | None] = mapped_column(SmallInteger)
 
     user: Mapped[User] = relationship(back_populates="classroom_links")
     classroom: Mapped[Classroom] = relationship(back_populates="participant_links")

@@ -36,22 +36,17 @@ export const classroomFrequencyQueryOptions = (id: string) =>
 
 export type ClassroomFrequency = components['schemas']['ClassroomFrequencyView'];
 export type Lesson = components['schemas']['Lesson'];
-export type LessonMarkStatus = NonNullable<components['schemas']['LessonMarkBody']['status']>;
+export type LessonMark = components['schemas']['LessonMark'];
+export type LessonMarkStatus = NonNullable<LessonMark['status']>;
 
-/** Marca a aula (`null` desmarca) e relê a frequência, que já volta com aulas e totais. */
-export function useMarkLesson(id: string) {
+/** Marca as aulas de uma vez (`null` desmarca) e relê a frequência, que já volta com aulas e totais. */
+export function useMarkLessons(id: string) {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async ({
-            lesson,
-            status
-        }: {
-            lesson: Lesson;
-            status: LessonMarkStatus | null;
-        }) => {
-            const url = '/classrooms/{classroom_id}/frequency/lessons/{lesson_id}';
-            const path = { classroom_id: id, lesson_id: lesson.id };
-            const { error } = await apiClient.PATCH(url, { params: { path }, body: { status } });
+        mutationFn: async (marks: LessonMark[]) => {
+            const url = '/classrooms/{classroom_id}/frequency/lessons';
+            const path = { classroom_id: id };
+            const { error } = await apiClient.PATCH(url, { params: { path }, body: marks });
             if (error) throw new Error('Não foi possível salvar a marcação');
         },
         onSettled: () =>

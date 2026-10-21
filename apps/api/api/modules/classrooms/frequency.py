@@ -58,31 +58,28 @@ class FrequencyService:
             for link, view in zip(links, await self._views(links), strict=True)
         ]
 
-    async def mark_lesson(
-        self, classroom_id: str, lesson_id: UUID, status: LessonStatus
+    async def mark_lessons(
+        self, classroom_id: str, marks: dict[UUID, LessonStatus | None]
     ) -> None:
         link = await self._classrooms.get_link(classroom_id)
+        today = academic_calendar.today()
 
         async def write(session: AsyncSession) -> None:
             repository = FrequencyRepository(session)
-            lesson = await repository.get_lesson(link.row.classroom_id, lesson_id)
-            if lesson is None:
-                raise HTTPException(404, "Aula não encontrada na turma.")
-            if lesson.occurred_on >= academic_calendar.today():
-                raise HTTPException(422, "A aula ainda não aconteceu.")
-            if not await repository.save_mark(link.row.id, lesson.id, status):
-                raise HTTPException(409, "O SIGAA já registrou a chamada desta aula.")
-
-        await self._sync.db.write(write)
-
-    async def unmark_lesson(self, classroom_id: str, lesson_id: UUID) -> None:
-        link = await self._classrooms.get_link(classroom_id)
-
-        async def write(session: AsyncSession) -> None:
-            repository = FrequencyRepository(session)
-            if await repository.get_lesson(link.row.classroom_id, lesson_id) is None:
-                raise HTTPException(404, "Aula não encontrada na turma.")
-            await repository.delete_mark(link.row.id, lesson_id)
+            for lesson_id, status in marks.items():
+                lesson = await repository.get_lesson(link.row.classroom_id, lesson_id)
+                if lesson is None:
+                    raise HTTPException(
+                        404, f"Aula {lesson_id} não encontrada na turma."
+                    )
+                if status is None:
+                    await repository.delete_mark(link.row.id, lesson.id)
+                elif lesson.occurred_on >= today:
+                    raise HTTPException(422, f"A aula {lesson_id} ainda não aconteceu.")
+                elif not await repository.save_mark(link.row.id, lesson.id, status):
+                    raise HTTPException(
+                        409, f"O SIGAA já registrou a chamada da aula {lesson_id}."
+                    )
 
         await self._sync.db.write(write)
 
@@ -101,7 +98,6 @@ class FrequencyService:
             ClassroomFrequencyView.build(
                 summary,
                 lessons[link.row.classroom_id],
-                subject_hours=link.row.classroom.subject.hours,
                 today=today,
             )
             for link, summary in zip(links, summaries, strict=True)

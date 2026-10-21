@@ -144,7 +144,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/classrooms/{classroom_id}/frequency/lessons/{lesson_id}": {
+    "/classrooms/{classroom_id}/frequency/lessons": {
         parameters: {
             query?: never;
             header?: never;
@@ -159,9 +159,9 @@ export interface paths {
         head?: never;
         /**
          * Marcar presença, falta ou aula cancelada
-         * @description Vale enquanto o SIGAA não registra a aula: a chamada publicada substitui a marcação. status null remove a marcação, sem apagar a chamada do SIGAA. Marcar aula que ainda não aconteceu retorna 422.
+         * @description Aplica todas as marcações ou nenhuma. Vale enquanto o SIGAA não registra a aula: a chamada publicada substitui a marcação. status null remove a marcação, sem apagar a chamada do SIGAA. Aula repetida ou que ainda não aconteceu retorna 422.
          */
-        patch: operations["mark_lesson_classrooms__classroom_id__frequency_lessons__lesson_id__patch"];
+        patch: operations["mark_lessons_classrooms__classroom_id__frequency_lessons_patch"];
         trace?: never;
     };
     "/classrooms/{classroom_id}/members": {
@@ -644,7 +644,7 @@ export interface components {
         FrequencyStatus: "nao_registrada" | "parcialmente_registrada" | "registrada";
         /**
          * FrequencyTotals
-         * @description Presenças, faltas e frequência do SIGAA somadas às aulas marcadas pelo aluno.
+         * @description Presenças, faltas e frequência em aulas, pela chamada do SIGAA e as marcações do aluno.
          */
         FrequencyTotals: {
             /** Presences */
@@ -699,8 +699,14 @@ export interface components {
              */
             marked: boolean;
         };
-        /** LessonMarkBody */
-        LessonMarkBody: {
+        /** LessonMark */
+        LessonMark: {
+            /**
+             * Lesson Id
+             * Format: uuid
+             * @description Lesson.id de uma aula da turma.
+             */
+            lesson_id: string;
             /** Status */
             status: ("presente" | "falta" | "cancelada") | null;
         };
@@ -1439,7 +1445,7 @@ export interface operations {
             };
         };
     };
-    mark_lesson_classrooms__classroom_id__frequency_lessons__lesson_id__patch: {
+    mark_lessons_classrooms__classroom_id__frequency_lessons_patch: {
         parameters: {
             query?: never;
             header?: {
@@ -1449,14 +1455,12 @@ export interface operations {
             path: {
                 /** @description Classroom.id ou Classroom.sigaa_id. */
                 classroom_id: string;
-                /** @description Lesson.id de uma aula da turma. */
-                lesson_id: string;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["LessonMarkBody"];
+                "application/json": components["schemas"]["LessonMark"][];
             };
         };
         responses: {
@@ -1481,7 +1485,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description O SIGAA já registrou a chamada da aula. */
+            /** @description O SIGAA já registrou a chamada de uma das aulas. */
             409: {
                 headers: {
                     [name: string]: unknown;

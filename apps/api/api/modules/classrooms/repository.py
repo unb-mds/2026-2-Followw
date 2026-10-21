@@ -561,8 +561,6 @@ class FrequencyRepository:
                 percentage=link.progress_percentage,
             ),
             frequency_status=link.frequency_status,
-            attended=link.attended_hours,
-            registered=link.registered_hours,
         )
         return summary, link.frequency_synced_at
 
@@ -621,8 +619,6 @@ class FrequencyRepository:
         link.progress_taught = summary.progress.taught
         link.progress_total = summary.progress.total
         link.progress_percentage = summary.progress.percentage
-        link.attended_hours = summary.attended
-        link.registered_hours = summary.registered
         link.frequency_synced_at = synced_at
         await self._session.flush()
 

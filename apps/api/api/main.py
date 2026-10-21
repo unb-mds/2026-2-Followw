@@ -73,7 +73,6 @@ app = FastAPI(
         "sincronização assíncrona inteligente e cache resiliente via Stale-While-Revalidate."
     ),
     version="0.1.0",
-    # o front serve a API em /api; rotas sem o prefixo também respondem (subdomínio api., jobs)
     root_path="/api",
     docs_url=None,
     redoc_url=None,

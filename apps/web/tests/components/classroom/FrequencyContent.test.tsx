@@ -86,7 +86,7 @@ describe('FrequencyContent', () => {
         );
         expect(order).toEqual(order.toSorted((a, b) => a - b));
         expect(markup).toContain('qua');
-        expect(markup).toContain('2 faltas');
+        expect(markup).toMatch(/text-destructive">Falta</);
         expect(markup).toContain('Não registrada');
     });
 
@@ -131,20 +131,25 @@ describe('FrequencyContent', () => {
         );
     });
 
-    test('só as aulas sem chamada do SIGAA têm a bolinha como menu', () => {
-        const markup = render(registered);
-        expect(markup.match(/<button/g)).toHaveLength(1);
-        expect(markup).toContain('Situação de 06/10/2026, aula: Não registrada. Alterar situação.');
-        expect(markup).toContain('after:-inset-2');
+    test('aulas sem chamada viram checkbox e as marcadas mantêm o menu', () => {
+        const markup = render({
+            ...registered,
+            lessons: [
+                ...registered.lessons,
+                lesson('2026-10-04', { status: 'falta', absences: 1, marked: true })
+            ]
+        });
+        expect(markup.match(/role="checkbox"/g)).toHaveLength(1);
+        expect(markup).toContain('aria-label="Selecionar aula de 06/10/2026"');
+        expect(markup.match(/aria-haspopup="menu"/g)).toHaveLength(1);
+        expect(markup).toContain('Situação de 04/10/2026, aula: Falta. Alterar situação.');
     });
 
-    test('a bolinha abre o menu em vez de alternar a situação', () => {
-        const markup = render({ ...notRegistered, lessons: [lesson('2026-10-06')] });
-        expect(markup).toContain('aria-haspopup="menu"');
-        expect(markup).not.toContain('title=');
+    test('sem seleção não mostra a barra de marcação', () => {
+        expect(render(registered)).not.toContain('role="toolbar"');
     });
 
-    test('desabilita as bolinhas enquanto salva', () => {
+    test('desabilita os checkboxes enquanto salva', () => {
         const markup = renderToStaticMarkup(
             <FrequencyContent data={registered} onMark={() => {}} pending />
         );
