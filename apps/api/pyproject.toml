@@ -11,6 +11,7 @@ dependencies = [
     "pydantic>=2.14.1",
     "pydantic-settings>=2.16.0",
     "qstash>=3.4.0",
+    "reportlab>=5.0.1",
     "sigaa-client",
     "sqlalchemy[asyncio]>=2.1.5",
     "tzdata>=2026.5",

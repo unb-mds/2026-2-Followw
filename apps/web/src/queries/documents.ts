@@ -6,7 +6,8 @@ import { ApiError } from '#/queries/errors';
 
 export const studentDocuments = {
     'student-card': { label: 'Carteirinha estudantil', filename: 'carteirinha.pdf' },
-    transcript: { label: 'Histórico acadêmico', filename: 'historico.pdf' }
+    transcript: { label: 'Histórico acadêmico', filename: 'historico.pdf' },
+    'enrollment-certificate': { label: 'Atestado de matrícula', filename: 'atestado-matricula.pdf' }
 } as const;
 
 export type StudentDocument = keyof typeof studentDocuments;

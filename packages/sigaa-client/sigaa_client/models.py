@@ -7,6 +7,20 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, computed_field
 
 
+class EnrollmentCertificate(BaseModel):
+    """Conteúdo de uma emissão do atestado, incluindo a grade preenchida pelo SIGAA."""
+
+    model_config = ConfigDict(frozen=True)
+
+    issued_at: str
+    identification: tuple[tuple[str, str], ...]
+    enrollment_headers: tuple[str, str, str, str, str]
+    enrollments: tuple[tuple[str, str, str, str, str], ...]
+    schedule: tuple[tuple[str, ...], ...]
+    authentication: str
+    footer: str
+
+
 class CurriculumSummary(BaseModel):
     model_config = ConfigDict(frozen=True)
 

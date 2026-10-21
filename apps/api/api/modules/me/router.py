@@ -1,9 +1,14 @@
+from functools import partial
+
+from anyio import CapacityLimiter, to_thread
 from fastapi import APIRouter, Request, Response
 from sigaa_client import RestaurantCredentials, RestaurantStatement
 
 from api.cache import CacheControl, NoStore
+from api.core.config import settings
 from api.db.main import DatabaseDep
 from api.errors import SIGAA_ERRORS
+from api.modules.me.enrollment_certificate import render_enrollment_certificate
 from api.modules.me.profile import ProfileServiceDep, UserProfile
 from api.modules.me.settings import (
     UserSettings,
@@ -14,6 +19,7 @@ from api.modules.me.settings import (
 from api.sigaa import SigaaClientDep, SigaaConnection, SigaaConnectionDep
 
 router = APIRouter()
+_PDF_LIMITER = CapacityLimiter(1)
 _DOCUMENT_ERRORS = {
     **SIGAA_ERRORS,
     422: {"description": "O SIGAA recusou emitir o documento (ex.: perfil sem foto)."},
@@ -94,6 +100,28 @@ async def get_student_card(client: SigaaClientDep, response: Response) -> Respon
 async def get_transcript(client: SigaaClientDep, response: Response) -> Response:
     pdf = await client.documents.get_transcript_pdf()
     return _document_download(pdf, "historico.pdf", response)
+
+
+@router.post(
+    "/enrollment-certificate",
+    response_class=Response,
+    summary="Baixar o atestado de matrícula em PDF",
+    description="Gera o PDF a partir do relatório HTML emitido pelo SIGAA, preservando seu código de verificação.",
+    responses=_PDF_RESPONSES,
+    dependencies=[NoStore],
+)
+async def get_enrollment_certificate(
+    client: SigaaClientDep, response: Response
+) -> Response:
+    certificate = await client.documents.get_enrollment_certificate()
+    pdf = await to_thread.run_sync(
+        partial(
+            render_enrollment_certificate, font_directory=settings.sigaa_pdf_font_dir
+        ),
+        certificate,
+        limiter=_PDF_LIMITER,
+    )
+    return _document_download(pdf, "atestado-matricula.pdf", response)
 
 
 def _document_download(content: bytes, filename: str, response: Response) -> Response:

@@ -1,17 +1,20 @@
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from http.cookies import SimpleCookie
+from io import BytesIO
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import httpx
 import pytest
 from pydantic import SecretStr
+from pypdf import PdfReader
 from sigaa_client import (
     AuthenticationFailed,
     Credentials,
     CurriculumWorkload,
     DocumentUnavailable,
+    EnrollmentCertificate,
     MissingProfilePhoto,
     RestaurantCredentials,
     RestaurantStatement,
@@ -294,6 +297,50 @@ def documents(stub_sigaa):
     stub_sigaa.documents = SimpleNamespace(
         get_student_card_pdf=AsyncMock(return_value=pdf),
         get_transcript_pdf=AsyncMock(return_value=pdf),
+        get_enrollment_certificate=AsyncMock(
+            return_value=EnrollmentCertificate(
+                issued_at="20/10/2026 21:52",
+                identification=(
+                    ("Período Letivo", "2026.2 (10/08/2026 à 14/12/2026)"),
+                    ("Nível", "GRADUAÇÃO"),
+                    ("Matrícula", "251000000"),
+                    ("Vínculo", "REGULAR"),
+                    ("Nome", "JOÃO DA CONCEIÇÃO"),
+                    ("Curso", "ENGENHARIA DE SOFTWARE"),
+                ),
+                enrollment_headers=(
+                    "Cód.",
+                    "Componentes Curriculares/Docentes",
+                    "Turma",
+                    "Status",
+                    "Horário",
+                ),
+                enrollments=(
+                    (
+                        "MAT0027",
+                        "CÁLCULO 3\nDOCENTE DE TESTE\nTipo: DISCIPLINA   Local: SALA 1",
+                        "12",
+                        "MATRICULADO(A)",
+                        "235M34",
+                    ),
+                ),
+                schedule=(
+                    ("Horários", "Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"),
+                    (
+                        "08:00 - 08:55",
+                        "---",
+                        "MAT0027",
+                        "---",
+                        "---",
+                        "---",
+                        "---",
+                        "---",
+                    ),
+                ),
+                authentication="Para verificar a autenticidade deste documento acesse https://sigaa.unb.br/sigaa/documentos/ informando a matrícula, a data de emissão e o código de verificação 012345abcd",
+                footer="SIGAA | STI | Copyright © 2006-2026 - UFRN - app-teste",
+            )
+        ),
     )
     return stub_sigaa.documents
 
@@ -324,6 +371,7 @@ def restaurant(stub_sigaa):
 DOCUMENT_DOWNLOADS = [
     ("student-card", "get_student_card_pdf"),
     ("transcript", "get_transcript_pdf"),
+    ("enrollment-certificate", "get_enrollment_certificate"),
 ]
 
 
@@ -410,7 +458,9 @@ def test_carteirinha_sem_foto_explica_o_motivo(client, cookies, documents, resta
         assert response.json() == {"detail": _SEM_FOTO}
 
 
-@pytest.mark.parametrize("path", ["student-card", "transcript"])
+@pytest.mark.parametrize(
+    "path", ["student-card", "transcript", "enrollment-certificate"]
+)
 def test_openapi_documenta_download_documento(client, path):
     methods = client.get("/openapi.json").json()["paths"][f"/me/{path}"]
     assert "get" not in methods
@@ -426,6 +476,215 @@ def test_openapi_documenta_download_documento(client, path):
 def test_download_documento_rejeita_get(client, documents, path, method):
     assert client.get(f"/me/{path}").status_code == 405
     getattr(documents, method).assert_not_awaited()
+
+
+def test_atestado_gera_pdf_com_dados_da_emissao_sem_cache_ou_banco(
+    client, cookies, documents, qstash
+):
+    client.app.dependency_overrides[get_sessionmaker] = lambda: pytest.fail(
+        "Atestado não usa banco"
+    )
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+    for _ in range(2):
+        response = client.post("/me/enrollment-certificate")
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "application/pdf"
+        assert (
+            response.headers["content-disposition"]
+            == 'attachment; filename="atestado-matricula.pdf"'
+        )
+        assert response.headers["cache-control"] == "no-store"
+        assert ACCESS_COOKIE_NAME in response.cookies
+        assert REFRESH_COOKIE_NAME in response.cookies
+        reader = PdfReader(BytesIO(response.content))
+        text = "\n".join(page.extract_text() for page in reader.pages)
+        for expected in (
+            "JOÃO DA CONCEIÇÃO",
+            "251000000",
+            "CÁLCULO 3",
+            "20/10/2026 21:52",
+            "012345abcd",
+            "235M34",
+        ):
+            assert expected in text
+        assert "08:00 - 08:55" in " ".join(text.split())
+        assert text.count("MAT0027") == 2
+        assert len(reader.pages[0].images) == 2
+        assert "SIGAA | STI | Copyright" in text
+        assert "versão PDF pelo Followw" not in text
+    assert documents.get_enrollment_certificate.await_count == 2
+    assert qstash.published == []
+
+
+def test_atestado_pagina_nomes_longos_sem_interpretar_marcacao(documents):
+    from api.modules.me.enrollment_certificate import render_enrollment_certificate
+
+    certificate = documents.get_enrollment_certificate.return_value
+    name = "JOÃO & <b>CONCEIÇÃO</b>"
+    certificate = certificate.model_copy(
+        update={
+            "identification": tuple(
+                (label, name if label == "Nome" else value)
+                for label, value in certificate.identification
+            ),
+            "enrollments": tuple(
+                (
+                    f"MAT{i:04d}",
+                    "DISCIPLINA COM NOME MUITO LONGO " * 5,
+                    "01",
+                    "MATRICULADO(A)",
+                    "24T23",
+                )
+                for i in range(40)
+            ),
+        }
+    )
+    pdf = render_enrollment_certificate(certificate)
+    pages = PdfReader(BytesIO(pdf)).pages
+    text = "\n".join(page.extract_text() for page in pages)
+    assert len(pages) > 1
+    assert name in text
+    assert all(f"MAT{i:04d}" in text for i in range(40))
+    assert "012345abcd" in text
+    assert "SIGAA | STI | Copyright" in text
+    for number, page in enumerate(pages, 1):
+        assert f"{number}/{len(pages)}" in page.extract_text().splitlines()
+        assert (
+            "Sistema Integrado de Gestão de Atividades Acadêmicas"
+            in page.extract_text()
+        )
+
+
+def test_atestado_mantem_colunas_e_separador_do_layout_de_impressao(documents):
+    from api.modules.me.enrollment_certificate import render_enrollment_certificate
+
+    certificate = documents.get_enrollment_certificate.return_value
+    component = "PROJETO INTEGRADOR DE ENGENHARIA 1"
+    schedule_row = certificate.schedule[1]
+    certificate = certificate.model_copy(
+        update={
+            "enrollments": (
+                (
+                    "FGA0303",
+                    component + "\nDOCENTE DE TESTE\nTipo: DISCIPLINA   Local: SALA 1",
+                    "02",
+                    "MATRICULADO(A)",
+                    "24T45",
+                ),
+            ),
+            "schedule": (
+                certificate.schedule[0],
+                schedule_row,
+                ("",) * 8,
+                tuple("FGA0146" if c == "MAT0027" else c for c in schedule_row),
+            ),
+        }
+    )
+    reader = PdfReader(BytesIO(render_enrollment_certificate(certificate)))
+    positions = {}
+
+    def locate(text, cm, tm, font, size):
+        if size == 6.72 and text.strip() in {"MAT0027", "FGA0146"}:
+            positions[text.strip()] = cm[5] + tm[5]
+
+    text = reader.pages[0].extract_text(visitor_text=locate)
+    assert len(reader.pages) == 1
+    assert component in text.splitlines()
+    assert "Turma" in text.splitlines()
+    assert positions["MAT0027"] - positions["FGA0146"] == pytest.approx(26.25)
+
+
+@pytest.mark.parametrize("server", ["app18.sigaa18", "app26.sigaa26"])
+def test_atestado_inclui_impressao_e_exibe_app18_no_rodape(documents, server):
+    from api.modules.me.enrollment_certificate import render_enrollment_certificate
+
+    certificate = documents.get_enrollment_certificate.return_value.model_copy(
+        update={"footer": f"SIGAA | STI | Copyright © 2006-2026 - UFRN - {server}"}
+    )
+    printed_at = datetime(2026, 10, 21, 1, 26, tzinfo=UTC)
+    pdf = render_enrollment_certificate(certificate, printed_at=printed_at)
+    page = PdfReader(BytesIO(pdf)).pages[0]
+    text = page.extract_text()
+    assert "20/10/2026, 22:26" in text
+    assert "20/10/2026 21:52" in text
+    assert "Sistema Integrado de Gestão de Atividades Acadêmicas" in text
+    assert "https://sigaa.unb.br/sigaa/portais/discente/discente.jsf#" in text
+    assert "1/1" in text.splitlines()
+    assert "app18.sigaa18" in text
+    assert "app26.sigaa26" not in text
+    assert certificate.footer.endswith(server)
+
+
+def test_atestado_centraliza_codigos_entre_as_linhas_do_horario(documents):
+    from api.modules.me.enrollment_certificate import render_enrollment_certificate
+
+    certificate = documents.get_enrollment_certificate.return_value
+    page = PdfReader(BytesIO(render_enrollment_certificate(certificate))).pages[0]
+    baselines = {}
+
+    def locate(text, cm, tm, font, size):
+        if size == 6.72 and text.strip() in {"08:00 -", "08:55", "MAT0027"}:
+            baselines[text.strip()] = cm[5] + tm[5]
+
+    page.extract_text(visitor_text=locate)
+    assert baselines["08:00 -"] > baselines["MAT0027"] > baselines["08:55"]
+
+
+def test_atestado_alinha_local_com_a_impressao_do_sigaa(documents):
+    from api.modules.me.enrollment_certificate import render_enrollment_certificate
+
+    certificate = documents.get_enrollment_certificate.return_value
+    page = PdfReader(BytesIO(render_enrollment_certificate(certificate))).pages[0]
+    positions = []
+
+    def locate(text, cm, tm, font, size):
+        if text.strip().startswith("Local:"):
+            positions.append(cm[4] + tm[4])
+
+    page.extract_text(visitor_text=locate)
+    assert positions == pytest.approx([173.88], abs=0.05)
+
+
+def test_atestado_usa_verdana_original_em_todos_os_i_maiusculos(documents):
+    from api.modules.me.certificate_fonts import certificate_fonts
+    from api.modules.me.enrollment_certificate import render_enrollment_certificate
+
+    if certificate_fonts().small_caps is None:
+        pytest.skip("A integração com Verdana requer a fonte original instalada.")
+    certificate = documents.get_enrollment_certificate.return_value
+    course = "INTEGRALIZAÇÃO I II III IV - DIURNO"
+    certificate = certificate.model_copy(
+        update={
+            "identification": tuple(
+                (key, course if key == "Curso" else value)
+                for key, value in certificate.identification
+            ),
+        }
+    )
+    page = PdfReader(BytesIO(render_enrollment_certificate(certificate))).pages[0]
+    fonts = {
+        str(value.get_object()["/BaseFont"])
+        for value in page["/Resources"]["/Font"].values()
+    }
+    assert course in page.extract_text()
+    assert any("Verdana-Bold" in name for name in fonts)
+    assert any("SmallCaps" in name for name in fonts)
+    assert not any("FollowwSans" in name for name in fonts)
+
+
+def test_atestado_continua_funcional_sem_fontes_licenciadas(documents, monkeypatch):
+    from api.modules.me import enrollment_certificate
+    from api.modules.me.certificate_fonts import _register_fonts
+
+    monkeypatch.setattr(
+        enrollment_certificate, "certificate_fonts", lambda _: _register_fonts(None)
+    )
+    pdf = enrollment_certificate.render_enrollment_certificate(
+        documents.get_enrollment_certificate.return_value
+    )
+    page = PdfReader(BytesIO(pdf)).pages[0]
+    assert "JOÃO DA CONCEIÇÃO" in page.extract_text()
+    assert "012345abcd" in page.extract_text()
 
 
 @pytest.mark.parametrize(

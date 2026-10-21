@@ -1,4 +1,4 @@
-import { Download, GraduationCap, IdCard } from 'lucide-react';
+import { Download, FileCheck, GraduationCap, IdCard } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '#/components/ui/button';
@@ -15,7 +15,8 @@ import {
 
 const documents = [
     { document: 'student-card', icon: IdCard },
-    { document: 'transcript', icon: GraduationCap }
+    { document: 'transcript', icon: GraduationCap },
+    { document: 'enrollment-certificate', icon: FileCheck }
 ] satisfies { document: StudentDocument; icon: typeof IdCard }[];
 
 export function DocumentDownloads() {

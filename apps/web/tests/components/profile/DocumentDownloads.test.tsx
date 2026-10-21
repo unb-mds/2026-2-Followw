@@ -5,16 +5,17 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { DocumentDownloads } from '#/components/profile/DocumentDownloads';
 
 describe('DocumentDownloads', () => {
-    test('oferece os dois downloads na ordem solicitada', () => {
+    test('oferece os três documentos no perfil', () => {
         const queryClient = new QueryClient();
         const markup = renderToStaticMarkup(
             <QueryClientProvider client={queryClient}>
                 <DocumentDownloads />
             </QueryClientProvider>
         );
-        expect(markup.match(/<button\b/g)).toHaveLength(2);
+        expect(markup.match(/<button\b/g)).toHaveLength(3);
         expect(markup).toContain('aria-label="Baixar carteirinha estudantil"');
         expect(markup).toContain('aria-label="Baixar histórico acadêmico"');
+        expect(markup).toContain('aria-label="Baixar atestado de matrícula"');
         expect(markup).not.toMatch(/compartilhar/i);
         expect(markup.indexOf('Carteirinha estudantil')).toBeLessThan(
             markup.indexOf('Histórico acadêmico')

@@ -383,6 +383,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/enrollment-certificate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Baixar o atestado de matrícula em PDF
+         * @description Gera o PDF a partir do relatório HTML emitido pelo SIGAA, preservando seu código de verificação.
+         */
+        post: operations["get_enrollment_certificate_me_enrollment_certificate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/settings": {
         parameters: {
             query?: never;
@@ -2022,6 +2042,40 @@ export interface operations {
             };
             /** @description O SIGAA recusou emitir o documento (ex.: perfil sem foto). */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description SIGAA indisponível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_enrollment_certificate_me_enrollment_certificate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
