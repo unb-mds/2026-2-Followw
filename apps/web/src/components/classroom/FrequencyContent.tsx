@@ -1,9 +1,12 @@
-import { CircleCheck, CircleDashed, CircleSlash, CircleX } from 'lucide-react';
+import { CircleCheck, CircleDashed, CircleSlash, CircleX, X } from 'lucide-react';
+import { useRef, useState } from 'react';
 
 import type { ClassroomFrequency, Lesson, LessonMarkStatus } from '#/queries/classrooms';
 
 import { ListCard, Meter } from '#/components/ListCard';
+import { Button } from '#/components/ui/button';
 import { Card } from '#/components/ui/card';
+import { Checkbox } from '#/components/ui/checkbox';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -21,7 +24,7 @@ import {
 import { nowInBrasilia } from '#/lib/schedule';
 import { cn } from '#/lib/shadcn';
 
-export type MarkLesson = (lesson: Lesson, status: LessonMarkStatus | null) => void;
+export type MarkLessons = (lessons: Lesson[], status: LessonMarkStatus | null) => void;
 
 const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
 
@@ -47,23 +50,32 @@ const FREQUENCY_NOTICE: Partial<Record<ClassroomFrequency['frequency_status'], s
     parcialmente_registrada: 'Algumas aulas ainda não tiveram a frequência registrada.'
 };
 
-function lessonLabel(lesson: Lesson) {
-    return lesson.status === 'falta'
-        ? plural(lesson.absences, 'falta', 'faltas')
-        : LESSON_VIEW[lesson.status].name;
-}
-
 export function FrequencyContent({
     data,
     onMark,
     pending
 }: {
     data: ClassroomFrequency;
-    onMark: MarkLesson;
+    onMark: MarkLessons;
     pending: boolean;
 }) {
     const { totals, lessons } = data;
     const notice = FREQUENCY_NOTICE[data.frequency_status];
+    const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
+    // a aula some da seleção quando deixa de ser selecionável (marcada ou registrada)
+    const selected = lessons.filter((lesson) => selectable(lesson) && selectedIds.has(lesson.id));
+
+    const toggle = (lesson: Lesson, checked: boolean) =>
+        setSelectedIds((ids) => {
+            const next = new Set(ids);
+            if (checked) next.add(lesson.id);
+            else next.delete(lesson.id);
+            return next;
+        });
+    const markSelected = (status: LessonMarkStatus) => {
+        onMark(selected, status);
+        setSelectedIds(new Set());
+    };
 
     return (
         <div className="flex flex-col gap-2">
@@ -123,6 +135,8 @@ export function FrequencyContent({
                                 lesson={lesson}
                                 onMark={onMark}
                                 pending={pending}
+                                selected={selectedIds.has(lesson.id)}
+                                onSelect={(checked) => toggle(lesson, checked)}
                             />
                         ))}
                         {notice && (
@@ -133,6 +147,65 @@ export function FrequencyContent({
                     </ListCard>
                 </section>
             )}
+            {selected.length > 0 && (
+                <SelectionBar
+                    count={selected.length}
+                    pending={pending}
+                    onMark={markSelected}
+                    onClear={() => setSelectedIds(new Set())}
+                />
+            )}
+        </div>
+    );
+}
+
+const selectable = (lesson: Lesson) => !lesson.marked && lesson.status === 'nao_registrada';
+
+function SelectionBar({
+    count,
+    pending,
+    onMark,
+    onClear
+}: {
+    count: number;
+    pending: boolean;
+    onMark: (status: LessonMarkStatus) => void;
+    onClear: () => void;
+}) {
+    return (
+        <div
+            role="toolbar"
+            aria-label="Marcar aulas selecionadas"
+            className="fixed bottom-24 left-1/2 z-50 flex -translate-x-1/2 animate-in items-center gap-1 rounded-full border bg-card/80 py-1 pr-1 pl-2 text-sm text-card-foreground shadow-lg backdrop-blur-xl fade-in-0 slide-in-from-bottom-2"
+        >
+            <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Limpar seleção"
+                className="rounded-full"
+                onClick={onClear}
+            >
+                <X />
+            </Button>
+            <span className="pr-2 whitespace-nowrap tabular-nums">
+                {plural(count, 'aula', 'aulas')}
+            </span>
+            {(['presente', 'falta'] as const).map((mark) => {
+                const option = LESSON_VIEW[mark];
+                return (
+                    <Button
+                        key={mark}
+                        variant="ghost"
+                        size="sm"
+                        disabled={pending}
+                        className={cn('rounded-full', option.color)}
+                        onClick={() => onMark(mark)}
+                    >
+                        <option.icon />
+                        {option.name}
+                    </Button>
+                );
+            })}
         </div>
     );
 }
@@ -140,15 +213,19 @@ export function FrequencyContent({
 function LessonRow({
     lesson,
     onMark,
-    pending
+    pending,
+    selected,
+    onSelect
 }: {
     lesson: Lesson;
-    onMark: MarkLesson;
+    onMark: MarkLessons;
     pending: boolean;
+    selected: boolean;
+    onSelect: (checked: boolean) => void;
 }) {
     const view = LESSON_VIEW[lesson.status];
-    const label = lessonLabel(lesson);
-    const editable = lesson.marked || lesson.status === 'nao_registrada';
+    const label = view.name;
+
     // presença e falta tingem a linha toda; os textos secundários só esmaecem
     const tinted = lesson.status === 'presente' || lesson.status === 'falta';
     const days = daysFrom(nowInBrasilia().date, lesson.occurred_on);
@@ -160,7 +237,15 @@ function LessonRow({
         <div
             className={cn('flex flex-wrap items-center gap-2 py-2.5 text-sm', tinted && view.color)}
         >
-            {editable ? (
+            {selectable(lesson) ? (
+                <SelectableLesson
+                    lesson={lesson}
+                    onMark={onMark}
+                    pending={pending}
+                    selected={selected}
+                    onSelect={onSelect}
+                />
+            ) : lesson.marked ? (
                 <DropdownMenu>
                     <DropdownMenuTrigger
                         aria-label={`Situação de ${formatClassroomDate(lesson.occurred_on)}, aula: ${label}. Alterar situação.`}
@@ -169,30 +254,7 @@ function LessonRow({
                     >
                         <view.icon className={cn('size-4', view.color)} aria-hidden />
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-44">
-                        {MARKS.map((mark) => {
-                            const option = LESSON_VIEW[mark];
-                            return (
-                                <DropdownMenuItem
-                                    key={mark}
-                                    disabled={lesson.marked && lesson.status === mark}
-                                    onClick={() => onMark(lesson, mark)}
-                                >
-                                    <option.icon className={option.color} />
-                                    {option.name}
-                                </DropdownMenuItem>
-                            );
-                        })}
-                        {lesson.marked && (
-                            <>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => onMark(lesson, null)}>
-                                    <CircleDashed />
-                                    Remover marcação
-                                </DropdownMenuItem>
-                            </>
-                        )}
-                    </DropdownMenuContent>
+                    <LessonMenuContent lesson={lesson} onMark={onMark} />
                 </DropdownMenu>
             ) : (
                 <view.icon className={cn('size-4 shrink-0', view.color)} aria-hidden />
@@ -210,6 +272,109 @@ function LessonRow({
             {lesson.marked && <span className={secondary}>Marcada</span>}
             <span className={cn('ml-auto text-xs font-medium', view.color)}>{label}</span>
         </div>
+    );
+}
+
+const LONG_PRESS_MS = 500;
+
+/** Checkbox que, ao ser segurado (ou com clique direito), abre o menu só desta aula. */
+function SelectableLesson({
+    lesson,
+    onMark,
+    pending,
+    selected,
+    onSelect
+}: {
+    lesson: Lesson;
+    onMark: MarkLessons;
+    pending: boolean;
+    selected: boolean;
+    onSelect: (checked: boolean) => void;
+}) {
+    const [open, setOpen] = useState(false);
+    const anchor = useRef<HTMLSpanElement>(null);
+    const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+    // o clique que encerra o toque longo não alterna o checkbox
+    const pressed = useRef(false);
+
+    const cancel = () => clearTimeout(timer.current);
+    const openMenu = () => {
+        pressed.current = true;
+        setOpen(true);
+    };
+
+    return (
+        <DropdownMenu open={open} onOpenChange={setOpen}>
+            <span
+                ref={anchor}
+                className="flex shrink-0 select-none"
+                style={{ WebkitTouchCallout: 'none' }}
+                onPointerDown={() => {
+                    pressed.current = false;
+                    if (!pending) timer.current = setTimeout(openMenu, LONG_PRESS_MS);
+                }}
+                onPointerUp={cancel}
+                onPointerLeave={cancel}
+                onPointerCancel={cancel}
+                onContextMenu={(event) => {
+                    event.preventDefault();
+                    cancel();
+                    if (!pending) openMenu();
+                }}
+                onClickCapture={(event) => {
+                    if (!pressed.current) return;
+                    pressed.current = false;
+                    event.preventDefault();
+                    event.stopPropagation();
+                }}
+            >
+                <Checkbox
+                    aria-label={`Selecionar aula de ${formatClassroomDate(lesson.occurred_on)}`}
+                    checked={selected}
+                    disabled={pending}
+                    onCheckedChange={onSelect}
+                    className="rounded-full"
+                />
+            </span>
+            <LessonMenuContent lesson={lesson} onMark={onMark} anchor={anchor} />
+        </DropdownMenu>
+    );
+}
+
+function LessonMenuContent({
+    lesson,
+    onMark,
+    anchor
+}: {
+    lesson: Lesson;
+    onMark: MarkLessons;
+    anchor?: React.RefObject<Element | null>;
+}) {
+    return (
+        <DropdownMenuContent className="w-44" anchor={anchor}>
+            {MARKS.map((mark) => {
+                const option = LESSON_VIEW[mark];
+                return (
+                    <DropdownMenuItem
+                        key={mark}
+                        disabled={lesson.marked && lesson.status === mark}
+                        onClick={() => onMark([lesson], mark)}
+                    >
+                        <option.icon className={option.color} />
+                        {option.name}
+                    </DropdownMenuItem>
+                );
+            })}
+            {lesson.marked && (
+                <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => onMark([lesson], null)}>
+                        <CircleDashed />
+                        Remover marcação
+                    </DropdownMenuItem>
+                </>
+            )}
+        </DropdownMenuContent>
     );
 }
 

@@ -15,7 +15,6 @@ class ClassroomRole(str, enum.Enum):
 
 class ClassroomStatus(str, enum.Enum):
     CURSANDO = "cursando"
-    REMOVIDO = "removido"
     TRANCADO = "trancado"
     CONCLUIDO = "concluido"
     PENDING_ENROLLMENT = "pending_enrollment"

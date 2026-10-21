@@ -19,7 +19,7 @@ def read_classrooms(path: Path = CLASSROOMS_CSV) -> list[Classroom]:
     return read_csv(
         path,
         lambda row: Classroom(
-            subject_code=row["subject_code"].strip(),
+            subject_code=row["subject_code"].strip().upper(),
             number=row["number"].strip(),
             semester=row["semester"].strip(),
             schedule=row["schedule"].strip() or None,

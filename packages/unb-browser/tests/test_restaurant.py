@@ -187,6 +187,39 @@ async def test_get_menu_campus_desconhecido_levanta_value_error():
             await browser.restaurant.get_menu("Asa Norte")
 
 
+async def test_pagina_do_ru_fora_do_ar_chega_ao_chamador_como_erro_http():
+    def site(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(503)
+
+    async with UnbBrowser(transport=httpx.MockTransport(site)) as browser:
+        with pytest.raises(httpx.HTTPStatusError):
+            await browser.restaurant.get_menu(Campus.DARCY_RIBEIRO)
+
+
+async def test_um_pdf_fora_do_ar_derruba_o_cardapio_inteiro():
+    pdf_quebrado = next(iter(PDFS))
+    site = FakeRuSite()
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        if request.url.path == pdf_quebrado:
+            return httpx.Response(404)
+        return site(request)
+
+    async with UnbBrowser(transport=httpx.MockTransport(handle)) as browser:
+        with pytest.raises(httpx.HTTPStatusError):
+            await browser.restaurant.get_menu(Campus.FAZENDA_AGUA_LIMPA)
+
+
+@pytest.mark.parametrize("error", [httpx.ConnectError, httpx.ReadTimeout])
+async def test_falha_de_rede_no_ru_chega_ao_chamador_como_erro_do_httpx(error):
+    def site(request: httpx.Request) -> httpx.Response:
+        raise error("site do RU fora do ar", request=request)
+
+    async with UnbBrowser(transport=httpx.MockTransport(site)) as browser:
+        with pytest.raises(error):
+            await browser.restaurant.get_menu(Campus.DARCY_RIBEIRO)
+
+
 def test_celula_partida_pelos_icones_vira_um_item_so():
     menu = parse_menu(DARCY_PDF)
 

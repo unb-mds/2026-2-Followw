@@ -5,7 +5,6 @@ from datetime import datetime
 
 from sigaa_client import FrequencyStatus, Grade, PostType
 from sqlalchemy import (
-    JSON,
     DateTime,
     ForeignKey,
     ForeignKeyConstraint,
@@ -15,6 +14,7 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy import Enum as SAEnum
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from api.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -59,7 +59,6 @@ Index(
     Course.name,
     unique=True,
     postgresql_where=COURSE_WITHOUT_SIGAA_ID,
-    sqlite_where=COURSE_WITHOUT_SIGAA_ID,
 )
 
 
@@ -118,7 +117,7 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     entry_semester: Mapped[str | None] = mapped_column()
     integralization: Mapped[int | None] = mapped_column(SmallInteger)
-    workload: Mapped[dict[str, int] | None] = mapped_column(JSON)
+    workload: Mapped[dict[str, int] | None] = mapped_column(JSONB)
     ira: Mapped[float | None] = mapped_column()
     mp: Mapped[float | None] = mapped_column()
     level: Mapped[UserLevel | None] = mapped_column(_enum(UserLevel, "user_level"))
@@ -129,7 +128,7 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     # Do relatório com as menções de todos os semestres; zera com turma nova na lista.
     grades_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    settings: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
+    settings: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict)
 
     course: Mapped[Course | None] = relationship(lazy="joined")
     classroom_links: Mapped[list[ClassroomParticipant]] = relationship(
@@ -144,7 +143,6 @@ Index(
     User.email,
     unique=True,
     postgresql_where=USER_WITHOUT_IDS,
-    sqlite_where=USER_WITHOUT_IDS,
 )
 
 
@@ -156,9 +154,9 @@ class Subject(Base, TimestampMixin):
     hours: Mapped[int | None] = mapped_column(SmallInteger)
     unity_id: Mapped[int | None] = mapped_column(ForeignKey("unities.id"))
     # Expressões em OU de Es: `[["A", "B"], ["C"]]` é `(A E B) OU C`.
-    prerequisites: Mapped[Requirements | None] = mapped_column(JSON)
-    corequisites: Mapped[Requirements | None] = mapped_column(JSON)
-    equivalences: Mapped[Requirements | None] = mapped_column(JSON)
+    prerequisites: Mapped[Requirements | None] = mapped_column(JSONB)
+    corequisites: Mapped[Requirements | None] = mapped_column(JSONB)
+    equivalences: Mapped[Requirements | None] = mapped_column(JSONB)
 
     unity: Mapped[Unity | None] = relationship(lazy="joined")
     classrooms: Mapped[list[Classroom]] = relationship(back_populates="subject")
@@ -178,7 +176,7 @@ class Classroom(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     schedule: Mapped[str | None] = mapped_column()
     room: Mapped[str | None] = mapped_column()
     # Docentes, vagas e ocupação vêm da busca pública, pelo seed.
-    professors: Mapped[list[str]] = mapped_column(JSON, default=list)
+    professors: Mapped[list[str]] = mapped_column(JSONB, default=list)
     vacancies: Mapped[int | None] = mapped_column(SmallInteger)
     occupied: Mapped[int | None] = mapped_column(SmallInteger)
     enrollment_requests: Mapped[int | None] = mapped_column(SmallInteger)
@@ -187,7 +185,7 @@ class Classroom(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     members_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     posts_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     statistics: Mapped[list[dict[str, object]] | None] = mapped_column(
-        JSON, deferred=True
+        JSONB, deferred=True
     )
     statistics_synced_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True)
@@ -217,6 +215,7 @@ class ClassroomParticipant(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     status: Mapped[ClassroomStatus | None] = mapped_column(
         _enum(ClassroomStatus, "classroom_status")
     )
+    locked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     grade: Mapped[Grade | None] = mapped_column(_enum(Grade, "classroom_grade"))
     # `frontEndIdTurma` visto pelo próprio usuário: só existe nos vínculos que
     # vieram da lista de turmas dele, não da lista de participantes.
@@ -234,9 +233,6 @@ class ClassroomParticipant(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     progress_taught: Mapped[int | None] = mapped_column(SmallInteger)
     progress_total: Mapped[int | None] = mapped_column(SmallInteger)
     progress_percentage: Mapped[int | None] = mapped_column(SmallInteger)
-    # Horas-aula que o SIGAA soma; `None` enquanto o docente não lança frequência.
-    attended_hours: Mapped[int | None] = mapped_column(SmallInteger)
-    registered_hours: Mapped[int | None] = mapped_column(SmallInteger)
 
     user: Mapped[User] = relationship(back_populates="classroom_links")
     classroom: Mapped[Classroom] = relationship(back_populates="participant_links")
@@ -329,7 +325,7 @@ class ClassroomPosts(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     time_label: Mapped[str | None] = mapped_column()
     url: Mapped[str | None] = mapped_column()
     content: Mapped[str | None] = mapped_column(Text)
-    attachments: Mapped[list[dict[str, str]]] = mapped_column(JSON, default=list)
+    attachments: Mapped[list[dict[str, str]]] = mapped_column(JSONB, default=list)
     content_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
@@ -341,7 +337,7 @@ class RestaurantMenu(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     campus: Mapped[str] = mapped_column()
     date: Mapped[dt.date] = mapped_column()
-    breakfast: Mapped[list[dict[str, object]] | None] = mapped_column(JSON)
-    lunch: Mapped[list[dict[str, object]] | None] = mapped_column(JSON)
-    dinner: Mapped[list[dict[str, object]] | None] = mapped_column(JSON)
+    breakfast: Mapped[list[dict[str, object]] | None] = mapped_column(JSONB)
+    lunch: Mapped[list[dict[str, object]] | None] = mapped_column(JSONB)
+    dinner: Mapped[list[dict[str, object]] | None] = mapped_column(JSONB)
     synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

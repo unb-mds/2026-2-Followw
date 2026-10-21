@@ -436,6 +436,59 @@ async def test_turma_sempre_trocada_desiste_barulhenta():
     assert session.entries == 3
 
 
+class ParticipantsSigaa:
+    """Simula o CAS e expira a sessão ao abrir os participantes `expirations` vezes."""
+
+    def __init__(self, expirations: int) -> None:
+        self.auth = FakeSigaa()
+        self.auth.valid_tokens.add("vivo")
+        self.expirations = expirations
+        self.entries = 0
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        entering = request.method == "POST" and request.url.host == "sigaa.unb.br"
+        if path not in (CLASSROOMS_PATH, PARTICIPANTS_PATH) and not entering:
+            return self.auth(request)
+        if path == PARTICIPANTS_PATH and self.expirations:
+            self.expirations -= 1
+            self.auth.valid_tokens.clear()
+        if request.headers.get("cookie", "").removeprefix("JSESSIONID=") not in (
+            self.auth.valid_tokens
+        ):
+            return httpx.Response(302, headers={"location": "/sigaa/verTelaLogin.do"})
+        if entering:
+            self.entries += 1
+            return httpx.Response(200, text="")
+        if path == CLASSROOMS_PATH:
+            return httpx.Response(200, text=SharedSession.history)
+        return httpx.Response(200, text=PARTICIPANTS + CONTEXT)
+
+
+async def test_relogin_no_meio_da_tela_reabre_a_turma_na_sessao_nova():
+    sigaa = ParticipantsSigaa(expirations=1)
+    async with SigaaClient(
+        CREDENTIALS, session_token="vivo", transport=httpx.MockTransport(sigaa)
+    ) as client:
+        membros = await client.classrooms.list_classroom_members("AAA")
+
+    assert len(membros) == 2
+    assert sigaa.auth.logins == 1
+    # A turma aberta morreu com a sessão antiga: entra de novo antes de reler.
+    assert sigaa.entries == 2
+
+
+async def test_tela_que_expira_de_novo_apos_o_relogin_desiste():
+    sigaa = ParticipantsSigaa(expirations=2)
+    async with SigaaClient(
+        CREDENTIALS, session_token="vivo", transport=httpx.MockTransport(sigaa)
+    ) as client:
+        with pytest.raises(SessionExpired):
+            await client.classrooms.list_classroom_members("AAA")
+
+    assert sigaa.auth.logins == 1
+
+
 async def test_participantes_esperam_mais_que_o_timeout_padrao():
     timeouts: dict[str, float] = {}
 

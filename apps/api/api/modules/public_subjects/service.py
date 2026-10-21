@@ -2,7 +2,6 @@ from typing import Annotated, Literal
 
 from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
-from sigaa_client import lookup_key
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.main import DatabaseDep
@@ -114,37 +113,15 @@ async def _search(
     if unit is not None:
         unity_id = _resolve_unity(await repository.list_unities(), unit.strip())
     subjects = await repository.list_subjects(
+        q=q,
         code=code.strip().upper() if code is not None else None,
         unity_id=unity_id,
         semester=semester,
     )
-    needle = lookup_key(q or "")
-    names_without_offer = {
-        lookup_key(subject.name)
-        for subject in subjects
-        if needle == lookup_key(subject.code) and not subject.classrooms
-    }
     curriculum = None
     if registration is not None:
         curriculum = await RecommendationRepository(session).curriculum(registration)
-    return await _catalog(
-        session,
-        curriculum,
-        [
-            subject
-            for subject in subjects
-            if any(
-                needle in lookup_key(text)
-                for text in (
-                    subject.code,
-                    subject.name,
-                    *(p for c in subject.classrooms for p in c.professors),
-                )
-            )
-            or (subject.classrooms and lookup_key(subject.name) in names_without_offer)
-        ],
-        semester,
-    )
+    return await _catalog(session, curriculum, subjects, semester)
 
 
 async def _recommended(session: AsyncSession, ranking: Ranking) -> list[CatalogSubject]:

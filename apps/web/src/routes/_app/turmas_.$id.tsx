@@ -23,7 +23,7 @@ import {
     allClassroomsQueryOptions,
     classroomFrequencyQueryOptions,
     classroomMembersQueryOptions,
-    useMarkLesson
+    useMarkLessons
 } from '#/queries/classrooms';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
@@ -162,22 +162,24 @@ function TabError({ onRetry }: { onRetry: () => void }) {
 
 function FrequencyTab({ id }: { id: string }) {
     const frequency = useQuery(classroomFrequencyQueryOptions(id));
-    const markLesson = useMarkLesson(id);
+    const markLessons = useMarkLessons(id);
 
     if (frequency.isPending) return <TabLoading />;
     if (frequency.isLoadingError) return <TabError onRetry={() => frequency.refetch()} />;
 
     return (
         <>
-            {markLesson.isError && (
+            {markLessons.isError && (
                 <p role="alert" className="mb-2 text-sm text-destructive">
                     Não foi possível salvar a marcação. Tente novamente.
                 </p>
             )}
             <FrequencyContent
                 data={frequency.data}
-                pending={markLesson.isPending}
-                onMark={(lesson, status) => markLesson.mutate({ lesson, status })}
+                pending={markLessons.isPending}
+                onMark={(lessons, status) =>
+                    markLessons.mutate(lessons.map((lesson) => ({ lesson_id: lesson.id, status })))
+                }
             />
         </>
     );

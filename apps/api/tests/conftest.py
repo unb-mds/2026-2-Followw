@@ -276,22 +276,37 @@ def hoje(monkeypatch):
     return _set
 
 
-@pytest.fixture
-def database(tmp_path):
-    """Banco SQLite em arquivo: a app usa via aiosqlite, o teste via sessão síncrona."""
+@pytest.fixture(scope="session")
+def postgres():
+    """Banco Postgres em container para a sessão de testes."""
     from sqlalchemy import create_engine
+    from testcontainers.community.postgres import PostgresContainer
+
+    from api.db.main import create_schema
+
+    with PostgresContainer("postgres:18-alpine", driver="psycopg") as container:
+        engine = create_engine(container.get_connection_url())
+        with engine.begin() as conn:
+            create_schema(conn)
+        yield engine
+        engine.dispose()
+
+
+@pytest.fixture
+def database(postgres):
+    """Sessão síncrona limpa a cada teste; a app usa a versão async."""
+    from sqlalchemy import text
     from sqlalchemy.orm import sessionmaker
 
     from api.db.base import Base
     from api.db.models import Unity
 
-    engine = create_engine(f"sqlite:///{tmp_path / 'cache.db'}")
-    Base.metadata.create_all(engine)
-    sessions = sessionmaker(engine, expire_on_commit=False)
+    tables = ", ".join(table.name for table in Base.metadata.sorted_tables)
+    sessions = sessionmaker(postgres, expire_on_commit=False)
     with sessions.begin() as session:
+        session.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
         session.add(Unity(id=673, code="FCTE", name="CAMPUS UNB GAMA"))
-    yield sessions
-    engine.dispose()
+    return sessions
 
 
 @pytest.fixture
@@ -299,10 +314,11 @@ def async_database(database):
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
     from sqlalchemy.pool import NullPool
 
-    url = database.kw["bind"].url.set(drivername="sqlite+aiosqlite")
+    url = database.kw["bind"].url.set(drivername="postgresql+asyncpg")
     # Sem pool: o TestClient abre um event loop novo a cada requisição.
     engine = create_async_engine(url, poolclass=NullPool)
-    return async_sessionmaker(engine, expire_on_commit=False)
+    yield async_sessionmaker(engine, expire_on_commit=False)
+    engine.sync_engine.dispose()
 
 
 @pytest.fixture

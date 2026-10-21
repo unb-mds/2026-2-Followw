@@ -1,3 +1,5 @@
+import asyncio
+
 import httpx
 import pytest
 from pydantic import SecretStr
@@ -6,10 +8,11 @@ from sigaa_client import (
     AuthenticationFailed,
     Credentials,
     SessionExpired,
+    SessionRenewed,
     SigaaClient,
     SigaaParseError,
 )
-from sigaa_client.config import DASHBOARD_PATH
+from sigaa_client.config import CLASSROOMS_PATH, DASHBOARD_PATH
 
 CREDENTIALS = Credentials(registration="251000000", password=SecretStr("senha"))
 
@@ -239,3 +242,131 @@ async def test_logout_descarta_o_token():
 async def test_client_exige_credenciais_ou_token():
     with pytest.raises(ValueError):
         SigaaClient()
+
+
+async def test_form_do_cas_sem_campo_de_senha_e_barulhento():
+    form = LOGIN_FORM.replace('type="password"', 'type="hidden"')
+    sigaa = FakeSigaa(form=form)
+    async with SigaaClient(CREDENTIALS, transport=sigaa.transport) as client:
+        with pytest.raises(SigaaParseError, match="usuário/senha"):
+            await client.authenticate()
+
+
+async def test_login_sem_cookie_de_sessao_e_barulhento():
+    sigaa = FakeSigaa()
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/sigaa/login/cas":
+            return httpx.Response(302, headers={"location": DASHBOARD_PATH})
+        if request.url.path == DASHBOARD_PATH:
+            return httpx.Response(200, text="<html>dashboard</html>")
+        return sigaa(request)
+
+    async with SigaaClient(CREDENTIALS, transport=httpx.MockTransport(handle)) as c:
+        with pytest.raises(SigaaParseError, match="JSESSIONID"):
+            await c.authenticate()
+
+
+async def test_sessao_que_morre_logo_apos_o_relogin_e_barulhenta():
+    sigaa = FakeSigaa()
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        if request.url.path == CLASSROOMS_PATH:
+            return httpx.Response(302, headers={"location": "/sigaa/verTelaLogin.do"})
+        return sigaa(request)
+
+    transport = httpx.MockTransport(handle)
+    async with SigaaClient(
+        CREDENTIALS, session_token="morto", transport=transport
+    ) as c:
+        with pytest.raises(SessionExpired, match="logo após o relogin"):
+            await c._session.get(CLASSROOMS_PATH)
+    assert sigaa.logins == 1
+
+
+@pytest.mark.parametrize(
+    "method,kwargs",
+    [("POST", {}), ("GET", {"retry_on_renewal": False})],
+)
+async def test_operacao_com_estado_pede_para_ser_refeita_apos_o_relogin(method, kwargs):
+    sigaa = FakeSigaa()
+    async with SigaaClient(
+        CREDENTIALS, session_token="morto", transport=sigaa.transport
+    ) as client:
+        with pytest.raises(SessionRenewed):
+            await client._session.request(method, DASHBOARD_PATH, **kwargs)
+        assert client.session_token == "app14~TOKEN1"
+
+
+async def test_recuperacao_que_expira_de_novo_nao_reloga():
+    sigaa = FakeSigaa()
+    async with SigaaClient(
+        CREDENTIALS, session_token="morto", transport=sigaa.transport
+    ) as client:
+        with pytest.raises(SessionExpired) as error:
+            await client._session.get(DASHBOARD_PATH, allow_renewal=False)
+    assert not isinstance(error.value, SessionRenewed)
+    assert sigaa.logins == 0
+
+
+async def test_requisicoes_simultaneas_com_sessao_morta_relogam_uma_vez():
+    sigaa = FakeSigaa()
+    mortas: list[str] = []
+    todas_chegaram = asyncio.Event()
+
+    async def handle(request: httpx.Request) -> httpx.Response:
+        if _cookie(request, "JSESSIONID") == "morto":
+            # Segura as três até todas verem a sessão morta.
+            mortas.append(request.url.path)
+            if len(mortas) == 3:
+                todas_chegaram.set()
+            await todas_chegaram.wait()
+        return sigaa(request)
+
+    async with SigaaClient(
+        CREDENTIALS, session_token="morto", transport=httpx.MockTransport(handle)
+    ) as client:
+        respostas = await asyncio.gather(
+            *(client._session.get(DASHBOARD_PATH) for _ in range(3))
+        )
+
+    assert [r.status_code for r in respostas] == [200, 200, 200]
+    assert sigaa.logins == 1
+
+
+async def test_erro_5xx_do_sigaa_nao_e_sessao_expirada():
+    sigaa = FakeSigaa()
+    sigaa.valid_tokens.add("vivo")
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        if request.url.path == DASHBOARD_PATH:
+            return httpx.Response(503, text="Service Unavailable")
+        return sigaa(request)
+
+    transport = httpx.MockTransport(handle)
+    async with SigaaClient(CREDENTIALS, session_token="vivo", transport=transport) as c:
+        with pytest.raises(httpx.HTTPStatusError):
+            await c._session.get(DASHBOARD_PATH)
+    assert sigaa.logins == 0
+
+
+async def test_cas_fora_do_ar_nao_e_senha_errada():
+    def handle(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(500, text="Erro interno")
+
+    async with SigaaClient(CREDENTIALS, transport=httpx.MockTransport(handle)) as c:
+        with pytest.raises(httpx.HTTPStatusError):
+            await c.authenticate()
+
+
+@pytest.mark.parametrize("error", [httpx.ConnectError, httpx.ReadTimeout])
+async def test_falha_de_rede_chega_ao_chamador_como_erro_do_httpx(error):
+    def handle(request: httpx.Request) -> httpx.Response:
+        raise error("SIGAA fora do ar", request=request)
+
+    transport = httpx.MockTransport(handle)
+    async with SigaaClient(CREDENTIALS, session_token="vivo", transport=transport) as c:
+        with pytest.raises(error):
+            await c._session.get(DASHBOARD_PATH)
+        # A falha de rede não derruba a sessão guardada.
+        assert c.session_token == "vivo"

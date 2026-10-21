@@ -65,12 +65,13 @@ def test_requisito_malformado_e_barulhento(expression):
 
 
 def test_campos_vazios_ficam_nulos_e_codigo_repetido_e_barulhento(tmp_path):
-    (subject,) = read_subjects(_csv(tmp_path, 'A1,NOME,,,"( ( X ) )",,( Y OU Z )'))
+    (subject,) = read_subjects(_csv(tmp_path, ' a1 ,NOME,,,"( ( x ) )",,( y OU Z )'))
+    assert subject.code == "A1"
     assert (subject.hours, subject.unity_id, subject.corequisites) == (None, None, None)
     assert (subject.prerequisites, subject.equivalences) == ([["X"]], [["Y"], ["Z"]])
 
     with pytest.raises(ValueError, match="repetido"):
-        read_subjects(_csv(tmp_path, "A1,A,60,1,,,", "A1,B,60,1,,,"))
+        read_subjects(_csv(tmp_path, "a1,A,60,1,,,", "A1,B,60,1,,,"))
 
 
 async def test_seed_atualiza_pelo_codigo_e_nao_duplica(async_database, tmp_path):

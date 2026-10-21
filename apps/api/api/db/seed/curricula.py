@@ -46,7 +46,7 @@ def read_curricula(
                 raise ValueError(
                     f"Matriz ausente para componente em {components_path.name}: {key}."
                 )
-            codes = row["subject_codes"].split()
+            codes = [code.upper() for code in row["subject_codes"].split()]
             kind = row["kind"]
             period = int(row["period"]) if row["period"] else None
             valid = (
