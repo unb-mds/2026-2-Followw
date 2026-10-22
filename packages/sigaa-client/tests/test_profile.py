@@ -83,6 +83,7 @@ async def test_get_profile_faz_um_unico_get():
     assert profile.shift == CourseShift.DIURNO
     assert profile.entry_semester == "2025.1"
     assert profile.bio == "Bio de teste."
+    assert profile.photo == "https://sigaa.unb.br/arquivos/foto.jpg"
     assert profile.ira == 3.9524
     assert profile.mp == 4.1724
     assert profile.integralization == 26
@@ -111,6 +112,24 @@ async def test_get_profile_turno_vem_do_fim_da_linha_do_curso(course, shift):
 
     assert (profile.course, profile.unity) == (course.split("/")[0], "FCTE")
     assert profile.shift == shift
+
+
+async def test_get_profile_sem_foto_nao_devolve_o_no_picture():
+    page = DASHBOARD.replace("/arquivos/foto.jpg", "/sigaa/img/no_picture.png")
+    sigaa = FakeDashboard(page=page)
+    async with SigaaClient(session_token="tok", transport=sigaa.transport) as client:
+        profile = await client.profile.get_profile()
+
+    assert profile.photo is None
+
+
+async def test_get_profile_mantem_foto_enviada_com_nome_no_picture():
+    foto = "https://arquivos.unb.br/arquivos/2020090019676920547460c2e4c9016a4/no_picture.png"
+    sigaa = FakeDashboard(page=DASHBOARD.replace("/arquivos/foto.jpg", foto))
+    async with SigaaClient(session_token="tok", transport=sigaa.transport) as client:
+        profile = await client.profile.get_profile()
+
+    assert profile.photo == foto
 
 
 async def test_get_profile_sem_indices_academicos_vem_none():

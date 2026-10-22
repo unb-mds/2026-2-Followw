@@ -348,6 +348,7 @@ class ClassroomRepository:
         index = _UserIndex()
         for condition in (
             User.registration.in_(registrations),
+            User.old_registration.in_(registrations),
             User.person_id.in_(person_ids),
             User.email.in_(emails) & USER_WITHOUT_IDS,
         ):
@@ -796,6 +797,7 @@ class _UserIndex:
     def _keys(self, user: User) -> list[tuple[dict, object]]:
         keys: list[tuple[dict, object]] = [
             (self.by_registration, user.registration),
+            (self.by_registration, user.old_registration),
             (self.by_person_id, user.person_id),
         ]
         if user.registration is None and user.person_id is None:

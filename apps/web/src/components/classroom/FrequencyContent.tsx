@@ -65,6 +65,8 @@ export function FrequencyContent({
     // a aula some da seleção quando deixa de ser selecionável (marcada ou registrada)
     const selected = lessons.filter((lesson) => selectable(lesson) && selectedIds.has(lesson.id));
 
+    const marked = lessons.filter((lesson) => lesson.marked);
+
     const toggle = (lesson: Lesson, checked: boolean) =>
         setSelectedIds((ids) => {
             const next = new Set(ids);
@@ -121,12 +123,25 @@ export function FrequencyContent({
             {(lessons.length > 0 || notice) && (
                 <section>
                     {lessons.length > 0 && (
-                        <h3 className="mb-2 px-1 text-sm font-semibold">
-                            Aulas{' '}
-                            <span className="font-normal text-muted-foreground">
-                                {lessons.length}
-                            </span>
-                        </h3>
+                        <div className="mb-2 flex items-center justify-between gap-2 px-1">
+                            <h3 className="text-sm font-semibold">
+                                Aulas{' '}
+                                <span className="font-normal text-muted-foreground">
+                                    {lessons.length}
+                                </span>
+                            </h3>
+                            {marked.length > 0 && (
+                                <Button
+                                    variant="ghost"
+                                    size="xs"
+                                    disabled={pending}
+                                    className="text-muted-foreground"
+                                    onClick={() => onMark(marked, null)}
+                                >
+                                    Limpar marcações
+                                </Button>
+                            )}
+                        </div>
                     )}
                     <ListCard>
                         {lessons.map((lesson) => (

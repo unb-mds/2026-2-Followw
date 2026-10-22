@@ -105,6 +105,8 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     name: Mapped[str] = mapped_column()
     registration: Mapped[str | None] = mapped_column(unique=True)
+    # Quem troca de curso segue logando no CAS com a matrícula antiga.
+    old_registration: Mapped[str | None] = mapped_column(unique=True)
     # `idPessoa` do SIGAA: único identificador dos docentes na lista de participantes.
     person_id: Mapped[int | None] = mapped_column(unique=True)
     photo: Mapped[str | None] = mapped_column()
