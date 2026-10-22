@@ -3,7 +3,7 @@ import type { components } from '#/queries/schema.gen';
 type UserProfile = components['schemas']['UserProfile'];
 
 const indexFormat = new Intl.NumberFormat('pt-BR', {
-    minimumFractionDigits: 3,
+    minimumFractionDigits: 0,
     maximumFractionDigits: 3
 });
 

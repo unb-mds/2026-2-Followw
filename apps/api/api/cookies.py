@@ -22,19 +22,24 @@ _JWE_REGISTRY = JWERegistry(algorithms=list(_JWE_HEADER.values()))
 _CLAIMS = jwt.JWTClaimsRegistry(exp={"essential": True})
 
 
-def set_access_cookie(response: Response, session_token: str) -> None:
+def set_access_cookie(
+    response: Response, session_token: str, registration: str
+) -> None:
+    """`registration` é o login que abriu a sessão, não a do perfil."""
     _set_cookie(
         response,
         ACCESS_COOKIE_NAME,
-        {"session_token": session_token},
+        {"session_token": session_token, "registration": registration},
         settings.access_token_expire_minutes,
     )
 
 
-def read_access_cookie(request: Request) -> str | None:
+def read_access_cookie(request: Request, registration: str) -> str | None:
+    """Token da sessão, só se ela foi aberta pelo mesmo login do refresh_token."""
     payload = _read_cookie(request, ACCESS_COOKIE_NAME)
-
-    return payload.get("session_token") if payload else None
+    if not payload or payload.get("registration") != registration:
+        return None
+    return payload.get("session_token")
 
 
 def set_refresh_cookie(response: Response, credentials: Credentials) -> None:

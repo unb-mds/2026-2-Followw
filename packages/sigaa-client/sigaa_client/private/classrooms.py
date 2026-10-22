@@ -53,6 +53,7 @@ from ..utils.parsing import (
     clean_text,
     lookup_key,
     parse_datetime,
+    photo_url,
     schedule_code,
     split_course,
     split_location,
@@ -794,10 +795,7 @@ def _member_photo(card: Tag) -> str | None:
     if not isinstance(image, Tag):
         return None
 
-    source = str(image.get("src") or "")
-    if not source or "no_picture" in source:
-        return None
-    return urljoin(SIGAA_BASE_URL, source)
+    return photo_url(str(image.get("src") or ""))
 
 
 def _member_fields(card: Tag) -> dict[str, str]:

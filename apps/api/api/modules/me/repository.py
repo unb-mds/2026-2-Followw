@@ -1,12 +1,12 @@
 from datetime import UTC, datetime
 
 from sigaa_client import UserProfile
-from sqlalchemy import select, update
+from sqlalchemy import delete, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.courses import course_ids
 from api.db.enums import UserLevel
-from api.db.models import Course, User
+from api.db.models import ClassroomParticipant, Course, User
 from api.modules.public_courses.repository import PublicCourseRepository
 from api.modules.recommendations.ranking import CurriculumInfo, select_curriculum
 
@@ -17,7 +17,12 @@ class UserRepository:
 
     async def get_by_registration(self, registration: str) -> User | None:
         return await self._session.scalar(
-            select(User).where(User.registration == registration)
+            select(User).where(
+                or_(
+                    User.registration == registration,
+                    User.old_registration == registration,
+                )
+            )
         )
 
     async def register(self, registration: str) -> None:
@@ -35,13 +40,26 @@ class UserRepository:
             )
         await self._session.flush()
 
-    async def save_profile(self, profile: UserProfile, synced_at: datetime) -> User:
-        """Grava o perfil, assumindo o usuário sombra de mesma matrícula se houver."""
-        user = await self.get_by_registration(profile.registration)
+    async def save_profile(
+        self, profile: UserProfile, synced_at: datetime, login: str | None = None
+    ) -> User:
+        """Grava o perfil na conta do `login`, assumindo o usuário sombra da matrícula."""
+        login = login or profile.registration
+        account = await self.get_by_registration(login)
+        user = await self._session.scalar(
+            select(User).where(User.registration == profile.registration)
+        )
+        if account is not None and account is not user:
+            if user is not None:
+                await self._absorb(account, user)
+            user = account
         if user is None:
-            user = User(registration=profile.registration)
+            user = User()
             self._session.add(user)
 
+        user.registration = profile.registration
+        if login != profile.registration:
+            user.old_registration = login
         user.name = profile.name
         user.photo = profile.photo or user.photo
         user.email = profile.email or user.email
@@ -82,6 +100,40 @@ class UserRepository:
         user.settings = current
         await self._session.flush()
         return user.settings
+
+    async def _absorb(self, account: User, shadow: User) -> None:
+        """Passa para a conta as turmas e ids do usuário sombra, que é apagado."""
+        listed = select(ClassroomParticipant.classroom_id).where(
+            ClassroomParticipant.user_id == shadow.id,
+            ClassroomParticipant.member.is_(True),
+        )
+        await self._session.execute(
+            update(ClassroomParticipant)
+            .where(
+                ClassroomParticipant.user_id == account.id,
+                ClassroomParticipant.classroom_id.in_(listed),
+            )
+            .values(member=True)
+            .execution_options(synchronize_session=False)
+        )
+        taken = select(ClassroomParticipant.classroom_id).where(
+            ClassroomParticipant.user_id == account.id
+        )
+        await self._session.execute(
+            update(ClassroomParticipant)
+            .where(
+                ClassroomParticipant.user_id == shadow.id,
+                ClassroomParticipant.classroom_id.not_in(taken),
+            )
+            .values(user_id=account.id)
+            .execution_options(synchronize_session=False)
+        )
+        person_id, email, photo = shadow.person_id, shadow.email, shadow.photo
+        await self._session.execute(delete(User).where(User.id == shadow.id))
+        await self._session.flush()
+        account.person_id = account.person_id or person_id
+        account.email = account.email or email
+        account.photo = account.photo or photo
 
     async def _infer_curriculum(self, user: User) -> None:
         """Define a matriz pelo semestre de entrada, só enquanto ela ainda não existe."""

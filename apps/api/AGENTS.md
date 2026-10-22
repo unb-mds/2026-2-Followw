@@ -59,8 +59,7 @@ API do QStash; `qstash.jobs()` decifra o que foi publicado).
 
 ```fish
 uv run pytest apps/api       # testes da api (da raiz do monorepo)
-docker compose up -d db      # Postgres local (compose.yml da raiz)
-bunx @upstash/qstash-cli dev # QStash local
+docker compose up -d        # Postgres, Redis e QStash locais (compose.yml da raiz)
 uv run db-init               # cria as tabelas
 uv run api                   # api em dev (reload on)
 ```

@@ -185,6 +185,21 @@ describe('seção de recomendações', () => {
         );
         expect(requests).toHaveLength(1);
     });
+    test('exibe 20 recomendações e carrega mais sob demanda', async () => {
+        response = () =>
+            Response.json(
+                Array.from({ length: 25 }, (_, index) => ({
+                    ...result[0],
+                    code: `FGA${String(index).padStart(4, '0')}`
+                }))
+            );
+        const page = await renderSection();
+        const items = () => page.container.querySelectorAll('[data-slot="accordion-item"]');
+        await testing.waitFor(() => expect(items()).toHaveLength(20));
+        testing.fireEvent.click(page.getByRole('button', { name: 'Mostrar mais' }));
+        expect(items()).toHaveLength(25);
+        expect(page.queryByRole('button', { name: 'Mostrar mais' })).toBeNull();
+    });
     test('erro inicial permite tentar novamente', async () => {
         response = () => Response.json({ detail: 'Indisponível' }, { status: 503 });
         const page = await renderSection();

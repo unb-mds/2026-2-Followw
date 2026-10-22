@@ -1,5 +1,5 @@
 {
-    "$schema": "./node_modules/oxlint/configuration_schema.json",
+    "$schema": "./apps/web/node_modules/oxlint/configuration_schema.json",
     "ignorePatterns": ["**.gen.ts", "schema.gen.ts", "**/components/ui/**"],
     "plugins": ["typescript", "react", "import", "unicorn", "oxc", "jsx-a11y", "promise"],
     "categories": {
@@ -7,7 +7,7 @@
         "suspicious": "warn",
         "perf": "warn"
     },
-    "jsPlugins": ["./apps/web/lint/followw-plugin.js"],
+    "jsPlugins": ["./apps/web/lint/followw-plugin.ts"],
     "options": {
         "typeAware": true,
         "reportUnusedDisableDirectives": "warn"
@@ -23,6 +23,7 @@
         "jsx-a11y/no-noninteractive-element-interactions": "off",
         "typescript/no-deprecated": "error",
         "followw/no-classname-concat": "error",
+        "followw/no-hardcoded-email": "error",
         "no-restricted-globals": [
             "error",
             { "name": "fetch", "message": "Use o client de src/queries." }
@@ -45,6 +46,12 @@
             "files": ["src/queries/**"],
             "rules": {
                 "no-restricted-globals": "off"
+            }
+        },
+        {
+            "files": ["apps/web/src/lib/contact.ts", "apps/web/tests/**"],
+            "rules": {
+                "followw/no-hardcoded-email": "off"
             }
         }
     ]

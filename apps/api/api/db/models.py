@@ -105,6 +105,8 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     name: Mapped[str] = mapped_column()
     registration: Mapped[str | None] = mapped_column(unique=True)
+    # Quem troca de curso segue logando no CAS com a matrícula antiga.
+    old_registration: Mapped[str | None] = mapped_column(unique=True)
     # `idPessoa` do SIGAA: único identificador dos docentes na lista de participantes.
     person_id: Mapped[int | None] = mapped_column(unique=True)
     photo: Mapped[str | None] = mapped_column()
@@ -192,6 +194,10 @@ class Classroom(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     # As aulas pelo horário e calendário são criadas uma vez, no sync de um aluno.
     lessons_created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # "Andamento das Aulas", lido na frequência de qualquer aluno da turma.
+    progress_taught: Mapped[int | None] = mapped_column(SmallInteger)
+    progress_total: Mapped[int | None] = mapped_column(SmallInteger)
+    progress_percentage: Mapped[int | None] = mapped_column(SmallInteger)
 
     subject: Mapped[Subject] = relationship(back_populates="classrooms")
     participant_links: Mapped[list[ClassroomParticipant]] = relationship(
@@ -230,9 +236,6 @@ class ClassroomParticipant(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     frequency_status: Mapped[FrequencyStatus | None] = mapped_column(
         _enum(FrequencyStatus, "frequency_status")
     )
-    progress_taught: Mapped[int | None] = mapped_column(SmallInteger)
-    progress_total: Mapped[int | None] = mapped_column(SmallInteger)
-    progress_percentage: Mapped[int | None] = mapped_column(SmallInteger)
 
     user: Mapped[User] = relationship(back_populates="classroom_links")
     classroom: Mapped[Classroom] = relationship(back_populates="participant_links")

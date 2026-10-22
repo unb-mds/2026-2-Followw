@@ -247,7 +247,8 @@ describe('hooks de sessão', () => {
 
     function renderHook<T>(hook: () => T, registration = user.registration) {
         const { queryClient } = getContext();
-        queryClient.setQueryData(meQueryOptions.queryKey, { ...user, registration });
+        const account: typeof user = { ...user, registration };
+        queryClient.setQueryData(meQueryOptions.queryKey, account);
         const wrapper = ({ children }: { children: ReactNode }) =>
             createElement(QueryClientProvider, { client: queryClient }, children);
         return { queryClient, ...dom.testing.renderHook(hook, { wrapper }) };

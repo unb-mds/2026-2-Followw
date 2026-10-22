@@ -132,6 +132,21 @@ describe('compartilhamento do cardápio', () => {
         expect(head.links[0].href).toBe(`https://followw.app${restaurantSharePath(selection)}`);
     });
 
+    test('a imagem agrupa as saladas 1 e 2 num bloco só', () => {
+        const markup = renderToStaticMarkup(
+            <RestaurantShareImage
+                selection={selection}
+                sections={[
+                    { key: 'salad_1', name: 'Salada 1', items: ['Agrião'] },
+                    { key: 'salad_2', name: 'Salada 2', items: ['Feijão fradinho'] }
+                ]}
+            />
+        );
+        expect(markup).toContain('Saladas');
+        expect(markup).toContain('Agrião, Feijão fradinho');
+        expect(markup).not.toContain('Salada 2');
+    });
+
     test('a imagem inclui a marca, data, campus, prato principal e todas as seções', () => {
         const markup = renderToStaticMarkup(
             <RestaurantShareImage selection={selection} sections={sections} />

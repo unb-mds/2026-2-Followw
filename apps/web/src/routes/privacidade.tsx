@@ -2,6 +2,7 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { ArrowLeft } from 'lucide-react';
 
 import { FollowwLogo } from '#/components/FollowwLogo';
+import { EMAILS, mailto } from '#/lib/contact';
 
 export const Route = createFileRoute('/privacidade')({
     head: () => ({ meta: [{ title: 'Privacidade e termos | Followw' }] }),
@@ -111,9 +112,9 @@ function PrivacyPage() {
                                 escreva para{' '}
                                 <a
                                     className="text-primary underline underline-offset-4"
-                                    href="mailto:removal@followw.app"
+                                    href={mailto(EMAILS.removal)}
                                 >
-                                    removal@followw.app
+                                    {EMAILS.removal}
                                 </a>
                                 . Não envie sua senha. A exclusão não altera seus registros na UnB e
                                 não impede novas coletas: seus dados podem voltar em sincronizações
@@ -144,9 +145,9 @@ function PrivacyPage() {
                             conosco através do e-mail{' '}
                             <a
                                 className="text-primary underline underline-offset-4"
-                                href="mailto:contato@followw.app"
+                                href={mailto(EMAILS.contact)}
                             >
-                                contato@followw.app
+                                {EMAILS.contact}
                             </a>
                             , será um prazer ajudar.
                         </p>

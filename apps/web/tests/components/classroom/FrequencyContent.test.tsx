@@ -209,6 +209,26 @@ describe('marcação das aulas', () => {
         expect(calls).toEqual([]);
     });
 
+    test('limpa todas as marcações de uma vez', () => {
+        const marcadas = [
+            { ...semChamada[0], status: 'presente', marked: true },
+            { ...semChamada[1], status: 'falta', marked: true }
+        ] satisfies Lesson[];
+        const { page, calls } = renderMarking({
+            ...data,
+            lessons: [...marcadas, semChamada[2]]
+        });
+
+        dom.testing.fireEvent.click(page.getByRole('button', { name: 'Limpar marcações' }));
+
+        expect(calls).toEqual([[marcadas, null]]);
+    });
+
+    test('sem marcações não mostra o botão de limpar', () => {
+        const { page } = renderMarking();
+        expect(page.queryByRole('button', { name: 'Limpar marcações' })).toBeNull();
+    });
+
     test('aula que deixa de ser selecionável sai da seleção', () => {
         const { fireEvent } = dom.testing;
         const { page } = renderMarking();

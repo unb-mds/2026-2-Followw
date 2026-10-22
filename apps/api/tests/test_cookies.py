@@ -74,11 +74,29 @@ def _jwe(header: dict, claims: dict, key: OctKey) -> str:
 
 def test_access_cookie_vai_e_volta(ler_cookies):
     response = Response()
-    set_access_cookie(response, "app14~TOKEN1")
+    set_access_cookie(response, "app14~TOKEN1", CREDENCIAIS.registration)
 
-    assert read_access_cookie(_request(**_cookies(response, ler_cookies))) == (
-        "app14~TOKEN1"
-    )
+    assert read_access_cookie(
+        _request(**_cookies(response, ler_cookies)), CREDENCIAIS.registration
+    ) == ("app14~TOKEN1")
+
+
+def test_access_cookie_de_outro_login_e_descartado(ler_cookies):
+    response = Response()
+    set_access_cookie(response, "app14~TOKEN1", "252000000")
+
+    request = _request(**_cookies(response, ler_cookies))
+
+    assert read_access_cookie(request, CREDENCIAIS.registration) is None
+
+
+def test_access_cookie_sem_login_e_descartado():
+    exp = int((datetime.now(UTC) + timedelta(minutes=5)).timestamp())
+    token = encrypt_cookie(ACCESS_COOKIE_NAME, {"session_token": "x", "exp": exp})
+
+    request = _request(**{ACCESS_COOKIE_NAME: token})
+
+    assert read_access_cookie(request, CREDENCIAIS.registration) is None
 
 
 def test_refresh_cookie_devolve_as_credenciais(ler_cookies):
@@ -93,7 +111,7 @@ def test_refresh_cookie_devolve_as_credenciais(ler_cookies):
 
 def test_cookies_sao_jwe_compacto_com_aes_gcm(ler_cookies):
     response = Response()
-    set_access_cookie(response, "app14~TOKEN1")
+    set_access_cookie(response, "app14~TOKEN1", CREDENCIAIS.registration)
     set_refresh_cookie(response, CREDENCIAIS)
 
     for token in _cookies(response, ler_cookies).values():
@@ -112,7 +130,7 @@ def test_cookies_sao_jwe_compacto_com_aes_gcm(ler_cookies):
 
 def test_nenhum_segredo_fica_legivel_no_cookie(ler_cookies):
     response = Response()
-    set_access_cookie(response, "app14~TOKEN1")
+    set_access_cookie(response, "app14~TOKEN1", CREDENCIAIS.registration)
     set_refresh_cookie(response, CREDENCIAIS)
 
     for token in _cookies(response, ler_cookies).values():
@@ -132,7 +150,7 @@ def test_mesmo_payload_gera_cookies_diferentes():
 
 def test_cookie_carrega_exp_do_lado_de_dentro(ler_cookies):
     response = Response()
-    set_access_cookie(response, "app14~TOKEN1")
+    set_access_cookie(response, "app14~TOKEN1", CREDENCIAIS.registration)
     set_refresh_cookie(response, CREDENCIAIS)
 
     jar = _cookies(response, ler_cookies)
@@ -147,7 +165,7 @@ def test_cookie_carrega_exp_do_lado_de_dentro(ler_cookies):
 
 def test_cookies_sao_httponly_e_lax(ler_cookies):
     response = Response()
-    set_access_cookie(response, "app14~TOKEN1")
+    set_access_cookie(response, "app14~TOKEN1", CREDENCIAIS.registration)
 
     morsel = ler_cookies(response)[ACCESS_COOKIE_NAME]
     assert morsel["httponly"]
@@ -158,12 +176,12 @@ def test_cookies_sao_httponly_e_lax(ler_cookies):
 def test_secure_so_em_producao(ler_cookies, monkeypatch: pytest.MonkeyPatch):
     """Em desenvolvimento a API roda em HTTP puro e o navegador descartaria."""
     response = Response()
-    set_access_cookie(response, "app14~TOKEN1")
+    set_access_cookie(response, "app14~TOKEN1", CREDENCIAIS.registration)
     assert not ler_cookies(response)[ACCESS_COOKIE_NAME]["secure"]
 
     monkeypatch.setattr(settings, "environment", "production")
     response = Response()
-    set_access_cookie(response, "app14~TOKEN1")
+    set_access_cookie(response, "app14~TOKEN1", CREDENCIAIS.registration)
     assert ler_cookies(response)[ACCESS_COOKIE_NAME]["secure"]
 
 
@@ -179,7 +197,7 @@ def test_clear_cookies_apaga_os_dois(ler_cookies):
 
 def test_cookie_sem_domain_por_padrao(ler_cookies):
     response = Response()
-    set_access_cookie(response, "app14~TOKEN1")
+    set_access_cookie(response, "app14~TOKEN1", CREDENCIAIS.registration)
     assert not ler_cookies(response)[ACCESS_COOKIE_NAME]["domain"]
 
 
@@ -228,7 +246,7 @@ def test_segredo_curto_e_recusado(monkeypatch: pytest.MonkeyPatch):
 def test_cookies_ausentes_nao_quebram():
     request = _request()
 
-    assert read_access_cookie(request) is None
+    assert read_access_cookie(request, CREDENCIAIS.registration) is None
     assert read_refresh_cookie(request) is None
 
 
@@ -328,7 +346,12 @@ def test_validade_e_conferida_depois_de_decifrar(claims: dict):
     token = _jwe({"alg": "dir", "enc": "A256GCM"}, claims, _key(ACCESS_COOKIE_NAME))
 
     assert decrypt_cookie(ACCESS_COOKIE_NAME, token) is None
-    assert read_access_cookie(_request(**{ACCESS_COOKIE_NAME: token})) is None
+    assert (
+        read_access_cookie(
+            _request(**{ACCESS_COOKIE_NAME: token}), CREDENCIAIS.registration
+        )
+        is None
+    )
 
 
 @pytest.mark.parametrize(

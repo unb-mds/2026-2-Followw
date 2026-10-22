@@ -99,6 +99,7 @@ class FrequencyService:
                 summary,
                 lessons[link.row.classroom_id],
                 today=today,
+                workload=link.row.classroom.subject.hours,
             )
             for link, summary in zip(links, summaries, strict=True)
         ]

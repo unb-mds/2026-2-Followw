@@ -114,8 +114,8 @@ FREQUENCY_JSON = {
     ],
     "totals": {
         "presences": 1,
-        "absences": 1,
-        "percentage": 66.7,
+        "absences": 2,
+        "percentage": 50.0,
         "max_absences": None,
         "estimated": False,
     },
@@ -191,9 +191,14 @@ def _sigaa_rows() -> list[tuple[Lesson, LessonAttendance | None]]:
 
 
 def _view(
-    rows, summary: ClassroomFrequency = FREQUENCY, today: date = date(2026, 10, 1)
+    rows,
+    summary: ClassroomFrequency = FREQUENCY,
+    today: date = date(2026, 10, 1),
+    workload: int | None = 60,
 ) -> ClassroomFrequencyView:
-    return ClassroomFrequencyView.build(FrequencySummary.of(summary), rows, today=today)
+    return ClassroomFrequencyView.build(
+        FrequencySummary.of(summary), rows, today=today, workload=workload
+    )
 
 
 def _hours(schedule: str) -> dict[int, tuple[int, ...]]:
@@ -307,18 +312,32 @@ def test_totais_contam_aulas_com_marcacoes():
         _row(date(2026, 9, 28), LessonStatus.CANCELADA, marked=True),
         _row(date(2026, 9, 29)),
     ]
-    # 6 aulas, 2 faltas: 4 / 6.
+    # 12 horas-aula, 4 de falta: 8 / 12.
     assert _view([*_sigaa_rows(), *marks]).totals == FrequencyTotals(
-        presences=2, absences=2, percentage=66.7, max_absences=1, estimated=True
+        presences=4, absences=4, percentage=66.7, max_absences=15, estimated=True
     )
 
 
 @pytest.mark.parametrize(
-    "planned,expected",
-    [(30, 7), (60, 15), (15, 3), (7, 1), (3, 0), (0, None)],
+    "workload,expected", [(60, 15), (90, 22), (30, 7), (None, None)]
 )
-def test_maximo_de_faltas_pelas_aulas_planejadas(planned, expected):
-    assert max_absences(planned) == expected
+def test_maximo_de_faltas_e_um_quarto_da_carga_horaria(workload, expected):
+    assert max_absences(workload) == expected
+
+
+def test_totais_contam_horas_aula_de_cada_dia():
+    rows = [
+        _row(date(2026, 9, d), LessonStatus.PRESENTE, absences=0) for d in range(1, 20)
+    ]
+    rows.append(_row(date(2026, 9, 21), LessonStatus.FALTA, absences=2))
+    rows.append(_row(date(2026, 9, 22), LessonStatus.FALTA, absences=2))
+    assert _view(rows).totals == FrequencyTotals(
+        presences=38, absences=4, percentage=90.5, max_absences=15, estimated=False
+    )
+
+
+def test_turma_sem_carga_horaria_nao_tem_maximo_de_faltas():
+    assert _view(_sigaa_rows(), workload=None).totals.max_absences is None
 
 
 def test_turma_sem_horario_nao_tem_maximo_de_faltas():
@@ -328,18 +347,18 @@ def test_turma_sem_horario_nao_tem_maximo_de_faltas():
 
 def test_aula_sem_chamada_ou_cancelada_conta_como_presenca_so_na_porcentagem():
     totals = _view([*_sigaa_rows(), _row(date(2026, 9, 24))]).totals
-    assert (totals.presences, totals.absences, totals.percentage) == (1, 1, 66.7)
+    assert (totals.presences, totals.absences, totals.percentage) == (2, 2, 66.7)
     cancelada = _row(date(2026, 9, 24), LessonStatus.CANCELADA, marked=True)
     assert _view([*_sigaa_rows(), cancelada]).totals == totals
 
 
-def test_falta_parcial_do_sigaa_conta_a_aula_inteira():
+def test_falta_parcial_do_sigaa_conta_so_as_horas_de_falta():
     rows = [
         _row(date(2026, 9, 20), LessonStatus.PRESENTE, absences=0),
         _row(date(2026, 9, 22), LessonStatus.FALTA, absences=1, hours=3),
     ]
     totals = _view(rows).totals
-    assert (totals.presences, totals.absences, totals.percentage) == (1, 1, 50)
+    assert (totals.presences, totals.absences, totals.percentage) == (4, 1, 80)
 
 
 def test_totais_sem_chamada_do_sigaa_vem_so_das_marcacoes():
@@ -348,7 +367,7 @@ def test_totais_sem_chamada_do_sigaa_vem_so_das_marcacoes():
         _row(date(2026, 9, 25), LessonStatus.FALTA, marked=True),
     ]
     assert _view(marks, NOT_REGISTERED).totals == FrequencyTotals(
-        presences=1, absences=1, percentage=50, max_absences=0, estimated=True
+        presences=2, absences=2, percentage=50, max_absences=15, estimated=True
     )
     cancelada = _row(date(2026, 9, 24), LessonStatus.CANCELADA, marked=True)
     assert _view([cancelada], NOT_REGISTERED).totals is None
@@ -448,7 +467,7 @@ def test_ids_numerico_e_hash_retornam_todos_os_campos_e_usam_o_mesmo_cache(
         )
         assert (
             link.frequency_status,
-            link.progress_taught,
+            session.get(ClassroomRow, link.classroom_id).progress_taught,
         ) == (FrequencyStatus.PARCIALMENTE_REGISTRADA, 30)
         assert sorted(
             (attendance.status, attendance.absences, attendance.marked)
@@ -499,7 +518,7 @@ def test_sem_lancamentos_preserva_progress_e_cache(logged, account, database):
         )
         assert (
             link.frequency_status,
-            link.progress_taught,
+            session.get(ClassroomRow, link.classroom_id).progress_taught,
         ) == (FrequencyStatus.NAO_REGISTRADA, 30)
 
 
@@ -741,8 +760,8 @@ def test_marcacao_entra_nos_totais_da_frequencia(logged, account, depois_da_aula
     assert _mark(logged, (lesson, "falta")).status_code == 204
     assert logged.get(FREQ).json()["totals"] == {
         "presences": 1,
-        "absences": 2,
-        "percentage": 33.3,
+        "absences": 3,
+        "percentage": 25.0,
         "max_absences": None,
         "estimated": True,
     }

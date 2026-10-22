@@ -76,6 +76,42 @@ def test_access_cookie_vivo_nao_passa_pelo_cas(sonda, sigaa, cookies):
     assert sigaa.logins == 0
 
 
+def test_access_de_outra_conta_e_descartado_e_reloga_com_o_refresh(
+    sonda, sigaa, cookies
+):
+    """Refresh de A com access de B não pode ler o SIGAA na sessão de B."""
+    sigaa.valid_tokens.add("app14~DE-B")
+    outra = Credentials(registration="252000000", password=SecretStr("outra"))
+    sonda.cookies.update(
+        {
+            ACCESS_COOKIE_NAME: cookies(access="app14~DE-B", refresh=outra)[
+                ACCESS_COOKIE_NAME
+            ],
+            REFRESH_COOKIE_NAME: cookies(refresh=CREDENCIAIS)[REFRESH_COOKIE_NAME],
+        }
+    )
+    response = sonda.get("/probe")
+
+    assert response.status_code == 200
+    assert response.json()["session_token"] == "app14~TOKEN1"
+    assert sigaa.logins == 1
+    token = decrypt_cookie(ACCESS_COOKIE_NAME, response.cookies[ACCESS_COOKIE_NAME])
+    assert token["registration"] == CREDENCIAIS.registration
+
+
+def test_troca_de_curso_reaproveita_o_access_do_login_antigo(sonda, sigaa, cookies):
+    """O access fica preso ao login no CAS, não à matrícula nova do perfil."""
+    sigaa.profile = sigaa.profile.replace("<td>251000000</td>", "<td>252000000</td>")
+    sonda.cookies.update(cookies(refresh=CREDENCIAIS))
+
+    primeira = sonda.get("/probe")
+    segunda = sonda.get("/probe")
+
+    assert primeira.json()["registration"] == "252000000"
+    assert segunda.json()["session_token"] == "app14~TOKEN1"
+    assert sigaa.logins == 1
+
+
 def test_sessao_morta_reloga_e_reescreve_o_access_cookie(sonda, sigaa, cookies):
     """O relogin acontece no meio da requisição: quem grava o cookie novo é o
     callback `on_session_renewed`, não o `authenticate()` da entrada."""

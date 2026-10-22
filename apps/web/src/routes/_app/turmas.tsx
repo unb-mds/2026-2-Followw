@@ -7,8 +7,8 @@ import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
 import { ClassCard } from '#/components/home/ClassCard';
 import { LoginPromptCard } from '#/components/home/LoginPromptCard';
 import { LoadingText } from '#/components/LoadingText';
+import { Button } from '#/components/ui/button';
 import { Card, CardContent } from '#/components/ui/card';
-import { Toggle } from '#/components/ui/toggle';
 import { groupBySemester } from '#/lib/classroom-details';
 import { describeSchedule } from '#/lib/schedule';
 import { allClassroomsQueryOptions, finalGrade } from '#/queries/classrooms';
@@ -56,22 +56,22 @@ function Classrooms() {
     return (
         <>
             {groups.length > 0 && (
-                <div
-                    className="mb-4 flex items-center gap-2 overflow-x-auto py-1 max-md:no-scrollbar"
+                <fieldset
+                    className="mb-2 flex items-center gap-1 overflow-x-auto py-1 max-md:no-scrollbar"
                     aria-label="Escolher semestre"
                 >
                     {groups.map(([name]) => (
-                        <Toggle
+                        <Button
                             key={name}
-                            variant="outline"
-                            pressed={name === semester}
-                            onPressedChange={() => setSelected(name)}
-                            className="shrink-0 aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                            variant={name === semester ? 'secondary' : 'ghost'}
+                            aria-pressed={name === semester}
+                            onClick={() => setSelected(name)}
+                            className="shrink-0"
                         >
                             {name}
-                        </Toggle>
+                        </Button>
                     ))}
-                </div>
+                </fieldset>
             )}
             <div className="flex flex-col gap-2">
                 {items?.map((classroom) => (

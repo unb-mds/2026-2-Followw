@@ -1,5 +1,4 @@
 import tailwindcss from '@tailwindcss/vite';
-import { devtools } from '@tanstack/devtools-vite';
 import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 import viteReact from '@vitejs/plugin-react';
 import { nitro } from 'nitro/vite';
@@ -23,7 +22,6 @@ const config = defineConfig({
         'import.meta.env.VITE_QUERY_CACHE_BUSTER': JSON.stringify(QUERY_CACHE_BUSTER)
     },
     plugins: [
-        devtools(),
         nitro({
             rollupConfig: { external: [/^@sentry\//] },
             // só no dev; na Vercel, o vercel.json faz o mesmo

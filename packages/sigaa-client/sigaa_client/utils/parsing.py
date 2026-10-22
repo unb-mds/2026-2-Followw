@@ -8,7 +8,7 @@ from urllib.parse import urljoin, urlsplit
 from bs4 import BeautifulSoup, Tag
 from markdownify import ATX, BACKSLASH, MarkdownConverter
 
-from ..config import SIGAA_BASE_URL
+from ..config import NO_PICTURE_URL, SIGAA_BASE_URL
 from ..exceptions import SigaaParseError
 from ..models import CourseShift
 
@@ -91,6 +91,12 @@ def parse_datetime(value: str, fmt: str, where: str) -> datetime:
         raise SigaaParseError(
             f"Data `{value}` {where} em formato inesperado."
         ) from error
+
+
+def photo_url(source: str | None) -> str | None:
+    """URL absoluta da foto; o placeholder do SIGAA não é foto."""
+    url = urljoin(SIGAA_BASE_URL, source) if source else None
+    return None if url == NO_PICTURE_URL else url
 
 
 def to_markdown(node: Tag) -> str | None:

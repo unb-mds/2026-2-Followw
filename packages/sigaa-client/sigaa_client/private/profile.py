@@ -1,15 +1,15 @@
 import re
-from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup, Tag
 
-from ..config import DASHBOARD_PATH, SIGAA_BASE_URL
+from ..config import DASHBOARD_PATH
 from ..exceptions import SigaaParseError
 from ..models import CurriculumWorkload, UserLevel, UserProfile
 from ..utils.parsing import (
     clean_text,
     course_shift,
     lookup_key,
+    photo_url,
     split_course,
 )
 from .session import Session
@@ -104,8 +104,7 @@ def _photo(card: Tag) -> str | None:
     photo = card.select_one(".foto img")
     if photo is None:
         return None
-    src = photo.get("src")
-    return urljoin(SIGAA_BASE_URL, str(src)) if src else None
+    return photo_url(str(photo.get("src") or ""))
 
 
 def _integralization(card: Tag) -> int | None:
