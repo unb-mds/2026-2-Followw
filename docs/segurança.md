@@ -47,7 +47,7 @@ SIGAA.
 ## Uma chave para cada cookie
 
 Existe um único segredo configurado no servidor (`JWT_SECRET_KEY`, com no mínimo 32 caracteres). Ele
-nunca é usado diretamente: a partir dele são derivadas três chaves de 256 bits, uma para cada uso: o
+nunca é usado diretamente: a partir dele são derivadas chaves de 256 bits, uma para cada uso: o
 `access_token`, o `refresh_token` e as tarefas em segundo plano.
 
 Na prática:

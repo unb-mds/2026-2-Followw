@@ -1,4 +1,4 @@
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -29,9 +29,16 @@ class Settings(BaseSettings):
     redis_timeout_seconds: float = Field(default=1, gt=0, allow_inf_nan=False)
 
     # Cotas por IP em janela fixa; login tem uma cota própria, mais restrita.
-    rate_limit_requests: int = Field(default=120, gt=0)
-    rate_limit_login_requests: int = Field(default=10, gt=0)
+    rate_limit_requests: int = Field(default=600, gt=0)
+    rate_limit_login_requests: int = Field(default=30, gt=0)
     rate_limit_window_seconds: int = Field(default=60, gt=0)
+    # Assina o IP original que o SSR encaminha; sem ele, o encaminhamento é ignorado.
+    rate_limit_secret_key: str | None = Field(default=None, min_length=32)
+
+    @field_validator("rate_limit_secret_key", mode="before")
+    @classmethod
+    def _empty_as_none(cls, value: str | None) -> str | None:
+        return value or None
 
 
 settings = Settings()

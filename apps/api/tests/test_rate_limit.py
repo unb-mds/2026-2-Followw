@@ -2,7 +2,6 @@ import asyncio
 import hmac
 import json
 from collections import Counter
-from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -16,8 +15,10 @@ from upstash_redis.asyncio import Redis
 from api.core.config import Settings, settings
 from api.main import app
 from api.rate_limit import RateLimitMiddleware
+from api.redis import redis_client
 
 REDIS_URL = "https://redis.followw.test"
+SECRET = "chave-de-teste-nao-usar-em-producao"
 
 
 def _forwarded(address, timestamp=120):
@@ -25,7 +26,7 @@ def _forwarded(address, timestamp=120):
     return {
         "X-Followw-Client": client,
         "X-Followw-Client-Signature": hmac.digest(
-            settings.jwt_secret_key.encode(),
+            SECRET.encode(),
             f"followw:rate-limit:{client}".encode(),
             "sha256",
         ).hex(),
@@ -39,6 +40,7 @@ def redis(monkeypatch):
     monkeypatch.setattr(settings, "rate_limit_requests", 2)
     monkeypatch.setattr(settings, "rate_limit_login_requests", 1)
     monkeypatch.setattr(settings, "rate_limit_window_seconds", 60)
+    monkeypatch.setattr(settings, "rate_limit_secret_key", SECRET)
     monkeypatch.setattr("upstash_ratelimit.limiter.now_ms", lambda: 120_000)
     monkeypatch.setattr("api.rate_limit.time", lambda: 120)
     monkeypatch.delenv("VERCEL", raising=False)
@@ -165,28 +167,15 @@ def test_timeout_cancela_consulta_e_libera_requisicao(redis, monkeypatch, caplog
     assert '"error_type": "TimeoutError"' in caplog.text
 
 
-def test_fecha_conexao_redis_apos_cada_requisicao(redis, monkeypatch):
-    close = AsyncMock(wraps=Redis.close)
+def test_cliente_redis_e_reaproveitado_so_no_mesmo_event_loop(redis):
+    async def clients():
+        return redis_client(), redis_client()
 
-    async def closed(client):
-        await close(client)
-
-    monkeypatch.setattr(Redis, "close", closed)
-    for _ in range(3):
-        TestClient(app).get("/docs")
-    assert close.await_count == 3
-    assert len({id(call.args[0]) for call in close.await_args_list}) == 3
-
-
-def test_falha_ao_fechar_redis_nao_derruba_api(redis, monkeypatch):
-    close = Redis.close
-
-    async def failed_close(client):
-        await close(client)
-        raise OSError("falha ao fechar")
-
-    monkeypatch.setattr(Redis, "close", failed_close)
-    assert TestClient(app).get("/docs").status_code == 200
+    first, same_loop = asyncio.run(clients())
+    other_loop, _ = asyncio.run(clients())
+    assert isinstance(first, Redis)
+    assert first is same_loop
+    assert other_loop is not first
 
 
 def test_cabecalhos_de_ip_falsos_nao_trocam_a_cota_fora_da_vercel(redis):
@@ -230,6 +219,34 @@ def test_ssr_preserva_cota_do_ip_original_e_compartilha_com_acesso_direto(redis)
     assert proxy.get("/docs", headers=_forwarded("203.0.113.2")).status_code == 200
 
 
+def test_ipv6_do_mesmo_prefixo_64_compartilham_cota(redis):
+    first = TestClient(app, client=("2001:db8:0:1::1", 50000))
+    same_prefix = TestClient(app, client=("2001:db8:0:1:ffff::2", 50000))
+    other_prefix = TestClient(app, client=("2001:db8:0:2::1", 50000))
+    assert first.get("/docs").status_code == 200
+    assert same_prefix.get("/docs").status_code == 200
+    assert first.get("/docs").status_code == 429
+    assert other_prefix.get("/docs").status_code == 200
+
+
+def test_ipv4_mapeado_em_ipv6_compartilha_cota_do_ipv4(redis):
+    assert (
+        TestClient(app, client=("::ffff:203.0.113.1", 1)).get("/docs").status_code
+        == 200
+    )
+    ipv4 = TestClient(app, client=("203.0.113.1", 1))
+    assert ipv4.get("/docs").status_code == 200
+    assert ipv4.get("/docs").status_code == 429
+
+
+def test_sem_segredo_o_ip_encaminhado_e_ignorado(redis, monkeypatch):
+    monkeypatch.setattr(settings, "rate_limit_secret_key", None)
+    client = TestClient(app)
+    for ip in ("203.0.113.1", "203.0.113.2"):
+        assert client.get("/docs", headers=_forwarded(ip)).status_code == 200
+    assert client.get("/docs", headers=_forwarded("203.0.113.3")).status_code == 429
+
+
 def test_ipv6_equivalentes_compartilham_cota_direta_e_ssr(redis):
     direct = TestClient(app, client=("2001:0db8:0000::1", 50000))
     proxy = TestClient(app)
@@ -258,10 +275,7 @@ def test_encaminhamento_invalido_nao_permite_trocar_cota(redis, headers):
     assert client.get("/docs", headers=headers).status_code == 429
 
 
-@pytest.mark.parametrize("path", ["/auth/sigaa", "/api/auth/sigaa", "/auth/sigaa/"])
-def test_logout_apaga_cookies_mesmo_com_cota_esgotada(
-    redis, sigaa, cookies, ler_cookies, path
-):
+def _logged_in(cookies):
     client = TestClient(app)
     client.cookies.update(
         cookies(
@@ -269,16 +283,29 @@ def test_logout_apaga_cookies_mesmo_com_cota_esgotada(
             refresh=Credentials(registration="251000000", password="senha123"),
         )
     )
+    return client
+
+
+def test_logout_dentro_da_cota_sai_do_sigaa(redis, sigaa, cookies):
+    response = _logged_in(cookies).delete("/auth/sigaa")
+    assert response.status_code == 200
+    assert sigaa.logouts == 1
+    assert redis.call_count == 1
+
+
+@pytest.mark.parametrize("path", ["/auth/sigaa", "/api/auth/sigaa", "/auth/sigaa/"])
+def test_logout_com_cota_esgotada_apaga_cookies_sem_chamar_o_sigaa(
+    redis, sigaa, cookies, ler_cookies, path
+):
+    client = _logged_in(cookies)
     for _ in range(2):
         assert client.get("/docs").status_code == 200
     assert client.get("/docs").status_code == 429
-    calls = redis.call_count
 
     response = client.delete(path)
 
     assert response.status_code == 200
-    assert sigaa.logouts == 1
-    assert redis.call_count == calls
+    assert sigaa.logouts == 0
     assert {
         name
         for name, cookie in ler_cookies(response).items()
@@ -306,8 +333,14 @@ def test_falha_da_rota_nao_e_confundida_com_falha_redis(redis):
         ("rate_limit_window_seconds", 0),
         ("redis_timeout_seconds", 0),
         ("redis_timeout_seconds", float("inf")),
+        ("rate_limit_secret_key", "curta"),
     ],
 )
 def test_configuracao_recusa_limites_invalidos(field, value):
     with pytest.raises(ValidationError):
         Settings(**{**settings.model_dump(), field: value})
+
+
+def test_segredo_vazio_desativa_o_encaminhamento():
+    config = Settings(**{**settings.model_dump(), "rate_limit_secret_key": ""})
+    assert config.rate_limit_secret_key is None

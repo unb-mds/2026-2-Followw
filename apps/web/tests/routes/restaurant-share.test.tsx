@@ -31,13 +31,13 @@ const sections: MenuSection[] = [
 ];
 const EMPTY = { date: null, meal: null, campus: null };
 const handler = ({ request }: { request: Request }) => restaurantShareResponse(request);
-const originalSecret = process.env.JWT_SECRET_KEY;
+const originalSecret = process.env.RATE_LIMIT_SECRET_KEY;
 const originalVercel = process.env.VERCEL;
 let fetchSpy: ReturnType<typeof spyOn<typeof globalThis, 'fetch'>> | undefined;
 afterEach(() => {
     fetchSpy?.mockRestore();
-    if (originalSecret === undefined) delete process.env.JWT_SECRET_KEY;
-    else process.env.JWT_SECRET_KEY = originalSecret;
+    if (originalSecret === undefined) delete process.env.RATE_LIMIT_SECRET_KEY;
+    else process.env.RATE_LIMIT_SECRET_KEY = originalSecret;
     if (originalVercel === undefined) delete process.env.VERCEL;
     else process.env.VERCEL = originalVercel;
 });
@@ -81,7 +81,7 @@ function mockMenu(status = 200, published = true) {
 
 describe('compartilhamento do cardápio', () => {
     test('prévia encaminha IP assinado sem encaminhar cookies', async () => {
-        process.env.JWT_SECRET_KEY = 'chave-de-teste-nao-usar-em-producao';
+        process.env.RATE_LIMIT_SECRET_KEY = 'chave-de-teste-nao-usar-em-producao';
         process.env.VERCEL = '1';
         mockMenu();
         const request = new Request('https://followw.app/share/ru.png', {

@@ -5,7 +5,7 @@ import { ApiError, toApiError } from '#/queries/errors';
 
 // Requisição recebida pelo SSR; `null` simula o código fora de uma requisição.
 let ssr: { url: string; cookie?: string; ip?: string; setCookie?: string[] } | null = null;
-const originalSecret = process.env.JWT_SECRET_KEY;
+const originalSecret = process.env.RATE_LIMIT_SECRET_KEY;
 const originalVercel = process.env.VERCEL;
 
 function inRequest() {
@@ -34,8 +34,8 @@ beforeAll(async () => {
 
 afterEach(() => {
     ssr = null;
-    if (originalSecret === undefined) delete process.env.JWT_SECRET_KEY;
-    else process.env.JWT_SECRET_KEY = originalSecret;
+    if (originalSecret === undefined) delete process.env.RATE_LIMIT_SECRET_KEY;
+    else process.env.RATE_LIMIT_SECRET_KEY = originalSecret;
     if (originalVercel === undefined) delete process.env.VERCEL;
     else process.env.VERCEL = originalVercel;
 });
@@ -67,6 +67,22 @@ describe('cliente da API', () => {
         expect(request.headers.get('cookie')).toBe('access=abc');
     });
 
+    test('falha ao assinar o IP não descarta o cookie do SSR', async () => {
+        const signer = await import('#/queries/client-ip.server');
+        const sign = spyOn(signer, 'clientIpHeaders').mockImplementation(() => {
+            throw new Error('sem crypto');
+        });
+        try {
+            ssr = { url: 'https://followw.app/', cookie: 'access=abc' };
+            const request = await getMe();
+
+            expect(sign).toHaveBeenCalled();
+            expect(request.headers.get('cookie')).toBe('access=abc');
+        } finally {
+            sign.mockRestore();
+        }
+    });
+
     test('cada requisição do SSR leva só o próprio cookie', async () => {
         ssr = { url: 'https://followw.app/', cookie: 'access=ana' };
         const ana = await getMe();
@@ -81,7 +97,7 @@ describe('cliente da API', () => {
     });
 
     test('SSR assina o IP original sem misturar usuários', async () => {
-        process.env.JWT_SECRET_KEY = 'chave-de-teste-nao-usar-em-producao';
+        process.env.RATE_LIMIT_SECRET_KEY = 'chave-de-teste-nao-usar-em-producao';
         process.env.VERCEL = '1';
         const clock = spyOn(Date, 'now').mockReturnValue(120_000);
         try {
@@ -98,7 +114,9 @@ describe('cliente da API', () => {
             expect(bob.headers.get('x-followw-client-signature')).not.toBe(
                 alice.headers.get('x-followw-client-signature')
             );
-            expect([...alice.headers.values()].join(' ')).not.toContain(process.env.JWT_SECRET_KEY);
+            expect([...alice.headers.values()].join(' ')).not.toContain(
+                process.env.RATE_LIMIT_SECRET_KEY
+            );
         } finally {
             clock.mockRestore();
         }

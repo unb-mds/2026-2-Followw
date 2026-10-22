@@ -1,22 +1,27 @@
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+import asyncio
 
 from upstash_redis.asyncio import Redis
 
 from api.core.config import settings
 
+_client: tuple[asyncio.AbstractEventLoop, Redis] | None = None
 
-@asynccontextmanager
-async def redis_client() -> AsyncIterator[Redis | None]:
+
+def redis_client() -> Redis | None:
+    global _client
     if not settings.upstash_redis_rest_url or not settings.upstash_redis_rest_token:
-        yield None
-        return
+        return None
 
-    # Cada requisição usa seu event loop; o pool não pode sobreviver a ele.
-    async with Redis(
-        url=settings.upstash_redis_rest_url,
-        token=settings.upstash_redis_rest_token,
-        rest_retries=0,
-        allow_telemetry=False,
-    ) as client:
-        yield client
+    # O pool de conexões é reaproveitado, mas não pode atravessar event loops.
+    loop = asyncio.get_running_loop()
+    if _client is None or _client[0] is not loop:
+        _client = (
+            loop,
+            Redis(
+                url=settings.upstash_redis_rest_url,
+                token=settings.upstash_redis_rest_token,
+                rest_retries=0,
+                allow_telemetry=False,
+            ),
+        )
+    return _client[1]

@@ -51,7 +51,7 @@ async def sigaa_refresh(
 @router.delete("/sigaa")
 async def sigaa_logout(request: Request, response: Response):
     session_token = read_access_cookie(request)
-    if session_token is not None:
+    if session_token is not None and not getattr(request.state, "rate_limited", False):
         try:
             async with SigaaClient(session_token=session_token) as client:
                 await client.logout()

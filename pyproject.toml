@@ -1,7 +1,7 @@
 [project]
 name = "followw"
 version = "0.0.1"
-description = "O Followw é uma nova forma de usar o SIGAA UnB."
+description = "O Followw é sua nova forma de usar o SIGAA UnB."
 requires-python = ">=3.14"
 dependencies = ["api", "unb-browser"]
 

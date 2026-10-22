@@ -4,7 +4,7 @@ import { isIP } from 'node:net';
 
 export function clientIpHeaders(request: Request): Headers {
     const headers = new Headers();
-    const secret = process.env.JWT_SECRET_KEY;
+    const secret = process.env.RATE_LIMIT_SECRET_KEY;
     if (!secret) return headers;
 
     let ip: string | undefined;

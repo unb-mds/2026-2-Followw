@@ -14,17 +14,17 @@ const baseUrl = createIsomorphicFn()
 const getSsrHeaders = createIsomorphicFn()
     .client(() => new Headers())
     .server(async () => {
+        const headers = new Headers();
         try {
             const { getRequest } = await import('@tanstack/react-start/server');
-            const { clientIpHeaders } = await import('#/queries/client-ip.server');
             const incoming = getRequest();
-            const headers = clientIpHeaders(incoming);
             const cookie = incoming.headers.get('cookie');
             if (cookie) headers.set('cookie', cookie);
-            return headers;
-        } catch {
-            return new Headers();
-        }
+            // a assinatura do IP é opcional: falhar aqui não pode derrubar a sessão
+            const { clientIpHeaders } = await import('#/queries/client-ip.server');
+            clientIpHeaders(incoming).forEach((value, name) => headers.set(name, value));
+        } catch {}
+        return headers;
     });
 
 const toSsrOrigin = createIsomorphicFn()
