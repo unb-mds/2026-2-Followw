@@ -1,8 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 
-import { TanStackDevtools } from '@tanstack/react-devtools';
 import { HeadContent, Outlet, Scripts, createRootRouteWithContext } from '@tanstack/react-router';
-import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools';
 import { NuqsAdapter } from 'nuqs/adapters/tanstack-router';
 import { useEffect } from 'react';
 
@@ -10,7 +8,6 @@ import { ErrorPage } from '#/components/ErrorPage';
 import { initializeInstallSupport } from '#/integrations/offline/install';
 import { useOfflineSupport } from '#/integrations/offline/use-offline-support';
 import PostHogProvider from '#/integrations/posthog/provider';
-import TanStackQueryDevtools from '#/integrations/tanstack-query/devtools';
 import { reloadOnPreloadError } from '#/lib/chunk-reload';
 import { themeScript } from '#/lib/theme';
 import { useSessionRefresh } from '#/queries/auth';
@@ -71,16 +68,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
                 <HeadContent />
             </head>
             <body>
-                <PostHogProvider>
-                    {children}
-                    <TanStackDevtools
-                        config={{ position: 'bottom-right' }}
-                        plugins={[
-                            { name: 'Tanstack Router', render: <TanStackRouterDevtoolsPanel /> },
-                            TanStackQueryDevtools
-                        ]}
-                    />
-                </PostHogProvider>
+                <PostHogProvider>{children}</PostHogProvider>
                 <Scripts />
             </body>
         </html>

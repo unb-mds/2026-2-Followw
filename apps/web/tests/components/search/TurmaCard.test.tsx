@@ -322,6 +322,21 @@ describe('TurmaSection', () => {
         expect(markup.match(/group\/badge/g)).toHaveLength(2);
     });
 
+    test('semestre fica azul nas matérias já feitas ou em andamento', () => {
+        const markup = renderWithRouter(
+            <TurmaSection
+                title="Resultados"
+                subjects={[
+                    { ...subject, curriculum_period: 2 },
+                    { ...subject, code: 'FGA0002', curriculum_period: 3 }
+                ]}
+                approved={null}
+                taken={new Set([subject.code])}
+            />
+        );
+        expect(markup.match(/text-blue-500/g)).toHaveLength(1);
+    });
+
     test('seção vazia não é exibida', () => {
         expect(renderWithRouter(<TurmaSection title="Vazio" subjects={[]} approved={null} />)).toBe(
             ''

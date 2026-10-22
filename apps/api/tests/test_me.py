@@ -104,6 +104,31 @@ def test_login_seguido_de_me_responde_do_cache(client, sigaa):
     assert sigaa.logins - sigaa.logouts == 1
 
 
+def test_troca_de_curso_loga_com_a_matricula_antiga_e_me_responde_o_perfil(
+    client, sigaa, database
+):
+    # O CAS só aceita a matrícula antiga; o perfil já mostra a do curso novo.
+    sigaa.profile = PERFIL.replace("<td>251000000</td>", "<td>252000000</td>")
+    login = client.post(
+        "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
+    )
+    assert login.status_code == 200
+
+    response = client.get("/me")
+    client.patch("/me/settings", json={"displayName": "Ana"})
+
+    assert response.status_code == 200
+    assert response.json()["registration"] == "252000000"
+    assert client.get("/me/settings").json() == {"displayName": "Ana"}
+
+    with database() as session:
+        users = [
+            (u.registration, u.old_registration, u.settings)
+            for u in session.scalars(select(User))
+        ]
+    assert users == [("252000000", "251000000", {"displayName": "Ana"})]
+
+
 def test_me_sem_campos_opcionais_retorna_null(client, sigaa, cookies):
     client.cookies.update(cookies(refresh=CREDENCIAIS))
 

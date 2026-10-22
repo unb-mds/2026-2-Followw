@@ -18,6 +18,7 @@ import { Card, CardContent } from '#/components/ui/card';
 import { PersonPhoto } from '#/components/ui/person-photo';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
 import { groupMembers } from '#/lib/classroom-details';
+import { mailto } from '#/lib/contact';
 import { titleCase } from '#/lib/profile';
 import {
     allClassroomsQueryOptions,
@@ -238,10 +239,7 @@ function MemberGroup({ title, members }: { title: string; members: Member[] }) {
                                 </p>
                             )}
                             {member.email && (
-                                <a
-                                    className="break-all text-primary"
-                                    href={'mailto:' + member.email}
-                                >
+                                <a className="break-all text-primary" href={mailto(member.email)}>
                                     {member.email}
                                 </a>
                             )}

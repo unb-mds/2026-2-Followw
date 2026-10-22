@@ -13,6 +13,8 @@ CLASSROOMS_PATH = "/sigaa/portais/discente/turmas.jsf"
 PARTICIPANTS_PATH = "/sigaa/ava/participantes.jsf"
 CLASSROOM_HOME_PATH = "/sigaa/ava/index.jsf"
 LOGOUT_PATH = "/sigaa/logar.do?dispatch=logOff"
+# Placeholder de quem não tem foto; aluno pode subir arquivo com o mesmo nome.
+NO_PICTURE_URL = f"{SIGAA_BASE_URL}/sigaa/img/no_picture.png"
 
 PUBLIC_HOME_PATH = "/sigaa/public/home.jsf"
 PUBLIC_CLASSROOMS_PATH = "/sigaa/public/turmas/listar.jsf"

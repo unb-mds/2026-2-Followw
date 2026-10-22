@@ -35,6 +35,23 @@ const PALETTES = {
 };
 const column: React.CSSProperties = { display: 'flex', flexDirection: 'column' };
 
+// Limita textos longos para o conteúdo não estourar o card.
+function truncate(text: string, max: number) {
+    return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
+}
+
+// Junta as saladas 1 e 2 num bloco só, na posição da primeira.
+function groupSalads(sections: MenuSection[]): MenuSection[] {
+    const salads = sections.filter((s) => s.key === 'salad_1' || s.key === 'salad_2');
+    if (salads.length < 2) return sections;
+    const grouped: MenuSection = {
+        key: 'salad_1',
+        name: 'Saladas',
+        items: salads.flatMap((s) => s.items)
+    };
+    return sections.flatMap((s) => (s === salads[0] ? [grouped] : salads.includes(s) ? [] : [s]));
+}
+
 export function RestaurantShareImage({
     selection,
     sections
@@ -48,7 +65,8 @@ export function RestaurantShareImage({
         vegan: `data:image/svg+xml;base64,${btoa(renderToStaticMarkup(<Leaf size={24} color={palette.primary} />))}`
     };
     const meal = MEAL_TIMES.find(({ key }) => key === selection.meal)!;
-    const { main, alternatives, others } = highlightMenu(sections);
+    const { main, alternatives, others: ungrouped } = highlightMenu(sections);
+    const others = groupSalads(ungrouped);
     const date = new Intl.DateTimeFormat('pt-BR', {
         weekday: 'long',
         day: '2-digit',
@@ -122,14 +140,15 @@ export function RestaurantShareImage({
                                 border: `1px solid ${palette.border}`,
                                 borderRadius: 16,
                                 padding: 24,
-                                gap: 12
+                                gap: 12,
+                                overflow: 'hidden'
                             }}
                         >
                             <span style={{ fontSize: 18, color: palette.primary }}>
                                 {main.name}
                             </span>
                             <span style={{ fontSize: fontSize + 8, fontWeight: 700 }}>
-                                {main.items.join(', ')}
+                                {truncate(main.items.join(', '), 60)}
                             </span>
                             {alternatives.map((section) => {
                                 const vegetarian = section.key?.endsWith('_vegetarian');
@@ -176,7 +195,7 @@ export function RestaurantShareImage({
                                                 {section.name}
                                             </span>
                                             <span style={{ fontSize: fontSize - 2 }}>
-                                                {section.items.join(', ')}
+                                                {truncate(section.items.join(', '), 70)}
                                             </span>
                                         </div>
                                     </div>
@@ -187,12 +206,12 @@ export function RestaurantShareImage({
                     {others.length > 0 && (
                         <div
                             style={{
-                                ...column,
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                alignContent: 'flex-start',
                                 flex: 1,
-                                background: palette.card,
-                                borderRadius: 16,
-                                gap: others.length > 5 ? 6 : 12,
-                                padding: '8px 24px'
+                                gap: 12,
+                                overflow: 'hidden'
                             }}
                         >
                             {others.map((section) => (
@@ -200,12 +219,18 @@ export function RestaurantShareImage({
                                     key={section.name}
                                     style={{
                                         ...column,
-                                        gap: 4
+                                        gap: 2,
+                                        width: '48.8%',
+                                        height: others.length > 6 ? '30%' : '31%',
+                                        background: palette.card,
+                                        borderRadius: 12,
+                                        padding: '10px 16px',
+                                        overflow: 'hidden'
                                     }}
                                 >
                                     <span
                                         style={{
-                                            fontSize: others.length > 5 ? 12 : 14,
+                                            fontSize: others.length > 6 ? 13 : 14,
                                             fontWeight: 700,
                                             color: palette.muted
                                         }}
@@ -216,12 +241,12 @@ export function RestaurantShareImage({
                                         style={{
                                             fontSize: Math.min(
                                                 fontSize - 2,
-                                                others.length > 5 ? 16 : 20
+                                                others.length > 6 ? 17 : 20
                                             ),
                                             fontWeight: 600
                                         }}
                                     >
-                                        {section.items.join(', ')}
+                                        {truncate(section.items.join(', '), 60)}
                                     </span>
                                 </div>
                             ))}

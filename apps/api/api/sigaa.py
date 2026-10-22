@@ -77,7 +77,7 @@ class SigaaConnection:
         # Se a chamada ao SIGAA falhar, o handler do erro descarta estes cookies.
         if self._response is not None:
             set_refresh_cookie(self._response, self.credentials)
-            set_access_cookie(self._response, token)
+            set_access_cookie(self._response, token, self.registration)
 
 
 async def get_optional_sigaa_connection(
@@ -89,7 +89,9 @@ async def get_optional_sigaa_connection(
         return
 
     connection = SigaaConnection(
-        credentials, read_access_cookie(request), response=response
+        credentials,
+        read_access_cookie(request, credentials.registration),
+        response=response,
     )
     try:
         yield connection

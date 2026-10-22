@@ -16,7 +16,6 @@ import { LoadingText } from '#/components/LoadingText';
 import { FilterSelect } from '#/components/search/FilterSelect';
 import { RecommendationsSection } from '#/components/search/RecommendationsSection';
 import { TurmaSection } from '#/components/search/TurmaSection';
-import { Button } from '#/components/ui/button';
 import { Input } from '#/components/ui/input';
 import { useOnline } from '#/lib/online';
 import { loadSearchParams, useSearchState, validateSearch } from '#/lib/search-params';
@@ -27,6 +26,7 @@ import { recommendationsQueryOptions, showRecommendations } from '#/queries/reco
 import { refreshQuery } from '#/queries/refresh';
 import {
     approvedCodes,
+    takenCodes,
     currentCurriculumPeriod,
     AVAILABILITIES,
     filterSubjects,
@@ -38,8 +38,6 @@ import {
     subjectsQueryOptions,
     TURNOS
 } from '#/queries/subjects';
-
-const PAGE_SIZE = 20;
 
 export const Route = createFileRoute('/_app/buscar')({
     head: () => ({ meta: [{ title: 'Buscar Turmas | Followw' }] }),
@@ -72,7 +70,11 @@ function BuscarTurmasPage() {
     const queryClient = useQueryClient();
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const [{ q: busca, turno, disponibilidade }, setSearch] = useSearchState();
-    const recommendations = showRecommendations(user, { q: busca, turno, disponibilidade });
+    const recommendations = showRecommendations(user, {
+        q: busca,
+        turno,
+        disponibilidade
+    });
     const unit = user?.unity ?? null;
     const currentPeriod = currentCurriculumPeriod(
         user?.entry_semester,
@@ -80,9 +82,6 @@ function BuscarTurmasPage() {
     );
     // Consulta aplicada após o debounce de 300 ms; texto inválido mantém a anterior.
     const [query, setQuery] = useState(() => subjectsQuery(busca, unit));
-    const [pagination, setPagination] = useState({ key: '', limit: PAGE_SIZE });
-    const paginationKey = JSON.stringify([query, turno, disponibilidade]);
-    const limit = pagination.key === paginationKey ? pagination.limit : PAGE_SIZE;
     const online = useOnline();
 
     useEffect(() => {
@@ -98,11 +97,14 @@ function BuscarTurmasPage() {
         enabled: !recommendations && query != null,
         placeholderData: keepPreviousData
     });
-    const { data: history } = useQuery({ ...allClassroomsQueryOptions, enabled: Boolean(user) });
+    const { data: history } = useQuery({
+        ...allClassroomsQueryOptions,
+        enabled: Boolean(user)
+    });
     const approved = useMemo(() => (history ? approvedCodes(history) : null), [history]);
+    const taken = useMemo(() => (history ? takenCodes(history) : null), [history]);
 
     const subjects = filterSubjects(data ?? [], { turno, disponibilidade }, approved);
-    const visible = subjects.slice(0, limit);
     const semester = subjects[0]?.classrooms[0]?.semester;
     const title = query?.unit ? `Matérias da ${query.unit}` : 'Resultados da busca';
     const refreshSubjects = () => {
@@ -149,7 +151,11 @@ function BuscarTurmasPage() {
             </div>
             <div aria-live="polite" aria-busy={isFetching} className="flex flex-col gap-5 pb-8">
                 {recommendations ? (
-                    <RecommendationsSection currentPeriod={currentPeriod} />
+                    <RecommendationsSection
+                        currentPeriod={currentPeriod}
+                        approved={approved}
+                        taken={taken}
+                    />
                 ) : !query ? (
                     <p className="py-8 text-center text-sm text-muted-foreground">
                         {`Digite de ${SEARCH_MIN_LENGTH} a ${SEARCH_MAX_LENGTH} caracteres do nome, código da matéria ou professor para ver as turmas.`}
@@ -181,24 +187,14 @@ function BuscarTurmasPage() {
                             </p>
                         )}
                         <TurmaSection
+                            key={JSON.stringify([query, turno, disponibilidade])}
                             title={semester ? `${title} · ${semester}` : title}
-                            subjects={visible}
+                            subjects={subjects}
                             currentPeriod={currentPeriod}
-                            total={subjects.length}
                             approved={approved}
+                            taken={taken}
                             onOpenDetails={refreshSubjects}
                         />
-                        {subjects.length > visible.length && (
-                            <Button
-                                variant="outline"
-                                className="self-center"
-                                onClick={() =>
-                                    setPagination({ key: paginationKey, limit: limit + PAGE_SIZE })
-                                }
-                            >
-                                Mostrar mais
-                            </Button>
-                        )}
                         {subjects.length === 0 && (
                             <p className="py-8 text-center text-sm text-muted-foreground">
                                 Nenhuma turma encontrada. Tente mudar a busca ou os filtros.

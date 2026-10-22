@@ -75,10 +75,11 @@ class FrequencyTotals(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
+    # Em horas-aula, como o SIGAA conta.
     presences: int
     absences: int
     percentage: float
-    # Faltas que a turma comporta (25% das aulas planejadas); `None` sem horário.
+    # Faltas que a turma comporta (25% da carga horária); `None` sem horário ou CH.
     max_absences: int | None
     estimated: bool
 
@@ -113,9 +114,10 @@ class ClassroomFrequencyView(BaseModel):
         rows: Collection[tuple[models.Lesson, models.LessonAttendance | None]],
         *,
         today: date,
+        workload: int | None,
     ) -> Self:
         """As aulas até ontem, as publicadas pelo SIGAA e as com situação, com os totais."""
-        planned = sum(row.scheduled for row, _ in rows)
+        planned = any(row.scheduled for row, _ in rows)
         lessons = tuple(
             sorted(
                 (
@@ -131,7 +133,7 @@ class ClassroomFrequencyView(BaseModel):
             progress=summary.progress,
             frequency_status=summary.frequency_status,
             lessons=lessons,
-            totals=_totals(lessons, planned),
+            totals=_totals(lessons, max_absences(workload) if planned else None),
         )
 
 
@@ -166,8 +168,9 @@ class Timetable:
         ]
 
 
-def max_absences(planned: int) -> int | None:
-    return planned // 4 if planned else None
+def max_absences(workload: int | None) -> int | None:
+    """Horas-aula de falta em 25% da carga horária."""
+    return workload // 4 if workload else None
 
 
 def positioned(
@@ -207,10 +210,17 @@ def _lesson(row: models.Lesson, attendance: models.LessonAttendance | None) -> L
     )
 
 
-def _totals(lessons: Collection[Lesson], planned: int) -> FrequencyTotals | None:
-    """Em aulas: falta, mesmo parcial, vale a aula; sem chamada ou cancelada, presença."""
-    presences = sum(lesson.status is LessonStatus.PRESENTE for lesson in lessons)
-    absences = sum(lesson.status is LessonStatus.FALTA for lesson in lessons)
+def _totals(
+    lessons: Collection[Lesson], max_absences: int | None
+) -> FrequencyTotals | None:
+    """Em horas-aula; sem chamada ou cancelada, presença só na porcentagem."""
+    presences = absences = total = 0
+    for lesson in lessons:
+        length = max(hours(lesson.start_time, lesson.end_time), lesson.absences)
+        total += length
+        absences += lesson.absences
+        if _attendance(lesson):
+            presences += length - lesson.absences
     estimated = any(lesson.marked for lesson in lessons if _attendance(lesson))
     recorded = any(not lesson.marked for lesson in lessons if _attendance(lesson))
     # `None` sem aula com presença ou falta.
@@ -219,8 +229,8 @@ def _totals(lessons: Collection[Lesson], planned: int) -> FrequencyTotals | None
     return FrequencyTotals(
         presences=presences,
         absences=absences,
-        percentage=round((len(lessons) - absences) * 100 / len(lessons), 1),
-        max_absences=max_absences(planned),
+        percentage=round((total - absences) * 100 / total, 1),
+        max_absences=max_absences,
         estimated=estimated,
     )
 

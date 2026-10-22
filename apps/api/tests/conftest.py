@@ -6,6 +6,7 @@ import os
 import time
 from collections import deque
 from http.cookies import SimpleCookie
+from typing import Self
 
 import httpx
 import jwt
@@ -259,6 +260,12 @@ class JobsClient(TestClient):
         # O QStash não carrega os cookies do usuário.
         self._jobs = TestClient(app)
 
+    def __enter__(self) -> Self:
+        super().__enter__()
+        # O pool do banco vale num loop só: os jobs rodam no mesmo do client.
+        self._jobs.portal = self.portal
+        return self
+
     def request(self, *args, **kwargs) -> httpx.Response:
         response = super().request(*args, **kwargs)
         self.qstash.deliver(self._jobs)
@@ -317,7 +324,7 @@ def async_database(database):
     from sqlalchemy.pool import NullPool
 
     url = database.kw["bind"].url.set(drivername="postgresql+asyncpg")
-    # Sem pool: o TestClient abre um event loop novo a cada requisição.
+    # Sem pool: o teste pode usar a sessão em mais de um event loop.
     engine = create_async_engine(url, poolclass=NullPool)
     yield async_sessionmaker(engine, expire_on_commit=False)
     engine.sync_engine.dispose()
@@ -325,11 +332,18 @@ def async_database(database):
 
 @pytest.fixture
 def client(async_database, qstash):
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
     from api.db.main import get_sessionmaker
     from api.main import app
 
-    app.dependency_overrides[get_sessionmaker] = lambda: async_database
-    yield JobsClient(app, qstash)
+    # A app reaproveita conexões como em produção, no event loop fixo do client.
+    engine = create_async_engine(async_database.kw["bind"].url)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    app.dependency_overrides[get_sessionmaker] = lambda: sessions
+    with JobsClient(app, qstash) as client:
+        yield client
+        client.portal.call(engine.dispose)
     app.dependency_overrides.clear()
 
 
@@ -346,7 +360,8 @@ def cookies():
     ) -> dict[str, str]:
         response = Response()
         if access is not None:
-            set_access_cookie(response, access)
+            login = refresh.registration if refresh else "251000000"
+            set_access_cookie(response, access, login)
         if refresh is not None:
             set_refresh_cookie(response, refresh)
         return {nome: morsel.value for nome, morsel in _carregar(response).items()}

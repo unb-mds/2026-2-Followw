@@ -4,9 +4,9 @@ O Followw é um cliente alternativo e open-source para o SIGAA da UnB. Ele reún
 as informações que hoje ficam espalhadas em sistemas diferentes (SIGAA, RU, calendário, etc.), com
 cache para deixar tudo mais rápido do que no SIGAA.
 
-O objetivo do Followw não é ser um substituto por completo da interface do SIGAA, mas sim reunir
-as principais funcionalidades usadas no cotidiano dos discentes, focado principalmente nos
-estudantes da graduação.
+O objetivo do Followw não é ser um substituto por completo da interface do SIGAA, mas sim reunir as
+principais funcionalidades usadas no cotidiano dos discentes, focado principalmente nos estudantes
+da graduação.
 
 Suas credenciais ficam sempre no seu navegador e nunca são guardadas no nosso servidor. Você pode
 ver mais detalhes em [segurança](docs/segurança.md).
@@ -19,7 +19,6 @@ ver mais detalhes em [segurança](docs/segurança.md).
 - [Documentação da API](https://api.followw.app/docs)
 - [Entenda como o Followw processa suas credenciais](docs/segurança.md)
 - [Figma com requisitos](https://www.figma.com/board/JqtNZhLBFlsVIbthMYOdzB/Template-MDS--c%C3%B3pia-limpa-)
-
 
 ## Estrutura
 
@@ -37,22 +36,18 @@ docs/               # requisitos, arquitetura e notas de sprint
 
 ### Pré-requisitos
 
-- [Python 3.14+](https://www.python.org/) e [uv](https://docs.astral.sh/uv/)
-- [Bun](https://bun.sh/)
-- [Docker](https://www.docker.com/) (para o Postgres local)
+- [Python 3.14+](https://www.python.org/) e [uv 0.13.4](https://docs.astral.sh/uv/)
+- [Bun 1.4.3](https://bun.sh/)
+- [Docker](https://www.docker.com/) (para Postgres, Redis e QStash locais)
 
 ### API
 
 ```sh
 uv sync                           # instala as dependências do workspace
-docker compose up -d db           # sobe o Postgres local
+docker compose up -d              # sobe Postgres, Redis (rate limit) e QStash (jobs) locais
 
 cd apps/api
 cp .env.example .env              # preencha JWT_SECRET_KEY (openssl rand -base64 32)
-
-# QStash local (fila dos jobs de sincronização), em outro terminal.
-# Copie o token e as signing keys exibidos para o .env.
-npx @upstash/qstash-cli dev
 
 uv run db-init                    # cria as tabelas
 uv run api                        # sobe a API em http://localhost:8000
@@ -79,7 +74,9 @@ uv run pytest                     # testes de todos os apps e pacotes Python
 uv run ruff check .
 uv run ruff format .
 
-cd apps/web && bun check          # formatação e lint do front
+cd apps/web && bun check          # formatação, lint e checagem de tipos do front
+bun test
+bun run build                    # valida os bundles do navegador e do servidor
 ```
 
 ## Criadores

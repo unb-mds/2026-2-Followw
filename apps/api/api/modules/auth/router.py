@@ -3,7 +3,7 @@ from fastapi import APIRouter, Request, Response, status
 from pydantic import BaseModel, Field
 from sigaa_client import Credentials, SigaaClient, SigaaError
 
-from api.cookies import clear_cookies, read_access_cookie
+from api.cookies import clear_cookies, read_access_cookie, read_refresh_cookie
 from api.db.main import DatabaseDep
 from api.errors import SIGAA_ERRORS
 from api.modules.auth.account import start_account
@@ -50,7 +50,10 @@ async def sigaa_refresh(
 
 @router.delete("/sigaa")
 async def sigaa_logout(request: Request, response: Response):
-    session_token = read_access_cookie(request)
+    credentials = read_refresh_cookie(request)
+    session_token = credentials and read_access_cookie(
+        request, credentials.registration
+    )
     if session_token is not None and not getattr(request.state, "rate_limited", False):
         try:
             async with SigaaClient(session_token=session_token) as client:

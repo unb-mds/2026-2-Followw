@@ -348,6 +348,7 @@ class ClassroomRepository:
         index = _UserIndex()
         for condition in (
             User.registration.in_(registrations),
+            User.old_registration.in_(registrations),
             User.person_id.in_(person_ids),
             User.email.in_(emails) & USER_WITHOUT_IDS,
         ):
@@ -557,11 +558,12 @@ class FrequencyRepository:
         link = await self._session.get(ClassroomParticipant, classroom_participant_id)
         if link is None or link.frequency_synced_at is None:
             return None
+        classroom = await self._session.get_one(Classroom, link.classroom_id)
         summary = FrequencySummary(
             progress=sigaa_client.ClassroomProgress(
-                taught=link.progress_taught,
-                total=link.progress_total,
-                percentage=link.progress_percentage,
+                taught=classroom.progress_taught,
+                total=classroom.progress_total,
+                percentage=classroom.progress_percentage,
             ),
             frequency_status=link.frequency_status,
         )
@@ -619,9 +621,10 @@ class FrequencyRepository:
 
         summary = FrequencySummary.of(frequency)
         link.frequency_status = summary.frequency_status
-        link.progress_taught = summary.progress.taught
-        link.progress_total = summary.progress.total
-        link.progress_percentage = summary.progress.percentage
+        classroom = await self._session.get_one(Classroom, link.classroom_id)
+        classroom.progress_taught = summary.progress.taught
+        classroom.progress_total = summary.progress.total
+        classroom.progress_percentage = summary.progress.percentage
         link.frequency_synced_at = synced_at
         await self._session.flush()
 
@@ -796,6 +799,7 @@ class _UserIndex:
     def _keys(self, user: User) -> list[tuple[dict, object]]:
         keys: list[tuple[dict, object]] = [
             (self.by_registration, user.registration),
+            (self.by_registration, user.old_registration),
             (self.by_person_id, user.person_id),
         ]
         if user.registration is None and user.person_id is None:

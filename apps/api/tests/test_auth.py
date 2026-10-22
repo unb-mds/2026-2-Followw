@@ -181,6 +181,27 @@ def test_logout_encerra_no_sigaa_e_apaga_os_cookies(
     }
 
 
+def test_logout_com_access_de_outra_conta_nao_encerra_a_sessao_dela(
+    client, sigaa, cookies
+):
+    sigaa.valid_tokens.add("app14~DE-B")
+    outra = Credentials(registration="252000000", password=SecretStr("outra"))
+    client.cookies.update(
+        {
+            ACCESS_COOKIE_NAME: cookies(access="app14~DE-B", refresh=outra)[
+                ACCESS_COOKIE_NAME
+            ],
+            REFRESH_COOKIE_NAME: cookies(refresh=CREDENCIAIS)[REFRESH_COOKIE_NAME],
+        }
+    )
+
+    response = client.delete("/auth/sigaa")
+
+    assert response.status_code == 200
+    assert sigaa.logouts == 0
+    assert "app14~DE-B" in sigaa.valid_tokens
+
+
 def test_logout_sem_sessao_nao_chama_o_sigaa(client, sigaa):
     response = client.delete("/auth/sigaa")
 

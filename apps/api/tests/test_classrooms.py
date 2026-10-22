@@ -15,7 +15,9 @@ from sigaa_client import (
     StatisticsShare,
     StudentSituation,
     Subject,
+    UserProfile,
 )
+from sigaa_client import UserLevel as SigaaUserLevel
 from sqlalchemy import event, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import undefer
@@ -36,6 +38,7 @@ from api.db.models import (
 )
 from api.db.models import Subject as SubjectModel
 from api.modules.classrooms.repository import ClassroomRepository
+from api.modules.me.repository import UserRepository
 
 CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha123"))
 NO_CACHE = {"Cache-Control": "no-cache"}
@@ -1010,6 +1013,77 @@ async def test_participantes_viram_usuarios_sombra_sem_duplicar(
     eu = next(l for l in links if l.user_id == usuarios[0].id)
     # O vínculo da própria lista continua o mesmo, e o perfil ganha o que faltava.
     assert (eu.front_end_id, eu.user.person_id, eu.user.email) == ("AAA", 7, "eu@x.org")
+
+
+async def test_troca_de_curso_une_a_conta_e_a_sombra_da_matricula_nova(
+    async_database, usuarios
+):
+    conta, colega = usuarios
+    await _salvar_turmas(async_database, conta, [_turma("AAA")])
+    await _salvar_turmas(async_database, colega, [_turma("BBB", "FGA0158")])
+    turmas = [
+        (await _vinculos(async_database, user))[0].classroom_id for user in usuarios
+    ]
+    # Antes do perfil, as listas de participantes já criaram a sombra da matrícula nova.
+    nova = _membro("Discente 0", registration="252000000", person_id=7)
+    for classroom_id in turmas:
+        await _salvar_membros(async_database, classroom_id, [nova])
+
+    perfil = UserProfile(
+        name="Discente 0",
+        registration="252000000",
+        photo=None,
+        bio=None,
+        unity="FCTE",
+        course="ENGENHARIA DE SOFTWARE",
+        shift=None,
+        entry_semester=None,
+        integralization=None,
+        workload=None,
+        ira=None,
+        mp=None,
+        level=SigaaUserLevel.GRADUACAO,
+    )
+    async with async_database() as session:
+        await UserRepository(session).save_profile(perfil, AGORA, login="251000000")
+        await session.commit()
+
+    async with async_database() as session:
+        user = await UserRepository(session).get_by_registration("251000000")
+    assert (user.id, user.registration, user.old_registration, user.person_id) == (
+        conta.id,
+        "252000000",
+        "251000000",
+        7,
+    )
+    assert await _contar(async_database, User) == 2
+    # A turma da sombra passa para a conta, sem duplicar a que as duas tinham.
+    for classroom_id in turmas:
+        links = await _membros(async_database, classroom_id)
+        assert [l.user_id for l in links] == [conta.id]
+
+
+async def test_matricula_antiga_na_lista_de_participantes_cai_na_conta(
+    async_database, usuarios
+):
+    conta = usuarios[0]
+    async with async_database() as session:
+        await session.execute(
+            update(User)
+            .where(User.id == conta.id)
+            .values(registration="252000000", old_registration="251000000")
+        )
+        await session.commit()
+    await _salvar_turmas(async_database, conta, [_turma("AAA", "FGA0146", "2025.1")])
+    classroom_id = (await _vinculos(async_database, conta))[0].classroom_id
+
+    await _salvar_membros(
+        async_database, classroom_id, [_membro("Discente 0", registration="251000000")]
+    )
+
+    assert await _contar(async_database, User) == 2
+    links = await _membros(async_database, classroom_id)
+    assert [l.user_id for l in links] == [conta.id]
 
 
 async def test_docente_e_identificado_pelo_email_entre_turmas(async_database, usuarios):

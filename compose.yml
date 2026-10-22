@@ -12,5 +12,35 @@ services:
         volumes:
             - postgres_data:/var/lib/postgresql
 
+    redis:
+        image: redis:8
+        container_name: followw-redis
+        restart: no
+
+    # Proxy REST compatível com a Upstash, usado pelo upstash-redis.
+    redis-http:
+        image: hiett/serverless-redis-http:latest
+        container_name: followw-redis-http
+        restart: no
+        environment:
+            SRH_MODE: env
+            SRH_TOKEN: followw
+            SRH_CONNECTION_STRING: redis://redis:6379
+        ports:
+            - '8079:80'
+        depends_on:
+            - redis
+
+    qstash:
+        image: public.ecr.aws/upstash/qstash:latest
+        container_name: followw-qstash
+        restart: no
+        command: qstash dev
+        ports:
+            - '8080:8080'
+        # Entrega os jobs na API rodando no host.
+        extra_hosts:
+            - 'host.docker.internal:host-gateway'
+
 volumes:
     postgres_data:
