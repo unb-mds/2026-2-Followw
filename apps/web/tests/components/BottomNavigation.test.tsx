@@ -8,7 +8,7 @@ import {
 import { describe, expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import { BottomNavigation } from '#/components/BottomNavigation';
+import { BottomNavigation, isDoubleTap } from '#/components/BottomNavigation';
 
 async function renderNavigation(pathname: string) {
     const rootRoute = createRootRoute({ component: BottomNavigation });
@@ -67,5 +67,11 @@ describe('BottomNavigation', () => {
             .map(([, attributes]) => attributes.match(/aria-label="([^"]*)"/)?.[1]);
 
         expect(activeLabels).toEqual([label]);
+    });
+
+    test('reconhece dois toques rápidos como toque duplo', () => {
+        expect(isDoubleTap(null, 1000)).toBe(false);
+        expect(isDoubleTap(1000, 1300)).toBe(true);
+        expect(isDoubleTap(1000, 1500)).toBe(false);
     });
 });

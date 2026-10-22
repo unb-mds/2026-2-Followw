@@ -48,7 +48,13 @@ const validity = new Intl.DateTimeFormat('pt-BR', {
     year: 'numeric'
 });
 
-export function RestaurantAccount({ registration }: { registration: string }) {
+export function RestaurantAccount({
+    registration,
+    openCard = false
+}: {
+    registration: string;
+    openCard?: boolean;
+}) {
     const queryClient = useQueryClient();
     const statementOptions = statementQueryOptions(registration);
     const credentialsOptions = credentialsQueryOptions(registration);
@@ -88,6 +94,7 @@ export function RestaurantAccount({ registration }: { registration: string }) {
     const cardDrawer = (
         <StudentCardDrawer
             credentials={credentials}
+            requested={openCard}
             onRetry={() => refresh('credentials')}
             retryDisabled={refreshDisabled}
         />
@@ -139,15 +146,20 @@ export function RestaurantAccount({ registration }: { registration: string }) {
 
 function StudentCardDrawer({
     credentials,
+    requested,
     onRetry,
     retryDisabled
 }: {
     credentials: UseQueryResult<RestaurantCredentials>;
+    requested: boolean;
     onRetry: () => Promise<void>;
     retryDisabled: boolean;
 }) {
+    const [open, setOpen] = useState(false);
+    if (requested && !open) setOpen(true);
+
     return (
-        <Drawer showSwipeHandle>
+        <Drawer showSwipeHandle open={open} onOpenChange={setOpen}>
             <DrawerTrigger
                 render={
                     <Button
