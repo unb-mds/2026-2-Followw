@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { afterEach, describe, expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import type { components } from '#/queries/schema.gen';
@@ -8,6 +8,10 @@ import {
     ProfileIdentity,
     ProgressSection
 } from '#/components/profile/ProfileOverview';
+
+import { useDom } from '../../helpers/dom';
+
+const dom = useDom();
 
 const user: components['schemas']['UserProfile'] = {
     name: 'NOME DISCENTE',
@@ -73,6 +77,37 @@ describe('AcademicPerformance', () => {
     });
 });
 
+function renderBio(scrollHeight: number) {
+    Object.defineProperty(HTMLElement.prototype, 'scrollHeight', {
+        configurable: true,
+        get: () => scrollHeight
+    });
+    Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+        configurable: true,
+        get: () => 60
+    });
+    return dom.testing.render(<ProfileIdentity user={{ ...user, bio: 'Bio longa' }} />);
+}
+
+describe('Bio', () => {
+    afterEach(() => dom.testing.cleanup());
+
+    test('alterna entre ler mais e ler menos quando a bio passa de 3 linhas', async () => {
+        const page = renderBio(120);
+        const button = await page.findByRole('button', { name: 'Ler mais' });
+        expect(page.getByText('Bio longa').className).toContain('line-clamp-3');
+
+        dom.testing.fireEvent.click(button);
+        expect(page.getByRole('button', { name: 'Ler menos' })).toBeTruthy();
+        expect(page.getByText('Bio longa').className).not.toContain('line-clamp-3');
+    });
+
+    test('esconde o botão quando a bio cabe em 3 linhas', () => {
+        const page = renderBio(60);
+        expect(page.queryByRole('button', { name: 'Ler mais' })).toBeNull();
+    });
+});
+
 describe('ProgressSection', () => {
     const workload = {
         total: 3525,
@@ -88,18 +123,18 @@ describe('ProgressSection', () => {
         expect(markup).toContain('Integralização');
         expect(markup).toContain('62,5%');
         expect(markup).toContain('<dl');
-        expect(markup).toContain('CH. Obrigatória Pendente');
+        expect(markup).toContain('Obrigatória pendente');
         expect(markup).toContain('2175h');
-        expect(markup).toContain('(145 créditos)');
-        expect(markup).toContain('CH. Optativa Pendente');
+        expect(markup).toContain('145 créditos');
+        expect(markup).toContain('Optativa pendente');
         expect(markup).toContain('420h');
-        expect(markup).toContain('(28 créditos)');
-        expect(markup).toContain('CH. Complementar Pendente');
+        expect(markup).toContain('28 créditos');
+        expect(markup).toContain('Complementar pendente');
         expect(markup).toContain('0h');
-        expect(markup).not.toContain('(0 créditos)');
-        expect(markup).toContain('CH. Total Currículo');
+        expect(markup).not.toContain('0 créditos');
+        expect(markup).toContain('Total do currículo');
         expect(markup).toContain('3525h');
-        expect(markup).not.toContain('(235 créditos)');
+        expect(markup).toContain('235 créditos');
     });
 
     test('mostra só a integralização sem carga horária', () => {

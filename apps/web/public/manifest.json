@@ -1,7 +1,7 @@
 {
     "name": "Followw",
     "short_name": "Followw",
-    "description": "O Followw é uma nova forma de usar o SIGAA UnB.",
+    "description": "O Followw é sua nova forma de usar o SIGAA UnB.",
     "start_url": "/",
     "scope": "/",
     "display": "standalone",

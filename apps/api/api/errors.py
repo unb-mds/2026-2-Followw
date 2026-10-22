@@ -7,6 +7,8 @@ from fastapi.responses import JSONResponse
 from sigaa_client import (
     AuthenticationFailed,
     ClassroomNotFound,
+    DocumentUnavailable,
+    MissingProfilePhoto,
     NewsNotFound,
     SigaaError,
     SigaaSearchError,
@@ -37,6 +39,11 @@ async def _authentication_failed(_: Request, __: Exception) -> JSONResponse:
     return response
 
 
+async def _document_unavailable(_: Request, error: Exception) -> JSONResponse:
+    detail = f"Não foi possível emitir o documento: {error}"
+    return JSONResponse({"detail": detail}, status_code=422)
+
+
 # O Starlette escolhe o handler pela classe mais específica da exceção. Sessão do
 # SIGAA que morre mesmo após o relogin é falha da origem (502), não do login.
 EXCEPTION_HANDLERS: dict[type[Exception], Handler] = {
@@ -44,6 +51,11 @@ EXCEPTION_HANDLERS: dict[type[Exception], Handler] = {
     ClassroomNotFound: _error(404, "Classroom not found"),
     NewsNotFound: _error(404, "News not found"),
     SigaaSearchError: _error(422),
+    MissingProfilePhoto: _error(
+        422,
+        "Não foi possível emitir a carteirinha pois você não possui foto de perfil.",
+    ),
+    DocumentUnavailable: _document_unavailable,
     SigaaError: _error(502, "SIGAA is unavailable"),
     httpx.HTTPError: _error(502, "SIGAA is unavailable"),
     UnbBrowserError: _error(502, "UnB website is unavailable"),

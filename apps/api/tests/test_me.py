@@ -11,6 +11,8 @@ from sigaa_client import (
     AuthenticationFailed,
     Credentials,
     CurriculumWorkload,
+    DocumentUnavailable,
+    MissingProfilePhoto,
     RestaurantCredentials,
     RestaurantStatement,
     RestaurantStatementEntry,
@@ -357,13 +359,39 @@ def test_download_documento_traduz_erros(
     assert client.post(f"/me/{path}").status_code == status
 
 
+_SEM_FOTO = "Não foi possível emitir a carteirinha pois você não possui foto de perfil."
+
+
+@pytest.mark.parametrize("path,method", DOCUMENT_DOWNLOADS)
+def test_download_recusado_pelo_sigaa_retorna_422_com_motivo(
+    client, cookies, documents, path, method
+):
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+    getattr(documents, method).side_effect = DocumentUnavailable("Motivo do SIGAA")
+    response = client.post(f"/me/{path}")
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": "Não foi possível emitir o documento: Motivo do SIGAA"
+    }
+
+
+def test_carteirinha_sem_foto_explica_o_motivo(client, cookies, documents, restaurant):
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+    error = MissingProfilePhoto("Discente não possui foto")
+    documents.get_student_card_pdf.side_effect = error
+    restaurant.get_restaurant_credentials.side_effect = error
+    for response in (client.post("/me/student-card"), client.get("/me/ru-token")):
+        assert response.status_code == 422
+        assert response.json() == {"detail": _SEM_FOTO}
+
+
 @pytest.mark.parametrize("path", ["student-card", "transcript"])
 def test_openapi_documenta_download_documento(client, path):
     methods = client.get("/openapi.json").json()["paths"][f"/me/{path}"]
     assert "get" not in methods
     route = methods["post"]
     assert route["tags"] == ["Me"]
-    assert {"401", "502"} <= route["responses"].keys()
+    assert {"401", "422", "502"} <= route["responses"].keys()
     assert route["responses"]["200"]["content"] == {
         "application/pdf": {"schema": {"type": "string", "format": "binary"}}
     }
@@ -596,6 +624,7 @@ def test_openapi_documenta_dados_privados_do_restaurante(client):
     for path in ("statement", "token"):
         assert paths[f"/me/ru-{path}"]["get"]["tags"] == ["Me"]
         assert {"401", "502"} <= paths[f"/me/ru-{path}"]["get"]["responses"].keys()
+    assert "422" in paths["/me/ru-token"]["get"]["responses"]
     assert {"balance", "group", "entries"} <= schema["components"]["schemas"][
         "RestaurantStatement"
     ]["properties"].keys()

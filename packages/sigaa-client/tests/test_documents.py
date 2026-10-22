@@ -4,7 +4,14 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 
-from sigaa_client import SessionExpired, SessionRenewed, SigaaClient, SigaaParseError
+from sigaa_client import (
+    DocumentUnavailable,
+    MissingProfilePhoto,
+    SessionExpired,
+    SessionRenewed,
+    SigaaClient,
+    SigaaParseError,
+)
 from sigaa_client.config import DASHBOARD_PATH
 from sigaa_client.private.documents import (
     _STUDENT_CARD_MENU_ACTION,
@@ -63,6 +70,46 @@ async def test_download_rejeita_resposta_invalida(content, method, menu_action):
     ) as client:
         with pytest.raises(SigaaParseError):
             await getattr(client.documents, method)()
+
+
+# Recorte do portal devolvido quando o discente não tem foto no perfil.
+SEM_FOTO = """
+<div id="painel-erros" style="position: relative; padding-bottom: 10px;">
+  <ul class="erros">
+    <li>Discente n&#227;o possui foto, por favor atualize perfil para incluir foto</li>
+  </ul>
+</div>
+"""
+
+
+async def _download_com_erro(method, painel):
+    def handle(request):
+        if request.method == "GET":
+            return httpx.Response(200, text=MENU)
+        return httpx.Response(200, text=MENU + painel)
+
+    async with SigaaClient(
+        session_token="tok", transport=httpx.MockTransport(handle)
+    ) as client:
+        return await getattr(client.documents, method)()
+
+
+@pytest.mark.parametrize("method,menu_action", DOCUMENTS)
+async def test_download_sem_foto_no_perfil_e_identificado(method, menu_action):
+    with pytest.raises(MissingProfilePhoto) as error:
+        await _download_com_erro(method, SEM_FOTO)
+    assert str(error.value) == (
+        "Discente não possui foto, por favor atualize perfil para incluir foto"
+    )
+
+
+@pytest.mark.parametrize("method,menu_action", DOCUMENTS)
+async def test_download_recusado_pelo_sigaa_repassa_o_motivo(method, menu_action):
+    painel = '<ul class="erros"><li>Documento indisponível.</li></ul>'
+    with pytest.raises(DocumentUnavailable) as error:
+        await _download_com_erro(method, painel)
+    assert not isinstance(error.value, MissingProfilePhoto)
+    assert str(error.value) == "Documento indisponível."
 
 
 @pytest.mark.parametrize("method,menu_action", DOCUMENTS)

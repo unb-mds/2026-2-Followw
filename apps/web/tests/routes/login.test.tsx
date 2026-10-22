@@ -102,7 +102,7 @@ describe('página de login', () => {
         fireEvent.submit(page.getByRole('button', { name: 'Entrar' }).closest('form')!);
     }
 
-    test('login com sucesso envia as credenciais e vai para a Home', async () => {
+    test('login com sucesso envia as credenciais e vai para o perfil', async () => {
         respond = (request) =>
             new URL(request.url).pathname.endsWith('/me')
                 ? Response.json(user)
@@ -111,7 +111,7 @@ describe('página de login', () => {
 
         await submit(page);
 
-        await dom.testing.waitFor(() => expect(router.state.location.pathname).toBe('/'));
+        await dom.testing.waitFor(() => expect(router.state.location.pathname).toBe('/perfil'));
         expect(await requests[0].clone().json()).toEqual({
             registration: '251000000',
             password: 'senha123'

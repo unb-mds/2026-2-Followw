@@ -1,8 +1,14 @@
 from bs4 import BeautifulSoup, Tag
 
 from ..config import DASHBOARD_PATH
-from ..exceptions import SessionRenewed, SigaaParseError
+from ..exceptions import (
+    DocumentUnavailable,
+    MissingProfilePhoto,
+    SessionRenewed,
+    SigaaParseError,
+)
 from ..utils.jsf import build_menu_action, read_viewstate
+from ..utils.parsing import clean_text, lookup_key
 from .session import Session
 
 _MENU_FORM_ID = "menu:form_menu_discente"
@@ -14,6 +20,7 @@ _TRANSCRIPT_MENU_ACTION = (
     "menu_form_menu_discente_discente_menu:A]#{ portalDiscente.historico }"
 )
 _PDF_HEADER = b"%PDF-"
+_MISSING_PHOTO = "nao possui foto"
 
 
 class Documents:
@@ -47,6 +54,13 @@ async def _download_pdf(session: Session, menu_action: str, document: str) -> by
 
     # O PDF pode vir com bytes antes do cabeçalho, o que a especificação tolera.
     if _PDF_HEADER not in content[:1024]:
+        # Ex.: carteirinha sem foto no perfil volta ao portal com o motivo.
+        soup = BeautifulSoup(content, "lxml")
+        if messages := [clean_text(item) for item in soup.select("ul.erros li")]:
+            message = " ".join(messages)
+            if _MISSING_PHOTO in lookup_key(message):
+                raise MissingProfilePhoto(message)
+            raise DocumentUnavailable(message)
         raise SigaaParseError(f"PDF {document} não recebido do SIGAA.")
     return content
 

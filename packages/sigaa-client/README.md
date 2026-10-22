@@ -89,7 +89,8 @@ grupo ausentes representados por `None`.
 retorna os bytes do PDF original da carteirinha estudantil.
 `client.restaurant.get_restaurant_credentials()` usa esse mesmo download para extrair o token do QR
 code e a validade, sem persistir o arquivo. `client.documents.get_transcript_pdf()` baixa o PDF
-original do histórico acadêmico.
+original do histórico acadêmico. Quando o SIGAA recusa emitir o documento (ex.: perfil sem foto), os
+três levantam `DocumentUnavailable` com o motivo informado por ele (`MissingProfilePhoto` quando falta foto).
 
 `SigaaPublicClient().classrooms.iter_subjects(unidade)` percorre os componentes de graduação
 ofertados por uma unidade e entrega cada um como `SubjectDetails`: o `Subject` com `prerequisites`,
