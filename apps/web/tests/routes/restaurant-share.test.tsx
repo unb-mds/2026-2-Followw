@@ -31,8 +31,16 @@ const sections: MenuSection[] = [
 ];
 const EMPTY = { date: null, meal: null, campus: null };
 const handler = ({ request }: { request: Request }) => restaurantShareResponse(request);
+const originalSecret = process.env.JWT_SECRET_KEY;
+const originalVercel = process.env.VERCEL;
 let fetchSpy: ReturnType<typeof spyOn<typeof globalThis, 'fetch'>> | undefined;
-afterEach(() => fetchSpy?.mockRestore());
+afterEach(() => {
+    fetchSpy?.mockRestore();
+    if (originalSecret === undefined) delete process.env.JWT_SECRET_KEY;
+    else process.env.JWT_SECRET_KEY = originalSecret;
+    if (originalVercel === undefined) delete process.env.VERCEL;
+    else process.env.VERCEL = originalVercel;
+});
 
 beforeAll(async () => {
     await Promise.all(
@@ -72,6 +80,20 @@ function mockMenu(status = 200, published = true) {
 }
 
 describe('compartilhamento do cardápio', () => {
+    test('prévia encaminha IP assinado sem encaminhar cookies', async () => {
+        process.env.JWT_SECRET_KEY = 'chave-de-teste-nao-usar-em-producao';
+        process.env.VERCEL = '1';
+        mockMenu();
+        const request = new Request('https://followw.app/share/ru.png', {
+            headers: { 'x-vercel-forwarded-for': '203.0.113.1', cookie: 'refresh_token=secret' }
+        });
+        await loadSharedMenu(request, selection);
+        const init = fetchSpy!.mock.calls.at(-1)![1];
+        const headers = new Headers(init?.headers);
+        expect(headers.get('x-followw-client')).toEndWith(':203.0.113.1');
+        expect(headers.get('x-followw-client-signature')).toHaveLength(64);
+        expect(headers.get('cookie')).toBeNull();
+    });
     test('o link restaura dia, refeição e campus sem depender dos padrões atuais', () => {
         const url = new URL(restaurantSharePath(selection), 'https://followw.app');
         expect(restaurantSelection(loadRestaurantSearch(url))).toEqual(selection);
@@ -190,7 +212,7 @@ describe('compartilhamento do cardápio', () => {
         expect(url instanceof URL ? url.href : null).toBe(
             'https://followw.app/api/public/restaurant?campus=Gama&start_date=2026-10-19&end_date=2026-10-19'
         );
-        expect(options).not.toHaveProperty('headers');
+        expect(new Headers(options?.headers).get('cookie')).toBeNull();
     });
 
     test('o endpoint público gera PNG de 1200 por 630 com cache de uma hora e meia', async () => {

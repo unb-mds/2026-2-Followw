@@ -23,5 +23,15 @@ class Settings(BaseSettings):
     qstash_current_signing_key: str
     qstash_next_signing_key: str
 
+    # REST do Upstash; sem URL ou token, Redis e rate limit ficam desativados.
+    upstash_redis_rest_url: str | None = None
+    upstash_redis_rest_token: str | None = None
+    redis_timeout_seconds: float = Field(default=1, gt=0, allow_inf_nan=False)
+
+    # Cotas por IP em janela fixa; login tem uma cota própria, mais restrita.
+    rate_limit_requests: int = Field(default=120, gt=0)
+    rate_limit_login_requests: int = Field(default=10, gt=0)
+    rate_limit_window_seconds: int = Field(default=60, gt=0)
+
 
 settings = Settings()

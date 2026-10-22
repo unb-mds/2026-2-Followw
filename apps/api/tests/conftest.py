@@ -43,6 +43,8 @@ os.environ["QSTASH_URL"] = "https://qstash.upstash.io"
 os.environ["QSTASH_TOKEN"] = "token-de-teste"
 os.environ["QSTASH_CURRENT_SIGNING_KEY"] = QSTASH_SIGNING_KEY
 os.environ["QSTASH_NEXT_SIGNING_KEY"] = "sig_proxima_de_teste_com_32_bytes_ou_mais"
+os.environ["UPSTASH_REDIS_REST_URL"] = ""
+os.environ["UPSTASH_REDIS_REST_TOKEN"] = ""
 
 PERFIL = """
 <html><body><div id="perfil-docente">
