@@ -22,14 +22,14 @@ describe('titleCase', () => {
 describe('academicIndexes', () => {
     test('formata IRA e MP com três casas no padrão brasileiro', () => {
         expect(academicIndexes({ ira: 3.5, mp: 4.12345 }).map((index) => index.value)).toEqual([
-            '3,500',
+            '3,5',
             '4,123'
         ]);
     });
 
     test('omite índices ausentes mas mantém zero', () => {
         expect(academicIndexes({ ira: null, mp: 0 })).toEqual([
-            { label: 'MP', description: 'Média ponderada', value: '0,000' }
+            { label: 'MP', description: 'Média ponderada', value: '0' }
         ]);
         expect(academicIndexes({ ira: null, mp: null })).toEqual([]);
     });

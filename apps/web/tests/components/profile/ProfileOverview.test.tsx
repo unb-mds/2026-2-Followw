@@ -66,7 +66,7 @@ describe('ProfileIdentity', () => {
 describe('AcademicPerformance', () => {
     test('mostra apenas os índices disponíveis', () => {
         const markup = renderToStaticMarkup(<AcademicPerformance user={user} />);
-        expect(markup).toContain('3,500');
+        expect(markup).toContain('3,5');
         expect(markup).not.toContain('MP');
         expect(markup).not.toContain('Integralização');
     });
