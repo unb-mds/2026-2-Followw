@@ -54,6 +54,12 @@ export function approvedCodes(history: Classroom[]): Set<string> {
     );
 }
 
+export function takenCodes(history: Classroom[]): Set<string> {
+    const taken = approvedCodes(history);
+    for (const c of history) if (c.status === 'cursando') taken.add(c.subject.code);
+    return taken;
+}
+
 /** OU de Es pelos códigos aprovados; `null` sem histórico para comparar. */
 export function prerequisitesMet(
     requirements: Requirements | null | undefined,

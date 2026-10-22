@@ -27,6 +27,7 @@ import { recommendationsQueryOptions, showRecommendations } from '#/queries/reco
 import { refreshQuery } from '#/queries/refresh';
 import {
     approvedCodes,
+    takenCodes,
     currentCurriculumPeriod,
     AVAILABILITIES,
     filterSubjects,
@@ -100,6 +101,7 @@ function BuscarTurmasPage() {
     });
     const { data: history } = useQuery({ ...allClassroomsQueryOptions, enabled: Boolean(user) });
     const approved = useMemo(() => (history ? approvedCodes(history) : null), [history]);
+    const taken = useMemo(() => (history ? takenCodes(history) : null), [history]);
 
     const subjects = filterSubjects(data ?? [], { turno, disponibilidade }, approved);
     const visible = subjects.slice(0, limit);
@@ -186,6 +188,7 @@ function BuscarTurmasPage() {
                             currentPeriod={currentPeriod}
                             total={subjects.length}
                             approved={approved}
+                            taken={taken}
                             onOpenDetails={refreshSubjects}
                         />
                         {subjects.length > visible.length && (

@@ -5,10 +5,12 @@ import { Badge } from '#/components/ui/badge';
 
 export function SubjectSummary({
     subject,
-    currentPeriod = null
+    currentPeriod = null,
+    done = false
 }: {
     subject: CatalogSubject;
     currentPeriod?: number | null;
+    done?: boolean;
 }) {
     // A API só envia período positivo.
     const period = subject.curriculum_period || null;
@@ -22,8 +24,20 @@ export function SubjectSummary({
                     <SubjectKindBadge kind={subject.kind} />
                     {period != null && (
                         <Badge
-                            variant={ahead == null ? 'outline' : ahead ? 'default' : 'destructive'}
-                            className={ahead ? 'bg-primary/10 text-primary' : undefined}
+                            variant={
+                                done || ahead == null
+                                    ? 'outline'
+                                    : ahead
+                                      ? 'default'
+                                      : 'destructive'
+                            }
+                            className={
+                                done
+                                    ? 'border-transparent bg-blue-500/10 text-blue-500'
+                                    : ahead
+                                      ? 'bg-primary/10 text-primary'
+                                      : undefined
+                            }
                         >
                             {period}º semestre
                         </Badge>

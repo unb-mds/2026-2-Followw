@@ -15,6 +15,7 @@ export function TurmaSection({
     subjects,
     total = subjects.length,
     approved,
+    taken,
     onOpenDetails,
     currentPeriod
 }: {
@@ -23,6 +24,7 @@ export function TurmaSection({
     subjects: CatalogSubject[];
     total?: number;
     approved: Set<string> | null;
+    taken?: Set<string> | null;
     onOpenDetails?: () => void;
 }) {
     if (subjects.length === 0) return null;
@@ -43,7 +45,11 @@ export function TurmaSection({
                         className="overflow-hidden rounded-2xl border bg-card text-card-foreground"
                     >
                         <AccordionTrigger className="items-center gap-3 rounded-none px-3 py-3 hover:bg-primary/5 hover:no-underline focus-visible:ring-inset">
-                            <SubjectSummary subject={subject} currentPeriod={currentPeriod} />
+                            <SubjectSummary
+                                subject={subject}
+                                currentPeriod={currentPeriod}
+                                done={taken?.has(subject.code) ?? false}
+                            />
                             <span className="shrink-0 text-xs text-muted-foreground">
                                 {`${subject.classrooms.length} ${subject.classrooms.length === 1 ? 'turma' : 'turmas'}`}
                             </span>
