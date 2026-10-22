@@ -13,6 +13,7 @@
         "preview": "vite preview",
         "fmt": "oxfmt",
         "lint": "oxlint --fix",
+        "typecheck": "tsc --noEmit",
         "check": "oxfmt --check && oxlint --deny-warnings"
     },
     "dependencies": {

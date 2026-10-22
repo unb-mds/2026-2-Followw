@@ -37,8 +37,8 @@ docs/               # requisitos, arquitetura e notas de sprint
 
 ### Pré-requisitos
 
-- [Python 3.14+](https://www.python.org/) e [uv](https://docs.astral.sh/uv/)
-- [Bun](https://bun.sh/)
+- [Python 3.14+](https://www.python.org/) e [uv 0.13.4](https://docs.astral.sh/uv/)
+- [Bun 1.4.3](https://bun.sh/)
 - [Docker](https://www.docker.com/) (para o Postgres local)
 
 ### API
@@ -80,6 +80,9 @@ uv run ruff check .
 uv run ruff format .
 
 cd apps/web && bun check          # formatação e lint do front
+bun run typecheck                 # checagem de tipos, incluindo os testes
+bun test
+bun run build                    # valida os bundles do navegador e do servidor
 ```
 
 ## Criadores
