@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 
 import { saveFile } from '#/lib/download';
 import { apiClient } from '#/queries/client';
+import { ApiError } from '#/queries/errors';
 
 export const studentDocuments = {
     'student-card': { label: 'Carteirinha estudantil', filename: 'carteirinha.pdf' },
@@ -9,6 +10,13 @@ export const studentDocuments = {
 } as const;
 
 export type StudentDocument = keyof typeof studentDocuments;
+
+/** Mensagem da API quando o SIGAA recusa emitir um documento (ex.: perfil sem foto). */
+export function documentRefusal(error: unknown): string | null {
+    return error instanceof ApiError && error.status === 422 && typeof error.detail === 'string'
+        ? error.detail
+        : null;
+}
 
 export async function getDocumentDownload(document: StudentDocument) {
     const { data } = await apiClient.POST(`/me/${document}`, { parseAs: 'blob' });

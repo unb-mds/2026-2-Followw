@@ -28,3 +28,11 @@ class NewsNotFound(SigaaError):
 
 class SigaaSearchError(SigaaError):
     """O SIGAA recusou os filtros da busca e disse o porquê."""
+
+
+class DocumentUnavailable(SigaaError):
+    """O SIGAA recusou emitir o documento e disse o porquê."""
+
+
+class MissingProfilePhoto(DocumentUnavailable):
+    """A carteirinha exige foto no perfil do SIGAA."""

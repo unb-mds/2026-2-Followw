@@ -1,8 +1,8 @@
 import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, useLocation, useNavigate } from '@tanstack/react-router';
 import { Coffee, Egg, Leaf, Soup, UtensilsCrossed } from 'lucide-react';
 import { useQueryStates } from 'nuqs';
-import { useSyncExternalStore } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 
 import type { RestaurantSelection } from '#/lib/restaurant-share';
 import type { MenuSection } from '#/queries/restaurant';
@@ -61,6 +61,13 @@ const ALTERNATIVES: Partial<Record<NonNullable<MenuSection['key']>, AlternativeI
     complement_vegetarian: { label: 'Ovolactovegetariano', icon: Egg },
     complement_vegan: { label: 'Vegetariano estrito', icon: Leaf }
 };
+
+declare module '@tanstack/history' {
+    interface HistoryState {
+        // pedido da navbar para abrir a carteirinha
+        studentCard?: boolean;
+    }
+}
 
 const subscribe = () => () => {};
 
@@ -174,6 +181,12 @@ function RUPage() {
     } = useMenuSelection();
     const [filtersOpen] = useFiltersOpen();
     const { data: user } = useSuspenseQuery(meQueryOptions);
+    const cardRequested = useLocation({ select: (location) => location.state.studentCard });
+    const navigate = useNavigate();
+    // limpa o pedido para não reabrir ao voltar ou recarregar
+    useEffect(() => {
+        if (cardRequested) void navigate({ to: '.', search: true, replace: true, state: {} });
+    }, [cardRequested, navigate]);
     const { data, isPending, isLoadingError, refetch } = useQuery(
         menuQueryOptions({ date: selectedDate, campus })
     );
@@ -288,7 +301,11 @@ function RUPage() {
             </Tabs>
 
             {user ? (
-                <RestaurantAccount key={user.registration} registration={user.registration} />
+                <RestaurantAccount
+                    key={user.registration}
+                    registration={user.registration}
+                    openCard={cardRequested}
+                />
             ) : (
                 <Card className="mt-4">
                     <CardContent className="text-muted-foreground">

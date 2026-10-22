@@ -18,6 +18,7 @@ from api.modules.public_classrooms.router import router as public_classrooms_rou
 from api.modules.public_courses.router import router as public_courses_router
 from api.modules.public_restaurant.router import router as public_restaurant_router
 from api.modules.public_subjects.router import router as public_subjects_router
+from api.rate_limit import RateLimitMiddleware
 from api.sync.router import router as jobs_router
 
 # desativa logs "HTTP Request: ..." que o httpx emite pra cada chamada ao SIGAA
@@ -141,13 +142,15 @@ async def scalar_docs() -> HTMLResponse:
 if settings.environment == "production":
     app.add_middleware(HTTPSRedirectMiddleware)
 
+app.add_middleware(RateLimitMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["Age"],
+    expose_headers=["Age", "Retry-After"],
 )
 
 app.add_middleware(RequestLoggingMiddleware)

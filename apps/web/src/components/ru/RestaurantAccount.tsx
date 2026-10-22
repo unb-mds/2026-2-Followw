@@ -32,6 +32,7 @@ import { useFailureMessage, useOnline } from '#/lib/online';
 import { cardIsExpired, insufficientMealBalance } from '#/lib/restaurant';
 import { nowInBrasilia } from '#/lib/schedule';
 import { cn } from '#/lib/shadcn';
+import { documentRefusal } from '#/queries/documents';
 import { refreshQuery } from '#/queries/refresh';
 import { credentialsQueryOptions, statementQueryOptions } from '#/queries/restaurant-account';
 
@@ -47,7 +48,13 @@ const validity = new Intl.DateTimeFormat('pt-BR', {
     year: 'numeric'
 });
 
-export function RestaurantAccount({ registration }: { registration: string }) {
+export function RestaurantAccount({
+    registration,
+    openCard = false
+}: {
+    registration: string;
+    openCard?: boolean;
+}) {
     const queryClient = useQueryClient();
     const statementOptions = statementQueryOptions(registration);
     const credentialsOptions = credentialsQueryOptions(registration);
@@ -87,6 +94,7 @@ export function RestaurantAccount({ registration }: { registration: string }) {
     const cardDrawer = (
         <StudentCardDrawer
             credentials={credentials}
+            requested={openCard}
             onRetry={() => refresh('credentials')}
             retryDisabled={refreshDisabled}
         />
@@ -138,15 +146,20 @@ export function RestaurantAccount({ registration }: { registration: string }) {
 
 function StudentCardDrawer({
     credentials,
+    requested,
     onRetry,
     retryDisabled
 }: {
     credentials: UseQueryResult<RestaurantCredentials>;
+    requested: boolean;
     onRetry: () => Promise<void>;
     retryDisabled: boolean;
 }) {
+    const [open, setOpen] = useState(false);
+    if (requested && !open) setOpen(true);
+
     return (
-        <Drawer showSwipeHandle>
+        <Drawer showSwipeHandle open={open} onOpenChange={setOpen}>
             <DrawerTrigger
                 render={
                     <Button
@@ -173,6 +186,7 @@ function StudentCardDrawer({
                         query={credentials}
                         hasData={Boolean(credentials.data)}
                         label="carteirinha"
+                        failure={documentRefusal(credentials.error)}
                         showUpdatedAt={false}
                         onRetry={onRetry}
                         retryDisabled={retryDisabled}
@@ -303,6 +317,7 @@ function AccountStatus({
     query,
     hasData,
     label,
+    failure,
     showUpdatedAt = true,
     onRetry,
     retryDisabled
@@ -310,6 +325,7 @@ function AccountStatus({
     query: Pick<UseQueryResult, 'isPending' | 'isError' | 'dataUpdatedAt'>;
     hasData: boolean;
     label: string;
+    failure?: string | null;
     showUpdatedAt?: boolean;
     onRetry: () => Promise<void>;
     retryDisabled: boolean;
@@ -325,8 +341,8 @@ function AccountStatus({
         <div className="text-xs text-muted-foreground" aria-live="polite">
             {query.isPending && !hasData && <LoadingText>Carregando {label}...</LoadingText>}
             {showError && (
-                <p>
-                    {failureMessage}{' '}
+                <p className="text-destructive">
+                    {failure ?? failureMessage}{' '}
                     <Button
                         variant="link"
                         size="xs"

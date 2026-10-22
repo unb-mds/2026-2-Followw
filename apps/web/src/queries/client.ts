@@ -11,15 +11,20 @@ const baseUrl = createIsomorphicFn()
     .client(() => '/api')
     .server(() => 'http://localhost/api')();
 
-const getSsrCookie = createIsomorphicFn()
-    .client(() => undefined)
+const getSsrHeaders = createIsomorphicFn()
+    .client(() => new Headers())
     .server(async () => {
+        const headers = new Headers();
         try {
-            const { getRequestHeader } = await import('@tanstack/react-start/server');
-            return getRequestHeader('cookie');
-        } catch {
-            return undefined;
-        }
+            const { getRequest } = await import('@tanstack/react-start/server');
+            const incoming = getRequest();
+            const cookie = incoming.headers.get('cookie');
+            if (cookie) headers.set('cookie', cookie);
+            // a assinatura do IP é opcional: falhar aqui não pode derrubar a sessão
+            const { clientIpHeaders } = await import('#/queries/client-ip.server');
+            clientIpHeaders(incoming).forEach((value, name) => headers.set(name, value));
+        } catch {}
+        return headers;
     });
 
 const toSsrOrigin = createIsomorphicFn()
@@ -46,8 +51,8 @@ const forwardSsrSetCookie = createIsomorphicFn()
 const ssrMiddleware: Middleware = {
     async onRequest({ request: original }) {
         const request = await toSsrOrigin(original);
-        const cookie = await getSsrCookie();
-        if (cookie) request.headers.set('cookie', cookie);
+        const headers = await getSsrHeaders();
+        headers.forEach((value, name) => request.headers.set(name, value));
         return request;
     },
     async onResponse({ response }) {
