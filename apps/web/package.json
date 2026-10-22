@@ -13,8 +13,7 @@
         "preview": "vite preview",
         "fmt": "oxfmt",
         "lint": "oxlint --fix",
-        "typecheck": "tsc --noEmit",
-        "check": "oxfmt --check && oxlint --deny-warnings"
+        "check": "oxfmt --check && oxlint --deny-warnings && tsc --noEmit"
     },
     "dependencies": {
         "@base-ui/react": "^1.9.0",

@@ -4,9 +4,9 @@ O Followw é um cliente alternativo e open-source para o SIGAA da UnB. Ele reún
 as informações que hoje ficam espalhadas em sistemas diferentes (SIGAA, RU, calendário, etc.), com
 cache para deixar tudo mais rápido do que no SIGAA.
 
-O objetivo do Followw não é ser um substituto por completo da interface do SIGAA, mas sim reunir
-as principais funcionalidades usadas no cotidiano dos discentes, focado principalmente nos
-estudantes da graduação.
+O objetivo do Followw não é ser um substituto por completo da interface do SIGAA, mas sim reunir as
+principais funcionalidades usadas no cotidiano dos discentes, focado principalmente nos estudantes
+da graduação.
 
 Suas credenciais ficam sempre no seu navegador e nunca são guardadas no nosso servidor. Você pode
 ver mais detalhes em [segurança](docs/segurança.md).
@@ -19,7 +19,6 @@ ver mais detalhes em [segurança](docs/segurança.md).
 - [Documentação da API](https://api.followw.app/docs)
 - [Entenda como o Followw processa suas credenciais](docs/segurança.md)
 - [Figma com requisitos](https://www.figma.com/board/JqtNZhLBFlsVIbthMYOdzB/Template-MDS--c%C3%B3pia-limpa-)
-
 
 ## Estrutura
 
@@ -79,8 +78,7 @@ uv run pytest                     # testes de todos os apps e pacotes Python
 uv run ruff check .
 uv run ruff format .
 
-cd apps/web && bun check          # formatação e lint do front
-bun run typecheck                 # checagem de tipos, incluindo os testes
+cd apps/web && bun check          # formatação, lint e checagem de tipos do front
 bun test
 bun run build                    # valida os bundles do navegador e do servidor
 ```

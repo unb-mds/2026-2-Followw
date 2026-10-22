@@ -11,7 +11,7 @@ concurrency:
 jobs:
   python:
     name: Testes e lint (Python)
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
 
@@ -30,7 +30,7 @@ jobs:
 
   web:
     name: Testes e lint (web)
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: apps/web
@@ -43,6 +43,5 @@ jobs:
 
       - run: bun install --frozen-lockfile
       - run: bun run check
-      - run: bun run typecheck
       - run: bun test
       - run: bun run build
