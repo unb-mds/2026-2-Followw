@@ -7,7 +7,6 @@ dependencies = ["api", "unb-browser"]
 
 [tool.uv]
 package = false
-required-version = ">=0.13.4"
 
 [tool.uv.sources]
 api = { workspace = true }
