@@ -74,7 +74,7 @@ function LoginPage() {
                         if (login.isPending || !online) return;
                         login.mutate(
                             { body: { registration, password } },
-                            { onSuccess: () => void navigate({ to: '/', replace: true }) }
+                            { onSuccess: () => void navigate({ to: '/perfil', replace: true }) }
                         );
                     }}
                 >

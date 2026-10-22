@@ -14,8 +14,12 @@ from api.modules.me.settings import (
 from api.sigaa import SigaaClientDep, SigaaConnection, SigaaConnectionDep
 
 router = APIRouter()
-_PDF_RESPONSES = {
+_DOCUMENT_ERRORS = {
     **SIGAA_ERRORS,
+    422: {"description": "O SIGAA recusou emitir o documento (ex.: perfil sem foto)."},
+}
+_PDF_RESPONSES = {
+    **_DOCUMENT_ERRORS,
     200: {
         "content": {
             "application/pdf": {"schema": {"type": "string", "format": "binary"}}
@@ -61,7 +65,7 @@ async def get_statement(
     response_model=RestaurantCredentials,
     summary="Consultar o token da carteirinha estudantil",
     description="Lê o QR code da carteirinha no SIGAA a cada acesso, sem persistência. Retorna token e valid_until; a validade informa mês/ano e o scraper representa o mês pelo dia 1.",
-    responses=SIGAA_ERRORS,
+    responses=_DOCUMENT_ERRORS,
     dependencies=[NoStore],
 )
 async def get_token(client: SigaaClientDep) -> RestaurantCredentials:

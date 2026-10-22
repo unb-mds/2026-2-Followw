@@ -13,6 +13,14 @@ ver mais detalhes em [segurança](docs/segurança.md).
 
 > O Followw UnB é um projeto independente, sem qualquer vínculo oficial com a UnB ou com o SIGAA.
 
+## Links úteis
+
+- [Documentação geral](docs)
+- [Documentação da API](https://api.followw.app/docs)
+- [Entenda como o Followw processa suas credenciais](docs/segurança.md)
+- [Figma com requisitos](https://www.figma.com/board/JqtNZhLBFlsVIbthMYOdzB/Template-MDS--c%C3%B3pia-limpa-)
+
+
 ## Estrutura
 
 ```

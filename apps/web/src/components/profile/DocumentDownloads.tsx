@@ -5,7 +5,13 @@ import { Button } from '#/components/ui/button';
 import { Spinner } from '#/components/ui/spinner';
 import { saveFile } from '#/lib/download';
 import { useOnline } from '#/lib/online';
-import { getDocumentDownload, studentDocuments, type StudentDocument } from '#/queries/documents';
+import { cn } from '#/lib/shadcn';
+import {
+    documentRefusal,
+    getDocumentDownload,
+    studentDocuments,
+    type StudentDocument
+} from '#/queries/documents';
 
 const documents = [
     { document: 'student-card', icon: IdCard },
@@ -14,17 +20,24 @@ const documents = [
 
 export function DocumentDownloads() {
     const [pending, setPending] = useState<StudentDocument | null>(null);
-    const [message, setMessage] = useState<string | null>(null);
+    const [failure, setFailure] = useState<{ document: StudentDocument; message: string } | null>(
+        null
+    );
     const online = useOnline();
 
     async function handleDownload(document: StudentDocument) {
         setPending(document);
-        setMessage(null);
+        setFailure(null);
         try {
             const { blob, filename } = await getDocumentDownload(document);
             saveFile(blob, filename);
-        } catch {
-            setMessage('Não foi possível baixar o documento. Tente novamente.');
+        } catch (error) {
+            setFailure({
+                document,
+                message:
+                    documentRefusal(error) ??
+                    'Não foi possível baixar o documento. Tente novamente.'
+            });
         } finally {
             setPending(null);
         }
@@ -35,6 +48,7 @@ export function DocumentDownloads() {
             {documents.map(({ document, icon: Icon }) => {
                 const { label } = studentDocuments[document];
                 const isPending = pending === document;
+                const message = failure?.document === document ? failure.message : null;
                 return (
                     <div
                         key={document}
@@ -46,10 +60,14 @@ export function DocumentDownloads() {
                         <span className="min-w-0 flex-1">
                             <span className="block">{label}</span>
                             <span
-                                className="block text-xs text-muted-foreground"
+                                role={message ? 'alert' : undefined}
+                                className={cn(
+                                    'block text-xs',
+                                    message ? 'text-destructive' : 'text-muted-foreground'
+                                )}
                                 aria-live="polite"
                             >
-                                {isPending && 'Processando documento...'}
+                                {isPending ? 'Processando documento...' : message}
                             </span>
                         </span>
                         <Button
@@ -70,13 +88,10 @@ export function DocumentDownloads() {
                     </div>
                 );
             })}
-            {(!online || message) && (
-                <p
-                    role={message ? 'alert' : 'status'}
-                    className="py-2 text-xs text-muted-foreground"
-                >
-                    {!online ? 'Conecte-se à internet para baixar os documentos.' : message}
-                </p>
+            {!online && (
+                <output className="block py-2 text-xs text-muted-foreground">
+                    Conecte-se à internet para baixar os documentos.
+                </output>
             )}
         </>
     );

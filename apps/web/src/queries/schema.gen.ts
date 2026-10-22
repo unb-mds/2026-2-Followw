@@ -644,7 +644,7 @@ export interface components {
         FrequencyStatus: "nao_registrada" | "parcialmente_registrada" | "registrada";
         /**
          * FrequencyTotals
-         * @description Presenças, faltas e frequência em aulas, pela chamada do SIGAA e as marcações do aluno.
+         * @description Presenças, faltas e frequência, pela chamada do SIGAA e as marcações do aluno.
          */
         FrequencyTotals: {
             /** Presences */
@@ -1938,6 +1938,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description O SIGAA recusou emitir o documento (ex.: perfil sem foto). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description SIGAA indisponível. */
             502: {
                 headers: {
@@ -1972,6 +1979,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description O SIGAA recusou emitir o documento (ex.: perfil sem foto). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description SIGAA indisponível. */
             502: {
                 headers: {
@@ -2001,6 +2015,13 @@ export interface operations {
             };
             /** @description Credenciais ausentes ou inválidas. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description O SIGAA recusou emitir o documento (ex.: perfil sem foto). */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

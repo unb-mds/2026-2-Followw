@@ -1,5 +1,5 @@
 import { Check, IdCard } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import type { components } from '#/queries/schema.gen';
 
@@ -35,11 +35,7 @@ export function ProfileIdentity({
                     <p className="text-xs font-medium text-muted-foreground">{user.level}</p>
                 </div>
             </div>
-            {user.bio && (
-                <p className="mt-4 text-sm leading-relaxed whitespace-pre-line text-muted-foreground">
-                    {user.bio}
-                </p>
-            )}
+            {user.bio && <Bio text={user.bio} />}
         </header>
     );
 }
@@ -80,41 +76,35 @@ export function ProgressSection({ user }: { user: UserProfile }) {
     if (integralization == null && !workload) return null;
 
     const items = workload && [
-        { label: 'CH. Obrigatória Pendente', hours: workload.pending_mandatory, credits: true },
-        { label: 'CH. Optativa Pendente', hours: workload.pending_optional, credits: true },
-        {
-            label: 'CH. Complementar Pendente',
-            hours: workload.pending_complementary,
-            credits: true
-        },
-        { label: 'CH. Total Currículo', hours: workload.total }
+        { label: 'Obrigatória pendente', hours: workload.pending_mandatory, credits: true },
+        { label: 'Optativa pendente', hours: workload.pending_optional, credits: true },
+        { label: 'Complementar pendente', hours: workload.pending_complementary, credits: true },
+        { label: 'Total do currículo', hours: workload.total, credits: true }
     ];
 
     return (
         <ProfileSection title="Progresso">
             <ListCard>
+                {integralization != null && (
+                    <Meter label="Integralização" value={integralization} />
+                )}
                 {items && (
-                    <dl className="divide-y divide-border">
+                    <dl className="flex flex-col gap-3 py-3">
                         {items.map(({ label, hours, credits }) => (
-                            <div
-                                key={label}
-                                className="flex min-h-12 items-center justify-between gap-2 py-2.5"
-                            >
-                                <dt className="text-sm font-medium">{label}</dt>
-                                <dd className="text-sm font-semibold text-primary tabular-nums">
+                            <div key={label} className="flex items-baseline justify-between gap-2">
+                                <dt className="text-sm text-muted-foreground">{label}</dt>
+                                <dd className="text-sm font-medium tabular-nums">
                                     {hours}h
                                     {credits && hours > 0 && (
-                                        <span className="ml-1.5 text-xs font-normal text-muted-foreground">
-                                            ({creditsLabel(hours)})
+                                        <span className="text-muted-foreground">
+                                            {' · '}
+                                            {creditsLabel(hours)}
                                         </span>
                                     )}
                                 </dd>
                             </div>
                         ))}
                     </dl>
-                )}
-                {integralization != null && (
-                    <Meter label="Integralização" value={integralization} />
                 )}
             </ListCard>
         </ProfileSection>
@@ -127,6 +117,47 @@ export function ProfileSection({ title, children }: { title: string; children: R
             <h2 className="mb-2 px-1 text-sm font-semibold">{title}</h2>
             {children}
         </section>
+    );
+}
+
+function Bio({ text }: { text: string }) {
+    const ref = useRef<HTMLParagraphElement>(null);
+    const [expanded, setExpanded] = useState(false);
+    const [overflowing, setOverflowing] = useState(false);
+
+    useEffect(() => {
+        const el = ref.current!;
+        const measure = () => {
+            if (!expanded) setOverflowing(el.scrollHeight > el.clientHeight);
+        };
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [expanded]);
+
+    return (
+        <div className="mt-4 flex flex-col items-start gap-1">
+            <p
+                ref={ref}
+                className={cn(
+                    'text-sm leading-relaxed whitespace-pre-line text-muted-foreground',
+                    !expanded && 'line-clamp-3'
+                )}
+            >
+                {text}
+            </p>
+            {(overflowing || expanded) && (
+                <button
+                    type="button"
+                    onClick={() => setExpanded(!expanded)}
+                    aria-expanded={expanded}
+                    className="text-sm font-medium text-primary"
+                >
+                    {expanded ? 'Ler menos' : 'Ler mais'}
+                </button>
+            )}
+        </div>
     );
 }
 
