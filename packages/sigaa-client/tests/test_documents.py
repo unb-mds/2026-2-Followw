@@ -76,6 +76,13 @@ a data de emissão e o código de verificação <span>012345abcd</span></p></div
 <td class="voltar">Voltar</td><td>SIGAA | STI | Copyright © 2006-2026 - UFRN - app-teste</td>
 <td class="naoImprimir">Imprimir</td></tr></table></div>
 """
+ACTIVITY_ROW = """
+<tr><td class="codigo">FGA0413</td><td>
+<span class="componente">MONITORIA EM ORIENTAÇÃO A OBJETOS</span>
+<span class="docente">ORIENTADOR(A): DOCENTE DE TESTE</span>
+<span class="tipoComponente"><b>Forma de Participação:</b> ATIVIDADE DE ORIENTAÇÃO INDIVIDUAL</span>
+</td><td>--</td><td>MATRICULADO(A)</td><td>--</td></tr>
+"""
 
 
 @pytest.mark.parametrize("method,menu_action", ALL_DOCUMENTS)
@@ -107,6 +114,7 @@ async def test_download_retorna_documento_e_rele_viewstate(method, menu_action):
                 assert result.issued_at == "20/10/2026 21:52"
                 assert ("Nome", "JOÃO DA CONCEIÇÃO") in result.identification
                 assert len(result.enrollments) == 2
+                assert result.activity_count == 0
                 assert (
                     result.enrollments[0][1]
                     == "CÁLCULO 3\nDOCENTE DE TESTE\nTipo: DISCIPLINA   Local: FCTE - S4"
@@ -293,6 +301,49 @@ async def test_atestado_preserva_conflitos_de_horario_sem_executar_script():
     )
     certificate = await Documents(session).get_enrollment_certificate()
     assert certificate.schedule[1][2] == "MAT0027 FGA0146"
+
+
+async def test_atestado_preserva_monitoria_contagens_e_servidor_da_emissao():
+    session = AsyncMock()
+    session.get.return_value = httpx.Response(200, text=MENU)
+    html = (
+        CERTIFICATE.replace(
+            "Turmas Matriculadas: 2",
+            "Turmas Matriculadas: 2<br>Atividades Matriculadas: 1",
+        )
+        .replace("</tbody>", ACTIVITY_ROW + "</tbody>")
+        .replace("app-teste", "app14.sigaa14")
+    )
+    session.post.return_value = httpx.Response(200, text=html)
+
+    certificate = await Documents(session).get_enrollment_certificate()
+
+    assert certificate.activity_count == 1
+    assert len(certificate.enrollments) == 3
+    assert certificate.enrollments[-1] == (
+        "FGA0413",
+        (
+            "MONITORIA EM ORIENTAÇÃO A OBJETOS\nORIENTADOR(A): DOCENTE DE TESTE\n"
+            "Forma de Participação: ATIVIDADE DE ORIENTAÇÃO INDIVIDUAL"
+        ),
+        "--",
+        "MATRICULADO(A)",
+        "--",
+    )
+    assert certificate.footer.endswith("app14.sigaa14")
+
+
+@pytest.mark.parametrize("count", [0, 2])
+async def test_atestado_rejeita_contagem_divergente_de_atividades(count):
+    session = AsyncMock()
+    session.get.return_value = httpx.Response(200, text=MENU)
+    html = CERTIFICATE.replace(
+        "Turmas Matriculadas: 2",
+        f"Turmas Matriculadas: 2<br>Atividades Matriculadas: {count}",
+    ).replace("</tbody>", ACTIVITY_ROW + "</tbody>")
+    session.post.return_value = httpx.Response(200, text=html)
+    with pytest.raises(SigaaParseError, match="Quantidade de matrículas divergente"):
+        await Documents(session).get_enrollment_certificate()
 
 
 async def test_atestado_sem_script_nao_entrega_grade_vazia():

@@ -11,29 +11,52 @@ A API gera sua representação em PDF com ReportLab, mantendo a data e o texto d
 verificação da emissão e o rodapé do SIGAA. O criador do PDF fica identificado
 nos metadados como Followw.
 
+A resposta já contém o HTML completo; o parser entrega os dados estruturados ao
+renderizador. As folhas CSS externas não são baixadas por emissão. A calibração
+local usa `atestado_matricula.css`, `ufrn_relatorio.css` e `ufrn_print.css`, incluindo
+os espaços entre elementos inline. ReportLab não executa o layout CSS de um navegador.
+
 O layout segue as dimensões e os estilos de impressão do SIGAA: cabeçalho com
 as marcas UnB/STI, identificação em quatro colunas, docentes em tamanho menor,
 grade com cabeçalho cinza, separadores vazios e autenticação destacada em vermelho.
 As duas imagens originais são incluídas no pacote e somam 2.487 bytes. No Windows,
 a renderização usa a Verdana original instalada, incluindo os I maiúsculos,
-versaletes nativas e o kerning dos títulos. O afastamento de Local usa os 15 px
+versaletes nativas e o kerning dos títulos e textos comuns. O afastamento de Local usa os 15 px
 do CSS original, além do espaço entre os spans.
 A API também reproduz a faixa de impressão com data/hora, título, URL e numeração
 de páginas. A data superior é a da geração do PDF em `America/Sao_Paulo`; a data
 de emissão no cabeçalho e o código de autenticação continuam sendo os do SIGAA.
-O PDF exibe `app18.sigaa18` no rodapé para reproduzir o modelo de impressão
-solicitado, mesmo quando a emissão vem de outro nó. O modelo do cliente preserva
-o rodapé recebido do SIGAA; essa padronização acontece apenas na renderização.
+O PDF preserva o rodapé recebido do SIGAA, inclusive o servidor da emissão
+(por exemplo, `app14.sigaa14`), sem substituí-lo por um nó fixo.
+O tamanho da página é 594,96 × 841,92 pt, conforme o A4 salvo pelo Chromium.
+As larguras das colunas usam as medidas mínimas e máximas do conteúdo, em frações
+de pixel CSS, para acompanhar a distribuição automática do navegador. As
+bordas seguem a grade de pixels CSS. A faixa do navegador usa Arial quando disponível.
+Os avanços entre trechos inline arredondam para 1/64 de pixel CSS. A faixa segue
+o [template do Chromium](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/components/printing/resources/print_header_footer_template_page.html):
+o título se centraliza no espaço restante após a data/hora, e a numeração preserva
+os avanços separados de página, barra e total.
+
+Aviso, autenticação e rodapé institucional são mantidos juntos na paginação; quando
+não cabem no espaço restante, o bloco passa para a página seguinte. A autenticação
+também alinha a origem de cada linha à grade CSS, considerando separadamente seus
+trechos normais e negritos, sem alterar fontes, dados da emissão ou quebras de linha.
 
 A grade é preenchida por atribuições JavaScript no HTML original. O parser lê
 somente o padrão literal observado, sem executar código. Estrutura inesperada,
-quantidade divergente ou grade não preenchida resultam em erro 502. A renderização
-roda fora do event loop, limitada a um documento por processo, com imports tardios.
+quantidade divergente ou grade não preenchida resultam em erro 502. Atividades,
+incluindo monitoria, usam a mesma tabela das turmas: `activity_count` preserva a
+contagem separada, e a soma é validada contra as linhas recebidas. O PDF inclui
+o orientador, a forma de participação e o segundo título quando há atividades.
+A renderização roda fora do event loop, limitada a um documento por processo,
+com imports tardios.
 
 ## Verdana original
 
 `SIGAA_PDF_FONT_DIR` aponta para um diretório com `verdana.ttf`, `verdanab.ttf` e
 `verdana-smallcaps.json`. No Windows, a pasta Fonts é detectada automaticamente.
+O diretório também pode conter `arial.ttf` para a faixa de impressão. O mesmo
+script inclui seu hash e kerning no JSON; sem Arial, essa faixa usa Helvetica.
 O JSON empacotado corresponde à versão de referência instalada nesta máquina;
 o hash dos arquivos é conferido antes de usar os IDs de glifos. Para outra versão,
 gere seu próprio JSON no diretório das fontes:
@@ -47,7 +70,7 @@ fontTools só é usado nessa preparação, sem dependência adicional em produç
 Sem Verdana instalada ou configurada, a API usa a aproximação livre Followw Sans;
 essa alternativa não tem fidelidade tipográfica idêntica ao SIGAA.
 
-A Verdana não é incluída no repositório. Para produção Linux/Vercel, disponibilize
+A Verdana e a Arial não são incluídas no repositório. Para produção Linux/Vercel, disponibilize
 os arquivos com direitos de uso no servidor e configure o diretório. A licença do
 Windows distingue a incorporação no PDF da redistribuição da fonte no servidor:
 [FAQ da Microsoft](https://learn.microsoft.com/en-us/typography/fonts/font-faq).
@@ -69,13 +92,14 @@ Helvetica e 50 gerações por biblioteca; cada biblioteca foi medida em um proce
 São ensaios locais de tabelas, não uma comparação universal dos motores. Pillow
 e charset-normalizer já existem nas dependências de produção do Followw.
 
-O renderizador com Verdana original incorporada, identificação, oito matrículas
-e grade semanal produziu um PDF de 95.941 bytes em uma página:
+Ensaio local em 23/10/2026 com Verdana e Arial originais incorporadas,
+identificação, oito matrículas fictícias e grade semanal: PDF de 137.513 bytes
+em uma página, sem dependências novas de produção:
 
-- Primeira geração, incluindo importação tardia: 193,23 ms.
-- 50 gerações seguintes: mediana de 25,74 ms, P95 de 28,51 ms.
-- Aumento de RSS entre antes da primeira geração e depois do ensaio: 14,99 MiB.
-- RSS ao final: 84,49 MiB; inclui os imports desse processo de benchmark.
+- Primeira geração, incluindo importação tardia: 214,81 ms.
+- 50 gerações seguintes: mediana de 32,72 ms, P95 de 35,57 ms.
+- Aumento de RSS entre antes da primeira geração e depois do ensaio: 20,96 MiB.
+- RSS ao final: 91,93 MiB; inclui os imports desse processo de benchmark.
 
 Os dois TTFs empacotados somam 124.800 bytes e dispensam fontTools em produção.
 

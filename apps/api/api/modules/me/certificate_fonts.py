@@ -3,9 +3,15 @@ import os
 from dataclasses import dataclass
 from functools import lru_cache
 from hashlib import sha256
+from math import ceil
 from pathlib import Path
 
 _ASSETS = Path(__file__).with_name("assets")
+
+
+def css_advance(width: float) -> float:
+    """Arredonda pontos para 1/64 de pixel CSS, tolerando o erro de ponto flutuante."""
+    return ceil(round(width * 64 / 0.75, 9)) * 0.75 / 64
 
 
 @dataclass(frozen=True)
@@ -13,6 +19,7 @@ class CertificateFonts:
     family: str
     small_caps: str | None
     kerning: dict[str, dict[str, float]]
+    print_family: str = "Helvetica"
 
     def label(self, text, style):
         from reportlab.lib.enums import TA_CENTER
@@ -40,6 +47,7 @@ class CertificateFonts:
                         kerning.get(line[i : i + 2], 0) * style.fontSize / 1000
                         for i in range(len(line) - 1)
                     )
+                    width = css_advance(width)
                     x = (
                         (self.width + style.leftIndent - style.rightIndent - width) / 2
                         if style.alignment == TA_CENTER
@@ -79,6 +87,19 @@ def _register_fonts(directory: Path | None) -> CertificateFonts:
     from reportlab.pdfbase import pdfmetrics
     from reportlab.pdfbase.ttfonts import TTFont
 
+    class KernedFont(TTFont):
+        def stringWidth(self, text, size, encoding="utf8"):
+            if isinstance(text, bytes):
+                text = text.decode(encoding)
+            return (
+                super().stringWidth(text, size, encoding)
+                + sum(
+                    self.kerning.get(text[i : i + 2], 0) for i in range(len(text) - 1)
+                )
+                * size
+                / 1000
+            )
+
     native = directory is not None
     family = "UnbVerdana" if native else "FollowwSans"
     caps_family = family + "Caps" if native else None
@@ -94,7 +115,9 @@ def _register_fonts(directory: Path | None) -> CertificateFonts:
             if directory
             else _ASSETS / ("followw-sans-bold.ttf" if suffix else "followw-sans.ttf")
         )
-        pdfmetrics.registerFont(TTFont(family + suffix, str(path)))
+        text_font = KernedFont(family + suffix, str(path))
+        text_font.kerning = metadata.get(weight, {}).get("text_kerning", {})
+        pdfmetrics.registerFont(text_font)
         if not native:
             continue
         reference = metadata.get(weight, {})
@@ -114,8 +137,21 @@ def _register_fonts(directory: Path | None) -> CertificateFonts:
         pdfmetrics.registerFontFamily(
             caps_family, normal=caps_family, bold=caps_family + "-Bold"
         )
+    print_family = "Helvetica"
+    if directory and (directory / "arial.ttf").is_file():
+        print_family = "UnbPrintArial"
+        reference = metadata["regular"]
+        arial_path = directory / "arial.ttf"
+        if sha256(arial_path.read_bytes()).hexdigest() != reference.get("print_sha256"):
+            raise ValueError(
+                "Gere verdana-smallcaps.json também para esta versão da Arial."
+            )
+        arial = KernedFont(print_family, str(arial_path))
+        arial.kerning = reference["print_kerning"]
+        pdfmetrics.registerFont(arial)
     return CertificateFonts(
         family=family,
         small_caps=caps_family,
         kerning={weight: values["kerning"] for weight, values in metadata.items()},
+        print_family=print_family,
     )

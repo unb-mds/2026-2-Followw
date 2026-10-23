@@ -1,16 +1,32 @@
 import importlib
 import logging
 
+import uvicorn
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
+from fastapi.testclient import TestClient
 
 import api.main as main_module
+from api.__init__ import main as run_server
 from api.core.config import settings
-from api.main import app  # noqa: F401  garante que o módulo foi importado
+from api.main import app
 
 
 def test_httpx_logs_silenciados():
     assert logging.getLogger("httpx").level == logging.WARNING
     assert logging.getLogger("httpcore").level == logging.WARNING
+
+
+def test_servidor_configura_prefixo_e_observa_apenas_codigo_python(monkeypatch):
+    options = {}
+    monkeypatch.setattr(uvicorn, "run", lambda *args, **kwargs: options.update(kwargs))
+
+    run_server()
+
+    assert options["root_path"] == "/api"
+    assert options["reload"] is True
+    assert len(options["reload_dirs"]) == 3
+    assert all(path.is_dir() for path in options["reload_dirs"])
+    assert all(".venv" not in path.parts for path in options["reload_dirs"])
 
 
 def test_redireciona_https_em_producao(monkeypatch):
@@ -34,10 +50,13 @@ def test_scalar_docs_retorna_html_com_referencia_openapi(client):
     assert 'data-url="/api/openapi.json"' in response.text
 
 
-def test_rotas_respondem_com_e_sem_prefixo_api(client):
-    for path in ("/openapi.json", "/api/openapi.json"):
-        assert client.get(path).status_code == 200
-    assert client.get("/api/openapi.json").json()["servers"] == [{"url": "/api"}]
+def test_rotas_respondem_com_e_sem_prefixo_api():
+    with TestClient(app) as client:
+        assert client.get("/openapi.json").status_code == 200
+        assert client.get("/api/docs").status_code == 200
+        response = client.get("/api/openapi.json")
+        assert response.status_code == 200
+        assert response.json()["servers"] == [{"url": "/api"}]
 
 
 def test_openapi_agrupa_recursos_publicos_sem_ocultar_rotas_privadas(client):

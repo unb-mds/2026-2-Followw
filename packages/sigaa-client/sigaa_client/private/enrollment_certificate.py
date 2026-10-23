@@ -8,6 +8,7 @@ from ..utils.parsing import clean_text, lookup_key
 
 _ISSUED_AT_RE = re.compile(r"Emitido em\s+(\d{2}/\d{2}/\d{4}\s+\d{2}:\d{2})")
 _COUNT_RE = re.compile(r"Turmas Matriculadas:\s*(\d+)")
+_ACTIVITY_COUNT_RE = re.compile(r"Atividades Matriculadas:\s*(\d+)")
 _GRID_ASSIGNMENT_RE = re.compile(
     r"var\s+elem\s*=\s*document\.getElementById\(\s*"
     r"(?P<quote>['\"])(?P<cell>[1-7]_\d+)(?P=quote)\s*\)\s*;\s*"
@@ -51,9 +52,11 @@ def _parse_enrollment_certificate(html: str) -> EnrollmentCertificate:
     enrollment_table = _required(report, "#matriculas")
     enrollments = _table_rows(enrollment_table)
     count = _COUNT_RE.search(clean_text(report))
+    activities = _ACTIVITY_COUNT_RE.search(clean_text(report))
+    activity_count = int(activities[1]) if activities else 0
     if not enrollments or any(len(row) != 5 for row in enrollments):
         raise SigaaParseError("Tabela de matrículas inválida no atestado.")
-    if count is None or int(count[1]) != len(enrollments) - 1:
+    if count is None or int(count[1]) + activity_count != len(enrollments) - 1:
         raise SigaaParseError("Quantidade de matrículas divergente no atestado.")
 
     grid = _required(report, "#horario")
@@ -83,6 +86,7 @@ def _parse_enrollment_certificate(html: str) -> EnrollmentCertificate:
         identification=tuple(identification),
         enrollment_headers=enrollments[0],
         enrollments=enrollments[1:],
+        activity_count=activity_count,
         schedule=schedule,
         authentication=authentication,
         footer=clean_text(footer),

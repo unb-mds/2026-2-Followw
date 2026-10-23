@@ -93,7 +93,9 @@ original do histórico acadêmico. Quando o SIGAA recusa emitir o documento (ex.
 três levantam `DocumentUnavailable` com o motivo informado por ele (`MissingProfilePhoto` quando falta foto).
 `client.documents.get_enrollment_certificate()` emite o atestado de matrícula e retorna seu
 conteúdo estruturado (`EnrollmentCertificate`), incluindo a grade preenchida pelos scripts do
-SIGAA. A API transforma esse relatório HTML em PDF sem executar um navegador.
+SIGAA. `enrollments` reúne turmas e atividades, e `activity_count` informa quantas linhas são
+atividades (zero quando ausentes); o rodapé mantém o servidor da emissão. A API transforma
+esse relatório HTML em PDF sem executar um navegador.
 
 `SigaaPublicClient().classrooms.iter_subjects(unidade)` percorre os componentes de graduação
 ofertados por uma unidade e entrega cada um como `SubjectDetails`: o `Subject` com `prerequisites`,

@@ -24,7 +24,8 @@ uv run --no-sync --with fonttools python apps/api/scripts/build_certificate_font
 fontTools só participa dessa preparação local; não é dependência de produção.
 
 `verdana-smallcaps.json` contém IDs de glifos, avanços, kerning e hashes para usar
-as versaletes da Verdana instalada, sem copiar ou redesenhar seus contornos. A API
+as versaletes e o texto comum da Verdana instalada, sem copiar ou redesenhar seus contornos.
+Inclui também hash e kerning da Arial opcional usada na faixa de impressão. A API
 carrega os TTFs originais do Windows ou de `SIGAA_PDF_FONT_DIR`. Uma versão distinta
 da fonte precisa de seu próprio JSON, gerado por `scripts/read_verdana_metrics.py`.
-Os TTFs da Verdana exigem fornecimento e licença adequados para uso no servidor.
+Os TTFs da Verdana e da Arial exigem fornecimento e licença adequados para uso no servidor.

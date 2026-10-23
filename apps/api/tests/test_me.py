@@ -497,6 +497,7 @@ def test_atestado_gera_pdf_com_dados_da_emissao_sem_cache_ou_banco(
         assert ACCESS_COOKIE_NAME in response.cookies
         assert REFRESH_COOKIE_NAME in response.cookies
         reader = PdfReader(BytesIO(response.content))
+        assert tuple(reader.pages[0].mediabox) == pytest.approx((0, 0, 594.96, 841.92))
         text = "\n".join(page.extract_text() for page in reader.pages)
         for expected in (
             "JOÃO DA CONCEIÇÃO",
@@ -511,6 +512,7 @@ def test_atestado_gera_pdf_com_dados_da_emissao_sem_cache_ou_banco(
         assert text.count("MAT0027") == 2
         assert len(reader.pages[0].images) == 2
         assert "SIGAA | STI | Copyright" in text
+        assert "ATIVIDADES MATRICULADAS:" not in text.upper()
         assert "versão PDF pelo Followw" not in text
     assert documents.get_enrollment_certificate.await_count == 2
     assert qstash.published == []
@@ -555,6 +557,39 @@ def test_atestado_pagina_nomes_longos_sem_interpretar_marcacao(documents):
         )
 
 
+@pytest.mark.parametrize("quantidade", [9, 10, 11, 12, 13])
+def test_atestado_mantem_autenticacao_e_rodape_na_mesma_pagina(documents, quantidade):
+    from api.modules.me.enrollment_certificate import render_enrollment_certificate
+
+    certificate = documents.get_enrollment_certificate.return_value
+    certificate = certificate.model_copy(
+        update={
+            "enrollments": certificate.enrollments * quantidade,
+            "schedule": (certificate.schedule[0], *certificate.schedule[1:] * 10),
+            "footer": (
+                "SIGAA | Secretaria de Tecnologia da Informação - STI - (61) 3107-0102 | "
+                "Copyright © 2006-2026 - UFRN - app14.sigaa14"
+            ),
+        }
+    )
+    pages = PdfReader(BytesIO(render_enrollment_certificate(certificate))).pages
+    texts = [page.extract_text() for page in pages]
+    closing_pages = [
+        i
+        for i, text in enumerate(texts)
+        if "ATENÇÃO" in text or "app14.sigaa14" in text
+    ]
+    assert closing_pages == [len(pages) - 1]
+    assert "ATENÇÃO" in texts[-1]
+    assert "012345abcd" in texts[-1]
+    assert "app14.sigaa14" in texts[-1]
+    # Dez matrículas ainda cabem em uma página com a fonte alternativa.
+    if quantidade != 10:
+        assert len(pages) == (1 if quantidade == 9 else 2)
+    for number, text in enumerate(texts, 1):
+        assert f"{number}/{len(pages)}" in text.splitlines()
+
+
 def test_atestado_mantem_colunas_e_separador_do_layout_de_impressao(documents):
     from api.modules.me.enrollment_certificate import render_enrollment_certificate
 
@@ -590,12 +625,14 @@ def test_atestado_mantem_colunas_e_separador_do_layout_de_impressao(documents):
     text = reader.pages[0].extract_text(visitor_text=locate)
     assert len(reader.pages) == 1
     assert component in text.splitlines()
-    assert "Turma" in text.splitlines()
+    assert "Turma" in [line.strip() for line in text.splitlines()]
     assert positions["MAT0027"] - positions["FGA0146"] == pytest.approx(26.25)
 
 
-@pytest.mark.parametrize("server", ["app18.sigaa18", "app26.sigaa26"])
-def test_atestado_inclui_impressao_e_exibe_app18_no_rodape(documents, server):
+@pytest.mark.parametrize(
+    "server", ["app14.sigaa14", "app18.sigaa18", "app26.sigaa26", "app28.sigaa28"]
+)
+def test_atestado_inclui_impressao_e_preserva_servidor_do_sigaa(documents, server):
     from api.modules.me.enrollment_certificate import render_enrollment_certificate
 
     certificate = documents.get_enrollment_certificate.return_value.model_copy(
@@ -608,11 +645,348 @@ def test_atestado_inclui_impressao_e_exibe_app18_no_rodape(documents, server):
     assert "20/10/2026, 22:26" in text
     assert "20/10/2026 21:52" in text
     assert "Sistema Integrado de Gestão de Atividades Acadêmicas" in text
-    assert "https://sigaa.unb.br/sigaa/portais/discente/discente.jsf#" in text
+    assert "https://sigaa.unb.br/sigaa/portais/discente/discente.jsf" in text
+    assert "discente.jsf#" not in text
     assert "1/1" in text.splitlines()
-    assert "app18.sigaa18" in text
-    assert "app26.sigaa26" not in text
+    assert server in text
+    assert text.count(".sigaa") == 1
     assert certificate.footer.endswith(server)
+
+
+def test_atestado_preserva_dimensoes_e_linha_de_base_da_impressao(documents):
+    from api.modules.me.certificate_fonts import certificate_fonts
+    from api.modules.me.enrollment_certificate import render_enrollment_certificate
+
+    if certificate_fonts().small_caps is None:
+        pytest.skip("As linhas de base de referência requerem a Verdana original.")
+    certificate = documents.get_enrollment_certificate.return_value
+    page = PdfReader(BytesIO(render_enrollment_certificate(certificate))).pages[0]
+    positions = {}
+
+    def locate(text, cm, tm, font, size):
+        if text.strip() in {"MATRICULADO(A)", "DOCENTE DE TESTE", "Turma"}:
+            positions[text.strip()] = (cm[4] + tm[4], cm[5] + tm[5])
+
+    page.extract_text(visitor_text=locate)
+    assert tuple(page.mediabox) == pytest.approx((0, 0, 594.96, 841.92))
+    assert float(page.mediabox.top) - positions["MATRICULADO(A)"][1] == pytest.approx(
+        209.25
+    )
+    assert positions["MATRICULADO(A)"][1] - positions["DOCENTE DE TESTE"][
+        1
+    ] == pytest.approx(7.5)
+
+
+def test_atestado_inclui_monitoria_e_forma_de_participacao(client, cookies, documents):
+    certificate = documents.get_enrollment_certificate.return_value
+    documents.get_enrollment_certificate.return_value = certificate.model_copy(
+        update={
+            "activity_count": 1,
+            "footer": "SIGAA | STI | app14.sigaa14",
+            "enrollments": (
+                *certificate.enrollments,
+                (
+                    "FGA0413",
+                    (
+                        "MONITORIA EM ORIENTAÇÃO A OBJETOS\nORIENTADOR(A): DOCENTE DE TESTE\n"
+                        "Forma de Participação: ATIVIDADE DE ORIENTAÇÃO INDIVIDUAL"
+                    ),
+                    "--",
+                    "MATRICULADO(A)",
+                    "--",
+                ),
+            ),
+        }
+    )
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+    response = client.post("/me/enrollment-certificate")
+    assert response.status_code == 200
+    page = PdfReader(BytesIO(response.content)).pages[0]
+    labels = []
+
+    def locate(text, cm, tm, font, size):
+        if "Forma de Participação:" in text:
+            labels.append((font["/BaseFont"], size))
+
+    text = " ".join(page.extract_text(visitor_text=locate).split())
+    assert "TURMAS MATRICULADAS: 1 ATIVIDADES MATRICULADAS: 1" in text.upper()
+    assert "MONITORIA EM ORIENTAÇÃO A OBJETOS" in text
+    assert "ORIENTADOR(A): DOCENTE DE TESTE" in text
+    assert "Forma de Participação: ATIVIDADE DE ORIENTAÇÃO INDIVIDUAL" in text
+    assert "app14.sigaa14" in text
+    assert len(labels) == 1
+    assert "Bold" in labels[0][0]
+    assert labels[0][1] == pytest.approx(6.72)
+
+
+@pytest.mark.parametrize(
+    "code,component,schedule,x",
+    [
+        (
+            "MAT0027",
+            "FUNDAMENTOS DE ARQUITETURA DE COMPUTADORES",
+            "35M5 35T1 (10/08/2026 - 14/12/2026)",
+            98.63671,
+        ),
+        (
+            "FGA0133",
+            "MÉTODOS DE DESENVOLVIMENTO DE SOFTWARE",
+            "46T23 (10/08/2026 - 14/12/2026)",
+            98.27344,
+        ),
+    ],
+)
+def test_atestado_ajusta_colunas_ao_conteudo_como_o_sigaa(
+    documents, code, component, schedule, x
+):
+    from api.modules.me.certificate_fonts import certificate_fonts
+    from api.modules.me.enrollment_certificate import render_enrollment_certificate
+
+    if certificate_fonts().small_caps is None:
+        pytest.skip("As coordenadas de referência requerem a Verdana original.")
+    certificate = documents.get_enrollment_certificate.return_value.model_copy(
+        update={"enrollments": ((code, component, "01", "MATRICULADO(A)", schedule),)}
+    )
+    page = PdfReader(BytesIO(render_enrollment_certificate(certificate))).pages[0]
+    positions = []
+
+    def locate(text, cm, tm, font, size):
+        if text.strip().startswith(component.split()[0]):
+            positions.append(cm[4] + tm[4])
+
+    page.extract_text(visitor_text=locate)
+    assert positions == pytest.approx([x], abs=0.03)
+
+
+@pytest.mark.parametrize(
+    "local,deslocamento",
+    [
+        ("FCTE - S1 / MOCAP", 2.23828125),
+        ("FCTE - LABORATÓRIO DE SOFTWARE E SISTEMAS DISTRIBUÍDOS", 46.72265625),
+    ],
+)
+def test_atestado_mede_negritos_e_preenchimentos_do_local(
+    documents, local, deslocamento
+):
+    from api.modules.me.certificate_fonts import certificate_fonts
+    from api.modules.me.enrollment_certificate import render_enrollment_certificate
+
+    if certificate_fonts().small_caps is None:
+        pytest.skip("As coordenadas de referência requerem a Verdana original.")
+    positions = []
+
+    def locate(text, cm, tm, font, size):
+        if text.strip() == "Turma":
+            positions.append(cm[4] + tm[4])
+
+    for location in ("SALA 1", local):
+        certificate = documents.get_enrollment_certificate.return_value.model_copy(
+            update={
+                "enrollments": (
+                    (
+                        "MAT0027",
+                        f"CÁLCULO 3\nDOCENTE DE TESTE\nTipo: DISCIPLINA   Local: {location}",
+                        "01",
+                        "MATRICULADO(A)",
+                        "24T23 (10/08/2026 - 14/12/2026)",
+                    ),
+                ),
+            }
+        )
+        page = PdfReader(BytesIO(render_enrollment_certificate(certificate))).pages[0]
+        text = page.extract_text(visitor_text=locate)
+        assert location in " ".join(text.split())
+    # Referências medidas no Chromium com o HTML e os espaços do SIGAA.
+    assert len(positions) == 2
+    assert positions[1] - positions[0] == pytest.approx(deslocamento, abs=0.03)
+
+
+@pytest.mark.parametrize(
+    "codigo,x_texto",
+    [("012345abcd", 123), ("1111111111", 122.21484375)],
+)
+def test_atestado_centraliza_autenticacao_na_grade_css(documents, codigo, x_texto):
+    from api.modules.me.certificate_fonts import certificate_fonts
+    from api.modules.me.enrollment_certificate import render_enrollment_certificate
+
+    if certificate_fonts().small_caps is None:
+        pytest.skip("As coordenadas de referência requerem a Verdana original.")
+    certificate = documents.get_enrollment_certificate.return_value
+    certificate = certificate.model_copy(
+        update={
+            "authentication": certificate.authentication.replace("012345abcd", codigo)
+        }
+    )
+    page = PdfReader(BytesIO(render_enrollment_certificate(certificate))).pages[0]
+    positions = {}
+
+    def locate(text, cm, tm, font, size):
+        for prefix in ("Para verificar", "informando"):
+            if text.strip().startswith(prefix):
+                positions[prefix] = cm[4] + tm[4]
+
+    assert codigo in page.extract_text(visitor_text=locate)
+    assert positions == pytest.approx(
+        {
+            "Para verificar": 82.46484375,
+            "informando": x_texto,
+        },
+        abs=0.001,
+    )
+
+
+def test_atestado_aplica_kerning_da_verdana_no_texto_e_na_medida(documents):
+    from reportlab.pdfbase import pdfmetrics
+
+    from api.modules.me.certificate_fonts import certificate_fonts
+    from api.modules.me.enrollment_certificate import render_enrollment_certificate
+
+    fonts = certificate_fonts()
+    if fonts.small_caps is None:
+        pytest.skip("O kerning de referência requer a Verdana original instalada.")
+    certificate = documents.get_enrollment_certificate.return_value
+    enrollment = certificate.enrollments[0]
+    certificate = certificate.model_copy(
+        update={
+            "enrollments": (
+                (
+                    enrollment[0],
+                    "CÁLCULO 3\nTATIANE DA SILVA EVANGELISTA",
+                    *enrollment[2:],
+                ),
+            ),
+        }
+    )
+    page = PdfReader(BytesIO(render_enrollment_certificate(certificate))).pages[0]
+    assert "TATIANE DA SILVA EVANGELISTA" in page.extract_text()
+    assert pdfmetrics.stringWidth(
+        "TATIANE DA SILVA EVANGELISTA", fonts.family, 6.72
+    ) == pytest.approx(112.6682, abs=0.001)
+    adjustments = [
+        float(value)
+        for operands, operator in page.get_contents().operations
+        if operator == b"TJ"
+        for value in operands[0]
+        if isinstance(value, (int, float))
+    ]
+    assert any(value == pytest.approx(58.59375, abs=0.0001) for value in adjustments)
+
+
+def test_atestado_incorpora_arial_original_na_faixa_de_impressao(documents):
+    from api.modules.me.certificate_fonts import certificate_fonts
+    from api.modules.me.enrollment_certificate import render_enrollment_certificate
+
+    if certificate_fonts().print_family != "UnbPrintArial":
+        pytest.skip("A faixa original requer Arial instalada junto à Verdana.")
+    page = PdfReader(
+        BytesIO(
+            render_enrollment_certificate(
+                documents.get_enrollment_certificate.return_value
+            )
+        )
+    ).pages[0]
+    used = []
+
+    def locate(text, cm, tm, font, size):
+        if "Sistema Integrado de Gestão de Atividades Acadêmicas" in text:
+            used.append((font["/BaseFont"], size))
+
+    page.extract_text(visitor_text=locate)
+    assert len(used) == 1
+    assert "ArialMT" in used[0][0]
+    assert used[0][1] == pytest.approx(7.995)
+    assert any(
+        "ArialMT" in str(font.get_object()["/BaseFont"])
+        and "/FontFile2" in font.get_object()["/FontDescriptor"]
+        for font in page["/Resources"]["/Font"].values()
+        if "/FontDescriptor" in font.get_object()
+    )
+
+
+@pytest.mark.parametrize("hour,minute,x", [(3, 50, 245.2734375), (4, 11, 244.98046875)])
+def test_atestado_posiciona_faixas_conforme_a_largura_do_horario(
+    documents, hour, minute, x
+):
+    from api.modules.me.certificate_fonts import certificate_fonts
+    from api.modules.me.enrollment_certificate import render_enrollment_certificate
+
+    if certificate_fonts().print_family != "UnbPrintArial":
+        pytest.skip("As faixas de referência requerem a Arial original.")
+    pdf = render_enrollment_certificate(
+        documents.get_enrollment_certificate.return_value,
+        printed_at=datetime(2026, 10, 23, hour, minute, tzinfo=UTC),
+    )
+    positions = {}
+
+    def locate(text, cm, tm, font, size):
+        value = text.strip()
+        if size == 7.995 and (value.startswith("Sistema Integrado") or value == "1/1"):
+            positions.setdefault(value, []).append((cm[4] + tm[4], cm[5] + tm[5]))
+
+    PdfReader(BytesIO(pdf)).pages[0].extract_text(visitor_text=locate)
+    assert positions["Sistema Integrado de Gestão de Atividades Acadêmicas"][0][
+        0
+    ] == pytest.approx(x, abs=0.0001)
+    assert positions["1/1"][0] == pytest.approx((560.0625, 16.17), abs=0.0001)
+
+
+def test_atestado_preserva_espaco_em_negrito_apos_periodo_letivo(documents):
+    from api.modules.me.certificate_fonts import certificate_fonts
+    from api.modules.me.enrollment_certificate import render_enrollment_certificate
+
+    if certificate_fonts().small_caps is None:
+        pytest.skip("A posição de referência requer a Verdana original.")
+    page = PdfReader(
+        BytesIO(
+            render_enrollment_certificate(
+                documents.get_enrollment_certificate.return_value
+            )
+        )
+    ).pages[0]
+    prefixes = []
+
+    def locate(text, cm, tm, font, size):
+        if text.startswith("2026.2"):
+            prefixes.append((text, font["/BaseFont"]))
+
+    page.extract_text(visitor_text=locate)
+    assert len(prefixes) == 1
+    assert prefixes[0][0] == "2026.2 "
+    assert "Verdana-Bold" in prefixes[0][1]
+
+
+def test_avanco_css_nao_adiciona_subpixel_por_imprecisao_numerica():
+    from api.modules.me.certificate_fonts import css_advance
+
+    assert css_advance(35.76562500000001) == 35.765625
+    assert css_advance(18.8934375) == 18.90234375
+
+
+def test_atestado_pinta_bordas_dos_titulos_nas_coordenadas_css(documents):
+    from api.modules.me.enrollment_certificate import render_enrollment_certificate
+
+    page = PdfReader(
+        BytesIO(
+            render_enrollment_certificate(
+                documents.get_enrollment_certificate.return_value
+            )
+        )
+    ).pages[0]
+    start = None
+    lines = []
+
+    def locate(operator, operands, cm, tm):
+        nonlocal start
+        if operator == b"m":
+            start = (float(operands[0]) + cm[4], float(operands[1]) + cm[5])
+        elif operator == b"l" and start is not None:
+            end = (float(operands[0]) + cm[4], float(operands[1]) + cm[5])
+            if abs(start[1] - end[1]) < 0.0001:
+                lines.append((start[0], end[0]))
+
+    page.extract_text(visitor_operand_before=locate)
+    assert (58.5, 538.5) in lines
+    assert (65.25, 531) in lines
 
 
 def test_atestado_centraliza_codigos_entre_as_linhas_do_horario(documents):
@@ -631,18 +1005,23 @@ def test_atestado_centraliza_codigos_entre_as_linhas_do_horario(documents):
 
 
 def test_atestado_alinha_local_com_a_impressao_do_sigaa(documents):
+    from api.modules.me.certificate_fonts import certificate_fonts
     from api.modules.me.enrollment_certificate import render_enrollment_certificate
 
     certificate = documents.get_enrollment_certificate.return_value
     page = PdfReader(BytesIO(render_enrollment_certificate(certificate))).pages[0]
-    positions = []
+    positions = {}
 
     def locate(text, cm, tm, font, size):
-        if text.strip().startswith("Local:"):
-            positions.append(cm[4] + tm[4])
+        if text.strip().startswith(("Tipo:", "Local:")):
+            positions[text.strip().split(":")[0]] = cm[4] + tm[4]
 
     page.extract_text(visitor_text=locate)
-    assert positions == pytest.approx([173.88], abs=0.05)
+    assert positions["Local"] - positions["Tipo"] == pytest.approx(75.25, abs=0.05)
+    if certificate_fonts().small_caps:
+        assert positions["Local"] - positions["Tipo"] == pytest.approx(
+            75.24609375, abs=0.0001
+        )
 
 
 def test_atestado_usa_verdana_original_em_todos_os_i_maiusculos(documents):
