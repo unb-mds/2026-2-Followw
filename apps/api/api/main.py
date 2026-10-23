@@ -70,6 +70,8 @@ tags_metadata = [
     },
 ]
 
+API_ROOT_PATH = "/api"
+
 app = FastAPI(
     title="Followw UnB API",
     description=(
@@ -80,12 +82,12 @@ app = FastAPI(
         "sincronização assíncrona inteligente e cache resiliente via Stale-While-Revalidate."
     ),
     version="0.1.0",
-    root_path="/api",
     docs_url=None,
     redoc_url=None,
     openapi_tags=tags_metadata,
     exception_handlers=EXCEPTION_HANDLERS,
 )
+app.root_path = API_ROOT_PATH
 
 
 def custom_openapi() -> dict[str, Any]:
@@ -97,7 +99,7 @@ def custom_openapi() -> dict[str, Any]:
             description=app.description,
             routes=app.routes,
             tags=app.openapi_tags,
-            servers=[{"url": app.root_path}],
+            servers=[{"url": API_ROOT_PATH}],
         )
         app.openapi_schema["x-tagGroups"] = [
             {

@@ -16,6 +16,7 @@ class EnrollmentCertificate(BaseModel):
     identification: tuple[tuple[str, str], ...]
     enrollment_headers: tuple[str, str, str, str, str]
     enrollments: tuple[tuple[str, str, str, str, str], ...]
+    activity_count: int = Field(default=0, ge=0)
     schedule: tuple[tuple[str, ...], ...]
     authentication: str
     footer: str

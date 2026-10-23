@@ -10,9 +10,16 @@ from fontTools.ttLib import TTFont
 
 def _kerning(font, glyphs):
     gpos = font["GPOS"].table
+    features = {
+        index
+        for script in gpos.ScriptList.ScriptRecord
+        if script.ScriptTag == "latn"
+        for index in script.Script.DefaultLangSys.FeatureIndex
+    }
     indices = {
         index
-        for feature in gpos.FeatureList.FeatureRecord
+        for feature_index in features
+        for feature in [gpos.FeatureList.FeatureRecord[feature_index]]
         if feature.FeatureTag == "kern"
         for index in feature.Feature.LookupListIndex
     }
@@ -87,7 +94,23 @@ def main():
             "sha256": sha256(path.read_bytes()).hexdigest(),
             "glyphs": glyphs,
             "kerning": _kerning(font, caps_cmap),
+            "text_kerning": _kerning(
+                font,
+                {
+                    code: glyph
+                    for code, glyph in font.getBestCmap().items()
+                    if code <= 255
+                },
+            ),
         }
+    arial_path = args.font_directory / "arial.ttf"
+    if arial_path.is_file():
+        arial = TTFont(arial_path)
+        result["regular"]["print_sha256"] = sha256(arial_path.read_bytes()).hexdigest()
+        result["regular"]["print_kerning"] = _kerning(
+            arial,
+            {code: glyph for code, glyph in arial.getBestCmap().items() if code <= 255},
+        )
     args.output.write_text(
         json.dumps(result, separators=(",", ":")) + "\n", encoding="utf-8"
     )

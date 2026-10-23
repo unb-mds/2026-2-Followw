@@ -1,16 +1,30 @@
 import importlib
 import logging
 
+import uvicorn
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 
 import api.main as main_module
+from api.__init__ import main as run_server
 from api.core.config import settings
-from api.main import app  # noqa: F401  garante que o módulo foi importado
 
 
 def test_httpx_logs_silenciados():
     assert logging.getLogger("httpx").level == logging.WARNING
     assert logging.getLogger("httpcore").level == logging.WARNING
+
+
+def test_servidor_configura_prefixo_e_observa_apenas_codigo_python(monkeypatch):
+    options = {}
+    monkeypatch.setattr(uvicorn, "run", lambda *args, **kwargs: options.update(kwargs))
+
+    run_server()
+
+    assert options["root_path"] == "/api"
+    assert options["reload"] is True
+    assert len(options["reload_dirs"]) == 3
+    assert all(path.is_dir() for path in options["reload_dirs"])
+    assert all(".venv" not in path.parts for path in options["reload_dirs"])
 
 
 def test_redireciona_https_em_producao(monkeypatch):
