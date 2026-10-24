@@ -1,0 +1,158 @@
+import csv
+from unittest.mock import AsyncMock
+
+import pytest
+from sqlalchemy import select
+
+from api.db.models import Professor
+from api.db.seed.professors import read_professors, seed_professors
+
+
+def _csv(path, columns, rows):
+    with path.open("w", newline="", encoding="utf-8") as file:
+        writer = csv.DictWriter(file, columns)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _files(tmp_path):
+    profiles = tmp_path / "professors.csv"
+    _csv(
+        profiles,
+        (
+            "siape",
+            "name",
+            "unity_id",
+            "photo",
+            "description",
+            "education",
+            "interests",
+            "lattes",
+            "email",
+            "disciplines",
+        ),
+        [
+            {
+                "siape": 123,
+                "name": "MARIA",
+                "unity_id": 673,
+                "photo": "",
+                "description": "Pesquisa sistemas.",
+                "education": '[{"level":"GRADUAÇÃO","start_year":"2018","end_year":"2021","course":"Computação","institution":"Universidade Estadual de Goiás"}]',
+                "interests": "Computação",
+                "lattes": "",
+                "email": "maria@unb.br",
+                "disciplines": '{"2026.2":{"FGA0001":2}}',
+            }
+        ],
+    )
+    return profiles
+
+
+def test_csv_relaciona_disciplinas_ao_siape(tmp_path):
+    profiles = _files(tmp_path)
+    (professor,) = read_professors(profiles)
+    assert professor.disciplines == [
+        {"semester": "2026.2", "code": "FGA0001", "occurrences": 2}
+    ]
+    with profiles.open("r", encoding="utf-8", newline="") as file:
+        row = next(csv.DictReader(file))
+    row["disciplines"] = '{"2026.2":{"FGA0001":2,"FGA0001":1}}'
+    _csv(profiles, row.keys(), [row])
+    with pytest.raises(ValueError, match="repetido"):
+        read_professors(profiles)
+
+
+def test_formacao_precisa_ser_lista_de_titulacoes(tmp_path):
+    profiles = _files(tmp_path)
+    with profiles.open("r", encoding="utf-8", newline="") as file:
+        row = next(csv.DictReader(file))
+    row["education"] = '{"doutorado":"Física"}'
+    _csv(profiles, row.keys(), [row])
+    with pytest.raises(ValueError, match="Formação inválida"):
+        read_professors(profiles)
+
+
+async def test_seed_atualiza_perfil_e_disciplinas(async_database, tmp_path):
+    profiles = _files(tmp_path)
+    async with async_database.begin() as session:
+        await seed_professors(session, profiles)
+        professor = await session.scalar(
+            select(Professor).where(Professor.siape == 123)
+        )
+        assert professor is not None
+        professor_id = professor.id
+        professor.description = "Descrição antiga"
+        professor.education = "Formação antiga"
+        professor.interests = "Interesses antigos"
+    with profiles.open("r", encoding="utf-8", newline="") as file:
+        row = next(csv.DictReader(file))
+    row["disciplines"] = '{"2026.1":{"FGA0002":1}}'
+    _csv(profiles, row.keys(), [row])
+    async with async_database.begin() as session:
+        await seed_professors(session, profiles)
+    async with async_database() as session:
+        professor = await session.scalar(
+            select(Professor).where(Professor.siape == 123)
+        )
+        assert professor.id == professor_id
+        assert professor.description == "Pesquisa sistemas."
+        assert (
+            professor.education
+            == '[{"level":"GRADUAÇÃO","start_year":"2018","end_year":"2021","course":"Computação","institution":"Universidade Estadual de Goiás"}]'
+        )
+        assert professor.interests == "Computação"
+        assert professor.disciplines == [
+            {"semester": "2026.1", "code": "FGA0002", "occurrences": 1}
+        ]
+
+
+async def test_csv_vazio_nao_apaga_catalogo(async_database, tmp_path):
+    profiles = _files(tmp_path)
+    async with async_database.begin() as session:
+        await seed_professors(session, profiles)
+    _csv(
+        profiles,
+        (
+            "siape",
+            "name",
+            "unity_id",
+            "photo",
+            "description",
+            "education",
+            "interests",
+            "lattes",
+            "email",
+            "disciplines",
+        ),
+        [],
+    )
+    async with async_database.begin() as session:
+        with pytest.raises(ValueError, match="CSV de docentes vazio"):
+            await seed_professors(session, profiles)
+    async with async_database() as session:
+        assert (
+            await session.scalar(select(Professor).where(Professor.siape == 123))
+            is not None
+        )
+
+
+async def test_seed_de_docentes_exige_caminho_explicito(monkeypatch, tmp_path):
+    from api.db.seed import run
+
+    for name in (
+        "seed_unities",
+        "seed_courses",
+        "seed_curricula",
+        "seed_subjects",
+        "seed_classrooms",
+        "seed_professors",
+    ):
+        monkeypatch.setattr(run, name, AsyncMock())
+
+    await run.seed_database(None)
+    run.seed_professors.assert_not_awaited()
+
+    path = tmp_path / "professors.csv"
+    await run.seed_database(None, path)
+    run.seed_professors.assert_awaited_once_with(None, path)

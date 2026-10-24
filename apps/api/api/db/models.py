@@ -138,6 +138,23 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
 
 
+class Professor(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "professors"
+
+    siape: Mapped[int] = mapped_column(unique=True)
+    name: Mapped[str] = mapped_column()
+    unity_id: Mapped[int] = mapped_column(ForeignKey("unities.id"))
+    photo: Mapped[str | None] = mapped_column()
+    description: Mapped[str | None] = mapped_column(Text)
+    education: Mapped[str | None] = mapped_column(Text)
+    interests: Mapped[str | None] = mapped_column(Text)
+    lattes: Mapped[str | None] = mapped_column()
+    email: Mapped[str | None] = mapped_column()
+    disciplines: Mapped[list[dict[str, object]]] = mapped_column(JSONB, default=list)
+
+    unity: Mapped[Unity] = relationship(lazy="joined")
+
+
 # Docentes chegam sem matrícula nem `idPessoa`: aí o email é a identidade.
 USER_WITHOUT_IDS = User.registration.is_(None) & User.person_id.is_(None)
 Index(

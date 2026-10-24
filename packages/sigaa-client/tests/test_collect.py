@@ -8,6 +8,7 @@ import pytest
 from sigaa_client import (
     Curriculum,
     CurriculumSummary,
+    ProfessorProfile,
     PublicClassroom,
     PublicSubject,
     SigaaError,
@@ -23,6 +24,21 @@ from sigaa_client import (
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 GAMA = Unit(id=673, name="GAMA")
 CEILANDIA = Unit(id=518, name="CEILANDIA")
+
+
+def test_csv_de_docentes_usa_unidade_e_omite_url(monkeypatch):
+    monkeypatch.syspath_prepend(str(SCRIPTS))
+    script = importlib.import_module("collect_professors")
+    professor = ProfessorProfile(
+        siape=123,
+        name="MARIA",
+        unit=GAMA,
+        url="https://sigaa.unb.br/sigaa/public/docente/portal.jsf?siape=123",
+    )
+    (row,) = script.rows([professor])
+    assert row["unity_id"] == 673
+    assert "department_id" not in row
+    assert "url" not in row
 
 
 @pytest.fixture

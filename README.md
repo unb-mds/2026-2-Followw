@@ -55,6 +55,11 @@ uv run api                        # sobe a API em http://localhost:8000
 
 A documentação interativa fica disponível em `http://localhost:8000/docs`.
 
+O catálogo de docentes é opcional. Da raiz do repositório, gere `professors.csv` com
+`uv run python packages/sigaa-client/scripts/collect_professors.py` e defina
+`FOLLOWW_PROFESSORS_CSV` com o caminho absoluto do arquivo ao executar `uv run db-init`.
+O CSV fica fora do Git; sem essa variável, `db-init` preserva o catálogo existente.
+
 ### Web
 
 Com a API rodando:
