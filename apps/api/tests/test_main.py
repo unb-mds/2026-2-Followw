@@ -35,7 +35,7 @@ def test_scalar_docs_retorna_html_com_referencia_openapi(client):
 
 
 def test_rotas_respondem_com_e_sem_prefixo_api(client):
-    for path in ("/openapi.json", "/api/openapi.json"):
+    for path in ("/openapi.json", "/api/openapi.json", "/api/docs"):
         assert client.get(path).status_code == 200
     assert client.get("/api/openapi.json").json()["servers"] == [{"url": "/api"}]
 
@@ -46,21 +46,26 @@ def test_openapi_agrupa_recursos_publicos_sem_ocultar_rotas_privadas(client):
     assert groups["Public"] == [
         "Public Classrooms",
         "Public Courses",
+        "Public Professors",
         "Public Restaurant",
         "Public Subjects",
     ]
     tags = {tag["name"]: tag for tag in schema["tags"]}
+    assert "/public/professors" in schema["paths"]
+    assert "/public/professors/{siape}" in schema["paths"]
+    assert "/professors" not in schema["paths"]
     assert tags["Public Classrooms"]["x-displayName"] == "Classrooms"
     assert tags["Public Courses"]["x-displayName"] == "Courses"
+    assert tags["Public Professors"]["x-displayName"] == "Professors"
     assert tags["Public Restaurant"]["x-displayName"] == "Restaurant"
     assert tags["Public Subjects"]["x-displayName"] == "Subjects"
     grouped_tags = {tag for group in groups.values() for tag in group}
     for path, methods in schema["paths"].items():
         for operation in methods.values():
             assert set(operation["tags"]) <= grouped_tags
-            assert bool(
-                set(operation["tags"]) & set(groups["Public"])
-            ) == path.startswith("/public/")
+            assert bool(set(operation["tags"]) & set(groups["Public"])) == (
+                path.startswith("/public/")
+            )
 
 
 def test_cors_libera_origens_configuradas_com_credenciais(client):

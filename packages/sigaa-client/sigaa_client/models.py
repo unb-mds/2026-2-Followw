@@ -341,6 +341,33 @@ class Unit(BaseModel):
     name: str
 
 
+class Professor(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    siape: int
+    name: str
+    department: Unit
+    photo: str | None = None
+    url: str
+
+
+class ProfessorDiscipline(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    semester: str
+    code: str
+    occurrences: int
+
+
+class ProfessorProfile(Professor):
+    description: str | None = None
+    education: str | None = None
+    interests: str | None = None
+    lattes: str | None = None
+    email: str | None = None
+    disciplines: tuple[ProfessorDiscipline, ...] = ()
+
+
 SubjectLevel = Literal[
     TeachingLevel.FORMACAO_COMPLEMENTAR,
     TeachingLevel.GRADUACAO,

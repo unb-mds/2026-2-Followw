@@ -18,12 +18,36 @@ async with SigaaClient(credentials) as client:
 async with SigaaPublicClient() as client:
     turmas = await client.classrooms.search("gama")
     componentes = await client.subjects.search("gama", code="FGA00")
+    docentes = await client.professors.search("gama")
 ```
 
 | Client              | Login | Módulos                                                |
 | ------------------- | ----- | ------------------------------------------------------ |
 | `SigaaClient`       | sim   | `.profile`, `.classrooms`, `.documents`, `.restaurant` |
-| `SigaaPublicClient` | não   | `.classrooms`, `.subjects`, `.curricula`               |
+| `SigaaPublicClient` | não   | `.classrooms`, `.subjects`, `.curricula`, `.professors` |
+
+`client.professors.list_departments()` lista os departamentos da busca pública.
+`search(department, name=...)` aceita ID ou nome do departamento e exige ao menos quatro caracteres
+quando `name` é informado. O resultado traz o `siape`, nome, departamento, foto e URL pública.
+`get_profile(professor)` lê descrição pessoal, formação em texto, áreas de interesse, Lattes,
+e-mail institucional e disciplinas de graduação. As disciplinas são agrupadas por semestre e
+código; `occurrences` preserva quantas linhas iguais o SIGAA mostrou, pois ele não expõe o ID da
+turma nessa página. Campos ausentes ficam nulos.
+Para ler perfis em paralelo, use um `SigaaPublicClient` por trabalhador: o portal pode trocar o
+docente corrente quando várias consultas compartilham a mesma sessão.
+
+```sh
+uv run python packages/sigaa-client/scripts/collect_professors.py
+```
+
+A coleta completa gera `data/professors.csv`, com uma linha por docente. A coluna `disciplines`
+guarda um JSON por semestre, por exemplo `{"2026.2":{"CIC0001":2}}` (código → quantidade de
+turmas). A URL do portal vem do SIAPE e o nome do departamento vem de `unities.csv`; nenhum dos
+dois ocupa uma coluna. Para coletar só um departamento, use `--unit ID --output-dir caminho`; isso preserva o
+CSV completo. O `db-init` semeia a tabela `professors` a partir desse arquivo.
+`GET /api/public/professors` pagina o catálogo e filtra por nome (`q`), `department_id` e semestre
+de graduação;
+`GET /api/public/professors/{siape}` devolve o perfil e as disciplinas.
 
 O login é feito sob demanda. O token retornado por `authenticate()` pode ser reutilizado com
 `SigaaClient(session_token=...)`: sem credenciais, uma sessão expirada levanta `SessionExpired`.
