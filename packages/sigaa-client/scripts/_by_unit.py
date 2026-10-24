@@ -1,4 +1,4 @@
-"""O que as coletas unidade a unidade da busca pública de turmas têm em comum."""
+"""O que as coletas públicas por unidade têm em comum."""
 
 import argparse
 import asyncio

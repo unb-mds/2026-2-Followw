@@ -4,23 +4,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from api.db.models import Classroom, Subject, Unity
-
-
-def _lookup_sql(value: ColumnElement[str]) -> ColumnElement[str]:
-    without_accents = func.regexp_replace(
-        func.normalize(func.lower(value), literal_column("NFKD")),
-        r"[\u0300-\u036f]+",
-        "",
-        "g",
-    )
-    return func.regexp_replace(func.btrim(without_accents), r"\s+", " ", "g")
+from api.db.search import lookup_sql
 
 
 def _matches_query(q: str, semester: str | None) -> ColumnElement[bool]:
     needle = lookup_key(q)
     conditions: list[ColumnElement[bool]] = [
         Subject.code.contains(needle.upper(), autoescape=True),
-        _lookup_sql(Subject.name).contains(needle, autoescape=True),
+        lookup_sql(Subject.name).contains(needle, autoescape=True),
     ]
     if semester is not None:
         professor = func.jsonb_array_elements_text(Classroom.professors).column_valued(
@@ -35,7 +26,7 @@ def _matches_query(q: str, semester: str | None) -> ColumnElement[bool]:
                     Classroom.semester == semester,
                     exists(
                         select(1).where(
-                            _lookup_sql(professor).contains(needle, autoescape=True)
+                            lookup_sql(professor).contains(needle, autoescape=True)
                         )
                     ),
                 )
