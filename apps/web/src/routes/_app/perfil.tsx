@@ -1,11 +1,5 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
-import {
-    Navigate,
-    createFileRoute,
-    redirect,
-    useLocation,
-    useNavigate
-} from '@tanstack/react-router';
+import { Navigate, createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import { LogOut, Pencil } from 'lucide-react';
 import { useState } from 'react';
 
@@ -71,9 +65,6 @@ export const Route = createFileRoute('/_app/perfil')({
 function PerfilPage() {
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const settings = useUserSettings();
-    const { searchStr } = useLocation();
-    const previewIos =
-        import.meta.env.DEV && new URLSearchParams(searchStr).get('previewInstall') === 'ios';
 
     // sessão encerrada por um 401 em qualquer query ou mutation
     if (!user) return <Navigate to="/login" replace />;
@@ -82,7 +73,7 @@ function PerfilPage() {
         <>
             <ProfileIdentity user={user} displayName={settings.displayName} />
             <div className="my-4 flex flex-col gap-4">
-                <InstallPromptCard previewIos={previewIos} />
+                <InstallPromptCard />
                 <AcademicPerformance user={user} />
                 <ProgressSection user={user} />
                 <AccountSection displayName={settings.displayName} />

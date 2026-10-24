@@ -23,10 +23,10 @@ afterAll(() => restoreLayoutEffect());
 const safari = 'Mozilla/5.0 (iPhone) AppleWebKit/605.1.15 Version/26.0 Mobile/15E148 Safari/604.1';
 let dispose: () => void;
 
-function initialize(userAgent = safari, previewIos = false) {
+function initialize(userAgent = safari) {
     Object.defineProperty(window.navigator, 'userAgent', { configurable: true, value: userAgent });
     dispose = initializeInstallSupport();
-    return dom.testing.render(<InstallPromptCard previewIos={previewIos} />);
+    return dom.testing.render(<InstallPromptCard />);
 }
 
 beforeEach(() => {
@@ -45,7 +45,9 @@ describe('card de instalação', () => {
         async (theme) => {
             document.documentElement.setAttribute('data-theme', theme);
             const page = initialize();
-            expect(page.getByRole('img', { name: /ao lado dos seus aplicativos/ })).toBeTruthy();
+            expect(page.getAllByRole('img', { name: /ao lado dos seus aplicativos/ })).toHaveLength(
+                2
+            );
             const trigger = page.getByRole('button', { name: 'Instalar app' });
             dom.testing.fireEvent.click(trigger, { button: 0 });
             expect(await page.findByRole('dialog', { name: 'Instale o Followw' })).toBeTruthy();
@@ -108,7 +110,7 @@ describe('card de instalação', () => {
     });
 
     test.each(['light', 'dark'])(
-        'mantém o card antigo e o instalador nativo no Android no tema %s',
+        'usa o mesmo card e o instalador nativo no Android no tema %s',
         async (theme) => {
             document.documentElement.setAttribute('data-theme', theme);
             const page = initialize(
@@ -122,16 +124,9 @@ describe('card de instalação', () => {
             dom.testing.act(() => {
                 window.dispatchEvent(event);
             });
-            expect(page.queryByRole('img', { name: /ao lado dos seus aplicativos/ })).toBeNull();
-            expect(
-                page.getByText(
-                    /Acesse o app com um toque e consulte suas turmas já acessadas mesmo sem internet/
-                )
-            ).toBeTruthy();
-            expect(page.queryByText('Suas turmas a um toque, direto da tela inicial.')).toBeNull();
-            expect(
-                page.getByRole('button', { name: 'Instalar app' }).getAttribute('aria-haspopup')
-            ).toBeNull();
+            expect(page.getAllByRole('img', { name: /ao lado dos seus aplicativos/ })).toHaveLength(
+                2
+            );
             await dom.testing.act(async () => {
                 dom.testing.fireEvent.click(page.getByRole('button', { name: 'Instalar app' }), {
                     button: 0
@@ -145,24 +140,6 @@ describe('card de instalação', () => {
     test('não exibe o card em navegador sem instalação disponível', () => {
         const page = initialize('Mozilla/5.0 (X11; Linux x86_64)');
         expect(page.queryByRole('button', { name: 'Instalar app' })).toBeNull();
-    });
-
-    test('permite visualizar o tour no desktop sem alterar a preferência de instalação', async () => {
-        const page = initialize('Mozilla/5.0 (X11; Linux x86_64)', true);
-        expect(page.getByRole('img', { name: /ao lado dos seus aplicativos/ })).toBeTruthy();
-        dom.testing.fireEvent.click(page.getByRole('button', { name: 'Instalar app' }), {
-            button: 0
-        });
-        expect(await page.findByRole('heading', { name: '1. Abra o menu' })).toBeTruthy();
-        dom.testing.fireEvent.click(
-            page.getByRole('button', { name: 'Fechar instruções de instalação' })
-        );
-        await page.findByRole('button', { name: 'Instalar app' });
-        dom.testing.fireEvent.click(
-            page.getByRole('button', { name: 'Ocultar sugestão de instalação' })
-        );
-        expect(page.queryByRole('button', { name: 'Instalar app' })).toBeNull();
-        expect(window.localStorage.getItem('followw:install-dismissed')).toBeNull();
     });
 
     test('permite ocultar a sugestão de instalação no iOS', () => {

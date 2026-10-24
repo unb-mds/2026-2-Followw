@@ -18,13 +18,22 @@ import { cn } from '#/lib/shadcn';
 
 export function IosHomeScreenPreview() {
     return (
-        <div className="flex justify-center rounded-2xl bg-linear-to-br from-primary/15 via-muted to-primary/5 px-4 py-7">
+        <div className="flex justify-center rounded-2xl bg-linear-to-br from-primary/15 via-muted to-primary/5">
             <img
                 src="/images/ios-install-dock.png"
                 alt="O Followw ao lado dos seus aplicativos na tela inicial: Spotify, WhatsApp e Instagram"
+                width={1322}
+                height={446}
+                loading="lazy"
+                className="h-auto w-full max-w-sm dark:hidden"
+            />
+            <img
+                src="/images/ios-install-dock-dark.png"
+                alt="O Followw ao lado dos seus aplicativos na tela inicial: Spotify, WhatsApp e Instagram"
                 width={2160}
                 height={728}
-                className="h-auto w-full max-w-sm"
+                loading="lazy"
+                className="hidden h-auto w-full max-w-sm dark:block"
             />
         </div>
     );
