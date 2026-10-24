@@ -14,7 +14,7 @@ stateless.
 
 ## Estrutura
 
-```
+```text
 apps/
   api/              # API pública (FastAPI)
   web/              # Front-end web do Follow

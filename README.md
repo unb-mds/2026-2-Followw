@@ -37,7 +37,7 @@ docs/               # requisitos, arquitetura e notas de sprint
 ### Pré-requisitos
 
 - [Python 3.14+](https://www.python.org/) e [uv 0.13.4](https://docs.astral.sh/uv/)
-- [Bun 1.4.3](https://bun.sh/)
+- [Bun 1.4.4](https://bun.sh/)
 - [Docker](https://www.docker.com/) (para Postgres, Redis e QStash locais)
 
 ### API
