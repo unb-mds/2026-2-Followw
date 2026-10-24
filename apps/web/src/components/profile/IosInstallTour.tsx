@@ -150,8 +150,11 @@ function IosInstallTourContent() {
                     </div>
                 </div>
                 {isSummary ? (
-                    <DialogClose render={<Button className="size-11 rounded-full" />}>
-                        <Check />
+                    <DialogClose
+                        render={<Button className="size-11 rounded-full" />}
+                        aria-label="Entendi"
+                    >
+                        <Check className="size-5" aria-hidden="true" />
                     </DialogClose>
                 ) : (
                     <Button
