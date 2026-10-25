@@ -146,7 +146,9 @@ class Professor(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     unity_id: Mapped[int] = mapped_column(ForeignKey("unities.id"))
     photo: Mapped[str | None] = mapped_column()
     description: Mapped[str | None] = mapped_column(Text)
-    education: Mapped[list[dict[str, object]] | None] = mapped_column(JSONB)
+    education: Mapped[list[dict[str, object]] | None] = mapped_column(
+        JSONB(none_as_null=True)
+    )
     interests: Mapped[str | None] = mapped_column(Text)
     lattes: Mapped[str | None] = mapped_column()
     email: Mapped[str | None] = mapped_column()

@@ -1,7 +1,7 @@
 import csv
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from api.db.models import Professor
 from api.db.seed.professors import read_professors, seed_professors
@@ -139,6 +139,23 @@ async def test_csv_vazio_nao_apaga_catalogo(async_database, tmp_path):
             await session.scalar(select(Professor).where(Professor.siape == 123))
             is not None
         )
+
+
+async def test_formacao_ausente_e_null_no_banco(async_database, tmp_path):
+    profiles = _files(tmp_path)
+    with profiles.open("r", encoding="utf-8", newline="") as file:
+        row = next(csv.DictReader(file))
+    row["education"] = ""
+    _csv(profiles, row.keys(), [row])
+    async with async_database.begin() as session:
+        await seed_professors(session, profiles)
+    async with async_database() as session:
+        count = await session.scalar(
+            select(func.count())
+            .select_from(Professor)
+            .where(Professor.education.is_(None))
+        )
+    assert count == 1
 
 
 async def test_carga_parcial_preserva_outros_docentes_e_substituicao_remove(
