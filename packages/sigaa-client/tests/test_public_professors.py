@@ -356,6 +356,26 @@ async def test_curriculo_de_outro_docente_nao_associa_formacao():
     assert profile.education == ()
 
 
+async def test_curriculo_de_homonimo_parcial_sem_lattes_nao_associa_formacao():
+    curriculum = json.dumps(
+        {
+            "dadosgerais": {
+                "nomecompleto": "Maria Silva",
+                "formacaoacademicatitulacao": {"graduacao": [{"nomecurso": "Física"}]},
+            }
+        }
+    )
+    fake = FakeSigaa(
+        results=RESULTS.replace("MARIA SILVA", "MARIA CLARA SILVA"),
+        profile=PROFILE.replace("MARIA SILVA", "MARIA CLARA SILVA")
+        + f"<script>var curriculo = {curriculum};</script>",
+    )
+    async with SigaaPublicClient(transport=httpx.MockTransport(fake)) as client:
+        professor = (await client.professors.search(508))[0]
+        profile = await client.professors.get_profile(professor)
+    assert profile.education == ()
+
+
 async def test_curriculo_aceita_sobrenome_adicional_do_mesmo_docente():
     curriculum = json.dumps(
         {
@@ -381,8 +401,9 @@ def test_nome_do_curriculo_aceita_pontuacao_equivalente():
         "Henrique Modanez de Sant'Anna", "HENRIQUE MODANEZ DE SANT ANNA"
     )
     assert _same_professor("Camila Gomes Sant'Anna", "CAMILA GOMES SANTANNA")
-    assert _same_professor("Claudia Goulart", "CLAUDIA MARIA GOULART DOS SANTOS")
-    assert _same_professor("Greyciane Souza Lins", "GREYCI SOUZA LOBATO LINS")
+    assert not _same_professor("Claudia Goulart", "CLAUDIA MARIA GOULART DOS SANTOS")
+    assert not _same_professor("Greyciane Souza Lins", "GREYCI SOUZA LOBATO LINS")
+    assert not _same_professor("Maria Silva", "MARIA CLARA SILVA")
     assert not _same_professor("Claudia Goulart", "CLAUDIA MARIA FERREIRA")
 
 

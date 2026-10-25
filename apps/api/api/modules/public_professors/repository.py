@@ -1,6 +1,7 @@
 from sigaa_client import lookup_key
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import load_only
 
 from api.db.models import Professor
 from api.db.search import lookup_sql
@@ -35,6 +36,14 @@ class ProfessorRepository:
         professors = list(
             await self._session.scalars(
                 select(Professor)
+                .options(
+                    load_only(
+                        Professor.siape,
+                        Professor.name,
+                        Professor.unity_id,
+                        Professor.photo,
+                    )
+                )
                 .where(*conditions)
                 .order_by(Professor.name, Professor.siape)
                 .offset((page - 1) * page_size)

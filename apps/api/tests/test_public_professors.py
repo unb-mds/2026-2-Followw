@@ -1,6 +1,8 @@
 import pytest
+from sqlalchemy import inspect
 
 from api.db.models import Professor, Unity
+from api.modules.public_professors.repository import ProfessorRepository
 
 
 @pytest.fixture
@@ -15,7 +17,15 @@ def catalog(database):
                     unity_id=508,
                     photo=None,
                     description="Pesquisa sistemas.",
-                    education='[{"level":"GRADUAÇÃO","start_year":"2018","end_year":"2021","course":"Computação","institution":"Universidade Estadual de Goiás"}]',
+                    education=[
+                        {
+                            "level": "GRADUAÇÃO",
+                            "start_year": "2018",
+                            "end_year": "2021",
+                            "course": "Computação",
+                            "institution": "Universidade Estadual de Goiás",
+                        }
+                    ],
                     interests="Computação",
                     lattes=None,
                     email="maria@unb.br",
@@ -82,6 +92,19 @@ def test_detalhe_traz_perfil_e_disciplinas_sem_nome_ou_carga(client, catalog):
         {"semester": "2025.1", "code": "CIC0108", "occurrences": 1},
     ]
     assert client.get("/public/professors/999").status_code == 404
+
+
+async def test_listagem_carrega_apenas_campos_do_resumo(async_database):
+    async with async_database.begin() as session:
+        session.add(Professor(siape=123, name="MARIA", unity_id=673, disciplines=[]))
+    async with async_database() as session:
+        professors, total = await ProfessorRepository(session).list(
+            None, None, None, 1, 20
+        )
+        assert total == 1
+        assert professors[0].unity.name
+        assert "education" in inspect(professors[0]).unloaded
+        assert "disciplines" in inspect(professors[0]).unloaded
 
 
 def test_nome_curto_e_paginacao_invalida_retornam_422(client, catalog):

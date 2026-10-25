@@ -1,23 +1,16 @@
-from pathlib import Path
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.seed.classrooms import seed_classrooms
 from api.db.seed.courses import seed_courses
 from api.db.seed.curricula import seed_curricula
-from api.db.seed.professors import seed_professors
 from api.db.seed.subjects import seed_subjects
 from api.db.seed.unities import seed_unities
 
 
-async def seed_database(
-    session: AsyncSession, professors_path: Path | None = None
-) -> None:
+async def seed_database(session: AsyncSession) -> None:
     """Grava os dados de referência; a ordem importa."""
     await seed_unities(session)
     await seed_courses(session)
     await seed_curricula(session)
     await seed_subjects(session)
     await seed_classrooms(session)
-    if professors_path is not None:
-        await seed_professors(session, professors_path)

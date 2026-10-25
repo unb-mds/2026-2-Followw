@@ -1,5 +1,4 @@
 import csv
-from unittest.mock import AsyncMock
 
 import pytest
 from sqlalchemy import select
@@ -83,7 +82,7 @@ async def test_seed_atualiza_perfil_e_disciplinas(async_database, tmp_path):
         assert professor is not None
         professor_id = professor.id
         professor.description = "Descrição antiga"
-        professor.education = "Formação antiga"
+        professor.education = []
         professor.interests = "Interesses antigos"
     with profiles.open("r", encoding="utf-8", newline="") as file:
         row = next(csv.DictReader(file))
@@ -97,10 +96,15 @@ async def test_seed_atualiza_perfil_e_disciplinas(async_database, tmp_path):
         )
         assert professor.id == professor_id
         assert professor.description == "Pesquisa sistemas."
-        assert (
-            professor.education
-            == '[{"level":"GRADUAÇÃO","start_year":"2018","end_year":"2021","course":"Computação","institution":"Universidade Estadual de Goiás"}]'
-        )
+        assert professor.education == [
+            {
+                "level": "GRADUAÇÃO",
+                "start_year": "2018",
+                "end_year": "2021",
+                "course": "Computação",
+                "institution": "Universidade Estadual de Goiás",
+            }
+        ]
         assert professor.interests == "Computação"
         assert professor.disciplines == [
             {"semester": "2026.1", "code": "FGA0002", "occurrences": 1}
@@ -137,22 +141,27 @@ async def test_csv_vazio_nao_apaga_catalogo(async_database, tmp_path):
         )
 
 
-async def test_seed_de_docentes_exige_caminho_explicito(monkeypatch, tmp_path):
-    from api.db.seed import run
+async def test_carga_parcial_preserva_outros_docentes_e_substituicao_remove(
+    async_database, tmp_path
+):
+    profiles = _files(tmp_path)
+    with profiles.open("r", encoding="utf-8", newline="") as file:
+        row = next(csv.DictReader(file))
+    other = {**row, "siape": 456, "name": "JOÃO"}
+    _csv(profiles, row.keys(), [row, other])
+    async with async_database.begin() as session:
+        await seed_professors(session, profiles)
 
-    for name in (
-        "seed_unities",
-        "seed_courses",
-        "seed_curricula",
-        "seed_subjects",
-        "seed_classrooms",
-        "seed_professors",
-    ):
-        monkeypatch.setattr(run, name, AsyncMock())
+    _csv(profiles, row.keys(), [row])
+    async with async_database.begin() as session:
+        await seed_professors(session, profiles)
+    async with async_database() as session:
+        assert await session.scalar(select(Professor).where(Professor.siape == 456))
 
-    await run.seed_database(None)
-    run.seed_professors.assert_not_awaited()
-
-    path = tmp_path / "professors.csv"
-    await run.seed_database(None, path)
-    run.seed_professors.assert_awaited_once_with(None, path)
+    async with async_database.begin() as session:
+        await seed_professors(session, profiles, replace_all=True)
+    async with async_database() as session:
+        assert (
+            await session.scalar(select(Professor).where(Professor.siape == 456))
+            is None
+        )

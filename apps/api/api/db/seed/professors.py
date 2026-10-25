@@ -1,3 +1,5 @@
+import argparse
+import asyncio
 import json
 from pathlib import Path
 
@@ -12,19 +14,20 @@ from api.db.seed import read_csv, upsert
 _DEGREES = TypeAdapter(list[ProfessorDegree])
 
 
-def _education(value: str) -> str | None:
+def _education(value: str) -> list[dict[str, object]] | None:
     if not value.strip():
         return None
     try:
         degrees = json.loads(value)
         if not isinstance(degrees, list) or not degrees:
             raise ValueError
-        for degree in _DEGREES.validate_python(degrees):
+        validated = _DEGREES.validate_python(degrees)
+        for degree in validated:
             if not degree.level.strip():
                 raise ValueError
     except (ValueError, ValidationError, TypeError) as exc:
         raise ValueError("Formação inválida no CSV de docentes.") from exc
-    return value
+    return [degree.model_dump() for degree in validated]
 
 
 def _unique_pairs(pairs: list[tuple[str, object]]) -> dict[str, object]:
@@ -87,6 +90,8 @@ def read_professors(profiles_path: Path) -> list[Professor]:
 async def seed_professors(
     session: AsyncSession,
     profiles_path: Path,
+    *,
+    replace_all: bool = False,
 ) -> None:
     professors = read_professors(profiles_path)
     await upsert(
@@ -106,8 +111,28 @@ async def seed_professors(
             "disciplines",
         ),
     )
-    await session.execute(
-        delete(Professor).where(
-            Professor.siape.not_in([item.siape for item in professors])
+    if replace_all:
+        await session.execute(
+            delete(Professor).where(
+                Professor.siape.not_in([item.siape for item in professors])
+            )
         )
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Carrega o catálogo CSV de docentes.")
+    parser.add_argument("csv", type=Path)
+    parser.add_argument(
+        "--replace-all",
+        action="store_true",
+        help="Remove docentes ausentes do CSV; use somente com uma coleta completa.",
     )
+    args = parser.parse_args()
+
+    async def load() -> None:
+        from api.db.main import async_session
+
+        async with async_session.begin() as session:
+            await seed_professors(session, args.csv, replace_all=args.replace_all)
+
+    asyncio.run(load())

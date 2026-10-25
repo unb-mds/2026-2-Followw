@@ -1,7 +1,5 @@
 import asyncio
-import os
 from collections.abc import Awaitable, Callable
-from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends
@@ -74,8 +72,7 @@ async def create_tables() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(create_schema)
     async with async_session.begin() as session:
-        professors_csv = os.environ.get("FOLLOWW_PROFESSORS_CSV")
-        await seed_database(session, Path(professors_csv) if professors_csv else None)
+        await seed_database(session)
 
 
 def db_init() -> None:

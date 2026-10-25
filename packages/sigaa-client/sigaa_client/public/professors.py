@@ -3,7 +3,6 @@
 import json
 import re
 from collections import Counter
-from difflib import SequenceMatcher
 from html import unescape
 from urllib.parse import parse_qs, urljoin, urlparse
 
@@ -57,44 +56,10 @@ def _curriculum_value(value: object) -> str | None:
 
 
 def _same_professor(curriculum_name: str, professor_name: str) -> bool:
-    particles = {"de", "da", "do", "das", "dos", "e"}
-    curriculum_parts = [
-        part
-        for part in re.findall(r"\w+", lookup_key(curriculum_name))
-        if part not in particles
-    ]
-    professor_parts = [
-        part
-        for part in re.findall(r"\w+", lookup_key(professor_name))
-        if part not in particles
-    ]
-    if curriculum_parts == professor_parts or "".join(curriculum_parts) == "".join(
-        professor_parts
-    ):
-        return True
-    if min(len(curriculum_parts), len(professor_parts)) < 2:
-        return False
-    if (
-        SequenceMatcher(None, curriculum_parts[0], professor_parts[0]).ratio() >= 0.75
-        and SequenceMatcher(
-            None, " ".join(curriculum_parts), " ".join(professor_parts)
-        ).ratio()
-        >= 0.8
-        and set(curriculum_parts[1:]) & set(professor_parts[1:])
-    ):
-        return True
-    if curriculum_parts[0] != professor_parts[0]:
-        first, other = sorted((curriculum_parts[0], professor_parts[0]), key=len)
-        if (
-            len(first) < 5
-            or not other.startswith(first)
-            or min(len(curriculum_parts), len(professor_parts)) < 3
-        ):
-            return False
-        curriculum_parts[0] = professor_parts[0]
-    shorter, longer = sorted((curriculum_parts, professor_parts), key=len)
-    remaining = iter(longer)
-    return all(part in remaining for part in shorter)
+    normalized = "".join(re.findall(r"\w+", lookup_key(curriculum_name)))
+    return bool(normalized) and normalized == "".join(
+        re.findall(r"\w+", lookup_key(professor_name))
+    )
 
 
 def _parse_education(
@@ -119,9 +84,7 @@ def _parse_education(
         if not curriculum_name:
             raise SigaaParseError("Nome ausente no currículo acadêmico do docente.")
         lattes_id = re.search(r"/(\d{16})/?$", lattes or "")
-        same_full_name = "".join(
-            re.findall(r"\w+", lookup_key(curriculum_name))
-        ) == "".join(re.findall(r"\w+", lookup_key(professor_name)))
+        same_full_name = _same_professor(curriculum_name, professor_name)
         curriculum_parts = re.findall(r"\w+", lookup_key(curriculum_name))
         professor_parts = re.findall(r"\w+", lookup_key(professor_name))
         if not curriculum_parts or not professor_parts:
@@ -131,12 +94,11 @@ def _parse_education(
         )
         if lattes_id and not lattes_matches and not same_full_name:
             return ()
-        name_matches = _same_professor(curriculum_name, professor_name)
         related_name = (
             curriculum_parts[0] == professor_parts[0]
             and bool(set(curriculum_parts[1:]) & set(professor_parts[1:]))
         ) or (len(curriculum_parts) == 1 and curriculum_parts[0] == professor_parts[-1])
-        if not name_matches and not (lattes_matches and related_name):
+        if not same_full_name and not (lattes_matches and related_name):
             return ()
         if not isinstance(formation, dict):
             raise SigaaParseError(

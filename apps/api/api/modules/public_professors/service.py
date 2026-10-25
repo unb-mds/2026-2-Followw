@@ -1,4 +1,3 @@
-import json
 from typing import Annotated
 
 from fastapi import Depends, HTTPException
@@ -84,7 +83,7 @@ class ProfessorService:
         return ProfessorDetails(
             **_item(professor).model_dump(),
             description=professor.description,
-            education=json.loads(professor.education) if professor.education else [],
+            education=professor.education or [],
             interests=professor.interests,
             lattes=professor.lattes,
             email=professor.email,
