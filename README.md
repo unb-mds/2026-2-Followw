@@ -55,15 +55,6 @@ uv run api                        # sobe a API em http://localhost:8000
 
 A documentação interativa fica disponível em `http://localhost:8000/docs`.
 
-O catálogo de docentes é opcional. Da raiz do repositório, gere `professors.csv` com
-`uv run python packages/sigaa-client/scripts/collect_professors.py`. Após `db-init`, carregue
-o arquivo com `uv run db-seed-professors packages/sigaa-client/data/professors.csv`.
-O comando atualiza apenas os docentes presentes no CSV, inclusive numa coleta por unidade.
-Para substituir o catálogo por uma coleta completa, adicione `--replace-all`; isso remove
-os docentes ausentes do arquivo. O CSV fica fora do Git.
-Em bancos criados antes desta versão, converta `professors.education` de `TEXT` para `JSONB`
-uma vez, preservando os dados: `ALTER TABLE professors ALTER COLUMN education TYPE jsonb USING education::jsonb;`.
-
 ### Web
 
 Com a API rodando:
