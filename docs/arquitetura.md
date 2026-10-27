@@ -145,7 +145,7 @@ suas interações com as bibliotecas do monorepo e dados.
 
 - **Semeadura de Dados (`api/db/seed/`)**: na inicialização do banco (`db-init`), arquivos CSV
   pré-coletados em `packages/sigaa-client/data/` populam automaticamente unidades acadêmicas
-  (`unities`), cursos de graduação (`courses`), estruturas curriculares (`curriculums`), componentes
+  (`units`), cursos de graduação (`courses`), estruturas curriculares (`curriculums`), componentes
   curriculares (`subjects`) e turmas (`classrooms`).
 - **Congelamento por Calendário Acadêmico (`api/academic_calendar.py`)**: utiliza as datas oficiais
   do período letivo para congelar automaticamente a ressincronização de turmas encerradas (passados

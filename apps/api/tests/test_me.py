@@ -2,7 +2,7 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from http.cookies import SimpleCookie
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import ANY, AsyncMock
 
 import httpx
 import pytest
@@ -79,9 +79,8 @@ def test_login_seguido_de_me_responde_do_cache(client, sigaa):
         "photo": f"{SIGAA_BASE_URL}/arquivos/foto.jpg",
         "email": None,
         "bio": "Bio de teste.",
-        "unity": "FCTE",
-        "course": "ENGENHARIA DE SOFTWARE",
-        "shift": None,
+        "unit": {"id": 673, "code": "FCTE", "name": "CAMPUS UNB GAMA"},
+        "course": {"id": ANY, "name": "ENGENHARIA DE SOFTWARE", "shift": None},
         "entry_semester": "2025.1",
         "integralization": 35,
         "workload": {
@@ -268,7 +267,7 @@ def test_me_documenta_campos_e_erros(client):
         "photo",
         "email",
         "bio",
-        "unity",
+        "unit",
         "course",
         "entry_semester",
         "integralization",
@@ -734,7 +733,7 @@ PERFIL_LIDO = UserProfile(
     registration="251000000",
     photo=None,
     bio="Bio.",
-    unity="FCTE",
+    unit="FCTE",
     course="ENGENHARIA DE SOFTWARE",
     shift=None,
     entry_semester="2025.1",

@@ -3,24 +3,15 @@ from sqlalchemy import ColumnElement, exists, func, literal_column, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from api.db.models import Classroom, Subject, Unity
-
-
-def _lookup_sql(value: ColumnElement[str]) -> ColumnElement[str]:
-    without_accents = func.regexp_replace(
-        func.normalize(func.lower(value), literal_column("NFKD")),
-        r"[\u0300-\u036f]+",
-        "",
-        "g",
-    )
-    return func.regexp_replace(func.btrim(without_accents), r"\s+", " ", "g")
+from api.db.models import Classroom, Subject
+from api.db.search import lookup_sql
 
 
 def _matches_query(q: str, semester: str | None) -> ColumnElement[bool]:
     needle = lookup_key(q)
     conditions: list[ColumnElement[bool]] = [
         Subject.code.contains(needle.upper(), autoescape=True),
-        _lookup_sql(Subject.name).contains(needle, autoescape=True),
+        lookup_sql(Subject.name).contains(needle, autoescape=True),
     ]
     if semester is not None:
         professor = func.jsonb_array_elements_text(Classroom.professors).column_valued(
@@ -35,7 +26,7 @@ def _matches_query(q: str, semester: str | None) -> ColumnElement[bool]:
                     Classroom.semester == semester,
                     exists(
                         select(1).where(
-                            _lookup_sql(professor).contains(needle, autoescape=True)
+                            lookup_sql(professor).contains(needle, autoescape=True)
                         )
                     ),
                 )
@@ -49,9 +40,6 @@ class SubjectCatalogRepository:
 
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
-
-    async def list_unities(self) -> list[Unity]:
-        return list(await self._session.scalars(select(Unity).order_by(Unity.id)))
 
     async def subject_names(self, codes: set[str]) -> dict[str, str]:
         if not codes:
@@ -113,7 +101,7 @@ class SubjectCatalogRepository:
         q: str | None = None,
         code: str | None = None,
         codes: set[str] | None = None,
-        unity_id: int | None = None,
+        unit_id: int | None = None,
         semester: str | None = None,
     ) -> list[Subject]:
         """Cada componente com as turmas de `semester` (o mais recente gravado, se omitido)."""
@@ -125,8 +113,8 @@ class SubjectCatalogRepository:
             query = query.where(Subject.code == code)
         if codes is not None:
             query = query.where(Subject.code.in_(codes))
-        if unity_id is not None:
-            query = query.where(Subject.unity_id == unity_id)
+        if unit_id is not None:
+            query = query.where(Subject.unit_id == unit_id)
         if q is not None:
             query = query.where(_matches_query(q, semester))
         # Sem semestre não há turma gravada, então o filtro não tira nada.

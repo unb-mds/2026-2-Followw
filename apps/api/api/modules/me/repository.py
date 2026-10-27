@@ -64,7 +64,7 @@ class UserRepository:
         user.photo = profile.photo or user.photo
         user.email = profile.email or user.email
         user.bio = profile.bio
-        pair = (profile.course, profile.unity)
+        pair = (profile.course, profile.unit)
         shift = profile.shift.value if profile.shift else None
         course_id = (await course_ids(self._session, [pair], shift)).get(pair)
         if course_id != user.course_id:

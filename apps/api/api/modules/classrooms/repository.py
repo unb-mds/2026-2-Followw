@@ -23,7 +23,7 @@ from api.db.models import (
     Subject,
     User,
 )
-from api.db.unities import unity_ids
+from api.db.units import unit_ids
 from api.modules.classrooms.lessons import (
     FrequencySummary,
     Period,
@@ -157,9 +157,7 @@ class ClassroomRepository:
         # O histórico tem dezenas de turmas: turmas e componentes vêm de uma vez.
         saved = await self._classrooms_by_key([key for key, _ in keyed])
         subjects = await self._subjects({key[0] for key, _ in keyed})
-        unities = await unity_ids(
-            self._session, {item.subject.unity for _, item in keyed}
-        )
+        units = await unit_ids(self._session, {item.subject.unit for _, item in keyed})
         seen: set[UUID] = set()
         current: list[Classroom] = []
         for key, item in keyed:
@@ -167,7 +165,7 @@ class ClassroomRepository:
             # Turma de semestre passado quase não muda: só é regravada num refresh.
             if classroom is None or item.current or refresh:
                 classroom = saved[key] = await self._save_classroom(
-                    key, item, classroom, subjects, unities
+                    key, item, classroom, subjects, units
                 )
             if item.current:
                 current.append(classroom)
@@ -216,9 +214,7 @@ class ClassroomRepository:
         known = [link.user for link in links.values()]
         # Turma grande tem milhares de participantes: os usuários vêm de uma vez.
         users = await self._member_users(members)
-        courses = await course_ids(
-            self._session, {(m.course, m.unity) for m in members}
-        )
+        courses = await course_ids(self._session, {(m.course, m.unit) for m in members})
         present = academic_calendar.member_status(classroom.semester)
         seen: set[UUID] = set()
         for member in members:
@@ -299,7 +295,7 @@ class ClassroomRepository:
         code: str,
         item: sigaa_client.Subject,
         subjects: dict[str, Subject],
-        unities: Mapping[str, int],
+        units: Mapping[str, int],
     ) -> None:
         subject = subjects.get(code)
         if subject is None:
@@ -309,7 +305,7 @@ class ClassroomRepository:
         subject.name = item.name
         subject.hours = item.hours or subject.hours
         # A unidade ofertante do seed vale mais que o palpite pelo prefixo do local.
-        subject.unity_id = subject.unity_id or unities.get(item.unity or "")
+        subject.unit_id = subject.unit_id or units.get(item.unit or "")
 
     async def _save_classroom(
         self,
@@ -317,10 +313,10 @@ class ClassroomRepository:
         item: sigaa_client.Classroom,
         classroom: Classroom | None,
         subjects: dict[str, Subject],
-        unities: Mapping[str, int],
+        units: Mapping[str, int],
     ) -> Classroom:
         code, number, semester = key
-        self._save_subject(code, item.subject, subjects, unities)
+        self._save_subject(code, item.subject, subjects, units)
         if classroom is None:
             # O id vem antes do flush: o vínculo aponta para ele.
             classroom = Classroom(
@@ -390,7 +386,7 @@ class ClassroomRepository:
             value = getattr(member, field)
             if value is not None and (shadow or getattr(user, field) is None):
                 setattr(user, field, value)
-        course_id = courses.get((member.course or "", member.unity or ""))
+        course_id = courses.get((member.course or "", member.unit or ""))
         if course_id is not None and (shadow or user.course_id is None):
             user.course_id = course_id
         user.registration = user.registration or member.registration

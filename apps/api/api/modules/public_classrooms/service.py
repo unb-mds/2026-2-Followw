@@ -1,11 +1,13 @@
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
-from sigaa_client import PublicClassroom, SigaaSearchError, Unit, lookup_key
+from sigaa_client import PublicClassroom, SigaaSearchError, lookup_key
 
 from api.db.main import DatabaseDep
+from api.db.units import find_unit
 from api.modules.public_classrooms.code import classroom_code_prefix
 from api.modules.public_classrooms.repository import UnitIndexRepository
+from api.schemas import UnitRef
 from api.sigaa import SigaaPublicClientDep
 
 
@@ -16,27 +18,27 @@ class PublicClassroomService:
 
     async def search(
         self,
-        unit: str | None = None,
+        unit: int | str | None = None,
         semester: str | None = None,
         *,
-        contains: str | None = None,
+        q: str | None = None,
         local: str | None = None,
         code: str | None = None,
         number: int | None = None,
     ) -> list[PublicClassroom]:
-        prefix = None
-        if code is not None:
-            code = code.strip().upper()
-            prefix = classroom_code_prefix(code)
-            if prefix is None:
-                raise SigaaSearchError(
-                    "Código inválido; use letras seguidas de números, como MAT0031."
+        """`unit` ou `code` já validados pelo router; `code` vem em caixa alta."""
+        prefix = classroom_code_prefix(code)
+        units: list[int]
+        if isinstance(unit, int):
+            units = [unit]
+        elif unit is not None:
+            found = await self._db.read(lambda session: find_unit(session, unit))
+            units = [found.id]
+        else:
+            units = list(
+                await self._db.read(
+                    lambda session: UnitIndexRepository(session).unit_ids(prefix)
                 )
-        if unit is not None:
-            units = [unit.strip()]
-        elif prefix is not None:
-            units = await self._db.read(
-                lambda session: UnitIndexRepository(session).unit_ids(prefix)
             )
             if not units:
                 raise SigaaSearchError(
@@ -44,10 +46,6 @@ class PublicClassroomService:
                     "Ele pode não existir no SIGAA ou ainda não ter sido mapeado. "
                     "Informe `unit` junto de `code` para buscar diretamente nessa unidade."
                 )
-        else:
-            raise SigaaSearchError(
-                "Informe `unit` ou o código completo da disciplina em `code`."
-            )
 
         year = period = None
         if semester is not None:
@@ -67,7 +65,7 @@ class PublicClassroomService:
             )
             if not classrooms:
                 if unit is not None:
-                    scope = f"na unidade `{unit.strip()}`"
+                    scope = f"na unidade `{unit}`"
                 else:
                     names = await self._db.read(
                         lambda session: UnitIndexRepository(session).unit_names(units)
@@ -97,7 +95,7 @@ class PublicClassroomService:
                 for classroom in classrooms
                 if classroom.number.strip().lstrip("0") == str(number)
             ]
-        needle = lookup_key(contains or "")
+        needle = lookup_key(q or "")
         if needle:
             classrooms = [
                 classroom
@@ -107,7 +105,7 @@ class PublicClassroomService:
                     for value in (
                         classroom.subject.name,
                         classroom.subject.code or "",
-                        *(teacher.name for teacher in classroom.teachers),
+                        *classroom.professors,
                     )
                 )
             ]
@@ -120,13 +118,22 @@ class PublicClassroomService:
             if location
             in lookup_key(
                 " - ".join(
-                    part for part in (classroom.subject.unity, classroom.room) if part
+                    part for part in (classroom.subject.unit, classroom.room) if part
                 )
             )
         ]
 
-    async def list_units(self, contains: str | None = None) -> list[Unit]:
-        return await self._client.classrooms.list_units(contains)
+    async def list_units(self, q: str | None = None) -> list[UnitRef]:
+        units = await self._client.classrooms.list_units(q)
+        codes = await self._db.read(
+            lambda session: UnitIndexRepository(session).unit_codes(
+                [unit.id for unit in units]
+            )
+        )
+        return [
+            UnitRef(id=unit.id, code=codes.get(unit.id), name=unit.name)
+            for unit in units
+        ]
 
 
 PublicClassroomServiceDep = Annotated[PublicClassroomService, Depends()]

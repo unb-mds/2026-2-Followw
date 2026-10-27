@@ -40,14 +40,6 @@ class RestaurantService:
         end_date: date | None = None,
         meal: Meal | None = None,
     ) -> tuple[DailyMenu, ...]:
-        if day is not None and (start_date is not None or end_date is not None):
-            raise HTTPException(
-                status_code=422, detail="Use date or start_date/end_date, not both"
-            )
-        if start_date is not None and end_date is not None and start_date > end_date:
-            raise HTTPException(
-                status_code=422, detail="start_date must not be after end_date"
-            )
         if day is not None:
             start_date = end_date = day
         elif start_date is None and end_date is None:

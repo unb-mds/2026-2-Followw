@@ -1,21 +1,21 @@
 import pytest
 from sqlalchemy import select
 
-from api.db.models import Subject, Unity
+from api.db.models import Subject, Unit
 from api.db.seed.subjects import (
     SUBJECTS_CSV,
     parse_requirements,
     read_subjects,
     seed_subjects,
 )
-from api.db.seed.unities import UNITIES_CSV, read_unities
+from api.db.seed.units import UNITS_CSV, read_units
 from api.modules.public_classrooms.repository import UnitIndexRepository
 
 
 def _csv(tmp_path, *lines):
     path = tmp_path / "subjects.csv"
     path.write_text(
-        "code,name,hours,unity_id,prerequisites,corequisites,equivalences\n"
+        "code,name,hours,unit_id,prerequisites,corequisites,equivalences\n"
         + "\n".join(lines)
         + "\n",
         encoding="utf-8",
@@ -24,10 +24,10 @@ def _csv(tmp_path, *lines):
 
 
 def test_csv_do_repositorio_aponta_para_unidades_que_existem():
-    unities = {unity.id for unity in read_unities(UNITIES_CSV)}
+    units = {unit.id for unit in read_units(UNITS_CSV)}
     subjects = read_subjects(SUBJECTS_CSV)
 
-    assert {s.unity_id for s in subjects if s.unity_id is not None} <= unities
+    assert {s.unit_id for s in subjects if s.unit_id is not None} <= units
     assert all(s.hours for s in subjects)
     assert any(s.prerequisites for s in subjects)
 
@@ -67,7 +67,7 @@ def test_requisito_malformado_e_barulhento(expression):
 def test_campos_vazios_ficam_nulos_e_codigo_repetido_e_barulhento(tmp_path):
     (subject,) = read_subjects(_csv(tmp_path, ' a1 ,NOME,,,"( ( x ) )",,( y OU Z )'))
     assert subject.code == "A1"
-    assert (subject.hours, subject.unity_id, subject.corequisites) == (None, None, None)
+    assert (subject.hours, subject.unit_id, subject.corequisites) == (None, None, None)
     assert (subject.prerequisites, subject.equivalences) == ([["X"]], [["Y"], ["Z"]])
 
     with pytest.raises(ValueError, match="repetido"):
@@ -84,7 +84,7 @@ async def test_seed_atualiza_pelo_codigo_e_nao_duplica(async_database, tmp_path)
 
     async with async_database() as session:
         (subject,) = (await session.scalars(select(Subject))).all()
-    assert (subject.name, subject.hours, subject.unity_id) == ("NOVO", 60, 673)
+    assert (subject.name, subject.hours, subject.unit_id) == ("NOVO", 60, 673)
     assert subject.prerequisites == [["A", "B"], ["C"]]
 
 
@@ -92,13 +92,13 @@ async def test_indice_acha_as_unidades_pelo_prefixo_e_ignora_prefixo_maior(
     async_database,
 ):
     async with async_database.begin() as session:
-        session.add(Unity(id=518, code="MAT", name="DEPTO MATEMÁTICA"))
+        session.add(Unit(id=518, code="MAT", name="DEPTO MATEMÁTICA"))
         session.add_all(
             [
-                Subject(code="FGA0030", name="A", unity_id=673),
-                Subject(code="FGA0031", name="B", unity_id=673),
-                Subject(code="FGA0032", name="C", unity_id=518),
-                Subject(code="FGAX0001", name="D", unity_id=518),
+                Subject(code="FGA0030", name="A", unit_id=673),
+                Subject(code="FGA0031", name="B", unit_id=673),
+                Subject(code="FGA0032", name="C", unit_id=518),
+                Subject(code="FGAX0001", name="D", unit_id=518),
                 Subject(code="FGA0099", name="Sem unidade"),
             ]
         )

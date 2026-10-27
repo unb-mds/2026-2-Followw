@@ -19,7 +19,7 @@ export function useOfflineSupport() {
     const online = useOnline();
     const { data: user, isSuccess } = useQuery(meQueryOptions);
     const loggedIn = Boolean(user);
-    const campus = campusOf(user?.unity);
+    const campus = campusOf(user?.unit?.code);
 
     // depois da hidratação, para o cache restaurado não divergir do HTML do SSR
     useEffect(() => {

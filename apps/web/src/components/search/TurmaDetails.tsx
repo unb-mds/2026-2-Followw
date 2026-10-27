@@ -29,9 +29,7 @@ export function TurmaDetails({ subject, classroom, prerequisitesMet }: TurmaProp
                 </Detail>
                 <Detail label="Local">{classroom.room ?? 'Local não informado'}</Detail>
                 <Detail label="Unidade">
-                    {subject.unity_name
-                        ? titleCase(subject.unity_name)
-                        : (subject.unity ?? 'Unidade não informada')}
+                    {subject.unit ? titleCase(subject.unit.name) : 'Unidade não informada'}
                 </Detail>
                 <Detail label="Docentes" className="col-span-2">
                     {classroom.professors.length > 0

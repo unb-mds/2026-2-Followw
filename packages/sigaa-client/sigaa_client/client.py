@@ -11,6 +11,7 @@ from .private.restaurant import Restaurant
 from .private.session import OnSessionRenewed, Session
 from .public.classrooms import PublicClassrooms
 from .public.curricula import PublicCurricula
+from .public.professors import PublicProfessors
 from .public.session import PublicSession
 from .public.subjects import PublicSubjects
 
@@ -87,3 +88,4 @@ class SigaaPublicClient(_BaseClient):
         self.classrooms = PublicClassrooms(self._session)
         self.subjects = PublicSubjects(self._session)
         self.curricula = PublicCurricula(self._session)
+        self.professors = PublicProfessors(self._session)

@@ -97,7 +97,7 @@ export const Route = createFileRoute('/_app/ru')({
             today: now.date,
             defaultDate: opening.date,
             defaultMeal: opening.meal.key,
-            defaultCampus: campusOf(user?.unity)
+            defaultCampus: campusOf(user?.unit?.code)
         };
     },
     head: ({ loaderData, match }) =>
@@ -151,7 +151,7 @@ function useMenuSelection() {
         () => false
     );
     const opening = currentOrNextMeal(nowInBrasilia());
-    const defaultCampus = loaded?.defaultCampus ?? campusOf(user?.unity);
+    const defaultCampus = loaded?.defaultCampus ?? campusOf(user?.unit?.code);
     const defaults: RestaurantSelection =
         loaded && !hydrated
             ? { date: loaded.defaultDate, meal: loaded.defaultMeal, campus: defaultCampus }

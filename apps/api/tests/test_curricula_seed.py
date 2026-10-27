@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from api.db.models import Course, Curriculum, CurriculumComponent
 from api.db.seed.courses import read_courses, seed_courses
 from api.db.seed.curricula import COMPONENTS_CSV, read_curricula, seed_curricula
-from api.db.seed.unities import seed_unities
+from api.db.seed.units import seed_units
 
 MATRIX_COLUMNS = (
     "sigaa_id,course_sigaa_id,code,created_year,active,shift,valid_from,matrix"
@@ -109,7 +109,7 @@ async def test_seed_resolve_id_local_atualiza_e_remove_componentes_obsoletos(
     async_database, tmp_path
 ):
     async with async_database.begin() as session:
-        session.add(Course(id=987, sigaa_id=414112, name="ADMINISTRAÇÃO", unity_id=673))
+        session.add(Course(id=987, sigaa_id=414112, name="ADMINISTRAÇÃO", unit_id=673))
         await session.flush()
         await seed_curricula(session, *_csvs(tmp_path))
     async with async_database() as session:
@@ -156,8 +156,8 @@ async def test_seed_inativa_matrizes_que_sairam_do_csv(
     async with async_database.begin() as session:
         session.add_all(
             [
-                Course(sigaa_id=414112, name="D", unity_id=673),
-                Course(sigaa_id=414113, name="N", unity_id=673),
+                Course(sigaa_id=414112, name="D", unit_id=673),
+                Course(sigaa_id=414113, name="N", unit_id=673),
             ]
         )
         await session.flush()
@@ -200,7 +200,7 @@ async def test_seed_inativa_matrizes_que_sairam_do_csv(
 
 async def test_dataset_completo_pode_ser_semeado_duas_vezes(async_database):
     async with async_database.begin() as session:
-        await seed_unities(session)
+        await seed_units(session)
         await seed_courses(session)
         await seed_curricula(session)
         await seed_curricula(session)

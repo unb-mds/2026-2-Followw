@@ -4,8 +4,9 @@ from fastapi import APIRouter, Query, Response
 from pydantic import StringConstraints
 
 from api.cache import no_store
-from api.modules.public_classrooms.code import CLASSROOM_CODE_PATTERN
+from api.modules.public_classrooms.code import ClassroomCode
 from api.modules.public_subjects.service import CatalogSubject, PublicSubjectServiceDep
+from api.schemas import UnitFilter
 from api.sync import OptionalSyncDep
 
 router = APIRouter()
@@ -44,18 +45,13 @@ async def search_subjects(
         StringConstraints(strip_whitespace=True),
     ] = None,
     code: Annotated[
-        str | None,
-        Query(
-            pattern=CLASSROOM_CODE_PATTERN,
-            description="Código completo do componente, como FGA0003.",
-        ),
+        ClassroomCode | None,
+        Query(description="Código completo do componente, como FGA0003."),
     ] = None,
     unit: Annotated[
-        str | None,
+        UnitFilter | None,
         Query(
-            min_length=1,
-            pattern=r"\S",
-            description="ID ou código exato da unidade responsável, como 673 ou FCTE.",
+            description="ID ou código exato da unidade responsável, como 673 ou FCTE."
         ),
     ] = None,
     semester: Annotated[

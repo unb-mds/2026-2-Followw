@@ -17,7 +17,13 @@ import { Route } from '#/routes/_app/ru';
 
 import { callRoute, fakeQueryClient, runLoader } from '../helpers/route';
 
-function contextWith(user: { registration: string; unity?: string } | null, failingPath?: string) {
+function contextWith(
+    user: {
+        registration: string;
+        unit?: { id: number; code: string | null; name: string };
+    } | null,
+    failingPath?: string
+) {
     const paths: unknown[] = [];
     const queries: unknown[] = [];
     return {
@@ -43,7 +49,10 @@ describe('loader do RU', () => {
     });
 
     test('carrega o dia e o campus do link e mantém a refeição compartilhada', async () => {
-        const context = contextWith({ registration: '251000000', unity: 'FCTS' });
+        const context = contextWith({
+            registration: '251000000',
+            unit: { id: 672, code: 'FCTS', name: 'CAMPUS UNB CEILÂNDIA' }
+        });
         const data = await runLoader(Route, {
             ...context,
             location: { searchStr: '?date=2026-10-25&meal=dinner&campus=Gama' }

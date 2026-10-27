@@ -45,8 +45,8 @@ class Profile:
 
         fields = _labeled_fields(card)
         raw_course = _required(fields, "curso")
-        course, unity = split_course(raw_course)
-        if unity is None:
+        course, unit = split_course(raw_course)
+        if unit is None:
             raise SigaaParseError(f"Curso `{raw_course}` não traz a unidade.")
 
         return UserProfile(
@@ -54,7 +54,7 @@ class Profile:
             registration=_required(fields, "matrícula"),
             photo=_photo(card),
             bio=_bio(card),
-            unity=unity,
+            unit=unit,
             course=course,
             shift=course_shift(raw_course),
             entry_semester=_entry_semester(fields),

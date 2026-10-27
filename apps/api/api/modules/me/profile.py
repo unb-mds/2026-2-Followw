@@ -1,25 +1,38 @@
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
-import sigaa_client
 from fastapi import Depends
+from pydantic import BaseModel, ConfigDict
 from sigaa_client import CurriculumWorkload, UserLevel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.cache import Freshness, freshness
 from api.db.models import User
 from api.modules.me.repository import UserRepository
+from api.schemas import CourseRef, UnitRef, course_ref, unit_ref
 from api.sync import Cached, Context, SyncDep
 
 PROFILE_TTL = timedelta(hours=24)
 
 
-class UserProfile(sigaa_client.UserProfile):
-    """O perfil como a API devolve: sem curso na tabela, `course` e `unity` são nulos."""
+class UserProfile(BaseModel):
+    """O perfil como a API devolve: sem curso na tabela, curso e unidade são nulos."""
 
-    course: str | None
-    shift: str | None
-    unity: str | None
+    model_config = ConfigDict(frozen=True)
+
+    name: str
+    registration: str
+    photo: str | None
+    email: str | None = None
+    bio: str | None
+    unit: UnitRef | None
+    course: CourseRef | None
+    entry_semester: str | None
+    integralization: int | None
+    workload: CurriculumWorkload | None
+    ira: float | None
+    mp: float | None
+    level: UserLevel
 
 
 def profile_freshness(synced_at: datetime | None) -> Freshness:
@@ -62,9 +75,8 @@ def _to_profile(user: User) -> UserProfile:
         photo=user.photo,
         email=user.email,
         bio=user.bio,
-        unity=user.course.unity.code if user.course else None,
-        course=user.course.name if user.course else None,
-        shift=user.course.shift if user.course else None,
+        unit=unit_ref(user.course.unit) if user.course else None,
+        course=course_ref(user.course),
         entry_semester=user.entry_semester,
         integralization=user.integralization,
         workload=CurriculumWorkload.model_validate(user.workload)

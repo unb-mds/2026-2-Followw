@@ -22,7 +22,7 @@ const subject: CatalogSubject = {
     code: 'FGA0108',
     name: 'Matemática Discreta 2',
     hours: 60,
-    unity: 'FCTE',
+    unit: { id: 673, code: 'FCTE', name: 'CAMPUS UNB GAMA' },
     prerequisites: [[{ code: 'FGA0001' }, { code: 'FGA0002' }], [{ code: 'FGA0010' }]],
     classrooms: [classroom]
 };
@@ -119,7 +119,7 @@ describe('TurmaDetails', () => {
         const markup = details();
         for (const text of [
             'Ter, Qui · 14:00–15:50',
-            'FCTE',
+            'Campus UnB Gama',
             'Ana Silva',
             'João Costa',
             '60 horas',
@@ -275,7 +275,7 @@ describe('TurmaDetails', () => {
         const markup = details(
             { vacancies: null, occupied: null, schedule: null, room: null, professors: [] },
             true,
-            { unity: null, hours: null, prerequisites: null }
+            { unit: null, hours: null, prerequisites: null }
         );
         for (const text of [
             'Não informadas',

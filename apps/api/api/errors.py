@@ -16,6 +16,7 @@ from sigaa_client import (
 from unb_browser import UnbBrowserError
 
 from api.cookies import clear_cookies
+from api.db.units import UnitNotFound
 from api.logger import error_fields, event
 
 Handler = Callable[[Request, Exception], Awaitable[JSONResponse]]
@@ -51,6 +52,7 @@ EXCEPTION_HANDLERS: dict[type[Exception], Handler] = {
     ClassroomNotFound: _error(404, "Classroom not found"),
     NewsNotFound: _error(404, "News not found"),
     SigaaSearchError: _error(422),
+    UnitNotFound: _error(422),
     MissingProfilePhoto: _error(
         422,
         "Não foi possível emitir a carteirinha pois você não possui foto de perfil.",
