@@ -1,13 +1,16 @@
 from typing import Annotated
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
 from sigaa_client import ProfessorDegree, ProfessorDiscipline
 from sigaa_client.config import PUBLIC_PROFESSOR_PROFILE_PATH, SIGAA_BASE_URL
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.main import DatabaseDep
 from api.db.models import Professor
+from api.db.units import find_unit
 from api.modules.public_professors.repository import ProfessorRepository
+from api.schemas import UnitRef
 
 
 class ProfessorItem(BaseModel):
@@ -15,8 +18,7 @@ class ProfessorItem(BaseModel):
 
     siape: int
     name: str
-    unity_id: int
-    unity_name: str
+    unit: UnitRef
     photo: str | None
     url: str
 
@@ -43,8 +45,7 @@ def _item(professor: Professor) -> ProfessorItem:
     return ProfessorItem(
         siape=professor.siape,
         name=professor.name,
-        unity_id=professor.unity_id,
-        unity_name=professor.unity.name,
+        unit=UnitRef.model_validate(professor.unit),
         photo=professor.photo,
         url=f"{SIGAA_BASE_URL}{PUBLIC_PROFESSOR_PROFILE_PATH}?siape={professor.siape}",
     )
@@ -57,16 +58,26 @@ class ProfessorService:
     async def list(
         self,
         q: str | None,
-        unity_id: int | None,
+        unit: str | None,
         semester: str | None,
         page: int,
         page_size: int,
     ) -> ProfessorPage:
-        professors, total = await self._db.read(
-            lambda session: ProfessorRepository(session).list(
-                q, unity_id, semester, page, page_size
+        async def load(session: AsyncSession) -> tuple[list[Professor], int]:
+            unit_id = None
+            if unit is not None:
+                found = await find_unit(session, unit)
+                if found is None:
+                    raise HTTPException(
+                        status.HTTP_422_UNPROCESSABLE_CONTENT,
+                        f"Unidade `{unit.strip()}` não encontrada.",
+                    )
+                unit_id = found.id
+            return await ProfessorRepository(session).list(
+                q, unit_id, semester, page, page_size
             )
-        )
+
+        professors, total = await self._db.read(load)
         return ProfessorPage(
             items=[_item(professor) for professor in professors],
             total=total,

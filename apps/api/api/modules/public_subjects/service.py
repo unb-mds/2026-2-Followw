@@ -5,7 +5,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.main import DatabaseDep
-from api.db.models import Requirements, Subject, Unity
+from api.db.models import Requirements, Subject
+from api.db.units import find_unit
 from api.modules.public_subjects.repository import SubjectCatalogRepository
 from api.modules.recommendations.ranking import (
     Component,
@@ -15,7 +16,7 @@ from api.modules.recommendations.ranking import (
 )
 from api.modules.recommendations.repository import RecommendationRepository
 from api.modules.recommendations.service import Ranking, RecommendationService
-from api.schemas import ClassroomOffer, UserSubject
+from api.schemas import ClassroomOffer, UserSubject, unit_ref
 from api.sync import Sync
 
 
@@ -67,7 +68,6 @@ class CatalogSubject(UserSubject):
     curriculum_prerequisites: CatalogRequirements | None = None
     curriculum_corequisites: CatalogRequirements | None = None
     offered_equivalences: CatalogRequirements | None = None
-    unity_name: str | None = None
     classrooms: list[SubjectClassroom]
     # Tipo na matriz estimada de quem está logado; nulo sem login ou sem matriz.
     kind: Literal["mandatory", "optional", "free"] | None = None
@@ -109,13 +109,16 @@ async def _search(
     registration: str | None,
 ) -> list[CatalogSubject]:
     repository = SubjectCatalogRepository(session)
-    unity_id = None
+    unit_id = None
     if unit is not None:
-        unity_id = _resolve_unity(await repository.list_unities(), unit.strip())
+        found = await find_unit(session, unit)
+        if found is None:
+            raise _invalid(f"Unidade `{unit.strip()}` não encontrada.")
+        unit_id = found.id
     subjects = await repository.list_subjects(
         q=q,
         code=code.strip().upper() if code is not None else None,
-        unity_id=unity_id,
+        unit_id=unit_id,
         semester=semester,
     )
     curriculum = None
@@ -173,8 +176,7 @@ async def _catalog(
             code=subject.code,
             name=subject.name,
             hours=subject.hours,
-            unity=subject.unity.code if subject.unity else None,
-            unity_name=subject.unity.name if subject.unity else None,
+            unit=unit_ref(subject.unit),
             prerequisites=_requirements(subject.prerequisites, names),
             corequisites=_requirements(subject.corequisites, names),
             equivalences=_requirements(subject.equivalences, names),
@@ -261,13 +263,6 @@ def _offered_requirements(
         ],
         names,
     )
-
-
-def _resolve_unity(unities: list[Unity], wanted: str) -> int:
-    for unity in unities:
-        if wanted == str(unity.id) or wanted.upper() == unity.code:
-            return unity.id
-    raise _invalid(f"Unidade `{wanted}` não encontrada.")
 
 
 def _invalid(detail: str) -> HTTPException:

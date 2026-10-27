@@ -10,6 +10,7 @@ from api.academic_calendar import parse_semester
 from api.db.main import DatabaseDep
 from api.db.models import Curriculum, Requirements, Subject
 from api.modules.public_courses.repository import PublicCourseRepository
+from api.schemas import UnitRef, unit_ref
 
 _REVISION_RE = re.compile(r"/(-?\d+)$")
 
@@ -21,8 +22,7 @@ class PublicCourse(BaseModel):
     sigaa_id: int | None
     name: str
     shift: str | None
-    unity_id: int
-    unity: str | None
+    unit: UnitRef
 
 
 class CurriculumOption(BaseModel):
@@ -41,7 +41,7 @@ class CurriculumSubject(BaseModel):
     code: str
     name: str | None = None
     hours: int | None = None
-    unity: str | None = None
+    unit: UnitRef | None = None
     prerequisites: Requirements | None = None
     corequisites: Requirements | None = None
     equivalences: Requirements | None = None
@@ -89,8 +89,7 @@ async def _list_courses(session: AsyncSession) -> list[PublicCourse]:
             sigaa_id=course.sigaa_id,
             name=course.name,
             shift=course.shift,
-            unity_id=course.unity_id,
-            unity=course.unity.code if course.unity else None,
+            unit=UnitRef.model_validate(course.unit),
         )
         for course in courses
     ]
@@ -170,7 +169,7 @@ def _subject(code: str, subject: Subject | None) -> CurriculumSubject:
         code=code,
         name=subject.name,
         hours=subject.hours,
-        unity=subject.unity.code if subject.unity else None,
+        unit=unit_ref(subject.unit),
         prerequisites=subject.prerequisites,
         corequisites=subject.corequisites,
         equivalences=subject.equivalences,

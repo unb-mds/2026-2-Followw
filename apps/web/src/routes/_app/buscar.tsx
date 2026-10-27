@@ -48,7 +48,7 @@ export const Route = createFileRoute('/_app/buscar')({
         const user = await loadQuery(queryClient, meQueryOptions);
         const search = loadSearchParams(location.searchStr);
         const recommendations = showRecommendations(user, search);
-        const query = recommendations ? null : subjectsQuery(search.q, user?.unity ?? null);
+        const query = recommendations ? null : subjectsQuery(search.q, user?.unit?.code ?? null);
         await Promise.all([
             user && loadQuery(queryClient, allClassroomsQueryOptions).catch(noop),
             query && loadQuery(queryClient, subjectsQueryOptions(query)).catch(noop),
@@ -75,7 +75,7 @@ function BuscarTurmasPage() {
         turno,
         disponibilidade
     });
-    const unit = user?.unity ?? null;
+    const unit = user?.unit?.code ?? null;
     const currentPeriod = currentCurriculumPeriod(
         user?.entry_semester,
         getCurrentSemester()?.semester

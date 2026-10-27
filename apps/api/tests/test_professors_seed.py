@@ -21,7 +21,7 @@ def _files(tmp_path):
         (
             "siape",
             "name",
-            "unity_id",
+            "unit_id",
             "photo",
             "description",
             "education",
@@ -34,7 +34,7 @@ def _files(tmp_path):
             {
                 "siape": 123,
                 "name": "MARIA",
-                "unity_id": 673,
+                "unit_id": 673,
                 "photo": "",
                 "description": "Pesquisa sistemas.",
                 "education": '[{"level":"GRADUAÇÃO","start_year":"2018","end_year":"2021","course":"Computação","institution":"Universidade Estadual de Goiás"}]',
@@ -120,7 +120,7 @@ async def test_csv_vazio_nao_apaga_catalogo(async_database, tmp_path):
         (
             "siape",
             "name",
-            "unity_id",
+            "unit_id",
             "photo",
             "description",
             "education",

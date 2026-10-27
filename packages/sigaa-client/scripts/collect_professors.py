@@ -12,7 +12,7 @@ from sigaa_client import ProfessorProfile, SigaaPublicClient, Unit
 PROFESSOR_COLUMNS = (
     "siape",
     "name",
-    "unity_id",
+    "unit_id",
     "photo",
     "description",
     "education",
@@ -83,7 +83,7 @@ def rows(
         profiles.append(
             {
                 **professor.model_dump(exclude={"unit", "disciplines", "url"}),
-                "unity_id": professor.unit.id,
+                "unit_id": professor.unit.id,
                 "education": (
                     json.dumps(
                         [degree.model_dump() for degree in professor.education],

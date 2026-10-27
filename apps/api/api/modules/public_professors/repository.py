@@ -14,7 +14,7 @@ class ProfessorRepository:
     async def list(
         self,
         q: str | None,
-        unity_id: int | None,
+        unit_id: int | None,
         semester: str | None,
         page: int,
         page_size: int,
@@ -24,8 +24,8 @@ class ProfessorRepository:
             conditions.append(
                 lookup_sql(Professor.name).contains(lookup_key(q), autoescape=True)
             )
-        if unity_id is not None:
-            conditions.append(Professor.unity_id == unity_id)
+        if unit_id is not None:
+            conditions.append(Professor.unit_id == unit_id)
         if semester is not None:
             conditions.append(Professor.disciplines.contains([{"semester": semester}]))
         total = await self._session.scalar(
@@ -40,7 +40,7 @@ class ProfessorRepository:
                     load_only(
                         Professor.siape,
                         Professor.name,
-                        Professor.unity_id,
+                        Professor.unit_id,
                         Professor.photo,
                     )
                 )

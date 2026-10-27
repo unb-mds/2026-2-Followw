@@ -41,7 +41,7 @@ tests/                  # um arquivo por módulo
 - **Repositories** recebem `AsyncSession` e não fazem commit (`Database.write` faz). Nunca persista
   credenciais; grave em lote (turmas têm milhares de participantes).
 - **Modelos** herdam `Base, UUIDPrimaryKeyMixin, TimestampMixin`, salvo os de chave natural
-  (`subjects`, `unities`); enums gravam o `.value`. Sem migrations: `db-init` só cria o que falta
+  (`subjects`, `units`); enums gravam o `.value`. Sem migrations: `db-init` só cria o que falta
   (alterar coluna exige recriar o banco) e semeia unidades, cursos, componentes e turmas pelos CSVs
   de `packages/sigaa-client/data/`. O sync não sobrescreve a unidade semeada; curso com nome
   repetido fica com o turno do perfil ou, sem ele, com o diurno.

@@ -1,5 +1,33 @@
 from pydantic import BaseModel, ConfigDict, Field
 
+from api.db.models import Course, Unit
+
+
+class UnitRef(BaseModel):
+    """Unidade acadêmica: `id` do SIGAA, `code` a sigla (ex.: FCTE)."""
+
+    model_config = ConfigDict(frozen=True, from_attributes=True)
+
+    id: int
+    code: str | None
+    name: str
+
+
+def unit_ref(unit: Unit | None) -> UnitRef | None:
+    return UnitRef.model_validate(unit) if unit else None
+
+
+class CourseRef(BaseModel):
+    model_config = ConfigDict(frozen=True, from_attributes=True)
+
+    id: int
+    name: str
+    shift: str | None
+
+
+def course_ref(course: Course | None) -> CourseRef | None:
+    return CourseRef.model_validate(course) if course else None
+
 
 class UserSubject(BaseModel):
     """O componente como o cache guarda, pelo código."""
@@ -9,7 +37,7 @@ class UserSubject(BaseModel):
     code: str
     name: str
     hours: int | None = None
-    unity: str | None = None
+    unit: UnitRef | None = None
 
 
 class ClassroomOffer(BaseModel):

@@ -17,6 +17,7 @@ router = APIRouter()
     "",
     response_model=ProfessorPage,
     summary="Buscar docentes do catálogo público",
+    responses={422: {"description": "Filtro inválido ou unidade inexistente."}},
     description="Lista docentes coletados do SIGAA, sem login. Nome, unidade e semestre se combinam. O semestre seleciona docentes que ministraram uma disciplina de graduação naquele período.",
     dependencies=[NoStore],
 )
@@ -32,9 +33,13 @@ async def list_professors(
         ),
         StringConstraints(strip_whitespace=True),
     ] = None,
-    unity_id: Annotated[
-        int | None,
-        Query(gt=0, le=2**31 - 1, description="ID da unidade no SIGAA."),
+    unit: Annotated[
+        str | None,
+        Query(
+            min_length=1,
+            pattern=r"\S",
+            description="ID ou código exato da unidade, como 673 ou FCTE.",
+        ),
     ] = None,
     semester: Annotated[
         str | None,
@@ -46,7 +51,7 @@ async def list_professors(
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> ProfessorPage:
-    return await service.list(q, unity_id, semester, page, page_size)
+    return await service.list(q, unit, semester, page, page_size)
 
 
 @router.get(

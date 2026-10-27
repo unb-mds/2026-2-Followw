@@ -23,9 +23,9 @@ COLUMNS = (
     "room",
     "vacancies",
     "occupied",
-    "teachers",
+    "professors",
 )
-TEACHER_SEPARATOR = "; "
+PROFESSOR_SEPARATOR = "; "
 
 
 async def collect_classrooms(
@@ -76,7 +76,7 @@ def classroom_rows(
                 "room": classroom.room,
                 "vacancies": classroom.vacancies,
                 "occupied": classroom.occupied,
-                "teachers": TEACHER_SEPARATOR.join(t.name for t in classroom.teachers),
+                "professors": PROFESSOR_SEPARATOR.join(classroom.professors),
             }
     if shared:
         print(f"Turmas em mais de uma unidade: {shared}.")

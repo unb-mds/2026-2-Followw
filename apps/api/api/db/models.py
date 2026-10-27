@@ -27,10 +27,10 @@ def _enum(enum: type, name: str) -> SAEnum:
     return SAEnum(enum, name=name, values_callable=lambda e: [m.value for m in e])
 
 
-class Unity(Base, TimestampMixin):
+class Unit(Base, TimestampMixin):
     """Unidade acadêmica: o `id` é o do SIGAA e o `code` a sigla (ex.: FCTE)."""
 
-    __tablename__ = "unities"
+    __tablename__ = "units"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=False)
     code: Mapped[str | None] = mapped_column(unique=True)
@@ -46,16 +46,16 @@ class Course(Base, TimestampMixin):
     sigaa_id: Mapped[int | None] = mapped_column(unique=True)
     name: Mapped[str] = mapped_column()
     shift: Mapped[str | None] = mapped_column()
-    unity_id: Mapped[int] = mapped_column(ForeignKey("unities.id"))
+    unit_id: Mapped[int] = mapped_column(ForeignKey("units.id"))
 
-    unity: Mapped[Unity] = relationship(lazy="joined")
+    unit: Mapped[Unit] = relationship(lazy="joined")
 
 
 # Um só curso criado pelo sync por nome e unidade, mesmo com dois syncs ao mesmo tempo.
 COURSE_WITHOUT_SIGAA_ID = Course.sigaa_id.is_(None)
 Index(
     "uq_course_without_sigaa_id",
-    Course.unity_id,
+    Course.unit_id,
     Course.name,
     unique=True,
     postgresql_where=COURSE_WITHOUT_SIGAA_ID,
@@ -143,7 +143,7 @@ class Professor(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     siape: Mapped[int] = mapped_column(unique=True)
     name: Mapped[str] = mapped_column()
-    unity_id: Mapped[int] = mapped_column(ForeignKey("unities.id"))
+    unit_id: Mapped[int] = mapped_column(ForeignKey("units.id"))
     photo: Mapped[str | None] = mapped_column()
     description: Mapped[str | None] = mapped_column(Text)
     education: Mapped[list[dict[str, object]] | None] = mapped_column(
@@ -154,7 +154,7 @@ class Professor(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     email: Mapped[str | None] = mapped_column()
     disciplines: Mapped[list[dict[str, object]]] = mapped_column(JSONB, default=list)
 
-    unity: Mapped[Unity] = relationship(lazy="joined")
+    unit: Mapped[Unit] = relationship(lazy="joined")
 
 
 # Docentes chegam sem matrícula nem `idPessoa`: aí o email é a identidade.
@@ -173,13 +173,13 @@ class Subject(Base, TimestampMixin):
     code: Mapped[str] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column()
     hours: Mapped[int | None] = mapped_column(SmallInteger)
-    unity_id: Mapped[int | None] = mapped_column(ForeignKey("unities.id"))
+    unit_id: Mapped[int | None] = mapped_column(ForeignKey("units.id"))
     # Expressões em OU de Es: `[["A", "B"], ["C"]]` é `(A E B) OU C`.
     prerequisites: Mapped[Requirements | None] = mapped_column(JSONB)
     corequisites: Mapped[Requirements | None] = mapped_column(JSONB)
     equivalences: Mapped[Requirements | None] = mapped_column(JSONB)
 
-    unity: Mapped[Unity | None] = relationship(lazy="joined")
+    unit: Mapped[Unit | None] = relationship(lazy="joined")
     classrooms: Mapped[list[Classroom]] = relationship(back_populates="subject")
 
 

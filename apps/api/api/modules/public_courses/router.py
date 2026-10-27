@@ -19,7 +19,7 @@ router = APIRouter()
     description=(
         "Lista os cursos gravados no Followw, ordenados por nome e ID local, sem autenticação. "
         "Inclui cursos sem currículo e os criados pelo sync, cujo sigaa_id pode ser nulo. "
-        "O campo id é o course_id usado na consulta de currículo; unity traz a sigla da unidade "
+        "O campo id é o course_id usado na consulta de currículo; unit traz id, sigla e nome da unidade "
         "e shift preserva o turno cadastrado, como no perfil. Banco sem cursos retorna lista vazia."
     ),
     dependencies=[NoStore],

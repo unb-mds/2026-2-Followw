@@ -66,8 +66,7 @@ const result: CatalogSubject[] = [
         code: 'FGA0001',
         name: 'Matéria recomendada',
         hours: 60,
-        unity: 'FCTE',
-        unity_name: 'CAMPUS UNB GAMA',
+        unit: { id: 673, code: 'FCTE', name: 'CAMPUS UNB GAMA' },
         prerequisites: [
             [{ code: 'MAT0001', subject: { code: 'MAT0001', name: 'Requisito do catálogo' } }]
         ],

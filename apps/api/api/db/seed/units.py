@@ -2,17 +2,17 @@ from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.db.models import Unity
+from api.db.models import Unit
 from api.db.seed import DATA_DIR, read_csv, upsert
 
-UNITIES_CSV = DATA_DIR / "unities.csv"
+UNITS_CSV = DATA_DIR / "units.csv"
 
 
-def read_unities(path: Path = UNITIES_CSV) -> list[Unity]:
+def read_units(path: Path = UNITS_CSV) -> list[Unit]:
     """As unidades do CSV (`id,code,name`); `code` vazio fica nulo até ser preenchido."""
     return read_csv(
         path,
-        lambda row: Unity(
+        lambda row: Unit(
             id=int(row["id"]),
             code=row["code"].strip().upper() or None,
             name=row["name"].strip(),
@@ -21,5 +21,5 @@ def read_unities(path: Path = UNITIES_CSV) -> list[Unity]:
     )
 
 
-async def seed_unities(session: AsyncSession, path: Path = UNITIES_CSV) -> None:
-    await upsert(session, Unity, read_unities(path), ("id",), ("code", "name"))
+async def seed_units(session: AsyncSession, path: Path = UNITS_CSV) -> None:
+    await upsert(session, Unit, read_units(path), ("id",), ("code", "name"))

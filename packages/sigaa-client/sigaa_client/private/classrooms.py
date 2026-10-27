@@ -697,7 +697,7 @@ def _parse_dashboard(html: str) -> dict[str, Classroom]:
         if pending is not None:
             classrooms[pending.id] = pending
 
-        unity, room = (
+        unit, room = (
             split_location(clean_text(cells[1])) if len(cells) > 1 else (None, None)
         )
         pending = Classroom(
@@ -707,7 +707,7 @@ def _parse_dashboard(html: str) -> dict[str, Classroom]:
             schedule=schedule_code(visible_text(cells[2])) if len(cells) > 2 else None,
             room=room,
             current=True,
-            subject=Subject(name=clean_text(anchor), unity=unity),
+            subject=Subject(name=clean_text(anchor), unit=unit),
         )
 
     if pending is not None:
@@ -732,7 +732,7 @@ def _merge(base: Classroom | None, extra: Classroom | None) -> Classroom:
             "current": base.current or extra.current,
             "subject": base.subject.model_copy(
                 update={
-                    "unity": base.subject.unity or extra.subject.unity,
+                    "unit": base.subject.unit or extra.subject.unit,
                     "hours": base.subject.hours or extra.subject.hours,
                 }
             ),
@@ -771,7 +771,7 @@ def _member(card: Tag, role: ClassroomRole) -> ClassroomMember | None:
         return None
 
     fields = _member_fields(card)
-    course, unity = split_course(fields.get("curso", ""))
+    course, unit = split_course(fields.get("curso", ""))
     person_id = _PERSON_ID_RE.search(str(card))
 
     return ClassroomMember(
@@ -783,7 +783,7 @@ def _member(card: Tag, role: ClassroomRole) -> ClassroomMember | None:
         photo=_member_photo(card),
         email=fields.get("e-mail"),
         course=course or None,
-        unity=unity or fields.get("departamento"),
+        unit=unit or fields.get("departamento"),
         person_id=int(person_id.group(1)) if person_id else None,
     )
 

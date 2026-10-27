@@ -19,7 +19,7 @@ COLUMNS = (
     "code",
     "name",
     "hours",
-    "unity_id",
+    "unit_id",
     "prerequisites",
     "corequisites",
     "equivalences",
@@ -77,7 +77,7 @@ def subject_rows(
     subjects: list[tuple[int, SubjectDetails]],
 ) -> list[dict[str, object]]:
     return [
-        subject.model_dump() | {"unity_id": unity_id} for unity_id, subject in subjects
+        subject.model_dump() | {"unit_id": unit_id} for unit_id, subject in subjects
     ]
 
 

@@ -3,7 +3,7 @@ from sqlalchemy import ColumnElement, exists, func, literal_column, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from api.db.models import Classroom, Subject, Unity
+from api.db.models import Classroom, Subject
 from api.db.search import lookup_sql
 
 
@@ -40,9 +40,6 @@ class SubjectCatalogRepository:
 
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
-
-    async def list_unities(self) -> list[Unity]:
-        return list(await self._session.scalars(select(Unity).order_by(Unity.id)))
 
     async def subject_names(self, codes: set[str]) -> dict[str, str]:
         if not codes:
@@ -104,7 +101,7 @@ class SubjectCatalogRepository:
         q: str | None = None,
         code: str | None = None,
         codes: set[str] | None = None,
-        unity_id: int | None = None,
+        unit_id: int | None = None,
         semester: str | None = None,
     ) -> list[Subject]:
         """Cada componente com as turmas de `semester` (o mais recente gravado, se omitido)."""
@@ -116,8 +113,8 @@ class SubjectCatalogRepository:
             query = query.where(Subject.code == code)
         if codes is not None:
             query = query.where(Subject.code.in_(codes))
-        if unity_id is not None:
-            query = query.where(Subject.unity_id == unity_id)
+        if unit_id is not None:
+            query = query.where(Subject.unit_id == unit_id)
         if q is not None:
             query = query.where(_matches_query(q, semester))
         # Sem semestre não há turma gravada, então o filtro não tira nada.

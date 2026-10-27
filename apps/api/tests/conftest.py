@@ -308,13 +308,13 @@ def database(postgres):
     from sqlalchemy.orm import sessionmaker
 
     from api.db.base import Base
-    from api.db.models import Unity
+    from api.db.models import Unit
 
     tables = ", ".join(table.name for table in Base.metadata.sorted_tables)
     sessions = sessionmaker(postgres, expire_on_commit=False)
     with sessions.begin() as session:
         session.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
-        session.add(Unity(id=673, code="FCTE", name="CAMPUS UNB GAMA"))
+        session.add(Unit(id=673, code="FCTE", name="CAMPUS UNB GAMA"))
     return sessions
 
 
@@ -431,7 +431,7 @@ def stub_sigaa(monkeypatch):
                     registration="251000000",
                     photo=None,
                     bio=None,
-                    unity="FCTE",
+                    unit="FCTE",
                     course="ENGENHARIA DE SOFTWARE",
                     shift=None,
                     entry_semester=None,

@@ -1,20 +1,20 @@
 import pytest
 from sqlalchemy import inspect
 
-from api.db.models import Professor, Unity
+from api.db.models import Professor, Unit
 from api.modules.public_professors.repository import ProfessorRepository
 
 
 @pytest.fixture
 def catalog(database):
     with database.begin() as session:
-        session.add(Unity(id=508, name="DEPTO CIÊNCIAS DA COMPUTAÇÃO - BRASÍLIA"))
+        session.add(Unit(id=508, name="DEPTO CIÊNCIAS DA COMPUTAÇÃO - BRASÍLIA"))
         session.add_all(
             [
                 Professor(
                     siape=123,
                     name="MARIA ÁLVARES",
-                    unity_id=508,
+                    unit_id=508,
                     photo=None,
                     description="Pesquisa sistemas.",
                     education=[
@@ -37,7 +37,7 @@ def catalog(database):
                 Professor(
                     siape=456,
                     name="JOÃO SILVA",
-                    unity_id=673,
+                    unit_id=673,
                     disciplines=[],
                 ),
             ]
@@ -47,17 +47,20 @@ def catalog(database):
 def test_lista_paginada_filtra_nome_unidade_e_semestre(client, catalog):
     response = client.get(
         "/public/professors",
-        params={"q": "alva", "unity_id": 508, "semester": "2026.2"},
+        params={"q": "alva", "unit": "508", "semester": "2026.2"},
     )
     assert response.status_code == 200
     assert response.headers["cache-control"] == "no-store"
     data = response.json()
     assert data["total"] == 1
     assert data["items"][0]["siape"] == 123
-    assert data["items"][0]["unity_name"].startswith("DEPTO CIÊNCIAS")
+    assert data["items"][0]["unit"]["name"].startswith("DEPTO CIÊNCIAS")
     assert "email" not in data["items"][0]
     assert client.get("/api/public/professors").status_code == 200
     assert client.get("/api/professors").status_code == 404
+
+    por_sigla = client.get("/public/professors", params={"unit": " fcte "}).json()
+    assert [item["siape"] for item in por_sigla["items"]] == [456]
 
     page = client.get("/public/professors?page=2&page_size=1").json()
     assert page["total"] == 2
@@ -96,13 +99,13 @@ def test_detalhe_traz_perfil_e_disciplinas_sem_nome_ou_carga(client, catalog):
 
 async def test_listagem_carrega_apenas_campos_do_resumo(async_database):
     async with async_database.begin() as session:
-        session.add(Professor(siape=123, name="MARIA", unity_id=673, disciplines=[]))
+        session.add(Professor(siape=123, name="MARIA", unit_id=673, disciplines=[]))
     async with async_database() as session:
         professors, total = await ProfessorRepository(session).list(
             None, None, None, 1, 20
         )
         assert total == 1
-        assert professors[0].unity.name
+        assert professors[0].unit.name
         assert "education" in inspect(professors[0]).unloaded
         assert "disciplines" in inspect(professors[0]).unloaded
 
@@ -113,7 +116,9 @@ def test_nome_curto_e_paginacao_invalida_retornam_422(client, catalog):
         "/public/professors?q=mar%20%20",
         "/public/professors?q=%20%20%20%20",
         "/public/professors?q=abcd%00",
-        "/public/professors?unity_id=2147483648",
+        "/public/professors?unit=2147483648",
+        "/public/professors?unit=XYZ",
+        "/public/professors?unit=",
         "/public/professors?page=0",
         "/public/professors?page_size=101",
         "/public/professors/2147483648",

@@ -9,7 +9,6 @@ from ..models import (
     PublicClassroom,
     Subject,
     SubjectDetails,
-    Teacher,
     TeachingLevel,
     Unit,
 )
@@ -47,7 +46,7 @@ TOTAL_HOURS_LABEL = "Total de Carga Horária do Componente"
 
 _COLUMNS = 8
 _ROW_CLASSES = frozenset({"linhaPar", "linhaImpar"})
-_TEACHER_RE = re.compile(r"^(.+?)(?:\s*\((\d+)h\))?$")
+_PROFESSOR_RE = re.compile(r"^(.+?)(?:\s*\((\d+)h\))?$")
 # A mensagem de "nada encontrado" chega no mesmo bloco dos erros de verdade.
 _NO_RESULTS = "nao foram encontrados resultados"
 
@@ -209,7 +208,7 @@ def _listed_subjects(soup: BeautifulSoup) -> dict[int, Subject]:
         if subject.sigaa_id is None:
             raise SigaaParseError(f"Componente {subject.code} sem id no link.")
         known = subjects.get(subject.sigaa_id)
-        if known is None or (known.unity is None and subject.unity is not None):
+        if known is None or (known.unit is None and subject.unit is not None):
             subjects[subject.sigaa_id] = subject
     return subjects
 
@@ -274,9 +273,9 @@ def _classroom(row: Tag, subject: Subject) -> PublicClassroom:
     if len(cells) < _COLUMNS:
         raise SigaaParseError("Linha de turma com menos colunas que o esperado.")
 
-    teachers = _teachers(cells[2])
-    unity, room = split_location(clean_text(cells[7]))
-    hours = sum(teacher.hours or 0 for teacher in teachers)
+    professors = _professors(cells[2])
+    unit, room = split_location(clean_text(cells[7]))
+    hours = sum(hours or 0 for _, hours in professors)
 
     return PublicClassroom(
         number=clean_text(cells[0]),
@@ -286,25 +285,23 @@ def _classroom(row: Tag, subject: Subject) -> PublicClassroom:
         room=room,
         vacancies=_count(cells[5]),
         occupied=_count(cells[6]),
-        teachers=teachers,
+        professors=tuple(name for name, _ in professors),
         # A CH do componente é a soma das horas dos docentes: quando são dois,
         # o SIGAA divide a carga da turma entre eles.
-        subject=subject.model_copy(update={"hours": hours or None, "unity": unity}),
+        subject=subject.model_copy(update={"hours": hours or None, "unit": unit}),
     )
 
 
-def _teachers(cell: Tag) -> tuple[Teacher, ...]:
-    """Um docente por linha, no formato `NOME (60h)`."""
-    teachers = []
+def _professors(cell: Tag) -> list[tuple[str, int | None]]:
+    """Um docente por linha, no formato `NOME (60h)`, com as horas dele na turma."""
+    professors = []
     for line in cell.stripped_strings:
-        match = _TEACHER_RE.match(" ".join(line.split()))
+        match = _PROFESSOR_RE.match(" ".join(line.split()))
         if match is None:
             continue
         hours = match.group(2)
-        teachers.append(
-            Teacher(name=match.group(1), hours=int(hours) if hours else None)
-        )
-    return tuple(teachers)
+        professors.append((match.group(1), int(hours) if hours else None))
+    return professors
 
 
 def _description(cell: Tag) -> str | None:

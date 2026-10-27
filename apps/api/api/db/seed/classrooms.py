@@ -15,7 +15,7 @@ FIELDS = ("professors", "vacancies", "occupied")
 
 
 def read_classrooms(path: Path = CLASSROOMS_CSV) -> list[Classroom]:
-    """As turmas do CSV (`subject_code,number,semester,schedule,room,vacancies,occupied,teachers`)."""
+    """As turmas do CSV (`subject_code,number,semester,schedule,room,vacancies,occupied,professors`)."""
     return read_csv(
         path,
         lambda row: Classroom(
@@ -25,7 +25,7 @@ def read_classrooms(path: Path = CLASSROOMS_CSV) -> list[Classroom]:
             schedule=row["schedule"].strip() or None,
             room=row["room"].strip() or None,
             professors=[
-                name.strip() for name in row["teachers"].split(";") if name.strip()
+                name.strip() for name in row["professors"].split(";") if name.strip()
             ],
             vacancies=int(row["vacancies"]) if row["vacancies"] else None,
             occupied=int(row["occupied"]) if row["occupied"] else None,

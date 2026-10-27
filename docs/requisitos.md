@@ -112,7 +112,7 @@ interface.
 
 - **RF03 — Perfil Acadêmico e Integralização Curricular (`GET /me`):** O sistema deve disponibilizar
   endpoint protegido e tela de perfil que retorna `name`, `registration`, `photo`, `email`, `bio`,
-  `unity`, `course`, `integralization`, `ira`, `mp`, `level` e o detalhamento das horas pendentes
+  `unit`, `course`, `integralization`, `ira`, `mp`, `level` e o detalhamento das horas pendentes
   (obrigatórias, optativas e complementares) obtidas do extrato de integralização do SIGAA.
 
 **Critérios de Aceitação:**
@@ -206,7 +206,7 @@ inscrito, histórico letivo, controle de frequência, avisos dos professores e a
 
 - **RF06 — Detalhes da Turma e Participantes (`GET /classrooms/{id}/members`):** O sistema deve
   disponibilizar página de detalhes da disciplina com abas dedicadas e listar discentes e docentes
-  da turma (`name`, `role`, `registration`, `photo`, `email`, `course`, `unity`).
+  da turma (`name`, `role`, `registration`, `photo`, `email`, `course`, `unit`).
 
 **Critérios de Aceitação:**
 

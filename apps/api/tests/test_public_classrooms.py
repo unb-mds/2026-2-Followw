@@ -76,7 +76,7 @@ def public_sigaa():
         yield fake
 
 
-@pytest.mark.parametrize("unit", ["673", "gama", "  GAMA  "])
+@pytest.mark.parametrize("unit", ["673", "gama", "  GAMA  ", "fcte"])
 def test_busca_publica_sem_login_preserva_defaults_do_sigaa(client, public_sigaa, unit):
     def dependency_proibida():
         pytest.fail("Busca pública não deve usar fila")
@@ -84,7 +84,8 @@ def test_busca_publica_sem_login_preserva_defaults_do_sigaa(client, public_sigaa
     def sessao_proibida(*args, **kwargs):
         pytest.fail("Busca por unidade não deve consultar o banco")
 
-    client.app.dependency_overrides[get_sessionmaker] = lambda: sessao_proibida
+    if unit.isdigit():
+        client.app.dependency_overrides[get_sessionmaker] = lambda: sessao_proibida
     client.app.dependency_overrides[get_job_queue] = dependency_proibida
     response = client.get("/public/classrooms", params={"unit": unit})
 
@@ -104,13 +105,13 @@ def test_busca_publica_sem_login_preserva_defaults_do_sigaa(client, public_sigaa
             "room": "S3",
             "vacancies": 50,
             "occupied": 30,
-            "teachers": [{"name": "DOCENTE", "hours": 60}],
+            "professors": ["DOCENTE"],
             "subject": {
                 "code": "FGA0030",
                 "sigaa_id": None,
                 "name": "ESTRUTURAS DE DADOS 2",
                 "hours": 60,
-                "unity": "FCTE",
+                "unit": "FCTE",
             },
         }
     ]
@@ -191,6 +192,15 @@ def test_unidades_vem_do_formulario_sem_login(client, public_sigaa, contains, ex
     assert response.headers["cache-control"] == "no-store"
     assert [unit["id"] for unit in response.json()] == expected
     assert public_sigaa.payloads == []
+
+
+def test_unidades_trazem_a_sigla_gravada(client, public_sigaa):
+    response = client.get("/public/classrooms/units")
+
+    assert response.json() == [
+        {"id": 672, "code": None, "name": "CAMPUS UNB CEILÂNDIA"},
+        {"id": 673, "code": "FCTE", "name": "CAMPUS UNB GAMA"},
+    ]
 
 
 @pytest.mark.parametrize(
@@ -357,7 +367,7 @@ def test_local_filtra_local_completo_e_combina_com_contains(
 @pytest.fixture
 def code_index(database):
     """Os componentes gravados dizem em que unidades cada prefixo é ofertado."""
-    from api.db.models import Subject, Unity
+    from api.db.models import Subject, Unit
 
     class Index:
         def __setitem__(self, prefix, units):
@@ -368,18 +378,18 @@ def code_index(database):
                     session.delete(subject)
                 session.flush()
                 session.add_all(
-                    Subject(code=f"{prefix}{n:04d}", name="X", unity_id=unit)
+                    Subject(code=f"{prefix}{n:04d}", name="X", unit_id=unit)
                     for n, unit in enumerate(units, start=1)
                 )
 
     with database.begin() as session:
         session.add_all(
             [
-                Unity(id=672, code="FCTS", name="CAMPUS UNB CEILÂNDIA"),
-                Unity(id=518, code="MAT", name="DEPTO MATEMÁTICA"),
+                Unit(id=672, code="FCTS", name="CAMPUS UNB CEILÂNDIA"),
+                Unit(id=518, code="MAT", name="DEPTO MATEMÁTICA"),
             ]
         )
-        session.merge(Unity(id=673, code="FCTE", name="CAMPUS UNB GAMA"))
+        session.merge(Unit(id=673, code="FCTE", name="CAMPUS UNB GAMA"))
     index = Index()
     for prefix, units in {"FGA": [673], "FCTE": [673], "MAT": [518]}.items():
         index[prefix] = units

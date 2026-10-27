@@ -28,7 +28,7 @@ export function ProfileIdentity({
                     </h1>
                     <RegistrationCopy value={user.registration} />
                     <p className="mt-2 text-sm text-primary">
-                        {[user.course && titleCase(user.course), user.unity]
+                        {[user.course && titleCase(user.course.name), user.unit?.code]
                             .filter(Boolean)
                             .join(' · ')}
                     </p>

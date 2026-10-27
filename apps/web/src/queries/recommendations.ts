@@ -20,7 +20,7 @@ const reasonLabels: Record<Reason['code'], (value: number) => string> = {
     required: () => 'Obrigatória',
     target_period: () => 'Próximo período do fluxo',
     overdue: () => 'Atrasada no fluxo',
-    same_unity: () => 'Da sua unidade',
+    same_unit: () => 'Da sua unidade',
     chain_length: (value) => `Inicia uma cadeia de ${plural(value, 'semestre', 'semestres')}`,
     chain_width: (value) => `É pré-requisito de ${plural(value, 'disciplina', 'disciplinas')}`,
     hours: (value) => `Carga horária de ${plural(value, 'hora', 'horas')}`

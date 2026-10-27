@@ -79,7 +79,7 @@ async def test_get_profile_faz_um_unico_get():
     assert [r.method for r in sigaa.requests] == ["GET"]
     assert profile.name == "FULANO DE TAL"
     assert profile.registration == "251000000"
-    assert (profile.course, profile.unity) == ("ENGENHARIA DE SOFTWARE", "FCTE")
+    assert (profile.course, profile.unit) == ("ENGENHARIA DE SOFTWARE", "FCTE")
     assert profile.shift == CourseShift.DIURNO
     assert profile.entry_semester == "2025.1"
     assert profile.bio == "Bio de teste."
@@ -110,7 +110,7 @@ async def test_get_profile_turno_vem_do_fim_da_linha_do_curso(course, shift):
     async with SigaaClient(session_token="tok", transport=sigaa.transport) as client:
         profile = await client.profile.get_profile()
 
-    assert (profile.course, profile.unity) == (course.split("/")[0], "FCTE")
+    assert (profile.course, profile.unit) == (course.split("/")[0], "FCTE")
     assert profile.shift == shift
 
 

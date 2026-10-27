@@ -28,8 +28,8 @@ export const CAMPUS_LABELS: Record<Campus, string> = {
     Fazenda: 'Fazenda Água Limpa'
 };
 
-export function campusOf(unity?: string | null): Campus {
-    switch (unity) {
+export function campusOf(unit?: string | null): Campus {
+    switch (unit) {
         case 'FCTE':
             return 'Gama';
         case 'FCTS':
@@ -49,7 +49,7 @@ export const menuQueryOptions = ({
     user
 }: Pick<MenuQuery, 'campus'> & {
     date: string;
-    user?: Pick<UserProfile, 'unity'> | null;
+    user?: Pick<UserProfile, 'unit'> | null;
 }) => {
     // segunda a domingo, a mesma semana que a API devolve sem filtro
     const monday = new Date(`${date}T00:00:00Z`);
@@ -59,7 +59,7 @@ export const menuQueryOptions = ({
         ...api.queryOptions('get', '/public/restaurant', {
             params: {
                 query: {
-                    campus: campus ?? campusOf(user?.unity),
+                    campus: campus ?? campusOf(user?.unit?.code),
                     start_date: week[0].date,
                     end_date: week[6].date
                 }

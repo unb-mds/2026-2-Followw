@@ -1,11 +1,13 @@
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
-from sigaa_client import PublicClassroom, SigaaSearchError, Unit, lookup_key
+from sigaa_client import PublicClassroom, SigaaSearchError, lookup_key
 
 from api.db.main import DatabaseDep
+from api.db.units import find_unit
 from api.modules.public_classrooms.code import classroom_code_prefix
 from api.modules.public_classrooms.repository import UnitIndexRepository
+from api.schemas import UnitRef
 from api.sigaa import SigaaPublicClientDep
 
 
@@ -33,10 +35,16 @@ class PublicClassroomService:
                     "Código inválido; use letras seguidas de números, como MAT0031."
                 )
         if unit is not None:
-            units = [unit.strip()]
+            units: list[int | str] = [unit.strip()]
+            if not unit.strip().isdigit():
+                # Sigla conhecida vira o id; o resto o SIGAA casa pelo nome.
+                found = await self._db.read(lambda session: find_unit(session, unit))
+                units = [found.id if found else unit.strip()]
         elif prefix is not None:
-            units = await self._db.read(
-                lambda session: UnitIndexRepository(session).unit_ids(prefix)
+            units = list(
+                await self._db.read(
+                    lambda session: UnitIndexRepository(session).unit_ids(prefix)
+                )
             )
             if not units:
                 raise SigaaSearchError(
@@ -107,7 +115,7 @@ class PublicClassroomService:
                     for value in (
                         classroom.subject.name,
                         classroom.subject.code or "",
-                        *(teacher.name for teacher in classroom.teachers),
+                        *classroom.professors,
                     )
                 )
             ]
@@ -120,13 +128,22 @@ class PublicClassroomService:
             if location
             in lookup_key(
                 " - ".join(
-                    part for part in (classroom.subject.unity, classroom.room) if part
+                    part for part in (classroom.subject.unit, classroom.room) if part
                 )
             )
         ]
 
-    async def list_units(self, contains: str | None = None) -> list[Unit]:
-        return await self._client.classrooms.list_units(contains)
+    async def list_units(self, contains: str | None = None) -> list[UnitRef]:
+        units = await self._client.classrooms.list_units(contains)
+        codes = await self._db.read(
+            lambda session: UnitIndexRepository(session).unit_codes(
+                [unit.id for unit in units]
+            )
+        )
+        return [
+            UnitRef(id=unit.id, code=codes.get(unit.id), name=unit.name)
+            for unit in units
+        ]
 
 
 PublicClassroomServiceDep = Annotated[PublicClassroomService, Depends()]

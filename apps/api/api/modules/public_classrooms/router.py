@@ -1,11 +1,12 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Query
-from sigaa_client import PublicClassroom, Unit
+from sigaa_client import PublicClassroom
 
 from api.cache import NoStore
 from api.modules.public_classrooms.code import CLASSROOM_CODE_PATTERN
 from api.modules.public_classrooms.service import PublicClassroomServiceDep
+from api.schemas import UnitRef
 
 router = APIRouter()
 
@@ -33,7 +34,7 @@ async def search_classrooms(
         Query(
             min_length=1,
             pattern=r"\S",
-            description="ID da unidade ou parte do nome, como 'gama'. Obrigatório quando code não for informado. Com code, restringe a busca a esta unidade. Consulte /public/classrooms/units para obter os IDs.",
+            description="ID, código ou parte do nome da unidade, como 673, FCTE ou 'gama'. Obrigatório quando code não for informado. Com code, restringe a busca a esta unidade. Consulte /public/classrooms/units para obter os IDs.",
         ),
     ] = None,
     semester: Annotated[
@@ -78,7 +79,7 @@ async def search_classrooms(
 
 @router.get(
     "/units",
-    response_model=list[Unit],
+    response_model=list[UnitRef],
     summary="Consultar unidades disponíveis na busca pública de turmas",
     responses={502: {"description": "SIGAA indisponível ou resposta ilegível."}},
     dependencies=[NoStore],
@@ -89,5 +90,5 @@ async def list_units(
         str | None,
         Query(description="Filtra pelo nome, ignorando acentos e maiúsculas."),
     ] = None,
-) -> list[Unit]:
+) -> list[UnitRef]:
     return await service.list_units(contains)

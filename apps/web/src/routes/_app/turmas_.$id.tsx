@@ -231,7 +231,7 @@ function MemberGroup({ title, members }: { title: string; members: Member[] }) {
                             {(member.course || member.registration) && (
                                 <p className="truncate">
                                     {[
-                                        member.course && titleCase(member.course),
+                                        member.course && titleCase(member.course.name),
                                         member.registration
                                     ]
                                         .filter(Boolean)

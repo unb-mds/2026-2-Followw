@@ -16,7 +16,6 @@ from sigaa_client import (
     SubjectDetails,
     SubjectSearchResult,
     SubjectType,
-    Teacher,
     TeachingLevel,
     Unit,
 )
@@ -36,7 +35,7 @@ def test_csv_de_docentes_usa_unidade_e_omite_url(monkeypatch):
         url="https://sigaa.unb.br/sigaa/public/docente/portal.jsf?siape=123",
     )
     (row,) = script.rows([professor])
-    assert row["unity_id"] == 673
+    assert row["unit_id"] == 673
     assert "department_id" not in row
     assert "url" not in row
 
@@ -277,7 +276,7 @@ def test_uma_turma_por_linha_ainda_que_apareca_em_mais_de_uma_unidade(
                     "FGA0001",
                     "02",
                     occupied=10,
-                    teachers=(Teacher(name="A", hours=30), Teacher(name="B")),
+                    professors=("A", "B"),
                 ),
             ],
             [shared, _classroom(None, "01")],
@@ -293,7 +292,7 @@ def test_uma_turma_por_linha_ainda_que_apareca_em_mais_de_uma_unidade(
             "room": None,
             "vacancies": None,
             "occupied": 10,
-            "teachers": "A; B",
+            "professors": "A; B",
         },
         {
             "subject_code": "FGA0030",
@@ -303,7 +302,7 @@ def test_uma_turma_por_linha_ainda_que_apareca_em_mais_de_uma_unidade(
             "room": "S3",
             "vacancies": 100,
             "occupied": None,
-            "teachers": "",
+            "professors": "",
         },
     ]
 
@@ -355,7 +354,7 @@ async def test_nova_tentativa_de_componentes_continua_de_onde_parou(
 def test_csv_de_componentes_tem_a_unidade_e_os_requisitos(subjects_script, tmp_path):
     path = tmp_path / "subjects.csv"
     subject = SubjectDetails(
-        code="FGA0002", name="B", hours=60, unity="GAMA", prerequisites="FGA0001"
+        code="FGA0002", name="B", hours=60, unit="GAMA", prerequisites="FGA0001"
     )
     subjects_script.write_csv(
         subjects_script.subject_rows([(673, subject)]), subjects_script.COLUMNS, path
@@ -422,7 +421,7 @@ async def test_completa_referencias_dos_tres_campos_por_prefixo(
         "code": "IQD0051",
         "name": "QUÍMICA GERAL",
         "hours": 90,
-        "unity_id": None,
+        "unit_id": None,
         "prerequisites": None,
         "corequisites": None,
         "equivalences": None,

@@ -1,4 +1,4 @@
-code,name,hours,unity_id,prerequisites,corequisites,equivalences
+code,name,hours,unit_id,prerequisites,corequisites,equivalences
 ADM0002,ESTUDOS E PESQUISAS EM ADMINISTRAÇÃO,30,327,( ( ADM0198 ) ),,( ADM0001 )
 ADM0006,GESTÃO DE MARCAS,60,327,( ( ADM0064 ) ),,
 ADM0008,MARKETING SOCIALMENTE RESPONSÁVEL,60,327,( ( ADM0064 ) ),,

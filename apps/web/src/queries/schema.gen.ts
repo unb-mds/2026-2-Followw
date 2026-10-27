@@ -227,7 +227,7 @@ export interface paths {
         };
         /**
          * Listar cursos cadastrados
-         * @description Lista os cursos gravados no Followw, ordenados por nome e ID local, sem autenticação. Inclui cursos sem currículo e os criados pelo sync, cujo sigaa_id pode ser nulo. O campo id é o course_id usado na consulta de currículo; unity traz a sigla da unidade e shift preserva o turno cadastrado, como no perfil. Banco sem cursos retorna lista vazia.
+         * @description Lista os cursos gravados no Followw, ordenados por nome e ID local, sem autenticação. Inclui cursos sem currículo e os criados pelo sync, cujo sigaa_id pode ser nulo. O campo id é o course_id usado na consulta de currículo; unit traz id, sigla e nome da unidade e shift preserva o turno cadastrado, como no perfil. Banco sem cursos retorna lista vazia.
          */
         get: operations["list_courses_public_courses_get"];
         put?: never;
@@ -250,6 +250,43 @@ export interface paths {
          * @description Seleciona, entre as matrizes ativas cadastradas, a vigência mais recente anterior ou igual ao ingresso; antes da primeira vigência, usa a mais antiga. Entre matrizes da mesma vigência, vale a de maior revisão do código, salvo se curriculum_sigaa_id escolher outra. As matérias vêm agrupadas por período, com optativas no período 0 e complementares em uma lista própria. Nome, carga horária e requisitos vêm do catálogo gravado; dados ausentes ficam nulos. Não consulta o SIGAA.
          */
         get: operations["get_curriculum_public_courses__course_id__curriculum_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/professors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Buscar docentes do catálogo público
+         * @description Lista docentes coletados do SIGAA, sem login. Nome, unidade e semestre se combinam. O semestre seleciona docentes que ministraram uma disciplina de graduação naquele período.
+         */
+        get: operations["list_professors_public_professors_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/professors/{siape}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Consultar o perfil público de um docente */
+        get: operations["get_professor_public_professors__siape__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -437,16 +474,13 @@ export interface components {
             name: string;
             /** Hours */
             hours?: number | null;
-            /** Unity */
-            unity?: string | null;
+            unit?: components["schemas"]["UnitRef"] | null;
             prerequisites?: components["schemas"]["CatalogRequirements"] | null;
             corequisites?: components["schemas"]["CatalogRequirements"] | null;
             equivalences?: components["schemas"]["CatalogRequirements"] | null;
             curriculum_prerequisites?: components["schemas"]["CatalogRequirements"] | null;
             curriculum_corequisites?: components["schemas"]["CatalogRequirements"] | null;
             offered_equivalences?: components["schemas"]["CatalogRequirements"] | null;
-            /** Unity Name */
-            unity_name?: string | null;
             /** Classrooms */
             classrooms: components["schemas"]["SubjectClassroom"][];
             /** Kind */
@@ -470,10 +504,7 @@ export interface components {
             lessons: components["schemas"]["Lesson"][];
             totals: components["schemas"]["FrequencyTotals"] | null;
         };
-        /**
-         * ClassroomMember
-         * @description Participante de uma turma, nos campos da tabela `users` que a tela expõe.
-         */
+        /** ClassroomMember */
         ClassroomMember: {
             /** Name */
             name: string;
@@ -484,10 +515,8 @@ export interface components {
             photo?: string | null;
             /** Email */
             email?: string | null;
-            /** Course */
-            course?: string | null;
-            /** Unity */
-            unity?: string | null;
+            course?: components["schemas"]["CourseRef"] | null;
+            unit?: components["schemas"]["UnitRef"] | null;
             /** Person Id */
             person_id?: number | null;
         };
@@ -569,6 +598,15 @@ export interface components {
             /** Complementary */
             complementary: components["schemas"]["CurriculumSubject"][];
         };
+        /** CourseRef */
+        CourseRef: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Shift */
+            shift: string | null;
+        };
         /** CurriculumPeriod */
         CurriculumPeriod: {
             /** Period */
@@ -584,8 +622,7 @@ export interface components {
             name?: string | null;
             /** Hours */
             hours?: number | null;
-            /** Unity */
-            unity?: string | null;
+            unit?: components["schemas"]["UnitRef"] | null;
             prerequisites?: components["schemas"]["Requirements"] | null;
             corequisites?: components["schemas"]["Requirements"] | null;
             equivalences?: components["schemas"]["Requirements"] | null;
@@ -781,6 +818,78 @@ export interface components {
          * @enum {string}
          */
         PostType: "news" | "topic" | "material" | "assessment";
+        /** ProfessorDegree */
+        ProfessorDegree: {
+            /** Level */
+            level: string;
+            /** Start Year */
+            start_year?: string | null;
+            /** End Year */
+            end_year?: string | null;
+            /** Course */
+            course?: string | null;
+            /** Institution */
+            institution?: string | null;
+        };
+        /** ProfessorDetails */
+        ProfessorDetails: {
+            /** Siape */
+            siape: number;
+            /** Name */
+            name: string;
+            unit: components["schemas"]["UnitRef"];
+            /** Photo */
+            photo: string | null;
+            /** Url */
+            url: string;
+            /** Description */
+            description: string | null;
+            /**
+             * Education
+             * @description Titulações do currículo público do SIGAA, com os campos originais de curso, instituição e anos.
+             */
+            education: components["schemas"]["ProfessorDegree"][];
+            /** Interests */
+            interests: string | null;
+            /** Lattes */
+            lattes: string | null;
+            /** Email */
+            email: string | null;
+            /** Disciplines */
+            disciplines: components["schemas"]["ProfessorDiscipline"][];
+        };
+        /** ProfessorDiscipline */
+        ProfessorDiscipline: {
+            /** Semester */
+            semester: string;
+            /** Code */
+            code: string;
+            /** Occurrences */
+            occurrences: number;
+        };
+        /** ProfessorItem */
+        ProfessorItem: {
+            /** Siape */
+            siape: number;
+            /** Name */
+            name: string;
+            unit: components["schemas"]["UnitRef"];
+            /** Photo */
+            photo: string | null;
+            /** Url */
+            url: string;
+        };
+        /** ProfessorPage */
+        ProfessorPage: {
+            /** Items */
+            items: components["schemas"]["ProfessorItem"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+        };
         /**
          * PublicClassroom
          * @description Turma da busca pública.
@@ -804,10 +913,10 @@ export interface components {
             /** Occupied */
             occupied?: number | null;
             /**
-             * Teachers
+             * Professors
              * @default []
              */
-            teachers: components["schemas"]["Teacher"][];
+            professors: string[];
             subject: components["schemas"]["Subject"];
         };
         /** PublicCourse */
@@ -820,13 +929,10 @@ export interface components {
             name: string;
             /** Shift */
             shift: string | null;
-            /** Unity Id */
-            unity_id: number;
-            /** Unity */
-            unity: string | null;
+            unit: components["schemas"]["UnitRef"];
         };
         /** @enum {string} */
-        ReasonCode: "required" | "target_period" | "overdue" | "same_unity" | "chain_length" | "chain_width" | "hours";
+        ReasonCode: "required" | "target_period" | "overdue" | "same_unit" | "chain_length" | "chain_width" | "hours";
         Requirements: string[][];
         /** RestaurantCredentials */
         RestaurantCredentials: {
@@ -882,8 +988,8 @@ export interface components {
             name: string;
             /** Hours */
             hours?: number | null;
-            /** Unity */
-            unity?: string | null;
+            /** Unit */
+            unit?: string | null;
         };
         /** SubjectClassroom */
         SubjectClassroom: {
@@ -941,22 +1047,14 @@ export interface components {
             subject?: components["schemas"]["SubjectReference"] | null;
         };
         /**
-         * Teacher
-         * @description Docente de uma turma. `hours` é a carga horária dele naquela turma.
+         * UnitRef
+         * @description Unidade acadêmica: `id` do SIGAA, `code` a sigla (ex.: FCTE).
          */
-        Teacher: {
-            /** Name */
-            name: string;
-            /** Hours */
-            hours?: number | null;
-        };
-        /**
-         * Unit
-         * @description Unidade acadêmica ofertante — o filtro obrigatório da busca pública.
-         */
-        Unit: {
+        UnitRef: {
             /** Id */
             id: number;
+            /** Code */
+            code: string | null;
             /** Name */
             name: string;
         };
@@ -967,7 +1065,7 @@ export interface components {
         UserLevel: "Graduação" | "Pós-graduação" | "Mestrado";
         /**
          * UserProfile
-         * @description O perfil como a API devolve: sem curso na tabela, `course` e `unity` são nulos.
+         * @description O perfil como a API devolve: sem curso na tabela, curso e unidade são nulos.
          */
         UserProfile: {
             /** Name */
@@ -980,12 +1078,8 @@ export interface components {
             email?: string | null;
             /** Bio */
             bio: string | null;
-            /** Unity */
-            unity: string | null;
-            /** Course */
-            course: string | null;
-            /** Shift */
-            shift: string | null;
+            unit: components["schemas"]["UnitRef"] | null;
+            course: components["schemas"]["CourseRef"] | null;
             /** Entry Semester */
             entry_semester: string | null;
             /** Integralization */
@@ -1018,8 +1112,7 @@ export interface components {
             name: string;
             /** Hours */
             hours?: number | null;
-            /** Unity */
-            unity?: string | null;
+            unit?: components["schemas"]["UnitRef"] | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -1569,7 +1662,7 @@ export interface operations {
     search_classrooms_public_classrooms_get: {
         parameters: {
             query?: {
-                /** @description ID da unidade ou parte do nome, como 'gama'. Obrigatório quando code não for informado. Com code, restringe a busca a esta unidade. Consulte /public/classrooms/units para obter os IDs. */
+                /** @description ID, código ou parte do nome da unidade, como 673, FCTE ou 'gama'. Obrigatório quando code não for informado. Com code, restringe a busca a esta unidade. Consulte /public/classrooms/units para obter os IDs. */
                 unit?: string | null;
                 /** @description Opcional, no formato AAAA.P: 2026.2, 2027.1 ou 2026.4. Sem filtro, usa os valores do SIGAA. */
                 semester?: string | null;
@@ -1638,7 +1731,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Unit"][];
+                    "application/json": components["schemas"]["UnitRef"][];
                 };
             };
             /** @description Validation Error */
@@ -1711,6 +1804,74 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_professors_public_professors_get: {
+        parameters: {
+            query?: {
+                /** @description Trecho do nome, com ao menos 4 caracteres; ignora acentos e caixa. */
+                q?: string | null;
+                /** @description ID ou código exato da unidade, como 673 ou FCTE. */
+                unit?: string | null;
+                /** @description Período de graduação, como 2026.2; registros antigos podem vir só com o ano. */
+                semester?: string | null;
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfessorPage"];
+                };
+            };
+            /** @description Filtro inválido ou unidade inexistente. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_professor_public_professors__siape__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description SIAPE do link público do SIGAA. */
+                siape: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfessorDetails"];
+                };
             };
             /** @description Validation Error */
             422: {

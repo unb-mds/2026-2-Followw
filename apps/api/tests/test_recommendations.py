@@ -27,7 +27,7 @@ from api.db.models import (
     Curriculum,
     CurriculumComponent,
     Subject,
-    Unity,
+    Unit,
     User,
 )
 from api.modules.classrooms.repository import ClassroomRepository
@@ -50,8 +50,8 @@ class Scenario:
         self.db = database
         self.client = client
         with database.begin() as session:
-            session.add(Unity(id=99, code="OTHER", name="Outra unidade"))
-            course = Course(name="ENGENHARIA DE SOFTWARE", shift="DIURNO", unity_id=673)
+            session.add(Unit(id=99, code="OTHER", name="Outra unidade"))
+            course = Course(name="ENGENHARIA DE SOFTWARE", shift="DIURNO", unit_id=673)
             session.add(course)
             session.flush()
             self.course_id = course.id
@@ -102,7 +102,7 @@ class Scenario:
                 code=code,
                 name=fields.pop("name", code),
                 hours=fields.pop("hours", 60),
-                unity_id=fields.pop("unity_id", 673),
+                unit_id=fields.pop("unit_id", 673),
                 **fields,
             )
             session.add(row)
@@ -206,7 +206,7 @@ def assign(scene, async_database):
             registration="251000000",
             photo=None,
             bio=None,
-            unity="FCTE",
+            unit="FCTE",
             course=course,
             shift=None,
             entry_semester=entry,
@@ -424,7 +424,7 @@ def test_somente_graduacao(scene):
 
 async def test_toda_a_oferta_entra_no_ranking_com_historico_vazio(scene, ranked):
     for n in range(12):
-        scene.subject(f"X{n:02}", unity_id=99, kind="complementary")
+        scene.subject(f"X{n:02}", unit_id=99, kind="complementary")
     scene.component("MISSING", period=1)
     result = scene.get()
     assert codes(result) == [f"X{n:02}" for n in range(12)]
@@ -633,7 +633,7 @@ def test_atrasada_apos_o_periodo_em_andamento(scene):
     assert [r["code"] for r in reasons(item)] == [
         "required",
         "overdue",
-        "same_unity",
+        "same_unit",
         "hours",
     ]
 
@@ -740,10 +740,10 @@ async def test_cadeias_contam_as_obrigatorias_pendentes_descendentes(scene, rank
         ("chain_length", 3),
         ("chain_width", 6),
         ("target_period", None),
-        ("same_unity", None),
+        ("same_unit", None),
         ("hours", 60),
     ]
-    assert [r["code"] for r in reasons(items["O"])] == ["same_unity", "hours"]
+    assert [r["code"] for r in reasons(items["O"])] == ["same_unit", "hours"]
     x = points(await ranked(), "X")
     assert x["chain_length"] == 30 and x["chain_width"] == 30
 
@@ -773,7 +773,7 @@ def test_sem_turmas_nada_e_recomendado(scene):
 
 async def test_exemplos_de_score(scene, ranked):
     for code, period, unlocks in (("ED", 3, 4), ("BD", 3, 2), ("CALC", 1, 3)):
-        scene.subject(code, kind="required", period=period, unity_id=99)
+        scene.subject(code, kind="required", period=period, unit_id=99)
         for n in range(unlocks):
             scene.subject(
                 f"{code}{n}",
@@ -915,8 +915,8 @@ def test_perfil_vencido_sem_matriz_sincroniza_antes_do_422(scene, stub_sigaa, qs
 
 async def test_empates_por_obrigatoria_periodo_positivo_e_codigo(scene, ranked):
     # Optativa com carga alta empata com obrigatórias atrasadas.
-    scene.subject("R", kind="required", period=1, unity_id=99)
-    scene.subject("Z", kind="required", period=2, unity_id=99)
+    scene.subject("R", kind="required", period=1, unit_id=99)
+    scene.subject("Z", kind="required", period=2, unit_id=99)
     scene.subject("A", hours=960)
     scene.component("CURRENT", period=4)
     scene.history("CURRENT", term="2026.2", enrolled=True)
@@ -1001,13 +1001,13 @@ async def test_sem_matricula_mira_o_periodo_pendente_inferido(scene, ranked):
     assert [r["code"] for r in reasons(item)] == [
         "required",
         "target_period",
-        "same_unity",
+        "same_unit",
         "hours",
     ]
     assert points(await ranked(), "NEXT") == {
         "required": 50,
         "target_period": 25,
-        "same_unity": 5,
+        "same_unit": 5,
         "hours": 4,
     }
 

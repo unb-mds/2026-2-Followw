@@ -106,7 +106,7 @@ def test_login_e_listagem_retornam_apenas_turmas_atuais(client, classrooms_sigaa
                 "name": "ESTRUTURAS DE DADOS 1",
                 "code": "FGA0146",
                 "hours": 60,
-                "unity": "FCTE",
+                "unit": {"id": 673, "code": "FCTE", "name": "CAMPUS UNB GAMA"},
             },
             "grade": None,
             "status": "cursando",
@@ -179,7 +179,7 @@ def test_campos_opcionais_ausentes_retornam_null(client, classrooms_sigaa, cooki
     classroom = response.json()[0]
     assert classroom["room"] is None
     assert classroom["schedule"] is None
-    assert classroom["subject"]["unity"] is None
+    assert classroom["subject"]["unit"] is None
     assert classroom["subject"]["hours"] is None
 
 
@@ -189,15 +189,15 @@ def test_unidade_do_componente_nao_se_perde_para_local_desconhecido(
     client.post(
         "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
     )
-    assert client.get("/classrooms").json()[0]["subject"]["unity"] == "FCTE"
+    assert client.get("/classrooms").json()[0]["subject"]["unit"]["code"] == "FCTE"
 
     # O local passa a vir com um prefixo que não é unidade: o vínculo anterior fica.
     classrooms_sigaa.profile = classrooms_sigaa.profile.replace("FCTE - ", "Térreo - ")
     response = client.get("/classrooms", headers=NO_CACHE)
 
-    assert response.json()[0]["subject"]["unity"] == "FCTE"
+    assert response.json()[0]["subject"]["unit"]["code"] == "FCTE"
     with database() as session:
-        assert session.scalar(select(SubjectModel.unity_id)) == 673
+        assert session.scalar(select(SubjectModel.unit_id)) == 673
 
 
 @pytest.mark.parametrize("refresh", [None, "invalido", "expirado"])
@@ -291,7 +291,7 @@ def test_openapi_documenta_lista_de_turmas_e_401(client):
     assert {"number", "semester", "schedule", "room", "subject", "grade"} <= schema[
         "components"
     ]["schemas"]["ParticipantClassroom"]["properties"].keys()
-    assert {"name", "code", "hours", "unity"} <= schema["components"]["schemas"][
+    assert {"name", "code", "hours", "unit"} <= schema["components"]["schemas"][
         "Subject"
     ]["properties"].keys()
     parameter = next(p for p in route["parameters"] if p["name"] == "semester")
@@ -355,7 +355,7 @@ def test_historico_preserva_campos_das_turmas_atuais(client, classrooms_sigaa, c
             "name": "ORIENTAÇÃO A OBJETOS",
             "code": "FGA0158",
             "hours": 60,
-            "unity": None,
+            "unit": None,
         },
         "grade": None,
         "status": "concluido",
@@ -411,7 +411,13 @@ ANTIGA = Classroom(
     subject=Subject(code="FGA0158", name="ORIENTAÇÃO A OBJETOS"),
 )
 PARTICIPANTES = [
-    ClassroomMember(name="ZECA", role=ClassroomRole.ALUNO, registration="2"),
+    ClassroomMember(
+        name="ZECA",
+        role=ClassroomRole.ALUNO,
+        registration="2",
+        course="ENGENHARIA DE SOFTWARE",
+        unit="FCTE",
+    ),
     ClassroomMember(name="NOME DOCENTE", role=ClassroomRole.PROFESSOR),
     ClassroomMember(name="ANA", role=ClassroomRole.ALUNO, registration="3"),
 ]
@@ -440,6 +446,12 @@ def test_participantes_saem_do_cache_do_login(client, sigaa, turmas):
     # Docentes primeiro, depois discentes em ordem alfabética.
     assert [m["name"] for m in response.json()] == ["NOME DOCENTE", "ANA", "ZECA"]
     assert response.json()[1]["registration"] == "3"
+    assert response.json()[2]["course"]["name"] == "ENGENHARIA DE SOFTWARE"
+    assert response.json()[2]["unit"] == {
+        "id": 673,
+        "code": "FCTE",
+        "name": "CAMPUS UNB GAMA",
+    }
     assert turmas.classrooms.list_classroom_members.await_count == lidas
 
 
@@ -1034,7 +1046,7 @@ async def test_troca_de_curso_une_a_conta_e_a_sombra_da_matricula_nova(
         registration="252000000",
         photo=None,
         bio=None,
-        unity="FCTE",
+        unit="FCTE",
         course="ENGENHARIA DE SOFTWARE",
         shift=None,
         entry_semester=None,

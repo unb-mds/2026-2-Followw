@@ -40,7 +40,7 @@ class Ranking(NamedTuple):
 
 class Student(NamedTuple):
     user_id: UUID
-    unity_id: int | None
+    unit_id: int | None
     curriculum: dict[str, Component]
 
 
@@ -112,7 +112,7 @@ async def _student(session: AsyncSession, user: User) -> Student | None:
         return None
     return Student(
         user.id,
-        user.course.unity_id if user.course else None,
+        user.course.unit_id if user.course else None,
         await RecommendationRepository(session).components(user.curriculum_id),
     )
 
@@ -184,5 +184,5 @@ async def _rank(
             for link in links
             if link.row.grade is None and link.row.status not in _WITHOUT_ATTEMPT
         },
-        unity_id=student.unity_id,
+        unit_id=student.unit_id,
     )

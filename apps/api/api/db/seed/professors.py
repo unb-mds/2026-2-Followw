@@ -71,7 +71,7 @@ def read_professors(profiles_path: Path) -> list[Professor]:
         lambda row: Professor(
             siape=int(row["siape"]),
             name=row["name"].strip(),
-            unity_id=int(row["unity_id"]),
+            unit_id=int(row["unit_id"]),
             photo=row["photo"].strip() or None,
             description=row["description"].strip() or None,
             education=_education(row["education"]),
@@ -101,7 +101,7 @@ async def seed_professors(
         ("siape",),
         (
             "name",
-            "unity_id",
+            "unit_id",
             "photo",
             "description",
             "education",

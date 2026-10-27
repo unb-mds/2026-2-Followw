@@ -58,10 +58,10 @@ def course_shift(value: str) -> CourseShift | None:
 
 def split_location(value: str) -> tuple[str | None, str | None]:
     """`FCTE - MOCAP` -> unidade e sala."""
-    unity, separator, room = value.partition(" - ")
+    unit, separator, room = value.partition(" - ")
     if not separator:
-        return None, unity.strip() or None
-    return unity.strip() or None, room.strip() or None
+        return None, unit.strip() or None
+    return unit.strip() or None, room.strip() or None
 
 
 def schedule_code(value: str) -> str | None:

@@ -18,7 +18,7 @@ class Model(BaseModel):
 class CatalogSubject(Model):
     code: str
     hours: int | None
-    unity_id: int | None
+    unit_id: int | None
     prerequisites: Rules
     corequisites: Rules
     equivalences: Rules = None
@@ -42,7 +42,7 @@ type ReasonCode = Literal[
     "required",
     "target_period",
     "overdue",
-    "same_unity",
+    "same_unit",
     "chain_length",
     "chain_width",
     "hours",
@@ -185,7 +185,7 @@ def rank(
     completed: set[str],
     enrolled: set[str],
     unresolved: set[str],
-    unity_id: int | None,
+    unit_id: int | None,
 ) -> list[Recommendation]:
     """As ofertadas que o aluno pode cursar, da mais à menos prioritária.
 
@@ -228,9 +228,7 @@ def rank(
             "required": 50 if required else 0,
             "target_period": 25 if required and target and period == target else 0,
             "overdue": 15 if required and target and period and period < target else 0,
-            "same_unity": 5
-            if unity_id is not None and subject.unity_id == unity_id
-            else 0,
+            "same_unit": 5 if unit_id is not None and subject.unit_id == unit_id else 0,
             "chain_length": 10 * values["chain_length"],
             "chain_width": 5 * values["chain_width"],
             "hours": values["hours"] // 15,

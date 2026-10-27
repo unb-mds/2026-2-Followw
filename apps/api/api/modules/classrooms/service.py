@@ -3,9 +3,9 @@ from functools import partial
 from typing import Annotated
 
 from fastapi import Depends
+from pydantic import BaseModel, ConfigDict
 from sigaa_client import (
     Classroom,
-    ClassroomMember,
     ClassroomNotFound,
     ClassroomRole,
     Grade,
@@ -19,7 +19,14 @@ from api.db.models import ClassroomParticipant, OwnLink, User
 from api.modules.classrooms.repository import ClassroomRepository
 from api.modules.me.profile import sync_profile
 from api.modules.me.repository import UserRepository
-from api.schemas import ClassroomOffer, UserSubject
+from api.schemas import (
+    ClassroomOffer,
+    CourseRef,
+    UnitRef,
+    UserSubject,
+    course_ref,
+    unit_ref,
+)
 from api.sync import Cached, Context, SyncDep
 from api.sync.engine import Task
 
@@ -116,6 +123,19 @@ async def sync_grades(ctx: Context[None]) -> None:
         await ClassroomRepository(session).save_grades(user, grades, datetime.now(UTC))
 
     await ctx.sync.db.write(write)
+
+
+class ClassroomMember(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    name: str
+    role: ClassroomRole
+    registration: str | None = None
+    photo: str | None = None
+    email: str | None = None
+    course: CourseRef | None = None
+    unit: UnitRef | None = None
+    person_id: int | None = None
 
 
 class ParticipantClassroom(Classroom, ClassroomOffer):
@@ -242,7 +262,7 @@ def to_classroom(link: OwnLink) -> ParticipantClassroom:
             code=subject.code,
             name=subject.name,
             hours=subject.hours,
-            unity=subject.unity.code if subject.unity else None,
+            unit=unit_ref(subject.unit),
         ),
         grade=link.row.grade,
         status=link.row.status,
@@ -261,8 +281,8 @@ def _to_member(link: ClassroomParticipant) -> ClassroomMember:
         registration=user.registration,
         photo=user.photo,
         email=user.email,
-        course=user.course.name if user.course else None,
-        unity=user.course.unity.code if user.course else None,
+        course=course_ref(user.course),
+        unit=unit_ref(user.course.unit) if user.course else None,
         person_id=user.person_id,
     )
 
