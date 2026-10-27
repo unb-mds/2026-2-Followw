@@ -1,6 +1,6 @@
 import pytest
 
-from api.db.models import Classroom, Subject, Unity
+from api.db.models import Classroom, Subject, Unit
 from api.db.seed.subjects import read_subjects
 from api.sigaa import get_sigaa_public_client
 
@@ -12,19 +12,19 @@ def catalog(client, database):
 
     client.app.dependency_overrides[get_sigaa_public_client] = forbidden
     with database.begin() as session:
-        session.add(Unity(id=518, code="FCE", name="CAMPUS UNB CEILÂNDIA"))
+        session.add(Unit(id=518, code="FCE", name="CAMPUS UNB CEILÂNDIA"))
         session.add_all(
             [
                 Subject(
                     code="FGA0003",
                     name="COMPILAÇÃO DE PROGRAMAS",
                     hours=60,
-                    unity_id=673,
+                    unit_id=673,
                     prerequisites=[["FGA0001", "FGA0002"], ["FGA0010"]],
                     equivalences=[["CIC0004"]],
                 ),
-                Subject(code="FGA0001", name="CÁLCULO 1", hours=90, unity_id=673),
-                Subject(code="FCE0001", name="CÁLCULO APLICADO", unity_id=518),
+                Subject(code="FGA0001", name="CÁLCULO 1", hours=90, unit_id=673),
+                Subject(code="FCE0001", name="CÁLCULO APLICADO", unit_id=518),
                 Subject(code="XYZ0001", name="SEM UNIDADE"),
             ]
         )
@@ -100,7 +100,7 @@ def test_componente_traz_as_turmas_do_semestre_mais_recente(catalog):
             "code": "FGA0003",
             "name": "COMPILAÇÃO DE PROGRAMAS",
             "hours": 60,
-            "unity": "FCTE",
+            "unit": {"id": 673, "code": "FCTE", "name": "CAMPUS UNB GAMA"},
             "prerequisites": [
                 [
                     {
@@ -116,7 +116,6 @@ def test_componente_traz_as_turmas_do_semestre_mais_recente(catalog):
             "curriculum_corequisites": None,
             "equivalences": [[{"code": "CIC0004", "subject": None}]],
             "offered_equivalences": [],
-            "unity_name": "CAMPUS UNB GAMA",
             "classrooms": [
                 {
                     "sigaa_id": 10,
@@ -191,6 +190,7 @@ def test_unit_por_id_ou_codigo_combina_com_q(catalog, unit):
         ({"unit": "999"}, "Unidade `999` não encontrada."),
         ({"unit": "ceilandia"}, "Unidade `ceilandia` não encontrada."),
         ({"unit": "FC"}, "Unidade `FC` não encontrada."),
+        ({"unit": "²"}, "Unidade `²` não encontrada."),
     ],
 )
 def test_filtros_invalidos_sao_422(catalog, params, detail):
@@ -295,7 +295,7 @@ def test_referencia_sem_oferta_resolve_nome_acrescentado_pela_coleta(
 
 def test_sem_turmas_gravadas_os_componentes_vem_sem_turmas(client, database):
     with database.begin() as session:
-        session.add(Subject(code="FGA0003", name="COMPILAÇÃO", unity_id=673))
+        session.add(Subject(code="FGA0003", name="COMPILAÇÃO", unit_id=673))
 
     assert _search(client, q="compilacao")[0]["classrooms"] == []
 
@@ -344,12 +344,8 @@ def test_codigo_nao_expande_para_outros_codigos_de_mesmo_nome(catalog, database,
     with database.begin() as session:
         session.add_all(
             [
-                Subject(
-                    code="OLD0001", name="MÉTODOS DE DESENVOLVIMENTO", unity_id=673
-                ),
-                Subject(
-                    code="NEW0001", name="Metodos de Desenvolvimento", unity_id=673
-                ),
+                Subject(code="OLD0001", name="MÉTODOS DE DESENVOLVIMENTO", unit_id=673),
+                Subject(code="NEW0001", name="Metodos de Desenvolvimento", unit_id=673),
             ]
         )
         session.add(Classroom(subject_code="NEW0001", number="01", semester="2026.2"))
@@ -372,12 +368,12 @@ def test_busca_por_nome_encontra_oferta_mesmo_apos_mudanca_de_codigo(
                 Subject(
                     code="FGA0138",
                     name="MÉTODOS DE DESENVOLVIMENTO DE SOFTWARE",
-                    unity_id=673,
+                    unit_id=673,
                 ),
                 Subject(
                     code="FGA0312",
                     name="MÉTODOS DE DESENVOLVIMENTO DE SOFTWARE",
-                    unity_id=673,
+                    unit_id=673,
                 ),
             ]
         )

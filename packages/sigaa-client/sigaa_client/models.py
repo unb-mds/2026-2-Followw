@@ -93,7 +93,7 @@ class UserProfile(BaseModel):
     photo: str | None
     email: str | None = None
     bio: str | None
-    unity: str
+    unit: str
     course: str
     shift: CourseShift | None
     entry_semester: str | None
@@ -119,7 +119,7 @@ class Subject(BaseModel):
     sigaa_id: int | None = None
     name: str
     hours: int | None = None
-    unity: str | None = None
+    unit: str | None = None
 
 
 class SubjectDetails(Subject):
@@ -185,7 +185,7 @@ class ClassroomMember(BaseModel):
     photo: str | None = None
     email: str | None = None
     course: str | None = None
-    unity: str | None = None
+    unit: str | None = None
     person_id: int | None = None
 
 
@@ -341,6 +341,43 @@ class Unit(BaseModel):
     name: str
 
 
+class Professor(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    siape: int
+    name: str
+    unit: Unit
+    photo: str | None = None
+    url: str
+
+
+class ProfessorDiscipline(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    semester: str
+    code: str
+    occurrences: int
+
+
+class ProfessorDegree(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    level: str
+    start_year: str | None = None
+    end_year: str | None = None
+    course: str | None = None
+    institution: str | None = None
+
+
+class ProfessorProfile(Professor):
+    description: str | None = None
+    education: tuple[ProfessorDegree, ...] = ()
+    interests: str | None = None
+    lattes: str | None = None
+    email: str | None = None
+    disciplines: tuple[ProfessorDiscipline, ...] = ()
+
+
 SubjectLevel = Literal[
     TeachingLevel.FORMACAO_COMPLEMENTAR,
     TeachingLevel.GRADUACAO,
@@ -385,15 +422,6 @@ class SubjectSearchResult(BaseModel):
         return len(self.items)
 
 
-class Teacher(BaseModel):
-    """Docente de uma turma. `hours` é a carga horária dele naquela turma."""
-
-    model_config = ConfigDict(frozen=True)
-
-    name: str
-    hours: int | None = None
-
-
 class PublicClassroom(BaseModel):
     """Turma da busca pública.
 
@@ -410,7 +438,7 @@ class PublicClassroom(BaseModel):
     room: str | None = None
     vacancies: int | None = None
     occupied: int | None = None
-    teachers: tuple[Teacher, ...] = ()
+    professors: tuple[str, ...] = ()
     subject: Subject
 
 

@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.models import Course
-from api.db.unities import unity_ids
+from api.db.units import unit_ids
 
 DEFAULT_SHIFT = "DIURNO"
 
@@ -16,13 +16,9 @@ async def course_ids(
     shift: str | None = None,
 ) -> dict[tuple[str, str], int]:
     """Os ids dos cursos por (nome, código da unidade), criando os que faltam; o `shift` desempata."""
-    wanted = {(name, unity) for name, unity in pairs if name and unity}
-    unities = await unity_ids(session, {unity for _, unity in wanted})
-    keys = {
-        (name, unities[unity]): (name, unity)
-        for name, unity in wanted
-        if unity in unities
-    }
+    wanted = {(name, unit) for name, unit in pairs if name and unit}
+    units = await unit_ids(session, {unit for _, unit in wanted})
+    keys = {(name, units[unit]): (name, unit) for name, unit in wanted if unit in units}
     if not keys:
         return {}
 
@@ -30,17 +26,17 @@ async def course_ids(
     for course in await session.scalars(
         select(Course)
         .where(
-            Course.unity_id.in_({unity_id for _, unity_id in keys}),
+            Course.unit_id.in_({unit_id for _, unit_id in keys}),
             Course.name.in_({name for name, _ in keys}),
         )
         .order_by(Course.id)
     ):
-        found[(course.name, course.unity_id)].append(course)
+        found[(course.name, course.unit_id)].append(course)
 
     for key in keys:
         if not found[key]:
-            name, unity_id = key
-            course = Course(name=name, unity_id=unity_id)
+            name, unit_id = key
+            course = Course(name=name, unit_id=unit_id)
             session.add(course)
             found[key].append(course)
     await session.flush()

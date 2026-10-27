@@ -18,12 +18,13 @@ async with SigaaClient(credentials) as client:
 async with SigaaPublicClient() as client:
     turmas = await client.classrooms.search("gama")
     componentes = await client.subjects.search("gama", code="FGA00")
+    docentes = await client.professors.search("gama")
 ```
 
 | Client              | Login | Módulos                                                |
 | ------------------- | ----- | ------------------------------------------------------ |
 | `SigaaClient`       | sim   | `.profile`, `.classrooms`, `.documents`, `.restaurant` |
-| `SigaaPublicClient` | não   | `.classrooms`, `.subjects`, `.curricula`               |
+| `SigaaPublicClient` | não   | `.classrooms`, `.subjects`, `.curricula`, `.professors` |
 
 O login é feito sob demanda. O token retornado por `authenticate()` pode ser reutilizado com
 `SigaaClient(session_token=...)`: sem credenciais, uma sessão expirada levanta `SessionExpired`.

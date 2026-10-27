@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Path, Query
 from pydantic import AfterValidator, BaseModel, Field
-from sigaa_client import ClassroomMember, ClassroomPost, PostType
+from sigaa_client import ClassroomPost, PostType
 
 from api.cache import NoStore
 from api.db.enums import LessonStatus
@@ -14,7 +14,11 @@ from api.modules.classrooms.frequency import (
 )
 from api.modules.classrooms.lessons import ClassroomFrequencyView
 from api.modules.classrooms.posts import ClassroomPostsServiceDep
-from api.modules.classrooms.service import ClassroomServiceDep, ParticipantClassroom
+from api.modules.classrooms.service import (
+    ClassroomMember,
+    ClassroomServiceDep,
+    ParticipantClassroom,
+)
 
 router = APIRouter()
 

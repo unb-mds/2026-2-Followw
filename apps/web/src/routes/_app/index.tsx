@@ -179,7 +179,7 @@ function HomePage() {
             )}
 
             <PublicInfoSection
-                campus={campusOf(user?.unity)}
+                campus={campusOf(user?.unit?.code)}
                 menu={menu.data?.[0]}
                 isLoading={menu.isPending}
                 day={label}

@@ -249,6 +249,14 @@ async def test_unidade_pode_vir_pelo_nome():
     assert sigaa.payloads[0]["formTurma:inputDepto"] == "673"
 
 
+async def test_digito_unicode_e_tratado_como_nome_de_unidade():
+    sigaa = FakePublicSigaa()
+
+    async with SigaaPublicClient(transport=sigaa.transport) as client:
+        with pytest.raises(SigaaSearchError, match="Nenhuma unidade casa com `²`"):
+            await client.classrooms.search("²")
+
+
 async def test_nome_ambiguo_de_unidade_e_barulhento():
     sigaa = FakePublicSigaa()
 
@@ -269,26 +277,21 @@ async def test_resultado_agrupa_turmas_sob_o_componente():
     # O balão de ajuda não pode vazar para o código do horário.
     assert primeira.schedule == "35M12"
     assert primeira.schedule_description == "Terça-feira 08:00 às 09:50"
-    assert (primeira.subject.unity, primeira.room) == ("FCTE", "S3")
+    assert (primeira.subject.unit, primeira.room) == ("FCTE", "S3")
     assert (primeira.vacancies, primeira.occupied) == (100, 97)
 
-    assert [(t.name, t.hours) for t in primeira.teachers] == [
-        ("GLAUCO VITOR PEDROSA", 30),
-        ("JOHN LENON GARDENGHI", 30),
-    ]
+    assert primeira.professors == ("GLAUCO VITOR PEDROSA", "JOHN LENON GARDENGHI")
     # A CH do componente é a soma das horas dos docentes na turma.
     assert primeira.subject.hours == 60
 
     # Turma sem docente alocado: o SIGAA põe um nome de fachada, que passa reto.
-    assert [(t.name, t.hours) for t in segunda.teachers] == [
-        ("A DEFINIR DOCENTE", None)
-    ]
+    assert segunda.professors == ("A DEFINIR DOCENTE",)
     assert (segunda.subject.hours, segunda.occupied) == (None, None)
     # "Local" é texto livre: sem o ` - ` não há unidade a separar da sala.
-    assert (segunda.subject.unity, segunda.room) == (None, "A DEFINIR")
+    assert (segunda.subject.unit, segunda.room) == (None, "A DEFINIR")
 
-    assert terceira.teachers == ()
-    assert (terceira.subject.unity, terceira.room) == (None, None)
+    assert terceira.professors == ()
+    assert (terceira.subject.unit, terceira.room) == (None, None)
 
 
 async def test_busca_sem_resultado_devolve_lista_vazia():
@@ -352,7 +355,7 @@ async def test_componentes_trazem_requisitos_e_carga_horaria_dos_detalhes():
     # Só a expressão do resumo: a linha INATIVA do histórico não entra.
     assert primeiro.equivalences == "( FGA0001 )"
     # O total da tela de detalhes vale mais que a soma dos docentes (60h).
-    assert (primeiro.hours, primeiro.unity) == (90, "FCTE")
+    assert (primeiro.hours, primeiro.unit) == (90, "FCTE")
 
     assert (segundo.prerequisites, segundo.corequisites, segundo.equivalences) == (
         None,

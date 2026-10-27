@@ -49,7 +49,7 @@ async def complete_subjects(rows: list[dict[str, object]]) -> list[dict[str, obj
                         "code": subject.code,
                         "name": subject.name,
                         "hours": subject.hours,
-                        "unity_id": None,
+                        "unit_id": None,
                         **dict.fromkeys(REQUIREMENTS),
                     }
             print(

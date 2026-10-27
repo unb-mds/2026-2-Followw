@@ -1,6 +1,6 @@
 import pytest
 
-from api.db.models import Course, Curriculum, CurriculumComponent, Subject, Unity
+from api.db.models import Course, Curriculum, CurriculumComponent, Subject, Unit
 from api.sigaa import get_sigaa_public_client
 
 URL = "/public/courses/77/curriculum"
@@ -12,27 +12,27 @@ def test_lista_cursos_com_ids_turnos_e_unidades(client, database):
 
     client.app.dependency_overrides[get_sigaa_public_client] = forbidden
     with database.begin() as session:
-        session.add(Unity(id=999, name="UNIDADE SEM SIGLA"))
+        session.add(Unit(id=999, name="UNIDADE SEM SIGLA"))
         session.flush()
         session.add_all(
             [
                 Course(
-                    id=50, sigaa_id=500, name="TURISMO", shift="INTEGRAL", unity_id=673
+                    id=50, sigaa_id=500, name="TURISMO", shift="INTEGRAL", unit_id=673
                 ),
-                Course(id=12, name="CRIADO NO SYNC", unity_id=999),
+                Course(id=12, name="CRIADO NO SYNC", unit_id=999),
                 Course(
                     id=11,
                     sigaa_id=101,
                     name="ADMINISTRAÇÃO",
                     shift="NOTURNO",
-                    unity_id=673,
+                    unit_id=673,
                 ),
                 Course(
                     id=10,
                     sigaa_id=100,
                     name="ADMINISTRAÇÃO",
                     shift="DIURNO",
-                    unity_id=673,
+                    unit_id=673,
                 ),
             ]
         )
@@ -46,32 +46,28 @@ def test_lista_cursos_com_ids_turnos_e_unidades(client, database):
             "sigaa_id": 100,
             "name": "ADMINISTRAÇÃO",
             "shift": "DIURNO",
-            "unity_id": 673,
-            "unity": "FCTE",
+            "unit": {"id": 673, "code": "FCTE", "name": "CAMPUS UNB GAMA"},
         },
         {
             "id": 11,
             "sigaa_id": 101,
             "name": "ADMINISTRAÇÃO",
             "shift": "NOTURNO",
-            "unity_id": 673,
-            "unity": "FCTE",
+            "unit": {"id": 673, "code": "FCTE", "name": "CAMPUS UNB GAMA"},
         },
         {
             "id": 12,
             "sigaa_id": None,
             "name": "CRIADO NO SYNC",
             "shift": None,
-            "unity_id": 999,
-            "unity": None,
+            "unit": {"id": 999, "code": None, "name": "UNIDADE SEM SIGLA"},
         },
         {
             "id": 50,
             "sigaa_id": 500,
             "name": "TURISMO",
             "shift": "INTEGRAL",
-            "unity_id": 673,
-            "unity": "FCTE",
+            "unit": {"id": 673, "code": "FCTE", "name": "CAMPUS UNB GAMA"},
         },
     ]
 
@@ -115,12 +111,12 @@ def catalog(client, database):
         session.add_all(
             [
                 Course(
-                    id=77, sigaa_id=414924, name="ENGENHARIA DE SOFTWARE", unity_id=673
+                    id=77, sigaa_id=414924, name="ENGENHARIA DE SOFTWARE", unit_id=673
                 ),
                 Course(
-                    id=78, sigaa_id=414926, name="ENGENHARIA ELETRÔNICA", unity_id=673
+                    id=78, sigaa_id=414926, name="ENGENHARIA ELETRÔNICA", unit_id=673
                 ),
-                Course(id=79, name="SEM CURRÍCULO", unity_id=673),
+                Course(id=79, name="SEM CURRÍCULO", unit_id=673),
             ]
         )
         session.add_all(
@@ -129,7 +125,7 @@ def catalog(client, database):
                     code="FGA0001",
                     name="INTRODUÇÃO",
                     hours=60,
-                    unity_id=673,
+                    unit_id=673,
                     prerequisites=[["MAT0001", "MAT0002"], ["MAT0003"]],
                     corequisites=[["FGA0002"]],
                     equivalences=[["CIC0001"]],
@@ -253,7 +249,7 @@ def test_curriculo_por_ingresso_traz_materias_agrupadas_e_requisitos(catalog):
                         "code": "FGA0002",
                         "name": "OPTATIVA",
                         "hours": 30,
-                        "unity": None,
+                        "unit": None,
                         "prerequisites": None,
                         "corequisites": None,
                         "equivalences": None,
@@ -267,7 +263,7 @@ def test_curriculo_por_ingresso_traz_materias_agrupadas_e_requisitos(catalog):
                         "code": "FGA0001",
                         "name": "INTRODUÇÃO",
                         "hours": 60,
-                        "unity": "FCTE",
+                        "unit": {"id": 673, "code": "FCTE", "name": "CAMPUS UNB GAMA"},
                         "prerequisites": [["MAT0001", "MAT0002"], ["MAT0003"]],
                         "corequisites": [["FGA0002"]],
                         "equivalences": [["CIC0001"]],
@@ -281,7 +277,7 @@ def test_curriculo_por_ingresso_traz_materias_agrupadas_e_requisitos(catalog):
                         "code": "SEM_CATALOGO",
                         "name": None,
                         "hours": None,
-                        "unity": None,
+                        "unit": None,
                         "prerequisites": None,
                         "corequisites": None,
                         "equivalences": None,
@@ -294,7 +290,7 @@ def test_curriculo_por_ingresso_traz_materias_agrupadas_e_requisitos(catalog):
                 "code": "COMPLEMENTAR",
                 "name": None,
                 "hours": None,
-                "unity": None,
+                "unit": None,
                 "prerequisites": None,
                 "corequisites": None,
                 "equivalences": None,

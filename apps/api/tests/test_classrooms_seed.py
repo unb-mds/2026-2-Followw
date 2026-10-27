@@ -9,7 +9,7 @@ from api.db.seed.subjects import SUBJECTS_CSV, read_subjects
 def _csv(tmp_path, *lines):
     path = tmp_path / "classrooms.csv"
     path.write_text(
-        "subject_code,number,semester,schedule,room,vacancies,occupied,teachers\n"
+        "subject_code,number,semester,schedule,room,vacancies,occupied,professors\n"
         + "\n".join(lines)
         + "\n",
         encoding="utf-8",
@@ -54,7 +54,7 @@ async def test_seed_atualiza_so_docentes_e_vagas_e_ignora_componente_desconhecid
     async_database, tmp_path
 ):
     async with async_database.begin() as session:
-        session.add(Subject(code="FGA0001", name="A", unity_id=673))
+        session.add(Subject(code="FGA0001", name="A", unit_id=673))
     async with async_database.begin() as session:
         await seed_classrooms(
             session,

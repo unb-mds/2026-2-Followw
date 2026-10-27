@@ -133,7 +133,7 @@ def test_dashboard_traz_local_e_id_numerico():
     turma = _parse_dashboard(DASHBOARD)["AAA"]
 
     assert turma.sigaa_id == 1617644
-    assert (turma.subject.unity, turma.room) == ("FCTE", "MOCAP")
+    assert (turma.subject.unit, turma.room) == ("FCTE", "MOCAP")
     # O balão de ajuda não pode vazar para o horário.
     assert turma.schedule == "35M5 35T1"
 
@@ -193,7 +193,7 @@ def test_participantes_separam_docente_de_discente():
 
     discente = _parse_members(soup, "Discentes", ClassroomRole.ALUNO)[0]
     assert discente.registration == "251034885"
-    assert (discente.course, discente.unity) == ("ENGENHARIA DE SOFTWARE", "FCTE")
+    assert (discente.course, discente.unit) == ("ENGENHARIA DE SOFTWARE", "FCTE")
     assert discente.person_id == 2660998
     assert discente.photo is None  # no_picture.png não é foto
 

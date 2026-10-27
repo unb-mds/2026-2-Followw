@@ -4,7 +4,7 @@ from sqlalchemy import func, select
 from api.db.courses import course_ids
 from api.db.models import Course, User
 from api.db.seed.courses import COURSES_CSV, read_courses, seed_courses
-from api.db.seed.unities import UNITIES_CSV, read_unities
+from api.db.seed.units import UNITS_CSV, read_units
 
 LOGIN = {"registration": "251000000", "password": "senha123"}
 
@@ -12,7 +12,7 @@ LOGIN = {"registration": "251000000", "password": "senha123"}
 def _csv(tmp_path, *lines):
     path = tmp_path / "courses.csv"
     path.write_text(
-        "id,unity_id,shift,name\n" + "\n".join(lines) + "\n", encoding="utf-8"
+        "id,unit_id,shift,name\n" + "\n".join(lines) + "\n", encoding="utf-8"
     )
     return path
 
@@ -25,11 +25,11 @@ def _login(client, sigaa, course="ENGENHARIA DE SOFTWARE/FCTE - Bacharelado"):
 
 
 def test_csv_do_repositorio_aponta_para_unidades_que_existem():
-    unities = {unity.id for unity in read_unities(UNITIES_CSV)}
+    units = {unit.id for unit in read_units(UNITS_CSV)}
     courses = {course.sigaa_id: course for course in read_courses(COURSES_CSV)}
 
-    assert {course.unity_id for course in courses.values()} <= unities
-    assert (courses[414924].name, courses[414924].unity_id) == (
+    assert {course.unit_id for course in courses.values()} <= units
+    assert (courses[414924].name, courses[414924].unit_id) == (
         "ENGENHARIA DE SOFTWARE",
         673,
     )
@@ -70,12 +70,12 @@ async def test_curso_que_falta_e_criado_uma_vez(async_database):
     assert first == second
     async with async_database() as session:
         (course,) = (await session.scalars(select(Course))).all()
-    assert (course.sigaa_id, course.unity_id) == (None, 673)
+    assert (course.sigaa_id, course.unit_id) == (None, 673)
 
 
 async def test_curso_do_sigaa_e_reaproveitado(async_database):
     async with async_database.begin() as session:
-        session.add(Course(sigaa_id=5, name="SOFTWARE", unity_id=673))
+        session.add(Course(sigaa_id=5, name="SOFTWARE", unit_id=673))
     async with async_database.begin() as session:
         ids = await course_ids(session, [("SOFTWARE", "FCTE")])
 
@@ -87,7 +87,7 @@ async def test_curso_do_sigaa_e_reaproveitado(async_database):
 
 def _administracao(session, *shifts):
     session.add_all(
-        Course(sigaa_id=i, name="ADMINISTRAÇÃO", shift=shift, unity_id=673)
+        Course(sigaa_id=i, name="ADMINISTRAÇÃO", shift=shift, unit_id=673)
         for i, shift in enumerate(shifts, 1)
     )
 
@@ -156,14 +156,19 @@ def test_perfil_cria_o_curso_e_o_reaproveita_no_proximo_login(client, sigaa, dat
     _login(client, sigaa)
 
     perfil = client.get("/me").json()
-    assert (perfil["course"], perfil["unity"]) == ("ENGENHARIA DE SOFTWARE", "FCTE")
+    assert perfil["unit"] == {"id": 673, "code": "FCTE", "name": "CAMPUS UNB GAMA"}
     _login(client, sigaa)
     with database() as session:
         user = session.scalar(select(User).where(User.registration == "251000000"))
-        assert (user.course.name, user.course.unity_id) == (
+        assert (user.course.name, user.course.unit_id) == (
             "ENGENHARIA DE SOFTWARE",
             673,
         )
+        assert perfil["course"] == {
+            "id": user.course.id,
+            "name": "ENGENHARIA DE SOFTWARE",
+            "shift": None,
+        }
         assert session.scalar(select(func.count(Course.id))) == 1
 
 
@@ -173,7 +178,7 @@ def test_perfil_com_unidade_fora_da_tabela_fica_sem_curso(client, sigaa, databas
     response = client.get("/me")
 
     assert response.status_code == 200
-    assert (response.json()["course"], response.json()["unity"]) == (None, None)
+    assert (response.json()["course"], response.json()["unit"]) == (None, None)
     with database() as session:
         assert session.scalar(select(User.course_id)) is None
 
@@ -181,21 +186,24 @@ def test_perfil_com_unidade_fora_da_tabela_fica_sem_curso(client, sigaa, databas
 def test_perfil_de_curso_ambiguo_fica_com_o_diurno(client, sigaa, database):
     with database.begin() as session:
         session.add_all(
-            Course(sigaa_id=i, name="ENGENHARIA DE SOFTWARE", shift=shift, unity_id=673)
+            Course(sigaa_id=i, name="ENGENHARIA DE SOFTWARE", shift=shift, unit_id=673)
             for i, shift in ((1, "NOTURNO"), (2, "DIURNO"))
         )
     _login(client, sigaa)
 
     perfil = client.get("/me").json()
 
-    assert (perfil["course"], perfil["unity"]) == ("ENGENHARIA DE SOFTWARE", "FCTE")
-    assert perfil["shift"] == "DIURNO"
+    assert perfil["unit"] == {"id": 673, "code": "FCTE", "name": "CAMPUS UNB GAMA"}
+    assert (perfil["course"]["name"], perfil["course"]["shift"]) == (
+        "ENGENHARIA DE SOFTWARE",
+        "DIURNO",
+    )
 
 
 def test_perfil_noturno_liga_o_curso_noturno(client, sigaa, database):
     with database.begin() as session:
         session.add_all(
-            Course(sigaa_id=i, name="ENGENHARIA DE SOFTWARE", shift=shift, unity_id=673)
+            Course(sigaa_id=i, name="ENGENHARIA DE SOFTWARE", shift=shift, unit_id=673)
             for i, shift in ((1, "DIURNO"), (2, "NOTURNO"))
         )
     _login(client, sigaa, "ENGENHARIA DE SOFTWARE/FCTE - Bacharelado - N")

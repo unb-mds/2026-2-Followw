@@ -6,7 +6,7 @@ import { describe, expect, test } from 'bun:test';
 import { apiClient } from '#/queries/client.ts';
 import { campusOf, menuQueryOptions, prefetchWeekMenus } from '#/queries/restaurant.ts';
 
-const user = { unity: 'FCTE' };
+const user = { unit: { id: 673, code: 'FCTE', name: 'CAMPUS UNB GAMA' } };
 const date = '2026-09-26';
 const paramsOf = (options: ReturnType<typeof menuQueryOptions>) => options.queryKey[2];
 

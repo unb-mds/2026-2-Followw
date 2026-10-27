@@ -1,7 +1,8 @@
 from datetime import date
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
 from fastapi import APIRouter, Query
+from pydantic import BaseModel, Field, model_validator
 from unb_browser import Campus, DailyMenu
 
 from api.cache import CacheControlDep
@@ -17,6 +18,35 @@ _CAMPUSES = {
 }
 
 
+class MenuQuery(BaseModel):
+    campus: Literal[*_CAMPUSES] = Field("Darcy", description="Campus do restaurante.")
+    day: date | None = Field(
+        None, alias="date", description="Dia específico (AAAA-MM-DD)."
+    )
+    start_date: date | None = Field(
+        None, description="Início do intervalo (AAAA-MM-DD)."
+    )
+    end_date: date | None = Field(None, description="Fim do intervalo (AAAA-MM-DD).")
+    meal: Meal | None = Field(
+        None,
+        description="Retorna apenas a refeição escolhida e a data. Se não publicada no dia, a refeição é null. Sem filtro, retorna todas.",
+    )
+
+    @model_validator(mode="after")
+    def _interval(self) -> Self:
+        if self.day is not None and (
+            self.start_date is not None or self.end_date is not None
+        ):
+            raise ValueError("Use date or start_date/end_date, not both")
+        if (
+            self.start_date is not None
+            and self.end_date is not None
+            and self.start_date > self.end_date
+        ):
+            raise ValueError("start_date must not be after end_date")
+        return self
+
+
 @router.get(
     "",
     response_model=tuple[DailyMenu, ...],
@@ -28,30 +58,13 @@ _CAMPUSES = {
 async def get_menu(
     service: RestaurantServiceDep,
     cache: CacheControlDep,
-    campus: Annotated[
-        Literal[*_CAMPUSES], Query(description="Campus do restaurante.")
-    ] = "Darcy",
-    day: Annotated[
-        date | None, Query(alias="date", description="Dia específico (AAAA-MM-DD).")
-    ] = None,
-    start_date: Annotated[
-        date | None, Query(description="Início do intervalo (AAAA-MM-DD).")
-    ] = None,
-    end_date: Annotated[
-        date | None, Query(description="Fim do intervalo (AAAA-MM-DD).")
-    ] = None,
-    meal: Annotated[
-        Meal | None,
-        Query(
-            description="Retorna apenas a refeição escolhida e a data. Se não publicada no dia, a refeição é null. Sem filtro, retorna todas."
-        ),
-    ] = None,
+    query: Annotated[MenuQuery, Query()],
 ) -> tuple[DailyMenu, ...]:
     return await service.get_menu(
-        _CAMPUSES[campus],
+        _CAMPUSES[query.campus],
         cache,
-        day=day,
-        start_date=start_date,
-        end_date=end_date,
-        meal=meal,
+        day=query.day,
+        start_date=query.start_date,
+        end_date=query.end_date,
+        meal=query.meal,
     )

@@ -17,14 +17,14 @@ type _Terms = list[tuple[str, ...]]
 
 
 def read_subjects(path: Path = SUBJECTS_CSV) -> list[Subject]:
-    """Os componentes do CSV (`code,name,hours,unity_id,prerequisites,...`)."""
+    """Os componentes do CSV (`code,name,hours,unit_id,prerequisites,...`)."""
     return read_csv(
         path,
         lambda row: Subject(
             code=row["code"].strip().upper(),
             name=row["name"].strip(),
             hours=int(row["hours"]) if row["hours"] else None,
-            unity_id=int(row["unity_id"]) if row["unity_id"] else None,
+            unit_id=int(row["unit_id"]) if row["unit_id"] else None,
             **{field: parse_requirements(row[field]) for field in REQUIREMENTS},
         ),
         unique=(("code",),),
@@ -38,7 +38,7 @@ async def seed_subjects(session: AsyncSession, path: Path = SUBJECTS_CSV) -> Non
         Subject,
         read_subjects(path),
         ("code",),
-        ("name", "hours", "unity_id", *REQUIREMENTS),
+        ("name", "hours", "unit_id", *REQUIREMENTS),
     )
 
 

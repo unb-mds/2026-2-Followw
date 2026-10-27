@@ -8,7 +8,7 @@ import { callRoute, fakeQueryClient, runLoader } from '../helpers/route';
 
 interface User {
     registration: string;
-    unity: string;
+    unit: { id: number; code: string | null; name: string };
     level?: string;
 }
 
@@ -32,22 +32,28 @@ describe('loader da busca de turmas', () => {
     });
 
     test('com login pré-carrega o histórico e as matérias da unidade', async () => {
-        const keys = await loadWith({ registration: '1', unity: 'FCTE' });
+        const keys = await loadWith({
+            registration: '1',
+            unit: { id: 673, code: 'FCTE', name: 'CAMPUS UNB GAMA' }
+        });
         expect(keys.map((key) => key[1])).toEqual(['/me', '/classrooms', '/public/subjects']);
         expect(keys[2][2]).toEqual({ params: { query: { unit: 'FCTE' } } });
     });
 
-    test.each([null, { registration: '1', unity: 'FCTE' }])(
-        'uma URL direta pré-carrega a pesquisa, com perfil %p',
-        async (user) => {
-            const keys = await loadWith(user, '?q=calculo&turno=Noite');
-            const subjects = keys.find((key) => key[1] === '/public/subjects');
-            expect(subjects?.[2]).toEqual({ params: { query: { q: 'calculo' } } });
-        }
-    );
+    test.each([
+        null,
+        { registration: '1', unit: { id: 673, code: 'FCTE', name: 'CAMPUS UNB GAMA' } }
+    ])('uma URL direta pré-carrega a pesquisa, com perfil %p', async (user) => {
+        const keys = await loadWith(user, '?q=calculo&turno=Noite');
+        const subjects = keys.find((key) => key[1] === '/public/subjects');
+        expect(subjects?.[2]).toEqual({ params: { query: { q: 'calculo' } } });
+    });
 
     test.each(['ab', 'a'.repeat(33)])('query inválida %s pré-carrega a unidade', async (q) => {
-        const keys = await loadWith({ registration: '1', unity: 'FCTE' }, `?q=${q}`);
+        const keys = await loadWith(
+            { registration: '1', unit: { id: 673, code: 'FCTE', name: 'CAMPUS UNB GAMA' } },
+            `?q=${q}`
+        );
         const subjects = keys.filter((key) => key[1] === '/public/subjects');
         expect(subjects.map((key) => key[2])).toEqual([{ params: { query: { unit: 'FCTE' } } }]);
         expect((await loadWith(null, `?q=${q}`)).map((key) => key[1])).toEqual(['/me']);
@@ -60,7 +66,11 @@ describe('loader da busca de turmas', () => {
 });
 
 describe('recomendações somente na busca', () => {
-    const student = { registration: '1', unity: 'FCTE', level: 'Graduação' };
+    const student = {
+        registration: '1',
+        unit: { id: 673, code: 'FCTE', name: 'CAMPUS UNB GAMA' },
+        level: 'Graduação'
+    };
     test('graduação sem texto e filtros carrega recomendações em vez da lista da unidade', async () => {
         const keys = await loadWith(student);
         expect(keys.map((key) => key[1])).toEqual(['/me', '/classrooms', '/public/subjects']);

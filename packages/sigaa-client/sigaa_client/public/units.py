@@ -23,7 +23,7 @@ def resolve_unit(units: list[Unit], wanted: Unit | int | str) -> int:
         return wanted.id
     if isinstance(wanted, int):
         return wanted
-    if wanted.isdigit():
+    if wanted.isascii() and wanted.isdigit():
         return int(wanted)
     needle = lookup_key(wanted)
     matches = [unit for unit in units if needle in lookup_key(unit.name)]
