@@ -65,29 +65,5 @@ export const NotFoundPage: React.FC = () => (
                 </Link>
             </div>
         </section>
-
-        <footer className="absolute inset-x-0 bottom-0 z-10 px-6 pb-6 text-center text-xs text-muted-foreground">
-            <p className="mx-auto max-w-xl leading-relaxed">
-                Fotos do ICC:{' '}
-                <a className="underline" href="https://commons.wikimedia.org/wiki/File:ICC_UnB.jpg">
-                    Nossedotti
-                </a>{' '}
-                e{' '}
-                <a
-                    className="underline"
-                    href="https://commons.wikimedia.org/wiki/File:Universidade_de_Bras%C3%ADlia_Instituto_Central_de_Ci%C3%AAncias_Minhoc%C3%A3o_corredor.JPG"
-                >
-                    G. A. Aucahuasi
-                </a>{' '}
-                ·{' '}
-                <a className="underline" href="https://creativecommons.org/licenses/by-sa/3.0/">
-                    CC BY-SA 3.0
-                </a>
-                <span className="sr-only">
-                    . Nossedotti: domínio público. Guillermo Arévalo Aucahuasi: CC BY-SA 3.0.
-                    Fotografias convertidas para WebP, recortadas e exibidas em preto e branco.
-                </span>
-            </p>
-        </footer>
     </main>
 );

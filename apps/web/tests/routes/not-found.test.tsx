@@ -70,7 +70,7 @@ describe('página não encontrada', () => {
         }
     });
 
-    test('mantém a arte decorativa e os créditos das fotografias acessíveis', async () => {
+    test('mantém a arte decorativa com arquivos locais e sem créditos na página', async () => {
         const { markup } = await renderMissingPage('/fora-do-mapa');
         const browser = new Window();
         try {
@@ -89,12 +89,9 @@ describe('página não encontrada', () => {
                 )
             );
             expect(filesExist).toEqual([true, true, true]);
-            expect(document.querySelector('footer')?.textContent).toContain(
-                'Guillermo Arévalo Aucahuasi'
-            );
-            expect(
-                document.querySelector('a[href="https://creativecommons.org/licenses/by-sa/3.0/"]')
-            ).not.toBeNull();
+            expect(document.querySelector('footer')).toBeNull();
+            expect(document.querySelector('a[href^="https://commons.wikimedia.org/"]')).toBeNull();
+            expect(document.body.textContent).not.toContain('Fotos do ICC');
         } finally {
             await browser.happyDOM.close();
         }
