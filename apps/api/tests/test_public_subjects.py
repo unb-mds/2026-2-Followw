@@ -190,6 +190,7 @@ def test_unit_por_id_ou_codigo_combina_com_q(catalog, unit):
         ({"unit": "999"}, "Unidade `999` não encontrada."),
         ({"unit": "ceilandia"}, "Unidade `ceilandia` não encontrada."),
         ({"unit": "FC"}, "Unidade `FC` não encontrada."),
+        ({"unit": "²"}, "Unidade `²` não encontrada."),
     ],
 )
 def test_filtros_invalidos_sao_422(catalog, params, detail):

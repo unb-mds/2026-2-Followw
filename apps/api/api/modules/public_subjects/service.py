@@ -85,7 +85,7 @@ class PublicSubjectService:
         q: str | None = None,
         *,
         code: str | None = None,
-        unit: str | None = None,
+        unit: int | str | None = None,
         semester: str | None = None,
         sync: Sync | None = None,
     ) -> list[CatalogSubject]:
@@ -104,20 +104,15 @@ async def _search(
     session: AsyncSession,
     q: str | None,
     code: str | None,
-    unit: str | None,
+    unit: int | str | None,
     semester: str | None,
     registration: str | None,
 ) -> list[CatalogSubject]:
     repository = SubjectCatalogRepository(session)
-    unit_id = None
-    if unit is not None:
-        found = await find_unit(session, unit)
-        if found is None:
-            raise _invalid(f"Unidade `{unit.strip()}` não encontrada.")
-        unit_id = found.id
+    unit_id = (await find_unit(session, unit)).id if unit is not None else None
     subjects = await repository.list_subjects(
         q=q,
-        code=code.strip().upper() if code is not None else None,
+        code=code,
         unit_id=unit_id,
         semester=semester,
     )

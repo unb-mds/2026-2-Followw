@@ -1,6 +1,6 @@
 from collections.abc import Collection
 
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.models import Unit
@@ -19,10 +19,18 @@ async def unit_ids(
     return {code: id_ for code, id_ in rows}
 
 
-async def find_unit(session: AsyncSession, wanted: str) -> Unit | None:
-    """A unidade pelo id ou pela sigla, ignorando caixa e espaços."""
-    wanted = wanted.strip()
-    condition = Unit.code == wanted.upper()
-    if wanted.isdigit() and int(wanted) < 2**31:
-        condition = or_(Unit.id == int(wanted), condition)
-    return await session.scalar(select(Unit).where(condition))
+class UnitNotFound(LookupError):
+    def __init__(self, wanted: int | str) -> None:
+        super().__init__(f"Unidade `{wanted}` não encontrada.")
+
+
+async def find_unit(session: AsyncSession, wanted: int | str) -> Unit:
+    """A unidade pelo id ou pela sigla exata, ignorando caixa."""
+    if isinstance(wanted, int):
+        condition = Unit.id == wanted
+    else:
+        condition = Unit.code == wanted.upper()
+    unit = await session.scalar(select(Unit).where(condition))
+    if unit is None:
+        raise UnitNotFound(wanted)
+    return unit

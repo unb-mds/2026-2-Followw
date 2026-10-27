@@ -154,11 +154,11 @@ class PublicProfessors:
                 "O nome do docente precisa ter ao menos 4 caracteres."
             )
         try:
-            page, units = await self._search(unit, name)
+            page, units, searched = await self._search(unit, name)
         except SessionExpired:
             await self._session.restart()
-            page, units = await self._search(unit, name)
-        return _parse_results(page, units)
+            page, units, searched = await self._search(unit, name)
+        return _parse_results(page, units, searched)
 
     async def get_profile(self, professor: Professor) -> ProfessorProfile:
         # shortcut: o SIGAA troca o docente em sessões compartilhadas; serializar se houver chamadas paralelas.
@@ -174,17 +174,22 @@ class PublicProfessors:
 
     async def _search(
         self, unit: Unit | int | str | None, name: str | None
-    ) -> tuple[BeautifulSoup, list[Unit]]:
+    ) -> tuple[BeautifulSoup, list[Unit], Unit | None]:
         form = read_form(await self._session.open(PUBLIC_PROFESSORS_PATH), FORM_ID)
         units = parse_units(form, DEPARTMENT_FIELD)
         values = {NAME_FIELD: (name or "").strip()}
+        searched = None
         if unit is not None:
-            values[DEPARTMENT_FIELD] = str(resolve_unit(units, unit))
+            unit_id = resolve_unit(units, unit)
+            values[DEPARTMENT_FIELD] = str(unit_id)
+            searched = next((item for item in units if item.id == unit_id), None)
         action, payload = build_submit(form, values, SEARCH_BUTTON)
-        return await self._session.submit(action, payload), units
+        return await self._session.submit(action, payload), units, searched
 
 
-def _parse_results(page: BeautifulSoup, units: list[Unit]) -> list[Professor]:
+def _parse_results(
+    page: BeautifulSoup, units: list[Unit], searched: Unit | None = None
+) -> list[Professor]:
     messages = [clean_text(item) for item in page.select("ul.erros li")]
     if any(_NO_RESULTS in lookup_key(message) for message in messages):
         return []
@@ -198,10 +203,9 @@ def _parse_results(page: BeautifulSoup, units: list[Unit]) -> list[Professor]:
         name = row.select_one("span.nome")
         if not isinstance(name, Tag):
             continue
-        department_name = row.select_one("span.departamento")
         anchor = row.select_one("span.pagina a[href]")
-        if not isinstance(department_name, Tag) or not isinstance(anchor, Tag):
-            raise SigaaParseError("Docente sem departamento ou link público na busca.")
+        if not isinstance(anchor, Tag):
+            raise SigaaParseError("Docente sem link público na busca.")
         url = urljoin(SIGAA_BASE_URL, str(anchor["href"]))
         parsed = urlparse(url)
         if (
@@ -216,23 +220,12 @@ def _parse_results(page: BeautifulSoup, units: list[Unit]) -> list[Professor]:
         photo = photo_url(str(image["src"])) if isinstance(image, Tag) else None
         if photo is not None and urlparse(photo).scheme not in ("http", "https"):
             photo = None
-        unit_name = clean_text(department_name)
-        key = lookup_key(unit_name)
-        matches = [
-            unit
-            for unit in units
-            if (candidate := lookup_key(unit.name)) == key
-            or candidate.startswith(f"{key} - ")
-        ]
-        if len(matches) != 1:
-            raise SigaaParseError(
-                f"Departamento `{unit_name}` não corresponde a uma única opção da busca."
-            )
         professors.append(
             Professor(
                 siape=int(siape),
                 name=clean_text(name),
-                unit=matches[0],
+                # A busca por departamento só traz docentes dele.
+                unit=searched or _department(row, units),
                 photo=photo,
                 url=url,
             )
@@ -240,6 +233,26 @@ def _parse_results(page: BeautifulSoup, units: list[Unit]) -> list[Professor]:
     if not professors:
         raise SigaaParseError("Tabela de docentes sem linhas reconhecidas.")
     return professors
+
+
+def _department(row: Tag, units: list[Unit]) -> Unit:
+    """A opção da busca que corresponde ao departamento escrito na linha."""
+    department = row.select_one("span.departamento")
+    if not isinstance(department, Tag):
+        raise SigaaParseError("Docente sem departamento na busca.")
+    unit_name = clean_text(department)
+    key = lookup_key(unit_name)
+    matches = [
+        unit
+        for unit in units
+        if (candidate := lookup_key(unit.name)) == key
+        or candidate.startswith(f"{key} - ")
+    ]
+    if len(matches) != 1:
+        raise SigaaParseError(
+            f"Departamento `{unit_name}` não corresponde a uma única opção da busca."
+        )
+    return matches[0]
 
 
 def _field(section: Tag, label: str) -> Tag | None:

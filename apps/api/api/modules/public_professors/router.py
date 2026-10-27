@@ -9,6 +9,7 @@ from api.modules.public_professors.service import (
     ProfessorPage,
     ProfessorServiceDep,
 )
+from api.schemas import UnitFilter
 
 router = APIRouter()
 
@@ -34,12 +35,8 @@ async def list_professors(
         StringConstraints(strip_whitespace=True),
     ] = None,
     unit: Annotated[
-        str | None,
-        Query(
-            min_length=1,
-            pattern=r"\S",
-            description="ID ou código exato da unidade, como 673 ou FCTE.",
-        ),
+        UnitFilter | None,
+        Query(description="ID ou código exato da unidade, como 673 ou FCTE."),
     ] = None,
     semester: Annotated[
         str | None,

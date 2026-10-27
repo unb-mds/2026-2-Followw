@@ -76,7 +76,7 @@ def public_sigaa():
         yield fake
 
 
-@pytest.mark.parametrize("unit", ["673", "gama", "  GAMA  ", "fcte"])
+@pytest.mark.parametrize("unit", ["673", " 673 ", "fcte", " FCTE "])
 def test_busca_publica_sem_login_preserva_defaults_do_sigaa(client, public_sigaa, unit):
     def dependency_proibida():
         pytest.fail("Busca pública não deve usar fila")
@@ -84,7 +84,7 @@ def test_busca_publica_sem_login_preserva_defaults_do_sigaa(client, public_sigaa
     def sessao_proibida(*args, **kwargs):
         pytest.fail("Busca por unidade não deve consultar o banco")
 
-    if unit.isdigit():
+    if unit.strip().isdigit():
         client.app.dependency_overrides[get_sessionmaker] = lambda: sessao_proibida
     client.app.dependency_overrides[get_job_queue] = dependency_proibida
     response = client.get("/public/classrooms", params={"unit": unit})
@@ -120,7 +120,7 @@ def test_busca_publica_sem_login_preserva_defaults_do_sigaa(client, public_sigaa
 @pytest.mark.parametrize("semester", ["2026.2", "2027.1", "2026.4"])
 def test_semestre_explicito_sobrescreve_ano_e_periodo(client, public_sigaa, semester):
     response = client.get(
-        "/public/classrooms", params={"unit": "gama", "semester": semester}
+        "/public/classrooms", params={"unit": "673", "semester": semester}
     )
 
     assert response.status_code == 200
@@ -137,11 +137,14 @@ def test_semestre_explicito_sobrescreve_ano_e_periodo(client, public_sigaa, seme
         {},
         {"unit": ""},
         {"unit": "   "},
-        {"unit": "gama", "number": ""},
-        {"unit": "gama", "number": "   "},
+        {"unit": "0"},
+        {"unit": "2147483648"},
+        {"code": "fga"},
+        {"unit": "673", "number": ""},
+        {"unit": "673", "number": "   "},
         {"number": "01"},
         *(
-            {"unit": "gama", "semester": value}
+            {"unit": "673", "semester": value}
             for value in ("", "all", "2026", "2026.12", "26.2", "2026-2", "abcd.2")
         ),
     ],
@@ -151,18 +154,13 @@ def test_filtros_invalidos_nao_consultam_sigaa(client, public_sigaa, params):
     assert public_sigaa.paths == []
 
 
-@pytest.mark.parametrize(
-    "unit,message",
-    [("campus", "casa com 2 unidades"), ("inexistente", "Nenhuma unidade")],
-)
-def test_unidade_ambigua_ou_inexistente_informa_erro(
-    client, public_sigaa, unit, message
-):
+@pytest.mark.parametrize("unit", ["gama", "campus", "FCT"])
+def test_unidade_por_nome_ou_sigla_inexistente_retorna_422(client, public_sigaa, unit):
     response = client.get("/public/classrooms", params={"unit": unit})
 
     assert response.status_code == 422
-    assert message in response.json()["detail"]
-    assert public_sigaa.payloads == []
+    assert response.json()["detail"] == f"Unidade `{unit}` não encontrada."
+    assert public_sigaa.paths == []
 
 
 def test_filtro_recusado_pelo_sigaa_retorna_422(client, public_sigaa):
@@ -176,7 +174,7 @@ def test_busca_sem_resultados_retorna_lista_vazia(client, public_sigaa):
     public_sigaa.result = (
         '<ul class="erros"><li>Não foram encontrados resultados.</li></ul>'
     )
-    response = client.get("/public/classrooms?unit=gama")
+    response = client.get("/public/classrooms?unit=673")
     assert response.status_code == 200
     assert response.json() == []
     assert response.headers["cache-control"] == "no-store"
@@ -186,7 +184,7 @@ def test_busca_sem_resultados_retorna_lista_vazia(client, public_sigaa):
     "contains,expected", [(None, [672, 673]), ("ceilandia", [672])]
 )
 def test_unidades_vem_do_formulario_sem_login(client, public_sigaa, contains, expected):
-    params = {"contains": contains} if contains is not None else {}
+    params = {"q": contains} if contains is not None else {}
     response = client.get("/public/classrooms/units", params=params)
     assert response.status_code == 200
     assert response.headers["cache-control"] == "no-store"
@@ -204,7 +202,7 @@ def test_unidades_trazem_a_sigla_gravada(client, public_sigaa):
 
 
 @pytest.mark.parametrize(
-    "path", ["/public/classrooms?unit=gama", "/public/classrooms/units"]
+    "path", ["/public/classrooms?unit=673", "/public/classrooms/units"]
 )
 @pytest.mark.parametrize("error", ["http", "html"])
 def test_falha_do_sigaa_publico_retorna_502(client, public_sigaa, path, error):
@@ -216,7 +214,7 @@ def test_falha_do_sigaa_publico_retorna_502(client, public_sigaa, path, error):
 
 
 def test_classrooms_continua_privado(client, public_sigaa):
-    assert client.get("/classrooms", params={"unit": "gama"}).status_code == 401
+    assert client.get("/classrooms", params={"unit": "673"}).status_code == 401
     assert public_sigaa.paths == []
 
 
@@ -224,11 +222,11 @@ def test_openapi_publico_documenta_filtros(client):
     paths = client.get("/openapi.json").json()["paths"]
     route = paths["/public/classrooms"]["get"]
     params = {p["name"]: p for p in route["parameters"]}
-    assert set(params) == {"unit", "semester", "contains", "local", "code", "number"}
+    assert set(params) == {"unit", "semester", "q", "local", "code", "number"}
     assert params["unit"]["required"] is False
     assert params["code"]["required"] is False
     assert params["semester"]["required"] is False
-    assert params["contains"]["required"] is False
+    assert params["q"]["required"] is False
     assert params["local"]["required"] is False
     assert params["number"]["required"] is False
     number_schema = params["number"]["schema"]["anyOf"][0]
@@ -284,16 +282,16 @@ def test_contains_filtra_disciplina_codigo_ou_docente(
       </tr>
     </table>
     """
-    params = {"unit": "gama", "semester": "2026.4"}
+    params = {"unit": "673", "semester": "2026.4"}
     if contains is not None:
-        params["contains"] = contains
+        params["q"] = contains
     response = client.get("/public/classrooms", params=params)
 
     assert response.status_code == 200
     assert [classroom["number"] for classroom in response.json()] == expected
     assert len(public_sigaa.payloads) == 1
     payload = public_sigaa.payloads[0]
-    assert "contains" not in payload
+    assert "q" not in payload
     assert payload["formTurma:inputDepto"] == "673"
     assert payload["formTurma:inputAno"] == "2026"
     assert payload["formTurma:inputPeriodo"] == "4"
@@ -346,11 +344,11 @@ def test_local_filtra_local_completo_e_combina_com_contains(
       </tr>
     </table>
     """
-    params = {"unit": "gama", "semester": "2026.2"}
+    params = {"unit": "673", "semester": "2026.2"}
     if local is not None:
         params["local"] = local
     if contains is not None:
-        params["contains"] = contains
+        params["q"] = contains
     response = client.get("/public/classrooms", params=params)
 
     assert response.status_code == 200
@@ -358,7 +356,7 @@ def test_local_filtra_local_completo_e_combina_com_contains(
     assert len(public_sigaa.payloads) == 1
     payload = public_sigaa.payloads[0]
     assert "local" not in payload
-    assert "contains" not in payload
+    assert "q" not in payload
     assert payload["formTurma:inputDepto"] == "673"
     assert payload["formTurma:inputAno"] == "2026"
     assert payload["formTurma:inputPeriodo"] == "2"
@@ -476,7 +474,7 @@ def test_unit_explicita_dispensa_indice_e_restringe_busca(
 
     monkeypatch.setattr(UnitIndexRepository, "unit_ids", index_proibido)
     public_sigaa.result = RESULTS.replace("FGA0030", "NOVO0001")
-    response = client.get("/public/classrooms?unit=gama&code=NOVO0001")
+    response = client.get("/public/classrooms?unit=673&code=NOVO0001")
     assert response.status_code == 200
     assert len(response.json()) == 1
     assert [p["formTurma:inputDepto"] for p in public_sigaa.payloads] == ["673"]
@@ -494,7 +492,7 @@ def test_code_combina_semestre_contains_e_local(
         params={
             "code": "FGA0030",
             "semester": "2026.4",
-            "contains": contains,
+            "q": contains,
             "local": local,
         },
     )
@@ -535,10 +533,10 @@ def test_codigo_ausente_nao_e_inferido_por_intervalo_ou_prefixo(
 def test_codigo_sem_oferta_na_unidade_explicita_informa_escopo(
     client, public_sigaa, code_index
 ):
-    response = client.get("/public/classrooms?unit=gama&code=NOVO0001&semester=2026.4")
+    response = client.get("/public/classrooms?unit=673&code=NOVO0001&semester=2026.4")
     assert response.status_code == 404
     assert response.json()["detail"] == (
-        "Nenhuma turma encontrada para o código `NOVO0001` na unidade `gama` "
+        "Nenhuma turma encontrada para o código `NOVO0001` na unidade `673` "
         "no semestre `2026.4`. A disciplina pode não existir ou não ter oferta "
         "nessas condições. Confira `code`, `unit` e `semester`."
     )
@@ -570,12 +568,12 @@ def test_codigo_sem_oferta_nao_oculta_falha_do_sigaa(client, public_sigaa, code_
 
 
 def test_contains_com_codigo_ausente_continua_lista_vazia(client, public_sigaa):
-    response = client.get("/public/classrooms?unit=gama&contains=FGA9999")
+    response = client.get("/public/classrooms?unit=673&q=FGA9999")
     assert response.status_code == 200
     assert response.json() == []
 
 
-@pytest.mark.parametrize("selector", [{"unit": "gama"}, {"code": "FGA0030"}])
+@pytest.mark.parametrize("selector", [{"unit": "673"}, {"code": "FGA0030"}])
 @pytest.mark.parametrize(
     "number,expected",
     [
@@ -619,7 +617,7 @@ def test_number_com_e_sem_zero_seleciona_a_mesma_turma(
 @pytest.mark.parametrize("number", ["A", "1A", "0", "00", "100", "-1", "1.5"])
 def test_number_invalido_nao_consulta_sigaa(client, public_sigaa, number):
     response = client.get(
-        "/public/classrooms", params={"unit": "gama", "number": number}
+        "/public/classrooms", params={"unit": "673", "number": number}
     )
     assert response.status_code == 422
     assert public_sigaa.paths == []
@@ -629,7 +627,7 @@ def test_number_invalido_nao_consulta_sigaa(client, public_sigaa, number):
 def test_number_aceita_turma_sem_zero_no_sigaa(client, public_sigaa, number):
     public_sigaa.result = RESULTS.replace("<td>01</td>", "<td>1</td>")
     response = client.get(
-        "/public/classrooms", params={"unit": "gama", "number": number}
+        "/public/classrooms", params={"unit": "673", "number": number}
     )
     assert response.status_code == 200
     assert [row["number"] for row in response.json()] == ["1"]
@@ -651,11 +649,11 @@ def test_number_combina_com_codigo_semestre_contains_e_local(
     response = client.get(
         "/public/classrooms",
         params={
-            "unit": "gama",
+            "unit": "673",
             "code": "FGA0030",
             "semester": "2026.2",
             "number": number,
-            "contains": contains,
+            "q": contains,
             "local": local,
         },
     )

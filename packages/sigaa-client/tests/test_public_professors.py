@@ -95,6 +95,18 @@ async def test_busca_usa_departamento_viewstate_e_link_siape():
     assert professors[0].photo is None
 
 
+async def test_busca_por_departamento_usa_a_unidade_buscada_sem_casar_o_texto():
+    fake = FakeSigaa(
+        results=RESULTS.replace("DEPTO CIÊNCIAS DA COMPUTAÇÃO", "DEPTO CIC")
+    )
+    async with SigaaPublicClient(transport=httpx.MockTransport(fake)) as client:
+        professors = await client.professors.search(508)
+        with pytest.raises(SigaaParseError, match="DEPTO CIC"):
+            await client.professors.search(name="Maria")
+
+    assert professors[0].unit.id == 508
+
+
 async def test_perfil_e_disciplinas_de_graduacao_agregadas():
     fake = FakeSigaa()
     async with SigaaPublicClient(transport=httpx.MockTransport(fake)) as client:

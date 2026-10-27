@@ -190,7 +190,7 @@ export interface paths {
         };
         /**
          * Buscar turmas públicas do SIGAA, sem login
-         * @description Consulta diretamente o SIGAA, sem filtrar o nível de ensino. Informe unit ou code. Sem unit, o prefixo de letras do código determina as unidades consultadas, pelas matérias conhecidas no banco; o código completo deve corresponder exatamente. Sem semester, preserva o ano/período do formulário do SIGAA. Com code, retorna 404 se não houver oferta nas unidades e no semestre consultados; isso não confirma que a disciplina inexiste. Se apenas number, contains ou local excluir as turmas encontradas, retorna uma lista vazia (200).
+         * @description Consulta diretamente o SIGAA, sem filtrar o nível de ensino. Informe unit ou code. Sem unit, o prefixo de letras do código determina as unidades consultadas, pelas matérias conhecidas no banco; o código completo deve corresponder exatamente. Sem semester, preserva o ano/período do formulário do SIGAA. Com code, retorna 404 se não houver oferta nas unidades e no semestre consultados; isso não confirma que a disciplina inexiste. Se apenas number, q ou local excluir as turmas encontradas, retorna uma lista vazia (200).
          */
         get: operations["search_classrooms_public_classrooms_get"];
         put?: never;
@@ -1662,13 +1662,13 @@ export interface operations {
     search_classrooms_public_classrooms_get: {
         parameters: {
             query?: {
-                /** @description ID, código ou parte do nome da unidade, como 673, FCTE ou 'gama'. Obrigatório quando code não for informado. Com code, restringe a busca a esta unidade. Consulte /public/classrooms/units para obter os IDs. */
-                unit?: string | null;
+                /** @description ID ou sigla exata da unidade, como 673 ou FCTE. Obrigatório quando code não for informado. Com code, restringe a busca a esta unidade. Consulte /public/classrooms/units para obter os IDs. */
+                unit?: number | string | null;
                 /** @description Opcional, no formato AAAA.P: 2026.2, 2027.1 ou 2026.4. Sem filtro, usa os valores do SIGAA. */
                 semester?: string | null;
                 /** @description Trecho do nome ou código da disciplina, ou do nome de qualquer docente. Ignora acentos, maiúsculas e espaços extras. Filtra o resultado da unidade/semestre após consultar o SIGAA; vazio não filtra. */
-                contains?: string | null;
-                /** @description Trecho do local da turma, incluindo unidade e sala, como 'S3', 'FCTE - S3' ou 'auditorio'. Ignora acentos, maiúsculas e espaços extras; vazio não filtra. Com contains, exige correspondência nos dois filtros. */
+                q?: string | null;
+                /** @description Trecho do local da turma, incluindo unidade e sala, como 'S3', 'FCTE - S3' ou 'auditorio'. Ignora acentos, maiúsculas e espaços extras; vazio não filtra. Com q, exige correspondência nos dois filtros. */
                 local?: string | null;
                 /** @description Código completo da disciplina, como MAT0031 ou FGA0132. */
                 code?: string | null;
@@ -1697,7 +1697,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Informe unit ou code. Filtro inválido, unidade inexistente ou nome ambíguo. Prefixo desconhecido pode não existir no SIGAA ou ainda não estar mapeado; informe unit para buscar diretamente. */
+            /** @description Informe unit ou code. Filtro inválido ou unidade inexistente. Prefixo desconhecido pode não existir no SIGAA ou ainda não estar mapeado; informe unit para buscar diretamente. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -1717,7 +1717,7 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Filtra pelo nome, ignorando acentos e maiúsculas. */
-                contains?: string | null;
+                q?: string | null;
             };
             header?: never;
             path?: never;
@@ -1822,7 +1822,7 @@ export interface operations {
                 /** @description Trecho do nome, com ao menos 4 caracteres; ignora acentos e caixa. */
                 q?: string | null;
                 /** @description ID ou código exato da unidade, como 673 ou FCTE. */
-                unit?: string | null;
+                unit?: number | string | null;
                 /** @description Período de graduação, como 2026.2; registros antigos podem vir só com o ano. */
                 semester?: string | null;
                 page?: number;
@@ -1942,7 +1942,7 @@ export interface operations {
                 /** @description Código completo do componente, como FGA0003. */
                 code?: string | null;
                 /** @description ID ou código exato da unidade responsável, como 673 ou FCTE. */
-                unit?: string | null;
+                unit?: number | string | null;
                 /** @description Semestre das turmas, no formato AAAA.P. Sem ele, usa o mais recente gravado. */
                 semester?: string | null;
             };

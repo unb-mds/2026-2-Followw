@@ -47,10 +47,17 @@ def parse_args(description: str | None, output: Path) -> argparse.Namespace:
     return args
 
 
-async def load_units(only: Sequence[str] | None = None) -> list[Unit]:
-    """As unidades da busca; `only` filtra por id ou nome exato."""
+def _classroom_units(client: SigaaPublicClient) -> Awaitable[list[Unit]]:
+    return client.classrooms.list_units()
+
+
+async def load_units(
+    only: Sequence[str] | None = None,
+    list_units: Callable[[SigaaPublicClient], Awaitable[list[Unit]]] = _classroom_units,
+) -> list[Unit]:
+    """As unidades de `list_units` (padrão: turmas); `only` filtra por id ou nome exato."""
     async with SigaaPublicClient(timeout=TIMEOUT) as client:
-        units = await client.classrooms.list_units()
+        units = await list_units(client)
     if not units:
         raise RuntimeError("O SIGAA não retornou unidades.")
     if only:

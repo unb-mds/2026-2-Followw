@@ -1,6 +1,15 @@
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Annotated
+
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from api.db.models import Course, Unit
+
+# Número que cabe na coluna vira o id; o resto é sigla ou nome, nunca só dígitos.
+UnitFilter = Annotated[
+    Annotated[int, Field(gt=0, le=2**31 - 1)]
+    | Annotated[str, StringConstraints(strip_whitespace=True, pattern=r"[^0-9]")],
+    Field(union_mode="left_to_right"),
+]
 
 
 class UnitRef(BaseModel):

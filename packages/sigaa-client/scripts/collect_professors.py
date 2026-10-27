@@ -5,7 +5,7 @@ import asyncio
 import json
 from pathlib import Path
 
-from _by_unit import DATA_DIR, collect_by_unit, write_csv
+from _by_unit import DATA_DIR, collect_by_unit, load_units, write_csv
 
 from sigaa_client import ProfessorProfile, SigaaPublicClient, Unit
 
@@ -26,18 +26,7 @@ PROFESSOR_COLUMNS = (
 async def collect_professors(
     only: list[str] | None = None, workers: int = 2
 ) -> list[ProfessorProfile]:
-    async with SigaaPublicClient(timeout=45) as client:
-        units = await client.professors.list_units()
-    if not units:
-        raise RuntimeError("O SIGAA não retornou departamentos.")
-    if only:
-        wanted = {value.casefold() for value in only}
-        units = [
-            unit for unit in units if wanted & {str(unit.id), unit.name.casefold()}
-        ]
-        if not units:
-            raise RuntimeError(f"Nenhum departamento casa com {only}.")
-
+    units = await load_units(only, lambda client: client.professors.list_units())
     progress: dict[int, dict[int, ProfessorProfile]] = {}
 
     async def collect_unit(
@@ -74,11 +63,6 @@ def rows(
         by_semester: dict[str, dict[str, int]] = {}
         for discipline in professor.disciplines:
             codes = by_semester.setdefault(discipline.semester, {})
-            if discipline.code in codes:
-                raise ValueError(
-                    f"Disciplina repetida para {professor.siape}: "
-                    f"{discipline.semester}/{discipline.code}."
-                )
             codes[discipline.code] = discipline.occurrences
         profiles.append(
             {

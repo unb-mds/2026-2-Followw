@@ -186,6 +186,33 @@ def by_unit(monkeypatch):
     return module
 
 
+async def test_docentes_filtram_os_departamentos_da_busca_de_docentes(
+    by_unit, monkeypatch
+):
+    script = importlib.import_module("collect_professors")
+    searched = []
+
+    async def list_units():
+        return [GAMA, CEILANDIA]
+
+    async def search(unit):
+        searched.append(unit.id)
+        return []
+
+    monkeypatch.setattr(
+        FakeClient,
+        "professors",
+        SimpleNamespace(list_units=list_units, search=search),
+        raising=False,
+    )
+
+    with pytest.raises(RuntimeError, match="Nenhum docente"):
+        await script.collect_professors(["gama"], workers=1)
+    assert searched == [673]
+    with pytest.raises(RuntimeError, match="Nenhuma unidade casa"):
+        await script.collect_professors(["xyz"], workers=1)
+
+
 @pytest.fixture
 def classrooms_script(by_unit):
     return importlib.import_module("collect_classrooms")

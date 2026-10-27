@@ -249,6 +249,14 @@ async def test_unidade_pode_vir_pelo_nome():
     assert sigaa.payloads[0]["formTurma:inputDepto"] == "673"
 
 
+async def test_digito_unicode_e_tratado_como_nome_de_unidade():
+    sigaa = FakePublicSigaa()
+
+    async with SigaaPublicClient(transport=sigaa.transport) as client:
+        with pytest.raises(SigaaSearchError, match="Nenhuma unidade casa com `²`"):
+            await client.classrooms.search("²")
+
+
 async def test_nome_ambiguo_de_unidade_e_barulhento():
     sigaa = FakePublicSigaa()
 

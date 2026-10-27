@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 from sigaa_client import ProfessorDegree, ProfessorDiscipline
 from sigaa_client.config import PUBLIC_PROFESSOR_PROFILE_PATH, SIGAA_BASE_URL
@@ -58,21 +58,13 @@ class ProfessorService:
     async def list(
         self,
         q: str | None,
-        unit: str | None,
+        unit: int | str | None,
         semester: str | None,
         page: int,
         page_size: int,
     ) -> ProfessorPage:
         async def load(session: AsyncSession) -> tuple[list[Professor], int]:
-            unit_id = None
-            if unit is not None:
-                found = await find_unit(session, unit)
-                if found is None:
-                    raise HTTPException(
-                        status.HTTP_422_UNPROCESSABLE_CONTENT,
-                        f"Unidade `{unit.strip()}` não encontrada.",
-                    )
-                unit_id = found.id
+            unit_id = (await find_unit(session, unit)).id if unit is not None else None
             return await ProfessorRepository(session).list(
                 q, unit_id, semester, page, page_size
             )
