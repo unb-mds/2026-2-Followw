@@ -153,20 +153,21 @@ function LoginPage() {
 
                 <LoginPrivacyInfo />
             </div>
-            <footer className="mt-auto max-w-sm px-6 pt-8 pb-6">
-                <nav
-                    aria-label="Privacidade e termos"
-                    className="text-center text-xs text-muted-foreground"
+            <footer className="mt-auto flex max-w-sm gap-4 px-6 pt-8 pb-6 text-center text-xs text-muted-foreground">
+                <Link
+                    to="/privacidade"
+                    hash="#politica-de-privacidade"
+                    className="block underline underline-offset-4 hover:text-foreground"
                 >
-                    Ao entrar, você concorda com nossa{' '}
-                    <Link
-                        to="/privacidade"
-                        className="underline underline-offset-4 hover:text-foreground"
-                    >
-                        política de privacidade e nossos termos de serviço
-                    </Link>
-                    .
-                </nav>
+                    Política de privacidade
+                </Link>
+                <Link
+                    to="/privacidade"
+                    hash="#termos-de-servico"
+                    className="block underline underline-offset-4 hover:text-foreground"
+                >
+                    Termos de serviço
+                </Link>
             </footer>
         </main>
     );
