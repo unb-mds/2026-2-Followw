@@ -44,7 +44,7 @@ describe('loader da busca de turmas', () => {
         null,
         { registration: '1', unit: { id: 673, code: 'FCTE', name: 'CAMPUS UNB GAMA' } }
     ])('uma URL direta pré-carrega a pesquisa, com perfil %p', async (user) => {
-        const keys = await loadWith(user, '?q=calculo');
+        const keys = await loadWith(user, '?busca=calculo');
         const subjects = keys.find((key) => key[1] === '/public/subjects');
         expect(subjects?.[2]).toEqual({ params: { query: { q: 'calculo' } } });
     });
@@ -52,11 +52,11 @@ describe('loader da busca de turmas', () => {
     test.each(['ab', 'a'.repeat(33)])('query inválida %s pré-carrega a unidade', async (q) => {
         const keys = await loadWith(
             { registration: '1', unit: { id: 673, code: 'FCTE', name: 'CAMPUS UNB GAMA' } },
-            `?q=${q}`
+            `?busca=${q}`
         );
         const subjects = keys.filter((key) => key[1] === '/public/subjects');
         expect(subjects.map((key) => key[2])).toEqual([{ params: { query: { unit: 'FCTE' } } }]);
-        expect((await loadWith(null, `?q=${q}`)).map((key) => key[1])).toEqual(['/me']);
+        expect((await loadWith(null, `?busca=${q}`)).map((key) => key[1])).toEqual(['/me']);
     });
 
     test('mudanças na URL deixam a busca para o debounce do componente', () => {
@@ -77,7 +77,7 @@ describe('recomendações somente na busca', () => {
         expect(keys[2][2]).toEqual({});
     });
     test('pesquisa mantém a busca padrão', async () => {
-        const subjects = (await loadWith(student, '?q=calculo')).filter(
+        const subjects = (await loadWith(student, '?busca=calculo')).filter(
             (key) => key[1] === '/public/subjects'
         );
         expect(subjects).toHaveLength(1);

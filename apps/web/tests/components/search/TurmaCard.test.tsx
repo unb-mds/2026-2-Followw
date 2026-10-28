@@ -94,18 +94,18 @@ describe('TurmaDetails', () => {
             });
             expect(markup).toContain('Cálculo 1');
             expect(markup).toContain('ANTIGO');
-            expect(markup).toContain('href="/buscar?q=MAT0023"');
-            expect(markup).toContain('href="/buscar?q=ANTIGO"');
+            expect(markup).toContain('href="/buscar?busca=MAT0023"');
+            expect(markup).toContain('href="/buscar?busca=ANTIGO"');
         }
     );
 
     test('cada docente abre busca pelo próprio nome completo sem filtros', () => {
         const markup = details();
-        expect(markup).toContain('href="/buscar?q=Ana+Silva"');
-        expect(markup).toContain('href="/buscar?q=Jo%C3%A3o+Costa"');
+        expect(markup).toContain('href="/buscar?busca=Ana+Silva"');
+        expect(markup).toContain('href="/buscar?busca=Jo%C3%A3o+Costa"');
         expect(markup).not.toContain('q=Ana+Silva%2C');
         expect(markup).toContain('hover:text-primary');
-        expect(details({ professors: [] })).not.toContain('href="/buscar?q=Ana+Silva"');
+        expect(details({ professors: [] })).not.toContain('href="/buscar?busca=Ana+Silva"');
     });
 
     test('busca por docente preserva o nome completo', () => {
@@ -162,7 +162,7 @@ describe('TurmaDetails', () => {
             prerequisites: [[{ code: 'CIC0001', subject: { code: 'CIC0001', name } }]]
         });
         expect(markup).toContain(name);
-        expect(markup).toContain('href="/buscar?q=CIC0001"');
+        expect(markup).toContain('href="/buscar?busca=CIC0001"');
         expect(markup).not.toContain('1 matéria');
         expect(markup).not.toContain('<details');
         expect(markup).not.toContain('<summary');
@@ -192,7 +192,7 @@ describe('TurmaDetails', () => {
                 }))
             });
             expect(markup).toContain('Dependente 0');
-            expect(markup).toContain('href="/buscar?q=DEP0"');
+            expect(markup).toContain('href="/buscar?busca=DEP0"');
             if (count === 1) {
                 expect(markup).not.toContain('<details');
                 expect(markup).not.toContain('<summary');
@@ -221,7 +221,7 @@ describe('TurmaDetails', () => {
             unlocks: [{ code: 'DEP', name: 'Dependente' }]
         });
         for (const query of ['PRE', 'COR', 'EQU', 'DEP']) {
-            expect(markup).toContain(`href="/buscar?q=${query}"`);
+            expect(markup).toContain(`href="/buscar?busca=${query}"`);
         }
         expect(markup).toContain('Pré-requisito');
         expect(markup).toContain('Dependente');

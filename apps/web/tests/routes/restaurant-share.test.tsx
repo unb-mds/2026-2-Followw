@@ -1,4 +1,5 @@
 import { afterEach, beforeAll, describe, expect, mock, spyOn, test } from 'bun:test';
+import { createSerializer } from 'nuqs/server';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import type { RestaurantSelection } from '#/lib/restaurant-share';
@@ -8,6 +9,7 @@ import { RestaurantShareImage } from '#/components/ru/RestaurantShareImage';
 import {
     loadRestaurantSearch,
     restaurantPageHead,
+    restaurantSearchParsers,
     restaurantSelection,
     restaurantSharePath
 } from '#/lib/restaurant-share';
@@ -29,7 +31,7 @@ const sections: MenuSection[] = [
     { key: 'dessert', name: 'Sobremesa', items: ['Melancia'] },
     { key: 'drink', name: 'Bebida', items: ['Suco de maracujá'] }
 ];
-const EMPTY = { date: null, meal: null, campus: null };
+const EMPTY = { data: null, refeicao: null, campus: null };
 const handler = ({ request }: { request: Request }) => restaurantShareResponse(request);
 const originalSecret = process.env.RATE_LIMIT_SECRET_KEY;
 const originalVercel = process.env.VERCEL;
@@ -80,6 +82,26 @@ function mockMenu(status = 200, published = true) {
 }
 
 describe('compartilhamento do cardápio', () => {
+    test.each([
+        ['breakfast', 'cafe-da-manha'],
+        ['lunch', 'almoco'],
+        ['dinner', 'jantar']
+    ] as const)('serializa e restaura a refeição %s em português', (meal, refeicao) => {
+        const selected = { ...selection, meal };
+        const path = restaurantSharePath(selected);
+        expect(path).toBe(`/ru?data=${selection.date}&refeicao=${refeicao}&campus=Gama`);
+        expect(
+            restaurantSelection(loadRestaurantSearch(new URL(path, 'https://followw.app')))
+        ).toEqual(selected);
+        expect(
+            createSerializer(restaurantSearchParsers)({
+                data: selection.date,
+                refeicao: meal,
+                campus: selection.campus
+            })
+        ).toBe(path.slice('/ru'.length));
+    });
+
     test('prévia encaminha IP assinado sem encaminhar cookies', async () => {
         process.env.RATE_LIMIT_SECRET_KEY = 'chave-de-teste-nao-usar-em-producao';
         process.env.VERCEL = '1';
@@ -102,9 +124,9 @@ describe('compartilhamento do cardápio', () => {
     test.each(['2026-02-30', '2026-13-01', 'amanhã', '2026-1-01', '0000-00-00'])(
         'ignora a data inválida %s e filtros desconhecidos',
         (date) => {
-            expect(loadRestaurantSearch({ date, meal: 'ceia', campus: '__proto__' })).toEqual(
-                EMPTY
-            );
+            expect(
+                loadRestaurantSearch({ data: date, refeicao: 'ceia', campus: '__proto__' })
+            ).toEqual(EMPTY);
         }
     );
 
@@ -112,7 +134,7 @@ describe('compartilhamento do cardápio', () => {
         expect(restaurantSharePath(selection)).not.toContain('theme');
         expect(loadRestaurantSearch({ theme: 'dark' })).toEqual(EMPTY);
         expect(restaurantPageHead(selection).links[0].href).toBe(
-            'https://followw.app/ru?date=2026-10-19&meal=lunch&campus=Gama'
+            'https://followw.app/ru?data=2026-10-19&refeicao=almoco&campus=Gama'
         );
         const markup = renderToStaticMarkup(
             <RestaurantShareImage selection={selection} sections={sections} />
@@ -126,7 +148,11 @@ describe('compartilhamento do cardápio', () => {
             head.meta.find((tag) => 'property' in tag && tag.property === 'og:image')!.content!
         );
         expect(image.pathname).toBe('/share/ru.png');
-        expect(Object.fromEntries(image.searchParams)).toEqual({ ...selection });
+        expect(Object.fromEntries(image.searchParams)).toEqual({
+            data: selection.date,
+            refeicao: 'almoco',
+            campus: selection.campus
+        });
         expect(head.meta).toContainEqual({ name: 'twitter:card', content: 'summary_large_image' });
         expect(head.meta).toContainEqual({ title: 'Almoço do RU · 19/10/2026 | Followw' });
         expect(head.links[0].href).toBe(`https://followw.app${restaurantSharePath(selection)}`);
