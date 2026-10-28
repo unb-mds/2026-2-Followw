@@ -23,6 +23,8 @@ const SLOTS: Record<string, [string, string][]> = {
     ]
 };
 
+export const SCHEDULE_SLOTS = Object.values(SLOTS).flat();
+
 // Intervalo máximo entre blocos para juntá-los, como o T6 (até 18:55) e o N1 (a partir de 19:00).
 const MERGE_GAP_MINUTES = 5;
 

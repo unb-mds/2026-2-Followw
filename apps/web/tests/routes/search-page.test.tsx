@@ -26,7 +26,7 @@ import {
 import { apiClient } from '#/queries/client';
 import { meQueryOptions } from '#/queries/me';
 import { subjectsQueryOptions } from '#/queries/subjects';
-import { Route } from '#/routes/_app/buscar';
+let Route: typeof import('#/routes/_app/buscar').Route;
 
 let testing: typeof import('@testing-library/react/pure');
 let browser: Window;
@@ -106,6 +106,7 @@ beforeAll(async () => {
         Object.defineProperty(globalThis, key, { value, configurable: true, writable: true });
     }
     testing = await import('@testing-library/react/pure');
+    ({ Route } = await import('#/routes/_app/buscar'));
 });
 
 afterAll(async () => {
@@ -198,6 +199,16 @@ describe('página de busca com estado na URL', () => {
         expect(requests[0].searchParams.get('q')).toBe('calculo');
     });
 
+    test('filtro fica dentro da pesquisa e botão separado abre a grade', async () => {
+        const page = renderPage('?q=calculo&disponibilidade=Disponíveis');
+        const filter = page.getByRole('combobox', { name: 'Disponibilidade' });
+        expect(searchbox(page).parentElement?.contains(filter)).toBe(true);
+        expect(filter.getAttribute('title')).toBe('Disponibilidade: Disponíveis');
+        testing.fireEvent.click(page.getByRole('button', { name: 'Mostrar grade' }));
+        await page.findByRole('dialog', { name: 'Minha grade semanal' });
+        expect(page.getByText('Minha grade semanal')).toBeDefined();
+    });
+
     test.each(['ab', 'a'.repeat(33)])('URL com query inválida %s não chama a API', async (q) => {
         const page = renderPage(`?q=${q}`);
         expect(searchbox(page).value).toBe(q);
@@ -256,6 +267,31 @@ describe('página de busca com estado na URL', () => {
         expect(updates.at(-1)?.searchParams.has('disponibilidade')).toBe(false);
         expect(updates.at(-1)?.searchParams.get('q')).toBe('calculo');
         await testing.waitFor(() => expect(page.getByText('2 turmas')).toBeDefined());
+    });
+
+    test('adiciona pelo resultado e mantém a grade ao mudar a busca', async () => {
+        client.setQueryData(subjectsQueryOptions({ q: 'calculo' }).queryKey, [
+            {
+                code: 'MAT0023',
+                name: 'Cálculo 1',
+                classrooms: [
+                    { number: '01', semester: '2026.2', professors: [], schedule: '24M12' }
+                ]
+            }
+        ]);
+        const page = renderPage('?q=calculo');
+        testing.fireEvent.click(page.getByRole('button', { name: /MAT0023/ }));
+        testing.fireEvent.click(
+            await page.findByRole('button', { name: 'Adicionar à grade: MAT0023, turma 01' })
+        );
+        expect(page.queryByRole('dialog')).toBeNull();
+        testing.fireEvent.change(searchbox(page), { target: { value: 'fisica' } });
+        await testing.waitFor(() =>
+            expect(requests.some((url) => url.searchParams.get('q') === 'fisica')).toBe(true)
+        );
+        testing.fireEvent.click(page.getByRole('button', { name: 'Mostrar grade' }));
+        await page.findByRole('dialog', { name: 'Minha grade semanal' });
+        expect(page.getByRole('table').textContent).toContain('MAT0023');
     });
 
     test('mostra as matérias em lotes de 20', async () => {
