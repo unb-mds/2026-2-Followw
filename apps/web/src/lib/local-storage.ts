@@ -1,7 +1,8 @@
 export const STORAGE_PREFIX = 'followw:';
 
 export const STORAGE_KEYS = {
-    THEME: 'theme'
+    THEME: 'theme',
+    SCHEDULE: 'schedule'
 } as const;
 
 function getStorage(): Storage | null {

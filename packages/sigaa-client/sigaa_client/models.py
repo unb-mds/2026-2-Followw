@@ -28,6 +28,17 @@ class CurriculumPeriod(BaseModel):
 class Curriculum(CurriculumSummary):
     valid_from: str = Field(pattern=r"^[0-9]{4}\.[0-9]$")
     matrix: str = Field(min_length=1)
+    # Cargas horárias em horas e prazos em semestres; None quando o SIGAA omite.
+    total_workload: int | None = Field(default=None, ge=0)
+    required_workload: int | None = Field(default=None, ge=0)
+    optional_min_workload: int | None = Field(default=None, ge=0)
+    complementary_min_workload: int | None = Field(default=None, ge=0)
+    elective_max_workload: int | None = Field(default=None, ge=0)
+    period_max_workload: int | None = Field(default=None, ge=0)
+    period_min_workload: int | None = Field(default=None, ge=0)
+    min_semesters: int | None = Field(default=None, gt=0)
+    avg_semesters: int | None = Field(default=None, gt=0)
+    max_semesters: int | None = Field(default=None, gt=0)
     required_by_period: tuple[CurriculumPeriod, ...]
     optional: tuple[str, ...]
     complementary: tuple[str, ...] = ()

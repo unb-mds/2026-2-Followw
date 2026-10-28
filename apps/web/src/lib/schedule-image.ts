@@ -1,137 +1,196 @@
-import { parseSchedule, SCHEDULE_SLOTS } from '#/lib/schedule';
+import { describeSchedule, parseSchedule, visibleSlots } from '#/lib/schedule';
 
 interface ImageClass {
     code: string;
     name: string;
-    classroom: { semester: string; number: string; schedule?: string | null };
+    classroom: {
+        semester: string;
+        number: string;
+        schedule?: string | null;
+        room?: string | null;
+        professors?: string[];
+    };
 }
 
 const WIDTH = 1200;
-const PADDING = 32;
+const PADDING = 40;
+const CONTENT = WIDTH - PADDING * 2;
+const TITLE_HEIGHT = 64;
 const ROW_HEIGHT = 64;
 const DAYS = ['Horários', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-const COLUMN_WIDTH = (WIDTH - PADDING * 2) / DAYS.length;
+const COLUMN_WIDTH = CONTENT / DAYS.length;
+const CARD_GAP = 12;
+const SECTION_GAP = 40;
+const FOOTER_HEIGHT = 64;
+
+const details = (item: ImageClass) =>
+    [item.classroom.room, item.classroom.professors?.join(', ')].filter(Boolean).join(' · ');
+const cardHeight = (item: ImageClass) => (details(item) ? 100 : 76);
 
 export async function createSchedulePng(items: ImageClass[]): Promise<Blob> {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Não foi possível gerar a imagem da grade.');
-    const theme = getComputedStyle(document.documentElement);
+    const root = document.documentElement;
+    const theme = getComputedStyle(root);
     const color = (token: string) => theme.getPropertyValue(token).trim();
-    const sections = [...new Set(items.map((item) => item.classroom.semester))].map((semester) => {
-        const entries = items
-            .filter((item) => item.classroom.semester === semester)
-            .map((item) => ({
-                code: item.code,
-                classroom: item.classroom,
-                times: parseSchedule(item.classroom.schedule)
-            }));
-        const times = entries.flatMap((entry) => entry.times);
-        const first = times.map((time) => time.start).toSorted()[0];
-        const last = times
-            .map((time) => time.end)
-            .toSorted()
-            .at(-1);
-        const rows = SCHEDULE_SLOTS.filter(
-            ([start, end]) => first && last && start >= first && end <= last
-        );
-        return { semester, entries, rows };
-    });
-    ctx.font = '18px sans-serif';
-    const wrap = (text: string) => {
-        const lines: string[] = [];
-        let line = '';
-        for (const word of text.split(' ')) {
-            const next = line ? `${line} ${word}` : word;
-            if (line && ctx.measureText(next).width > WIDTH - PADDING * 2) {
-                lines.push(line);
-                line = word;
-            } else line = next;
-        }
-        if (line) lines.push(line);
-        return lines;
+    const family = getComputedStyle(document.body).fontFamily || 'sans-serif';
+    const font = (size: number, weight = 400) => (ctx.font = `${weight} ${size}px ${family}`);
+    // Cabeçalho da tabela igual ao do modal: invertido no tema claro.
+    const dark = root.dataset.theme === 'dark';
+    const header = {
+        fill: dark ? '--background' : '--foreground',
+        text: dark ? '--foreground' : '--background'
     };
-    const legends = items.map((item) =>
-        wrap(
-            `${item.code} · ${item.name} · Turma ${item.classroom.number} · ${item.classroom.semester}${parseSchedule(item.classroom.schedule).length ? '' : ' · Horário a definir'}`
-        )
-    );
+    const fit = (text: string, max: number) => {
+        if (ctx.measureText(text).width <= max) return text;
+        let cut = text;
+        while (cut && ctx.measureText(`${cut}…`).width > max) cut = cut.slice(0, -1);
+        return `${cut.trimEnd()}…`;
+    };
+    const roundRect = (x: number, y: number, width: number, height: number, radius: number) => {
+        ctx.beginPath();
+        ctx.roundRect(x, y, width, height, radius);
+    };
+
+    const sections = [...new Set(items.map((item) => item.classroom.semester))].map((semester) => {
+        const classes = items.filter((item) => item.classroom.semester === semester);
+        const entries = classes.map((item) => ({
+            ...item,
+            times: parseSchedule(item.classroom.schedule)
+        }));
+        const rows = visibleSlots(entries.flatMap((entry) => entry.times));
+        return { semester, classes, entries, rows };
+    });
     const height =
-        100 +
+        PADDING +
         sections.reduce(
-            (sum, section) =>
-                sum + 64 + (section.rows.length ? section.rows.length + 1 : 0) * ROW_HEIGHT,
+            (sum, { classes, rows }) =>
+                sum +
+                TITLE_HEIGHT +
+                (rows.length ? (rows.length + 1) * ROW_HEIGHT + 24 : 0) +
+                classes.reduce((total, item) => total + cardHeight(item) + CARD_GAP, 0) -
+                CARD_GAP +
+                SECTION_GAP,
             0
-        ) +
-        legends.reduce((sum, lines) => sum + lines.length * 28 + 8, 0) +
-        PADDING;
+        ) -
+        SECTION_GAP +
+        FOOTER_HEIGHT;
     canvas.width = WIDTH * 2;
     canvas.height = height * 2;
     ctx.scale(2, 2);
-    ctx.fillStyle = color('--card');
+    ctx.fillStyle = color('--background');
     ctx.fillRect(0, 0, WIDTH, height);
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = color('--foreground');
-    ctx.font = 'bold 28px sans-serif';
-    ctx.fillText('Minha grade semanal · Followw', PADDING, 48);
-    let y = 100;
-    for (const { semester, entries, rows } of sections) {
+
+    let y = PADDING;
+    for (const { semester, classes, entries, rows } of sections) {
         ctx.textAlign = 'left';
         ctx.fillStyle = color('--foreground');
-        ctx.font = 'bold 22px sans-serif';
-        ctx.fillText(`Semestre ${semester}`, PADDING, y + 20);
-        y += 48;
-        if (!rows.length) {
-            y += 16;
-            continue;
-        }
-        ctx.fillStyle = color('--primary');
-        ctx.fillRect(PADDING, y, WIDTH - PADDING * 2, ROW_HEIGHT);
-        ctx.fillStyle = color('--primary-foreground');
-        ctx.font = 'bold 18px sans-serif';
-        ctx.textAlign = 'center';
-        DAYS.forEach((day, column) =>
-            ctx.fillText(day, PADDING + COLUMN_WIDTH * (column + 0.5), y + ROW_HEIGHT / 2)
-        );
-        y += ROW_HEIGHT;
-        for (const [start, end] of rows) {
-            for (let column = 0; column < DAYS.length; column++) {
-                const x = PADDING + column * COLUMN_WIDTH;
-                ctx.fillStyle = color(column === 0 ? '--muted' : '--card');
-                ctx.fillRect(x, y, COLUMN_WIDTH, ROW_HEIGHT);
-                ctx.strokeStyle = color('--border');
-                ctx.strokeRect(x, y, COLUMN_WIDTH, ROW_HEIGHT);
-                ctx.font = '18px sans-serif';
-                if (column === 0) {
-                    ctx.fillStyle = color('--foreground');
-                    ctx.fillText(`${start}–${end}`, x + COLUMN_WIDTH / 2, y + ROW_HEIGHT / 2);
-                    continue;
+        font(30, 700);
+        ctx.fillText(`Minha grade · ${semester}`, PADDING, y + 20);
+        y += TITLE_HEIGHT;
+
+        if (rows.length) {
+            const tableHeight = (rows.length + 1) * ROW_HEIGHT;
+            ctx.save();
+            roundRect(PADDING, y, CONTENT, tableHeight, 12);
+            ctx.clip();
+            ctx.fillStyle = color(header.fill);
+            ctx.fillRect(PADDING, y, CONTENT, ROW_HEIGHT);
+            ctx.fillStyle = color(header.text);
+            ctx.textAlign = 'center';
+            font(18, 700);
+            DAYS.forEach((day, column) =>
+                ctx.fillText(day, PADDING + COLUMN_WIDTH * (column + 0.5), y + ROW_HEIGHT / 2)
+            );
+            let rowY = y + ROW_HEIGHT;
+            for (const [start, end] of rows) {
+                for (let column = 0; column < DAYS.length; column++) {
+                    const x = PADDING + column * COLUMN_WIDTH;
+                    const center = x + COLUMN_WIDTH / 2;
+                    ctx.fillStyle = color(column === 0 ? '--muted' : '--card');
+                    ctx.fillRect(x, rowY, COLUMN_WIDTH, ROW_HEIGHT);
+                    ctx.strokeStyle = color('--border');
+                    ctx.strokeRect(x, rowY, COLUMN_WIDTH, ROW_HEIGHT);
+                    if (column === 0) {
+                        ctx.fillStyle = color('--foreground');
+                        font(16, 500);
+                        ctx.fillText(`${start}–${end}`, center, rowY + ROW_HEIGHT / 2);
+                        continue;
+                    }
+                    const entry = entries.find((item) =>
+                        item.times.some(
+                            (time) =>
+                                time.weekday === column && time.start < end && time.end > start
+                        )
+                    );
+                    if (!entry) {
+                        ctx.fillStyle = color('--muted-foreground');
+                        font(16);
+                        ctx.fillText('—', center, rowY + ROW_HEIGHT / 2);
+                        continue;
+                    }
+                    ctx.fillStyle = color('--primary');
+                    ctx.globalAlpha = 0.05;
+                    ctx.fillRect(x, rowY, COLUMN_WIDTH, ROW_HEIGHT);
+                    ctx.globalAlpha = 1;
+                    font(16, 700);
+                    ctx.fillText(entry.code, center, rowY + 22);
+                    font(16);
+                    ctx.fillText(`T${entry.classroom.number}`, center, rowY + 42);
                 }
-                const entry = entries.find((item) =>
-                    item.times.some(
-                        (time) => time.weekday === column && time.start < end && time.end > start
-                    )
-                );
-                ctx.fillStyle = color(entry ? '--primary' : '--muted-foreground');
-                if (entry) {
-                    ctx.fillText(entry.code, x + COLUMN_WIDTH / 2, y + 22);
-                    ctx.fillText(`T${entry.classroom.number}`, x + COLUMN_WIDTH / 2, y + 44);
-                } else ctx.fillText('—', x + COLUMN_WIDTH / 2, y + ROW_HEIGHT / 2);
+                rowY += ROW_HEIGHT;
             }
-            y += ROW_HEIGHT;
+            ctx.restore();
+            roundRect(PADDING, y, CONTENT, tableHeight, 12);
+            ctx.strokeStyle = color('--border');
+            ctx.stroke();
+            y += tableHeight + 24;
         }
-        y += 16;
-    }
-    ctx.textAlign = 'left';
-    ctx.fillStyle = color('--foreground');
-    ctx.font = '18px sans-serif';
-    for (const lines of legends) {
-        for (const line of lines) {
-            ctx.fillText(line, PADDING, y + 14);
-            y += 28;
+
+        for (const item of classes) {
+            const cardY = y;
+            const inner = CONTENT - 48;
+            roundRect(PADDING, cardY, CONTENT, cardHeight(item), 16);
+            ctx.fillStyle = color('--card');
+            ctx.fill();
+            ctx.strokeStyle = color('--border');
+            ctx.stroke();
+            const code = `${item.code} · T${item.classroom.number}`;
+            font(16, 500);
+            ctx.textAlign = 'right';
+            ctx.fillStyle = color('--muted-foreground');
+            ctx.fillText(code, WIDTH - PADDING - 24, cardY + 26);
+            const codeWidth = ctx.measureText(code).width + 16;
+            ctx.textAlign = 'left';
+            ctx.fillStyle = color('--primary');
+            font(16, 600);
+            ctx.fillText(
+                fit(
+                    describeSchedule(item.classroom.schedule) || 'Horário a definir',
+                    inner - codeWidth
+                ),
+                PADDING + 24,
+                cardY + 26
+            );
+            ctx.fillStyle = color('--foreground');
+            font(20, 600);
+            ctx.fillText(fit(item.name, inner), PADDING + 24, cardY + 52);
+            if (details(item)) {
+                ctx.fillStyle = color('--muted-foreground');
+                font(16);
+                ctx.fillText(fit(details(item), inner), PADDING + 24, cardY + 78);
+            }
+            y += cardHeight(item) + CARD_GAP;
         }
-        y += 8;
+        y += SECTION_GAP - CARD_GAP;
     }
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = color('--muted-foreground');
+    font(16, 500);
+    ctx.fillText('followw.app', WIDTH / 2, height - FOOTER_HEIGHT / 2);
     return new Promise((resolve, reject) =>
         canvas.toBlob(
             (blob) => (blob ? resolve(blob) : reject(new Error('Não foi possível gerar o PNG.'))),

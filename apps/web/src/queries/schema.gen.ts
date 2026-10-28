@@ -1085,6 +1085,8 @@ export interface components {
             /** Integralization */
             integralization: number | null;
             workload: components["schemas"]["CurriculumWorkload"] | null;
+            /** Period Max Workload */
+            period_max_workload?: number | null;
             /** Ira */
             ira: number | null;
             /** Mp */

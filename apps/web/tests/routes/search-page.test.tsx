@@ -18,12 +18,15 @@ import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
 import { useLayoutEffect } from 'react';
 import { renderToString } from 'react-dom/server';
 
+import type { components } from '#/queries/schema.gen';
+
 import {
     parseRouterSearch,
     stringifyRouterSearch,
     useSearchState,
     validateSearch
 } from '#/lib/search-params';
+import { allClassroomsQueryOptions } from '#/queries/classrooms';
 import { apiClient } from '#/queries/client';
 import { meQueryOptions } from '#/queries/me';
 import { subjectsQueryOptions } from '#/queries/subjects';
@@ -43,11 +46,7 @@ function BuscarTurmasPage() {
 
 function ResetFilters() {
     const [, setSearch] = useSearchState();
-    return (
-        <button onClick={() => void setSearch({ turno: null, disponibilidade: null })}>
-            Limpar filtros
-        </button>
-    );
+    return <button onClick={() => void setSearch({ tipo: null })}>Limpar filtros</button>;
 }
 
 function makeSearchRouter(isServer: boolean) {
@@ -66,7 +65,7 @@ function makeSearchRouter(isServer: boolean) {
     });
     const router = createRouter({
         routeTree: root.addChildren([search]),
-        history: createMemoryHistory({ initialEntries: ['/buscar?q=calculo&turno=Noite'] }),
+        history: createMemoryHistory({ initialEntries: ['/buscar?q=calculo'] }),
         isServer,
         parseSearch: parseRouterSearch,
         stringifySearch: stringifyRouterSearch
@@ -133,10 +132,12 @@ describe('página de busca com estado na URL', () => {
     let middleware: Middleware;
     let requests: URL[];
     let updates: UrlUpdateEvent[];
+    let recommended: unknown[];
 
     beforeEach(() => {
         requests = [];
         updates = [];
+        recommended = [];
         client = new QueryClient({
             defaultOptions: { queries: { retry: false, staleTime: Infinity } }
         });
@@ -145,6 +146,8 @@ describe('página de busca com estado na URL', () => {
             onRequest: ({ request }) => {
                 const url = new URL(request.url);
                 requests.push(url);
+                if (url.pathname.endsWith('/public/subjects') && !url.search)
+                    return Response.json(recommended);
                 return Response.json([
                     {
                         code: 'MAT0023',
@@ -174,6 +177,7 @@ describe('página de busca com estado na URL', () => {
         testing.cleanup();
         client.clear();
         apiClient.eject(middleware);
+        browser.localStorage.clear();
     });
 
     const renderPage = (searchParams = '') =>
@@ -198,25 +202,18 @@ describe('página de busca com estado na URL', () => {
         return input;
     };
 
-    test('URL direta preenche campo e filtros e carrega resultados', async () => {
-        const page = renderPage('?q=calculo&turno=Noite&disponibilidade=Disponíveis');
+    test('URL direta preenche campo e carrega resultados', async () => {
+        const page = renderPage('?q=calculo');
         expect(searchbox(page).value).toBe('calculo');
-        expect(page.getByRole('combobox', { name: 'Turno' }).textContent).toContain('Noite');
-        expect(page.getByRole('combobox', { name: 'Disponibilidade' }).textContent).toContain(
-            'Disponíveis'
-        );
         await testing.waitFor(() => expect(page.getByText('Cálculo 1')).toBeDefined());
         expect(requests[0].searchParams.get('q')).toBe('calculo');
     });
 
-    test('filtro fica dentro da pesquisa e botão separado abre a grade', async () => {
-        const page = renderPage('?q=calculo&disponibilidade=Disponíveis');
-        const filter = page.getByRole('combobox', { name: 'Disponibilidade' });
-        expect(searchbox(page).parentElement?.contains(filter)).toBe(true);
-        expect(filter.getAttribute('title')).toBe('Disponibilidade: Disponíveis');
-        testing.fireEvent.click(page.getByRole('button', { name: 'Mostrar grade' }));
-        await page.findByRole('dialog', { name: 'Minha grade semanal' });
-        expect(page.getByText('Minha grade semanal')).toBeDefined();
+    test('pesquisa não tem filtros de turno nem barra da grade sem turmas', async () => {
+        const page = renderPage('?q=calculo');
+        await testing.waitFor(() => expect(page.getByText('Cálculo 1')).toBeDefined());
+        expect(page.queryByRole('combobox')).toBeNull();
+        expect(page.queryByRole('toolbar', { name: 'Turmas selecionadas' })).toBeNull();
     });
 
     test.each(['ab', 'a'.repeat(33)])('URL com query inválida %s não chama a API', async (q) => {
@@ -271,10 +268,9 @@ describe('página de busca com estado na URL', () => {
     });
 
     test('limpar o filtro remove seu parâmetro e preserva a consulta', async () => {
-        const page = renderPage('?q=calculo&turno=Noite&disponibilidade=Disponíveis');
+        const page = renderPage('?q=calculo&tipo=Optativas');
         testing.fireEvent.click(page.getByRole('button', { name: 'Limpar filtros' }));
-        await testing.waitFor(() => expect(updates.at(-1)?.searchParams.has('turno')).toBe(false));
-        expect(updates.at(-1)?.searchParams.has('disponibilidade')).toBe(false);
+        await testing.waitFor(() => expect(updates.at(-1)?.searchParams.has('tipo')).toBe(false));
         expect(updates.at(-1)?.searchParams.get('q')).toBe('calculo');
         await testing.waitFor(() => expect(page.getByText('2 turmas')).toBeDefined());
     });
@@ -299,9 +295,64 @@ describe('página de busca com estado na URL', () => {
         await testing.waitFor(() =>
             expect(requests.some((url) => url.searchParams.get('q') === 'fisica')).toBe(true)
         );
-        testing.fireEvent.click(page.getByRole('button', { name: 'Mostrar grade' }));
+        expect(page.getByRole('toolbar', { name: 'Turmas selecionadas' }).textContent).toContain(
+            '1 turma'
+        );
+        testing.fireEvent.click(page.getByRole('button', { name: 'Ver grade' }));
         await page.findByRole('dialog', { name: 'Minha grade semanal' });
         expect(page.getByRole('table').textContent).toContain('MAT0023');
+    });
+
+    test('abas mostram só as recomendações do tipo, na ordem da API, mesmo com busca', async () => {
+        const user: components['schemas']['UserProfile'] = {
+            name: 'Discente',
+            registration: '202600001',
+            photo: null,
+            bio: null,
+            unit: null,
+            course: null,
+            entry_semester: null,
+            integralization: null,
+            workload: null,
+            ira: null,
+            mp: null,
+            level: 'Graduação'
+        };
+        client.setQueryData(meQueryOptions.queryKey, user);
+        client.setQueryData(allClassroomsQueryOptions.queryKey, []);
+        const classrooms = [{ number: '01', semester: '2026.2', professors: [] }];
+        client.setQueryData(subjectsQueryOptions({ q: 'calculo' }).queryKey, [
+            { code: 'MAT0025', name: 'Cálculo 1', kind: 'mandatory', classrooms },
+            { code: 'MAT0029', name: 'Cálculo 9', kind: 'optional', classrooms }
+        ]);
+        recommended = [
+            { code: 'MAT0027', name: 'Cálculo 3', kind: 'optional', classrooms },
+            { code: 'FIS0001', name: 'Física 1', kind: 'optional', classrooms },
+            { code: 'MAT0025', name: 'Cálculo 1', kind: 'mandatory', classrooms },
+            { code: 'MAT0026', name: 'Cálculo 2', kind: 'optional', classrooms }
+        ];
+        const page = renderPage('?q=calculo');
+        const tab = (name: string) => page.getByRole('button', { name });
+        const shown = () =>
+            Array.from(page.container.querySelectorAll('[data-slot="accordion-item"]'), (item) =>
+                item.textContent?.match(/[A-Z]{3}\d{4}/)?.at(0)
+            );
+        expect(tab('Todas').getAttribute('aria-pressed')).toBe('true');
+        expect(page.queryByRole('button', { name: 'Módulo livre' })).toBeNull();
+        expect(shown()).toEqual(['MAT0025', 'MAT0029']);
+        testing.fireEvent.click(tab('Optativas'));
+        await testing.waitFor(() =>
+            expect(updates.at(-1)?.searchParams.get('tipo')).toBe('Optativas')
+        );
+        await testing.waitFor(() => expect(shown()).toEqual(['MAT0027', 'MAT0026']));
+        expect(page.getByRole('region', { name: 'Optativas disponíveis' })).toBeDefined();
+        testing.fireEvent.click(tab('Obrigatórias'));
+        await testing.waitFor(() => expect(shown()).toEqual(['MAT0025']));
+    });
+
+    test('abas de tipo só aparecem com a conta logada', () => {
+        const page = renderPage('?q=calculo');
+        expect(page.queryByRole('group', { name: 'Tipo de matéria' })).toBeNull();
     });
 
     test('mostra as matérias em lotes de 20', async () => {
@@ -410,9 +461,7 @@ describe('página de busca com estado na URL', () => {
         expect(errors).toEqual([]);
         testing.fireEvent.change(searchbox(page), { target: { value: 'Carlos Silva' } });
         await testing.waitFor(() => expect(router.state.location.search.q).toBe('Carlos Silva'));
-        await testing.act(() =>
-            router.navigate({ to: '/buscar', search: { q: 'calculo', turno: 'Todos' } })
-        );
+        await testing.act(() => router.navigate({ to: '/buscar', search: { q: 'calculo' } }));
         expect(searchbox(page).value).toBe('calculo');
         expect(errors).toEqual([]);
     });

@@ -18,16 +18,13 @@ type SubjectsQuery = NonNullable<
     operations['search_subjects_public_subjects_get']['parameters']['query']
 >;
 
-export const TURNOS = ['Todos', 'Manhã', 'Tarde', 'Noite'] as const;
-export type Turno = (typeof TURNOS)[number];
-const SHIFTS: Record<Turno, string | null> = { Todos: null, Manhã: 'M', Tarde: 'T', Noite: 'N' };
-export const AVAILABILITIES = ['Todas', 'Disponíveis', 'Indisponíveis'] as const;
-export type Availability = (typeof AVAILABILITIES)[number];
-
-export const isTurno = (value: string): value is Turno =>
-    (TURNOS as readonly string[]).includes(value);
-export const isAvailability = (value: string): value is Availability =>
-    (AVAILABILITIES as readonly string[]).includes(value);
+export const TIPOS = ['Todas', 'Obrigatórias', 'Optativas'] as const;
+export type Tipo = (typeof TIPOS)[number];
+const KINDS: Record<Tipo, SubjectKind | null> = {
+    Todas: null,
+    Obrigatórias: 'mandatory',
+    Optativas: 'optional'
+};
 
 export const SEARCH_MIN_LENGTH = 3;
 export const SEARCH_MAX_LENGTH = 32;
@@ -85,25 +82,38 @@ export function lockedReasons(classroom: SubjectClassroom, met: boolean | null):
     return reasons;
 }
 
-const hasShift = (schedule: string | null | undefined, turno: Turno) =>
-    !SHIFTS[turno] || new RegExp(`[1-7]+${SHIFTS[turno]}[1-6]+`).test(schedule ?? '');
+/** Igual ao `lookup_key` da API: sem acento, minúscula e com espaços colapsados. */
+const lookupKey = (value: string) =>
+    value
+        .normalize('NFKD')
+        .replace(/\p{M}/gu, '')
+        .toLowerCase()
+        .split(/\s+/)
+        .filter(Boolean)
+        .join(' ');
 
-/** Filtra as turmas no cliente e descarta as matérias que ficaram sem nenhuma. */
+/** Mesmos campos da busca da API: código, nome e professores. */
+function matchesText(subject: CatalogSubject, text: string) {
+    const needle = lookupKey(text);
+    if (!needle) return true;
+    return [
+        subject.code,
+        subject.name,
+        ...subject.classrooms.flatMap((classroom) => classroom.professors)
+    ].some((value) => lookupKey(value).includes(needle));
+}
+
+/** Filtra as matérias no cliente e descarta as que não têm turmas. */
 export function filterSubjects(
     subjects: CatalogSubject[],
-    { turno, disponibilidade }: { turno: Turno; disponibilidade: Availability },
-    approved: Set<string> | null
+    { tipo = 'Todas', busca = '' }: { tipo?: Tipo; busca?: string } = {}
 ): CatalogSubject[] {
-    return subjects.flatMap((subject) => {
-        const met = prerequisitesMet(subject.prerequisites, approved);
-        const classrooms = subject.classrooms.filter((classroom) => {
-            const locked = lockedReasons(classroom, met).length > 0;
-            if (disponibilidade === 'Disponíveis' && locked) return false;
-            if (disponibilidade === 'Indisponíveis' && !locked) return false;
-            return hasShift(classroom.schedule, turno);
-        });
-        return classrooms.length > 0 ? [{ ...subject, classrooms }] : [];
-    });
+    return subjects.filter(
+        (subject) =>
+            subject.classrooms.length > 0 &&
+            (!KINDS[tipo] || subject.kind === KINDS[tipo]) &&
+            matchesText(subject, busca)
+    );
 }
 
 export function currentCurriculumPeriod(

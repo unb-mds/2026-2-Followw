@@ -1,8 +1,10 @@
 import { CalendarDays, Download, Plus, X } from 'lucide-react';
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useMemo, useState, useSyncExternalStore } from 'react';
 
 import type { CatalogSubject, SubjectClassroom } from '#/queries/subjects';
 
+import { ClassCard } from '#/components/home/ClassCard';
+import { SelectionBar } from '#/components/SelectionBar';
 import { Button } from '#/components/ui/button';
 import {
     Dialog,
@@ -13,13 +15,15 @@ import {
     DialogTrigger
 } from '#/components/ui/dialog';
 import { saveFile } from '#/lib/download';
-import { parseSchedule, SCHEDULE_SLOTS } from '#/lib/schedule';
+import { localStorageRepository, STORAGE_KEYS } from '#/lib/local-storage';
+import { describeSchedule, parseSchedule, visibleSlots } from '#/lib/schedule';
 import { createSchedulePng } from '#/lib/schedule-image';
 import { cn } from '#/lib/shadcn';
 
 interface PlannedClass {
     code: string;
     name: string;
+    hours: number | null;
     classroom: SubjectClassroom;
 }
 
@@ -29,85 +33,98 @@ function classKey({ code, classroom }: PlannedClass) {
 
 const PlannerContext = createContext<{
     items: PlannedClass[];
+    maxHours: number | null;
     toggle: (item: PlannedClass) => void;
+    clear: () => void;
 } | null>(null);
 
-export function SchedulePlanner({ children }: { children: React.ReactNode }) {
-    const [{ items, conflict }, setState] = useState<{
-        items: PlannedClass[];
-        conflict: { message: string } | null;
-    }>({ items: [], conflict: null });
-    const toggle = useCallback(
-        (item: PlannedClass) =>
-            setState(({ items: previous }) => {
-                if (previous.some((entry) => classKey(entry) === classKey(item))) {
-                    return {
-                        items: previous.filter((entry) => classKey(entry) !== classKey(item)),
-                        conflict: null
-                    };
-                }
-                const duplicate = previous.find(
-                    (entry) =>
-                        entry.code === item.code &&
-                        entry.classroom.semester === item.classroom.semester
-                );
-                if (duplicate) {
-                    return {
-                        items: previous,
-                        conflict: {
-                            message: `${item.name} já está na grade com a turma ${duplicate.classroom.number}. Remova essa turma antes de adicionar outra da mesma matéria.`
-                        }
-                    };
-                }
-                const times = parseSchedule(item.classroom.schedule);
-                const conflicts = previous.filter(
-                    (entry) =>
-                        entry.classroom.semester === item.classroom.semester &&
-                        parseSchedule(entry.classroom.schedule).some((existing) =>
-                            times.some(
-                                (time) =>
-                                    time.weekday === existing.weekday &&
-                                    time.start < existing.end &&
-                                    time.end > existing.start
-                            )
-                        )
-                );
-                if (conflicts.length > 0) {
-                    return {
-                        items: previous,
-                        conflict: {
-                            message: `Não foi possível adicionar ${item.name} · Turma ${item.classroom.number}: horário em conflito com ${conflicts.map((entry) => `${entry.name} · Turma ${entry.classroom.number}`).join('; ')}.`
-                        }
-                    };
-                }
-                return { items: [...previous, item], conflict: null };
-            }),
-        []
-    );
-    useEffect(() => {
-        if (!conflict) return undefined;
-        const timer = setTimeout(
-            () => setState((previous) => ({ ...previous, conflict: null })),
-            2000
-        );
-        return () => clearTimeout(timer);
-    }, [conflict]);
-    const value = useMemo(() => ({ items, toggle }), [items, toggle]);
+function semesterHours(items: PlannedClass[], semester: string) {
+    return items
+        .filter((entry) => entry.classroom.semester === semester)
+        .reduce((total, entry) => total + (entry.hours ?? 0), 0);
+}
 
+// Carga máxima por período da matriz do aluno.
+function exceedsLimit(items: PlannedClass[], item: PlannedClass, maxHours: number | null) {
     return (
-        <PlannerContext value={value}>
-            {children}
-            {conflict && (
-                <div
-                    role="alert"
-                    aria-atomic="true"
-                    className="fixed inset-x-4 top-1/2 z-50 mx-auto max-w-lg -translate-y-1/2 rounded-xl border border-destructive/30 bg-popover p-4 text-center text-sm text-destructive shadow-lg"
-                >
-                    {conflict.message}
-                </div>
-            )}
-        </PlannerContext>
+        maxHours != null &&
+        semesterHours(items, item.classroom.semester) + (item.hours ?? 0) > maxHours
     );
+}
+
+// Mesma matéria no semestre ou horário sobreposto impedem a adição.
+function conflictOf(items: PlannedClass[], item: PlannedClass) {
+    const times = parseSchedule(item.classroom.schedule);
+    return items.find(
+        (entry) =>
+            entry.classroom.semester === item.classroom.semester &&
+            (entry.code === item.code ||
+                parseSchedule(entry.classroom.schedule).some((existing) =>
+                    times.some(
+                        (time) =>
+                            time.weekday === existing.weekday &&
+                            time.start < existing.end &&
+                            time.end > existing.start
+                    )
+                ))
+    );
+}
+
+const EMPTY: PlannedClass[] = [];
+const listeners = new Set<() => void>();
+let snapshot: PlannedClass[] | undefined;
+
+// Turmas salvas antes de a grade guardar a carga horária são descartadas.
+function readItems() {
+    return (snapshot ??=
+        localStorageRepository
+            .get<PlannedClass[]>(STORAGE_KEYS.SCHEDULE)
+            ?.filter((entry) => 'hours' in entry) ?? EMPTY);
+}
+
+function writeItems(items: PlannedClass[]) {
+    snapshot = items;
+    localStorageRepository.set(STORAGE_KEYS.SCHEDULE, items);
+    for (const listener of listeners) listener();
+}
+
+function subscribe(listener: () => void) {
+    listeners.add(listener);
+    return () => {
+        listeners.delete(listener);
+        // Sem planner montado, a próxima montagem relê o localStorage.
+        if (listeners.size === 0) snapshot = undefined;
+    };
+}
+
+function toggleItem(item: PlannedClass, maxHours: number | null) {
+    const items = readItems();
+    if (items.some((entry) => classKey(entry) === classKey(item))) {
+        writeItems(items.filter((entry) => classKey(entry) !== classKey(item)));
+    } else if (!conflictOf(items, item) && !exceedsLimit(items, item, maxHours)) {
+        writeItems([...items, item]);
+    }
+}
+
+export function SchedulePlanner({
+    maxHours = null,
+    children
+}: {
+    maxHours?: number | null;
+    children: React.ReactNode;
+}) {
+    const items = useSyncExternalStore(subscribe, readItems, () => EMPTY);
+    const value = useMemo(
+        () => ({
+            items,
+            maxHours,
+            toggle: (item: PlannedClass) => toggleItem(item, maxHours),
+            clear: () => writeItems(EMPTY)
+        }),
+        [items, maxHours]
+    );
+
+    return <PlannerContext value={value}>{children}</PlannerContext>;
 }
 
 export function AddToSchedule({
@@ -119,26 +136,33 @@ export function AddToSchedule({
 }) {
     const planner = useContext(PlannerContext);
     if (!planner) return null;
-    const item = { code: subject.code, name: subject.name, classroom };
+    const item = {
+        code: subject.code,
+        name: subject.name,
+        hours: subject.hours ?? null,
+        classroom
+    };
     const selected = planner.items.some((entry) => classKey(entry) === classKey(item));
+    const blocked =
+        !selected &&
+        (Boolean(conflictOf(planner.items, item)) ||
+            exceedsLimit(planner.items, item, planner.maxHours));
 
     return (
-        <div className="px-3 pb-3">
-            <Button
-                variant={selected ? 'destructive' : 'default'}
-                size="lg"
-                className={cn(
-                    'h-10 w-full rounded-xl',
-                    !selected && 'bg-primary/15 text-primary hover:bg-primary/25'
-                )}
-                aria-pressed={selected}
-                aria-label={`${selected ? 'Remover da' : 'Adicionar à'} grade: ${subject.code}, turma ${classroom.number}`}
-                onClick={() => planner.toggle(item)}
-            >
-                {selected ? <X aria-hidden="true" /> : <Plus aria-hidden="true" />}
-                {selected ? 'Remover da grade' : 'Adicionar à grade'}
-            </Button>
-        </div>
+        <Button
+            variant={selected ? 'destructive' : 'ghost'}
+            size="icon-lg"
+            className={cn(
+                'rounded-xl',
+                !selected && 'bg-primary/15 text-primary hover:bg-primary/25 hover:text-primary'
+            )}
+            disabled={blocked}
+            aria-pressed={selected}
+            aria-label={`${selected ? 'Remover da' : 'Adicionar à'} grade: ${subject.code}, turma ${classroom.number}`}
+            onClick={() => planner.toggle(item)}
+        >
+            {selected ? <X aria-hidden="true" /> : <Plus aria-hidden="true" />}
+        </Button>
     );
 }
 
@@ -147,32 +171,35 @@ const DAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 function WeeklyTable({
     items,
     semester,
+    maxHours,
     action
 }: {
     items: PlannedClass[];
     semester: string;
+    maxHours: number | null;
     action?: React.ReactNode;
 }) {
+    const hours = semesterHours(items, semester);
     const entries = items.map((item) => ({
         ...item,
         times: parseSchedule(item.classroom.schedule)
     }));
-    const times = entries.flatMap((entry) => entry.times);
-    const rows = times.length
-        ? SCHEDULE_SLOTS.filter(([start, end]) =>
-              times.some((time) => start < time.end && end > time.start)
-          )
-        : [];
-    const first = rows[0]?.[0];
-    const last = rows.at(-1)?.[1];
-    const visibleRows = SCHEDULE_SLOTS.filter(
-        ([start, end]) => first && last && start >= first && end <= last
-    );
+    const visibleRows = visibleSlots(entries.flatMap((entry) => entry.times));
 
     return (
-        <div className="flex flex-col gap-2">
+        <div className="flex min-w-0 flex-col gap-2">
             <div className="flex items-center justify-between gap-3">
-                <h3 className="text-base font-semibold">Semestre {semester}</h3>
+                <div className="flex flex-col">
+                    <h3 className="text-base font-semibold">Semestre {semester}</h3>
+                    <p
+                        className={cn(
+                            'text-xs text-muted-foreground tabular-nums',
+                            maxHours != null && hours > maxHours && 'text-destructive'
+                        )}
+                    >
+                        {maxHours == null ? `${hours}h` : `${hours}h de ${maxHours}h`}
+                    </p>
+                </div>
                 {action}
             </div>
             {visibleRows.length > 0 && (
@@ -182,7 +209,7 @@ function WeeklyTable({
                 >
                     <table className="w-full min-w-2xl table-fixed border-collapse text-center text-xs">
                         <caption className="sr-only">Grade semanal · {semester}.</caption>
-                        <thead className="bg-primary text-primary-foreground">
+                        <thead className="bg-foreground text-background dark:bg-background dark:text-foreground">
                             <tr>
                                 <th scope="col" className="w-24 p-2">
                                     Horários
@@ -261,13 +288,13 @@ function WeeklyTable({
     );
 }
 
-export function SchedulePreview({ children }: { children?: React.ReactNode }) {
+export function SchedulePreview() {
     const planner = useContext(PlannerContext);
     const [open, setOpen] = useState(false);
     const [exporting, setExporting] = useState(false);
     const [exportError, setExportError] = useState(false);
     if (!planner) return null;
-    const { items, toggle } = planner;
+    const { items, maxHours, toggle, clear } = planner;
     const download = async () => {
         setExporting(true);
         setExportError(false);
@@ -292,23 +319,25 @@ export function SchedulePreview({ children }: { children?: React.ReactNode }) {
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <div className={cn('flex', children && 'grid grid-cols-2 items-end gap-2')}>
-                <div className="flex min-w-0 flex-col gap-2">
-                    {children && (
-                        <span className="text-xs text-muted-foreground">Grade semanal</span>
-                    )}
+            {items.length > 0 && (
+                <SelectionBar
+                    label="Turmas selecionadas"
+                    count={items.length}
+                    units={['turma', 'turmas']}
+                    onClear={clear}
+                >
                     <Button
-                        variant="outline"
-                        className={cn('justify-start self-start', children && 'h-8 w-full bg-card')}
+                        variant="ghost"
+                        size="sm"
+                        className="rounded-full text-primary"
                         render={<DialogTrigger />}
                         onClick={() => setOpen(true)}
                     >
-                        <CalendarDays className="text-muted-foreground" aria-hidden="true" />
-                        Mostrar grade
+                        <CalendarDays aria-hidden="true" />
+                        Ver grade
                     </Button>
-                </div>
-                {children}
-            </div>
+                </SelectionBar>
+            )}
             <DialogContent
                 className="max-h-9/10 overflow-y-auto rounded-2xl sm:max-w-3xl"
                 showCloseButton={false}
@@ -327,6 +356,7 @@ export function SchedulePreview({ children }: { children?: React.ReactNode }) {
                     <WeeklyTable
                         key={semester}
                         semester={semester}
+                        maxHours={maxHours}
                         items={items.filter((item) => item.classroom.semester === semester)}
                         action={index === 0 ? closeButton : undefined}
                     />
@@ -340,23 +370,30 @@ export function SchedulePreview({ children }: { children?: React.ReactNode }) {
                         <>
                             <ul className="flex flex-col gap-2">
                                 {items.map((item) => (
-                                    <li
-                                        key={classKey(item)}
-                                        className="flex items-center gap-2 text-sm"
-                                    >
-                                        <span className="min-w-0 flex-1">
-                                            {item.code} · {item.name} · T{item.classroom.number} ·{' '}
-                                            {item.classroom.semester}
-                                        </span>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon-sm"
-                                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                            aria-label={`Remover da grade: ${item.code}, turma ${item.classroom.number}`}
-                                            onClick={() => toggle(item)}
-                                        >
-                                            <X aria-hidden="true" />
-                                        </Button>
+                                    <li key={classKey(item)}>
+                                        <ClassCard
+                                            compact
+                                            title={item.name}
+                                            code={item.code}
+                                            classNumber={item.classroom.number}
+                                            time={
+                                                describeSchedule(item.classroom.schedule) ??
+                                                'Horário a definir'
+                                            }
+                                            location={item.classroom.room ?? undefined}
+                                            professors={item.classroom.professors}
+                                            action={
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon-sm"
+                                                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                                    aria-label={`Remover da grade: ${item.code}, turma ${item.classroom.number}`}
+                                                    onClick={() => toggle(item)}
+                                                >
+                                                    <X aria-hidden="true" />
+                                                </Button>
+                                            }
+                                        />
                                     </li>
                                 ))}
                             </ul>
@@ -369,7 +406,7 @@ export function SchedulePreview({ children }: { children?: React.ReactNode }) {
                     onClick={() => void download()}
                 >
                     <Download aria-hidden="true" />
-                    {exporting ? 'Gerando PNG...' : 'Baixar PNG'}
+                    {exporting ? 'Gerando imagem...' : 'Baixar imagem'}
                 </Button>
                 {exportError && (
                     <p role="alert" className="text-sm text-destructive">

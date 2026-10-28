@@ -7,12 +7,11 @@ import {
     parseAsStringLiteral
 } from 'nuqs/server';
 
-import { AVAILABILITIES, TURNOS } from '#/queries/subjects';
+import { TIPOS } from '#/queries/subjects';
 
 export const searchParsers = {
     q: parseAsString.withDefault(''),
-    turno: parseAsStringLiteral(TURNOS).withDefault('Todos'),
-    disponibilidade: parseAsStringLiteral(AVAILABILITIES).withDefault('Todas')
+    tipo: parseAsStringLiteral(TIPOS).withDefault('Todas')
 };
 
 export const validateSearch = createStandardSchemaV1(searchParsers, { partialOutput: true });

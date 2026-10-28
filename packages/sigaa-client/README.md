@@ -35,7 +35,11 @@ Todos os erros derivam de `SigaaError`.
 ano de criação, turno e status. `get_curriculum(course_sigaa_id, sigaa_id)` retorna o turno em
 letras (`D` para diurno ou `N` para noturno; `None` quando indefinido) e também a matriz,
 `valid_from` (semestre de entrada em vigor), `required_by_period` (array de objetos com `period` e
-array `required` de códigos), `optional` e `complementary` (arrays de códigos). O período é o nível
+array `required` de códigos), `optional` e `complementary` (arrays de códigos). Traz ainda as cargas
+horárias em horas (`total_workload` mínima, `required_workload`, `optional_min_workload`,
+`complementary_min_workload`, `elective_max_workload`, `period_max_workload` e
+`period_min_workload`) e o prazo de conclusão em semestres (`min_semesters`, `avg_semesters` e
+`max_semesters`), `None` quando o SIGAA deixa em branco. O período é o nível
 informado pelo SIGAA, inclusive zero quando presente. Optativas indicadas dentro dos períodos também
 entram em `optional`, sem duplicatas.
 

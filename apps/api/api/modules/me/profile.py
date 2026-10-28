@@ -30,6 +30,8 @@ class UserProfile(BaseModel):
     entry_semester: str | None
     integralization: int | None
     workload: CurriculumWorkload | None
+    # Carga horária máxima por período da matriz do aluno, em horas.
+    period_max_workload: int | None = None
     ira: float | None
     mp: float | None
     level: UserLevel
@@ -81,6 +83,9 @@ def _to_profile(user: User) -> UserProfile:
         integralization=user.integralization,
         workload=CurriculumWorkload.model_validate(user.workload)
         if user.workload
+        else None,
+        period_max_workload=user.curriculum.period_max_workload
+        if user.curriculum
         else None,
         ira=user.ira,
         mp=user.mp,

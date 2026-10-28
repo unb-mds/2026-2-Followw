@@ -21,9 +21,8 @@ def read_curricula(
     with path.open(encoding="utf-8", newline="") as file:
         for row in csv.DictReader(file):
             item = PublicCurriculum.model_validate(
-                row
+                {key: value or None for key, value in row.items()}
                 | {
-                    "shift": row["shift"] or None,
                     "required_by_period": [],
                     "optional": [],
                     "complementary": [],
@@ -116,7 +115,24 @@ async def seed_curricula(
     missing = {item.course_sigaa_id for item in curricula} - courses.keys()
     if missing:
         raise ValueError(f"Cursos dos currículos ausentes no banco: {sorted(missing)}")
-    fields = ("code", "valid_from", "created_year", "active", "shift", "matrix")
+    fields = (
+        "code",
+        "valid_from",
+        "created_year",
+        "active",
+        "shift",
+        "matrix",
+        "total_workload",
+        "required_workload",
+        "optional_min_workload",
+        "complementary_min_workload",
+        "elective_max_workload",
+        "period_max_workload",
+        "period_min_workload",
+        "min_semesters",
+        "avg_semesters",
+        "max_semesters",
+    )
     rows = [
         Curriculum(
             course_id=courses[item.course_sigaa_id],

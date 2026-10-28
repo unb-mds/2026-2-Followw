@@ -12,8 +12,6 @@ import {
     currentCurriculumPeriod,
     availableSeats,
     filterSubjects,
-    isAvailability,
-    isTurno,
     lockedReasons,
     prerequisitesMet,
     subjectRequirementLabel,
@@ -134,28 +132,34 @@ describe('pré-requisitos', () => {
 });
 
 describe('filtros no cliente', () => {
-    test('turno filtra pelo horário e descarta matérias sem turmas', () => {
-        const nightOnly = filterSubjects(
-            [subject],
-            { turno: 'Noite', disponibilidade: 'Todas' },
-            null
-        );
-        expect(nightOnly[0].classrooms).toEqual([night]);
-        expect(
-            filterSubjects([subject], { turno: 'Tarde', disponibilidade: 'Todas' }, null)
-        ).toEqual([]);
+    test('descarta matérias sem turmas', () => {
+        expect(filterSubjects([subject, { ...subject, classrooms: [] }])).toEqual([subject]);
     });
 
-    test('disponibilidade considera lotação e pré-requisitos', () => {
-        const filters = { turno: 'Todos', disponibilidade: 'Disponíveis' } as const;
-        expect(filterSubjects([subject], filters, null)[0].classrooms).toEqual([morning]);
-        expect(filterSubjects([subject], filters, new Set())).toEqual([]);
-        const locked = filterSubjects(
-            [subject],
-            { ...filters, disponibilidade: 'Indisponíveis' },
-            new Set(['FGA0010'])
-        );
-        expect(locked[0].classrooms).toEqual([night]);
+    test('tipo mantém só as matérias do tipo escolhido', () => {
+        const kinds: CatalogSubject[] = [
+            { ...subject, code: 'mandatory', kind: 'mandatory' },
+            { ...subject, code: 'optional', kind: 'optional' },
+            { ...subject, code: 'free', kind: 'free' }
+        ];
+        expect(filterSubjects(kinds, { tipo: 'Todas' })).toHaveLength(3);
+        expect(filterSubjects(kinds, { tipo: 'Optativas' }).map((s) => s.code)).toEqual([
+            'optional'
+        ]);
+        expect(filterSubjects([subject], { tipo: 'Obrigatórias' })).toEqual([]);
+    });
+
+    test('texto busca código, nome e professor sem acento nem caixa', () => {
+        const withProfessor = {
+            ...subject,
+            classrooms: [{ ...morning, professors: ['JOSÉ  da Silva'] }]
+        };
+        const search = (busca: string) => filterSubjects([withProfessor], { busca }).length;
+        expect(search('fga00')).toBe(1);
+        expect(search('compiladôres')).toBe(1);
+        expect(search('jose da')).toBe(1);
+        expect(search('  ')).toBe(1);
+        expect(search('calculo')).toBe(0);
     });
 
     test('cadeado distingue turma cheia de dado ausente', () => {
@@ -166,13 +170,6 @@ describe('filtros no cliente', () => {
             'Pré-requisitos não atendidos'
         ]);
         expect(lockedReasons(morning, null)).toEqual([]);
-    });
-
-    test('aceita apenas opções válidas', () => {
-        expect(isTurno('Noite')).toBe(true);
-        expect(isTurno('Madrugada')).toBe(false);
-        expect(isAvailability('Disponíveis')).toBe(true);
-        expect(isAvailability('Talvez')).toBe(false);
     });
 });
 

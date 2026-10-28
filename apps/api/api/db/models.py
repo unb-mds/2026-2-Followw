@@ -77,6 +77,17 @@ class Curriculum(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     active: Mapped[bool] = mapped_column()
     shift: Mapped[str | None] = mapped_column()
     matrix: Mapped[str] = mapped_column()
+    # Horas e semestres lidos da estrutura curricular.
+    total_workload: Mapped[int | None] = mapped_column(SmallInteger)
+    required_workload: Mapped[int | None] = mapped_column(SmallInteger)
+    optional_min_workload: Mapped[int | None] = mapped_column(SmallInteger)
+    complementary_min_workload: Mapped[int | None] = mapped_column(SmallInteger)
+    elective_max_workload: Mapped[int | None] = mapped_column(SmallInteger)
+    period_max_workload: Mapped[int | None] = mapped_column(SmallInteger)
+    period_min_workload: Mapped[int | None] = mapped_column(SmallInteger)
+    min_semesters: Mapped[int | None] = mapped_column(SmallInteger)
+    avg_semesters: Mapped[int | None] = mapped_column(SmallInteger)
+    max_semesters: Mapped[int | None] = mapped_column(SmallInteger)
 
     course: Mapped[Course] = relationship()
 
@@ -133,6 +144,7 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     settings: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict)
 
     course: Mapped[Course | None] = relationship(lazy="joined")
+    curriculum: Mapped[Curriculum | None] = relationship(lazy="joined")
     classroom_links: Mapped[list[ClassroomParticipant]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )

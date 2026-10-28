@@ -11,6 +11,7 @@ import { cn } from '#/lib/shadcn';
 export interface ClassCardProps {
     title: string;
     variant?: 'card' | 'row';
+    compact?: boolean;
     code?: string;
     time: string;
     location?: string;
@@ -23,6 +24,7 @@ export interface ClassCardProps {
     onClick?: () => void;
     buttonRender?: React.ReactElement;
     indicator?: React.ReactNode;
+    action?: React.ReactNode;
 }
 
 const STATUS = {
@@ -43,6 +45,7 @@ const STATUS = {
 export const ClassCard: React.FC<ClassCardProps> = ({
     title,
     variant = 'card',
+    compact = false,
     code,
     time,
     location,
@@ -54,7 +57,8 @@ export const ClassCard: React.FC<ClassCardProps> = ({
     onLocationClick,
     onClick,
     buttonRender,
-    indicator
+    indicator,
+    action
 }) => {
     const statusInfo = status === 'normal' ? undefined : STATUS[status];
     const active = status === 'in_progress';
@@ -67,7 +71,9 @@ export const ClassCard: React.FC<ClassCardProps> = ({
             className={cn(
                 'relative gap-1 px-3',
                 active && 'bg-primary/5 ring-primary/30',
-                variant === 'row' && 'rounded-none bg-transparent shadow-none ring-0'
+                variant === 'row' && 'rounded-none bg-transparent shadow-none ring-0',
+                compact && 'gap-0.5 py-2',
+                action && (compact ? 'pr-12' : 'pr-14')
             )}
         >
             {(onClick || buttonRender) && (
@@ -102,7 +108,12 @@ export const ClassCard: React.FC<ClassCardProps> = ({
                 )}
             </div>
             <div className="pointer-events-none relative flex items-center gap-2">
-                <h3 className="line-clamp-2 min-w-0 flex-1 text-sm leading-snug font-semibold">
+                <h3
+                    className={cn(
+                        'min-w-0 flex-1 text-sm leading-snug font-semibold',
+                        compact ? 'line-clamp-1' : 'line-clamp-2'
+                    )}
+                >
                     {title}
                 </h3>
                 {indicator}
@@ -131,6 +142,7 @@ export const ClassCard: React.FC<ClassCardProps> = ({
                     </Button>
                 )}
             </div>
+            {action && <div className="absolute top-1/2 right-3 -translate-y-1/2">{action}</div>}
         </Card>
     );
 };

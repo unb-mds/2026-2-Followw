@@ -3,6 +3,8 @@ import { useLayoutEffect } from 'react';
 
 import type { CatalogSubject, SubjectClassroom } from '#/queries/subjects';
 
+import { localStorageRepository, STORAGE_KEYS } from '#/lib/local-storage';
+
 let AddToSchedule: typeof import('#/components/search/SchedulePlanner').AddToSchedule;
 let SchedulePlanner: typeof import('#/components/search/SchedulePlanner').SchedulePlanner;
 let SchedulePreview: typeof import('#/components/search/SchedulePlanner').SchedulePreview;
@@ -23,7 +25,10 @@ beforeAll(async () => {
         await import('#/components/search/SchedulePlanner'));
 });
 afterAll(() => restoreLayoutEffect());
-afterEach(() => dom.testing.cleanup());
+afterEach(() => {
+    dom.testing.cleanup();
+    localStorage.clear();
+});
 
 const classroom: SubjectClassroom = {
     number: '01',
@@ -55,9 +60,63 @@ function setup(alternative: Partial<SubjectClassroom> = {}) {
     );
 }
 
+const button = (view: ReturnType<typeof setup>, name: string) => view.getByRole('button', { name });
+
 describe('montagem da grade semanal', () => {
+    test('descarta turmas salvas sem carga horária', async () => {
+        const { fireEvent } = dom.testing;
+        localStorageRepository.set(STORAGE_KEYS.SCHEDULE, [
+            { code: 'FGA0108', name: subject.name, classroom },
+            {
+                code: 'FGA0001',
+                name: subject.name,
+                hours: 60,
+                classroom: { ...classroom, schedule: '24M12' }
+            }
+        ]);
+        const view = setup();
+        fireEvent.click(view.getByRole('button', { name: 'Ver grade' }));
+        await view.findByRole('dialog', { name: 'Minha grade semanal' });
+        expect(view.getByText('60h')).toBeTruthy();
+        expect(view.queryByText('FGA0108')).toBeNull();
+    });
+
+    test('bloqueia turmas acima da carga máxima por período do curso', async () => {
+        const { fireEvent } = dom.testing;
+        const view = dom.testing.render(
+            <SchedulePlanner maxHours={100}>
+                <SchedulePreview />
+                <AddToSchedule subject={subject} classroom={classroom} />
+                <AddToSchedule
+                    subject={{ ...subject, code: 'FGA0001' }}
+                    classroom={{ ...classroom, schedule: '24M12' }}
+                />
+                <AddToSchedule
+                    subject={{ ...subject, code: 'FGA0002', hours: 30 }}
+                    classroom={{ ...classroom, schedule: '6M12' }}
+                />
+                <AddToSchedule
+                    subject={{ ...subject, code: 'FGA0003' }}
+                    classroom={{ ...classroom, semester: '2027.1' }}
+                />
+            </SchedulePlanner>
+        );
+        const add = (code: string) => button(view, `Adicionar à grade: ${code}, turma 01`);
+        fireEvent.click(add('FGA0108'));
+        expect(add('FGA0001').hasAttribute('disabled')).toBe(true);
+        expect(add('FGA0002').hasAttribute('disabled')).toBe(false);
+        expect(add('FGA0003').hasAttribute('disabled')).toBe(false);
+        fireEvent.click(add('FGA0002'));
+        fireEvent.click(button(view, 'Remover da grade: FGA0108, turma 01'));
+        expect(add('FGA0001').hasAttribute('disabled')).toBe(false);
+        fireEvent.click(add('FGA0001'));
+        fireEvent.click(button(view, 'Ver grade'));
+        await view.findByRole('dialog', { name: 'Minha grade semanal' });
+        expect(view.getByText('90h de 100h')).toBeTruthy();
+    });
+
     test.each(['24M12', null])(
-        'bloqueia outra turma da mesma matéria mesmo sem conflito de horário: %s',
+        'desativa outra turma da mesma matéria mesmo sem conflito de horário: %s',
         (schedule) => {
             const { fireEvent } = dom.testing;
             const view = dom.testing.render(
@@ -69,30 +128,17 @@ describe('montagem da grade semanal', () => {
                     />
                 </SchedulePlanner>
             );
-            fireEvent.click(
-                view.getByRole('button', { name: 'Adicionar à grade: FGA0108, turma 01' })
-            );
-            fireEvent.click(
-                view.getByRole('button', { name: 'Adicionar à grade: FGA0108, turma 02' })
-            );
-            expect(view.getByRole('alert').textContent).toContain(
-                'Matemática Discreta 2 já está na grade com a turma 01'
-            );
             expect(
-                view
-                    .getByRole('button', { name: 'Adicionar à grade: FGA0108, turma 02' })
-                    .getAttribute('aria-pressed')
-            ).toBe('false');
-            fireEvent.click(
-                view.getByRole('button', { name: 'Remover da grade: FGA0108, turma 01' })
-            );
-            fireEvent.click(
-                view.getByRole('button', { name: 'Adicionar à grade: FGA0108, turma 02' })
-            );
+                button(view, 'Adicionar à grade: FGA0108, turma 02').hasAttribute('disabled')
+            ).toBe(false);
+            fireEvent.click(button(view, 'Adicionar à grade: FGA0108, turma 01'));
             expect(
-                view
-                    .getByRole('button', { name: 'Remover da grade: FGA0108, turma 02' })
-                    .getAttribute('aria-pressed')
+                button(view, 'Adicionar à grade: FGA0108, turma 02').hasAttribute('disabled')
+            ).toBe(true);
+            fireEvent.click(button(view, 'Remover da grade: FGA0108, turma 01'));
+            fireEvent.click(button(view, 'Adicionar à grade: FGA0108, turma 02'));
+            expect(
+                button(view, 'Remover da grade: FGA0108, turma 02').getAttribute('aria-pressed')
             ).toBe('true');
         }
     );
@@ -105,7 +151,7 @@ describe('montagem da grade semanal', () => {
                 view.getByRole('button', { name: `Adicionar à grade: ${code}, turma 01` })
             );
         }
-        fireEvent.click(view.getByRole('button', { name: 'Mostrar grade' }));
+        fireEvent.click(view.getByRole('button', { name: 'Ver grade' }));
         await view.findByRole('dialog', { name: 'Minha grade semanal' });
         expect(view.getAllByRole('table')).toHaveLength(2);
         expect(view.queryByText('Choque de horário')).toBeNull();
@@ -117,13 +163,13 @@ describe('montagem da grade semanal', () => {
         expect(view.queryByText('Minha grade semanal')).toBeNull();
         fireEvent.click(view.getByRole('button', { name: 'Adicionar à grade: FGA0108, turma 01' }));
         expect(view.queryByText('Minha grade semanal')).toBeNull();
-        fireEvent.click(view.getByRole('button', { name: 'Mostrar grade' }));
+        fireEvent.click(view.getByRole('button', { name: 'Ver grade' }));
         await view.findByRole('dialog', { name: 'Minha grade semanal' });
         expect(view.getByRole('dialog', { name: 'Minha grade semanal' }).className).toContain(
             'sm:max-w-3xl'
         );
         const table = view.getByRole('table');
-        expect(view.getByRole('button', { name: 'Baixar PNG' }).hasAttribute('disabled')).toBe(
+        expect(view.getByRole('button', { name: 'Baixar imagem' }).hasAttribute('disabled')).toBe(
             false
         );
         expect(table.textContent).toContain('14:00–14:55');
@@ -133,11 +179,15 @@ describe('montagem da grade semanal', () => {
         expect(cells[1].textContent).toContain('FGA0108');
         expect(cells[3].textContent).toContain('FGA0108');
         expect(cells[0].textContent).toBe('—');
+        const listItem = view.getByRole('listitem');
+        expect(listItem.textContent).toContain('Matemática Discreta 2');
+        expect(listItem.textContent).toContain('FGA0108 · T01');
+        expect(listItem.textContent).not.toContain('2026.2');
         fireEvent.click(
             view.getAllByRole('button', { name: 'Remover da grade: FGA0108, turma 01' })[0]
         );
         expect(view.queryByRole('table')).toBeNull();
-        expect(view.getByRole('button', { name: 'Baixar PNG' }).hasAttribute('disabled')).toBe(
+        expect(view.getByRole('button', { name: 'Baixar imagem' }).hasAttribute('disabled')).toBe(
             true
         );
         expect(
@@ -145,59 +195,51 @@ describe('montagem da grade semanal', () => {
         ).toBeTruthy();
     });
 
-    test('bloqueia sobreposição parcial e identifica a turma em conflito antes de adicionar', async () => {
+    test('desativa turma com sobreposição parcial e reativa ao remover o conflito', async () => {
         const { fireEvent } = dom.testing;
         const view = setup({ schedule: '3T3' });
-        fireEvent.click(view.getByRole('button', { name: 'Adicionar à grade: FGA0108, turma 01' }));
-        fireEvent.click(view.getByRole('button', { name: 'Adicionar à grade: FGA0001, turma 01' }));
-        expect(view.getByRole('alert').textContent).toContain(
-            'em conflito com Matemática Discreta 2 · Turma 01'
-        );
-        expect(view.getByRole('alert').textContent).not.toMatch(/FGA0108|FGA0001/);
-        expect(
-            view
-                .getByRole('button', { name: 'Adicionar à grade: FGA0001, turma 01' })
-                .getAttribute('aria-pressed')
-        ).toBe('false');
-        fireEvent.click(view.getByRole('button', { name: 'Mostrar grade' }));
+        fireEvent.click(button(view, 'Adicionar à grade: FGA0108, turma 01'));
+        const blocked = button(view, 'Adicionar à grade: FGA0001, turma 01');
+        expect(blocked.hasAttribute('disabled')).toBe(true);
+        fireEvent.click(blocked);
+        expect(view.queryByRole('alert')).toBeNull();
+        fireEvent.click(button(view, 'Remover da grade: FGA0108, turma 01'));
+        expect(blocked.hasAttribute('disabled')).toBe(false);
+        fireEvent.click(blocked);
+        fireEvent.click(view.getByRole('button', { name: 'Ver grade' }));
         await view.findByRole('dialog', { name: 'Minha grade semanal' });
-        expect(view.getByRole('table').textContent).not.toContain('FGA0001');
+        expect(view.getByRole('table').textContent).toContain('FGA0001');
+        expect(view.getByRole('table').textContent).not.toContain('FGA0108');
     });
 
-    test('aviso flutuante desaparece após dois segundos sem alterar a seleção', async () => {
-        const { fireEvent, act } = dom.testing;
-        const view = setup();
-        fireEvent.click(view.getByRole('button', { name: 'Adicionar à grade: FGA0108, turma 01' }));
-        fireEvent.click(view.getByRole('button', { name: 'Adicionar à grade: FGA0001, turma 01' }));
-        expect(view.getByRole('alert').className).toContain('fixed');
-        await act(() => new Promise((resolve) => setTimeout(resolve, 2100)));
-        expect(view.queryByRole('alert')).toBeNull();
-        expect(
-            view
-                .getByRole('button', { name: 'Adicionar à grade: FGA0001, turma 01' })
-                .getAttribute('aria-pressed')
-        ).toBe('false');
-        expect(
-            view
-                .getByRole('button', { name: 'Remover da grade: FGA0108, turma 01' })
-                .getAttribute('aria-pressed')
-        ).toBe('true');
-    });
-
-    test('permite adicionar a turma após remover o conflito', () => {
+    test('barra aparece com turmas selecionadas e limpar esvazia a grade', () => {
         const { fireEvent } = dom.testing;
-        const view = setup();
-        fireEvent.click(view.getByRole('button', { name: 'Adicionar à grade: FGA0108, turma 01' }));
-        fireEvent.click(view.getByRole('button', { name: 'Adicionar à grade: FGA0001, turma 01' }));
-        expect(view.getByRole('alert')).toBeTruthy();
-        fireEvent.click(view.getByRole('button', { name: 'Remover da grade: FGA0108, turma 01' }));
-        expect(view.queryByRole('alert')).toBeNull();
-        fireEvent.click(view.getByRole('button', { name: 'Adicionar à grade: FGA0001, turma 01' }));
+        const view = setup({ schedule: '24M12' });
+        expect(view.queryByRole('toolbar')).toBeNull();
+        fireEvent.click(button(view, 'Adicionar à grade: FGA0108, turma 01'));
+        expect(view.getByRole('toolbar', { name: 'Turmas selecionadas' }).textContent).toContain(
+            '1 turma'
+        );
+        fireEvent.click(button(view, 'Adicionar à grade: FGA0001, turma 01'));
+        expect(view.getByRole('toolbar').textContent).toContain('2 turmas');
+        fireEvent.click(button(view, 'Limpar seleção'));
+        expect(view.queryByRole('toolbar')).toBeNull();
+        expect(JSON.parse(localStorage.getItem('followw:schedule')!)).toEqual([]);
+    });
+
+    test('salva a grade no localStorage e restaura ao remontar', () => {
+        const { fireEvent } = dom.testing;
+        const view = setup({ schedule: '24M12' });
+        fireEvent.click(button(view, 'Adicionar à grade: FGA0108, turma 01'));
+        fireEvent.click(button(view, 'Adicionar à grade: FGA0001, turma 01'));
+        expect(JSON.parse(localStorage.getItem('followw:schedule')!)).toHaveLength(2);
+        view.unmount();
+        const restored = setup({ schedule: '24M12' });
         expect(
-            view
-                .getByRole('button', { name: 'Remover da grade: FGA0001, turma 01' })
-                .getAttribute('aria-pressed')
+            button(restored, 'Remover da grade: FGA0108, turma 01').getAttribute('aria-pressed')
         ).toBe('true');
+        fireEvent.click(button(restored, 'Remover da grade: FGA0001, turma 01'));
+        expect(JSON.parse(localStorage.getItem('followw:schedule')!)).toHaveLength(1);
     });
 
     test('fechar e reabrir mantém seleção', async () => {
@@ -207,7 +249,7 @@ describe('montagem da grade semanal', () => {
             fireEvent.click(
                 view.getByRole('button', { name: `Adicionar à grade: ${code}, turma 01` })
             );
-        const trigger = view.getByRole('button', { name: 'Mostrar grade' });
+        const trigger = view.getByRole('button', { name: 'Ver grade' });
         fireEvent.click(trigger);
         await view.findByRole('dialog', { name: 'Minha grade semanal' });
         expect(view.getByRole('table').textContent).toContain('FGA0001');
@@ -225,7 +267,7 @@ describe('montagem da grade semanal', () => {
             fireEvent.click(
                 view.getByRole('button', { name: `Adicionar à grade: ${code}, turma 01` })
             );
-        fireEvent.click(view.getByRole('button', { name: 'Mostrar grade' }));
+        fireEvent.click(view.getByRole('button', { name: 'Ver grade' }));
         await view.findByRole('dialog', { name: 'Minha grade semanal' });
         expect(view.queryByText('Choque de horário')).toBeNull();
         const rows = dom.testing.within(view.getByRole('table')).getAllByRole('row');
@@ -243,7 +285,7 @@ describe('montagem da grade semanal', () => {
             fireEvent.click(
                 view.getByRole('button', { name: `Adicionar à grade: ${code}, turma 01` })
             );
-        fireEvent.click(view.getByRole('button', { name: 'Mostrar grade' }));
+        fireEvent.click(view.getByRole('button', { name: 'Ver grade' }));
         await view.findByRole('dialog', { name: 'Minha grade semanal' });
         expect(view.getByText('FGA0001 · T01: horário a definir.')).toBeTruthy();
         expect(view.getByRole('heading', { name: 'Semestre 2027.1' })).toBeTruthy();

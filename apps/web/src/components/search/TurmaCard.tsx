@@ -52,8 +52,8 @@ export function TurmaCard({
                             />
                         )
                     }
+                    action={<AddToSchedule subject={subject} classroom={classroom} />}
                 />
-                <AddToSchedule subject={subject} classroom={classroom} />
                 <DialogContent
                     className="max-h-9/10 overflow-y-auto rounded-2xl sm:max-w-lg"
                     showCloseButton={false}

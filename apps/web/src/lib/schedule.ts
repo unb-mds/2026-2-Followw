@@ -25,6 +25,16 @@ const SLOTS: Record<string, [string, string][]> = {
 
 export const SCHEDULE_SLOTS = Object.values(SLOTS).flat();
 
+/** Do primeiro ao último horário ocupado, com os vagos entre eles. */
+export function visibleSlots(times: { start: string; end: string }[]) {
+    const used = SCHEDULE_SLOTS.filter(([start, end]) =>
+        times.some((time) => start < time.end && end > time.start)
+    );
+    const first = used[0]?.[0];
+    const last = used.at(-1)?.[1];
+    return SCHEDULE_SLOTS.filter(([start, end]) => first && last && start >= first && end <= last);
+}
+
 // Intervalo máximo entre blocos para juntá-los, como o T6 (até 18:55) e o N1 (a partir de 19:00).
 const MERGE_GAP_MINUTES = 5;
 

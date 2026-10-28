@@ -131,6 +131,16 @@ def test_coleta_grava_matrizes_e_componentes_com_optativas_no_periodo_zero(
         shift=None,
         valid_from="2020.1",
         matrix='ADMINISTRAÇÃO, "D"',
+        total_workload=3000,
+        required_workload=1680,
+        optional_min_workload=1320,
+        complementary_min_workload=0,
+        elective_max_workload=360,
+        period_max_workload=420,
+        period_min_workload=210,
+        min_semesters=8,
+        avg_semesters=9,
+        max_semesters=16,
         required_by_period=[
             {"period": 1, "required": ["ADM0023", "ADM0024"]},
             {"period": 2, "required": []},
@@ -148,6 +158,7 @@ def test_coleta_grava_matrizes_e_componentes_com_optativas_no_periodo_zero(
     assert matrix["matrix"] == item.matrix
     assert matrix["shift"] == ""
     assert matrix["active"] == "true"
+    assert (matrix["total_workload"], matrix["min_semesters"]) == ("3000", "8")
     assert {(row["subject_codes"], row["period"], row["kind"]) for row in rows} == {
         ("ADM0023 ADM0024", "1", "required"),
         ("", "2", "required"),
