@@ -8,6 +8,7 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.responses import HTMLResponse
 
 from api.core.config import settings
+from api.docs_content import get_full_description
 from api.errors import EXCEPTION_HANDLERS
 from api.logger import RequestLoggingMiddleware
 from api.modules.auth.router import router as auth_router
@@ -94,7 +95,7 @@ def custom_openapi() -> dict[str, Any]:
             title=app.title,
             version=app.version,
             openapi_version=app.openapi_version,
-            description=app.description,
+            description=get_full_description(app.description),
             routes=app.routes,
             tags=app.openapi_tags,
             servers=[{"url": app.root_path}],

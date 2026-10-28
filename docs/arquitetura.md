@@ -1,4 +1,4 @@
-# Documento de Arquitetura — Followw UnB
+# Documento de Arquitetura 
 
 ## Introdução
 

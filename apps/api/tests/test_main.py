@@ -85,3 +85,11 @@ def test_cors_libera_origens_configuradas_com_credenciais(client):
 def test_cors_nao_libera_origem_desconhecida(client):
     response = client.get("/docs", headers={"Origin": "https://evil.example"})
     assert "access-control-allow-origin" not in response.headers
+
+
+def test_openapi_contem_documentacao_markdown(client):
+    schema = client.get("/openapi.json").json()
+    description = schema["info"]["description"]
+    assert "Documento de Arquitetura" in description
+    assert "Segurança das credenciais do SIGAA" in description
+    assert "Cache e Sincronização" in description
