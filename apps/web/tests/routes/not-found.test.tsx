@@ -6,11 +6,16 @@ import {
     createRouter,
     isNotFound
 } from '@tanstack/react-router';
+import { createRequestHandler, renderSsrHtmlResponse } from '@tanstack/react-router/ssr/server';
 import { describe, expect, test } from 'bun:test';
 import { Window } from 'happy-dom';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { NotFoundPage } from '#/components/NotFoundPage';
+import { addDays, nowInBrasilia } from '#/lib/schedule';
+import { meQueryOptions } from '#/queries/me';
+import { menuQueryOptions } from '#/queries/restaurant';
+import { getRouter } from '#/router';
 import { Route as FallbackRoute } from '#/routes/$';
 import { Route as RootRoute } from '#/routes/__root';
 
@@ -31,7 +36,41 @@ async function renderMissingPage(path: string) {
     return { router, markup: renderToStaticMarkup(<RouterProvider router={router} />) };
 }
 
+async function requestPage(path: string) {
+    const request = new Request(`http://localhost${path}`);
+    const handler = createRequestHandler({
+        request,
+        createRouter: () => {
+            const router = getRouter();
+            const { queryClient } = router.options.context;
+            const now = nowInBrasilia();
+            queryClient.setQueryData(meQueryOptions.queryKey, null);
+            for (const date of [now.date, addDays(now.date, 1)]) {
+                queryClient.setQueryData(menuQueryOptions({ date, user: null }).queryKey, []);
+            }
+            return router;
+        }
+    });
+    return handler(({ router, responseHeaders }) =>
+        renderSsrHtmlResponse({ router, responseHeaders, render: () => '<!doctype html>' })
+    );
+}
+
 describe('página não encontrada', () => {
+    test.each(['/pagina-inexistente', '/nada/aqui?origem=teste', '/assets/arquivo-antigo.js'])(
+        '%s retorna HTTP 404 sem redirecionar',
+        async (path) => {
+            const response = await requestPage(path);
+            expect(response.status).toBe(404);
+            expect(response.headers.get('location')).toBeNull();
+        }
+    );
+
+    test.each(['/', '/ru'])('%s continua retornando HTTP 200', async (path) => {
+        const response = await requestPage(path);
+        expect(response.status).toBe(200);
+    });
+
     test.each(['/pagina-inexistente', '/nada/aqui?origem=teste', '/assets/arquivo-antigo.js'])(
         '%s aciona a página 404 e preserva o endereço solicitado',
         async (path) => {
