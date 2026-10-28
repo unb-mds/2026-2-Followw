@@ -156,14 +156,14 @@ function LoginPage() {
             <footer className="mt-auto flex max-w-sm gap-4 px-6 pt-8 pb-6 text-center text-xs text-muted-foreground">
                 <Link
                     to="/privacidade"
-                    hash="#politica-de-privacidade"
+                    hash="politica-de-privacidade"
                     className="block underline underline-offset-4 hover:text-foreground"
                 >
                     Política de privacidade
                 </Link>
                 <Link
                     to="/privacidade"
-                    hash="#termos-de-servico"
+                    hash="termos-de-servico"
                     className="block underline underline-offset-4 hover:text-foreground"
                 >
                     Termos de serviço

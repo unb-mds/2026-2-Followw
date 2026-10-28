@@ -20,9 +20,7 @@ describe('getNoClassEvents', () => {
         expect(getNoClassEvents('2026-10-12').map((event) => event.id)).toEqual([
             'our_lady_aparecida'
         ]);
-        expect(getNoClassEvents('2026-10-28').map((event) => event.id)).toEqual([
-            'public_servant_day'
-        ]);
+        expect(getNoClassEvents('2026-11-02').map((event) => event.id)).toEqual(['all_souls_day']);
     });
 
     test('ignora eventos acadêmicos e datas sem evento', () => {
@@ -34,7 +32,7 @@ describe('getNoClassEvents', () => {
 describe('getNoClassReason', () => {
     test('usa o nome do evento como motivo', () => {
         expect(getNoClassReason('2026-09-22')).toBe('Semana Universitária 2026');
-        expect(getNoClassReason('2026-10-28')).toBe('Dia do Servidor Público');
+        expect(getNoClassReason('2026-11-20')).toBe('Dia de Zumbi e da Consciência Negra');
     });
 
     test('sinaliza datas fora do período de aulas do semestre', () => {
