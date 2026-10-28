@@ -1,4 +1,5 @@
-import { afterEach, beforeAll, describe, expect, test } from 'bun:test';
+import { afterAll, afterEach, beforeAll, describe, expect, mock, test } from 'bun:test';
+import { useLayoutEffect } from 'react';
 
 import type { CatalogSubject, SubjectClassroom } from '#/queries/subjects';
 
@@ -9,10 +10,19 @@ let SchedulePreview: typeof import('#/components/search/SchedulePlanner').Schedu
 import { useDom } from '../../helpers/dom';
 
 const dom = useDom();
+let restoreLayoutEffect: () => Promise<void>;
 beforeAll(async () => {
+    const { useIsoLayoutEffect } = await import('@base-ui/utils/useIsoLayoutEffect');
+    await mock.module('@base-ui/utils/useIsoLayoutEffect', () => ({
+        useIsoLayoutEffect: useLayoutEffect
+    }));
+    restoreLayoutEffect = async () => {
+        await mock.module('@base-ui/utils/useIsoLayoutEffect', () => ({ useIsoLayoutEffect }));
+    };
     ({ AddToSchedule, SchedulePlanner, SchedulePreview } =
         await import('#/components/search/SchedulePlanner'));
 });
+afterAll(() => restoreLayoutEffect());
 afterEach(() => dom.testing.cleanup());
 
 const classroom: SubjectClassroom = {
