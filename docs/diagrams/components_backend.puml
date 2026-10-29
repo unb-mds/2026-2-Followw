@@ -6,7 +6,8 @@ LAYOUT_WITH_LEGEND()
 title Diagrama de Componentes — Backend API (apps/api)
 
 Container_Boundary(api_boundary, "FastAPI Application") {
-    Component(modules, "Módulos por feature", "Router, Service e Repository", "auth, classrooms, me, posts, public_classrooms, public_courses, public_restaurant, public_subjects")
+    Component(ratelimit, "Rate Limiting", "RateLimitMiddleware", "Controle de taxa com janelas fixas, fail-open e validação HMAC")
+    Component(modules, "Módulos por feature", "Router, Service e Repository", "auth, classrooms, me, posts, public_classrooms, public_courses, public_professors, public_restaurant, public_subjects")
     Component(session, "Sessão e cookies", "JWE / HKDF", "Criptografa e decifra a sessão em cookies HttpOnly (AES-256-GCM)")
     Component(sync, "Sync & Calendário", "Stale-While-Revalidate", "Resolve o cache, congela semestres encerrados e junta o que venceu em um job por turma")
     Component(jobs, "Rota /jobs", "QStash + Fernet", "Valida assinatura, decifra credencial, loga numa sessão própria do SIGAA, roda tarefas e faz logout")
@@ -17,10 +18,13 @@ Component_Ext(sigaa_client, "sigaa-client", "Python Package", "Abstração do SI
 Component_Ext(unb_browser, "unb-browser", "Python Package", "Scraper do RU e calendários com extração geométrica via pdfplumber")
 
 ContainerDb(db, "PostgreSQL 18+", "Banco de dados relacional")
+System_Ext(redis, "Upstash Redis", "Armazenamento em memória de contadores de requisições")
 System_Ext(qstash, "Upstash QStash", "Fila de jobs")
 System_Ext(sigaa, "SIGAA / CAS", "Servidor UnB")
 System_Ext(ru_site, "Site do RU", "PDFs públicos")
 
+Rel(ratelimit, redis, "Consulta e incrementa cotas por IP", "REST / HTTPS")
+Rel(ratelimit, modules, "Encaminha requisições dentro da cota")
 Rel(modules, session, "Valida e renova a sessão do usuário")
 Rel(modules, sync, "Resolve dados com cache")
 Rel(modules, logger, "Registra métricas e eventos da requisição")

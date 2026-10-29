@@ -122,7 +122,7 @@ app.openapi = custom_openapi
 
 
 @app.get("/docs", include_in_schema=False)
-async def scalar_docs() -> HTMLResponse:
+async def mintlify_docs() -> HTMLResponse:
     return HTMLResponse(
         f"""
         <!doctype html>
@@ -131,15 +131,11 @@ async def scalar_docs() -> HTMLResponse:
             <title>{app.title} — Documentação</title>
             <meta charset="utf-8" />
             <meta name="viewport" content="width=device-width, initial-scale=1" />
-            <link rel="icon" type="image/svg+xml" href="https://scalar.com/favicon.svg" />
+            <meta http-equiv="refresh" content="0; url={settings.docs_url}" />
+            <link rel="canonical" href="{settings.docs_url}" />
           </head>
           <body>
-            <script
-              id="api-reference"
-              data-url="{app.root_path}{app.openapi_url}"
-              data-configuration='{{"theme":"bluePlanet","layout":"modern","darkMode":true}}'
-            ></script>
-            <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+            <p>Redirecionando para a <a href="{settings.docs_url}">documentação no Mintlify</a>...</p>
           </body>
         </html>
         """

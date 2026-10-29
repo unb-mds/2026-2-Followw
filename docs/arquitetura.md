@@ -22,28 +22,29 @@ sincronização assíncrona inteligente.
 
 ## Stack Tecnológica
 
-| Camada / Função       | Tecnologia                                                                   | Justificativa                                                                                                                                                             |
-| :-------------------- | :--------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Frontend Web**      | TanStack Start (React 19 / Vite / Nitro)                                     | SSR/SPA unificado, tipagem estrita de rotas com TanStack Router e cache de estado via TanStack Query.                                                                     |
-| **Estilização**       | Tailwind CSS v4                                                              | Estilização utilitária atômica e performática com tema customizado (`@theme`).                                                                                            |
-| **API Client (Web)**  | `openapi-fetch` + `openapi-react-query`                                      | Consumo _type-safe_ sincronizado diretamente com o schema OpenAPI da API FastAPI (`schema.gen.ts`).                                                                       |
-| **Offline & PWA**     | `vite-plugin-pwa` (Workbox) + `idb-keyval`                                   | Service Worker para precache de assets/HTML SSR e persistência do cache do TanStack Query no IndexedDB por 14 dias.                                                       |
-| **Backend API**       | FastAPI (Python >= 3.14)                                                     | Assíncrono nativo, alta performance, geração automática de documentação OpenAPI (Scalar) e injeção de dependências robusta.                                               |
-| **Scraper SIGAA**     | `sigaa-client` (`httpx`, `bs4`, `lxml`, `pypdf`, `zxing-cpp`, `markdownify`) | Abstração que gerencia o ciclo de vida JSF (ViewState, postback), emissão de documentos PDF, leitura de QR Code/código de barras do RU e conversão de HTML para Markdown. |
-| **Scraper Sites UnB** | `unb-browser` (`httpx`, `bs4`, `pdfplumber`)                                 | Extração resiliente de cardápios do RU (parser geométrico via `pdfplumber`) e calendários acadêmicos.                                                                     |
-| **Banco de Dados**    | PostgreSQL 18+ (SQLAlchemy assíncrono + `asyncpg`)                           | Armazenamento de cache de turmas, postagens, currículos, disciplinas, cardápios e participantes.                                                                          |
-| **Fila Assíncrona**   | Upstash QStash                                                               | Execução desacoplada de jobs de sincronização via webhooks HTTP autenticados, com _flow control_ e deduplicação.                                                          |
-| **Segurança/Sessão**  | JWE (`AES-256-GCM`) + Fernet + HKDF                                          | Sessão _stateless_: tokens e credenciais residem em cookies `HttpOnly` cifrados (JWE) e jobs em payloads Fernet; nenhuma senha persistida no servidor.                    |
-| **Observabilidade**   | Logger JSON (`api/logger.py`) + PostHog (Web)                                | Telemetria de produto no cliente e logs estruturados por evento com `request_id` e `duration_ms` sem exposição de dados sensíveis.                                        |
-| **Infra & Qualidade** | Vercel (`gru1`), GitHub Actions, `uv`, `bun`, Ruff, Oxlint/Oxfmt             | Hospedagem Serverless Multi-Service, resolução instantânea de dependências e pipeline de CI com lint e testes automatizados.                                              |
+| Camada / Função        | Tecnologia                                                                   | Justificativa                                                                                                                                                             |
+| :--------------------- | :--------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Frontend Web**       | TanStack Start (React 19 / Vite / Nitro)                                     | SSR/SPA unificado, tipagem estrita de rotas com TanStack Router e cache de estado via TanStack Query.                                                                     |
+| **Estilização**        | Tailwind CSS v4                                                              | Estilização utilitária atômica e performática com tema customizado (`@theme`).                                                                                            |
+| **API Client (Web)**   | `openapi-fetch` + `openapi-react-query`                                      | Consumo _type-safe_ sincronizado diretamente com o schema OpenAPI da API FastAPI (`schema.gen.ts`).                                                                       |
+| **Offline & PWA**      | `vite-plugin-pwa` (Workbox) + `idb-keyval`                                   | Service Worker para precache de assets/HTML SSR e persistência do cache do TanStack Query no IndexedDB por 14 dias.                                                       |
+| **Backend API**        | FastAPI (Python >= 3.14)                                                     | Assíncrono nativo, alta performance, geração automática de documentação OpenAPI (Mintlify) e injeção de dependências robusta.                                             |
+| **Scraper SIGAA**      | `sigaa-client` (`httpx`, `bs4`, `lxml`, `pypdf`, `zxing-cpp`, `markdownify`) | Abstração que gerencia o ciclo de vida JSF (ViewState, postback), emissão de documentos PDF, leitura de QR Code/código de barras do RU e conversão de HTML para Markdown. |
+| **Scraper Sites UnB**  | `unb-browser` (`httpx`, `bs4`, `pdfplumber`)                                 | Extração resiliente de cardápios do RU (parser geométrico via `pdfplumber`) e calendários acadêmicos.                                                                     |
+| **Banco de Dados**     | PostgreSQL 18+ (SQLAlchemy assíncrono + `asyncpg`)                           | Armazenamento de cache de turmas, postagens, currículos, disciplinas, cardápios e participantes.                                                                          |
+| **Rate Limit / Cache** | Upstash Redis (REST HTTP) / Redis 8 (`redis-py`)                             | Controle de taxa em memória por IP/janela fixa, mitigando abusos de força bruta e sobrecarga no CAS/SIGAA.                                                                |
+| **Fila Assíncrona**    | Upstash QStash                                                               | Execução desacoplada de jobs de sincronização via webhooks HTTP autenticados, com _flow control_ e deduplicação.                                                          |
+| **Segurança/Sessão**   | JWE (`AES-256-GCM`) + Fernet + HKDF                                          | Sessão _stateless_: tokens e credenciais residem em cookies `HttpOnly` cifrados (JWE) e jobs em payloads Fernet; nenhuma senha persistida no servidor.                    |
+| **Observabilidade**    | Logger JSON (`api/logger.py`) + PostHog (Web)                                | Telemetria de produto no cliente e logs estruturados por evento com `request_id` e `duration_ms` sem exposição de dados sensíveis.                                        |
+| **Infra & Qualidade**  | Vercel (`gru1`), GitHub Actions, `uv`, `bun`, Ruff, Oxlint/Oxfmt             | Hospedagem Serverless Multi-Service, resolução instantânea de dependências e pipeline de CI com lint e testes automatizados.                                              |
 
 ---
 
 ## Diagramas da Arquitetura (Modelo C4)
 
 Os diagramas de arquitetura adotam o padrão de **Diagrams as Code** via **C4-PlantUML**, versionados
-como código em [`docs/diagrams/`](diagrams/) e renderizados em formato vetorial SVG localmente
-através do script [`scripts/generate_diagrams.py`](../scripts/generate_diagrams.py).
+como código em [`docs/diagrams/`](https://github.com/unb-mds/2026-2-Followw/tree/main/docs/diagrams) e renderizados em formato vetorial SVG localmente
+através do script [`scripts/generate_diagrams.py`](https://github.com/unb-mds/2026-2-Followw/blob/main/scripts/generate_diagrams.py).
 
 ### Diagrama de Contexto do Sistema (Nível 1)
 
@@ -52,7 +53,7 @@ da universidade e serviços externos.
 
 ![Diagrama de Contexto - Followw UnB](assets/context.svg)
 
-> Código-fonte: [`docs/diagrams/context.puml`](diagrams/context.puml)
+> Código-fonte: [`docs/diagrams/context.puml`](https://github.com/unb-mds/2026-2-Followw/blob/main/docs/diagrams/context.puml)
 
 ---
 
@@ -63,7 +64,7 @@ componentes e serviços.
 
 ![Diagrama de Containers - Followw UnB](assets/container.svg)
 
-> Código-fonte: [`docs/diagrams/container.puml`](diagrams/container.puml)
+> Código-fonte: [`docs/diagrams/container.puml`](https://github.com/unb-mds/2026-2-Followw/blob/main/docs/diagrams/container.puml)
 
 ---
 
@@ -76,13 +77,13 @@ suas interações com as bibliotecas do monorepo e dados.
 
 ![Diagrama de Componentes do Frontend](assets/components_frontend.svg)
 
-> Código-fonte: [`docs/diagrams/components_frontend.puml`](diagrams/components_frontend.puml)
+> Código-fonte: [`docs/diagrams/components_frontend.puml`](https://github.com/unb-mds/2026-2-Followw/blob/main/docs/diagrams/components_frontend.puml)
 
 #### Componentes do Backend
 
 ![Diagrama de Componentes do Backend](assets/components_backend.svg)
 
-> Código-fonte: [`docs/diagrams/components_backend.puml`](diagrams/components_backend.puml)
+> Código-fonte: [`docs/diagrams/components_backend.puml`](https://github.com/unb-mds/2026-2-Followw/blob/main/docs/diagrams/components_backend.puml)
 
 ---
 
@@ -97,6 +98,28 @@ suas interações com as bibliotecas do monorepo e dados.
     - `access_token` (40 min): Sessão JSF ativa do SIGAA.
     - `refresh_token` (14 dias): Matrícula e senha encriptadas para renovação automática de sessão
       sem atrito para o usuário.
+
+### Proteção contra Abuso e Rate Limiting (Redis)
+
+- **Controle de Taxa Desacoplado (`api/rate_limit.py`, `api/redis.py`)**: A API aplica limites de
+  requisição em janelas fixas de 60 segundos gerenciadas no Redis (`Upstash Redis` via REST HTTP em
+  produção e `redis:8` localmente), sem onerar o PostgreSQL ou o SIGAA, conforme documentado em
+  [`docs/rate-limit.md`](rate-limit.md).
+- **Cotas Diferenciadas**:
+    - **Rotas Gerais**: Limite global de 600 requisições por IP a cada 60 s, absorvendo navegações e
+      chamadas legítimas de redes universitárias (sob NAT).
+    - **Autenticação (`POST /auth/sigaa`)**: Cota estrita de 30 tentativas por IP a cada 60 s,
+      prevenindo ataques de força bruta contra o CAS institucional.
+- **Privacidade por Design e Anonimização de IP**: Os identificadores de chave no Redis são gerados via
+  HMAC-SHA256 do IP do cliente utilizando chave derivada de `JWT_SECRET_KEY`. Endereços IPv6 são
+  agrupados por prefixo `/64`. Nenhum dado pessoal, cookie ou credencial é gravado no Redis.
+- **Encaminhamento Seguro de IP no SSR**: No renderizador SSR (`apps/web`), o IP original do cliente é
+  repassado à API assinado criptograficamente com HMAC-SHA256 e expiração de 60 s via
+  `RATE_LIMIT_SECRET_KEY`, impedindo falsificação de cabeçalhos ou esgotamento de cotas pelo IP de saída
+  do servidor web.
+- **Tolerância a Falhas (*Fail-Open*)**: Caso o Redis apresente timeout (máximo de 1 s) ou
+  instabilidade de rede, a requisição é liberada automaticamente sem interromper a navegação do
+  estudante, registrando evento operacional no log.
 
 ### Estratégia de Cache: Stale-While-Revalidate (SWR)
 
@@ -176,10 +199,13 @@ suas interações com as bibliotecas do monorepo e dados.
 │   │   │   ├── modules/            # Uma pasta por feature: auth, classrooms, me, posts, public_*
 │   │   │   ├── sync/               # Motor de cache (SWR), fila do QStash e rota /jobs
 │   │   │   ├── academic_calendar.py# Regras de congelamento de sync e status pelo calendário acadêmico
+│   │   │   ├── rate_limit.py       # Middleware de limitação de taxa por janela fixa
+│   │   │   ├── redis.py            # Cliente Upstash Redis assíncrono
 │   │   │   ├── sigaa.py            # Conexão com o SIGAA da requisição
 │   │   │   ├── cookies.py          # Cookies de sessão cifrados (JWE)
 │   │   │   ├── cache.py            # Diretivas de Cache-Control
 │   │   │   ├── errors.py           # Erros do SIGAA e do RU traduzidos para HTTP
+│   │   │   ├── docs_content.py     # Integração dos documentos markdown ao OpenAPI
 │   │   │   └── logger.py           # Logs estruturados JSON e middleware de requisição
 │   │   └── tests/                  # Testes da API, um arquivo por módulo
 │   │
@@ -189,18 +215,18 @@ suas interações com as bibliotecas do monorepo e dados.
 │       │   ├── integrations/       # Suporte offline (PWA/Workbox + IndexedDB), TanStack Query e PostHog
 │       │   ├── lib/                # Utilitários de domínio, grade horária, status online/offline e downloads
 │       │   ├── queries/            # Clientes de API (openapi-fetch, schema.gen.ts e queries tipadas)
-│       │   └── routes/             # Rotas da aplicação (file-based routing: /, /turmas, /buscar, /ru, /perfil, /login)
+│       │   └── routes/             # Rotas da aplicação (file-based routing: /, /turmas, /buscar, /ru, /perfil, /login, /privacidade)
 │       └── tests/                  # Testes unitários e de componentes do frontend
 │
 ├── packages/
 │   ├── sigaa-client/               # Scraper assíncrono do SIGAA e datasets públicos (data/*.csv)
 │   └── unb-browser/                # Scraper do RU e calendários acadêmicos
 │
-├── docs/                           # Documentação de arquitetura, cache, offline, observabilidade e sprints
+├── docs/                           # Documentação de arquitetura, cache, offline, rate limit, observabilidade e sprints
 │   ├── assets/                     # Diagramas renderizados em SVG e imagens
 │   └── diagrams/                   # Diagramas como código em C4-PlantUML (.puml)
 │
 ├── scripts/                        # Scripts utilitários locais (ex: geração de diagramas)
-├── compose.yml                     # Configuração do PostgreSQL 18 local
+├── compose.yml                     # Configuração local do PostgreSQL 18, Redis 8 e QStash Dev
 └── vercel.json                     # Configuração Serverless Multi-Service (web + api) na Vercel
 ```
