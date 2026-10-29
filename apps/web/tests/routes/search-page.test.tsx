@@ -47,7 +47,7 @@ function BuscarTurmasPage() {
 
 function ResetFilters() {
     const [, setSearch] = useSearchState();
-    return <button onClick={() => void setSearch({ tipo: null })}>Limpar filtros</button>;
+    return <button onClick={() => void setSearch({ type: null })}>Limpar filtros</button>;
 }
 
 function makeSearchRouter(isServer: boolean) {
@@ -299,9 +299,9 @@ describe('página de busca com estado na URL', () => {
     });
 
     test('limpar o filtro remove seu parâmetro e preserva a consulta', async () => {
-        const page = renderPage('?q=calculo&tipo=Optativas');
+        const page = renderPage('?q=calculo&type=optional');
         testing.fireEvent.click(page.getByRole('button', { name: 'Limpar filtros' }));
-        await testing.waitFor(() => expect(updates.at(-1)?.searchParams.has('tipo')).toBe(false));
+        await testing.waitFor(() => expect(updates.at(-1)?.searchParams.has('type')).toBe(false));
         expect(updates.at(-1)?.searchParams.get('q')).toBe('calculo');
         await testing.waitFor(() => expect(page.getByText('2 turmas')).toBeDefined());
     });
@@ -374,7 +374,7 @@ describe('página de busca com estado na URL', () => {
         expect(shown()).toEqual(['MAT0025', 'MAT0029']);
         testing.fireEvent.click(tab('Optativas'));
         await testing.waitFor(() =>
-            expect(updates.at(-1)?.searchParams.get('tipo')).toBe('Optativas')
+            expect(updates.at(-1)?.searchParams.get('type')).toBe('optional')
         );
         await testing.waitFor(() => expect(shown()).toEqual(['MAT0027', 'MAT0026']));
         expect(page.getByRole('region', { name: 'Optativas disponíveis' })).toBeDefined();

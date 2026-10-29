@@ -31,8 +31,8 @@ export const reasonLabel = (reason: Reason) => reasonLabels[reason.code](reason.
 /** Obrigatórias e optativas sempre mostram só o que o aluno pode cursar, na ordem da API. */
 export function showRecommendations(
     user: { level: string } | null | undefined,
-    search: { q: string; tipo: string }
+    search: { q: string; type: string }
 ) {
     if (user?.level !== 'Graduação') return false;
-    return search.tipo !== 'Todas' || !search.q.trim();
+    return search.type !== 'all' || !search.q.trim();
 }

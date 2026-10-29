@@ -35,7 +35,8 @@ import {
     SEARCH_MIN_LENGTH,
     subjectsQuery,
     subjectsQueryOptions,
-    TIPOS,
+    SUBJECT_TYPES,
+    subjectTypeLabels,
     withClassrooms
 } from '#/queries/subjects';
 
@@ -69,8 +70,8 @@ export const Route = createFileRoute('/_app/buscar')({
 function BuscarTurmasPage() {
     const queryClient = useQueryClient();
     const { data: user } = useSuspenseQuery(meQueryOptions);
-    const [{ q, tipo }, setSearch] = useSearchState();
-    const recommendations = showRecommendations(user, { q, tipo });
+    const [{ q, type }, setSearch] = useSearchState();
+    const recommendations = showRecommendations(user, { q, type });
     const unit = user?.unit?.code ?? null;
     const currentPeriod = currentCurriculumPeriod(
         user?.entry_semester,
@@ -130,9 +131,10 @@ function BuscarTurmasPage() {
             {user?.level === 'Graduação' && (
                 <TabFilter
                     label="Tipo de matéria"
-                    value={tipo}
-                    options={TIPOS}
-                    onChange={(value) => void setSearch({ tipo: value })}
+                    value={type}
+                    options={SUBJECT_TYPES}
+                    labels={subjectTypeLabels}
+                    onChange={(value) => void setSearch({ type: value })}
                     className="-my-2"
                 />
             )}
@@ -140,7 +142,7 @@ function BuscarTurmasPage() {
             <div aria-live="polite" aria-busy={isFetching} className="flex flex-col gap-5 pb-8">
                 {recommendations ? (
                     <RecommendationsSection
-                        filters={{ tipo, q }}
+                        filters={{ type, q }}
                         currentPeriod={currentPeriod}
                         approved={approved}
                         taken={taken}

@@ -7,11 +7,11 @@ import {
     parseAsStringLiteral
 } from 'nuqs/server';
 
-import { TIPOS } from '#/queries/subjects';
+import { SUBJECT_TYPES } from '#/queries/subjects';
 
 export const searchParsers = {
     q: parseAsString.withDefault(''),
-    tipo: parseAsStringLiteral(TIPOS).withDefault('Todas')
+    type: parseAsStringLiteral(SUBJECT_TYPES).withDefault('all')
 };
 
 export const validateSearch = createStandardSchemaV1(searchParsers, { partialOutput: true });

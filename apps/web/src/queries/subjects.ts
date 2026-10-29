@@ -18,12 +18,12 @@ type SubjectsQuery = NonNullable<
     operations['search_subjects_public_subjects_get']['parameters']['query']
 >;
 
-export const TIPOS = ['Todas', 'Obrigatórias', 'Optativas'] as const;
-export type Tipo = (typeof TIPOS)[number];
-const KINDS: Record<Tipo, SubjectKind | null> = {
-    Todas: null,
-    Obrigatórias: 'mandatory',
-    Optativas: 'optional'
+export const SUBJECT_TYPES = ['all', 'mandatory', 'optional'] as const;
+export type SubjectType = (typeof SUBJECT_TYPES)[number];
+export const subjectTypeLabels: Record<SubjectType, string> = {
+    all: 'Todas',
+    mandatory: 'Obrigatórias',
+    optional: 'Optativas'
 };
 
 export const SEARCH_MIN_LENGTH = 3;
@@ -125,10 +125,10 @@ export const withClassrooms = (subjects: CatalogSubject[]) =>
 /** Filtra no cliente por tipo e texto, descartando as matérias sem turmas. */
 export function filterSubjects(
     subjects: CatalogSubject[],
-    { tipo, q }: { tipo: Tipo; q: string }
+    { type, q }: { type: SubjectType; q: string }
 ): CatalogSubject[] {
     return withClassrooms(subjects).filter(
-        (subject) => (!KINDS[tipo] || subject.kind === KINDS[tipo]) && matchesText(subject, q)
+        (subject) => (type === 'all' || subject.kind === type) && matchesText(subject, q)
     );
 }
 

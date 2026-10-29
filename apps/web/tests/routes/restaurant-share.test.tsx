@@ -11,7 +11,8 @@ import {
     restaurantPageHead,
     restaurantSearchParsers,
     restaurantSelection,
-    restaurantSharePath
+    restaurantSharePath,
+    validateRestaurantSearch
 } from '#/lib/restaurant-share';
 import { restaurantShareResponse } from '#/lib/restaurant-share.server';
 import { loadSharedMenu } from '#/queries/restaurant-share';
@@ -31,7 +32,7 @@ const sections: MenuSection[] = [
     { key: 'dessert', name: 'Sobremesa', items: ['Melancia'] },
     { key: 'drink', name: 'Bebida', items: ['Suco de maracujá'] }
 ];
-const EMPTY = { data: null, refeicao: null, campus: null };
+const EMPTY = { date: null, meal: null, campus: null };
 const handler = ({ request }: { request: Request }) => restaurantShareResponse(request);
 const originalSecret = process.env.RATE_LIMIT_SECRET_KEY;
 const originalVercel = process.env.VERCEL;
@@ -82,25 +83,24 @@ function mockMenu(status = 200, published = true) {
 }
 
 describe('compartilhamento do cardápio', () => {
-    test.each([
-        ['breakfast', 'cafe-da-manha'],
-        ['lunch', 'almoco'],
-        ['dinner', 'jantar']
-    ] as const)('serializa e restaura a refeição %s em português', (meal, refeicao) => {
-        const selected = { ...selection, meal };
-        const path = restaurantSharePath(selected);
-        expect(path).toBe(`/ru?data=${selection.date}&refeicao=${refeicao}&campus=Gama`);
-        expect(
-            restaurantSelection(loadRestaurantSearch(new URL(path, 'https://followw.app')))
-        ).toEqual(selected);
-        expect(
-            createSerializer(restaurantSearchParsers)({
-                data: selection.date,
-                refeicao: meal,
-                campus: selection.campus
-            })
-        ).toBe(path.slice('/ru'.length));
-    });
+    test.each(['breakfast', 'lunch', 'dinner'] as const)(
+        'serializa e restaura a refeição %s',
+        (meal) => {
+            const selected = { ...selection, meal };
+            const path = restaurantSharePath(selected);
+            expect(path).toBe(`/ru?date=${selection.date}&meal=${meal}&campus=Gama`);
+            expect(
+                restaurantSelection(loadRestaurantSearch(new URL(path, 'https://followw.app')))
+            ).toEqual(selected);
+            expect(
+                createSerializer(restaurantSearchParsers)({
+                    date: selection.date,
+                    meal,
+                    campus: selection.campus
+                })
+            ).toBe(path.slice('/ru'.length));
+        }
+    );
 
     test('prévia encaminha IP assinado sem encaminhar cookies', async () => {
         process.env.RATE_LIMIT_SECRET_KEY = 'chave-de-teste-nao-usar-em-producao';
@@ -116,6 +116,11 @@ describe('compartilhamento do cardápio', () => {
         expect(headers.get('x-followw-client-signature')).toHaveLength(64);
         expect(headers.get('cookie')).toBeNull();
     });
+    test('o Router valida os parâmetros vindos da URL', () => {
+        const search = { date: selection.date, meal: 'dinner', campus: 'Gama' };
+        expect(validateRestaurantSearch['~standard'].validate(search)).toEqual({ value: search });
+    });
+
     test('o link restaura dia, refeição e campus sem depender dos padrões atuais', () => {
         const url = new URL(restaurantSharePath(selection), 'https://followw.app');
         expect(restaurantSelection(loadRestaurantSearch(url))).toEqual(selection);
@@ -124,9 +129,9 @@ describe('compartilhamento do cardápio', () => {
     test.each(['2026-02-30', '2026-13-01', 'amanhã', '2026-1-01', '0000-00-00'])(
         'ignora a data inválida %s e filtros desconhecidos',
         (date) => {
-            expect(
-                loadRestaurantSearch({ data: date, refeicao: 'ceia', campus: '__proto__' })
-            ).toEqual(EMPTY);
+            expect(loadRestaurantSearch({ date, meal: 'ceia', campus: '__proto__' })).toEqual(
+                EMPTY
+            );
         }
     );
 
@@ -134,7 +139,7 @@ describe('compartilhamento do cardápio', () => {
         expect(restaurantSharePath(selection)).not.toContain('theme');
         expect(loadRestaurantSearch({ theme: 'dark' })).toEqual(EMPTY);
         expect(restaurantPageHead(selection).links[0].href).toBe(
-            'https://followw.app/ru?data=2026-10-19&refeicao=almoco&campus=Gama'
+            'https://followw.app/ru?date=2026-10-19&meal=lunch&campus=Gama'
         );
         const markup = renderToStaticMarkup(
             <RestaurantShareImage selection={selection} sections={sections} />
@@ -149,8 +154,8 @@ describe('compartilhamento do cardápio', () => {
         );
         expect(image.pathname).toBe('/share/ru.png');
         expect(Object.fromEntries(image.searchParams)).toEqual({
-            data: selection.date,
-            refeicao: 'almoco',
+            date: selection.date,
+            meal: 'lunch',
             campus: selection.campus
         });
         expect(head.meta).toContainEqual({ name: 'twitter:card', content: 'summary_large_image' });

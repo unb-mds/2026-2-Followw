@@ -201,7 +201,7 @@ describe('seção de recomendações', () => {
                 }
             ]);
         const page = await renderSection({
-            filters: { tipo: 'Optativas', q: 'manha' }
+            filters: { type: 'optional', q: 'manha' }
         });
         await testing.waitFor(() =>
             expect(page.getByRole('button', { name: /FGA0002/ })).toBeDefined()
@@ -212,7 +212,7 @@ describe('seção de recomendações', () => {
     });
     test('aba sem recomendações do tipo avisa que nada está disponível', async () => {
         const page = await renderSection({
-            filters: { tipo: 'Optativas', q: '' }
+            filters: { type: 'optional', q: '' }
         });
         await testing.waitFor(() =>
             expect(page.getByText(/Nenhuma matéria disponível para você/)).toBeDefined()

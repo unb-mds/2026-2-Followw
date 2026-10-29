@@ -1,7 +1,7 @@
 import { noop, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, CircleHelp } from 'lucide-react';
 
-import type { CatalogSubject, Tipo } from '#/queries/subjects';
+import type { CatalogSubject, SubjectType } from '#/queries/subjects';
 
 import { ErrorCard } from '#/components/ErrorState';
 import { LoadingText } from '#/components/LoadingText';
@@ -18,7 +18,7 @@ import {
 } from '#/components/ui/dialog';
 import { reasonLabel, recommendationsQueryOptions } from '#/queries/recommendations';
 import { refreshQuery } from '#/queries/refresh';
-import { filterSubjects } from '#/queries/subjects';
+import { filterSubjects, subjectTypeLabels } from '#/queries/subjects';
 
 export function RecommendationReasons({ subject }: { subject: CatalogSubject }) {
     const reasons = subject.recommendation?.reasons ?? [];
@@ -59,7 +59,7 @@ function WhyDialog(subject: CatalogSubject) {
     );
 }
 
-const DEFAULT_FILTERS = { tipo: 'Todas', q: '' } as const;
+const DEFAULT_FILTERS = { type: 'all', q: '' } as const;
 
 export function RecommendationsSection({
     currentPeriod,
@@ -70,14 +70,16 @@ export function RecommendationsSection({
     currentPeriod?: number | null;
     approved?: Set<string> | null;
     taken?: Set<string> | null;
-    filters?: { tipo: Tipo; q: string };
+    filters?: { type: SubjectType; q: string };
 }) {
     const client = useQueryClient();
     const query = useQuery(recommendationsQueryOptions);
     const refresh = () => void refreshQuery(client, recommendationsQueryOptions).catch(noop);
     const subjects = query.data && filterSubjects(query.data, filters);
     const title =
-        filters.tipo === 'Todas' ? 'Matérias recomendadas' : `${filters.tipo} disponíveis`;
+        filters.type === 'all'
+            ? 'Matérias recomendadas'
+            : `${subjectTypeLabels[filters.type]} disponíveis`;
     return (
         <section aria-label={title} className="flex flex-col gap-3" aria-busy={query.isFetching}>
             {query.isPending ? (
@@ -97,7 +99,7 @@ export function RecommendationsSection({
                     )}
                     {subjects.length === 0 ? (
                         <p className="rounded-2xl border bg-card p-4 text-sm">
-                            {filters.tipo === 'Todas'
+                            {filters.type === 'all'
                                 ? 'Nenhuma matéria da oferta atual foi recomendada para você.'
                                 : 'Nenhuma matéria disponível para você com essa busca e filtros.'}
                         </p>

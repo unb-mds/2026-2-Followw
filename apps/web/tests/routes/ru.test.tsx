@@ -55,7 +55,7 @@ describe('loader do RU', () => {
         });
         const data = await runLoader(Route, {
             ...context,
-            location: { searchStr: '?data=2026-10-25&refeicao=jantar&campus=Gama' }
+            location: { searchStr: '?date=2026-10-25&meal=dinner&campus=Gama' }
         });
         expect(data.defaultCampus).toBe('Ceilandia');
         expect(data.defaultDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);

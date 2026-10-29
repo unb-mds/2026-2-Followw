@@ -143,11 +143,11 @@ describe('filtros no cliente', () => {
             { ...subject, code: 'optional', kind: 'optional' },
             { ...subject, code: 'free', kind: 'free' }
         ];
-        expect(filterSubjects(kinds, { tipo: 'Todas', q: '' })).toHaveLength(3);
-        expect(filterSubjects(kinds, { tipo: 'Optativas', q: '' }).map((s) => s.code)).toEqual([
+        expect(filterSubjects(kinds, { type: 'all', q: '' })).toHaveLength(3);
+        expect(filterSubjects(kinds, { type: 'optional', q: '' }).map((s) => s.code)).toEqual([
             'optional'
         ]);
-        expect(filterSubjects([subject], { tipo: 'Obrigatórias', q: '' })).toEqual([]);
+        expect(filterSubjects([subject], { type: 'mandatory', q: '' })).toEqual([]);
     });
 
     test('texto busca código, nome e professor sem acento nem caixa', () => {
@@ -155,7 +155,7 @@ describe('filtros no cliente', () => {
             ...subject,
             classrooms: [{ ...morning, professors: ['JOSÉ  da Silva'] }]
         };
-        const search = (q: string) => filterSubjects([withProfessor], { tipo: 'Todas', q }).length;
+        const search = (q: string) => filterSubjects([withProfessor], { type: 'all', q }).length;
         expect(search('fga00')).toBe(1);
         expect(search('compiladôres')).toBe(1);
         expect(search('jose da')).toBe(1);
