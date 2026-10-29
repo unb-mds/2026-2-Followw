@@ -14,6 +14,7 @@ import { ErrorCard, ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
 import { LoadingText } from '#/components/LoadingText';
 import { SchedulePreview } from '#/components/schedule/SchedulePreview';
+import { ProfessorSection } from '#/components/search/ProfessorSection';
 import { RecommendationsSection } from '#/components/search/RecommendationsSection';
 import { TurmaSection } from '#/components/search/TurmaSection';
 import { TabFilter } from '#/components/TabFilter';
@@ -23,6 +24,7 @@ import { loadSearchParams, useSearchState, validateSearch } from '#/lib/search-p
 import { allClassroomsQueryOptions } from '#/queries/classrooms';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
+import { professorsListQueryOptions } from '#/queries/professors';
 import { recommendationsQueryOptions, showRecommendations } from '#/queries/recommendations';
 import { refreshQuery } from '#/queries/refresh';
 import {
@@ -76,13 +78,27 @@ function BuscarTurmasPage() {
     );
     // Consulta aplicada após o debounce de 300 ms; texto inválido mantém a anterior.
     const [query, setQuery] = useState(() => subjectsQuery(q, unit));
+    const [profSearch, setProfSearch] = useState(() => {
+        if (!q) return null;
+        const trimmed = q.trim();
+        return trimmed.length >= SEARCH_MIN_LENGTH && trimmed.length <= SEARCH_MAX_LENGTH
+            ? trimmed
+            : null;
+    });
     const online = useOnline();
 
     useEffect(() => {
-        const timer = setTimeout(
-            () => setQuery((previous) => subjectsQuery(q, unit, previous)),
-            300
-        );
+        const timer = setTimeout(() => {
+            setQuery((previous) => subjectsQuery(q, unit, previous));
+            const trimmed = q?.trim();
+            setProfSearch(
+                trimmed &&
+                    trimmed.length >= SEARCH_MIN_LENGTH &&
+                    trimmed.length <= SEARCH_MAX_LENGTH
+                    ? trimmed
+                    : null
+            );
+        }, 300);
         return () => clearTimeout(timer);
     }, [q, unit]);
 
@@ -91,6 +107,12 @@ function BuscarTurmasPage() {
         enabled: !recommendations && query != null,
         placeholderData: keepPreviousData
     });
+    const { data: professorsData } = useQuery({
+        ...professorsListQueryOptions({ q: profSearch }),
+        enabled: !recommendations && profSearch != null,
+        placeholderData: keepPreviousData
+    });
+    const professors = professorsData?.items ?? [];
     const { data: history } = useQuery({
         ...allClassroomsQueryOptions,
         enabled: Boolean(user)
@@ -173,6 +195,7 @@ function BuscarTurmasPage() {
                                 para visualizar seu fluxo.
                             </p>
                         )}
+                        {professors.length > 0 && <ProfessorSection professors={professors} />}
                         <TurmaSection
                             key={JSON.stringify(query)}
                             title={semester ? `${title} · ${semester}` : title}
@@ -182,9 +205,10 @@ function BuscarTurmasPage() {
                             taken={taken}
                             onOpenDetails={refreshSubjects}
                         />
-                        {subjects.length === 0 && (
+                        {subjects.length === 0 && professors.length === 0 && (
                             <p className="py-8 text-center text-sm text-muted-foreground">
-                                Nenhuma turma encontrada. Tente mudar a busca ou os filtros.
+                                Nenhuma turma ou docente encontrado. Tente mudar a busca ou os
+                                filtros.
                             </p>
                         )}
                     </>

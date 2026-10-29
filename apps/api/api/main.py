@@ -18,6 +18,7 @@ from api.modules.public_classrooms.router import router as public_classrooms_rou
 from api.modules.public_courses.router import router as public_courses_router
 from api.modules.public_professors.router import router as public_professors_router
 from api.modules.public_restaurant.router import router as public_restaurant_router
+from api.modules.public_search.router import router as public_search_router
 from api.modules.public_subjects.router import router as public_subjects_router
 from api.rate_limit import RateLimitMiddleware
 from api.sync.router import router as jobs_router
@@ -58,6 +59,11 @@ tags_metadata = [
         "name": "Public Restaurant",
         "x-displayName": "Restaurant",
         "description": "Cardápio público do RU, sem autenticação.",
+    },
+    {
+        "name": "Public Search",
+        "x-displayName": "Search",
+        "description": "Busca pública unificada no catálogo do SIGAA, sem autenticação.",
     },
     {
         "name": "Public Subjects",
@@ -107,6 +113,7 @@ def custom_openapi() -> dict[str, Any]:
                     "Public Courses",
                     "Public Professors",
                     "Public Restaurant",
+                    "Public Search",
                     "Public Subjects",
                 ],
             },
@@ -171,6 +178,9 @@ app.include_router(
 )
 app.include_router(
     public_restaurant_router, prefix="/public/restaurant", tags=["Public Restaurant"]
+)
+app.include_router(
+    public_search_router, prefix="/public/search", tags=["Public Search"]
 )
 app.include_router(
     public_subjects_router, prefix="/public/subjects", tags=["Public Subjects"]

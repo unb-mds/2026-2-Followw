@@ -866,6 +866,8 @@ export interface components {
             code: string;
             /** Occurrences */
             occurrences: number;
+            /** Name */
+            name?: string | null;
         };
         /** ProfessorItem */
         ProfessorItem: {
