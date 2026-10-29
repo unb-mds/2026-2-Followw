@@ -1,22 +1,37 @@
-import { noop, useQuery } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
+import { useSuspenseQuery } from '@tanstack/react-query';
+import { createFileRoute, notFound, rootRouteId } from '@tanstack/react-router';
 
-import { ErrorCard, ErrorState, SIGAA_DOWN_MESSAGE } from '#/components/ErrorState';
+import { ErrorState } from '#/components/ErrorState';
 import { BackHeader } from '#/components/HeaderBar';
-import { LoadingText } from '#/components/LoadingText';
 import { ProfessorDetailsSection } from '#/components/professor/ProfessorDetailsSection';
 import { ProfessorHeader } from '#/components/professor/ProfessorHeader';
 import { titleCase } from '#/lib/profile';
+import { ApiError } from '#/queries/errors';
 import { loadQuery } from '#/queries/load';
 import { professorQueryOptions } from '#/queries/professors';
 
+// mesmo limite do `Path` da API; fora dele o docente não existe
+const MAX_SIAPE = 2 ** 31 - 1;
+
+function parseSiape(value: string): number {
+    const siape = /^\d+$/.test(value) ? Number(value) : 0;
+    if (siape <= 0 || siape > MAX_SIAPE) throw notFound({ routeId: rootRouteId });
+    return siape;
+}
+
 export const Route = createFileRoute('/_app/professores_/$siape')({
-    loader: async ({ context: { queryClient }, params }) => {
-        const siape = Number(params.siape);
-        if (Number.isNaN(siape)) {
-            return { professorName: undefined };
-        }
-        const professor = await loadQuery(queryClient, professorQueryOptions(siape)).catch(noop);
+    params: {
+        parse: ({ siape }) => ({ siape: parseSiape(siape) }),
+        stringify: ({ siape }) => ({ siape: String(siape) })
+    },
+    loader: async ({ context: { queryClient }, params: { siape } }) => {
+        const professor = await loadQuery(queryClient, professorQueryOptions(siape)).catch(
+            (error) => {
+                if (error instanceof ApiError && error.isNotFound) {
+                    throw notFound({ routeId: rootRouteId });
+                }
+            }
+        );
         return { professorName: professor?.name };
     },
     head: ({ loaderData }) => ({
@@ -35,38 +50,7 @@ export const Route = createFileRoute('/_app/professores_/$siape')({
 
 function ProfessorPage() {
     const { siape } = Route.useParams();
-    const siapeNumber = Number(siape);
-    const isInvalidSiape = Number.isNaN(siapeNumber);
-
-    const {
-        data: professor,
-        isPending,
-        isLoadingError,
-        refetch
-    } = useQuery({
-        ...professorQueryOptions(isInvalidSiape ? 0 : siapeNumber),
-        enabled: !isInvalidSiape
-    });
-
-    if (isLoadingError) {
-        return <ErrorCard message={SIGAA_DOWN_MESSAGE} onRetry={() => refetch()} />;
-    }
-
-    if (isPending) {
-        return (
-            <div className="py-12">
-                <LoadingText className="justify-center">Carregando dados do docente...</LoadingText>
-            </div>
-        );
-    }
-
-    if (!professor) {
-        return (
-            <div className="py-12 text-center text-sm text-muted-foreground">
-                Docente não encontrado.
-            </div>
-        );
-    }
+    const { data: professor } = useSuspenseQuery(professorQueryOptions(siape));
 
     return (
         <div className="flex flex-col gap-5 pb-8">

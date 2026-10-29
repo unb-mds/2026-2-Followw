@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { academicIndexes, creditsLabel, formatUnitName, titleCase, unitLabel } from '#/lib/profile';
+import { academicIndexes, creditsLabel, titleCase, unitLabel } from '#/lib/profile';
 
 describe('titleCase', () => {
     test.each([
@@ -44,18 +44,19 @@ describe('creditsLabel', () => {
     });
 });
 
-describe('formatUnitName', () => {
-    test('simplifica nome da unidade removendo sufixo e prefixo de detalhes', () => {
+describe('unitLabel', () => {
+    test('simplifica o nome removendo o detalhe após ":" e o sufixo da cidade', () => {
         expect(
-            formatUnitName('CAMPUS UNB GAMA: FACULDADE DE CIÊNCIAS E TECNOLOGIAS - BRASÍLIA')
+            unitLabel({
+                code: null,
+                name: 'CAMPUS UNB GAMA: FACULDADE DE CIÊNCIAS E TECNOLOGIAS - BRASÍLIA'
+            })
         ).toBe('Campus UnB Gama');
-        expect(formatUnitName('FACULDADE DE TECNOLOGIA - BRASÍLIA')).toBe(
+        expect(unitLabel({ code: null, name: 'FACULDADE DE TECNOLOGIA - BRASÍLIA' })).toBe(
             'Faculdade de Tecnologia'
         );
     });
-});
 
-describe('unitLabel', () => {
     test('monta label combinando sigla e nome formatado', () => {
         expect(unitLabel({ code: 'FCTE', name: 'CAMPUS UNB GAMA: FACULDADE' })).toBe(
             'FCTE · Campus UnB Gama'

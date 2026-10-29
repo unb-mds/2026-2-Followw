@@ -9,10 +9,10 @@ const INITIAL_LIMIT = 5;
 
 export function ProfessorSection({
     professors,
-    total = professors.length
+    total
 }: {
     professors: ProfessorItem[];
-    total?: number;
+    total: number;
 }) {
     const [limit, setLimit] = useState(INITIAL_LIMIT);
 

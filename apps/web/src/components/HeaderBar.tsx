@@ -1,4 +1,4 @@
-import { Link, useCanGoBack, useRouter } from '@tanstack/react-router';
+import { Link, type LinkProps, useCanGoBack, useRouter } from '@tanstack/react-router';
 import { ArrowLeft, ChevronDown } from 'lucide-react';
 
 import { FollowwLogo } from '#/components/FollowwLogo';
@@ -55,7 +55,7 @@ export const HeaderToggle: React.FC<HeaderToggleProps> = ({ children, open, onTo
 );
 
 interface BackHeaderProps {
-    to: string;
+    to: LinkProps['to'];
     title: string;
     ariaLabel?: string;
 }

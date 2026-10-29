@@ -10,11 +10,11 @@ import { apiClient } from '#/queries/client';
 import {
     approvedCodes,
     currentCurriculumPeriod,
-    availableSeats,
     filterSubjects,
     withClassrooms,
     lockedReasons,
     prerequisitesMet,
+    seats,
     subjectRequirementLabel,
     subjectsQuery,
     subjectsQueryOptions
@@ -163,9 +163,27 @@ describe('filtros no cliente', () => {
         expect(search('calculo')).toBe(0);
     });
 
+    test.each([
+        [40, 10, 30, 'free'],
+        [40, 31, 9, 'filling'],
+        [40, 40, 0, 'full'],
+        [40, 45, 0, 'full'],
+        [0, 0, 0, 'full']
+    ] as const)(
+        'vagas %p com %p ocupadas: %p livres, %p',
+        (vacancies, occupied, available, tone) => {
+            expect(seats({ ...morning, vacancies, occupied })).toEqual({
+                vacancies,
+                occupied,
+                available,
+                occupancy: tone
+            });
+        }
+    );
+
     test('cadeado distingue turma cheia de dado ausente', () => {
-        expect(availableSeats(night)).toBe(0);
-        expect(availableSeats({ ...morning, vacancies: null })).toBeNull();
+        expect(seats(night)?.available).toBe(0);
+        expect(seats({ ...morning, vacancies: null })).toBeNull();
         expect(lockedReasons(night, false)).toEqual([
             'Turma cheia',
             'Pré-requisitos não atendidos'

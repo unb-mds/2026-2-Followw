@@ -449,7 +449,7 @@ describe('página de busca com estado na URL', () => {
         expect(requests).toHaveLength(0);
 
         testing.fireEvent.click(page.getByRole('button', { name: /FGA0173/ }));
-        const trigger = await page.findByRole('button', { name: saved.name });
+        const trigger = await page.findByRole('button', { name: 'Detalhes da turma 01' });
         testing.fireEvent.click(trigger);
 
         await testing.waitFor(() =>
@@ -516,5 +516,15 @@ describe('página de busca com estado na URL', () => {
         const materias = page.getByText('Cálculo 1');
         // Prioridade pré-estabelecida: a seção de matérias segue a seção de docentes
         expect(docentes.compareDocumentPosition(materias)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    });
+
+    test('buscar código depois de um nome esconde os docentes da busca anterior', async () => {
+        const page = renderPage('?q=Carlos Silva');
+        await testing.waitFor(() => expect(page.getByText('Docentes')).toBeDefined());
+
+        testing.fireEvent.change(searchbox(page), { target: { value: 'MAT0023' } });
+        await testing.act(() => new Promise((resolve) => setTimeout(resolve, 350)));
+        await testing.waitFor(() => expect(page.queryByText('Docentes')).toBeNull());
+        expect(page.getByText('Cálculo 1')).toBeDefined();
     });
 });

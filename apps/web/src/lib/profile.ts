@@ -60,12 +60,13 @@ export function academicIndexes(user: Pick<UserProfile, 'ira' | 'mp'>): Academic
     );
 }
 
-export function formatUnitName(name: string): string {
-    const cleaned = name.includes(':') ? name.split(':')[0] : name;
-    return titleCase(cleaned.replace(/\s*-\s*BRAS[IÍ]LIA/gi, '').trim());
-}
-
+// o SIGAA nomeia como "CAMPUS: FACULDADE - BRASÍLIA"; fica a sigla e o trecho antes de ":"
 export function unitLabel(unit: { code?: string | null; name: string }): string {
-    const unitName = formatUnitName(unit.name);
-    return unit.code ? `${unit.code} · ${unitName}` : unitName;
+    const name = titleCase(
+        unit.name
+            .split(':')[0]
+            .replace(/\s*-\s*BRAS[IÍ]LIA/gi, '')
+            .trim()
+    );
+    return unit.code ? `${unit.code} · ${name}` : name;
 }

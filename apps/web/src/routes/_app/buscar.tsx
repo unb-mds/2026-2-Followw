@@ -24,7 +24,7 @@ import { loadSearchParams, useSearchState, validateSearch } from '#/lib/search-p
 import { allClassroomsQueryOptions } from '#/queries/classrooms';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
-import { professorsQueryOptions } from '#/queries/professors';
+import { useProfessorSearch } from '#/queries/professors';
 import { recommendationsQueryOptions, showRecommendations } from '#/queries/recommendations';
 import { refreshQuery } from '#/queries/refresh';
 import {
@@ -92,13 +92,7 @@ function BuscarTurmasPage() {
         enabled: !recommendations && query != null,
         placeholderData: keepPreviousData
     });
-    const { data: professorsData } = useQuery({
-        ...professorsQueryOptions(query?.q ?? ''),
-        enabled: !recommendations && Boolean(query?.q),
-        placeholderData: keepPreviousData
-    });
-    const professors = professorsData?.items ?? [];
-    const totalProfessors = professorsData?.total ?? 0;
+    const professors = useProfessorSearch(query?.q, !recommendations);
     const { data: history } = useQuery({
         ...allClassroomsQueryOptions,
         enabled: Boolean(user)
@@ -181,9 +175,10 @@ function BuscarTurmasPage() {
                                 para visualizar seu fluxo.
                             </p>
                         )}
-                        {professors.length > 0 && (
-                            <ProfessorSection professors={professors} total={totalProfessors} />
-                        )}
+                        <ProfessorSection
+                            professors={professors?.items ?? []}
+                            total={professors?.total ?? 0}
+                        />
                         <TurmaSection
                             key={JSON.stringify(query)}
                             title={semester ? `${title} · ${semester}` : title}
@@ -193,7 +188,7 @@ function BuscarTurmasPage() {
                             taken={taken}
                             onOpenDetails={refreshSubjects}
                         />
-                        {subjects.length === 0 && professors.length === 0 && (
+                        {subjects.length === 0 && !professors?.items.length && (
                             <p className="py-8 text-center text-sm text-muted-foreground">
                                 Nenhuma turma ou docente encontrado. Tente mudar a busca ou os
                                 filtros.

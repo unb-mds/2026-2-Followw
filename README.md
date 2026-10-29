@@ -15,8 +15,7 @@ ver mais detalhes em [segurança](docs/segurança.md).
 
 ## Links úteis
 
-- [Documentação geral](docs)
-- [Documentação da API](https://api.followw.app/docs)
+- [Documentação](https://docs.followw.app/)
 - [Entenda como o Followw processa suas credenciais](docs/segurança.md)
 - [Figma com requisitos](https://www.figma.com/board/JqtNZhLBFlsVIbthMYOdzB/Template-MDS--c%C3%B3pia-limpa-)
 

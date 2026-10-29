@@ -70,14 +70,30 @@ export function prerequisitesMet(
 export const subjectRequirementLabel = ({ code, subject }: Requirements[number][number]) =>
     subject?.name ?? code;
 
-export function availableSeats(classroom: SubjectClassroom): number | null {
-    if (classroom.vacancies == null || classroom.occupied == null) return null;
-    return Math.max(0, classroom.vacancies - classroom.occupied);
+export type Occupancy = 'free' | 'filling' | 'full';
+
+export interface Seats {
+    vacancies: number;
+    occupied: number;
+    available: number;
+    occupancy: Occupancy;
+}
+
+/** Cheia a partir de 100% e enchendo acima de 75%; `null` sem os números do SIGAA. */
+export function seats({ vacancies, occupied }: SubjectClassroom): Seats | null {
+    if (vacancies == null || occupied == null) return null;
+    const ratio = vacancies > 0 ? occupied / vacancies : 1;
+    return {
+        vacancies,
+        occupied,
+        available: Math.max(0, vacancies - occupied),
+        occupancy: ratio >= 1 ? 'full' : ratio > 0.75 ? 'filling' : 'free'
+    };
 }
 
 export function lockedReasons(classroom: SubjectClassroom, met: boolean | null): string[] {
     const reasons = [];
-    if (availableSeats(classroom) === 0) reasons.push('Turma cheia');
+    if (seats(classroom)?.available === 0) reasons.push('Turma cheia');
     if (met === false) reasons.push('Pré-requisitos não atendidos');
     return reasons;
 }

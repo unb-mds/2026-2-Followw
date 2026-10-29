@@ -589,6 +589,20 @@ def test_equivalencia_fora_da_matriz_satisfaz_requisito_e_correquisito(scene):
     assert codes(scene.get()) == ["B", "C"]
 
 
+def test_correquisitos_cursaveis_no_mesmo_semestre_sao_recomendados(scene):
+    scene.subject("TEO", corequisites=[["EXP"]])
+    scene.subject("EXP", corequisites=[["TEO"]])
+    scene.subject("BASE")
+    scene.subject("JUNTO", corequisites=[["BASE"]])
+    scene.subject("OU", corequisites=[["MISSING"], ["BASE"]])
+    scene.subject("SEM_OFERTA", offer=False)
+    scene.subject("NEEDS_OFFER", corequisites=[["SEM_OFERTA"]])
+    scene.subject("LOCKED", prerequisites=[["MISSING"]])
+    scene.subject("NEEDS_LOCKED", corequisites=[["LOCKED"]])
+    scene.subject("CHAIN", corequisites=[["NEEDS_LOCKED"]])
+    assert codes(scene.get()) == ["BASE", "EXP", "JUNTO", "OU", "TEO"]
+
+
 FLOW = [
     Component(subject_code=code, kind="required", period=period)
     for code, period in (("A", 1), ("B", 1), ("C", 2), ("D", 2))

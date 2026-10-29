@@ -37,19 +37,21 @@ const baseProfessor: ProfessorDetails = {
 };
 
 describe('ProfessorDetailsSection', () => {
-    test('agrupa disciplinas por semestre em ordem decrescente e exibe código e link de busca', () => {
+    test('agrupa disciplinas por semestre em ordem decrescente e exibe nome e link de busca', () => {
         const professor: ProfessorDetails = {
             ...baseProfessor,
             disciplines: [
                 {
                     semester: '2026.1',
                     code: 'FGA0108',
-                    occurrences: 1
+                    occurrences: 1,
+                    name: null
                 },
                 {
                     semester: '2026.2',
                     code: 'FGA0003',
-                    occurrences: 2
+                    occurrences: 2,
+                    name: 'COMPILADORES 1'
                 }
             ]
         };
@@ -65,9 +67,10 @@ describe('ProfessorDetailsSection', () => {
         const pos2026_1 = html.indexOf('2026.1');
         expect(pos2026_2).toBeLessThan(pos2026_1);
 
-        // Códigos
-        expect(html).toContain('FGA0003');
-        expect(html).toContain('FGA0108');
+        // Nome da matéria no lugar do código
+        expect(html).toContain('COMPILADORES 1');
+        expect(html).toContain('Matéria desconhecida');
+        expect(html).not.toContain('>FGA0003<');
 
         // Badge de múltiplas turmas
         expect(html).toContain('2 turmas');
@@ -93,7 +96,8 @@ describe('ProfessorDetailsSection', () => {
             disciplines: semesters.map((sem) => ({
                 semester: sem,
                 code: 'FGA0001',
-                occurrences: 1
+                occurrences: 1,
+                name: 'CÁLCULO 1'
             }))
         };
 

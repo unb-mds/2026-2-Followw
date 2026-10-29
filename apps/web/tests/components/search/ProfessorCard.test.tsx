@@ -39,7 +39,7 @@ describe('ProfessorCard', () => {
 
 describe('ProfessorSection', () => {
     test('retorna nulo se lista de professores estiver vazia', () => {
-        const html = renderWithRouter(<ProfessorSection professors={[]} />);
+        const html = renderWithRouter(<ProfessorSection professors={[]} total={0} />);
         expect(html).toBe('');
     });
 
@@ -47,6 +47,7 @@ describe('ProfessorSection', () => {
         const html = renderWithRouter(
             <ProfessorSection
                 professors={[professor, { ...professor, siape: 2, name: 'CARLOS SILVA' }]}
+                total={2}
             />
         );
 
@@ -63,13 +64,13 @@ describe('ProfessorSection', () => {
             name: `PROFESSOR ${i + 1}`
         }));
 
-        const html = renderWithRouter(<ProfessorSection professors={list} />);
+        const html = renderWithRouter(<ProfessorSection professors={list} total={list.length} />);
         expect(html).toContain('Docentes');
         expect(html).toContain('7 docentes encontrados');
         expect(html).toContain('Ver mais docentes (2 restantes)');
     });
 
-    test('usa prop total para contagem quando informado', () => {
+    test('conta pelo total da API, não pela página carregada', () => {
         const html = renderWithRouter(<ProfessorSection professors={[professor]} total={42} />);
         expect(html).toContain('42 docentes encontrados');
     });

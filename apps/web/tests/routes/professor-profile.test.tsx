@@ -1,9 +1,13 @@
+import type { Middleware } from 'openapi-fetch';
+
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory, createRouter } from '@tanstack/react-router';
-import { describe, expect, test } from 'bun:test';
+import { afterEach, describe, expect, test } from 'bun:test';
 
 import type { ProfessorDetails } from '#/queries/professors';
 
+import { apiClient } from '#/queries/client';
+import { toApiError } from '#/queries/errors';
 import { meQueryOptions } from '#/queries/me';
 import { professorQueryOptions } from '#/queries/professors';
 import { Route } from '#/routes/_app/professores_.$siape';
@@ -41,7 +45,8 @@ const mockProfessor: ProfessorDetails = {
         {
             semester: '2026.2',
             code: 'FGA0003',
-            occurrences: 2
+            occurrences: 2,
+            name: 'COMPILADORES 1'
         }
     ]
 };
@@ -56,7 +61,7 @@ describe('rota de perfil do professor (/professores/$siape)', () => {
         });
 
         const data = await runLoader(Route, {
-            params: { siape: '1234567' },
+            params: { siape: 1234567 },
             location: { searchStr: '' },
             context: { queryClient }
         });
@@ -100,34 +105,68 @@ describe('rota de perfil do professor (/professores/$siape)', () => {
         expect(html).toContain('Doutorado');
         expect(html).toContain('Ciência da Computação');
         // Disciplinas ministradas
-        expect(html).toContain('FGA0003');
+        expect(html).toContain('COMPILADORES 1');
         expect(html).toContain('2026.2');
         expect(html).toContain('2 turmas');
         expect(html).toContain('href="/buscar?q=FGA0003"');
     });
 
-    test('exibe mensagem quando o docente não é encontrado', async () => {
-        const queryClient = new QueryClient({
-            defaultOptions: { queries: { staleTime: Infinity } }
-        });
-        queryClient.setQueryData(meQueryOptions.queryKey, null);
-        queryClient.setQueryData(professorQueryOptions(99999).queryKey, null);
+    describe('sem dado do docente', () => {
+        let middleware: Middleware;
+        let requests: string[];
 
-        const router = createRouter({
-            routeTree,
-            history: createMemoryHistory({ initialEntries: ['/professores/99999'] }),
-            context: { queryClient }
-        });
-        await router.load();
+        afterEach(() => apiClient.eject(middleware));
 
-        const page = dom.testing.render(
-            <QueryClientProvider client={queryClient}>
-                <RouterProvider router={router} />
-            </QueryClientProvider>
+        function renderAt(path: string, status = 404) {
+            requests = [];
+            middleware = {
+                // lança como o client faz; um Response aqui pularia o onResponse que cria o ApiError
+                onRequest: ({ request }) => {
+                    requests.push(request.url);
+                    throw toApiError(status, { detail: 'Erro' });
+                }
+            };
+            apiClient.use(middleware);
+            const queryClient = new QueryClient({
+                defaultOptions: { queries: { retry: false, staleTime: Infinity } }
+            });
+            queryClient.setQueryData(meQueryOptions.queryKey, null);
+            const router = createRouter({
+                routeTree,
+                history: createMemoryHistory({ initialEntries: [path] }),
+                context: { queryClient }
+            });
+            return dom.testing.render(
+                <QueryClientProvider client={queryClient}>
+                    <RouterProvider router={router} />
+                </QueryClientProvider>
+            );
+        }
+
+        test('404 da API exibe a página não encontrada', async () => {
+            const page = renderAt('/professores/99999');
+            await dom.testing.waitFor(() => {
+                expect(page.container.innerHTML).toContain('Essa página se perdeu.');
+            });
+        });
+
+        test.each(['abc', '1.5', '0', '2147483648'])(
+            'SIAPE inválido (%s) exibe a página não encontrada sem chamar a API',
+            async (siape) => {
+                const page = renderAt(`/professores/${siape}`);
+                await dom.testing.waitFor(() => {
+                    expect(page.container.innerHTML).toContain('Essa página se perdeu.');
+                });
+                expect(requests).toEqual([]);
+            }
         );
 
-        await dom.testing.waitFor(() => {
-            expect(page.container.innerHTML).toContain('Docente não encontrado.');
+        test('falha da API exibe erro com nova tentativa', async () => {
+            const page = renderAt('/professores/99999', 502);
+            await dom.testing.waitFor(() => {
+                expect(page.container.innerHTML).not.toContain('Essa página se perdeu.');
+                expect(page.getByRole('button', { name: /tentar/i })).toBeDefined();
+            });
         });
     });
 });

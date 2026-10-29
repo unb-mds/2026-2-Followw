@@ -1,130 +1,133 @@
 import { Link } from '@tanstack/react-router';
-import { BookOpen, Calendar, GraduationCap, Lightbulb, User } from 'lucide-react';
+import { BookOpen, Calendar, GraduationCap, Lightbulb, type LucideIcon, User } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import type { ProfessorDegree, ProfessorDetails, ProfessorDiscipline } from '#/queries/professors';
 
-import { Badge } from '#/components/ui/badge';
 import { Button } from '#/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card';
 import { titleCase } from '#/lib/profile';
 
 const INITIAL_SEMESTERS_COUNT = 6;
 
+// semestres do mais recente ao mais antigo, matérias por código
+function groupBySemester(disciplines: ProfessorDiscipline[]) {
+    const groups = new Map<string, ProfessorDiscipline[]>();
+    for (const item of disciplines) {
+        const group = groups.get(item.semester);
+        if (group) group.push(item);
+        else groups.set(item.semester, [item]);
+    }
+    return [...groups]
+        .toSorted(([a], [b]) => b.localeCompare(a))
+        .map(([semester, items]) => ({
+            semester,
+            items: items.toSorted((a, b) => a.code.localeCompare(b.code))
+        }));
+}
+
 export function ProfessorDetailsSection({ professor }: { professor: ProfessorDetails }) {
     const [showAllSemesters, setShowAllSemesters] = useState(false);
-
-    const disciplinesBySemester = useMemo(() => {
-        const groups = new Map<string, ProfessorDiscipline[]>();
-        for (const item of professor.disciplines ?? []) {
-            const list = groups.get(item.semester) ?? [];
-            list.push(item);
-            groups.set(item.semester, list);
-        }
-
-        const sortedSemesters = Array.from(groups.keys()).toSorted((a, b) => b.localeCompare(a));
-        return sortedSemesters.map((sem) => ({
-            semester: sem,
-            items: (groups.get(sem) ?? []).toSorted((a, b) => a.code.localeCompare(b.code))
-        }));
-    }, [professor.disciplines]);
-
+    const semesters = useMemo(
+        () => groupBySemester(professor.disciplines),
+        [professor.disciplines]
+    );
+    const hiddenSemesters = semesters.length - INITIAL_SEMESTERS_COUNT;
     const displayedSemesters = showAllSemesters
-        ? disciplinesBySemester
-        : disciplinesBySemester.slice(0, INITIAL_SEMESTERS_COUNT);
+        ? semesters
+        : semesters.slice(0, INITIAL_SEMESTERS_COUNT);
 
     return (
         <div className="flex flex-col gap-4">
             {professor.description && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                            <User className="size-4 text-primary" aria-hidden="true" />
-                            Sobre
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="text-sm leading-relaxed whitespace-pre-line text-muted-foreground">
-                        {professor.description}
-                    </CardContent>
-                </Card>
+                <DetailCard
+                    icon={User}
+                    title="Sobre"
+                    className="text-sm leading-relaxed whitespace-pre-line text-muted-foreground"
+                >
+                    {professor.description}
+                </DetailCard>
             )}
 
             {professor.interests && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                            <Lightbulb className="size-4 text-primary" aria-hidden="true" />
-                            Áreas de Interesse
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="text-sm leading-relaxed text-muted-foreground">
-                        {professor.interests}
-                    </CardContent>
-                </Card>
+                <DetailCard
+                    icon={Lightbulb}
+                    title="Áreas de Interesse"
+                    className="text-sm leading-relaxed text-muted-foreground"
+                >
+                    {professor.interests}
+                </DetailCard>
             )}
 
-            {professor.education && professor.education.length > 0 && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                            <GraduationCap className="size-4 text-primary" aria-hidden="true" />
-                            Formação Acadêmica
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <ul className="flex flex-col gap-3">
-                            {professor.education.map((degree) => (
-                                <DegreeItem
-                                    key={`${degree.level}-${degree.course ?? ''}-${degree.institution ?? ''}-${degree.start_year ?? ''}`}
-                                    degree={degree}
-                                />
-                            ))}
-                        </ul>
-                    </CardContent>
-                </Card>
-            )}
-
-            {disciplinesBySemester.length > 0 && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                            <BookOpen className="size-4 text-primary" aria-hidden="true" />
-                            Disciplinas de Graduação Ministradas
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="flex flex-col gap-5">
-                        {displayedSemesters.map((group) => (
-                            <div key={group.semester} className="flex flex-col gap-2">
-                                <h3 className="text-sm font-bold text-foreground">
-                                    {group.semester}
-                                </h3>
-                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                    {group.items.map((item) => (
-                                        <DisciplineItem
-                                            key={`${item.semester}-${item.code}`}
-                                            item={item}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
+            {professor.education.length > 0 && (
+                <DetailCard icon={GraduationCap} title="Formação Acadêmica">
+                    <ul className="flex flex-col gap-3">
+                        {professor.education.map((degree) => (
+                            <DegreeItem
+                                key={`${degree.level}-${degree.course ?? ''}-${degree.institution ?? ''}-${degree.start_year ?? ''}`}
+                                degree={degree}
+                            />
                         ))}
+                    </ul>
+                </DetailCard>
+            )}
 
-                        {disciplinesBySemester.length > INITIAL_SEMESTERS_COUNT && (
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setShowAllSemesters((prev) => !prev)}
-                                className="mt-2 w-full text-xs text-muted-foreground hover:text-foreground"
-                            >
-                                {showAllSemesters
-                                    ? 'Mostrar menos semestres'
-                                    : `Ver mais semestres (${disciplinesBySemester.length - INITIAL_SEMESTERS_COUNT} restantes)`}
-                            </Button>
-                        )}
-                    </CardContent>
-                </Card>
+            {semesters.length > 0 && (
+                <DetailCard
+                    icon={BookOpen}
+                    title="Disciplinas de Graduação Ministradas"
+                    className="flex flex-col gap-5"
+                >
+                    {displayedSemesters.map((group) => (
+                        <div key={group.semester} className="flex flex-col gap-2">
+                            <h3 className="text-sm font-bold text-foreground">{group.semester}</h3>
+                            <ul className="flex flex-col gap-1.5">
+                                {group.items.map((item) => (
+                                    <DisciplineItem key={item.code} item={item} />
+                                ))}
+                            </ul>
+                        </div>
+                    ))}
+
+                    {hiddenSemesters > 0 && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowAllSemesters((prev) => !prev)}
+                            className="mt-2 w-full text-xs text-muted-foreground hover:text-foreground"
+                        >
+                            {showAllSemesters
+                                ? 'Mostrar menos semestres'
+                                : `Ver mais semestres (${hiddenSemesters} restantes)`}
+                        </Button>
+                    )}
+                </DetailCard>
             )}
         </div>
+    );
+}
+
+function DetailCard({
+    icon: Icon,
+    title,
+    className,
+    children
+}: {
+    icon: LucideIcon;
+    title: string;
+    className?: string;
+    children: React.ReactNode;
+}) {
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <Icon className="size-4 text-primary" aria-hidden="true" />
+                    {title}
+                </CardTitle>
+            </CardHeader>
+            <CardContent className={className}>{children}</CardContent>
+        </Card>
     );
 }
 
@@ -155,20 +158,20 @@ function DegreeItem({ degree }: { degree: ProfessorDegree }) {
 
 function DisciplineItem({ item }: { item: ProfessorDiscipline }) {
     return (
-        <Link
-            to="/buscar"
-            search={{ q: item.code }}
-            className="group flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/30 p-3 text-xs transition-colors hover:border-primary/50 hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-            aria-label={`Buscar matéria ${item.code}`}
-        >
-            <span className="font-semibold text-foreground transition-colors group-hover:text-primary">
-                {item.code}
-            </span>
+        <li className="flex items-baseline gap-2 text-sm">
+            <Link
+                to="/buscar"
+                search={{ q: item.code }}
+                className="text-foreground transition-colors hover:text-primary focus-visible:text-primary focus-visible:outline-none"
+                aria-label={`Buscar ${item.name ?? `matéria ${item.code}`}`}
+            >
+                {item.name ?? 'Matéria desconhecida'}
+            </Link>
             {item.occurrences > 1 && (
-                <Badge variant="outline" className="shrink-0 text-[10px] tabular-nums">
+                <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
                     {item.occurrences} turmas
-                </Badge>
+                </span>
             )}
-        </Link>
+        </li>
     );
 }

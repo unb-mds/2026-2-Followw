@@ -12,7 +12,7 @@ export function ProfessorCard({ professor }: { professor: ProfessorItem }) {
     return (
         <Link
             to="/professores/$siape"
-            params={{ siape: String(professor.siape) }}
+            params={{ siape: professor.siape }}
             className="group flex items-center justify-between gap-3 rounded-2xl bg-card p-3 shadow-card ring-1 ring-foreground/8 transition-colors hover:ring-primary/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             aria-label={`Ver perfil de ${titleCase(professor.name)}`}
         >

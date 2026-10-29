@@ -1,7 +1,7 @@
 import pytest
 from sqlalchemy import inspect
 
-from api.db.models import Professor, Unit
+from api.db.models import Professor, Subject, Unit
 from api.modules.public_professors.repository import ProfessorRepository
 
 
@@ -9,6 +9,9 @@ from api.modules.public_professors.repository import ProfessorRepository
 def catalog(database):
     with database.begin() as session:
         session.add(Unit(id=508, name="DEPTO CIÊNCIAS DA COMPUTAÇÃO - BRASÍLIA"))
+        session.add(
+            Subject(code="CIC0205", name="FUNDAMENTOS DE SISTEMAS OPERACIONAIS")
+        )
         session.add_all(
             [
                 Professor(
@@ -71,7 +74,7 @@ def test_lista_paginada_filtra_nome_unidade_e_semestre(client, catalog):
     assert beyond["items"] == []
 
 
-def test_detalhe_traz_perfil_e_disciplinas_sem_nome_ou_carga(client, catalog):
+def test_detalhe_traz_perfil_e_disciplinas_com_nome_do_catalogo(client, catalog):
     response = client.get("/public/professors/123")
     assert response.status_code == 200
     data = response.json()
@@ -91,8 +94,13 @@ def test_detalhe_traz_perfil_e_disciplinas_sem_nome_ou_carga(client, catalog):
         data["url"] == "https://sigaa.unb.br/sigaa/public/docente/portal.jsf?siape=123"
     )
     assert data["disciplines"] == [
-        {"semester": "2026.2", "code": "CIC0205", "occurrences": 2},
-        {"semester": "2025.1", "code": "CIC0108", "occurrences": 1},
+        {
+            "semester": "2026.2",
+            "code": "CIC0205",
+            "occurrences": 2,
+            "name": "FUNDAMENTOS DE SISTEMAS OPERACIONAIS",
+        },
+        {"semester": "2025.1", "code": "CIC0108", "occurrences": 1, "name": None},
     ]
     assert client.get("/public/professors/999").status_code == 404
 
