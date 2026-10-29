@@ -32,7 +32,7 @@ from api.cookies import (
 )
 from api.db.enums import UserLevel
 from api.db.main import get_sessionmaker
-from api.db.models import User
+from api.db.models import Curriculum, User
 from api.modules.me.repository import UserRepository
 
 CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha123"))
@@ -89,6 +89,7 @@ def test_login_seguido_de_me_responde_do_cache(client, sigaa):
             "pending_optional": 420,
             "pending_complementary": 0,
         },
+        "period_max_workload": None,
         "ira": 3.9524,
         "mp": 4.1724,
         "level": "Graduação",
@@ -141,10 +142,32 @@ def test_me_sem_campos_opcionais_retorna_null(client, sigaa, cookies):
         "entry_semester",
         "integralization",
         "workload",
+        "period_max_workload",
         "ira",
         "mp",
     ):
         assert response.json()[field] is None
+
+
+def test_me_traz_carga_maxima_por_periodo_da_matriz(client, sigaa, database):
+    sigaa.profile = PERFIL
+    client.post(
+        "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
+    )
+    with database.begin() as session:
+        user = session.scalars(select(User)).one()
+        user.curriculum = Curriculum(
+            course_id=user.course_id,
+            sigaa_id=1,
+            code="6360/1",
+            valid_from="2025.1",
+            created_year=2025,
+            active=True,
+            matrix="ENGENHARIA DE SOFTWARE",
+            period_max_workload=420,
+        )
+
+    assert client.get("/me").json()["period_max_workload"] == 420
 
 
 @pytest.mark.parametrize("refresh", [None, "cookie-invalido", "expirado"])
@@ -272,6 +295,7 @@ def test_me_documenta_campos_e_erros(client):
         "entry_semester",
         "integralization",
         "workload",
+        "period_max_workload",
         "ira",
         "mp",
     } <= fields.keys()

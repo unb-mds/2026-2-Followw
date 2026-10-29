@@ -21,7 +21,7 @@ onclick="jsfcljs(this,{'formCurriculosCurso:detail':'formCurriculosCurso:detail'
 <tr><td>Detalhes da Estrutura Curricular 8117/-2, Criado em 2018</td><td>Inativa</td>
 <td><a title="Visualizar Estrutura Curricular"
 onclick="jsfcljs(this,{'formCurriculosCurso:other':'formCurriculosCurso:other','id':'455'},'')"></a></td></tr>
-<tr><td colspan="3">2 Estruturas Curriculares Disponíveis</td></tr>
+<tr class="campos"><td colspan="3"><b>2 Estruturas Curriculares Disponíveis</b></td></tr>
 </table></form>
 """
 DETAIL = """
@@ -29,6 +29,19 @@ DETAIL = """
 <tr><th>Código:</th><td>8117/1</td></tr>
 <tr><th>Matriz Curricular:</th><td>ADMINISTRAÇÃO - Bacharelado - D</td></tr>
 <tr><th>Período Letivo de Entrada em Vigor:</th><td>2020.1</td></tr>
+<tr><td class="subFormulario" colspan="2">Prazos e Cargas Horárias</td></tr>
+<tr><th>Total Mínima: </th><td>3000h</td></tr>
+<tr><td colspan="2"><b>Carga Horária Obrigatória</b></td></tr>
+<tr><th>Subtotal de CH de Aula: </th><td> 1680h </td></tr>
+<tr><th>Total:</th><td> 1680h </td></tr>
+<tr><th>Carga Horária Optativa Mínima: </th><td>1320h</td></tr><tr>
+</tr><tr><th>Carga Horária Complementar Mínima: </th><td>0h</td></tr>
+<tr><th>Carga Horária Máxima de Componentes Eletivos: </th><td>360h</td></tr>
+<tr><th>Carga Horária Máxima por Período Letivo: </th><td>420h</td></tr>
+<tr><th>Carga Horária Mínima por Período Letivo: </th><td>210h</td></tr>
+<tr><th>Prazo Para Conclusão (em semestres): </th><td><table><tr>
+<th>Mínimo: </th><td> 8 </td><th>Médio: </th><td> 9 </td><th>Máximo: </th><td> 16 </td>
+</tr></table></td></tr>
 </table>
 <div id="optativas"><table><tr class="linhaPar">
 <td>ADM0002 - ESTUDOS E PESQUISAS EM ADMINISTRAÇÃO - 30h</td><td>Optativa</td><td></td>
@@ -42,6 +55,19 @@ DETAIL = """
 <div id="semestre3"><table><tr><td colspan="3">Carga Horária Total: h</td></tr></table></div>
 </form>
 """
+
+LIMITS = {
+    "total_workload": 3000,
+    "required_workload": 1680,
+    "optional_min_workload": 1320,
+    "complementary_min_workload": 0,
+    "elective_max_workload": 360,
+    "period_max_workload": 420,
+    "period_min_workload": 210,
+    "min_semesters": 8,
+    "avg_semesters": 9,
+    "max_semesters": 16,
+}
 
 
 class FakeSigaa:
@@ -100,6 +126,7 @@ async def test_lista_e_detalhes_preservam_vigencia_e_separam_componentes():
     assert curriculum.required_by_period[1].required == ()
     assert curriculum.optional == ("ADM0002", "ADM0315")
     assert curriculum.complementary == ()
+    assert curriculum.model_dump(include=set(LIMITS)) == LIMITS
     assert fake.views == 3
     assert curriculum.model_dump(mode="json")["required_by_period"] == [
         {"period": 1, "required": ["ADM0023"]},
@@ -123,6 +150,9 @@ async def test_sessao_expirada_reabre_listagem_e_viewstate():
         DETAIL.replace('id="optativas"', 'id="outro"'),
         DETAIL.replace("Obrigatória", "Desconhecida"),
         DETAIL.replace("ADM0023 - INTRODUÇÃO À ADMINISTRAÇÃO - 60h", "linha quebrada"),
+        DETAIL.replace("Total Mínima", "Outro total"),
+        DETAIL.replace("<td>420h</td>", "<td>-</td>"),
+        DETAIL.replace("Máximo: ", "Teto: "),
     ],
 )
 async def test_layout_inesperado_nao_vira_dataset_parcial(detail):
@@ -131,6 +161,16 @@ async def test_layout_inesperado_nao_vira_dataset_parcial(detail):
     ) as client:
         with pytest.raises(SigaaParseError):
             await client.curricula.get_curriculum(414112, 456)
+
+
+async def test_carga_e_prazo_em_branco_viram_none():
+    detail = DETAIL.replace("<td>210h</td>", "<td>h</td>").replace(" 9 ", " ")
+    fake = FakeSigaa(detail=detail)
+    async with SigaaPublicClient(transport=httpx.MockTransport(fake)) as client:
+        curriculum = await client.curricula.get_curriculum(414112, 456)
+    assert curriculum.period_min_workload is None
+    assert curriculum.avg_semesters is None
+    assert (curriculum.period_max_workload, curriculum.max_semesters) == (420, 16)
 
 
 @pytest.mark.parametrize("section", ["semestre1", "semestre3"])

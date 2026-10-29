@@ -6,16 +6,17 @@ import {
     useSuspenseQuery
 } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { Clock, ListFilter, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { getCurrentSemester } from '#/calendar';
 import { ErrorCard, ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
 import { LoadingText } from '#/components/LoadingText';
-import { FilterSelect } from '#/components/search/FilterSelect';
+import { SchedulePreview } from '#/components/schedule/SchedulePreview';
 import { RecommendationsSection } from '#/components/search/RecommendationsSection';
 import { TurmaSection } from '#/components/search/TurmaSection';
+import { TabFilter } from '#/components/TabFilter';
 import { Input } from '#/components/ui/input';
 import { useOnline } from '#/lib/online';
 import { loadSearchParams, useSearchState, validateSearch } from '#/lib/search-params';
@@ -28,15 +29,12 @@ import {
     approvedCodes,
     takenCodes,
     currentCurriculumPeriod,
-    AVAILABILITIES,
-    filterSubjects,
-    isAvailability,
-    isTurno,
     SEARCH_MAX_LENGTH,
     SEARCH_MIN_LENGTH,
     subjectsQuery,
     subjectsQueryOptions,
-    TURNOS
+    TIPOS,
+    withClassrooms
 } from '#/queries/subjects';
 
 export const Route = createFileRoute('/_app/buscar')({
@@ -69,28 +67,24 @@ export const Route = createFileRoute('/_app/buscar')({
 function BuscarTurmasPage() {
     const queryClient = useQueryClient();
     const { data: user } = useSuspenseQuery(meQueryOptions);
-    const [{ q: busca, turno, disponibilidade }, setSearch] = useSearchState();
-    const recommendations = showRecommendations(user, {
-        q: busca,
-        turno,
-        disponibilidade
-    });
+    const [{ q, tipo }, setSearch] = useSearchState();
+    const recommendations = showRecommendations(user, { q, tipo });
     const unit = user?.unit?.code ?? null;
     const currentPeriod = currentCurriculumPeriod(
         user?.entry_semester,
         getCurrentSemester()?.semester
     );
     // Consulta aplicada após o debounce de 300 ms; texto inválido mantém a anterior.
-    const [query, setQuery] = useState(() => subjectsQuery(busca, unit));
+    const [query, setQuery] = useState(() => subjectsQuery(q, unit));
     const online = useOnline();
 
     useEffect(() => {
         const timer = setTimeout(
-            () => setQuery((previous) => subjectsQuery(busca, unit, previous)),
+            () => setQuery((previous) => subjectsQuery(q, unit, previous)),
             300
         );
         return () => clearTimeout(timer);
-    }, [busca, unit]);
+    }, [q, unit]);
 
     const { data, isPending, isFetching, isLoadingError, isError, refetch } = useQuery({
         ...subjectsQueryOptions(query ?? {}),
@@ -104,7 +98,7 @@ function BuscarTurmasPage() {
     const approved = useMemo(() => (history ? approvedCodes(history) : null), [history]);
     const taken = useMemo(() => (history ? takenCodes(history) : null), [history]);
 
-    const subjects = filterSubjects(data ?? [], { turno, disponibilidade }, approved);
+    const subjects = withClassrooms(data ?? []);
     const semester = subjects[0]?.classrooms[0]?.semester;
     const title = query?.unit ? `Matérias da ${query.unit}` : 'Resultados da busca';
     const refreshSubjects = () => {
@@ -120,7 +114,7 @@ function BuscarTurmasPage() {
                 />
                 <Input
                     type="search"
-                    value={busca}
+                    value={q}
                     onChange={(e) => {
                         const value = e.target.value.slice(0, SEARCH_MAX_LENGTH);
                         void setSearch({ q: value.trim() ? value : null });
@@ -131,27 +125,20 @@ function BuscarTurmasPage() {
                     className="h-11 bg-card pl-10 text-sm"
                 />
             </div>
-            <div className="grid grid-cols-2 gap-2">
-                <FilterSelect
-                    label="Turno"
-                    icon={<Clock className="size-4" />}
-                    value={turno}
-                    options={TURNOS}
-                    onChange={(value) => isTurno(value) && void setSearch({ turno: value })}
+            {user?.level === 'Graduação' && (
+                <TabFilter
+                    label="Tipo de matéria"
+                    value={tipo}
+                    options={TIPOS}
+                    onChange={(value) => void setSearch({ tipo: value })}
+                    className="-my-2"
                 />
-                <FilterSelect
-                    label="Disponibilidade"
-                    icon={<ListFilter className="size-4" />}
-                    value={disponibilidade}
-                    options={AVAILABILITIES}
-                    onChange={(value) =>
-                        isAvailability(value) && void setSearch({ disponibilidade: value })
-                    }
-                />
-            </div>
+            )}
+            <SchedulePreview />
             <div aria-live="polite" aria-busy={isFetching} className="flex flex-col gap-5 pb-8">
                 {recommendations ? (
                     <RecommendationsSection
+                        filters={{ tipo, q }}
                         currentPeriod={currentPeriod}
                         approved={approved}
                         taken={taken}
@@ -187,7 +174,7 @@ function BuscarTurmasPage() {
                             </p>
                         )}
                         <TurmaSection
-                            key={JSON.stringify([query, turno, disponibilidade])}
+                            key={JSON.stringify(query)}
                             title={semester ? `${title} · ${semester}` : title}
                             subjects={subjects}
                             currentPeriod={currentPeriod}

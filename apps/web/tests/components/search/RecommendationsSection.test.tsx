@@ -18,6 +18,7 @@ import {
     RecommendationsSection
 } from '#/components/search/RecommendationsSection';
 import { apiClient } from '#/queries/client';
+import { meQueryOptions } from '#/queries/me';
 let testing: typeof import('@testing-library/react/pure');
 let browser: Window;
 const wasServer = environmentManager.isServer();
@@ -114,6 +115,7 @@ describe('seção de recomendações', () => {
     let requests: Request[];
     beforeEach(() => {
         client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        client.setQueryData(meQueryOptions.queryKey, null);
         requests = [];
         response = () => Response.json(result);
         middleware = {
@@ -129,8 +131,10 @@ describe('seção de recomendações', () => {
         client.clear();
         apiClient.eject(middleware);
     });
-    const renderSection = async () => {
-        const root = createRootRoute({ component: RecommendationsSection });
+    const renderSection = async (
+        props: React.ComponentProps<typeof RecommendationsSection> = {}
+    ) => {
+        const root = createRootRoute({ component: () => <RecommendationsSection {...props} /> });
         const router = createRouter({
             routeTree: root,
             history: createMemoryHistory({ initialEntries: ['/'] })
@@ -183,6 +187,36 @@ describe('seção de recomendações', () => {
             expect(classrooms[0].getAttribute('aria-expanded')).toBe('true')
         );
         expect(requests).toHaveLength(1);
+    });
+    test('abas de tipo mostram só as recomendações do tipo, com os filtros', async () => {
+        response = () =>
+            Response.json([
+                result[0],
+                { ...result[0], code: 'FGA0002', name: 'Optativa da manhã', kind: 'optional' },
+                {
+                    ...result[0],
+                    code: 'FGA0003',
+                    name: 'Optativa da noite',
+                    kind: 'optional'
+                }
+            ]);
+        const page = await renderSection({
+            filters: { tipo: 'Optativas', q: 'manha' }
+        });
+        await testing.waitFor(() =>
+            expect(page.getByRole('button', { name: /FGA0002/ })).toBeDefined()
+        );
+        expect(page.getByRole('region', { name: 'Optativas disponíveis' })).toBeDefined();
+        expect(page.queryByRole('button', { name: /FGA0001/ })).toBeNull();
+        expect(page.queryByRole('button', { name: /FGA0003/ })).toBeNull();
+    });
+    test('aba sem recomendações do tipo avisa que nada está disponível', async () => {
+        const page = await renderSection({
+            filters: { tipo: 'Optativas', q: '' }
+        });
+        await testing.waitFor(() =>
+            expect(page.getByText(/Nenhuma matéria disponível para você/)).toBeDefined()
+        );
     });
     test('exibe 20 recomendações e carrega mais sob demanda', async () => {
         response = () =>

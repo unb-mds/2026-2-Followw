@@ -1,9 +1,10 @@
-import { CircleCheck, CircleDashed, CircleSlash, CircleX, X } from 'lucide-react';
+import { CircleCheck, CircleDashed, CircleSlash, CircleX } from 'lucide-react';
 import { useRef, useState } from 'react';
 
 import type { ClassroomFrequency, Lesson, LessonMarkStatus } from '#/queries/classrooms';
 
 import { ListCard, Meter } from '#/components/ListCard';
+import { SelectionBar } from '#/components/SelectionBar';
 import { Button } from '#/components/ui/button';
 import { Card } from '#/components/ui/card';
 import { Checkbox } from '#/components/ui/checkbox';
@@ -25,8 +26,6 @@ import { nowInBrasilia } from '#/lib/schedule';
 import { cn } from '#/lib/shadcn';
 
 export type MarkLessons = (lessons: Lesson[], status: LessonMarkStatus | null) => void;
-
-const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
 
 const FREQUENCY_TONE = {
     ok: undefined,
@@ -164,66 +163,34 @@ export function FrequencyContent({
             )}
             {selected.length > 0 && (
                 <SelectionBar
+                    label="Marcar aulas selecionadas"
                     count={selected.length}
-                    pending={pending}
-                    onMark={markSelected}
+                    units={['aula', 'aulas']}
                     onClear={() => setSelectedIds(new Set())}
-                />
+                >
+                    {(['presente', 'falta'] as const).map((mark) => {
+                        const option = LESSON_VIEW[mark];
+                        return (
+                            <Button
+                                key={mark}
+                                variant="ghost"
+                                size="sm"
+                                disabled={pending}
+                                className={cn('rounded-full', option.color)}
+                                onClick={() => markSelected(mark)}
+                            >
+                                <option.icon />
+                                {option.name}
+                            </Button>
+                        );
+                    })}
+                </SelectionBar>
             )}
         </div>
     );
 }
 
 const selectable = (lesson: Lesson) => !lesson.marked && lesson.status === 'nao_registrada';
-
-function SelectionBar({
-    count,
-    pending,
-    onMark,
-    onClear
-}: {
-    count: number;
-    pending: boolean;
-    onMark: (status: LessonMarkStatus) => void;
-    onClear: () => void;
-}) {
-    return (
-        <div
-            role="toolbar"
-            aria-label="Marcar aulas selecionadas"
-            className="fixed bottom-24 left-1/2 z-50 flex -translate-x-1/2 animate-in items-center gap-1 rounded-full border bg-card/80 py-1 pr-1 pl-2 text-sm text-card-foreground shadow-lg backdrop-blur-xl fade-in-0 slide-in-from-bottom-2"
-        >
-            <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Limpar seleção"
-                className="rounded-full"
-                onClick={onClear}
-            >
-                <X />
-            </Button>
-            <span className="pr-2 whitespace-nowrap tabular-nums">
-                {plural(count, 'aula', 'aulas')}
-            </span>
-            {(['presente', 'falta'] as const).map((mark) => {
-                const option = LESSON_VIEW[mark];
-                return (
-                    <Button
-                        key={mark}
-                        variant="ghost"
-                        size="sm"
-                        disabled={pending}
-                        className={cn('rounded-full', option.color)}
-                        onClick={() => onMark(mark)}
-                    >
-                        <option.icon />
-                        {option.name}
-                    </Button>
-                );
-            })}
-        </div>
-    );
-}
 
 function LessonRow({
     lesson,

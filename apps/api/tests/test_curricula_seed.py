@@ -10,10 +10,13 @@ from api.db.seed.curricula import COMPONENTS_CSV, read_curricula, seed_curricula
 from api.db.seed.units import seed_units
 
 MATRIX_COLUMNS = (
-    "sigaa_id,course_sigaa_id,code,created_year,active,shift,valid_from,matrix"
+    "sigaa_id,course_sigaa_id,code,created_year,active,shift,valid_from,matrix,"
+    "total_workload,required_workload,optional_min_workload,complementary_min_workload,"
+    "elective_max_workload,period_max_workload,period_min_workload,"
+    "min_semesters,avg_semesters,max_semesters"
 )
 COMPONENT_COLUMNS = "course_sigaa_id,curriculum_sigaa_id,period,kind,subject_codes"
-MATRIX = "456,414112,8117/1,2020,true,D,2020.1,ADMINISTRAÇÃO - D"
+MATRIX = "456,414112,8117/1,2020,true,D,2020.1,ADMINISTRAÇÃO - D,3000,1680,1320,0,360,420,210,8,8,16"
 COMPONENTS = [
     "414112,456,1,required,ADM0023",
     "414112,456,0,optional,ADM0002",
@@ -82,6 +85,12 @@ def test_csvs_invalidos_sao_barulhentos(tmp_path, matrices, components, error):
 def test_vigencia_invalida_e_rejeitada(tmp_path):
     with pytest.raises(ValidationError):
         read_curricula(*_csvs(tmp_path, [MATRIX.replace("2020.1", "2020")]))
+
+
+def test_cargas_horarias_vazias_viram_none(tmp_path):
+    (item,) = read_curricula(*_csvs(tmp_path, [MATRIX.replace(",210,8,8,", ",,8,,")]))
+    assert (item.total_workload, item.period_max_workload) == (3000, 420)
+    assert (item.period_min_workload, item.avg_semesters) == (None, None)
 
 
 def test_periodos_agrupados_preservam_listas_e_periodos_vazios(tmp_path):

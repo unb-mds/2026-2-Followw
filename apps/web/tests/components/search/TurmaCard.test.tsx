@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, test } from 'bun:test';
 
 import type { CatalogSubject, SubjectClassroom } from '#/queries/subjects';
@@ -5,6 +6,7 @@ import type { CatalogSubject, SubjectClassroom } from '#/queries/subjects';
 import { TurmaCard } from '#/components/search/TurmaCard';
 import { TurmaDetails } from '#/components/search/TurmaDetails';
 import { TurmaSection } from '#/components/search/TurmaSection';
+import { meQueryOptions } from '#/queries/me';
 
 import { renderWithRouter } from '../../helpers/router';
 
@@ -27,13 +29,19 @@ const subject: CatalogSubject = {
     classrooms: [classroom]
 };
 
+// O botão da grade lê a carga máxima do /me.
+const client = new QueryClient();
+client.setQueryData(meQueryOptions.queryKey, null);
+
 const card = (turma: Partial<SubjectClassroom> = {}, met: boolean | null = true) =>
     renderWithRouter(
-        <TurmaCard
-            subject={subject}
-            classroom={{ ...classroom, ...turma }}
-            prerequisitesMet={met}
-        />
+        <QueryClientProvider client={client}>
+            <TurmaCard
+                subject={subject}
+                classroom={{ ...classroom, ...turma }}
+                prerequisitesMet={met}
+            />
+        </QueryClientProvider>
     );
 
 const details = (
@@ -68,11 +76,13 @@ describe('TurmaCard', () => {
         expect(card({ schedule: null })).toContain('Horário a definir');
     });
 
-    test('cadeado informa lotação e pré-requisito', () => {
-        expect(card({}, false)).toContain('aria-label="Pré-requisitos não atendidos"');
-        expect(card({ occupied: 40 }, false)).toContain(
-            'aria-label="Turma cheia. Pré-requisitos não atendidos"'
-        );
+    test('turmas cheias ou sem pré-requisitos abrem os detalhes sem cadeado no resumo', () => {
+        for (const occupied of [38, 40]) {
+            const markup = card({ occupied }, false);
+            expect(markup).not.toContain('lucide-lock');
+            expect(markup).toContain('aria-haspopup="dialog"');
+            expect(markup).not.toContain('disabled=""');
+        }
     });
 
     test.each([true, null])('turma com vagas não tem cadeado quando requisito é %s', (met) => {

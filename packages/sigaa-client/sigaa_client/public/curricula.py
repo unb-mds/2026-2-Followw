@@ -18,6 +18,18 @@ _SEMESTER_RE = re.compile(r"\d{4}\.\d")
 _COUNT_RE = re.compile(r"(\d+) estruturas curriculares disponiveis")
 _SHIFT_SEPARATOR_RE = re.compile(r"\s*(?:,|\be\b)\s*")
 _SHIFT_NAMES = {"matutino", "vespertino", "noturno", "integral"}
+_HOURS_RE = re.compile(r"(\d*)h")
+_DEADLINE_RE = re.compile(r"minimo:(?: (\d+))? medio:(?: (\d+))? maximo:(?: (\d+))?")
+_DEADLINE_LABEL = "prazo para conclusao (em semestres)"
+_WORKLOAD_LABELS = {
+    "total_workload": "total minima",
+    "required_workload": "total",
+    "optional_min_workload": "carga horaria optativa minima",
+    "complementary_min_workload": "carga horaria complementar minima",
+    "elective_max_workload": "carga horaria maxima de componentes eletivos",
+    "period_max_workload": "carga horaria maxima por periodo letivo",
+    "period_min_workload": "carga horaria minima por periodo letivo",
+}
 
 
 def _parse_shift(text: str) -> str | None:
@@ -85,7 +97,10 @@ def _parse_list(
     for row in table.find_all("tr"):
         cells = row.find_all("td", recursive=False)
         if "campos" in row.get("class", []):
-            shift = _parse_shift(clean_text(row))
+            text = clean_text(row)
+            # O rodapé com a contagem também vem como "campos".
+            if not _COUNT_RE.fullmatch(lookup_key(text)):
+                shift = _parse_shift(text)
             continue
         if not cells or len(cells) == 1:
             continue
@@ -140,6 +155,7 @@ def _parse_details(soup: BeautifulSoup, summary: CurriculumSummary) -> Curriculu
         raise SigaaParseError(
             f"Código, matriz ou vigência inválidos nos detalhes do currículo {summary.sigaa_id}."
         )
+    limits = _parse_limits(metadata, summary.sigaa_id)
     optional = _parse_subjects(form, "optativas", "optativa")
     complementary = _parse_subjects(form, "complementares", "complementar")
     periods = []
@@ -162,10 +178,31 @@ def _parse_details(soup: BeautifulSoup, summary: CurriculumSummary) -> Curriculu
         **summary.model_dump(),
         valid_from=semester,
         matrix=matrix,
+        **limits,
         required_by_period=tuple(sorted(periods, key=lambda item: item.period)),
         optional=tuple(dict.fromkeys(optional)),
         complementary=complementary,
     )
+
+
+def _parse_limits(metadata: dict[str, str], sigaa_id: int) -> dict[str, int | None]:
+    limits = {}
+    for field, label in _WORKLOAD_LABELS.items():
+        match = _HOURS_RE.fullmatch(metadata.get(label, ""))
+        if not match:
+            raise SigaaParseError(
+                f"Carga horária '{label}' ausente ou inválida no currículo {sigaa_id}."
+            )
+        limits[field] = int(match[1]) if match[1] else None
+    deadline = _DEADLINE_RE.fullmatch(lookup_key(metadata.get(_DEADLINE_LABEL, "")))
+    if not deadline:
+        raise SigaaParseError(
+            f"Prazo para conclusão ausente ou inválido no currículo {sigaa_id}."
+        )
+    limits["min_semesters"], limits["avg_semesters"], limits["max_semesters"] = (
+        int(value) if value else None for value in deadline.groups()
+    )
+    return limits
 
 
 def _parse_subjects(form: Tag, section_id: str, expected: str) -> tuple[str, ...]:

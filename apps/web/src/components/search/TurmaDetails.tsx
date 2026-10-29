@@ -1,5 +1,4 @@
 import { cn } from 'cn';
-import { Lock } from 'lucide-react';
 
 import type { TurmaProps } from '#/components/search/TurmaCard';
 
@@ -106,10 +105,7 @@ export function TurmaDetails({ subject, classroom, prerequisitesMet }: TurmaProp
             </dl>
             {reasons.length > 0 && (
                 <section className="flex flex-col gap-2 rounded-xl border p-4">
-                    <h3 className="flex items-center gap-2 text-sm font-semibold">
-                        <Lock className="size-4 shrink-0" aria-hidden="true" />
-                        Turma indisponível
-                    </h3>
+                    <h3 className="text-sm font-semibold">Turma indisponível</h3>
                     <p className="text-sm text-muted-foreground">{reasons.join(' · ')}</p>
                 </section>
             )}

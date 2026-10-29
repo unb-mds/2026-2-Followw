@@ -7,7 +7,7 @@ import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
 import { ClassCard } from '#/components/home/ClassCard';
 import { LoginPromptCard } from '#/components/home/LoginPromptCard';
 import { LoadingText } from '#/components/LoadingText';
-import { Button } from '#/components/ui/button';
+import { TabFilter } from '#/components/TabFilter';
 import { Card, CardContent } from '#/components/ui/card';
 import { groupBySemester } from '#/lib/classroom-details';
 import { describeSchedule } from '#/lib/schedule';
@@ -56,22 +56,13 @@ function Classrooms() {
     return (
         <>
             {groups.length > 0 && (
-                <fieldset
-                    className="mb-2 flex items-center gap-1 overflow-x-auto py-1 max-md:no-scrollbar"
-                    aria-label="Escolher semestre"
-                >
-                    {groups.map(([name]) => (
-                        <Button
-                            key={name}
-                            variant={name === semester ? 'secondary' : 'ghost'}
-                            aria-pressed={name === semester}
-                            onClick={() => setSelected(name)}
-                            className="shrink-0"
-                        >
-                            {name}
-                        </Button>
-                    ))}
-                </fieldset>
+                <TabFilter
+                    label="Escolher semestre"
+                    value={semester}
+                    options={groups.map(([name]) => name)}
+                    onChange={setSelected}
+                    className="mb-2"
+                />
             )}
             <div className="flex flex-col gap-2">
                 {items?.map((classroom) => (

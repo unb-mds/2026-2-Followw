@@ -1,12 +1,11 @@
 import { noop, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, CircleHelp } from 'lucide-react';
 
-import type { CatalogSubject } from '#/queries/subjects';
+import type { CatalogSubject, Tipo } from '#/queries/subjects';
 
 import { ErrorCard } from '#/components/ErrorState';
 import { LoadingText } from '#/components/LoadingText';
 import { TurmaSection } from '#/components/search/TurmaSection';
-import { SectionHeader } from '#/components/SectionHeader';
 import { Badge } from '#/components/ui/badge';
 import { Button } from '#/components/ui/button';
 import {
@@ -19,6 +18,7 @@ import {
 } from '#/components/ui/dialog';
 import { reasonLabel, recommendationsQueryOptions } from '#/queries/recommendations';
 import { refreshQuery } from '#/queries/refresh';
+import { filterSubjects } from '#/queries/subjects';
 
 export function RecommendationReasons({ subject }: { subject: CatalogSubject }) {
     const reasons = subject.recommendation?.reasons ?? [];
@@ -59,25 +59,27 @@ function WhyDialog(subject: CatalogSubject) {
     );
 }
 
+const DEFAULT_FILTERS = { tipo: 'Todas', q: '' } as const;
+
 export function RecommendationsSection({
     currentPeriod,
     approved,
-    taken
+    taken,
+    filters = DEFAULT_FILTERS
 }: {
     currentPeriod?: number | null;
     approved?: Set<string> | null;
     taken?: Set<string> | null;
+    filters?: { tipo: Tipo; q: string };
 }) {
     const client = useQueryClient();
     const query = useQuery(recommendationsQueryOptions);
     const refresh = () => void refreshQuery(client, recommendationsQueryOptions).catch(noop);
+    const subjects = query.data && filterSubjects(query.data, filters);
+    const title =
+        filters.tipo === 'Todas' ? 'Matérias recomendadas' : `${filters.tipo} disponíveis`;
     return (
-        <section
-            aria-label="Matérias recomendadas"
-            className="flex flex-col gap-3"
-            aria-busy={query.isFetching}
-        >
-            <SectionHeader title="Matérias recomendadas" className="mb-0" />
+        <section aria-label={title} className="flex flex-col gap-3" aria-busy={query.isFetching}>
             {query.isPending ? (
                 <LoadingText>Buscando recomendações...</LoadingText>
             ) : query.isLoadingError ? (
@@ -85,7 +87,7 @@ export function RecommendationsSection({
                     message="Não foi possível carregar suas recomendações."
                     onRetry={refresh}
                 />
-            ) : query.data ? (
+            ) : subjects ? (
                 <>
                     {query.isError && (
                         <ErrorCard
@@ -93,13 +95,16 @@ export function RecommendationsSection({
                             onRetry={refresh}
                         />
                     )}
-                    {query.data.length === 0 ? (
+                    {subjects.length === 0 ? (
                         <p className="rounded-2xl border bg-card p-4 text-sm">
-                            Nenhuma matéria da oferta atual foi recomendada para você.
+                            {filters.tipo === 'Todas'
+                                ? 'Nenhuma matéria da oferta atual foi recomendada para você.'
+                                : 'Nenhuma matéria disponível para você com essa busca e filtros.'}
                         </p>
                     ) : (
                         <TurmaSection
-                            subjects={query.data}
+                            key={JSON.stringify(filters)}
+                            subjects={subjects}
                             currentPeriod={currentPeriod}
                             approved={approved}
                             taken={taken}

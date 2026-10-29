@@ -25,9 +25,20 @@ const parseAsDay = createParser({
     serialize: (value: string) => value
 });
 
+const MEAL_PARAMS: Record<MealKey, string> = {
+    breakfast: 'cafe-da-manha',
+    lunch: 'almoco',
+    dinner: 'jantar'
+};
+
+const parseAsMeal = createParser({
+    parse: (value) => MEAL_TIMES.find(({ key }) => MEAL_PARAMS[key] === value)?.key ?? null,
+    serialize: (value: MealKey) => MEAL_PARAMS[value]
+});
+
 export const restaurantSearchParsers = {
-    date: parseAsDay,
-    meal: parseAsStringLiteral(MEAL_TIMES.map(({ key }) => key)),
+    data: parseAsDay,
+    refeicao: parseAsMeal,
     campus: parseAsStringLiteral(CAMPUS_OPTIONS)
 };
 
@@ -50,16 +61,16 @@ export function restaurantSelection(
 ): RestaurantSelection {
     const initial = currentOrNextMeal(nowInBrasilia());
     return {
-        date: search.date ?? initial.date,
-        meal: search.meal ?? initial.meal.key,
+        date: search.data ?? initial.date,
+        meal: search.refeicao ?? initial.meal.key,
         campus: search.campus ?? campus
     };
 }
 
 export function restaurantSharePath(selection: RestaurantSelection, path = '/ru') {
     const params = new URLSearchParams({
-        date: selection.date,
-        meal: selection.meal,
+        data: selection.date,
+        refeicao: MEAL_PARAMS[selection.meal],
         campus: selection.campus
     });
     return `${path}?${params}`;
