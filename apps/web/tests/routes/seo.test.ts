@@ -87,14 +87,14 @@ describe('indexação das páginas', () => {
         expect(head?.meta).toContainEqual({ title: 'Cálculo 1 | Followw' });
     });
 
-    test('URLs inexistentes continuam redirecionando para a inicial', () => {
+    test('URLs inexistentes exibem a página 404 sem redirecionar', () => {
         let error: unknown;
         try {
             callRoute(FallbackRoute.options.beforeLoad, { location: { pathname: '/nada/aqui' } });
         } catch (caught) {
             error = caught;
         }
-        expect(error).toMatchObject({ options: { to: '/' } });
+        expect(error).toMatchObject({ isNotFound: true, routeId: '__root__' });
     });
 
     test('assets inexistentes dão 404 em vez de redirecionar', () => {

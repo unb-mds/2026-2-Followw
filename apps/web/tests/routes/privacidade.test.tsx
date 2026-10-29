@@ -71,22 +71,17 @@ describe('privacidade e termos', () => {
         expect(markup).toContain('automações são permitidos');
     });
 
-    test('rodapé do login oferece um único link para privacidade e termos de serviço', async () => {
+    test('rodapé do login oferece links para privacidade e termos de serviço', async () => {
         const browser = new Window();
         try {
             browser.document.body.innerHTML = await renderPage('/login');
-            expect(browser.document.querySelector('footer')?.textContent).toBe(
-                'Ao entrar, você concorda com nossa política de privacidade e nossos termos de serviço.'
-            );
             const links = [...browser.document.querySelectorAll('footer a')].map((link) => ({
                 text: link.textContent,
                 href: link.getAttribute('href')
             }));
             expect(links).toEqual([
-                {
-                    text: 'política de privacidade e nossos termos de serviço',
-                    href: '/privacidade'
-                }
+                { text: 'Política de privacidade', href: '/privacidade#politica-de-privacidade' },
+                { text: 'Termos de serviço', href: '/privacidade#termos-de-servico' }
             ]);
         } finally {
             await browser.happyDOM.abort();

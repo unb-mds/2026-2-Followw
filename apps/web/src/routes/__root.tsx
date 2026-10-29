@@ -1,10 +1,17 @@
 import type { QueryClient } from '@tanstack/react-query';
 
-import { HeadContent, Outlet, Scripts, createRootRouteWithContext } from '@tanstack/react-router';
+import {
+    HeadContent,
+    Outlet,
+    Scripts,
+    createRootRouteWithContext,
+    isNotFound
+} from '@tanstack/react-router';
 import { NuqsAdapter } from 'nuqs/adapters/tanstack-router';
 import { useEffect } from 'react';
 
 import { ErrorPage } from '#/components/ErrorPage';
+import { NotFoundPage } from '#/components/NotFoundPage';
 import { initializeInstallSupport } from '#/integrations/offline/install';
 import { useOfflineSupport } from '#/integrations/offline/use-offline-support';
 import PostHogProvider from '#/integrations/posthog/provider';
@@ -18,7 +25,7 @@ interface MyRouterContext {
 }
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
-    head: () => ({
+    head: ({ match }) => ({
         meta: [
             { charSet: 'utf-8' },
             {
@@ -32,7 +39,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
             { name: 'description', content: 'O Followw é sua nova forma de usar o SIGAA UnB.' },
             // Apenas as páginas públicas sobrescrevem esta regra para permitir indexação.
             { name: 'robots', content: 'noindex, follow' },
-            { title: 'Followw' }
+            { title: isNotFound(match?.error) ? 'Página não encontrada | Followw' : 'Followw' }
         ],
         links: [
             { rel: 'icon', href: '/favicon.ico', sizes: '48x48' },
@@ -44,6 +51,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     }),
     shellComponent: RootDocument,
     errorComponent: ErrorPage,
+    notFoundComponent: NotFoundPage,
     component: RootComponent
 });
 

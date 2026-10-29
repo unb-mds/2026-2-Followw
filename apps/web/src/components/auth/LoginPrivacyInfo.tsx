@@ -12,10 +12,9 @@ import {
 export function LoginPrivacyInfo() {
     return (
         <Dialog>
-            <div className="mt-8 max-w-90 text-center text-xs leading-5 text-muted-foreground">
+            <div className="mt-8 max-w-80 text-center text-xs leading-5 text-muted-foreground">
                 <p>
-                    Suas credenciais <strong>não são armazenadas</strong> no banco de dados do
-                    Followw.{' '}
+                    Suas credenciais <strong>não são armazenadas</strong> no Followw.{' '}
                     <DialogTrigger
                         render={
                             <Button variant="link" className="h-auto p-0 text-xs font-semibold" />
