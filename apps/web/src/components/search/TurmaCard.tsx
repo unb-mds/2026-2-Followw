@@ -1,4 +1,4 @@
-import { Lock, X } from 'lucide-react';
+import { X } from 'lucide-react';
 
 import type { CatalogSubject, SubjectClassroom } from '#/queries/subjects';
 
@@ -16,7 +16,6 @@ import {
     DialogTrigger
 } from '#/components/ui/dialog';
 import { describeSchedule } from '#/lib/schedule';
-import { lockedReasons } from '#/queries/subjects';
 
 export interface TurmaProps {
     subject: CatalogSubject;
@@ -30,8 +29,6 @@ export function TurmaCard({
     prerequisitesMet,
     onOpenDetails
 }: TurmaProps & { onOpenDetails?: () => void }) {
-    const reasons = lockedReasons(classroom, prerequisitesMet);
-
     return (
         <div>
             <Dialog onOpenChange={(open) => open && onOpenDetails?.()}>
@@ -44,14 +41,6 @@ export function TurmaCard({
                     location={classroom.room ?? 'Local não informado'}
                     professors={classroom.professors}
                     buttonRender={<DialogTrigger />}
-                    indicator={
-                        reasons.length > 0 && (
-                            <Lock
-                                className="size-4 shrink-0 text-muted-foreground"
-                                aria-label={reasons.join('. ')}
-                            />
-                        )
-                    }
                     action={<AddToSchedule subject={subject} classroom={classroom} />}
                 />
                 <DialogContent

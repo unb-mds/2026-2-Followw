@@ -14,6 +14,7 @@ import {
     DialogTitle,
     DialogTrigger
 } from '#/components/ui/dialog';
+import { Toaster, createToastManager, useToastManager } from '#/components/ui/toast';
 import { saveFile } from '#/lib/download';
 import { localStorageRepository, STORAGE_KEYS } from '#/lib/local-storage';
 import { describeSchedule, parseSchedule, visibleSlots } from '#/lib/schedule';
@@ -97,31 +98,61 @@ function subscribe(listener: () => void) {
     };
 }
 
-function toggleItem(item: PlannedClass, maxHours: number | null) {
+function toggleItem(item: PlannedClass, maxHours: number | null): string | null {
     const items = readItems();
     if (items.some((entry) => classKey(entry) === classKey(item))) {
         writeItems(items.filter((entry) => classKey(entry) !== classKey(item)));
-    } else if (!conflictOf(items, item) && !exceedsLimit(items, item, maxHours)) {
-        writeItems([...items, item]);
+        return null;
     }
+    const conflict = conflictOf(items, item);
+    if (conflict) {
+        return conflict.code === item.code
+            ? `${item.name} (${item.code}) já está na grade do semestre ${item.classroom.semester}, na turma ${conflict.classroom.number}.`
+            : `O horário de ${item.name} (${item.code}) conflita com ${conflict.name} (${conflict.code}), turma ${conflict.classroom.number}.`;
+    }
+    if (exceedsLimit(items, item, maxHours)) {
+        return `Adicionar ${item.name} ultrapassa a carga horária máxima de ${maxHours}h no semestre ${item.classroom.semester}.`;
+    }
+    writeItems([...items, item]);
+    return null;
 }
 
-export function SchedulePlanner({
+export function SchedulePlanner(props: { maxHours?: number | null; children: React.ReactNode }) {
+    const [toastManager] = useState(createToastManager);
+    return (
+        <Toaster toastManager={toastManager} limit={1}>
+            <Planner {...props} />
+        </Toaster>
+    );
+}
+
+function Planner({
     maxHours = null,
     children
 }: {
     maxHours?: number | null;
     children: React.ReactNode;
 }) {
+    const { add } = useToastManager();
     const items = useSyncExternalStore(subscribe, readItems, () => EMPTY);
     const value = useMemo(
         () => ({
             items,
             maxHours,
-            toggle: (item: PlannedClass) => toggleItem(item, maxHours),
+            toggle: (item: PlannedClass) => {
+                const description = toggleItem(item, maxHours);
+                if (description) {
+                    add({
+                        id: 'schedule-conflict',
+                        type: 'warning',
+                        title: 'Não foi possível adicionar à grade',
+                        description
+                    });
+                }
+            },
             clear: () => writeItems(EMPTY)
         }),
-        [items, maxHours]
+        [items, maxHours, add]
     );
 
     return <PlannerContext value={value}>{children}</PlannerContext>;
@@ -143,10 +174,6 @@ export function AddToSchedule({
         classroom
     };
     const selected = planner.items.some((entry) => classKey(entry) === classKey(item));
-    const blocked =
-        !selected &&
-        (Boolean(conflictOf(planner.items, item)) ||
-            exceedsLimit(planner.items, item, planner.maxHours));
 
     return (
         <Button
@@ -156,7 +183,6 @@ export function AddToSchedule({
                 'rounded-xl',
                 !selected && 'bg-primary/15 text-primary hover:bg-primary/25 hover:text-primary'
             )}
-            disabled={blocked}
             aria-pressed={selected}
             aria-label={`${selected ? 'Remover da' : 'Adicionar à'} grade: ${subject.code}, turma ${classroom.number}`}
             onClick={() => planner.toggle(item)}

@@ -68,11 +68,13 @@ describe('TurmaCard', () => {
         expect(card({ schedule: null })).toContain('Horário a definir');
     });
 
-    test('cadeado informa lotação e pré-requisito', () => {
-        expect(card({}, false)).toContain('aria-label="Pré-requisitos não atendidos"');
-        expect(card({ occupied: 40 }, false)).toContain(
-            'aria-label="Turma cheia. Pré-requisitos não atendidos"'
-        );
+    test('turmas cheias ou sem pré-requisitos abrem os detalhes sem cadeado no resumo', () => {
+        for (const occupied of [38, 40]) {
+            const markup = card({ occupied }, false);
+            expect(markup).not.toContain('lucide-lock');
+            expect(markup).toContain('aria-haspopup="dialog"');
+            expect(markup).not.toContain('disabled=""');
+        }
     });
 
     test.each([true, null])('turma com vagas não tem cadeado quando requisito é %s', (met) => {
@@ -94,25 +96,25 @@ describe('TurmaDetails', () => {
             });
             expect(markup).toContain('Cálculo 1');
             expect(markup).toContain('ANTIGO');
-            expect(markup).toContain('href="/buscar?q=MAT0023"');
-            expect(markup).toContain('href="/buscar?q=ANTIGO"');
+            expect(markup).toContain('href="/buscar?busca=MAT0023"');
+            expect(markup).toContain('href="/buscar?busca=ANTIGO"');
         }
     );
 
     test('cada docente abre busca pelo próprio nome completo sem filtros', () => {
         const markup = details();
-        expect(markup).toContain('href="/buscar?q=Ana+Silva"');
-        expect(markup).toContain('href="/buscar?q=Jo%C3%A3o+Costa"');
-        expect(markup).not.toContain('q=Ana+Silva%2C');
+        expect(markup).toContain('href="/buscar?busca=Ana+Silva"');
+        expect(markup).toContain('href="/buscar?busca=Jo%C3%A3o+Costa"');
+        expect(markup).not.toContain('busca=Ana+Silva%2C');
         expect(markup).toContain('hover:text-primary');
-        expect(details({ professors: [] })).not.toContain('href="/buscar?q=Ana+Silva"');
+        expect(details({ professors: [] })).not.toContain('href="/buscar?busca=Ana+Silva"');
     });
 
     test('busca por docente preserva o nome completo', () => {
         const professor = 'JOHN LENON CARDOSO GARDENGHI';
         const markup = details({ professors: [professor] });
         expect(markup).toContain(professor);
-        expect(markup).toContain(`href="/buscar?${new URLSearchParams({ q: professor })}"`);
+        expect(markup).toContain(`href="/buscar?${new URLSearchParams({ busca: professor })}"`);
     });
 
     test('organiza os dados da turma e os requisitos da matéria', () => {
@@ -162,7 +164,7 @@ describe('TurmaDetails', () => {
             prerequisites: [[{ code: 'CIC0001', subject: { code: 'CIC0001', name } }]]
         });
         expect(markup).toContain(name);
-        expect(markup).toContain('href="/buscar?q=CIC0001"');
+        expect(markup).toContain('href="/buscar?busca=CIC0001"');
         expect(markup).not.toContain('1 matéria');
         expect(markup).not.toContain('<details');
         expect(markup).not.toContain('<summary');
@@ -192,7 +194,7 @@ describe('TurmaDetails', () => {
                 }))
             });
             expect(markup).toContain('Dependente 0');
-            expect(markup).toContain('href="/buscar?q=DEP0"');
+            expect(markup).toContain('href="/buscar?busca=DEP0"');
             if (count === 1) {
                 expect(markup).not.toContain('<details');
                 expect(markup).not.toContain('<summary');
@@ -221,7 +223,7 @@ describe('TurmaDetails', () => {
             unlocks: [{ code: 'DEP', name: 'Dependente' }]
         });
         for (const query of ['PRE', 'COR', 'EQU', 'DEP']) {
-            expect(markup).toContain(`href="/buscar?q=${query}"`);
+            expect(markup).toContain(`href="/buscar?busca=${query}"`);
         }
         expect(markup).toContain('Pré-requisito');
         expect(markup).toContain('Dependente');

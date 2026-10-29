@@ -103,7 +103,9 @@ describe('montagem da grade semanal', () => {
         );
         const add = (code: string) => button(view, `Adicionar à grade: ${code}, turma 01`);
         fireEvent.click(add('FGA0108'));
-        expect(add('FGA0001').hasAttribute('disabled')).toBe(true);
+        fireEvent.click(add('FGA0001'));
+        expect(view.getByText(/ultrapassa a carga horária máxima de 100h/)).toBeTruthy();
+        expect(JSON.parse(localStorage.getItem('followw:schedule')!)).toHaveLength(1);
         expect(add('FGA0002').hasAttribute('disabled')).toBe(false);
         expect(add('FGA0003').hasAttribute('disabled')).toBe(false);
         fireEvent.click(add('FGA0002'));
@@ -116,7 +118,7 @@ describe('montagem da grade semanal', () => {
     });
 
     test.each(['24M12', null])(
-        'desativa outra turma da mesma matéria mesmo sem conflito de horário: %s',
+        'avisa sobre matéria repetida mesmo sem conflito de horário: %s',
         (schedule) => {
             const { fireEvent } = dom.testing;
             const view = dom.testing.render(
@@ -132,9 +134,9 @@ describe('montagem da grade semanal', () => {
                 button(view, 'Adicionar à grade: FGA0108, turma 02').hasAttribute('disabled')
             ).toBe(false);
             fireEvent.click(button(view, 'Adicionar à grade: FGA0108, turma 01'));
-            expect(
-                button(view, 'Adicionar à grade: FGA0108, turma 02').hasAttribute('disabled')
-            ).toBe(true);
+            fireEvent.click(button(view, 'Adicionar à grade: FGA0108, turma 02'));
+            expect(view.getByText(/já está na grade do semestre 2026.2, na turma 01/)).toBeTruthy();
+            expect(JSON.parse(localStorage.getItem('followw:schedule')!)).toHaveLength(1);
             fireEvent.click(button(view, 'Remover da grade: FGA0108, turma 01'));
             fireEvent.click(button(view, 'Adicionar à grade: FGA0108, turma 02'));
             expect(
@@ -195,14 +197,22 @@ describe('montagem da grade semanal', () => {
         ).toBeTruthy();
     });
 
-    test('desativa turma com sobreposição parcial e reativa ao remover o conflito', async () => {
+    test('avisa sobre sobreposição parcial e permite adicionar após remover o conflito', async () => {
         const { fireEvent } = dom.testing;
         const view = setup({ schedule: '3T3' });
         fireEvent.click(button(view, 'Adicionar à grade: FGA0108, turma 01'));
         const blocked = button(view, 'Adicionar à grade: FGA0001, turma 01');
-        expect(blocked.hasAttribute('disabled')).toBe(true);
+        expect(blocked.hasAttribute('disabled')).toBe(false);
         fireEvent.click(blocked);
-        expect(view.queryByRole('alert')).toBeNull();
+        expect(view.getByText(/O horário de .*FGA0001.* conflita com .*FGA0108/)).toBeTruthy();
+        expect(JSON.parse(localStorage.getItem('followw:schedule')!)).toHaveLength(1);
+        fireEvent.click(blocked);
+        expect(view.getAllByText('Não foi possível adicionar à grade')).toHaveLength(1);
+        fireEvent.click(await view.findByRole('button', { name: 'Fechar aviso' }));
+        expect(
+            view.getByText('Não foi possível adicionar à grade').closest('[data-ending-style]') !==
+                null
+        ).toBe(true);
         fireEvent.click(button(view, 'Remover da grade: FGA0108, turma 01'));
         expect(blocked.hasAttribute('disabled')).toBe(false);
         fireEvent.click(blocked);

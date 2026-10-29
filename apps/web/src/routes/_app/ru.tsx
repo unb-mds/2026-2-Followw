@@ -84,7 +84,7 @@ export const Route = createFileRoute('/_app/ru')({
             loadQuery(
                 queryClient,
                 menuQueryOptions({
-                    date: search.date ?? opening.date,
+                    date: search.data ?? opening.date,
                     campus: search.campus ?? undefined,
                     user
                 })
@@ -103,11 +103,14 @@ export const Route = createFileRoute('/_app/ru')({
     head: ({ loaderData, match }) =>
         restaurantPageHead(
             {
-                date: match?.search.date ?? loaderData?.defaultDate ?? restaurantSelection({}).date,
-                meal: match?.search.meal ?? loaderData?.defaultMeal ?? restaurantSelection({}).meal,
+                date: match?.search.data ?? loaderData?.defaultDate ?? restaurantSelection({}).date,
+                meal:
+                    match?.search.refeicao ??
+                    loaderData?.defaultMeal ??
+                    restaurantSelection({}).meal,
                 campus: match?.search.campus ?? loaderData?.defaultCampus ?? 'Darcy'
             },
-            Boolean(match?.search.date || match?.search.meal || match?.search.campus)
+            Boolean(match?.search.data || match?.search.refeicao || match?.search.campus)
         ),
     staticData: { header: RUHeader },
     errorComponent: ErrorState,
@@ -157,16 +160,16 @@ function useMenuSelection() {
             ? { date: loaded.defaultDate, meal: loaded.defaultMeal, campus: defaultCampus }
             : { date: opening.date, meal: opening.meal.key, campus: defaultCampus };
     const selection: RestaurantSelection = {
-        date: search.date ?? defaults.date,
-        meal: search.meal ?? defaults.meal,
+        date: search.data ?? defaults.date,
+        meal: search.refeicao ?? defaults.meal,
         campus: search.campus ?? defaults.campus
     };
     // O padrão sai da URL; o link de compartilhamento leva a seleção completa.
     const select = (change: Partial<RestaurantSelection>) => {
         const { date, meal, campus } = { ...selection, ...change };
         void setSearch({
-            date: date === defaults.date ? null : date,
-            meal: meal === defaults.meal ? null : meal,
+            data: date === defaults.date ? null : date,
+            refeicao: meal === defaults.meal ? null : meal,
             campus: campus === defaults.campus ? null : campus
         });
     };

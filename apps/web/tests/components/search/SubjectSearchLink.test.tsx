@@ -12,8 +12,8 @@ test('código gera pesquisa válida mantendo o rótulo com o nome', () => {
     const name = 'MÉTODOS DE DESENVOLVIMENTO DE SOFTWARE';
     const markup = renderWithRouter(<SubjectSearchLink query="FGA0138">{name}</SubjectSearchLink>);
     const search = searchOf(markup);
-    expect(search.get('q')).toBe('FGA0138');
-    expect([...search.keys()]).toEqual(['q']);
+    expect(search.get('busca')).toBe('FGA0138');
+    expect([...search.keys()]).toEqual(['busca']);
     expect(subjectsQuery('FGA0138', null)).toEqual({ q: 'FGA0138' });
     expect(markup).toContain(name);
 });
@@ -23,7 +23,7 @@ test('texto acima do limite é truncado para continuar pesquisável', () => {
     const markup = renderWithRouter(
         <SubjectSearchLink query={professor}>{professor}</SubjectSearchLink>
     );
-    const query = searchOf(markup).get('q')!;
+    const query = searchOf(markup).get('busca')!;
     expect(query).toBe(professor.slice(0, SEARCH_MAX_LENGTH));
     expect(subjectsQuery(query, null)).toEqual({ q: query });
     expect(markup).toContain(professor);

@@ -45,8 +45,10 @@ export const Route = createFileRoute('/_app/buscar')({
     loader: async ({ context: { queryClient }, location }) => {
         const user = await loadQuery(queryClient, meQueryOptions);
         const search = loadSearchParams(location.searchStr);
-        const recommendations = showRecommendations(user, search);
-        const query = recommendations ? null : subjectsQuery(search.q, user?.unit?.code ?? null);
+        const recommendations = showRecommendations(user, { q: search.busca, tipo: search.tipo });
+        const query = recommendations
+            ? null
+            : subjectsQuery(search.busca, user?.unit?.code ?? null);
         await Promise.all([
             user && loadQuery(queryClient, allClassroomsQueryOptions).catch(noop),
             query && loadQuery(queryClient, subjectsQueryOptions(query)).catch(noop),
@@ -67,7 +69,7 @@ export const Route = createFileRoute('/_app/buscar')({
 function BuscarTurmasPage() {
     const queryClient = useQueryClient();
     const { data: user } = useSuspenseQuery(meQueryOptions);
-    const [{ q: busca, tipo }, setSearch] = useSearchState();
+    const [{ busca, tipo }, setSearch] = useSearchState();
     const recommendations = showRecommendations(user, { q: busca, tipo });
     const unit = user?.unit?.code ?? null;
     const currentPeriod = currentCurriculumPeriod(
@@ -118,7 +120,7 @@ function BuscarTurmasPage() {
                         value={busca}
                         onChange={(e) => {
                             const value = e.target.value.slice(0, SEARCH_MAX_LENGTH);
-                            void setSearch({ q: value.trim() ? value : null });
+                            void setSearch({ busca: value.trim() ? value : null });
                         }}
                         maxLength={SEARCH_MAX_LENGTH}
                         placeholder="Busque por matéria, código ou professor..."
