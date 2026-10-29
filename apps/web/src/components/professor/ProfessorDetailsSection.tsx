@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { BookOpen, Calendar, GraduationCap, Lightbulb, User } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
@@ -7,7 +8,6 @@ import { Badge } from '#/components/ui/badge';
 import { Button } from '#/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card';
 import { titleCase } from '#/lib/profile';
-import { cn } from '#/lib/shadcn';
 
 const INITIAL_SEMESTERS_COUNT = 6;
 
@@ -25,12 +25,7 @@ export function ProfessorDetailsSection({ professor }: { professor: ProfessorDet
         const sortedSemesters = Array.from(groups.keys()).toSorted((a, b) => b.localeCompare(a));
         return sortedSemesters.map((sem) => ({
             semester: sem,
-            items: (groups.get(sem) ?? []).toSorted((a, b) => {
-                const nameA = a.name ? titleCase(a.name) : 'Matéria desconhecida';
-                const nameB = b.name ? titleCase(b.name) : 'Matéria desconhecida';
-                const nameCmp = nameA.localeCompare(nameB);
-                return nameCmp !== 0 ? nameCmp : a.code.localeCompare(b.code);
-            })
+            items: (groups.get(sem) ?? []).toSorted((a, b) => a.code.localeCompare(b.code))
         }));
     }, [professor.disciplines]);
 
@@ -159,27 +154,21 @@ function DegreeItem({ degree }: { degree: ProfessorDegree }) {
 }
 
 function DisciplineItem({ item }: { item: ProfessorDiscipline }) {
-    const isKnown = Boolean(item.name);
-    const displayName = isKnown ? titleCase(item.name!) : 'Matéria desconhecida';
-
     return (
-        <div className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/30 p-3 text-xs">
-            <div className="flex min-w-0 flex-col gap-0.5">
-                <span
-                    className={cn(
-                        'truncate font-semibold',
-                        isKnown ? 'text-foreground' : 'text-muted-foreground'
-                    )}
-                >
-                    {displayName}
-                </span>
-                <span className="text-[11px] font-medium text-muted-foreground">{item.code}</span>
-            </div>
+        <Link
+            to="/buscar"
+            search={{ q: item.code }}
+            className="group flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/30 p-3 text-xs transition-colors hover:border-primary/50 hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            aria-label={`Buscar matéria ${item.code}`}
+        >
+            <span className="font-semibold text-foreground transition-colors group-hover:text-primary">
+                {item.code}
+            </span>
             {item.occurrences > 1 && (
                 <Badge variant="outline" className="shrink-0 text-[10px] tabular-nums">
                     {item.occurrences} turmas
                 </Badge>
             )}
-        </div>
+        </Link>
     );
 }

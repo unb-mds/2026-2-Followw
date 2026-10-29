@@ -3,15 +3,11 @@ import { ChevronRight } from 'lucide-react';
 
 import type { ProfessorItem } from '#/queries/professors';
 
-import { formatUnitName } from '#/components/professor/ProfessorHeader';
 import { PersonPhoto } from '#/components/ui/person-photo';
-import { titleCase } from '#/lib/profile';
+import { titleCase, unitLabel } from '#/lib/profile';
 
 export function ProfessorCard({ professor }: { professor: ProfessorItem }) {
-    const formattedUnit = formatUnitName(professor.unit.name);
-    const unitLabel = professor.unit.code
-        ? `${professor.unit.code} · ${formattedUnit}`
-        : formattedUnit;
+    const label = unitLabel(professor.unit);
 
     return (
         <Link
@@ -26,7 +22,7 @@ export function ProfessorCard({ professor }: { professor: ProfessorItem }) {
                     <span className="truncate font-heading text-sm font-semibold text-foreground transition-colors group-hover:text-primary">
                         {titleCase(professor.name)}
                     </span>
-                    <span className="truncate text-xs text-muted-foreground">{unitLabel}</span>
+                    <span className="truncate text-xs text-muted-foreground">{label}</span>
                 </div>
             </div>
             <ChevronRight

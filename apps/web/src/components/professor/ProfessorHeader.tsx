@@ -5,17 +5,11 @@ import type { ProfessorDetails } from '#/queries/professors';
 import { buttonVariants } from '#/components/ui/button';
 import { PersonPhoto } from '#/components/ui/person-photo';
 import { mailto } from '#/lib/contact';
-import { titleCase } from '#/lib/profile';
+import { titleCase, unitLabel } from '#/lib/profile';
 import { cn } from '#/lib/shadcn';
 
-export function formatUnitName(name: string): string {
-    const cleaned = name.includes(':') ? name.split(':')[0] : name;
-    return titleCase(cleaned.replace(/\s*-\s*BRAS[IÍ]LIA/gi, '').trim());
-}
-
 export function ProfessorHeader({ professor }: { professor: ProfessorDetails }) {
-    const unitName = formatUnitName(professor.unit.name);
-    const unitLabel = professor.unit.code ? `${professor.unit.code} · ${unitName}` : unitName;
+    const label = unitLabel(professor.unit);
 
     return (
         <div className="flex flex-col gap-4 rounded-2xl bg-card p-5 shadow-card ring-1 ring-foreground/8">
@@ -27,7 +21,7 @@ export function ProfessorHeader({ professor }: { professor: ProfessorDetails }) 
                     </h1>
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <Building2 className="size-3.5 shrink-0" aria-hidden="true" />
-                        <span className="truncate">{unitLabel}</span>
+                        <span className="truncate">{label}</span>
                     </div>
                 </div>
             </div>

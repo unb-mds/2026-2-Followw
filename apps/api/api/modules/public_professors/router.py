@@ -27,10 +27,10 @@ async def list_professors(
     q: Annotated[
         str | None,
         Query(
-            min_length=4,
+            min_length=3,
             max_length=100,
             pattern=r"^[^\x00-\x1f\x7f]+$",
-            description="Trecho do nome, com ao menos 4 caracteres; ignora acentos e caixa.",
+            description="Trecho do nome, com ao menos 3 caracteres; ignora acentos e caixa.",
         ),
         StringConstraints(strip_whitespace=True),
     ] = None,

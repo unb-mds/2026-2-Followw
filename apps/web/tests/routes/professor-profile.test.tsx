@@ -41,7 +41,6 @@ const mockProfessor: ProfessorDetails = {
         {
             semester: '2026.2',
             code: 'FGA0003',
-            name: 'COMPILADORES 1',
             occurrences: 2
         }
     ]
@@ -101,10 +100,10 @@ describe('rota de perfil do professor (/professores/$siape)', () => {
         expect(html).toContain('Doutorado');
         expect(html).toContain('Ciência da Computação');
         // Disciplinas ministradas
-        expect(html).toContain('Compiladores 1');
         expect(html).toContain('FGA0003');
         expect(html).toContain('2026.2');
         expect(html).toContain('2 turmas');
+        expect(html).toContain('href="/buscar?q=FGA0003"');
     });
 
     test('exibe mensagem quando o docente não é encontrado', async () => {

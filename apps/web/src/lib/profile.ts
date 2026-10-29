@@ -59,3 +59,13 @@ export function academicIndexes(user: Pick<UserProfile, 'ira' | 'mp'>): Academic
         value == null ? [] : [{ ...index, value: indexFormat.format(value) }]
     );
 }
+
+export function formatUnitName(name: string): string {
+    const cleaned = name.includes(':') ? name.split(':')[0] : name;
+    return titleCase(cleaned.replace(/\s*-\s*BRAS[IÍ]LIA/gi, '').trim());
+}
+
+export function unitLabel(unit: { code?: string | null; name: string }): string {
+    const unitName = formatUnitName(unit.name);
+    return unit.code ? `${unit.code} · ${unitName}` : unitName;
+}

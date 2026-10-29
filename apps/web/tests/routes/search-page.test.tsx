@@ -29,7 +29,7 @@ import {
 import { allClassroomsQueryOptions } from '#/queries/classrooms';
 import { apiClient } from '#/queries/client';
 import { meQueryOptions } from '#/queries/me';
-import { professorsListQueryOptions } from '#/queries/professors';
+import { professorsQueryOptions } from '#/queries/professors';
 import { subjectsQueryOptions } from '#/queries/subjects';
 let Route: typeof import('#/routes/_app/buscar').Route;
 
@@ -419,7 +419,7 @@ describe('página de busca com estado na URL', () => {
         };
         const options = subjectsQueryOptions({ q: 'FGA0173' });
         client.setQueryData(options.queryKey, [saved]);
-        client.setQueryData(professorsListQueryOptions({ q: 'FGA0173' }).queryKey, {
+        client.setQueryData(professorsQueryOptions('FGA0173').queryKey, {
             items: [],
             total: 0,
             page: 1,

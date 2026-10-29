@@ -7,7 +7,13 @@ import { Button } from '#/components/ui/button';
 
 const INITIAL_LIMIT = 5;
 
-export function ProfessorSection({ professors }: { professors: ProfessorItem[] }) {
+export function ProfessorSection({
+    professors,
+    total = professors.length
+}: {
+    professors: ProfessorItem[];
+    total?: number;
+}) {
     const [limit, setLimit] = useState(INITIAL_LIMIT);
 
     if (professors.length === 0) return null;
@@ -20,7 +26,7 @@ export function ProfessorSection({ professors }: { professors: ProfessorItem[] }
             <div className="flex items-baseline justify-between gap-3">
                 <h2 className="text-base font-bold text-foreground">Docentes</h2>
                 <span className="shrink-0 text-xs text-muted-foreground">
-                    {`${professors.length} ${professors.length === 1 ? 'docente encontrado' : 'docentes encontrados'}`}
+                    {`${total} ${total === 1 ? 'docente encontrado' : 'docentes encontrados'}`}
                 </span>
             </div>
             <div className="flex flex-col gap-2">

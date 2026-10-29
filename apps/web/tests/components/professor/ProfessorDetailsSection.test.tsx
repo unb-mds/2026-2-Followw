@@ -37,20 +37,18 @@ const baseProfessor: ProfessorDetails = {
 };
 
 describe('ProfessorDetailsSection', () => {
-    test('agrupa disciplinas por semestre em ordem decrescente e exibe nome da matéria com código', () => {
+    test('agrupa disciplinas por semestre em ordem decrescente e exibe código e link de busca', () => {
         const professor: ProfessorDetails = {
             ...baseProfessor,
             disciplines: [
                 {
                     semester: '2026.1',
                     code: 'FGA0108',
-                    name: 'MATEMÁTICA DISCRETA 2',
                     occurrences: 1
                 },
                 {
                     semester: '2026.2',
                     code: 'FGA0003',
-                    name: 'COMPILADORES 1',
                     occurrences: 2
                 }
             ]
@@ -67,36 +65,16 @@ describe('ProfessorDetailsSection', () => {
         const pos2026_1 = html.indexOf('2026.1');
         expect(pos2026_2).toBeLessThan(pos2026_1);
 
-        // Nomes formatados e códigos
-        expect(html).toContain('Compiladores 1');
+        // Códigos
         expect(html).toContain('FGA0003');
-        expect(html).toContain('Matemática Discreta 2');
         expect(html).toContain('FGA0108');
 
         // Badge de múltiplas turmas
         expect(html).toContain('2 turmas');
 
-        // Cards estáticos (não clicáveis)
-        expect(html).not.toContain('href="/buscar');
-    });
-
-    test('exibe Matéria desconhecida com código quando nome não está disponível', () => {
-        const professor: ProfessorDetails = {
-            ...baseProfessor,
-            disciplines: [
-                {
-                    semester: '2026.2',
-                    code: 'FGA0099',
-                    name: null,
-                    occurrences: 1
-                }
-            ]
-        };
-
-        const html = renderWithRouter(<ProfessorDetailsSection professor={professor} />);
-
-        expect(html).toContain('Matéria desconhecida');
-        expect(html).toContain('FGA0099');
+        // Links de busca
+        expect(html).toContain('href="/buscar?q=FGA0003"');
+        expect(html).toContain('href="/buscar?q=FGA0108"');
     });
 
     test('limita exibição a 6 semestres e expande ao clicar no botão', async () => {
@@ -115,7 +93,6 @@ describe('ProfessorDetailsSection', () => {
             disciplines: semesters.map((sem) => ({
                 semester: sem,
                 code: 'FGA0001',
-                name: 'ENGENHARIA DE SOFTWARE',
                 occurrences: 1
             }))
         };

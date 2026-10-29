@@ -4,11 +4,10 @@ from fastapi import Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 from sigaa_client import ProfessorDegree, ProfessorDiscipline
 from sigaa_client.config import PUBLIC_PROFESSOR_PROFILE_PATH, SIGAA_BASE_URL
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.main import DatabaseDep
-from api.db.models import Professor, Subject
+from api.db.models import Professor
 from api.db.units import find_unit
 from api.modules.public_professors.repository import ProfessorRepository
 from api.schemas import UnitRef
@@ -52,6 +51,18 @@ def _item(professor: Professor) -> ProfessorItem:
     )
 
 
+def _details(professor: Professor) -> ProfessorDetails:
+    return ProfessorDetails(
+        **_item(professor).model_dump(),
+        description=professor.description,
+        education=professor.education or [],
+        interests=professor.interests,
+        lattes=professor.lattes,
+        email=professor.email,
+        disciplines=professor.disciplines,
+    )
+
+
 class ProfessorService:
     def __init__(self, db: DatabaseDep) -> None:
         self._db = db
@@ -79,52 +90,12 @@ class ProfessorService:
         )
 
     async def get(self, siape: int) -> ProfessorDetails:
-        async def load(
-            session: AsyncSession,
-        ) -> tuple[Professor | None, dict[str, str]]:
-            professor = await ProfessorRepository(session).get(siape)
-            if professor is None:
-                return None, {}
-            codes = {
-                d["code"] if isinstance(d, dict) else d.code
-                for d in (professor.disciplines or [])
-                if (isinstance(d, dict) and "code" in d) or hasattr(d, "code")
-            }
-            subject_names: dict[str, str] = {}
-            if codes:
-                result = await session.execute(
-                    select(Subject.code, Subject.name).where(Subject.code.in_(codes))
-                )
-                subject_names = dict(result.all())
-            return professor, subject_names
-
-        professor, subject_names = await self._db.read(load)
+        professor = await self._db.read(
+            lambda session: ProfessorRepository(session).get(siape)
+        )
         if professor is None:
             raise HTTPException(404, "Docente não encontrado.")
-
-        disciplines = [
-            ProfessorDiscipline(
-                semester=d["semester"] if isinstance(d, dict) else d.semester,
-                code=d["code"] if isinstance(d, dict) else d.code,
-                occurrences=(
-                    d.get("occurrences", 1)
-                    if isinstance(d, dict)
-                    else getattr(d, "occurrences", 1)
-                ),
-                name=subject_names.get(d["code"] if isinstance(d, dict) else d.code),
-            )
-            for d in (professor.disciplines or [])
-        ]
-
-        return ProfessorDetails(
-            **_item(professor).model_dump(),
-            description=professor.description,
-            education=professor.education or [],
-            interests=professor.interests,
-            lattes=professor.lattes,
-            email=professor.email,
-            disciplines=disciplines,
-        )
+        return _details(professor)
 
 
 ProfessorServiceDep = Annotated[ProfessorService, Depends()]

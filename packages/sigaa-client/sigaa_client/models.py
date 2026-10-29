@@ -368,7 +368,6 @@ class ProfessorDiscipline(BaseModel):
     semester: str
     code: str
     occurrences: int
-    name: str | None = None
 
 
 class ProfessorDegree(BaseModel):

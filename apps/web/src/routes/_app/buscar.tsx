@@ -24,7 +24,7 @@ import { loadSearchParams, useSearchState, validateSearch } from '#/lib/search-p
 import { allClassroomsQueryOptions } from '#/queries/classrooms';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
-import { professorsListQueryOptions } from '#/queries/professors';
+import { professorsQueryOptions } from '#/queries/professors';
 import { recommendationsQueryOptions, showRecommendations } from '#/queries/recommendations';
 import { refreshQuery } from '#/queries/refresh';
 import {
@@ -78,26 +78,11 @@ function BuscarTurmasPage() {
     );
     // Consulta aplicada após o debounce de 300 ms; texto inválido mantém a anterior.
     const [query, setQuery] = useState(() => subjectsQuery(q, unit));
-    const [profSearch, setProfSearch] = useState(() => {
-        if (!q) return null;
-        const trimmed = q.trim();
-        return trimmed.length >= SEARCH_MIN_LENGTH && trimmed.length <= SEARCH_MAX_LENGTH
-            ? trimmed
-            : null;
-    });
     const online = useOnline();
 
     useEffect(() => {
         const timer = setTimeout(() => {
             setQuery((previous) => subjectsQuery(q, unit, previous));
-            const trimmed = q?.trim();
-            setProfSearch(
-                trimmed &&
-                    trimmed.length >= SEARCH_MIN_LENGTH &&
-                    trimmed.length <= SEARCH_MAX_LENGTH
-                    ? trimmed
-                    : null
-            );
         }, 300);
         return () => clearTimeout(timer);
     }, [q, unit]);
@@ -108,11 +93,12 @@ function BuscarTurmasPage() {
         placeholderData: keepPreviousData
     });
     const { data: professorsData } = useQuery({
-        ...professorsListQueryOptions({ q: profSearch }),
-        enabled: !recommendations && profSearch != null,
+        ...professorsQueryOptions(query?.q ?? ''),
+        enabled: !recommendations && Boolean(query?.q),
         placeholderData: keepPreviousData
     });
     const professors = professorsData?.items ?? [];
+    const totalProfessors = professorsData?.total ?? 0;
     const { data: history } = useQuery({
         ...allClassroomsQueryOptions,
         enabled: Boolean(user)
@@ -195,7 +181,9 @@ function BuscarTurmasPage() {
                                 para visualizar seu fluxo.
                             </p>
                         )}
-                        {professors.length > 0 && <ProfessorSection professors={professors} />}
+                        {professors.length > 0 && (
+                            <ProfessorSection professors={professors} total={totalProfessors} />
+                        )}
                         <TurmaSection
                             key={JSON.stringify(query)}
                             title={semester ? `${title} · ${semester}` : title}

@@ -111,9 +111,11 @@ async def test_listagem_carrega_apenas_campos_do_resumo(async_database):
 
 
 def test_nome_curto_e_paginacao_invalida_retornam_422(client, catalog):
+    assert client.get("/public/professors?q=mar").status_code == 200
+
     for path in (
-        "/public/professors?q=mar",
-        "/public/professors?q=mar%20%20",
+        "/public/professors?q=ma",
+        "/public/professors?q=ma%20%20",
         "/public/professors?q=%20%20%20%20",
         "/public/professors?q=abcd%00",
         "/public/professors?unit=2147483648",

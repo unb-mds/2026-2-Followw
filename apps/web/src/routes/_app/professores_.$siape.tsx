@@ -1,13 +1,11 @@
 import { noop, useQuery } from '@tanstack/react-query';
-import { createFileRoute, Link, useCanGoBack, useRouter } from '@tanstack/react-router';
-import { ArrowLeft } from 'lucide-react';
+import { createFileRoute } from '@tanstack/react-router';
 
 import { ErrorCard, ErrorState, SIGAA_DOWN_MESSAGE } from '#/components/ErrorState';
-import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
+import { BackHeader } from '#/components/HeaderBar';
 import { LoadingText } from '#/components/LoadingText';
 import { ProfessorDetailsSection } from '#/components/professor/ProfessorDetailsSection';
 import { ProfessorHeader } from '#/components/professor/ProfessorHeader';
-import { buttonVariants } from '#/components/ui/button';
 import { titleCase } from '#/lib/profile';
 import { loadQuery } from '#/queries/load';
 import { professorQueryOptions } from '#/queries/professors';
@@ -29,34 +27,11 @@ export const Route = createFileRoute('/_app/professores_/$siape')({
         ]
     }),
     staticData: {
-        header: ProfessorPageHeader
+        header: () => <BackHeader to="/buscar" title="Docente" ariaLabel="Voltar para busca" />
     },
     errorComponent: ErrorState,
     component: ProfessorPage
 });
-
-function ProfessorPageHeader() {
-    const router = useRouter();
-    const canGoBack = useCanGoBack();
-
-    return (
-        <HeaderBar showLogo={false}>
-            <Link
-                to="/buscar"
-                aria-label="Voltar para busca"
-                onClick={(event) => {
-                    if (!canGoBack) return;
-                    event.preventDefault();
-                    router.history.back();
-                }}
-                className={buttonVariants({ variant: 'ghost', className: 'size-10' })}
-            >
-                <ArrowLeft className="size-5" />
-            </Link>
-            <HeaderTitle>Docente</HeaderTitle>
-        </HeaderBar>
-    );
-}
 
 function ProfessorPage() {
     const { siape } = Route.useParams();

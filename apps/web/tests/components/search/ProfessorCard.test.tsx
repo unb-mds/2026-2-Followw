@@ -68,4 +68,9 @@ describe('ProfessorSection', () => {
         expect(html).toContain('7 docentes encontrados');
         expect(html).toContain('Ver mais docentes (2 restantes)');
     });
+
+    test('usa prop total para contagem quando informado', () => {
+        const html = renderWithRouter(<ProfessorSection professors={[professor]} total={42} />);
+        expect(html).toContain('42 docentes encontrados');
+    });
 });
