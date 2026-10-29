@@ -28,7 +28,7 @@ sincronização assíncrona inteligente.
 | **Estilização**        | Tailwind CSS v4                                                              | Estilização utilitária atômica e performática com tema customizado (`@theme`).                                                                                            |
 | **API Client (Web)**   | `openapi-fetch` + `openapi-react-query`                                      | Consumo _type-safe_ sincronizado diretamente com o schema OpenAPI da API FastAPI (`schema.gen.ts`).                                                                       |
 | **Offline & PWA**      | `vite-plugin-pwa` (Workbox) + `idb-keyval`                                   | Service Worker para precache de assets/HTML SSR e persistência do cache do TanStack Query no IndexedDB por 14 dias.                                                       |
-| **Backend API**        | FastAPI (Python >= 3.14)                                                     | Assíncrono nativo, alta performance, geração automática de documentação OpenAPI (Scalar) e injeção de dependências robusta.                                               |
+| **Backend API**        | FastAPI (Python >= 3.14)                                                     | Assíncrono nativo, alta performance, geração automática de documentação OpenAPI (Mintlify) e injeção de dependências robusta.                                             |
 | **Scraper SIGAA**      | `sigaa-client` (`httpx`, `bs4`, `lxml`, `pypdf`, `zxing-cpp`, `markdownify`) | Abstração que gerencia o ciclo de vida JSF (ViewState, postback), emissão de documentos PDF, leitura de QR Code/código de barras do RU e conversão de HTML para Markdown. |
 | **Scraper Sites UnB**  | `unb-browser` (`httpx`, `bs4`, `pdfplumber`)                                 | Extração resiliente de cardápios do RU (parser geométrico via `pdfplumber`) e calendários acadêmicos.                                                                     |
 | **Banco de Dados**     | PostgreSQL 18+ (SQLAlchemy assíncrono + `asyncpg`)                           | Armazenamento de cache de turmas, postagens, currículos, disciplinas, cardápios e participantes.                                                                          |
@@ -43,17 +43,17 @@ sincronização assíncrona inteligente.
 ## Diagramas da Arquitetura (Modelo C4)
 
 Os diagramas de arquitetura adotam o padrão de **Diagrams as Code** via **C4-PlantUML**, versionados
-como código em [`docs/diagrams/`](diagrams/) e renderizados em formato vetorial SVG localmente
-através do script [`scripts/generate_diagrams.py`](../scripts/generate_diagrams.py).
+como código em [`docs/diagrams/`](https://github.com/unb-mds/2026-2-Followw/tree/main/docs/diagrams) e renderizados em formato vetorial SVG localmente
+através do script [`scripts/generate_diagrams.py`](https://github.com/unb-mds/2026-2-Followw/blob/main/scripts/generate_diagrams.py).
 
 ### Diagrama de Contexto do Sistema (Nível 1)
 
 Apresenta o Followw UnB no seu ambiente operacional, seus usuários e as integrações com os sistemas
 da universidade e serviços externos.
 
-![Diagrama de Contexto - Followw UnB](assets/context.svg)
+![Diagrama de Contexto - Followw UnB](/assets/context.svg)
 
-> Código-fonte: [`docs/diagrams/context.puml`](diagrams/context.puml)
+> Código-fonte: [`docs/diagrams/context.puml`](https://github.com/unb-mds/2026-2-Followw/blob/main/docs/diagrams/context.puml)
 
 ---
 
@@ -62,9 +62,9 @@ da universidade e serviços externos.
 Detalha as aplicações executáveis, armazenamento de dados e fronteiras de comunicação entre
 componentes e serviços.
 
-![Diagrama de Containers - Followw UnB](assets/container.svg)
+![Diagrama de Containers - Followw UnB](/assets/container.svg)
 
-> Código-fonte: [`docs/diagrams/container.puml`](diagrams/container.puml)
+> Código-fonte: [`docs/diagrams/container.puml`](https://github.com/unb-mds/2026-2-Followw/blob/main/docs/diagrams/container.puml)
 
 ---
 
@@ -75,15 +75,15 @@ suas interações com as bibliotecas do monorepo e dados.
 
 #### Componentes do Frontend
 
-![Diagrama de Componentes do Frontend](assets/components_frontend.svg)
+![Diagrama de Componentes do Frontend](/assets/components_frontend.svg)
 
-> Código-fonte: [`docs/diagrams/components_frontend.puml`](diagrams/components_frontend.puml)
+> Código-fonte: [`docs/diagrams/components_frontend.puml`](https://github.com/unb-mds/2026-2-Followw/blob/main/docs/diagrams/components_frontend.puml)
 
 #### Componentes do Backend
 
-![Diagrama de Componentes do Backend](assets/components_backend.svg)
+![Diagrama de Componentes do Backend](/assets/components_backend.svg)
 
-> Código-fonte: [`docs/diagrams/components_backend.puml`](diagrams/components_backend.puml)
+> Código-fonte: [`docs/diagrams/components_backend.puml`](https://github.com/unb-mds/2026-2-Followw/blob/main/docs/diagrams/components_backend.puml)
 
 ---
 

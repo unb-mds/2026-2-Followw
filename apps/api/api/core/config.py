@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=(".env", "../../.env"), extra="ignore")
 
     environment: str = "development"
+    docs_url: str = "https://followw.mintlify.site"
 
     cors_origins: list[str] = ["https://followw.app"]
 

@@ -8,7 +8,6 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.responses import HTMLResponse
 
 from api.core.config import settings
-from api.docs_content import get_full_description
 from api.errors import EXCEPTION_HANDLERS
 from api.logger import RequestLoggingMiddleware
 from api.modules.auth.router import router as auth_router
@@ -95,7 +94,7 @@ def custom_openapi() -> dict[str, Any]:
             title=app.title,
             version=app.version,
             openapi_version=app.openapi_version,
-            description=get_full_description(app.description),
+            description=app.description,
             routes=app.routes,
             tags=app.openapi_tags,
             servers=[{"url": app.root_path}],
@@ -123,7 +122,7 @@ app.openapi = custom_openapi
 
 
 @app.get("/docs", include_in_schema=False)
-async def scalar_docs() -> HTMLResponse:
+async def mintlify_docs() -> HTMLResponse:
     return HTMLResponse(
         f"""
         <!doctype html>
@@ -132,15 +131,11 @@ async def scalar_docs() -> HTMLResponse:
             <title>{app.title} — Documentação</title>
             <meta charset="utf-8" />
             <meta name="viewport" content="width=device-width, initial-scale=1" />
-            <link rel="icon" type="image/svg+xml" href="https://scalar.com/favicon.svg" />
+            <meta http-equiv="refresh" content="0; url={settings.docs_url}" />
+            <link rel="canonical" href="{settings.docs_url}" />
           </head>
           <body>
-            <script
-              id="api-reference"
-              data-url="{app.root_path}{app.openapi_url}"
-              data-configuration='{{"theme":"bluePlanet","layout":"modern","darkMode":true}}'
-            ></script>
-            <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+            <p>Redirecionando para a <a href="{settings.docs_url}">documentação no Mintlify</a>...</p>
           </body>
         </html>
         """

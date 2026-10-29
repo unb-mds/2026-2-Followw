@@ -486,10 +486,10 @@ acadêmicas.
 Os requisitos não funcionais definem os critérios técnicos de qualidade, confiabilidade, desempenho,
 conformidade de arquitetura e segurança da informação.
 
-- **RNF01 — Documentação Interativa de Endpoints (Scalar / OpenAPI):**
+- **RNF01 — Documentação Interativa de Endpoints (Mintlify / OpenAPI):**
     - Todos os endpoints da API devem ser documentados com modelos rigorosos de entrada, códigos de
       retorno HTTP (200, 401, 404, 422, 502) e exemplos claros via OpenAPI, renderizados pela
-      interface Scalar integrada.
+      interface Mintlify integrada.
 
 - **RNF02 — Cobertura Abrangente de Testes Automatizados:**
     - Toda funcionalidade e correção deve conter testes automatizados. O back-end utiliza **Pytest**

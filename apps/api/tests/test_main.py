@@ -26,12 +26,12 @@ def test_redireciona_https_em_producao(monkeypatch):
         importlib.reload(main_module)
 
 
-def test_scalar_docs_retorna_html_com_referencia_openapi(client):
+def test_mintlify_docs_retorna_html_com_redirecionamento(client):
     response = client.get("/docs")
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
-    assert "api-reference" in response.text
-    assert 'data-url="/api/openapi.json"' in response.text
+    assert "Mintlify" in response.text
+    assert settings.docs_url in response.text
 
 
 def test_rotas_respondem_com_e_sem_prefixo_api(client):
@@ -85,29 +85,3 @@ def test_cors_libera_origens_configuradas_com_credenciais(client):
 def test_cors_nao_libera_origem_desconhecida(client):
     response = client.get("/docs", headers={"Origin": "https://evil.example"})
     assert "access-control-allow-origin" not in response.headers
-
-
-def test_openapi_contem_documentacao_markdown(client):
-    schema = client.get("/openapi.json").json()
-    description = schema["info"]["description"]
-    assert "Documento de Arquitetura" in description
-    assert "Segurança das credenciais do SIGAA" in description
-    assert "Cache e Sincronização" in description
-
-
-def test_docs_content_fallback_remoto_quando_sem_pasta_local(monkeypatch):
-    from api import docs_content
-
-    monkeypatch.setattr(docs_content, "get_docs_dir", lambda: None)
-    monkeypatch.setattr(
-        docs_content,
-        "_fetch_remote_doc",
-        lambda name: f"# Doc {name}\n![img](assets/diagram.svg)",
-    )
-    resultado = docs_content.get_full_description("Intro")
-    assert "Intro" in resultado
-    assert "# Doc arquitetura.md" in resultado
-    assert (
-        "https://raw.githubusercontent.com/unb-mds/2026-2-Followw/main/docs/assets/diagram.svg"
-        in resultado
-    )
