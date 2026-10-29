@@ -23,18 +23,38 @@ const SLOTS: Record<string, [string, string][]> = {
     ]
 };
 
+export const SCHEDULE_SLOTS = Object.values(SLOTS).flat();
+
+interface TimeRange {
+    start: string;
+    end: string;
+}
+
+const intersects = (a: TimeRange, b: TimeRange) => a.start < b.end && a.end > b.start;
+
+/** Mesmo dia e intervalos que se cruzam; horários colados não contam. */
+export const overlaps = (a: ClassTime, b: ClassTime) => a.weekday === b.weekday && intersects(a, b);
+
+/** Do primeiro ao último horário ocupado, com os vagos entre eles. */
+export function visibleSlots(times: TimeRange[]) {
+    const used = SCHEDULE_SLOTS.filter(([start, end]) =>
+        times.some((time) => intersects({ start, end }, time))
+    );
+    const first = used[0]?.[0];
+    const last = used.at(-1)?.[1];
+    return SCHEDULE_SLOTS.filter(([start, end]) => first && last && start >= first && end <= last);
+}
+
 // Intervalo máximo entre blocos para juntá-los, como o T6 (até 18:55) e o N1 (a partir de 19:00).
 const MERGE_GAP_MINUTES = 5;
 
 const getMinutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
 
-const WEEKDAYS_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+export const WEEKDAYS_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
-export interface ClassTime {
+export interface ClassTime extends TimeRange {
     /** 0 = domingo, como `Date.getDay()`. */
     weekday: number;
-    start: string;
-    end: string;
 }
 
 /** `35T23` -> terça e quinta, 14:00–15:50. No SIGAA, o dígito 2 é segunda-feira. */

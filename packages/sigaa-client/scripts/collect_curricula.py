@@ -20,6 +20,16 @@ MATRIX_COLUMNS = (
     "shift",
     "valid_from",
     "matrix",
+    "total_workload",
+    "required_workload",
+    "optional_min_workload",
+    "complementary_min_workload",
+    "elective_max_workload",
+    "period_max_workload",
+    "period_min_workload",
+    "min_semesters",
+    "avg_semesters",
+    "max_semesters",
 )
 COMPONENT_COLUMNS = (
     "course_sigaa_id",

@@ -1,7 +1,8 @@
 export const STORAGE_PREFIX = 'followw:';
 
 export const STORAGE_KEYS = {
-    THEME: 'theme'
+    THEME: 'theme',
+    SCHEDULE: 'schedule'
 } as const;
 
 function getStorage(): Storage | null {
@@ -107,3 +108,45 @@ export const localStorageRepository: LocalStorageRepository = {
         }
     }
 };
+
+// Dados da conta, apagados ao trocar de sessão.
+const ACCOUNT_KEYS: string[] = [STORAGE_KEYS.SCHEDULE];
+const stores = new Map<string, { clear: () => void }>();
+
+/** Valor salvo no storage e observável pelo `useSyncExternalStore`. */
+export function storedValue<T>(key: string, empty: T) {
+    const listeners = new Set<() => void>();
+    let snapshot: T | undefined;
+    const update = (value: T) => {
+        snapshot = value;
+        for (const listener of listeners) listener();
+    };
+    const store = {
+        getSnapshot: () => (snapshot ??= localStorageRepository.get<T>(key) ?? empty),
+        getServerSnapshot: () => empty,
+        subscribe: (listener: () => void) => {
+            listeners.add(listener);
+            return () => {
+                listeners.delete(listener);
+                if (listeners.size === 0) snapshot = undefined;
+            };
+        },
+        set: (value: T) => {
+            localStorageRepository.set(key, value);
+            update(value);
+        },
+        clear: () => {
+            localStorageRepository.remove(key);
+            update(empty);
+        }
+    };
+    stores.set(key, store);
+    return store;
+}
+
+export function clearAccountStorage() {
+    for (const key of ACCOUNT_KEYS) {
+        localStorageRepository.remove(key);
+        stores.get(key)?.clear();
+    }
+}
