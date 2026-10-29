@@ -19,15 +19,12 @@ test('recomendações não são gravadas no cache offline; catálogo continua pe
     client.clear();
 });
 
-test('recomendações aparecem em obrigatórias e optativas ou em todas sem pesquisa', async () => {
+test('recomendações aparecem só para graduação e sem pesquisa', async () => {
     const { showRecommendations } = await import('#/queries/recommendations');
-    const search = { q: '', type: 'all' };
     const student = { level: 'Graduação' };
-    expect(showRecommendations(student, search)).toBe(true);
-    expect(showRecommendations(null, search)).toBe(false);
-    expect(showRecommendations({ level: 'Mestrado' }, search)).toBe(false);
-    expect(showRecommendations(student, { ...search, q: 'MAT0025' })).toBe(false);
-    expect(showRecommendations(student, { ...search, type: 'optional', q: 'MAT' })).toBe(true);
-    expect(showRecommendations(student, { ...search, type: 'mandatory', q: 'MAT' })).toBe(true);
-    expect(showRecommendations(null, { ...search, type: 'mandatory' })).toBe(false);
+    expect(showRecommendations(student, { q: '' })).toBe(true);
+    expect(showRecommendations(student, { q: '  ' })).toBe(true);
+    expect(showRecommendations(null, { q: '' })).toBe(false);
+    expect(showRecommendations({ level: 'Mestrado' }, { q: '' })).toBe(false);
+    expect(showRecommendations(student, { q: 'MAT0025' })).toBe(false);
 });

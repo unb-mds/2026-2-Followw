@@ -98,39 +98,12 @@ export function lockedReasons(classroom: SubjectClassroom, met: boolean | null):
     return reasons;
 }
 
-/** Igual ao `lookup_key` da API: sem acento, minúscula e com espaços colapsados. */
-const lookupKey = (value: string) =>
-    value
-        .normalize('NFKD')
-        .replace(/\p{M}/gu, '')
-        .toLowerCase()
-        .split(/\s+/)
-        .filter(Boolean)
-        .join(' ');
-
-/** Mesmos campos da busca da API: código, nome e professores. */
-function matchesText(subject: CatalogSubject, text: string) {
-    const needle = lookupKey(text);
-    if (!needle) return true;
-    return [
-        subject.code,
-        subject.name,
-        ...subject.classrooms.flatMap((classroom) => classroom.professors)
-    ].some((value) => lookupKey(value).includes(needle));
-}
-
 export const withClassrooms = (subjects: CatalogSubject[]) =>
     subjects.filter((subject) => subject.classrooms.length > 0);
 
-/** Filtra no cliente por tipo e texto, descartando as matérias sem turmas. */
-export function filterSubjects(
-    subjects: CatalogSubject[],
-    { type, q }: { type: SubjectType; q: string }
-): CatalogSubject[] {
-    return withClassrooms(subjects).filter(
-        (subject) => (type === 'all' || subject.kind === type) && matchesText(subject, q)
-    );
-}
+/** Filtra no cliente por tipo, descartando as matérias sem turmas. */
+export const filterSubjects = (subjects: CatalogSubject[], type: SubjectType) =>
+    withClassrooms(subjects).filter((subject) => type === 'all' || subject.kind === type);
 
 export function currentCurriculumPeriod(
     entry: string | null | undefined,

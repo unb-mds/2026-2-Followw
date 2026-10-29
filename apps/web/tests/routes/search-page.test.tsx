@@ -334,7 +334,7 @@ describe('página de busca com estado na URL', () => {
         expect(page.getByRole('table').textContent).toContain('MAT0023');
     });
 
-    test('abas mostram só as recomendações do tipo, na ordem da API, mesmo com busca', async () => {
+    test('abas mostram recomendações sem busca e toda a oferta do tipo com busca', async () => {
         const user: components['schemas']['UserProfile'] = {
             name: 'Discente',
             registration: '202600001',
@@ -363,23 +363,22 @@ describe('página de busca com estado na URL', () => {
             { code: 'MAT0025', name: 'Cálculo 1', kind: 'mandatory', classrooms },
             { code: 'MAT0026', name: 'Cálculo 2', kind: 'optional', classrooms }
         ];
-        const page = renderPage('?q=calculo');
+        const page = renderPage('?type=optional');
         const tab = (name: string) => page.getByRole('button', { name });
         const shown = () =>
             Array.from(page.container.querySelectorAll('[data-slot="accordion-item"]'), (item) =>
                 item.textContent?.match(/[A-Z]{3}\d{4}/)?.at(0)
             );
-        expect(tab('Todas').getAttribute('aria-pressed')).toBe('true');
         expect(page.queryByRole('button', { name: 'Módulo livre' })).toBeNull();
-        expect(shown()).toEqual(['MAT0025', 'MAT0029']);
-        testing.fireEvent.click(tab('Optativas'));
-        await testing.waitFor(() =>
-            expect(updates.at(-1)?.searchParams.get('type')).toBe('optional')
-        );
-        await testing.waitFor(() => expect(shown()).toEqual(['MAT0027', 'MAT0026']));
+        await testing.waitFor(() => expect(shown()).toEqual(['MAT0027', 'FIS0001', 'MAT0026']));
         expect(page.getByRole('region', { name: 'Optativas disponíveis' })).toBeDefined();
+        testing.fireEvent.change(searchbox(page), { target: { value: 'calculo' } });
+        await testing.waitFor(() => expect(shown()).toEqual(['MAT0029']));
+        expect(page.queryByRole('region', { name: 'Optativas disponíveis' })).toBeNull();
         testing.fireEvent.click(tab('Obrigatórias'));
         await testing.waitFor(() => expect(shown()).toEqual(['MAT0025']));
+        testing.fireEvent.click(tab('Todas'));
+        await testing.waitFor(() => expect(shown()).toEqual(['MAT0025', 'MAT0029']));
     });
 
     test('abas de tipo só aparecem com a conta logada', () => {

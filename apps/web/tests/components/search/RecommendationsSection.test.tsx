@@ -188,7 +188,7 @@ describe('seção de recomendações', () => {
         );
         expect(requests).toHaveLength(1);
     });
-    test('abas de tipo mostram só as recomendações do tipo, com os filtros', async () => {
+    test('abas de tipo mostram só as recomendações do tipo', async () => {
         response = () =>
             Response.json([
                 result[0],
@@ -200,20 +200,16 @@ describe('seção de recomendações', () => {
                     kind: 'optional'
                 }
             ]);
-        const page = await renderSection({
-            filters: { type: 'optional', q: 'manha' }
-        });
+        const page = await renderSection({ type: 'optional' });
         await testing.waitFor(() =>
             expect(page.getByRole('button', { name: /FGA0002/ })).toBeDefined()
         );
         expect(page.getByRole('region', { name: 'Optativas disponíveis' })).toBeDefined();
+        expect(page.getByRole('button', { name: /FGA0003/ })).toBeDefined();
         expect(page.queryByRole('button', { name: /FGA0001/ })).toBeNull();
-        expect(page.queryByRole('button', { name: /FGA0003/ })).toBeNull();
     });
     test('aba sem recomendações do tipo avisa que nada está disponível', async () => {
-        const page = await renderSection({
-            filters: { type: 'optional', q: '' }
-        });
+        const page = await renderSection({ type: 'optional' });
         await testing.waitFor(() =>
             expect(page.getByText(/Nenhuma matéria disponível para você/)).toBeDefined()
         );

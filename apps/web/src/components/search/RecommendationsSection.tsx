@@ -59,27 +59,23 @@ function WhyDialog(subject: CatalogSubject) {
     );
 }
 
-const DEFAULT_FILTERS = { type: 'all', q: '' } as const;
-
 export function RecommendationsSection({
     currentPeriod,
     approved,
     taken,
-    filters = DEFAULT_FILTERS
+    type = 'all'
 }: {
     currentPeriod?: number | null;
     approved?: Set<string> | null;
     taken?: Set<string> | null;
-    filters?: { type: SubjectType; q: string };
+    type?: SubjectType;
 }) {
     const client = useQueryClient();
     const query = useQuery(recommendationsQueryOptions);
     const refresh = () => void refreshQuery(client, recommendationsQueryOptions).catch(noop);
-    const subjects = query.data && filterSubjects(query.data, filters);
+    const subjects = query.data && filterSubjects(query.data, type);
     const title =
-        filters.type === 'all'
-            ? 'Matérias recomendadas'
-            : `${subjectTypeLabels[filters.type]} disponíveis`;
+        type === 'all' ? 'Matérias recomendadas' : `${subjectTypeLabels[type]} disponíveis`;
     return (
         <section aria-label={title} className="flex flex-col gap-3" aria-busy={query.isFetching}>
             {query.isPending ? (
@@ -99,13 +95,13 @@ export function RecommendationsSection({
                     )}
                     {subjects.length === 0 ? (
                         <p className="rounded-2xl border bg-card p-4 text-sm">
-                            {filters.type === 'all'
+                            {type === 'all'
                                 ? 'Nenhuma matéria da oferta atual foi recomendada para você.'
-                                : 'Nenhuma matéria disponível para você com essa busca e filtros.'}
+                                : 'Nenhuma matéria disponível para você com esse filtro.'}
                         </p>
                     ) : (
                         <TurmaSection
-                            key={JSON.stringify(filters)}
+                            key={type}
                             subjects={subjects}
                             currentPeriod={currentPeriod}
                             approved={approved}
