@@ -51,7 +51,7 @@ através do script [`scripts/generate_diagrams.py`](https://github.com/unb-mds/2
 Apresenta o Followw UnB no seu ambiente operacional, seus usuários e as integrações com os sistemas
 da universidade e serviços externos.
 
-![Diagrama de Contexto - Followw UnB](/assets/context.svg)
+![Diagrama de Contexto - Followw UnB](assets/context.svg)
 
 > Código-fonte: [`docs/diagrams/context.puml`](https://github.com/unb-mds/2026-2-Followw/blob/main/docs/diagrams/context.puml)
 
@@ -62,7 +62,7 @@ da universidade e serviços externos.
 Detalha as aplicações executáveis, armazenamento de dados e fronteiras de comunicação entre
 componentes e serviços.
 
-![Diagrama de Containers - Followw UnB](/assets/container.svg)
+![Diagrama de Containers - Followw UnB](assets/container.svg)
 
 > Código-fonte: [`docs/diagrams/container.puml`](https://github.com/unb-mds/2026-2-Followw/blob/main/docs/diagrams/container.puml)
 
@@ -75,13 +75,13 @@ suas interações com as bibliotecas do monorepo e dados.
 
 #### Componentes do Frontend
 
-![Diagrama de Componentes do Frontend](/assets/components_frontend.svg)
+![Diagrama de Componentes do Frontend](assets/components_frontend.svg)
 
 > Código-fonte: [`docs/diagrams/components_frontend.puml`](https://github.com/unb-mds/2026-2-Followw/blob/main/docs/diagrams/components_frontend.puml)
 
 #### Componentes do Backend
 
-![Diagrama de Componentes do Backend](/assets/components_backend.svg)
+![Diagrama de Componentes do Backend](assets/components_backend.svg)
 
 > Código-fonte: [`docs/diagrams/components_backend.puml`](https://github.com/unb-mds/2026-2-Followw/blob/main/docs/diagrams/components_backend.puml)
 

@@ -60,7 +60,7 @@
       },
       {
         "tab": "Referência da API",
-        "openapi": "openapi.json"
+        "openapi": "mintlify/openapi.json"
       }
     ]
   },
