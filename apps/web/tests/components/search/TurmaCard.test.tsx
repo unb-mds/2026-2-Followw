@@ -105,7 +105,7 @@ describe('TurmaDetails', () => {
         const markup = details();
         expect(markup).toContain('href="/buscar?busca=Ana+Silva"');
         expect(markup).toContain('href="/buscar?busca=Jo%C3%A3o+Costa"');
-        expect(markup).not.toContain('busca=Ana+Silva%2C');
+        expect(markup).not.toContain('q=Ana+Silva%2C');
         expect(markup).toContain('hover:text-primary');
         expect(details({ professors: [] })).not.toContain('href="/buscar?busca=Ana+Silva"');
     });
