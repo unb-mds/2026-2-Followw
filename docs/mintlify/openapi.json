@@ -1,0 +1,4035 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Followw UnB API",
+    "description": "Cliente alternativo e open-source para o ecossistema de sistemas da Universidade de Brasília (UnB). Agrega em uma experiência unificada e performática dados do SIGAA, Restaurante Universitário (RU) e calendário oficial, com autenticação stateless delegada ao CAS da UnB, credenciais cifradas em cookies JWE (AES-256-GCM), sincronização assíncrona inteligente e cache resiliente via Stale-While-Revalidate.",
+    "version": "0.1.0"
+  },
+  "servers": [
+    {
+      "url": "https://api.followw.app",
+      "description": "Produção"
+    },
+    {
+      "url": "http://localhost:8000",
+      "description": "Desenvolvimento local"
+    }
+  ],
+  "paths": {
+    "/auth/sigaa": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Sigaa Login",
+        "operationId": "sigaa_login_auth_sigaa_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SigaaLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Sigaa Logout",
+        "operationId": "sigaa_logout_auth_sigaa_delete",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/sigaa/refresh": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Sigaa Refresh",
+        "description": "Confere a senha se não houver access_token e agenda o sync do que venceu.\n\nO cache sai só com o refresh_token, então o app chama esta rota ao abrir.",
+        "operationId": "sigaa_refresh_auth_sigaa_refresh_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Credenciais ausentes ou inválidas."
+          },
+          "502": {
+            "description": "SIGAA indisponível."
+          }
+        }
+      }
+    },
+    "/classrooms/{classroom_id}/posts": {
+      "get": {
+        "tags": [
+          "Classrooms"
+        ],
+        "summary": "Consultar posts de uma turma",
+        "description": "Notícias, tópicos, materiais e agenda de avaliações. Materiais referenciam o tópico por topic_id. Conteúdo de notícias é carregado no detalhe. Cache de 60 minutos nas turmas atuais; posts removidos são preservados.",
+        "operationId": "get_classroom_posts_classrooms__classroom_id__posts_get",
+        "parameters": [
+          {
+            "name": "classroom_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Classroom.id ou Classroom.sigaa_id.",
+              "title": "Classroom Id"
+            },
+            "description": "Classroom.id ou Classroom.sigaa_id."
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/PostType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por categoria do post.",
+              "title": "Type"
+            },
+            "description": "Filtrar por categoria do post."
+          },
+          {
+            "name": "Cache-Control",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
+              "title": "Cache-Control"
+            },
+            "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ClassroomPost"
+                  },
+                  "title": "Response Get Classroom Posts Classrooms  Classroom Id  Posts Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciais ausentes ou inválidas."
+          },
+          "502": {
+            "description": "SIGAA indisponível."
+          },
+          "404": {
+            "description": "Turma não encontrada entre as turmas do usuário."
+          },
+          "503": {
+            "description": "Cache em atualização."
+          },
+          "504": {
+            "description": "Posts ainda não disponíveis no cache."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/classrooms/{classroom_id}/posts/{post_id}": {
+      "get": {
+        "tags": [
+          "Classrooms"
+        ],
+        "summary": "Consultar um post da turma",
+        "description": "Use o id retornado na listagem. Notícias trazem texto em Markdown e anexos, salvos sob demanda; no-cache força revalidação. Avaliações não incluem notas individuais.",
+        "operationId": "get_classroom_post_classrooms__classroom_id__posts__post_id__get",
+        "parameters": [
+          {
+            "name": "classroom_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Classroom.id ou Classroom.sigaa_id.",
+              "title": "Classroom Id"
+            },
+            "description": "Classroom.id ou Classroom.sigaa_id."
+          },
+          {
+            "name": "post_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^(news:[1-9][0-9]*|assessment:[1-9][0-9]*|topic:[a-f0-9]{64}|material:[a-f0-9]{64})$",
+              "description": "ID do post na listagem da turma.",
+              "title": "Post Id"
+            },
+            "description": "ID do post na listagem da turma."
+          },
+          {
+            "name": "Cache-Control",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
+              "title": "Cache-Control"
+            },
+            "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClassroomPost"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciais ausentes ou inválidas."
+          },
+          "502": {
+            "description": "SIGAA indisponível."
+          },
+          "404": {
+            "description": "Turma ou post não encontrado."
+          },
+          "503": {
+            "description": "Cache em atualização."
+          },
+          "504": {
+            "description": "Post ainda não disponível no cache."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/classrooms": {
+      "get": {
+        "tags": [
+          "Classrooms"
+        ],
+        "summary": "Consultar as turmas do usuário autenticado",
+        "description": "Cada turma traz a menção do usuário em grade (null até ser lançada ou sincronizada). A menção é atualizada pelo sync do login e de /auth/sigaa/refresh.",
+        "operationId": "get_classrooms_classrooms_get",
+        "parameters": [
+          {
+            "name": "semester",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(all|[0-9]{4}\\.[0-9])$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Sem filtro: turmas atuais. Use 'all' ou um semestre no formato AAAA.P, como 2026.2.",
+              "title": "Semester"
+            },
+            "description": "Sem filtro: turmas atuais. Use 'all' ou um semestre no formato AAAA.P, como 2026.2."
+          },
+          {
+            "name": "Cache-Control",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
+              "title": "Cache-Control"
+            },
+            "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ParticipantClassroom"
+                  },
+                  "title": "Response Get Classrooms Classrooms Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciais ausentes ou inválidas."
+          },
+          "502": {
+            "description": "SIGAA indisponível."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/classrooms/frequency": {
+      "get": {
+        "tags": [
+          "Classrooms"
+        ],
+        "summary": "Consultar frequência de todas as turmas atuais",
+        "description": "Turmas atuais com identificação e a mesma frequência da rota individual. Falha em uma turma retorna erro, sem omiti-la da lista.",
+        "operationId": "get_current_frequencies_classrooms_frequency_get",
+        "parameters": [
+          {
+            "name": "Cache-Control",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
+              "title": "Cache-Control"
+            },
+            "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ClassroomFrequencyResult"
+                  },
+                  "title": "Response Get Current Frequencies Classrooms Frequency Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciais ausentes ou inválidas."
+          },
+          "502": {
+            "description": "SIGAA indisponível."
+          },
+          "404": {
+            "description": "Turma não encontrada entre as turmas do usuário."
+          },
+          "503": {
+            "description": "Cache em atualização."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/classrooms/{classroom_id}/frequency": {
+      "get": {
+        "tags": [
+          "Classrooms"
+        ],
+        "summary": "Consultar frequência e andamento de uma turma",
+        "description": "Aceita Classroom.id (hash) ou sigaa_id numérico. frequency_status indica nao_registrada, parcialmente_registrada ou registrada nas entradas publicadas. lessons traz as aulas da turma (criadas pelo calendário e horário no sync das turmas, com start_time e end_time) até ontem, as publicadas pelo SIGAA fora delas e as com situação do aluno, mais recentes primeiro; totals soma as marcações aos totais do SIGAA.",
+        "operationId": "get_classroom_frequency_classrooms__classroom_id__frequency_get",
+        "parameters": [
+          {
+            "name": "classroom_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Classroom.id ou Classroom.sigaa_id.",
+              "title": "Classroom Id"
+            },
+            "description": "Classroom.id ou Classroom.sigaa_id."
+          },
+          {
+            "name": "Cache-Control",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
+              "title": "Cache-Control"
+            },
+            "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClassroomFrequencyView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciais ausentes ou inválidas."
+          },
+          "502": {
+            "description": "SIGAA indisponível."
+          },
+          "404": {
+            "description": "Turma não encontrada entre as turmas do usuário."
+          },
+          "503": {
+            "description": "Cache em atualização."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/classrooms/{classroom_id}/frequency/lessons": {
+      "patch": {
+        "tags": [
+          "Classrooms"
+        ],
+        "summary": "Marcar presença, falta ou aula cancelada",
+        "description": "Aplica todas as marcações ou nenhuma. Vale enquanto o SIGAA não registra a aula: a chamada publicada substitui a marcação. status null remove a marcação, sem apagar a chamada do SIGAA. Aula repetida ou que ainda não aconteceu retorna 422.",
+        "operationId": "mark_lessons_classrooms__classroom_id__frequency_lessons_patch",
+        "parameters": [
+          {
+            "name": "classroom_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Classroom.id ou Classroom.sigaa_id.",
+              "title": "Classroom Id"
+            },
+            "description": "Classroom.id ou Classroom.sigaa_id."
+          },
+          {
+            "name": "Cache-Control",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
+              "title": "Cache-Control"
+            },
+            "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/LessonMark"
+                },
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Credenciais ausentes ou inválidas."
+          },
+          "502": {
+            "description": "SIGAA indisponível."
+          },
+          "404": {
+            "description": "Turma ou aula não encontrada."
+          },
+          "409": {
+            "description": "O SIGAA já registrou a chamada de uma das aulas."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/classrooms/{classroom_id}/members": {
+      "get": {
+        "tags": [
+          "Classrooms"
+        ],
+        "summary": "Consultar docentes e discentes de uma turma do usuário",
+        "operationId": "get_classroom_members_classrooms__classroom_id__members_get",
+        "parameters": [
+          {
+            "name": "classroom_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Classroom.id ou Classroom.sigaa_id.",
+              "title": "Classroom Id"
+            },
+            "description": "Classroom.id ou Classroom.sigaa_id."
+          },
+          {
+            "name": "Cache-Control",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
+              "title": "Cache-Control"
+            },
+            "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ClassroomMember"
+                  },
+                  "title": "Response Get Classroom Members Classrooms  Classroom Id  Members Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciais ausentes ou inválidas."
+          },
+          "502": {
+            "description": "SIGAA indisponível."
+          },
+          "404": {
+            "description": "Turma não encontrada entre as turmas do usuário."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/public/classrooms": {
+      "get": {
+        "tags": [
+          "Public Classrooms"
+        ],
+        "summary": "Buscar turmas públicas do SIGAA, sem login",
+        "description": "Consulta diretamente o SIGAA, sem filtrar o nível de ensino. Informe unit ou code. Sem unit, o prefixo de letras do código determina as unidades consultadas, pelas matérias conhecidas no banco; o código completo deve corresponder exatamente. Sem semester, preserva o ano/período do formulário do SIGAA. Com code, retorna 404 se não houver oferta nas unidades e no semestre consultados; isso não confirma que a disciplina inexiste. Se apenas number, q ou local excluir as turmas encontradas, retorna uma lista vazia (200).",
+        "operationId": "search_classrooms_public_classrooms_get",
+        "parameters": [
+          {
+            "name": "unit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 2147483647,
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "string",
+                  "pattern": "[^0-9]"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "ID ou sigla exata da unidade, como 673 ou FCTE. Obrigatório quando code não for informado. Com code, restringe a busca a esta unidade. Consulte /public/classrooms/units para obter os IDs.",
+              "title": "Unit"
+            },
+            "description": "ID ou sigla exata da unidade, como 673 ou FCTE. Obrigatório quando code não for informado. Com code, restringe a busca a esta unidade. Consulte /public/classrooms/units para obter os IDs."
+          },
+          {
+            "name": "semester",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9]{4}\\.[0-9]$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opcional, no formato AAAA.P: 2026.2, 2027.1 ou 2026.4. Sem filtro, usa os valores do SIGAA.",
+              "title": "Semester"
+            },
+            "description": "Opcional, no formato AAAA.P: 2026.2, 2027.1 ou 2026.4. Sem filtro, usa os valores do SIGAA."
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Trecho do nome ou código da disciplina, ou do nome de qualquer docente. Ignora acentos, maiúsculas e espaços extras. Filtra o resultado da unidade/semestre após consultar o SIGAA; vazio não filtra.",
+              "title": "Q"
+            },
+            "description": "Trecho do nome ou código da disciplina, ou do nome de qualquer docente. Ignora acentos, maiúsculas e espaços extras. Filtra o resultado da unidade/semestre após consultar o SIGAA; vazio não filtra."
+          },
+          {
+            "name": "local",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Trecho do local da turma, incluindo unidade e sala, como 'S3', 'FCTE - S3' ou 'auditorio'. Ignora acentos, maiúsculas e espaços extras; vazio não filtra. Com q, exige correspondência nos dois filtros.",
+              "title": "Local"
+            },
+            "description": "Trecho do local da turma, incluindo unidade e sala, como 'S3', 'FCTE - S3' ou 'auditorio'. Ignora acentos, maiúsculas e espaços extras; vazio não filtra. Com q, exige correspondência nos dois filtros."
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^\\s*[A-Za-z]+[0-9]+\\s*$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Código completo da disciplina, como MAT0031 ou FGA0132.",
+              "title": "Code"
+            },
+            "description": "Código completo da disciplina, como MAT0031 ou FGA0132."
+          },
+          {
+            "name": "number",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 99,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Número da turma, de 1 a 99. Aceita com ou sem zero à esquerda: '1' e '01' selecionam a mesma turma. Combina com os demais filtros; use code e semester para identificar a disciplina e o semestre. Sem correspondência, retorna lista vazia.",
+              "title": "Number"
+            },
+            "description": "Número da turma, de 1 a 99. Aceita com ou sem zero à esquerda: '1' e '01' selecionam a mesma turma. Combina com os demais filtros; use code e semester para identificar a disciplina e o semestre. Sem correspondência, retorna lista vazia."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PublicClassroom"
+                  },
+                  "title": "Response Search Classrooms Public Classrooms Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Nenhuma turma do código completo nas unidades e no semestre consultados. A disciplina pode não existir ou não ter oferta nessas condições."
+          },
+          "422": {
+            "description": "Informe unit ou code. Filtro inválido ou unidade inexistente. Prefixo desconhecido pode não existir no SIGAA ou ainda não estar mapeado; informe unit para buscar diretamente."
+          },
+          "502": {
+            "description": "SIGAA indisponível ou resposta ilegível."
+          }
+        }
+      }
+    },
+    "/public/classrooms/units": {
+      "get": {
+        "tags": [
+          "Public Classrooms"
+        ],
+        "summary": "Consultar unidades disponíveis na busca pública de turmas",
+        "operationId": "list_units_public_classrooms_units_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtra pelo nome, ignorando acentos e maiúsculas.",
+              "title": "Q"
+            },
+            "description": "Filtra pelo nome, ignorando acentos e maiúsculas."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UnitRef"
+                  },
+                  "title": "Response List Units Public Classrooms Units Get"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "SIGAA indisponível ou resposta ilegível."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/public/courses": {
+      "get": {
+        "tags": [
+          "Public Courses"
+        ],
+        "summary": "Listar cursos cadastrados",
+        "description": "Lista os cursos gravados no Followw, ordenados por nome e ID local, sem autenticação. Inclui cursos sem currículo e os criados pelo sync, cujo sigaa_id pode ser nulo. O campo id é o course_id usado na consulta de currículo; unit traz id, sigla e nome da unidade e shift preserva o turno cadastrado, como no perfil. Banco sem cursos retorna lista vazia.",
+        "operationId": "list_courses_public_courses_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PublicCourse"
+                  },
+                  "type": "array",
+                  "title": "Response List Courses Public Courses Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/public/courses/{course_id}/curriculum": {
+      "get": {
+        "tags": [
+          "Public Courses"
+        ],
+        "summary": "Consultar currículo do curso pelo ingresso",
+        "description": "Seleciona, entre as matrizes ativas cadastradas, a vigência mais recente anterior ou igual ao ingresso; antes da primeira vigência, usa a mais antiga. Entre matrizes da mesma vigência, vale a de maior revisão do código, salvo se curriculum_sigaa_id escolher outra. As matérias vêm agrupadas por período, com optativas no período 0 e complementares em uma lista própria. Nome, carga horária e requisitos vêm do catálogo gravado; dados ausentes ficam nulos. Não consulta o SIGAA.",
+        "operationId": "get_curriculum_public_courses__course_id__curriculum_get",
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "ID local do curso no Followw (courses.id), distinto do ID do SIGAA.",
+              "title": "Course Id"
+            },
+            "description": "ID local do curso no Followw (courses.id), distinto do ID do SIGAA."
+          },
+          {
+            "name": "entry_semester",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]{4}\\.[0-9]$",
+              "description": "Semestre de ingresso, no formato AAAA.P.",
+              "title": "Entry Semester"
+            },
+            "description": "Semestre de ingresso, no formato AAAA.P."
+          },
+          {
+            "name": "curriculum_sigaa_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "ID no SIGAA de outra matriz com a mesma vigência selecionada.",
+              "title": "Curriculum Sigaa Id"
+            },
+            "description": "ID no SIGAA de outra matriz com a mesma vigência selecionada."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CourseCurriculum"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Curso inexistente, sem currículo ativo ou matriz indisponível para o ingresso."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/public/professors": {
+      "get": {
+        "tags": [
+          "Public Professors"
+        ],
+        "summary": "Buscar docentes do catálogo público",
+        "description": "Lista docentes coletados do SIGAA, sem login. Nome, unidade e semestre se combinam. O semestre seleciona docentes que ministraram uma disciplina de graduação naquele período.",
+        "operationId": "list_professors_public_professors_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 4,
+                  "maxLength": 100,
+                  "pattern": "^[^\\x00-\\x1f\\x7f]+$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Trecho do nome, com ao menos 4 caracteres; ignora acentos e caixa.",
+              "title": "Q"
+            },
+            "description": "Trecho do nome, com ao menos 4 caracteres; ignora acentos e caixa."
+          },
+          {
+            "name": "unit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 2147483647,
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "string",
+                  "pattern": "[^0-9]"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "ID ou código exato da unidade, como 673 ou FCTE.",
+              "title": "Unit"
+            },
+            "description": "ID ou código exato da unidade, como 673 ou FCTE."
+          },
+          {
+            "name": "semester",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9]{4}(?:\\.[0-9])?$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Período de graduação, como 2026.2; registros antigos podem vir só com o ano.",
+              "title": "Semester"
+            },
+            "description": "Período de graduação, como 2026.2; registros antigos podem vir só com o ano."
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Page Size"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfessorPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Filtro inválido ou unidade inexistente."
+          }
+        }
+      }
+    },
+    "/public/professors/{siape}": {
+      "get": {
+        "tags": [
+          "Public Professors"
+        ],
+        "summary": "Consultar o perfil público de um docente",
+        "operationId": "get_professor_public_professors__siape__get",
+        "parameters": [
+          {
+            "name": "siape",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "exclusiveMinimum": 0,
+              "description": "SIAPE do link público do SIGAA.",
+              "title": "Siape"
+            },
+            "description": "SIAPE do link público do SIGAA."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfessorDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/public/restaurant": {
+      "get": {
+        "tags": [
+          "Public Restaurant"
+        ],
+        "summary": "Consultar o cardápio público do RU",
+        "operationId": "get_menu_public_restaurant_get",
+        "parameters": [
+          {
+            "name": "campus",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "Darcy",
+                "Gama",
+                "Ceilandia",
+                "Planaltina",
+                "Fazenda"
+              ],
+              "type": "string",
+              "description": "Campus do restaurante.",
+              "default": "Darcy",
+              "title": "Campus"
+            },
+            "description": "Campus do restaurante."
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Dia específico (AAAA-MM-DD).",
+              "title": "Date"
+            },
+            "description": "Dia específico (AAAA-MM-DD)."
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Início do intervalo (AAAA-MM-DD).",
+              "title": "Start Date"
+            },
+            "description": "Início do intervalo (AAAA-MM-DD)."
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Fim do intervalo (AAAA-MM-DD).",
+              "title": "End Date"
+            },
+            "description": "Fim do intervalo (AAAA-MM-DD)."
+          },
+          {
+            "name": "meal",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "breakfast",
+                    "lunch",
+                    "dinner"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Retorna apenas a refeição escolhida e a data. Se não publicada no dia, a refeição é null. Sem filtro, retorna todas.",
+              "title": "Meal"
+            },
+            "description": "Retorna apenas a refeição escolhida e a data. Se não publicada no dia, a refeição é null. Sem filtro, retorna todas."
+          },
+          {
+            "name": "Cache-Control",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
+              "title": "Cache-Control"
+            },
+            "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DailyMenu"
+                  },
+                  "title": "Response Get Menu Public Restaurant Get"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Site do RU indisponível ou cardápio ilegível."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/public/subjects": {
+      "get": {
+        "tags": [
+          "Public Subjects"
+        ],
+        "summary": "Buscar matérias com suas turmas",
+        "description": "Consulta os componentes e turmas gravados no Followw, sem ir ao SIGAA; os filtros se combinam. Cada componente traz as turmas do semestre consultado, vazias se não houver oferta. Sem q, code e unit, um aluno de graduação logado recebe as recomendações para o próximo semestre, ordenadas e com `recommendation`; visitantes precisam informar um filtro.",
+        "operationId": "search_subjects_public_subjects_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 32,
+                  "pattern": "\\S"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Trecho do código, nome do componente ou docente, de 3 a 32 caracteres, ignorando acentos, maiúsculas e espaços extras.",
+              "title": "Q"
+            },
+            "description": "Trecho do código, nome do componente ou docente, de 3 a 32 caracteres, ignorando acentos, maiúsculas e espaços extras."
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^\\s*[A-Za-z]+[0-9]+\\s*$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Código completo do componente, como FGA0003.",
+              "title": "Code"
+            },
+            "description": "Código completo do componente, como FGA0003."
+          },
+          {
+            "name": "unit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 2147483647,
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "string",
+                  "pattern": "[^0-9]"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "ID ou código exato da unidade responsável, como 673 ou FCTE.",
+              "title": "Unit"
+            },
+            "description": "ID ou código exato da unidade responsável, como 673 ou FCTE."
+          },
+          {
+            "name": "semester",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9]{4}\\.[0-9]$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Semestre das turmas, no formato AAAA.P. Sem ele, usa o mais recente gravado.",
+              "title": "Semester"
+            },
+            "description": "Semestre das turmas, no formato AAAA.P. Sem ele, usa o mais recente gravado."
+          },
+          {
+            "name": "Cache-Control",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
+              "title": "Cache-Control"
+            },
+            "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CatalogSubject"
+                  },
+                  "title": "Response Search Subjects Public Subjects Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sessão inválida ao buscar recomendações."
+          },
+          "422": {
+            "description": "Visitante sem filtro, usuário fora da graduação ou sem matriz identificada sem filtro, filtro inválido, unidade inexistente ou nome de unidade ambíguo."
+          },
+          "502": {
+            "description": "Falha no SIGAA ao sincronizar o histórico das recomendações."
+          },
+          "503": {
+            "description": "Histórico alterado durante a consulta das recomendações."
+          }
+        }
+      }
+    },
+    "/me": {
+      "get": {
+        "tags": [
+          "Me"
+        ],
+        "summary": "Consultar o perfil do usuário autenticado",
+        "operationId": "get_me_me_get",
+        "parameters": [
+          {
+            "name": "Cache-Control",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache).",
+              "title": "Cache-Control"
+            },
+            "description": "`no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciais ausentes ou inválidas."
+          },
+          "502": {
+            "description": "SIGAA indisponível."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/ru-statement": {
+      "get": {
+        "tags": [
+          "Me"
+        ],
+        "summary": "Consultar extrato, saldo e grupo do RU",
+        "operationId": "get_statement_me_ru_statement_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestaurantStatement"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciais ausentes ou inválidas."
+          },
+          "502": {
+            "description": "SIGAA indisponível."
+          }
+        }
+      }
+    },
+    "/me/ru-token": {
+      "get": {
+        "tags": [
+          "Me"
+        ],
+        "summary": "Consultar o token da carteirinha estudantil",
+        "description": "Lê o QR code da carteirinha no SIGAA a cada acesso, sem persistência. Retorna token e valid_until; a validade informa mês/ano e o scraper representa o mês pelo dia 1.",
+        "operationId": "get_token_me_ru_token_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestaurantCredentials"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciais ausentes ou inválidas."
+          },
+          "502": {
+            "description": "SIGAA indisponível."
+          },
+          "422": {
+            "description": "O SIGAA recusou emitir o documento (ex.: perfil sem foto)."
+          }
+        }
+      }
+    },
+    "/me/student-card": {
+      "post": {
+        "tags": [
+          "Me"
+        ],
+        "summary": "Baixar a carteirinha estudantil em PDF",
+        "operationId": "get_student_card_me_student_card_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciais ausentes ou inválidas."
+          },
+          "502": {
+            "description": "SIGAA indisponível."
+          },
+          "422": {
+            "description": "O SIGAA recusou emitir o documento (ex.: perfil sem foto)."
+          }
+        }
+      }
+    },
+    "/me/transcript": {
+      "post": {
+        "tags": [
+          "Me"
+        ],
+        "summary": "Baixar o histórico acadêmico em PDF",
+        "operationId": "get_transcript_me_transcript_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciais ausentes ou inválidas."
+          },
+          "502": {
+            "description": "SIGAA indisponível."
+          },
+          "422": {
+            "description": "O SIGAA recusou emitir o documento (ex.: perfil sem foto)."
+          }
+        }
+      }
+    },
+    "/me/settings": {
+      "get": {
+        "tags": [
+          "Me"
+        ],
+        "summary": "Consultar as configurações pessoais do usuário",
+        "operationId": "get_settings_me_settings_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserSettings"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciais ausentes ou inválidas."
+          },
+          "502": {
+            "description": "SIGAA indisponível."
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Me"
+        ],
+        "summary": "Atualizar as configurações pessoais do usuário",
+        "operationId": "update_settings_me_settings_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserSettingsPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserSettings"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciais ausentes ou inválidas."
+          },
+          "502": {
+            "description": "SIGAA indisponível."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/posts": {
+      "get": {
+        "tags": [
+          "Posts"
+        ],
+        "summary": "Consultar posts recentes das turmas na home do SIGAA",
+        "description": "Notícias recentes e avaliações agendadas das turmas atuais, sem cache. A home não traz IDs: o detalhe fica em /classrooms/{classroom_sigaa_id}/posts. Avaliação de disciplina não encontrada entre as turmas do portal vem com classroom_sigaa_id null.",
+        "operationId": "get_posts_posts_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DashboardPost"
+                  },
+                  "type": "array",
+                  "title": "Response Get Posts Posts Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciais ausentes ou inválidas."
+          },
+          "502": {
+            "description": "SIGAA indisponível."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CatalogRequirements": {
+        "items": {
+          "items": {
+            "$ref": "#/components/schemas/SubjectRequirement"
+          },
+          "type": "array"
+        },
+        "type": "array"
+      },
+      "CatalogSubject": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "hours": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hours"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UnitRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "prerequisites": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CatalogRequirements"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "corequisites": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CatalogRequirements"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "equivalences": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CatalogRequirements"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "curriculum_prerequisites": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CatalogRequirements"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "curriculum_corequisites": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CatalogRequirements"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "offered_equivalences": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CatalogRequirements"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "classrooms": {
+            "items": {
+              "$ref": "#/components/schemas/SubjectClassroom"
+            },
+            "type": "array",
+            "title": "Classrooms"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "mandatory",
+                  "optional",
+                  "free"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "unlocks": {
+            "items": {
+              "$ref": "#/components/schemas/SubjectReference"
+            },
+            "type": "array",
+            "title": "Unlocks"
+          },
+          "curriculum_period": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Curriculum Period"
+          },
+          "recommendation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SubjectRecommendation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "name",
+          "classrooms"
+        ],
+        "title": "CatalogSubject",
+        "description": "O componente com as turmas do semestre consultado e os requisitos."
+      },
+      "ClassroomFrequencyResult": {
+        "properties": {
+          "classroom": {
+            "$ref": "#/components/schemas/ParticipantClassroom"
+          },
+          "frequency": {
+            "$ref": "#/components/schemas/ClassroomFrequencyView"
+          }
+        },
+        "type": "object",
+        "required": [
+          "classroom",
+          "frequency"
+        ],
+        "title": "ClassroomFrequencyResult"
+      },
+      "ClassroomFrequencyView": {
+        "properties": {
+          "progress": {
+            "$ref": "#/components/schemas/ClassroomProgress"
+          },
+          "frequency_status": {
+            "$ref": "#/components/schemas/FrequencyStatus"
+          },
+          "lessons": {
+            "items": {
+              "$ref": "#/components/schemas/Lesson"
+            },
+            "type": "array",
+            "title": "Lessons"
+          },
+          "totals": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FrequencyTotals"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "progress",
+          "frequency_status",
+          "lessons",
+          "totals"
+        ],
+        "title": "ClassroomFrequencyView"
+      },
+      "ClassroomMember": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "role": {
+            "$ref": "#/components/schemas/ClassroomRole"
+          },
+          "registration": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registration"
+          },
+          "photo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photo"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "course": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CourseRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UnitRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "person_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Person Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "role"
+        ],
+        "title": "ClassroomMember"
+      },
+      "ClassroomPost": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "type": {
+            "$ref": "#/components/schemas/PostType"
+          },
+          "sigaa_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sigaa Id"
+          },
+          "classroom_sigaa_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Classroom Sigaa Id"
+          },
+          "topic_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "published_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published On"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "starts_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts On"
+          },
+          "ends_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends On"
+          },
+          "starts_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts At"
+          },
+          "time_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time Label"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/NewsAttachment"
+            },
+            "type": "array",
+            "title": "Attachments",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "title"
+        ],
+        "title": "ClassroomPost"
+      },
+      "ClassroomProgress": {
+        "properties": {
+          "taught": {
+            "type": "integer",
+            "title": "Taught"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "percentage": {
+            "type": "integer",
+            "title": "Percentage"
+          }
+        },
+        "type": "object",
+        "required": [
+          "taught",
+          "total",
+          "percentage"
+        ],
+        "title": "ClassroomProgress",
+        "description": "O \"Andamento das Aulas\" da turma virtual: quanto da CH já foi ministrada."
+      },
+      "ClassroomRole": {
+        "type": "string",
+        "enum": [
+          "aluno",
+          "professor",
+          "monitor"
+        ],
+        "title": "ClassroomRole"
+      },
+      "ClassroomStatus": {
+        "type": "string",
+        "enum": [
+          "cursando",
+          "trancado",
+          "concluido",
+          "pending_enrollment",
+          "denied"
+        ],
+        "title": "ClassroomStatus"
+      },
+      "CourseCurriculum": {
+        "properties": {
+          "sigaa_id": {
+            "type": "integer",
+            "title": "Sigaa Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "valid_from": {
+            "type": "string",
+            "title": "Valid From"
+          },
+          "matrix": {
+            "type": "string",
+            "title": "Matrix"
+          },
+          "shift": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "D",
+                  "N"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shift"
+          },
+          "course_id": {
+            "type": "integer",
+            "title": "Course Id"
+          },
+          "entry_semester": {
+            "type": "string",
+            "title": "Entry Semester"
+          },
+          "periods": {
+            "items": {
+              "$ref": "#/components/schemas/CurriculumPeriod"
+            },
+            "type": "array",
+            "title": "Periods"
+          },
+          "complementary": {
+            "items": {
+              "$ref": "#/components/schemas/CurriculumSubject"
+            },
+            "type": "array",
+            "title": "Complementary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sigaa_id",
+          "code",
+          "valid_from",
+          "matrix",
+          "shift",
+          "course_id",
+          "entry_semester",
+          "periods",
+          "complementary"
+        ],
+        "title": "CourseCurriculum"
+      },
+      "CourseRef": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "shift": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shift"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "shift"
+        ],
+        "title": "CourseRef"
+      },
+      "CurriculumPeriod": {
+        "properties": {
+          "period": {
+            "type": "integer",
+            "title": "Period"
+          },
+          "subjects": {
+            "items": {
+              "$ref": "#/components/schemas/CurriculumSubject"
+            },
+            "type": "array",
+            "title": "Subjects"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period",
+          "subjects"
+        ],
+        "title": "CurriculumPeriod"
+      },
+      "CurriculumSubject": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "hours": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hours"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UnitRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "prerequisites": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Requirements"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "corequisites": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Requirements"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "equivalences": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Requirements"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "CurriculumSubject"
+      },
+      "CurriculumWorkload": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "pending_mandatory": {
+            "type": "integer",
+            "title": "Pending Mandatory"
+          },
+          "pending_optional": {
+            "type": "integer",
+            "title": "Pending Optional"
+          },
+          "pending_complementary": {
+            "type": "integer",
+            "title": "Pending Complementary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "pending_mandatory",
+          "pending_optional",
+          "pending_complementary"
+        ],
+        "title": "CurriculumWorkload",
+        "description": "Carga horária do currículo e o que falta integralizar, em horas."
+      },
+      "DailyMenu": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "breakfast": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MenuSection"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Breakfast"
+          },
+          "lunch": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MenuSection"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lunch"
+          },
+          "dinner": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MenuSection"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dinner"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date"
+        ],
+        "title": "DailyMenu",
+        "description": "Refeição que o campus não serve (ou não publicou) no dia vem `None`."
+      },
+      "DashboardPost": {
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/PostType"
+          },
+          "classroom_sigaa_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Classroom Sigaa Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "published_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published On"
+          },
+          "starts_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts On"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "title"
+        ],
+        "title": "DashboardPost",
+        "description": "Post recente da home: sem ID, o detalhe fica nos posts da turma."
+      },
+      "FrequencyStatus": {
+        "type": "string",
+        "enum": [
+          "nao_registrada",
+          "parcialmente_registrada",
+          "registrada"
+        ],
+        "title": "FrequencyStatus",
+        "description": "Quanto das entradas publicadas o docente já registrou."
+      },
+      "FrequencyTotals": {
+        "properties": {
+          "presences": {
+            "type": "integer",
+            "title": "Presences"
+          },
+          "absences": {
+            "type": "integer",
+            "title": "Absences"
+          },
+          "percentage": {
+            "type": "number",
+            "title": "Percentage"
+          },
+          "max_absences": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Absences"
+          },
+          "estimated": {
+            "type": "boolean",
+            "title": "Estimated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "presences",
+          "absences",
+          "percentage",
+          "max_absences",
+          "estimated"
+        ],
+        "title": "FrequencyTotals",
+        "description": "Presenças, faltas e frequência, pela chamada do SIGAA e as marcações do aluno."
+      },
+      "Grade": {
+        "type": "string",
+        "enum": [
+          "SS",
+          "MS",
+          "MM",
+          "MI",
+          "II",
+          "SR"
+        ],
+        "title": "Grade"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Lesson": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "occurred_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Occurred On"
+          },
+          "start_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Time"
+          },
+          "end_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Time"
+          },
+          "status": {
+            "$ref": "#/components/schemas/LessonStatus"
+          },
+          "absences": {
+            "type": "integer",
+            "title": "Absences",
+            "default": 0
+          },
+          "marked": {
+            "type": "boolean",
+            "title": "Marked",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "occurred_on",
+          "start_time",
+          "end_time",
+          "status"
+        ],
+        "title": "Lesson",
+        "description": "Uma aula; sem horário quando o SIGAA a publicou numa turma sem horário."
+      },
+      "LessonMark": {
+        "properties": {
+          "lesson_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Lesson Id",
+            "description": "Lesson.id de uma aula da turma."
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "presente",
+                  "falta",
+                  "cancelada"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lesson_id",
+          "status"
+        ],
+        "title": "LessonMark"
+      },
+      "LessonStatus": {
+        "type": "string",
+        "enum": [
+          "presente",
+          "falta",
+          "nao_registrada",
+          "cancelada"
+        ],
+        "title": "LessonStatus"
+      },
+      "MenuSection": {
+        "properties": {
+          "key": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MenuSectionKey"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "items"
+        ],
+        "title": "MenuSection"
+      },
+      "MenuSectionKey": {
+        "type": "string",
+        "enum": [
+          "drink",
+          "bread",
+          "extra",
+          "spread",
+          "complement",
+          "complement_vegetarian",
+          "complement_vegan",
+          "fruit",
+          "salad_1",
+          "salad_2",
+          "salad_dressing",
+          "main_dish",
+          "main_dish_vegetarian",
+          "main_dish_vegan",
+          "side_dish",
+          "accompaniments",
+          "soup",
+          "toast",
+          "dessert"
+        ],
+        "title": "MenuSectionKey"
+      },
+      "NewsAttachment": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "url"
+        ],
+        "title": "NewsAttachment"
+      },
+      "ParticipantClassroom": {
+        "properties": {
+          "professors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Professors",
+            "default": []
+          },
+          "vacancies": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vacancies",
+            "description": "Vagas na coleta do seed, não em tempo real."
+          },
+          "occupied": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occupied",
+            "description": "Ocupação na coleta do seed, não em tempo real."
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "sigaa_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sigaa Id"
+          },
+          "number": {
+            "type": "string",
+            "title": "Number"
+          },
+          "semester": {
+            "type": "string",
+            "title": "Semester"
+          },
+          "schedule": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schedule"
+          },
+          "room": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Room"
+          },
+          "current": {
+            "type": "boolean",
+            "title": "Current",
+            "default": false
+          },
+          "subject": {
+            "$ref": "#/components/schemas/UserSubject"
+          },
+          "grade": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Grade"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClassroomStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "number",
+          "semester",
+          "subject"
+        ],
+        "title": "ParticipantClassroom",
+        "description": "A turma com a menção do usuário, `None` enquanto não lançada ou sincronizada."
+      },
+      "PostType": {
+        "type": "string",
+        "enum": [
+          "news",
+          "topic",
+          "material",
+          "assessment"
+        ],
+        "title": "PostType"
+      },
+      "ProfessorDegree": {
+        "properties": {
+          "level": {
+            "type": "string",
+            "title": "Level"
+          },
+          "start_year": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Year"
+          },
+          "end_year": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Year"
+          },
+          "course": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Course"
+          },
+          "institution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institution"
+          }
+        },
+        "type": "object",
+        "required": [
+          "level"
+        ],
+        "title": "ProfessorDegree"
+      },
+      "ProfessorDetails": {
+        "properties": {
+          "siape": {
+            "type": "integer",
+            "title": "Siape"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "unit": {
+            "$ref": "#/components/schemas/UnitRef"
+          },
+          "photo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photo"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "education": {
+            "items": {
+              "$ref": "#/components/schemas/ProfessorDegree"
+            },
+            "type": "array",
+            "title": "Education",
+            "description": "Titulações do currículo público do SIGAA, com os campos originais de curso, instituição e anos."
+          },
+          "interests": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interests"
+          },
+          "lattes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lattes"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "disciplines": {
+            "items": {
+              "$ref": "#/components/schemas/ProfessorDiscipline"
+            },
+            "type": "array",
+            "title": "Disciplines"
+          }
+        },
+        "type": "object",
+        "required": [
+          "siape",
+          "name",
+          "unit",
+          "photo",
+          "url",
+          "description",
+          "education",
+          "interests",
+          "lattes",
+          "email",
+          "disciplines"
+        ],
+        "title": "ProfessorDetails"
+      },
+      "ProfessorDiscipline": {
+        "properties": {
+          "semester": {
+            "type": "string",
+            "title": "Semester"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "occurrences": {
+            "type": "integer",
+            "title": "Occurrences"
+          }
+        },
+        "type": "object",
+        "required": [
+          "semester",
+          "code",
+          "occurrences"
+        ],
+        "title": "ProfessorDiscipline"
+      },
+      "ProfessorItem": {
+        "properties": {
+          "siape": {
+            "type": "integer",
+            "title": "Siape"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "unit": {
+            "$ref": "#/components/schemas/UnitRef"
+          },
+          "photo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photo"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "siape",
+          "name",
+          "unit",
+          "photo",
+          "url"
+        ],
+        "title": "ProfessorItem"
+      },
+      "ProfessorPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ProfessorItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "ProfessorPage"
+      },
+      "PublicClassroom": {
+        "properties": {
+          "number": {
+            "type": "string",
+            "title": "Number"
+          },
+          "semester": {
+            "type": "string",
+            "title": "Semester"
+          },
+          "schedule": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schedule"
+          },
+          "schedule_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schedule Description"
+          },
+          "room": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Room"
+          },
+          "vacancies": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vacancies"
+          },
+          "occupied": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occupied"
+          },
+          "professors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Professors",
+            "default": []
+          },
+          "subject": {
+            "$ref": "#/components/schemas/Subject"
+          }
+        },
+        "type": "object",
+        "required": [
+          "number",
+          "semester",
+          "subject"
+        ],
+        "title": "PublicClassroom",
+        "description": "Turma da busca pública.\n\nNão tem `id`: a área pública não expõe o `frontEndIdTurma`, então a\nidentidade aqui é a chave natural `(subject.code, number, semester)`."
+      },
+      "PublicCourse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "sigaa_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sigaa Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "shift": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shift"
+          },
+          "unit": {
+            "$ref": "#/components/schemas/UnitRef"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "sigaa_id",
+          "name",
+          "shift",
+          "unit"
+        ],
+        "title": "PublicCourse"
+      },
+      "ReasonCode": {
+        "type": "string",
+        "enum": [
+          "required",
+          "target_period",
+          "overdue",
+          "same_unit",
+          "chain_length",
+          "chain_width",
+          "hours"
+        ]
+      },
+      "Requirements": {
+        "items": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "type": "array"
+      },
+      "RestaurantCredentials": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "valid_until": {
+            "type": "string",
+            "format": "date",
+            "title": "Valid Until"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "valid_until"
+        ],
+        "title": "RestaurantCredentials"
+      },
+      "RestaurantStatement": {
+        "properties": {
+          "balance": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Balance"
+          },
+          "group": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "enum": [
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/RestaurantStatementEntry"
+            },
+            "type": "array",
+            "title": "Entries",
+            "default": []
+          }
+        },
+        "type": "object",
+        "title": "RestaurantStatement"
+      },
+      "RestaurantStatementEntry": {
+        "properties": {
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Occurred At"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "occurred_at",
+          "description",
+          "amount"
+        ],
+        "title": "RestaurantStatementEntry"
+      },
+      "SigaaLoginRequest": {
+        "properties": {
+          "registration": {
+            "type": "string",
+            "maxLength": 9,
+            "minLength": 9,
+            "title": "Registration"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 6,
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "registration",
+          "password"
+        ],
+        "title": "SigaaLoginRequest"
+      },
+      "Subject": {
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "sigaa_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sigaa Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "hours": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hours"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "Subject",
+        "description": "Componente curricular, nos campos da tabela `subjects`."
+      },
+      "SubjectClassroom": {
+        "properties": {
+          "professors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Professors",
+            "default": []
+          },
+          "vacancies": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vacancies",
+            "description": "Vagas na coleta do seed, não em tempo real."
+          },
+          "occupied": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occupied",
+            "description": "Ocupação na coleta do seed, não em tempo real."
+          },
+          "sigaa_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sigaa Id"
+          },
+          "number": {
+            "type": "string",
+            "title": "Number"
+          },
+          "semester": {
+            "type": "string",
+            "title": "Semester"
+          },
+          "schedule": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schedule"
+          },
+          "room": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Room"
+          }
+        },
+        "type": "object",
+        "required": [
+          "number",
+          "semester"
+        ],
+        "title": "SubjectClassroom"
+      },
+      "SubjectReason": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ReasonCode"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "SubjectReason"
+      },
+      "SubjectRecommendation": {
+        "properties": {
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/SubjectReason"
+            },
+            "type": "array",
+            "title": "Reasons"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reasons"
+        ],
+        "title": "SubjectRecommendation",
+        "description": "Motivos da posição no ranking, do mais ao menos relevante."
+      },
+      "SubjectReference": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "name"
+        ],
+        "title": "SubjectReference"
+      },
+      "SubjectRequirement": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SubjectReference"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "SubjectRequirement"
+      },
+      "UnitRef": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "name"
+        ],
+        "title": "UnitRef",
+        "description": "Unidade acadêmica: `id` do SIGAA, `code` a sigla (ex.: FCTE)."
+      },
+      "UserLevel": {
+        "type": "string",
+        "enum": [
+          "Graduação",
+          "Pós-graduação",
+          "Mestrado"
+        ],
+        "title": "UserLevel"
+      },
+      "UserProfile": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "registration": {
+            "type": "string",
+            "title": "Registration"
+          },
+          "photo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photo"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "bio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bio"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UnitRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "course": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CourseRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "entry_semester": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entry Semester"
+          },
+          "integralization": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Integralization"
+          },
+          "workload": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CurriculumWorkload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ira": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ira"
+          },
+          "mp": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mp"
+          },
+          "level": {
+            "$ref": "#/components/schemas/UserLevel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "registration",
+          "photo",
+          "bio",
+          "unit",
+          "course",
+          "entry_semester",
+          "integralization",
+          "workload",
+          "ira",
+          "mp",
+          "level"
+        ],
+        "title": "UserProfile",
+        "description": "O perfil como a API devolve: sem curso na tabela, curso e unidade são nulos."
+      },
+      "UserSettings": {
+        "properties": {
+          "displayName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Displayname"
+          }
+        },
+        "type": "object",
+        "title": "UserSettings"
+      },
+      "UserSettingsPatch": {
+        "properties": {
+          "displayName": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 24,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Displayname"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "UserSettingsPatch"
+      },
+      "UserSubject": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "hours": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hours"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UnitRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "name"
+        ],
+        "title": "UserSubject",
+        "description": "O componente como o cache guarda, pelo código."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Auth",
+      "description": "Autenticação via SIGAA/CAS da UnB e gerenciamento de sessão stateless por cookies."
+    },
+    {
+      "name": "Classrooms",
+      "description": "Turmas do semestre e histórico, participantes, frequência e estatísticas de aprovação."
+    },
+    {
+      "name": "Me",
+      "description": "Perfil acadêmico, extrato/saldo do RU e carteirinha do estudante autenticado."
+    },
+    {
+      "name": "Public Classrooms",
+      "description": "Busca pública de turmas e unidades do SIGAA, sem autenticação.",
+      "x-displayName": "Classrooms"
+    },
+    {
+      "name": "Public Courses",
+      "description": "Cursos cadastrados e seus currículos por semestre de ingresso, sem autenticação.",
+      "x-displayName": "Courses"
+    },
+    {
+      "name": "Public Professors",
+      "description": "Catálogo público de docentes do SIGAA, sem autenticação.",
+      "x-displayName": "Professors"
+    },
+    {
+      "name": "Public Restaurant",
+      "description": "Cardápio público do RU, sem autenticação.",
+      "x-displayName": "Restaurant"
+    },
+    {
+      "name": "Public Subjects",
+      "description": "Componentes curriculares de graduação e suas turmas, sem autenticação.",
+      "x-displayName": "Subjects"
+    },
+    {
+      "name": "Posts",
+      "description": "Notícias e avaliações recentes das turmas, consultadas diretamente na home do SIGAA."
+    }
+  ],
+  "x-tagGroups": [
+    {
+      "name": "Public",
+      "tags": [
+        "Public Classrooms",
+        "Public Courses",
+        "Public Professors",
+        "Public Restaurant",
+        "Public Subjects"
+      ]
+    },
+    {
+      "name": "SIGAA",
+      "tags": [
+        "Auth",
+        "Classrooms",
+        "Me",
+        "Posts"
+      ]
+    }
+  ]
+}

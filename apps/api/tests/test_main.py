@@ -26,12 +26,12 @@ def test_redireciona_https_em_producao(monkeypatch):
         importlib.reload(main_module)
 
 
-def test_scalar_docs_retorna_html_com_referencia_openapi(client):
+def test_mintlify_docs_retorna_html_com_redirecionamento(client):
     response = client.get("/docs")
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
-    assert "api-reference" in response.text
-    assert 'data-url="/api/openapi.json"' in response.text
+    assert "Mintlify" in response.text
+    assert settings.docs_url in response.text
 
 
 def test_rotas_respondem_com_e_sem_prefixo_api(client):

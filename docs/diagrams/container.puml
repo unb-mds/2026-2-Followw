@@ -16,10 +16,12 @@ System_Boundary(c1, "Followw UnB") {
 System_Ext(sigaa, "SIGAA / CAS UnB", "Sistema Acadêmico Legado")
 System_Ext(portais, "Portais UnB", "PDFs do RU e editais")
 System_Ext(qstash, "Upstash QStash", "Fila de jobs assíncronos")
+System_Ext(redis, "Upstash Redis", "Armazenamento em memória para Rate Limiting")
 
 Rel(estudante, web, "Utiliza", "HTTPS")
 Rel(web, api, "Consome endpoints REST (cookies JWE)", "HTTPS / JSON")
 Rel(api, db, "Lê/Grava cache (SWR)", "Asyncpg / SQLAlchemy")
+Rel(api, redis, "Verifica e incrementa cotas de requisição", "HTTPS / REST")
 Rel(api, sigaa, "Scraping com ciclo de vida JSF", "HTTPS")
 Rel(api, portais, "Extrai cardápios (pdfplumber)", "HTTPS")
 Rel(api, qstash, "Publica tasks em segundo plano", "HTTPS")

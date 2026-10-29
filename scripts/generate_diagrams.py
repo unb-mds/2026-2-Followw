@@ -1,3 +1,4 @@
+import re
 import urllib.error
 import urllib.request
 import zlib
@@ -59,10 +60,11 @@ def render_diagrams(
         )
         try:
             with urllib.request.urlopen(req, timeout=15) as resp:
-                svg_data = resp.read()
+                svg_text = resp.read().decode("utf-8")
 
+            svg_clean = re.sub(r"<\?plantuml[^?]*\?>", "", svg_text)
             out_file = assets_path / f"{puml_file.stem}.svg"
-            out_file.write_bytes(svg_data)
+            out_file.write_text(svg_clean, encoding="utf-8")
             print(f"[OK] {puml_file.name} -> {out_file.name}")
         except (urllib.error.URLError, TimeoutError, OSError) as err:
             print(f"[ERRO] Falha ao compilar {puml_file.name}: {err}")

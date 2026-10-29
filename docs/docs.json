@@ -1,0 +1,77 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Followw UnB",
+  "colors": {
+    "primary": "#2563EB",
+    "light": "#60A5FA",
+    "dark": "#1D4ED8"
+  },
+  "navbar": {
+    "links": [
+      {
+        "type": "github",
+        "href": "https://github.com/unb-mds/2026-2-Followw"
+      }
+    ]
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/unb-mds/2026-2-Followw"
+    }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentação",
+        "groups": [
+          {
+            "group": "Visão Geral",
+            "pages": [
+              "arquitetura",
+              "requisitos",
+              "segurança"
+            ]
+          },
+          {
+            "group": "Engenharia & Infraestrutura",
+            "pages": [
+              "cache-e-sincronizacao",
+              "offline",
+              "rate-limit",
+              "recommendations",
+              "observability",
+              "AI-USAGE"
+            ]
+          },
+          {
+            "group": "Sprints",
+            "pages": [
+              "sprints/sprint-01",
+              "sprints/sprint-02",
+              "sprints/sprint-03",
+              "sprints/sprint-04",
+              "sprints/sprint-05",
+              "sprints/sprint-06",
+              "sprints/sprint-07"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Referência da API",
+        "openapi": "mintlify/openapi.json"
+      }
+    ]
+  },
+  "api": {
+    "playground": {
+      "display": "interactive"
+    },
+    "examples": {
+      "languages": ["curl", "python", "javascript"],
+      "defaults": "required",
+      "autogenerate": true
+    }
+  }
+}
