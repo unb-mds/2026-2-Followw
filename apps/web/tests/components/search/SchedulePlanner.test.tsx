@@ -1,9 +1,15 @@
+import type { Middleware } from 'openapi-fetch';
+
 import { afterAll, afterEach, beforeAll, describe, expect, mock, test } from 'bun:test';
 import { useLayoutEffect } from 'react';
 
 import type { CatalogSubject, SubjectClassroom } from '#/queries/subjects';
 
+import { getContext } from '#/integrations/tanstack-query/root-provider';
 import { localStorageRepository, STORAGE_KEYS } from '#/lib/local-storage';
+import { clearSession, startSession } from '#/queries/auth';
+import { apiClient } from '#/queries/client';
+import { ApiError } from '#/queries/errors';
 
 let AddToSchedule: typeof import('#/components/search/SchedulePlanner').AddToSchedule;
 let SchedulePlanner: typeof import('#/components/search/SchedulePlanner').SchedulePlanner;
@@ -63,6 +69,48 @@ function setup(alternative: Partial<SubjectClassroom> = {}) {
 const button = (view: ReturnType<typeof setup>, name: string) => view.getByRole('button', { name });
 
 describe('montagem da grade semanal', () => {
+    test.each(['logout', 'login', 'sessão expirada'])(
+        'limpa a grade salva e montada ao mudar a sessão (%s) sem herdar conflitos',
+        async (change) => {
+            const { fireEvent, act } = dom.testing;
+            const { queryClient } = getContext();
+            const view = setup();
+            localStorageRepository.set(STORAGE_KEYS.THEME, 'dark');
+            fireEvent.click(button(view, 'Adicionar à grade: FGA0108, turma 01'));
+            expect(JSON.parse(localStorage.getItem('followw:schedule')!)).toHaveLength(1);
+            const middleware: Middleware = {
+                onRequest: () => Response.json({ registration: 'outra-conta' })
+            };
+            apiClient.use(middleware);
+            try {
+                await act(async () => {
+                    if (change === 'login') await startSession(queryClient);
+                    else if (change === 'logout') await clearSession(queryClient);
+                    else {
+                        await queryClient
+                            .query({
+                                queryKey: ['get', '/classrooms'],
+                                queryFn: () => Promise.reject(new ApiError(401, 'expirada'))
+                            })
+                            .catch(() => {});
+                    }
+                });
+            } finally {
+                apiClient.eject(middleware);
+                queryClient.clear();
+            }
+            expect(localStorage.getItem('followw:schedule')).toBeNull();
+            expect(localStorageRepository.get(STORAGE_KEYS.THEME)).toBe('dark');
+            expect(view.queryByRole('toolbar')).toBeNull();
+            fireEvent.click(button(view, 'Adicionar à grade: FGA0001, turma 01'));
+            expect(view.queryByText('Não foi possível adicionar à grade')).toBeNull();
+            expect(button(view, 'Remover da grade: FGA0001, turma 01')).toBeTruthy();
+            view.unmount();
+            const restored = setup();
+            expect(button(restored, 'Adicionar à grade: FGA0108, turma 01')).toBeTruthy();
+        }
+    );
+
     test('descarta turmas salvas sem carga horária', async () => {
         const { fireEvent } = dom.testing;
         localStorageRepository.set(STORAGE_KEYS.SCHEDULE, [
@@ -234,7 +282,7 @@ describe('montagem da grade semanal', () => {
         expect(view.getByRole('toolbar').textContent).toContain('2 turmas');
         fireEvent.click(button(view, 'Limpar seleção'));
         expect(view.queryByRole('toolbar')).toBeNull();
-        expect(JSON.parse(localStorage.getItem('followw:schedule')!)).toEqual([]);
+        expect(localStorage.getItem('followw:schedule')).toBeNull();
     });
 
     test('salva a grade no localStorage e restaura ao remontar', () => {

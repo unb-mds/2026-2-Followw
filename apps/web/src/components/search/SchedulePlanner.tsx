@@ -1,6 +1,7 @@
 import { CalendarDays, Download, Plus, X } from 'lucide-react';
 import { createContext, useContext, useMemo, useState, useSyncExternalStore } from 'react';
 
+import type { PlannedClass } from '#/lib/planned-schedule';
 import type { CatalogSubject, SubjectClassroom } from '#/queries/subjects';
 
 import { ClassCard } from '#/components/home/ClassCard';
@@ -16,17 +17,10 @@ import {
 } from '#/components/ui/dialog';
 import { Toaster, createToastManager, useToastManager } from '#/components/ui/toast';
 import { saveFile } from '#/lib/download';
-import { localStorageRepository, STORAGE_KEYS } from '#/lib/local-storage';
+import { plannedSchedule } from '#/lib/planned-schedule';
 import { describeSchedule, parseSchedule, visibleSlots } from '#/lib/schedule';
 import { createSchedulePng } from '#/lib/schedule-image';
 import { cn } from '#/lib/shadcn';
-
-interface PlannedClass {
-    code: string;
-    name: string;
-    hours: number | null;
-    classroom: SubjectClassroom;
-}
 
 function classKey({ code, classroom }: PlannedClass) {
     return `${code}-${classroom.semester}-${classroom.number}`;
@@ -71,37 +65,10 @@ function conflictOf(items: PlannedClass[], item: PlannedClass) {
     );
 }
 
-const EMPTY: PlannedClass[] = [];
-const listeners = new Set<() => void>();
-let snapshot: PlannedClass[] | undefined;
-
-// Turmas salvas antes de a grade guardar a carga horária são descartadas.
-function readItems() {
-    return (snapshot ??=
-        localStorageRepository
-            .get<PlannedClass[]>(STORAGE_KEYS.SCHEDULE)
-            ?.filter((entry) => 'hours' in entry) ?? EMPTY);
-}
-
-function writeItems(items: PlannedClass[]) {
-    snapshot = items;
-    localStorageRepository.set(STORAGE_KEYS.SCHEDULE, items);
-    for (const listener of listeners) listener();
-}
-
-function subscribe(listener: () => void) {
-    listeners.add(listener);
-    return () => {
-        listeners.delete(listener);
-        // Sem planner montado, a próxima montagem relê o localStorage.
-        if (listeners.size === 0) snapshot = undefined;
-    };
-}
-
 function toggleItem(item: PlannedClass, maxHours: number | null): string | null {
-    const items = readItems();
+    const items = plannedSchedule.getSnapshot();
     if (items.some((entry) => classKey(entry) === classKey(item))) {
-        writeItems(items.filter((entry) => classKey(entry) !== classKey(item)));
+        plannedSchedule.set(items.filter((entry) => classKey(entry) !== classKey(item)));
         return null;
     }
     const conflict = conflictOf(items, item);
@@ -113,7 +80,7 @@ function toggleItem(item: PlannedClass, maxHours: number | null): string | null 
     if (exceedsLimit(items, item, maxHours)) {
         return `Adicionar ${item.name} ultrapassa a carga horária máxima de ${maxHours}h no semestre ${item.classroom.semester}.`;
     }
-    writeItems([...items, item]);
+    plannedSchedule.set([...items, item]);
     return null;
 }
 
@@ -134,7 +101,11 @@ function Planner({
     children: React.ReactNode;
 }) {
     const { add } = useToastManager();
-    const items = useSyncExternalStore(subscribe, readItems, () => EMPTY);
+    const items = useSyncExternalStore(
+        plannedSchedule.subscribe,
+        plannedSchedule.getSnapshot,
+        plannedSchedule.getServerSnapshot
+    );
     const value = useMemo(
         () => ({
             items,
@@ -150,7 +121,7 @@ function Planner({
                     });
                 }
             },
-            clear: () => writeItems(EMPTY)
+            clear: plannedSchedule.clear
         }),
         [items, maxHours, add]
     );

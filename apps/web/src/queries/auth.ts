@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 
 import { clearOfflineData } from '#/integrations/offline/storage';
 import { useOnline } from '#/lib/online';
+import { plannedSchedule } from '#/lib/planned-schedule';
 import { api } from '#/queries/api.ts';
 import { apiClient } from '#/queries/client.ts';
 import { ApiError } from '#/queries/errors.ts';
@@ -13,6 +14,7 @@ import { meQueryOptions } from '#/queries/me.ts';
 const isAccountQuery = ({ queryKey: [, path] }: Query) => path !== '/me';
 
 async function clearUserData(queryClient: QueryClient) {
+    plannedSchedule.clear();
     queryClient.removeQueries({ predicate: isAccountQuery });
     await clearOfflineData();
 }
