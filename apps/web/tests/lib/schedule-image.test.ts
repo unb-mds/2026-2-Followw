@@ -1,25 +1,28 @@
 import { afterEach, describe, expect, mock, spyOn, test } from 'bun:test';
 
-import { createSchedulePng } from '#/lib/schedule-image';
+import type { PlannedClass } from '#/lib/planned-schedule';
+
+import { weeklyGrid } from '#/lib/planned-schedule';
+import { createSchedulePng as render } from '#/lib/schedule-image';
 
 import { useDom } from '../helpers/dom';
 
 useDom();
 afterEach(() => mock.restore());
 
-const items = [
+const items: PlannedClass[] = [
     {
         code: 'FGA0108',
         name: 'Matemática Discreta 2',
-        classroom: {
-            semester: '2026.2',
-            number: '01',
-            schedule: '35T23',
-            room: 'FCTE - I2',
-            professors: ['LINDOMAR DE JESUS']
-        }
+        hours: 60,
+        semester: '2026.2',
+        number: '01',
+        schedule: '35T23',
+        room: 'FCTE - I2',
+        professors: ['LINDOMAR DE JESUS']
     }
 ];
+const createSchedulePng = (classes: PlannedClass[]) => render(weeklyGrid(classes));
 
 function canvasMock(blob: Blob | null = new Blob(['png'], { type: 'image/png' })) {
     const fillText = mock((_text: string, _x: number, _y: number) => {});
@@ -74,7 +77,7 @@ describe('exportação da grade em PNG', () => {
         const { fillText } = canvasMock();
         await createSchedulePng([
             ...items,
-            { ...items[0], classroom: { semester: '2027.1', number: '02', schedule: '' } }
+            { ...items[0], semester: '2027.1', number: '02', schedule: '' }
         ]);
         const texts = fillText.mock.calls.map((call) => call[0]);
         expect(texts).toContain('Minha grade · 2027.1');

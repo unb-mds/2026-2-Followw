@@ -59,7 +59,7 @@ function WhyDialog(subject: CatalogSubject) {
     );
 }
 
-const DEFAULT_FILTERS = { tipo: 'Todas', busca: '' } as const;
+const DEFAULT_FILTERS = { tipo: 'Todas', q: '' } as const;
 
 export function RecommendationsSection({
     currentPeriod,
@@ -70,7 +70,7 @@ export function RecommendationsSection({
     currentPeriod?: number | null;
     approved?: Set<string> | null;
     taken?: Set<string> | null;
-    filters?: { tipo: Tipo; busca: string };
+    filters?: { tipo: Tipo; q: string };
 }) {
     const client = useQueryClient();
     const query = useQuery(recommendationsQueryOptions);

@@ -24,6 +24,7 @@ const user: components['schemas']['UserProfile'] = {
     entry_semester: null,
     integralization: 62.5,
     workload: null,
+    period_max_workload: null,
     ira: 3.5,
     mp: null,
     level: 'Graduação'

@@ -32,11 +32,11 @@ const APPROVED = new Set(['SS', 'MS', 'MM']);
 
 /** Sem texto, lista a unidade; texto fora dos limites mantém a consulta anterior. */
 export function subjectsQuery(
-    busca: string,
+    q: string,
     unit: string | null,
     previous: SubjectsQuery | null = unit ? { unit } : null
 ): SubjectsQuery | null {
-    const text = busca.trim();
+    const text = q.trim();
     if (!text) return unit ? { unit } : null;
     if (text.length < SEARCH_MIN_LENGTH || text.length > SEARCH_MAX_LENGTH) return previous;
     return { q: text };
@@ -103,16 +103,16 @@ function matchesText(subject: CatalogSubject, text: string) {
     ].some((value) => lookupKey(value).includes(needle));
 }
 
-/** Filtra as matérias no cliente e descarta as que não têm turmas. */
+export const withClassrooms = (subjects: CatalogSubject[]) =>
+    subjects.filter((subject) => subject.classrooms.length > 0);
+
+/** Filtra no cliente por tipo e texto, descartando as matérias sem turmas. */
 export function filterSubjects(
     subjects: CatalogSubject[],
-    { tipo = 'Todas', busca = '' }: { tipo?: Tipo; busca?: string } = {}
+    { tipo, q }: { tipo: Tipo; q: string }
 ): CatalogSubject[] {
-    return subjects.filter(
-        (subject) =>
-            subject.classrooms.length > 0 &&
-            (!KINDS[tipo] || subject.kind === KINDS[tipo]) &&
-            matchesText(subject, busca)
+    return withClassrooms(subjects).filter(
+        (subject) => (!KINDS[tipo] || subject.kind === KINDS[tipo]) && matchesText(subject, q)
     );
 }
 

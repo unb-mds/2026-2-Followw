@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, test } from 'bun:test';
 
 import type { CatalogSubject, SubjectClassroom } from '#/queries/subjects';
@@ -5,6 +6,7 @@ import type { CatalogSubject, SubjectClassroom } from '#/queries/subjects';
 import { TurmaCard } from '#/components/search/TurmaCard';
 import { TurmaDetails } from '#/components/search/TurmaDetails';
 import { TurmaSection } from '#/components/search/TurmaSection';
+import { meQueryOptions } from '#/queries/me';
 
 import { renderWithRouter } from '../../helpers/router';
 
@@ -27,13 +29,19 @@ const subject: CatalogSubject = {
     classrooms: [classroom]
 };
 
+// O botão da grade lê a carga máxima do /me.
+const client = new QueryClient();
+client.setQueryData(meQueryOptions.queryKey, null);
+
 const card = (turma: Partial<SubjectClassroom> = {}, met: boolean | null = true) =>
     renderWithRouter(
-        <TurmaCard
-            subject={subject}
-            classroom={{ ...classroom, ...turma }}
-            prerequisitesMet={met}
-        />
+        <QueryClientProvider client={client}>
+            <TurmaCard
+                subject={subject}
+                classroom={{ ...classroom, ...turma }}
+                prerequisitesMet={met}
+            />
+        </QueryClientProvider>
     );
 
 const details = (
@@ -96,25 +104,25 @@ describe('TurmaDetails', () => {
             });
             expect(markup).toContain('Cálculo 1');
             expect(markup).toContain('ANTIGO');
-            expect(markup).toContain('href="/buscar?busca=MAT0023"');
-            expect(markup).toContain('href="/buscar?busca=ANTIGO"');
+            expect(markup).toContain('href="/buscar?q=MAT0023"');
+            expect(markup).toContain('href="/buscar?q=ANTIGO"');
         }
     );
 
     test('cada docente abre busca pelo próprio nome completo sem filtros', () => {
         const markup = details();
-        expect(markup).toContain('href="/buscar?busca=Ana+Silva"');
-        expect(markup).toContain('href="/buscar?busca=Jo%C3%A3o+Costa"');
+        expect(markup).toContain('href="/buscar?q=Ana+Silva"');
+        expect(markup).toContain('href="/buscar?q=Jo%C3%A3o+Costa"');
         expect(markup).not.toContain('q=Ana+Silva%2C');
         expect(markup).toContain('hover:text-primary');
-        expect(details({ professors: [] })).not.toContain('href="/buscar?busca=Ana+Silva"');
+        expect(details({ professors: [] })).not.toContain('href="/buscar?q=Ana+Silva"');
     });
 
     test('busca por docente preserva o nome completo', () => {
         const professor = 'JOHN LENON CARDOSO GARDENGHI';
         const markup = details({ professors: [professor] });
         expect(markup).toContain(professor);
-        expect(markup).toContain(`href="/buscar?${new URLSearchParams({ busca: professor })}"`);
+        expect(markup).toContain(`href="/buscar?${new URLSearchParams({ q: professor })}"`);
     });
 
     test('organiza os dados da turma e os requisitos da matéria', () => {
@@ -164,7 +172,7 @@ describe('TurmaDetails', () => {
             prerequisites: [[{ code: 'CIC0001', subject: { code: 'CIC0001', name } }]]
         });
         expect(markup).toContain(name);
-        expect(markup).toContain('href="/buscar?busca=CIC0001"');
+        expect(markup).toContain('href="/buscar?q=CIC0001"');
         expect(markup).not.toContain('1 matéria');
         expect(markup).not.toContain('<details');
         expect(markup).not.toContain('<summary');
@@ -194,7 +202,7 @@ describe('TurmaDetails', () => {
                 }))
             });
             expect(markup).toContain('Dependente 0');
-            expect(markup).toContain('href="/buscar?busca=DEP0"');
+            expect(markup).toContain('href="/buscar?q=DEP0"');
             if (count === 1) {
                 expect(markup).not.toContain('<details');
                 expect(markup).not.toContain('<summary');
@@ -223,7 +231,7 @@ describe('TurmaDetails', () => {
             unlocks: [{ code: 'DEP', name: 'Dependente' }]
         });
         for (const query of ['PRE', 'COR', 'EQU', 'DEP']) {
-            expect(markup).toContain(`href="/buscar?busca=${query}"`);
+            expect(markup).toContain(`href="/buscar?q=${query}"`);
         }
         expect(markup).toContain('Pré-requisito');
         expect(markup).toContain('Dependente');

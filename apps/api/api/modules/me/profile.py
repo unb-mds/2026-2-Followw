@@ -31,7 +31,7 @@ class UserProfile(BaseModel):
     integralization: int | None
     workload: CurriculumWorkload | None
     # Carga horária máxima por período da matriz do aluno, em horas.
-    period_max_workload: int | None = None
+    period_max_workload: int | None
     ira: float | None
     mp: float | None
     level: UserLevel

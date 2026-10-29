@@ -27,6 +27,7 @@ test('conta separa o nome dos documentos e mantém ações sem setas de navegaç
         entry_semester: null,
         integralization: null,
         workload: null,
+        period_max_workload: null,
         ira: null,
         mp: null,
         level: 'Graduação'

@@ -65,6 +65,46 @@ export const ClassCard: React.FC<ClassCardProps> = ({
     const professorNames = professors?.join(', ');
     const details = [location, professorNames].filter(Boolean).join(' · ');
 
+    const body = (
+        <>
+            <div className="pointer-events-none relative flex items-center gap-2">
+                <h3
+                    className={cn(
+                        'min-w-0 flex-1 text-sm leading-snug font-semibold',
+                        compact ? 'line-clamp-1' : 'line-clamp-2'
+                    )}
+                >
+                    {title}
+                </h3>
+                {indicator}
+            </div>
+            <div className="pointer-events-none relative flex items-center gap-1 text-xs text-muted-foreground">
+                {grade ? (
+                    <Award className="size-3 shrink-0" />
+                ) : (
+                    location && <MapPin className="size-3 shrink-0" />
+                )}
+                <span className="min-w-0 truncate" title={professorNames ? details : undefined}>
+                    {grade && <GradeText grade={grade} />}
+                    {grade && details && ' · '}
+                    {details}
+                </span>
+                {onLocationClick && (
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={onLocationClick}
+                        className="pointer-events-auto ml-auto text-muted-foreground"
+                        title="Ver mapa da sala"
+                        aria-label="Ver mapa da sala"
+                    >
+                        <MapIcon />
+                    </Button>
+                )}
+            </div>
+        </>
+    );
+
     return (
         <Card
             size="sm"
@@ -106,49 +146,14 @@ export const ClassCard: React.FC<ClassCardProps> = ({
                     </span>
                 )}
             </div>
-            <div className="flex w-full items-center justify-between gap-2">
-                <div className="flex min-w-0 flex-col gap-1">
-                    <div className="pointer-events-none relative flex items-center gap-2">
-                        <h3
-                            className={cn(
-                                'min-w-0 flex-1 text-sm leading-snug font-semibold',
-                                compact ? 'line-clamp-1' : 'line-clamp-2'
-                            )}
-                        >
-                            {title}
-                        </h3>
-                        {indicator}
-                    </div>
-                    <div className="pointer-events-none relative flex items-center gap-1 text-xs text-muted-foreground">
-                        {grade ? (
-                            <Award className="size-3 shrink-0" />
-                        ) : (
-                            location && <MapPin className="size-3 shrink-0" />
-                        )}
-                        <span
-                            className="min-w-0 truncate"
-                            title={professorNames ? details : undefined}
-                        >
-                            {grade && <GradeText grade={grade} />}
-                            {grade && details && ' · '}
-                            {details}
-                        </span>
-                        {onLocationClick && (
-                            <Button
-                                variant="ghost"
-                                size="icon-xs"
-                                onClick={onLocationClick}
-                                className="pointer-events-auto ml-auto text-muted-foreground"
-                                title="Ver mapa da sala"
-                                aria-label="Ver mapa da sala"
-                            >
-                                <MapIcon />
-                            </Button>
-                        )}
-                    </div>
+            {action ? (
+                <div className="flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 flex-col gap-1">{body}</div>
+                    <div className="relative shrink-0">{action}</div>
                 </div>
-                {action && <div className="relative shrink-0">{action}</div>}
-            </div>
+            ) : (
+                body
+            )}
         </Card>
     );
 };

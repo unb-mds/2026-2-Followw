@@ -5,6 +5,7 @@ import { BottomNavigation } from '#/components/BottomNavigation';
 import { HeaderBar } from '#/components/HeaderBar';
 import { OfflineBanner } from '#/components/OfflineBanner';
 import { PageStateProvider } from '#/components/PageState';
+import { Toaster } from '#/components/ui/toast';
 
 declare module '@tanstack/react-router' {
     interface StaticDataRouteOption {
@@ -31,6 +32,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                     <main className="flex-1 pb-24">{children}</main>
                 </PageStateProvider>
                 <BottomNavigation />
+                <Toaster />
             </div>
         </div>
     );

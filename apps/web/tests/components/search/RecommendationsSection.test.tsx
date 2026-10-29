@@ -18,6 +18,7 @@ import {
     RecommendationsSection
 } from '#/components/search/RecommendationsSection';
 import { apiClient } from '#/queries/client';
+import { meQueryOptions } from '#/queries/me';
 let testing: typeof import('@testing-library/react/pure');
 let browser: Window;
 const wasServer = environmentManager.isServer();
@@ -114,6 +115,7 @@ describe('seção de recomendações', () => {
     let requests: Request[];
     beforeEach(() => {
         client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        client.setQueryData(meQueryOptions.queryKey, null);
         requests = [];
         response = () => Response.json(result);
         middleware = {
@@ -199,7 +201,7 @@ describe('seção de recomendações', () => {
                 }
             ]);
         const page = await renderSection({
-            filters: { tipo: 'Optativas', busca: 'manha' }
+            filters: { tipo: 'Optativas', q: 'manha' }
         });
         await testing.waitFor(() =>
             expect(page.getByRole('button', { name: /FGA0002/ })).toBeDefined()
@@ -210,7 +212,7 @@ describe('seção de recomendações', () => {
     });
     test('aba sem recomendações do tipo avisa que nada está disponível', async () => {
         const page = await renderSection({
-            filters: { tipo: 'Optativas', busca: '' }
+            filters: { tipo: 'Optativas', q: '' }
         });
         await testing.waitFor(() =>
             expect(page.getByText(/Nenhuma matéria disponível para você/)).toBeDefined()

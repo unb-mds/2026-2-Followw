@@ -12,6 +12,15 @@ from api.logger import event
 
 CURRICULA_CSV = DATA_DIR / "curricula.csv"
 COMPONENTS_CSV = DATA_DIR / "curriculum_components.csv"
+# Colunas da matriz: tudo do modelo público, menos identidade e componentes.
+_NOT_MATRIX = {
+    "sigaa_id",
+    "course_sigaa_id",
+    "required_by_period",
+    "optional",
+    "complementary",
+}
+MATRIX_FIELDS = tuple(f for f in PublicCurriculum.model_fields if f not in _NOT_MATRIX)
 
 
 def read_curricula(
@@ -115,33 +124,15 @@ async def seed_curricula(
     missing = {item.course_sigaa_id for item in curricula} - courses.keys()
     if missing:
         raise ValueError(f"Cursos dos currículos ausentes no banco: {sorted(missing)}")
-    fields = (
-        "code",
-        "valid_from",
-        "created_year",
-        "active",
-        "shift",
-        "matrix",
-        "total_workload",
-        "required_workload",
-        "optional_min_workload",
-        "complementary_min_workload",
-        "elective_max_workload",
-        "period_max_workload",
-        "period_min_workload",
-        "min_semesters",
-        "avg_semesters",
-        "max_semesters",
-    )
     rows = [
         Curriculum(
             course_id=courses[item.course_sigaa_id],
             sigaa_id=item.sigaa_id,
-            **{field: getattr(item, field) for field in fields},
+            **{field: getattr(item, field) for field in MATRIX_FIELDS},
         )
         for item in curricula
     ]
-    await upsert(session, Curriculum, rows, ("course_id", "sigaa_id"), fields)
+    await upsert(session, Curriculum, rows, ("course_id", "sigaa_id"), MATRIX_FIELDS)
     saved = {
         (item.course_id, item.sigaa_id): item.id
         for item in await session.scalars(select(Curriculum))

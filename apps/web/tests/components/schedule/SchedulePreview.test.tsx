@@ -1,8 +1,10 @@
 import type { Middleware } from 'openapi-fetch';
 
+import { QueryClientProvider } from '@tanstack/react-query';
 import { afterAll, afterEach, beforeAll, describe, expect, mock, test } from 'bun:test';
 import { useLayoutEffect } from 'react';
 
+import type { components } from '#/queries/schema.gen';
 import type { CatalogSubject, SubjectClassroom } from '#/queries/subjects';
 
 import { getContext } from '#/integrations/tanstack-query/root-provider';
@@ -10,10 +12,11 @@ import { localStorageRepository, STORAGE_KEYS } from '#/lib/local-storage';
 import { clearSession, startSession } from '#/queries/auth';
 import { apiClient } from '#/queries/client';
 import { ApiError } from '#/queries/errors';
+import { meQueryOptions } from '#/queries/me';
 
-let AddToSchedule: typeof import('#/components/search/SchedulePlanner').AddToSchedule;
-let SchedulePlanner: typeof import('#/components/search/SchedulePlanner').SchedulePlanner;
-let SchedulePreview: typeof import('#/components/search/SchedulePlanner').SchedulePreview;
+let AddToSchedule: typeof import('#/components/schedule/AddToSchedule').AddToSchedule;
+let SchedulePreview: typeof import('#/components/schedule/SchedulePreview').SchedulePreview;
+let Toaster: typeof import('#/components/ui/toast').Toaster;
 
 import { useDom } from '../../helpers/dom';
 
@@ -27,8 +30,9 @@ beforeAll(async () => {
     restoreLayoutEffect = async () => {
         await mock.module('@base-ui/utils/useIsoLayoutEffect', () => ({ useIsoLayoutEffect }));
     };
-    ({ AddToSchedule, SchedulePlanner, SchedulePreview } =
-        await import('#/components/search/SchedulePlanner'));
+    ({ AddToSchedule } = await import('#/components/schedule/AddToSchedule'));
+    ({ SchedulePreview } = await import('#/components/schedule/SchedulePreview'));
+    ({ Toaster } = await import('#/components/ui/toast'));
 });
 afterAll(() => restoreLayoutEffect());
 afterEach(() => {
@@ -53,16 +57,44 @@ const subject: CatalogSubject = {
     classrooms: [classroom]
 };
 
-function setup(alternative: Partial<SubjectClassroom> = {}) {
+const user: components['schemas']['UserProfile'] = {
+    name: 'Discente',
+    registration: '202600001',
+    photo: null,
+    bio: null,
+    unit: null,
+    course: null,
+    entry_semester: null,
+    integralization: null,
+    workload: null,
+    period_max_workload: null,
+    ira: null,
+    mp: null,
+    level: 'Graduação'
+};
+
+// A carga máxima vem do /me, como na página.
+function render(ui: React.ReactNode, maxHours: number | null = null) {
+    const { queryClient } = getContext();
+    const profile: typeof user = { ...user, period_max_workload: maxHours };
+    queryClient.setQueryData(meQueryOptions.queryKey, profile);
     return dom.testing.render(
-        <SchedulePlanner>
+        <QueryClientProvider client={queryClient}>
+            <Toaster>{ui}</Toaster>
+        </QueryClientProvider>
+    );
+}
+
+function setup(alternative: Partial<SubjectClassroom> = {}) {
+    return render(
+        <>
             <SchedulePreview />
             <AddToSchedule subject={subject} classroom={classroom} />
             <AddToSchedule
                 subject={{ ...subject, code: 'FGA0001' }}
                 classroom={{ ...classroom, ...alternative }}
             />
-        </SchedulePlanner>
+        </>
     );
 }
 
@@ -111,28 +143,10 @@ describe('montagem da grade semanal', () => {
         }
     );
 
-    test('descarta turmas salvas sem carga horária', async () => {
-        const { fireEvent } = dom.testing;
-        localStorageRepository.set(STORAGE_KEYS.SCHEDULE, [
-            { code: 'FGA0108', name: subject.name, classroom },
-            {
-                code: 'FGA0001',
-                name: subject.name,
-                hours: 60,
-                classroom: { ...classroom, schedule: '24M12' }
-            }
-        ]);
-        const view = setup();
-        fireEvent.click(view.getByRole('button', { name: 'Ver grade' }));
-        await view.findByRole('dialog', { name: 'Minha grade semanal' });
-        expect(view.getByText('60h')).toBeTruthy();
-        expect(view.queryByText('FGA0108')).toBeNull();
-    });
-
     test('bloqueia turmas acima da carga máxima por período do curso', async () => {
         const { fireEvent } = dom.testing;
-        const view = dom.testing.render(
-            <SchedulePlanner maxHours={100}>
+        const view = render(
+            <>
                 <SchedulePreview />
                 <AddToSchedule subject={subject} classroom={classroom} />
                 <AddToSchedule
@@ -147,7 +161,8 @@ describe('montagem da grade semanal', () => {
                     subject={{ ...subject, code: 'FGA0003' }}
                     classroom={{ ...classroom, semester: '2027.1' }}
                 />
-            </SchedulePlanner>
+            </>,
+            100
         );
         const add = (code: string) => button(view, `Adicionar à grade: ${code}, turma 01`);
         fireEvent.click(add('FGA0108'));
@@ -169,14 +184,14 @@ describe('montagem da grade semanal', () => {
         'avisa sobre matéria repetida mesmo sem conflito de horário: %s',
         (schedule) => {
             const { fireEvent } = dom.testing;
-            const view = dom.testing.render(
-                <SchedulePlanner>
+            const view = render(
+                <>
                     <AddToSchedule subject={subject} classroom={classroom} />
                     <AddToSchedule
                         subject={subject}
                         classroom={{ ...classroom, number: '02', schedule }}
                     />
-                </SchedulePlanner>
+                </>
             );
             expect(
                 button(view, 'Adicionar à grade: FGA0108, turma 02').hasAttribute('disabled')

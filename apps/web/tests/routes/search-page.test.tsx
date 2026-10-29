@@ -65,7 +65,7 @@ function makeSearchRouter(isServer: boolean) {
     });
     const router = createRouter({
         routeTree: root.addChildren([search]),
-        history: createMemoryHistory({ initialEntries: ['/buscar?busca=calculo'] }),
+        history: createMemoryHistory({ initialEntries: ['/buscar?q=calculo'] }),
         isServer,
         parseSearch: parseRouterSearch,
         stringifySearch: stringifyRouterSearch
@@ -203,21 +203,21 @@ describe('página de busca com estado na URL', () => {
     };
 
     test('URL direta preenche campo e carrega resultados', async () => {
-        const page = renderPage('?busca=calculo');
+        const page = renderPage('?q=calculo');
         expect(searchbox(page).value).toBe('calculo');
         await testing.waitFor(() => expect(page.getByText('Cálculo 1')).toBeDefined());
         expect(requests[0].searchParams.get('q')).toBe('calculo');
     });
 
     test('pesquisa não tem filtros de turno nem barra da grade sem turmas', async () => {
-        const page = renderPage('?busca=calculo');
+        const page = renderPage('?q=calculo');
         await testing.waitFor(() => expect(page.getByText('Cálculo 1')).toBeDefined());
         expect(page.queryByRole('combobox')).toBeNull();
         expect(page.queryByRole('toolbar', { name: 'Turmas selecionadas' })).toBeNull();
     });
 
     test.each(['ab', 'a'.repeat(33)])('URL com query inválida %s não chama a API', async (q) => {
-        const page = renderPage(`?busca=${q}`);
+        const page = renderPage(`?q=${q}`);
         expect(searchbox(page).value).toBe(q);
         await testing.act(() => new Promise((resolve) => setTimeout(resolve, 350)));
         expect(requests).toHaveLength(0);
@@ -226,7 +226,7 @@ describe('página de busca com estado na URL', () => {
     test.each(['abc', 'a'.repeat(32), 'Carlos Silva'])(
         'busca válida %s consulta e mostra resultados',
         async (q) => {
-            const page = renderPage(`?busca=${q}`);
+            const page = renderPage(`?q=${q}`);
             await testing.waitFor(() => expect(page.getByText('Cálculo 1')).toBeDefined());
             expect(requests[0].searchParams.get('q')).toBe(q);
         }
@@ -236,7 +236,7 @@ describe('página de busca com estado na URL', () => {
         const page = renderPage();
         const input = searchbox(page);
         testing.fireEvent.change(input, { target: { value: 'ab' } });
-        await testing.waitFor(() => expect(updates.at(-1)?.searchParams.get('busca')).toBe('ab'));
+        await testing.waitFor(() => expect(updates.at(-1)?.searchParams.get('q')).toBe('ab'));
         expect(requests).toHaveLength(0);
         testing.fireEvent.change(input, { target: { value: 'Carlos Silva' } });
         expect(input.value).toBe('Carlos Silva');
@@ -244,11 +244,11 @@ describe('página de busca com estado na URL', () => {
         await testing.waitFor(() => expect(requests).toHaveLength(1));
         expect(requests[0].searchParams.get('q')).toBe('Carlos Silva');
         testing.fireEvent.change(input, { target: { value: '' } });
-        await testing.waitFor(() => expect(updates.at(-1)?.searchParams.has('busca')).toBe(false));
+        await testing.waitFor(() => expect(updates.at(-1)?.searchParams.has('q')).toBe(false));
     });
 
     test('query inválida mantém os resultados da última busca', async () => {
-        const page = renderPage('?busca=calculo');
+        const page = renderPage('?q=calculo');
         await testing.waitFor(() => expect(page.getByText('Cálculo 1')).toBeDefined());
         testing.fireEvent.change(searchbox(page), { target: { value: 'ca' } });
         await testing.act(() => new Promise((resolve) => setTimeout(resolve, 350)));
@@ -268,10 +268,10 @@ describe('página de busca com estado na URL', () => {
     });
 
     test('limpar o filtro remove seu parâmetro e preserva a consulta', async () => {
-        const page = renderPage('?busca=calculo&tipo=Optativas');
+        const page = renderPage('?q=calculo&tipo=Optativas');
         testing.fireEvent.click(page.getByRole('button', { name: 'Limpar filtros' }));
         await testing.waitFor(() => expect(updates.at(-1)?.searchParams.has('tipo')).toBe(false));
-        expect(updates.at(-1)?.searchParams.get('busca')).toBe('calculo');
+        expect(updates.at(-1)?.searchParams.get('q')).toBe('calculo');
         await testing.waitFor(() => expect(page.getByText('2 turmas')).toBeDefined());
     });
 
@@ -285,7 +285,7 @@ describe('página de busca com estado na URL', () => {
                 ]
             }
         ]);
-        const page = renderPage('?busca=calculo');
+        const page = renderPage('?q=calculo');
         testing.fireEvent.click(page.getByRole('button', { name: /MAT0023/ }));
         testing.fireEvent.click(
             await page.findByRole('button', { name: 'Adicionar à grade: MAT0023, turma 01' })
@@ -314,6 +314,7 @@ describe('página de busca com estado na URL', () => {
             entry_semester: null,
             integralization: null,
             workload: null,
+            period_max_workload: null,
             ira: null,
             mp: null,
             level: 'Graduação'
@@ -331,7 +332,7 @@ describe('página de busca com estado na URL', () => {
             { code: 'MAT0025', name: 'Cálculo 1', kind: 'mandatory', classrooms },
             { code: 'MAT0026', name: 'Cálculo 2', kind: 'optional', classrooms }
         ];
-        const page = renderPage('?busca=calculo');
+        const page = renderPage('?q=calculo');
         const tab = (name: string) => page.getByRole('button', { name });
         const shown = () =>
             Array.from(page.container.querySelectorAll('[data-slot="accordion-item"]'), (item) =>
@@ -351,7 +352,7 @@ describe('página de busca com estado na URL', () => {
     });
 
     test('abas de tipo só aparecem com a conta logada', () => {
-        const page = renderPage('?busca=calculo');
+        const page = renderPage('?q=calculo');
         expect(page.queryByRole('group', { name: 'Tipo de matéria' })).toBeNull();
     });
 
@@ -362,7 +363,7 @@ describe('página de busca com estado na URL', () => {
             classrooms: [{ number: '01', semester: '2026.2', professors: [] }]
         }));
         client.setQueryData(subjectsQueryOptions({ q: 'materia' }).queryKey, subjects);
-        const page = renderPage('?busca=materia');
+        const page = renderPage('?q=materia');
         const items = () => page.container.querySelectorAll('[data-slot="accordion-item"]');
         expect(items()).toHaveLength(20);
         expect(page.getByText('45 resultados')).toBeDefined();
@@ -403,7 +404,7 @@ describe('página de busca com estado na URL', () => {
             }
         };
         apiClient.use(middleware);
-        const page = renderPage('?busca=FGA0173');
+        const page = renderPage('?q=FGA0173');
         expect(requests).toHaveLength(0);
 
         testing.fireEvent.click(page.getByRole('button', { name: /FGA0173/ }));
@@ -460,10 +461,8 @@ describe('página de busca com estado na URL', () => {
         );
         expect(errors).toEqual([]);
         testing.fireEvent.change(searchbox(page), { target: { value: 'Carlos Silva' } });
-        await testing.waitFor(() =>
-            expect(router.state.location.search.busca).toBe('Carlos Silva')
-        );
-        await testing.act(() => router.navigate({ to: '/buscar', search: { busca: 'calculo' } }));
+        await testing.waitFor(() => expect(router.state.location.search.q).toBe('Carlos Silva'));
+        await testing.act(() => router.navigate({ to: '/buscar', search: { q: 'calculo' } }));
         expect(searchbox(page).value).toBe('calculo');
         expect(errors).toEqual([]);
     });

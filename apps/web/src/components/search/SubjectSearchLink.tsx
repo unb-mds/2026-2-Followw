@@ -12,7 +12,7 @@ export function SubjectSearchLink({
     return (
         <Link
             to="/buscar"
-            search={{ busca: query.trim().slice(0, SEARCH_MAX_LENGTH) }}
+            search={{ q: query.trim().slice(0, SEARCH_MAX_LENGTH) }}
             className="rounded-sm transition-colors hover:text-primary focus-visible:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
             {children}

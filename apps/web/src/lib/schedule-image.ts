@@ -1,33 +1,24 @@
-import { describeSchedule, parseSchedule, visibleSlots } from '#/lib/schedule';
+import type { GridSemester, PlannedClass } from '#/lib/planned-schedule';
 
-interface ImageClass {
-    code: string;
-    name: string;
-    classroom: {
-        semester: string;
-        number: string;
-        schedule?: string | null;
-        room?: string | null;
-        professors?: string[];
-    };
-}
+import { GRID_DAYS } from '#/lib/planned-schedule';
+import { describeSchedule } from '#/lib/schedule';
 
 const WIDTH = 1200;
 const PADDING = 40;
 const CONTENT = WIDTH - PADDING * 2;
 const TITLE_HEIGHT = 64;
 const ROW_HEIGHT = 64;
-const DAYS = ['Horários', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const DAYS = ['Horários', ...GRID_DAYS.map(({ label }) => label)];
 const COLUMN_WIDTH = CONTENT / DAYS.length;
 const CARD_GAP = 12;
 const SECTION_GAP = 40;
 const FOOTER_HEIGHT = 64;
 
-const details = (item: ImageClass) =>
-    [item.classroom.room, item.classroom.professors?.join(', ')].filter(Boolean).join(' · ');
-const cardHeight = (item: ImageClass) => (details(item) ? 100 : 76);
+const details = (item: PlannedClass) =>
+    [item.room, item.professors.join(', ')].filter(Boolean).join(' · ');
+const cardHeight = (item: PlannedClass) => (details(item) ? 100 : 76);
 
-export async function createSchedulePng(items: ImageClass[]): Promise<Blob> {
+export async function createSchedulePng(sections: GridSemester[]): Promise<Blob> {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Não foi possível gerar a imagem da grade.');
@@ -53,15 +44,6 @@ export async function createSchedulePng(items: ImageClass[]): Promise<Blob> {
         ctx.roundRect(x, y, width, height, radius);
     };
 
-    const sections = [...new Set(items.map((item) => item.classroom.semester))].map((semester) => {
-        const classes = items.filter((item) => item.classroom.semester === semester);
-        const entries = classes.map((item) => ({
-            ...item,
-            times: parseSchedule(item.classroom.schedule)
-        }));
-        const rows = visibleSlots(entries.flatMap((entry) => entry.times));
-        return { semester, classes, entries, rows };
-    });
     const height =
         PADDING +
         sections.reduce(
@@ -84,7 +66,7 @@ export async function createSchedulePng(items: ImageClass[]): Promise<Blob> {
     ctx.textBaseline = 'middle';
 
     let y = PADDING;
-    for (const { semester, classes, entries, rows } of sections) {
+    for (const { semester, classes, rows } of sections) {
         ctx.textAlign = 'left';
         ctx.fillStyle = color('--foreground');
         font(30, 700);
@@ -105,7 +87,7 @@ export async function createSchedulePng(items: ImageClass[]): Promise<Blob> {
                 ctx.fillText(day, PADDING + COLUMN_WIDTH * (column + 0.5), y + ROW_HEIGHT / 2)
             );
             let rowY = y + ROW_HEIGHT;
-            for (const [start, end] of rows) {
+            for (const { start, end, cells } of rows) {
                 for (let column = 0; column < DAYS.length; column++) {
                     const x = PADDING + column * COLUMN_WIDTH;
                     const center = x + COLUMN_WIDTH / 2;
@@ -119,12 +101,7 @@ export async function createSchedulePng(items: ImageClass[]): Promise<Blob> {
                         ctx.fillText(`${start}–${end}`, center, rowY + ROW_HEIGHT / 2);
                         continue;
                     }
-                    const entry = entries.find((item) =>
-                        item.times.some(
-                            (time) =>
-                                time.weekday === column && time.start < end && time.end > start
-                        )
-                    );
+                    const entry = cells[column - 1];
                     if (!entry) {
                         ctx.fillStyle = color('--muted-foreground');
                         font(16);
@@ -138,7 +115,7 @@ export async function createSchedulePng(items: ImageClass[]): Promise<Blob> {
                     font(16, 700);
                     ctx.fillText(entry.code, center, rowY + 22);
                     font(16);
-                    ctx.fillText(`T${entry.classroom.number}`, center, rowY + 42);
+                    ctx.fillText(`T${entry.number}`, center, rowY + 42);
                 }
                 rowY += ROW_HEIGHT;
             }
@@ -157,7 +134,7 @@ export async function createSchedulePng(items: ImageClass[]): Promise<Blob> {
             ctx.fill();
             ctx.strokeStyle = color('--border');
             ctx.stroke();
-            const code = `${item.code} · T${item.classroom.number}`;
+            const code = `${item.code} · T${item.number}`;
             font(16, 500);
             ctx.textAlign = 'right';
             ctx.fillStyle = color('--muted-foreground');
@@ -167,10 +144,7 @@ export async function createSchedulePng(items: ImageClass[]): Promise<Blob> {
             ctx.fillStyle = color('--primary');
             font(16, 600);
             ctx.fillText(
-                fit(
-                    describeSchedule(item.classroom.schedule) || 'Horário a definir',
-                    inner - codeWidth
-                ),
+                fit(describeSchedule(item.schedule) || 'Horário a definir', inner - codeWidth),
                 PADDING + 24,
                 cardY + 26
             );
