@@ -58,22 +58,54 @@ const details = (
     );
 
 describe('TurmaCard', () => {
+    test('linha compacta não repete nome nem código da matéria', () => {
+        const markup = card();
+        expect(markup).not.toContain('Matemática Discreta 2');
+        expect(markup).not.toContain('FGA0108 · T01');
+        expect(markup).toContain('Ter, Qui · 14:00–15:50');
+        expect(markup).toContain(' · S3 · T01');
+        expect(markup).toContain('font-semibold text-foreground">Ana Silva, João Costa<');
+        expect(markup).toContain('aria-label="Detalhes da turma 01"');
+    });
+
     test('resumo abre os detalhes sem ocultar turmas bloqueadas', () => {
         for (const occupied of [38, 40]) {
             const markup = card({ occupied });
-            expect(markup).toContain('Matemática Discreta 2');
-            expect(markup).toContain('FGA0108 · T01');
-            expect(markup).toContain('Ter, Qui · 14:00–15:50');
-            expect(markup).toContain('S3 · Ana Silva, João Costa');
             expect(markup).toContain('aria-haspopup="dialog"');
             expect(markup).not.toContain('disabled=""');
         }
     });
 
-    test('omite docentes ausentes e mantém aviso de local', () => {
-        expect(card({ professors: [] })).toContain('>S3</span>');
-        expect(card({ room: null })).toContain('Local não informado · Ana Silva, João Costa');
+    test('docentes em maiúsculas aparecem capitalizados', () => {
+        expect(card({ professors: ['SANDRA MARIA FALEIROS LIMA'] })).toContain(
+            '>Sandra Maria Faleiros Lima<'
+        );
+    });
+
+    test('dados ausentes usam textos padrão', () => {
+        expect(card({ professors: [] })).toContain(
+            'text-muted-foreground">Docentes não informados<'
+        );
+        expect(card({ room: null })).toContain(' · Local não informado · T01');
         expect(card({ schedule: null })).toContain('Horário a definir');
+    });
+
+    test.each([
+        [{ occupied: 38 }, '2 vagas', 'text-warning'],
+        [{ occupied: 39 }, '1 vaga<', 'text-warning'],
+        [{ occupied: 10 }, '30 vagas', 'text-primary'],
+        [{ occupied: 40 }, 'Cheia', 'text-destructive'],
+        [{ occupied: 0, vacancies: 0 }, 'Cheia', 'text-destructive']
+    ])('vagas restantes de %p aparecem como %s', (turma, text, color) => {
+        const markup = card(turma);
+        expect(markup).toContain(text);
+        expect(markup).toContain(color);
+    });
+
+    test('sem dados de ocupação não exibe vagas', () => {
+        const markup = card({ vacancies: null });
+        expect(markup).not.toContain('vaga');
+        expect(markup).not.toContain('Cheia');
     });
 
     test('turmas cheias ou sem pré-requisitos abrem os detalhes sem cadeado no resumo', () => {
@@ -129,7 +161,7 @@ describe('TurmaDetails', () => {
         const markup = details();
         for (const text of [
             'Ter, Qui · 14:00–15:50',
-            'Campus UnB Gama',
+            'FCTE · Campus UnB Gama',
             'Ana Silva',
             'João Costa',
             '60 horas',
@@ -270,8 +302,10 @@ describe('TurmaDetails', () => {
         expect(details({ occupied, vacancies })).toContain(`class="tabular-nums ${color}"`);
     });
 
-    test('capacidade zero não inventa percentual de ocupação', () => {
-        expect(details({ occupied: 0, vacancies: 0 })).toContain('class="tabular-nums"');
+    test('capacidade zero aparece como cheia, igual ao impedimento', () => {
+        const markup = details({ occupied: 0, vacancies: 0 });
+        expect(markup).toContain('class="tabular-nums text-destructive"');
+        expect(markup).toContain('Turma cheia');
     });
 
     test('mostra os impedimentos da turma', () => {

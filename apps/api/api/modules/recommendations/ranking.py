@@ -177,6 +177,24 @@ def descendants(code: str, graph: dict[str, set[str]]) -> set[str]:
     return found
 
 
+def eligible(
+    catalog: dict[str, CatalogSubject], candidates: set[str], done: set[str]
+) -> set[str]:
+    """As candidatas com pré-requisitos cumpridos e correquisitos cursáveis junto."""
+    allowed = {
+        code for code in candidates if satisfies(catalog[code].prerequisites, done)
+    }
+    while True:
+        kept = {
+            code
+            for code in allowed
+            if satisfies(catalog[code].corequisites, done | allowed)
+        }
+        if kept == allowed:
+            return kept
+        allowed = kept
+
+
 def rank(
     *,
     catalog: dict[str, CatalogSubject],
@@ -208,15 +226,9 @@ def rank(
     )
     lengths: dict[str, int] = {}
     ranked = []
-    for code in offered:
-        subject, component = catalog[code], curriculum.get(code)
-        if (
-            component is None
-            or code in done
-            or not satisfies(subject.prerequisites, done)
-            or not satisfies(subject.corequisites, done)
-        ):
-            continue
+    candidates = {code for code in offered if code in curriculum and code not in done}
+    for code in eligible(catalog, candidates, done):
+        subject, component = catalog[code], curriculum[code]
         period = component.period
         required = component.kind == "required"
         values = {

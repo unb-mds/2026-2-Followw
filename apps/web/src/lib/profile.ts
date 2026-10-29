@@ -59,3 +59,14 @@ export function academicIndexes(user: Pick<UserProfile, 'ira' | 'mp'>): Academic
         value == null ? [] : [{ ...index, value: indexFormat.format(value) }]
     );
 }
+
+// o SIGAA nomeia como "CAMPUS: FACULDADE - BRASÍLIA"; fica a sigla e o trecho antes de ":"
+export function unitLabel(unit: { code?: string | null; name: string }): string {
+    const name = titleCase(
+        unit.name
+            .split(':')[0]
+            .replace(/\s*-\s*BRAS[IÍ]LIA/gi, '')
+            .trim()
+    );
+    return unit.code ? `${unit.code} · ${name}` : name;
+}

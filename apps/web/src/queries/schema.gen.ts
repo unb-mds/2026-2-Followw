@@ -856,16 +856,7 @@ export interface components {
             /** Email */
             email: string | null;
             /** Disciplines */
-            disciplines: components["schemas"]["ProfessorDiscipline"][];
-        };
-        /** ProfessorDiscipline */
-        ProfessorDiscipline: {
-            /** Semester */
-            semester: string;
-            /** Code */
-            code: string;
-            /** Occurrences */
-            occurrences: number;
+            disciplines: components["schemas"]["TaughtDiscipline"][];
         };
         /** ProfessorItem */
         ProfessorItem: {
@@ -1045,6 +1036,20 @@ export interface components {
             /** Code */
             code: string;
             subject?: components["schemas"]["SubjectReference"] | null;
+        };
+        /** TaughtDiscipline */
+        TaughtDiscipline: {
+            /** Semester */
+            semester: string;
+            /** Code */
+            code: string;
+            /** Occurrences */
+            occurrences: number;
+            /**
+             * Name
+             * @description Nome do componente; nulo fora do catálogo.
+             */
+            name: string | null;
         };
         /**
          * UnitRef
@@ -1821,7 +1826,7 @@ export interface operations {
     list_professors_public_professors_get: {
         parameters: {
             query?: {
-                /** @description Trecho do nome, com ao menos 4 caracteres; ignora acentos e caixa. */
+                /** @description Trecho do nome, com ao menos 3 caracteres; ignora acentos e caixa. */
                 q?: string | null;
                 /** @description ID ou código exato da unidade, como 673 ou FCTE. */
                 unit?: number | string | null;

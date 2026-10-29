@@ -19,6 +19,7 @@ import { Route as AppPerfilRouteImport } from './routes/_app/perfil'
 import { Route as AppRuRouteImport } from './routes/_app/ru'
 import { Route as AppTurmasRouteImport } from './routes/_app/turmas'
 import { Route as ShareRuDotpngRouteImport } from './routes/share.ru[.]png'
+import { Route as AppProfessoresSiapeRouteImport } from './routes/_app/professores_.$siape'
 import { Route as AppTurmasIdRouteImport } from './routes/_app/turmas_.$id'
 
 const SplatRoute = SplatRouteImport.update({
@@ -70,6 +71,11 @@ const ShareRuDotpngRoute = ShareRuDotpngRouteImport.update({
   path: '/share/ru.png',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppProfessoresSiapeRoute = AppProfessoresSiapeRouteImport.update({
+  id: '/professores_/$siape',
+  path: '/professores/$siape',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppTurmasIdRoute = AppTurmasIdRouteImport.update({
   id: '/turmas_/$id',
   path: '/turmas/$id',
@@ -86,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/ru': typeof AppRuRoute
   '/turmas': typeof AppTurmasRoute
   '/share/ru.png': typeof ShareRuDotpngRoute
+  '/professores/$siape': typeof AppProfessoresSiapeRoute
   '/turmas/$id': typeof AppTurmasIdRoute
 }
 export interface FileRoutesByTo {
@@ -98,6 +105,7 @@ export interface FileRoutesByTo {
   '/turmas': typeof AppTurmasRoute
   '/share/ru.png': typeof ShareRuDotpngRoute
   '/': typeof AppIndexRoute
+  '/professores/$siape': typeof AppProfessoresSiapeRoute
   '/turmas/$id': typeof AppTurmasIdRoute
 }
 export interface FileRoutesById {
@@ -112,6 +120,7 @@ export interface FileRoutesById {
   '/_app/turmas': typeof AppTurmasRoute
   '/share/ru.png': typeof ShareRuDotpngRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/professores_/$siape': typeof AppProfessoresSiapeRoute
   '/_app/turmas_/$id': typeof AppTurmasIdRoute
 }
 export interface FileRouteTypes {
@@ -126,6 +135,7 @@ export interface FileRouteTypes {
     | '/ru'
     | '/turmas'
     | '/share/ru.png'
+    | '/professores/$siape'
     | '/turmas/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -138,6 +148,7 @@ export interface FileRouteTypes {
     | '/turmas'
     | '/share/ru.png'
     | '/'
+    | '/professores/$siape'
     | '/turmas/$id'
   id:
     | '__root__'
@@ -151,6 +162,7 @@ export interface FileRouteTypes {
     | '/_app/turmas'
     | '/share/ru.png'
     | '/_app/'
+    | '/_app/professores_/$siape'
     | '/_app/turmas_/$id'
   fileRoutesById: FileRoutesById
 }
@@ -234,6 +246,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShareRuDotpngRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/professores_/$siape': {
+      id: '/_app/professores_/$siape'
+      path: '/professores/$siape'
+      fullPath: '/professores/$siape'
+      preLoaderRoute: typeof AppProfessoresSiapeRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/turmas_/$id': {
       id: '/_app/turmas_/$id'
       path: '/turmas/$id'
@@ -250,6 +269,7 @@ interface AppRouteChildren {
   AppRuRoute: typeof AppRuRoute
   AppTurmasRoute: typeof AppTurmasRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppProfessoresSiapeRoute: typeof AppProfessoresSiapeRoute
   AppTurmasIdRoute: typeof AppTurmasIdRoute
 }
 
@@ -259,6 +279,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppRuRoute: AppRuRoute,
   AppTurmasRoute: AppTurmasRoute,
   AppIndexRoute: AppIndexRoute,
+  AppProfessoresSiapeRoute: AppProfessoresSiapeRoute,
   AppTurmasIdRoute: AppTurmasIdRoute,
 }
 

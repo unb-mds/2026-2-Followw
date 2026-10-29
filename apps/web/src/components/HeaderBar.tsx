@@ -1,7 +1,8 @@
-import { ChevronDown } from 'lucide-react';
+import { Link, type LinkProps, useCanGoBack, useRouter } from '@tanstack/react-router';
+import { ArrowLeft, ChevronDown } from 'lucide-react';
 
 import { FollowwLogo } from '#/components/FollowwLogo';
-import { Button } from '#/components/ui/button';
+import { Button, buttonVariants } from '#/components/ui/button';
 import { cn } from '#/lib/shadcn';
 
 interface HeaderBarProps {
@@ -52,3 +53,32 @@ export const HeaderToggle: React.FC<HeaderToggleProps> = ({ children, open, onTo
         />
     </Button>
 );
+
+interface BackHeaderProps {
+    to: LinkProps['to'];
+    title: string;
+    ariaLabel?: string;
+}
+
+export function BackHeader({ to, title, ariaLabel = 'Voltar' }: BackHeaderProps) {
+    const router = useRouter();
+    const canGoBack = useCanGoBack();
+
+    return (
+        <HeaderBar showLogo={false}>
+            <Link
+                to={to}
+                aria-label={ariaLabel}
+                onClick={(event) => {
+                    if (!canGoBack) return;
+                    event.preventDefault();
+                    router.history.back();
+                }}
+                className={buttonVariants({ variant: 'ghost', className: 'size-10' })}
+            >
+                <ArrowLeft className="size-5" />
+            </Link>
+            <HeaderTitle>{title}</HeaderTitle>
+        </HeaderBar>
+    );
+}

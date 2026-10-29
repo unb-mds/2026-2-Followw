@@ -10,7 +10,6 @@ import { cn } from '#/lib/shadcn';
 
 export interface ClassCardProps {
     title: string;
-    variant?: 'card' | 'row';
     compact?: boolean;
     code?: string;
     time: string;
@@ -22,7 +21,6 @@ export interface ClassCardProps {
     statusText?: string;
     onLocationClick?: () => void;
     onClick?: () => void;
-    buttonRender?: React.ReactElement;
     indicator?: React.ReactNode;
     action?: React.ReactNode;
 }
@@ -44,7 +42,6 @@ const STATUS = {
 
 export const ClassCard: React.FC<ClassCardProps> = ({
     title,
-    variant = 'card',
     compact = false,
     code,
     time,
@@ -56,7 +53,6 @@ export const ClassCard: React.FC<ClassCardProps> = ({
     statusText,
     onLocationClick,
     onClick,
-    buttonRender,
     indicator,
     action
 }) => {
@@ -111,20 +107,15 @@ export const ClassCard: React.FC<ClassCardProps> = ({
             className={cn(
                 'relative gap-1 px-3',
                 active && 'bg-primary/5 ring-primary/30',
-                variant === 'row' && 'rounded-none bg-transparent shadow-none ring-0',
                 compact && 'gap-0.5 py-2'
             )}
         >
-            {(onClick || buttonRender) && (
+            {onClick && (
                 <Button
                     variant="ghost"
                     onClick={onClick}
-                    render={buttonRender}
                     aria-label={title}
-                    className={cn(
-                        'absolute inset-0 h-full w-full rounded-2xl hover:bg-primary/5',
-                        variant === 'row' && 'rounded-none focus-visible:ring-inset'
-                    )}
+                    className="absolute inset-0 h-full w-full rounded-2xl hover:bg-primary/5"
                 />
             )}
             <div className="pointer-events-none relative flex items-center gap-2 text-xs">

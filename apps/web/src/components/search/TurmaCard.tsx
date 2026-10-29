@@ -2,8 +2,8 @@ import { X } from 'lucide-react';
 
 import type { CatalogSubject, SubjectClassroom } from '#/queries/subjects';
 
-import { ClassCard } from '#/components/home/ClassCard';
 import { AddToSchedule } from '#/components/schedule/AddToSchedule';
+import { Seats } from '#/components/search/Seats';
 import { TurmaDetails } from '#/components/search/TurmaDetails';
 import { Button } from '#/components/ui/button';
 import {
@@ -15,7 +15,9 @@ import {
     DialogTitle,
     DialogTrigger
 } from '#/components/ui/dialog';
+import { titleCase } from '#/lib/profile';
 import { describeSchedule } from '#/lib/schedule';
+import { cn } from '#/lib/shadcn';
 
 export interface TurmaProps {
     subject: CatalogSubject;
@@ -29,19 +31,43 @@ export function TurmaCard({
     prerequisitesMet,
     onOpenDetails
 }: TurmaProps & { onOpenDetails?: () => void }) {
+    const professors = classroom.professors.map(titleCase).join(', ');
+
     return (
         <Dialog onOpenChange={(open) => open && onOpenDetails?.()}>
-            <ClassCard
-                variant="row"
-                title={subject.name}
-                code={subject.code}
-                classNumber={classroom.number}
-                time={describeSchedule(classroom.schedule) ?? 'Horário a definir'}
-                location={classroom.room ?? 'Local não informado'}
-                professors={classroom.professors}
-                buttonRender={<DialogTrigger />}
-                action={<AddToSchedule subject={subject} classroom={classroom} />}
-            />
+            <div className="relative flex items-center gap-3 px-3 py-2.5">
+                <DialogTrigger
+                    render={
+                        <Button
+                            variant="ghost"
+                            className="absolute inset-0 h-full w-full rounded-none hover:bg-primary/5 focus-visible:ring-inset"
+                        />
+                    }
+                    aria-label={`Detalhes da turma ${classroom.number}`}
+                />
+                <span className="pointer-events-none relative flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                        <span className="font-semibold text-primary">
+                            {describeSchedule(classroom.schedule) ?? 'Horário a definir'}
+                        </span>
+                        {` · ${classroom.room ?? 'Local não informado'} · T${classroom.number}`}
+                    </span>
+                    <span
+                        className={cn(
+                            'line-clamp-2 text-sm leading-snug',
+                            professors ? 'font-semibold text-foreground' : 'text-muted-foreground'
+                        )}
+                    >
+                        {professors || 'Docentes não informados'}
+                    </span>
+                </span>
+                <span className="pointer-events-none relative">
+                    <Seats classroom={classroom} />
+                </span>
+                <span className="relative shrink-0">
+                    <AddToSchedule subject={subject} classroom={classroom} />
+                </span>
+            </div>
             <DialogContent
                 className="max-h-9/10 overflow-y-auto rounded-2xl sm:max-w-lg"
                 showCloseButton={false}

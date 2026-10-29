@@ -1,6 +1,5 @@
 import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
-import { Link, createFileRoute, useCanGoBack, useRouter } from '@tanstack/react-router';
-import { ArrowLeft } from 'lucide-react';
+import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 
 import type { components } from '#/queries/schema.gen';
@@ -9,11 +8,10 @@ import { ClassroomPosts } from '#/components/classroom/ClassroomPosts';
 import { ClassroomSummary } from '#/components/classroom/ClassroomSummary';
 import { FrequencyContent } from '#/components/classroom/FrequencyContent';
 import { ErrorCard, ErrorState, SIGAA_DOWN_MESSAGE } from '#/components/ErrorState';
-import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
+import { BackHeader } from '#/components/HeaderBar';
 import { LoginPromptCard } from '#/components/home/LoginPromptCard';
 import { ListCard } from '#/components/ListCard';
 import { LoadingText } from '#/components/LoadingText';
-import { buttonVariants } from '#/components/ui/button';
 import { Card, CardContent } from '#/components/ui/card';
 import { PersonPhoto } from '#/components/ui/person-photo';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
@@ -49,33 +47,12 @@ export const Route = createFileRoute('/_app/turmas_/$id')({
     head: ({ loaderData }) => ({
         meta: [{ title: `${loaderData?.subjectName ?? 'Turma'} | Followw` }]
     }),
-    staticData: { header: ClassroomHeader },
+    staticData: {
+        header: () => <BackHeader to="/turmas" title="Minhas Turmas" />
+    },
     errorComponent: ErrorState,
     component: ClassroomPage
 });
-
-function ClassroomHeader() {
-    const router = useRouter();
-    const canGoBack = useCanGoBack();
-
-    return (
-        <HeaderBar showLogo={false}>
-            <Link
-                to="/turmas"
-                aria-label="Voltar"
-                onClick={(event) => {
-                    if (!canGoBack) return;
-                    event.preventDefault();
-                    router.history.back();
-                }}
-                className={buttonVariants({ variant: 'ghost', className: 'size-10' })}
-            >
-                <ArrowLeft className="size-5" />
-            </Link>
-            <HeaderTitle>Minhas Turmas</HeaderTitle>
-        </HeaderBar>
-    );
-}
 
 function ClassroomPage() {
     const { id } = Route.useParams();

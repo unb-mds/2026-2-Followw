@@ -162,7 +162,7 @@ describe('seção de recomendações', () => {
             expect(page.getByRole('button', { name: 'Por que esta matéria?' })).toBeDefined()
         );
         expect(page.queryByRole('list', { name: 'Critérios atendidos' })).toBeNull();
-        const classrooms = page.getAllByRole('button', { name: 'Matéria recomendada' });
+        const classrooms = page.getAllByRole('button', { name: /^Detalhes da turma/ });
         expect(classrooms).toHaveLength(2);
         testing.fireEvent.click(page.getByRole('button', { name: 'Por que esta matéria?' }), {
             button: 0

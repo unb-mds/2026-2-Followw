@@ -25,9 +25,9 @@ export function AddToSchedule({
     return (
         <Button
             variant={selected ? 'destructive' : 'ghost'}
-            size="icon-lg"
+            size="icon"
             className={cn(
-                'rounded-xl',
+                'rounded-lg',
                 !selected && 'bg-primary/15 text-primary hover:bg-primary/25 hover:text-primary'
             )}
             aria-pressed={selected}

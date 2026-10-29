@@ -14,6 +14,7 @@ import { ErrorCard, ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
 import { LoadingText } from '#/components/LoadingText';
 import { SchedulePreview } from '#/components/schedule/SchedulePreview';
+import { ProfessorSection } from '#/components/search/ProfessorSection';
 import { RecommendationsSection } from '#/components/search/RecommendationsSection';
 import { TurmaSection } from '#/components/search/TurmaSection';
 import { TabFilter } from '#/components/TabFilter';
@@ -23,6 +24,7 @@ import { loadSearchParams, useSearchState, validateSearch } from '#/lib/search-p
 import { allClassroomsQueryOptions } from '#/queries/classrooms';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
+import { useProfessorSearch } from '#/queries/professors';
 import { recommendationsQueryOptions, showRecommendations } from '#/queries/recommendations';
 import { refreshQuery } from '#/queries/refresh';
 import {
@@ -79,10 +81,9 @@ function BuscarTurmasPage() {
     const online = useOnline();
 
     useEffect(() => {
-        const timer = setTimeout(
-            () => setQuery((previous) => subjectsQuery(q, unit, previous)),
-            300
-        );
+        const timer = setTimeout(() => {
+            setQuery((previous) => subjectsQuery(q, unit, previous));
+        }, 300);
         return () => clearTimeout(timer);
     }, [q, unit]);
 
@@ -91,6 +92,7 @@ function BuscarTurmasPage() {
         enabled: !recommendations && query != null,
         placeholderData: keepPreviousData
     });
+    const professors = useProfessorSearch(query?.q, !recommendations);
     const { data: history } = useQuery({
         ...allClassroomsQueryOptions,
         enabled: Boolean(user)
@@ -173,6 +175,10 @@ function BuscarTurmasPage() {
                                 para visualizar seu fluxo.
                             </p>
                         )}
+                        <ProfessorSection
+                            professors={professors?.items ?? []}
+                            total={professors?.total ?? 0}
+                        />
                         <TurmaSection
                             key={JSON.stringify(query)}
                             title={semester ? `${title} · ${semester}` : title}
@@ -182,9 +188,10 @@ function BuscarTurmasPage() {
                             taken={taken}
                             onOpenDetails={refreshSubjects}
                         />
-                        {subjects.length === 0 && (
+                        {subjects.length === 0 && !professors?.items.length && (
                             <p className="py-8 text-center text-sm text-muted-foreground">
-                                Nenhuma turma encontrada. Tente mudar a busca ou os filtros.
+                                Nenhuma turma ou docente encontrado. Tente mudar a busca ou os
+                                filtros.
                             </p>
                         )}
                     </>

@@ -1,22 +1,18 @@
-import { cn } from 'cn';
-
 import type { TurmaProps } from '#/components/search/TurmaCard';
 
 import { RequirementList } from '#/components/search/RequirementList';
+import { OCCUPANCY_COLOR } from '#/components/search/Seats';
 import { SubjectDisclosure } from '#/components/search/SubjectDisclosure';
 import { SubjectSearchLink } from '#/components/search/SubjectSearchLink';
-import { titleCase } from '#/lib/profile';
+import { unitLabel } from '#/lib/profile';
 import { describeSchedule } from '#/lib/schedule';
-import { lockedReasons } from '#/queries/subjects';
+import { cn } from '#/lib/shadcn';
+import { lockedReasons, seats } from '#/queries/subjects';
 
 export function TurmaDetails({ subject, classroom, prerequisitesMet }: TurmaProps) {
     const equivalences = subject.offered_equivalences ?? subject.equivalences;
     const reasons = lockedReasons(classroom, prerequisitesMet);
-    const { vacancies, occupied } = classroom;
-    const occupancy =
-        vacancies != null && vacancies > 0 && occupied != null && occupied >= 0
-            ? occupied / vacancies
-            : null;
+    const status = seats(classroom);
 
     return (
         <div className="flex flex-col gap-4">
@@ -28,7 +24,7 @@ export function TurmaDetails({ subject, classroom, prerequisitesMet }: TurmaProp
                 </Detail>
                 <Detail label="Local">{classroom.room ?? 'Local não informado'}</Detail>
                 <Detail label="Unidade">
-                    {subject.unit ? titleCase(subject.unit.name) : 'Unidade não informada'}
+                    {subject.unit ? unitLabel(subject.unit) : 'Unidade não informada'}
                 </Detail>
                 <Detail label="Docentes" className="col-span-2">
                     {classroom.professors.length > 0
@@ -87,19 +83,9 @@ export function TurmaDetails({ subject, classroom, prerequisitesMet }: TurmaProp
                 ) : null}
                 <Detail label="Vagas">
                     <span
-                        className={cn(
-                            'tabular-nums',
-                            occupancy != null && occupancy >= 1 && 'text-destructive',
-                            occupancy != null &&
-                                occupancy > 0.75 &&
-                                occupancy < 1 &&
-                                'text-warning',
-                            occupancy != null && occupancy <= 0.75 && 'text-primary'
-                        )}
+                        className={cn('tabular-nums', status && OCCUPANCY_COLOR[status.occupancy])}
                     >
-                        {vacancies == null || occupied == null
-                            ? 'Não informadas'
-                            : `${occupied}/${vacancies}`}
+                        {status ? `${status.occupied}/${status.vacancies}` : 'Não informadas'}
                     </span>
                 </Detail>
             </dl>

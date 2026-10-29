@@ -10,6 +10,7 @@ from api.db.main import DatabaseDep
 from api.db.models import Professor
 from api.db.units import find_unit
 from api.modules.public_professors.repository import ProfessorRepository
+from api.modules.public_subjects.repository import SubjectCatalogRepository
 from api.schemas import UnitRef
 
 
@@ -23,6 +24,10 @@ class ProfessorItem(BaseModel):
     url: str
 
 
+class TaughtDiscipline(ProfessorDiscipline):
+    name: str | None = Field(description="Nome do componente; nulo fora do catálogo.")
+
+
 class ProfessorDetails(ProfessorItem):
     description: str | None
     education: list[ProfessorDegree] = Field(
@@ -31,7 +36,7 @@ class ProfessorDetails(ProfessorItem):
     interests: str | None
     lattes: str | None
     email: str | None
-    disciplines: list[ProfessorDiscipline]
+    disciplines: list[TaughtDiscipline]
 
 
 class ProfessorPage(BaseModel):
@@ -48,6 +53,21 @@ def _item(professor: Professor) -> ProfessorItem:
         unit=UnitRef.model_validate(professor.unit),
         photo=professor.photo,
         url=f"{SIGAA_BASE_URL}{PUBLIC_PROFESSOR_PROFILE_PATH}?siape={professor.siape}",
+    )
+
+
+def _details(professor: Professor, names: dict[str, str]) -> ProfessorDetails:
+    return ProfessorDetails(
+        **_item(professor).model_dump(),
+        description=professor.description,
+        education=professor.education or [],
+        interests=professor.interests,
+        lattes=professor.lattes,
+        email=professor.email,
+        disciplines=[
+            TaughtDiscipline.model_validate({**item, "name": names.get(item["code"])})
+            for item in professor.disciplines
+        ],
     )
 
 
@@ -78,20 +98,20 @@ class ProfessorService:
         )
 
     async def get(self, siape: int) -> ProfessorDetails:
-        professor = await self._db.read(
-            lambda session: ProfessorRepository(session).get(siape)
-        )
+        async def load(
+            session: AsyncSession,
+        ) -> tuple[Professor | None, dict[str, str]]:
+            professor = await ProfessorRepository(session).get(siape)
+            if professor is None:
+                return None, {}
+            codes = {str(item["code"]) for item in professor.disciplines}
+            names = await SubjectCatalogRepository(session).subject_names(codes)
+            return professor, names
+
+        professor, names = await self._db.read(load)
         if professor is None:
             raise HTTPException(404, "Docente não encontrado.")
-        return ProfessorDetails(
-            **_item(professor).model_dump(),
-            description=professor.description,
-            education=professor.education or [],
-            interests=professor.interests,
-            lattes=professor.lattes,
-            email=professor.email,
-            disciplines=professor.disciplines,
-        )
+        return _details(professor, names)
 
 
 ProfessorServiceDep = Annotated[ProfessorService, Depends()]
