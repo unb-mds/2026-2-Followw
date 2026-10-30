@@ -66,9 +66,6 @@ export function TurmaDetails({ subject, classroom }: TurmaProps) {
                 {subject.unlocks?.length ? (
                     <Detail label="Desbloqueia" className="col-span-2">
                         <SubjectDisclosure count={subject.unlocks.length}>
-                            <p className="text-xs text-muted-foreground">
-                                Outros requisitos também podem ser necessários.
-                            </p>
                             <ul className="flex min-w-0 flex-col gap-1">
                                 {subject.unlocks.map((item) => (
                                     <li key={item.code} className="min-w-0 wrap-anywhere">

@@ -217,7 +217,6 @@ describe('TurmaDetails', () => {
             unlocks: [{ code: 'FGA0999', name: 'Disciplina seguinte' }]
         });
         expect(markup).toContain('Desbloqueia');
-        expect(markup).toContain('Outros requisitos também podem ser necessários.');
         expect(markup).not.toContain('Disciplinas que têm esta matéria');
         expect(markup).not.toContain('1 matéria');
         expect(markup).toContain('Disciplina seguinte');
