@@ -30,8 +30,12 @@ class Event(str, enum.Enum):
     SEMESTER_END = "semester_end"
 
 
+def now() -> datetime:
+    return datetime.now(_BRASILIA)
+
+
 def today() -> date:
-    return datetime.now(_BRASILIA).date()
+    return now().date()
 
 
 def ended(

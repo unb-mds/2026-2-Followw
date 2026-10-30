@@ -193,11 +193,11 @@ def _sigaa_rows() -> list[tuple[Lesson, LessonAttendance | None]]:
 def _view(
     rows,
     summary: ClassroomFrequency = FREQUENCY,
-    today: date = date(2026, 10, 1),
+    now: datetime = datetime(2026, 10, 1),
     workload: int | None = 60,
 ) -> ClassroomFrequencyView:
     return ClassroomFrequencyView.build(
-        FrequencySummary.of(summary), rows, today=today, workload=workload
+        FrequencySummary.of(summary), rows, now=now, workload=workload
     )
 
 
@@ -273,18 +273,27 @@ def test_entradas_do_mesmo_dia_ganham_posicoes_em_ordem():
     ]
 
 
-def test_mostra_previstas_ate_ontem_e_sempre_as_publicadas_ou_com_situacao():
+def test_mostra_previstas_ja_comecadas_e_sempre_as_publicadas_ou_com_situacao():
     rows = [
         _row(date(2026, 9, 21)),
         _row(date(2026, 9, 22)),
         _row(date(2026, 9, 24), scheduled=False),
         _row(date(2026, 9, 23), LessonStatus.CANCELADA, marked=True),
     ]
-    view = _view(rows, NOT_REGISTERED, today=date(2026, 9, 22))
+    view = _view(rows, NOT_REGISTERED, now=datetime(2026, 9, 22, 13, 59))
     assert [(lesson.occurred_on, lesson.status) for lesson in view.lessons] == [
         (date(2026, 9, 24), LessonStatus.NAO_REGISTRADA),
         (date(2026, 9, 23), LessonStatus.CANCELADA),
         (date(2026, 9, 21), LessonStatus.NAO_REGISTRADA),
+    ]
+
+
+def test_aula_de_hoje_aparece_assim_que_comeca():
+    rows = [_row(date(2026, 9, 21)), _row(date(2026, 9, 22))]
+    view = _view(rows, NOT_REGISTERED, now=datetime(2026, 9, 22, 14))
+    assert [lesson.occurred_on for lesson in view.lessons] == [
+        date(2026, 9, 22),
+        date(2026, 9, 21),
     ]
 
 
@@ -873,6 +882,23 @@ def test_marcacao_de_aula_que_ainda_nao_aconteceu_e_recusada(
     assert _mark(logged, (str(future.id), "falta")).status_code == 422
     with database() as session:
         assert list(session.scalars(select(LessonAttendance))) == []
+
+
+def test_aula_de_hoje_pode_ser_marcada_assim_que_comeca(
+    logged, scheduled, database, hoje
+):
+    logged.get(FREQ)
+    with database() as session:
+        lesson = str(
+            session.scalar(
+                select(Lesson.id).where(Lesson.occurred_on == date(2026, 9, 29))
+            )
+        )
+    hoje(datetime(2026, 9, 29, 13, 59))
+    assert _mark(logged, (lesson, "presente")).status_code == 422
+    hoje(datetime(2026, 9, 29, 14))
+    assert _lesson(logged.get(FREQ), "2026-09-29")["id"] == lesson
+    assert _mark(logged, (lesson, "presente")).status_code == 204
 
 
 def test_refresh_reconsulta_sigaa_e_atualiza_mesmo_cache(logged, account):

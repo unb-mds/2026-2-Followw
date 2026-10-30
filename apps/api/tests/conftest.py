@@ -275,11 +275,15 @@ class JobsClient(TestClient):
 @pytest.fixture(autouse=True)
 def hoje(monkeypatch):
     """Fixa o dia do calendário acadêmico: 2026.2 entre a matrícula extraordinária e
-    o fim do trancamento geral. Chame com outra data para mudar o dia."""
-    from datetime import date
+    o fim do trancamento geral. Chame com outra data (ou data e hora) para mudar o dia."""
+    from datetime import date, datetime
+    from zoneinfo import ZoneInfo
 
-    def _set(day: date) -> None:
-        monkeypatch.setattr("api.academic_calendar.today", lambda: day)
+    def _set(day: date | datetime) -> None:
+        if not isinstance(day, datetime):
+            day = datetime.combine(day, datetime.min.time())
+        at = day.replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+        monkeypatch.setattr("api.academic_calendar.now", lambda: at)
 
     _set(date(2026, 9, 22))
     return _set

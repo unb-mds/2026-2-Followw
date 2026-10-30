@@ -14,6 +14,7 @@ from api.modules.classrooms.lessons import (
     ClassroomFrequencyView,
     FrequencySummary,
     Timetable,
+    started,
 )
 from api.modules.classrooms.repository import FrequencyRepository
 from api.modules.classrooms.service import (
@@ -62,7 +63,7 @@ class FrequencyService:
         self, classroom_id: str, marks: dict[UUID, LessonStatus | None]
     ) -> None:
         link = await self._classrooms.get_link(classroom_id)
-        today = academic_calendar.today()
+        now = academic_calendar.now()
 
         async def write(session: AsyncSession) -> None:
             repository = FrequencyRepository(session)
@@ -74,8 +75,8 @@ class FrequencyService:
                     )
                 if status is None:
                     await repository.delete_mark(link.row.id, lesson.id)
-                elif lesson.occurred_on >= today:
-                    raise HTTPException(422, f"A aula {lesson_id} ainda não aconteceu.")
+                elif not started(lesson, now):
+                    raise HTTPException(422, f"A aula {lesson_id} ainda não começou.")
                 elif not await repository.save_mark(link.row.id, lesson.id, status):
                     raise HTTPException(
                         409, f"O SIGAA já registrou a chamada da aula {lesson_id}."
@@ -93,12 +94,12 @@ class FrequencyService:
                 [link.row for link in links]
             )
         )
-        today = academic_calendar.today()
+        now = academic_calendar.now()
         return [
             ClassroomFrequencyView.build(
                 summary,
                 lessons[link.row.classroom_id],
-                today=today,
+                now=now,
                 workload=link.row.classroom.subject.hours,
             )
             for link, summary in zip(links, summaries, strict=True)
