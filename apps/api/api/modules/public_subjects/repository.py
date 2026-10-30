@@ -1,30 +1,12 @@
+from uuid import UUID
+
 from sigaa_client import lookup_key
-from sqlalchemy import ColumnElement, cast, exists, func, literal_column, or_, select
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import ColumnElement, exists, func, literal_column, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, undefer
 
-from api.db.enums import ClassroomRole
-from api.db.models import Classroom, ClassroomParticipant, Subject, User
+from api.db.models import Classroom, ClassroomProfessor, Professor, Subject
 from api.db.search import lookup_sql
-
-
-def _professors() -> ColumnElement[list[str]]:
-    members = (
-        select(func.jsonb_agg(User.name))
-        .select_from(ClassroomParticipant)
-        .join(User, User.id == ClassroomParticipant.user_id)
-        .where(
-            ClassroomParticipant.classroom_id == Classroom.id,
-            ClassroomParticipant.role == ClassroomRole.PROFESSOR,
-            ClassroomParticipant.member.is_(True),
-        )
-        .correlate(Classroom)
-        .scalar_subquery()
-    )
-    # O seed informa docentes só da oferta; turmas históricas usam os participantes.
-    empty = cast([], JSONB)
-    return func.coalesce(func.nullif(Classroom.professors, empty), members, empty)
 
 
 def _matches_query(q: str, semester: str | None) -> ColumnElement[bool]:
@@ -34,21 +16,16 @@ def _matches_query(q: str, semester: str | None) -> ColumnElement[bool]:
         lookup_sql(Subject.name).contains(needle, autoescape=True),
     ]
     if semester is not None:
-        professor = func.jsonb_array_elements_text(Classroom.professors).column_valued(
-            "professor"
-        )
         conditions.append(
             exists(
                 select(1)
                 .select_from(Classroom)
+                .join(ClassroomProfessor)
+                .join(Professor)
                 .where(
                     Classroom.subject_code == Subject.code,
                     Classroom.semester == semester,
-                    exists(
-                        select(1).where(
-                            lookup_sql(professor).contains(needle, autoescape=True)
-                        )
-                    ),
+                    lookup_sql(Professor.name).contains(needle, autoescape=True),
                 )
             )
         )
@@ -63,35 +40,39 @@ class SubjectCatalogRepository:
 
     async def classroom_professors(
         self, code: str, semester: str, number: str
-    ) -> list[str] | None:
-        return await self._session.scalar(
-            select(_professors())
-            .select_from(Classroom)
-            .where(
+    ) -> list[UUID] | None:
+        classroom = await self._session.scalar(
+            select(Classroom).where(
                 Classroom.subject_code == code,
                 Classroom.semester == semester,
                 Classroom.number == number,
             )
         )
+        if classroom is None:
+            return None
+        return [professor.id for professor in classroom.professors]
 
     async def historical_statistics(
         self, code: str, before: str
-    ) -> list[tuple[str, list[str], list[dict[str, object]]]]:
-        rows = (
-            await self._session.execute(
-                select(Classroom.semester, _professors(), Classroom.statistics)
-                .where(
-                    Classroom.subject_code == code,
-                    Classroom.semester < before,
-                    Classroom.statistics.is_not(None),
-                    Classroom.statistics != [],
-                )
-                .order_by(Classroom.semester.desc(), Classroom.number)
+    ) -> list[tuple[str, list[UUID], list[dict[str, object]]]]:
+        classrooms = await self._session.scalars(
+            select(Classroom)
+            .options(undefer(Classroom.statistics))
+            .where(
+                Classroom.subject_code == code,
+                Classroom.semester < before,
+                Classroom.statistics.is_not(None),
+                Classroom.statistics != [],
             )
-        ).all()
+            .order_by(Classroom.semester.desc(), Classroom.number)
+        )
         return [
-            (semester, professors, statistics)
-            for semester, professors, statistics in rows
+            (
+                classroom.semester,
+                [professor.id for professor in classroom.professors],
+                classroom.statistics or [],
+            )
+            for classroom in classrooms
         ]
 
     async def subject_names(self, codes: set[str]) -> dict[str, str]:

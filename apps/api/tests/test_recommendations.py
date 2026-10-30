@@ -484,7 +484,6 @@ def test_encerrada_sem_mencao_libera_seguinte_mesmo_apos_consolidacao(
 def test_so_vinculos_proprios_de_aluno_e_isolamento_entre_usuarios(scene):
     scene.subject("A", prerequisites=[["B"]])
     scene.history("B", grade=Grade.SS, role=ClassroomRole.MONITOR)
-    scene.history("B", grade=Grade.SS, role=ClassroomRole.PROFESSOR)
     scene.history("B", grade=Grade.SS, own=False)
     with scene.db.begin() as session:
         user = User(name="Outro", registration="other")

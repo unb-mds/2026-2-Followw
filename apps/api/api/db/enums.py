@@ -9,7 +9,6 @@ class UserLevel(str, enum.Enum):
 
 class ClassroomRole(str, enum.Enum):
     ALUNO = "aluno"
-    PROFESSOR = "professor"
     MONITOR = "monitor"
 
 

@@ -6,11 +6,18 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sigaa_client import StudentSituation
 
-from api.db.enums import ClassroomRole
 from api.db.main import get_database
-from api.db.models import Classroom, ClassroomParticipant, Subject, User
+from api.db.models import Classroom, ClassroomProfessor, Professor, Subject
 from api.modules.public_subjects import statistics
 from api.modules.public_subjects.router import router
+
+
+def _link(session, classroom, *professors):
+    session.flush()
+    session.add_all(
+        ClassroomProfessor(classroom_id=classroom.id, professor_id=professor.id)
+        for professor in professors
+    )
 
 
 def _shares(approved):
@@ -51,7 +58,7 @@ def _get(client, **params):
 def test_media_geral_da_peso_igual_as_turmas_e_preserva_situacoes(statistics_client):
     client, repository = statistics_client
     repository.historical_statistics.return_value = [
-        ("2026.1", ["JOAO", " ANA "], _shares(90)),
+        ("2026.1", ["João", "Ana"], _shares(90)),
         ("2026.1", ["Ana", "João"], [{"situation": "aprovado", "percentage": 100}]),
         ("2025.2", ["Ana", "João"], _shares(20)),
         ("2025.2", ["Ana"], _shares(0)),
@@ -136,110 +143,47 @@ def test_consulta_real_exclui_outros_componentes_e_semestres_atuais_e_futuros(
                 Subject(code="FGA0004", name="Outra"),
             ]
         )
-        session.add_all(
-            [
-                Classroom(
-                    subject_code="FGA0003",
-                    semester="2026.2",
-                    number="01",
-                    professors=["Ana"],
-                    statistics=_shares(0),
-                ),
-                Classroom(
-                    subject_code="FGA0003",
-                    semester="2027.1",
-                    number="01",
-                    professors=["Ana"],
-                    statistics=_shares(0),
-                ),
-                Classroom(
-                    subject_code="FGA0004",
-                    semester="2026.1",
-                    number="01",
-                    professors=["Ana"],
-                    statistics=_shares(0),
-                ),
-                Classroom(
-                    subject_code="FGA0003",
-                    semester="2026.1",
-                    number="01",
-                    professors=["Ana"],
-                    statistics=_shares(80),
-                ),
+        ana = Professor(name="Ana")
+        classrooms = [
+            Classroom(subject_code=code, semester=semester, number="01", statistics=s)
+            for code, semester, s in [
+                ("FGA0003", "2026.2", _shares(0)),
+                ("FGA0003", "2027.1", _shares(0)),
+                ("FGA0004", "2026.1", _shares(0)),
+                ("FGA0003", "2026.1", _shares(80)),
             ]
-        )
+        ]
+        session.add_all([ana, *classrooms])
+        for classroom in classrooms:
+            _link(session, classroom, ana)
     result = _get(client).json()
     assert result["overall"]["classrooms"] == 1
     assert result["overall"]["shares"] == _shares(80)
     assert [item["semester"] for item in result["semesters"]] == ["2026.1"]
 
 
-@pytest.mark.parametrize("professors", [["Ana"], ["Ana", "João"], []])
-def test_consulta_real_recupera_docentes_dos_participantes_sem_misturar_equipes(
-    client, database, professors
+@pytest.mark.parametrize("team", [["Ana"], ["Ana", "João"]])
+def test_consulta_real_compara_os_docentes_vinculados_sem_misturar_equipes(
+    client, database, team
 ):
-    teachers = professors or ["Ana"]
     with database.begin() as session:
         session.add(Subject(code="FGA0003", name="Matéria"))
-        users = {
-            name: User(name=name)
-            for name in ["Ana", "João", "Outro", "Aluno", "Monitor", "Saiu"]
-        }
-        session.add_all(users.values())
-        current = Classroom(
-            subject_code="FGA0003",
-            semester="2026.2",
-            number="01",
-            professors=professors,
-        )
-        previous = Classroom(
-            subject_code="FGA0003",
-            semester="2026.1",
-            number="01",
-            statistics=_shares(80),
-        )
-        different = Classroom(
-            subject_code="FGA0003",
-            semester="2026.1",
-            number="02",
-            statistics=_shares(0),
-        )
-        seeded = Classroom(
-            subject_code="FGA0003",
-            semester="2026.1",
-            number="03",
-            professors=["Outro"],
-            statistics=_shares(0),
-        )
-        session.add_all([current, previous, different, seeded])
-        for classroom in [current, previous, different, seeded]:
-            for name in teachers:
-                session.add(
-                    ClassroomParticipant(
-                        classroom=classroom,
-                        user=users[name],
-                        role=ClassroomRole.PROFESSOR,
-                        member=True,
-                    )
-                )
-        session.add(
-            ClassroomParticipant(
-                classroom=different,
-                user=users["Outro"],
-                role=ClassroomRole.PROFESSOR,
-                member=True,
+        people = {name: Professor(name=name) for name in ["Ana", "João", "Outro"]}
+        current, previous, different = [
+            Classroom(
+                subject_code="FGA0003", semester=semester, number=number, statistics=s
             )
-        )
-        for name, role, member in [
-            ("Aluno", ClassroomRole.ALUNO, True),
-            ("Monitor", ClassroomRole.MONITOR, True),
-            ("Saiu", ClassroomRole.PROFESSOR, False),
-        ]:
-            session.add(
-                ClassroomParticipant(
-                    classroom=previous, user=users[name], role=role, member=member
-                )
-            )
+            for semester, number, s in [
+                ("2026.2", "01", None),
+                ("2026.1", "01", _shares(80)),
+                ("2026.1", "02", _shares(0)),
+            ]
+        ]
+        session.add_all([*people.values(), current, previous, different])
+        professors = [people[name] for name in team]
+        _link(session, current, *professors)
+        _link(session, previous, *professors)
+        _link(session, different, *professors, people["Outro"])
 
     response = _get(client)
     assert response.status_code == 200

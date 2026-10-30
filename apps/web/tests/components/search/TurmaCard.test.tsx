@@ -8,6 +8,7 @@ import { TurmaDetails } from '#/components/search/TurmaDetails';
 import { TurmaSection } from '#/components/search/TurmaSection';
 import { meQueryOptions } from '#/queries/me';
 
+import { professorRef } from '../../helpers/professor';
 import { renderWithRouter } from '../../helpers/router';
 
 const classroom: SubjectClassroom = {
@@ -15,7 +16,7 @@ const classroom: SubjectClassroom = {
     semester: '2026.2',
     schedule: '35T23',
     room: 'S3',
-    professors: ['Ana Silva', 'João Costa'],
+    professors: [professorRef('Ana Silva'), professorRef('João Costa')],
     vacancies: 40,
     occupied: 38
 };
@@ -79,7 +80,7 @@ describe('TurmaCard', () => {
     });
 
     test('docentes em maiúsculas aparecem capitalizados', () => {
-        expect(card({ professors: ['SANDRA MARIA FALEIROS LIMA'] })).toContain(
+        expect(card({ professors: [professorRef('SANDRA MARIA FALEIROS LIMA')] })).toContain(
             '>Sandra Maria Faleiros Lima<'
         );
     });
@@ -154,7 +155,7 @@ describe('TurmaDetails', () => {
 
     test('busca por docente preserva o nome completo', () => {
         const professor = 'JOHN LENON CARDOSO GARDENGHI';
-        const markup = details({ professors: [professor] });
+        const markup = details({ professors: [professorRef(professor)] });
         expect(markup).toContain(professor);
         expect(markup).toContain(`href="/buscar?${new URLSearchParams({ q: professor })}"`);
     });

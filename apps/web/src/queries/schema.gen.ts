@@ -133,7 +133,7 @@ export interface paths {
         };
         /**
          * Consultar frequência e andamento de uma turma
-         * @description Aceita Classroom.id (hash) ou sigaa_id numérico. frequency_status indica nao_registrada, parcialmente_registrada ou registrada nas entradas publicadas. lessons traz as aulas da turma (criadas pelo calendário e horário no sync das turmas, com start_time e end_time) até ontem, as publicadas pelo SIGAA fora delas e as com situação do aluno, mais recentes primeiro; totals soma as marcações aos totais do SIGAA.
+         * @description Aceita Classroom.id (hash) ou sigaa_id numérico. frequency_status indica nao_registrada, parcialmente_registrada ou registrada nas entradas publicadas. lessons traz as aulas da turma (criadas pelo calendário e horário no sync das turmas, com start_time e end_time) já começadas, as publicadas pelo SIGAA fora delas e as com situação do aluno, mais recentes primeiro; totals soma as marcações aos totais do SIGAA.
          */
         get: operations["get_classroom_frequency_classrooms__classroom_id__frequency_get"];
         put?: never;
@@ -159,7 +159,7 @@ export interface paths {
         head?: never;
         /**
          * Marcar presença, falta ou aula cancelada
-         * @description Aplica todas as marcações ou nenhuma. Vale enquanto o SIGAA não registra a aula: a chamada publicada substitui a marcação. status null remove a marcação, sem apagar a chamada do SIGAA. Aula repetida ou que ainda não aconteceu retorna 422.
+         * @description Aplica todas as marcações ou nenhuma. Vale enquanto o SIGAA não registra a aula: a chamada publicada substitui a marcação. status null remove a marcação, sem apagar a chamada do SIGAA. Aula repetida ou que ainda não começou retorna 422.
          */
         patch: operations["mark_lessons_classrooms__classroom_id__frequency_lessons_patch"];
         trace?: never;
@@ -528,17 +528,23 @@ export interface components {
         ClassroomMember: {
             /** Name */
             name: string;
-            role: components["schemas"]["ClassroomRole"];
             /** Registration */
-            registration?: string | null;
+            registration: string;
             /** Photo */
             photo?: string | null;
             /** Email */
             email?: string | null;
             course?: components["schemas"]["CourseRef"] | null;
             unit?: components["schemas"]["UnitRef"] | null;
-            /** Person Id */
-            person_id?: number | null;
+        };
+        /** ClassroomMembers */
+        ClassroomMembers: {
+            /** Students */
+            students: components["schemas"]["ClassroomMember"][];
+            /** Monitors */
+            monitors: components["schemas"]["ClassroomMember"][];
+            /** Professors */
+            professors: components["schemas"]["ProfessorRef"][];
         };
         /** ClassroomPost */
         ClassroomPost: {
@@ -587,11 +593,6 @@ export interface components {
             /** Percentage */
             percentage: number;
         };
-        /**
-         * ClassroomRole
-         * @enum {string}
-         */
-        ClassroomRole: "aluno" | "professor" | "monitor";
         /**
          * ClassroomStatus
          * @enum {string}
@@ -801,7 +802,7 @@ export interface components {
              * Professors
              * @default []
              */
-            professors: string[];
+            professors: components["schemas"]["ProfessorRef"][];
             /**
              * Vacancies
              * @description Vagas na coleta do seed, não em tempo real.
@@ -900,6 +901,20 @@ export interface components {
             page: number;
             /** Page Size */
             page_size: number;
+        };
+        /**
+         * ProfessorRef
+         * @description Docente de uma turma; `siape` nulo quando está fora do catálogo.
+         */
+        ProfessorRef: {
+            /** Siape */
+            siape: number | null;
+            /** Name */
+            name: string;
+            /** Photo */
+            photo: string | null;
+            /** Email */
+            email: string | null;
         };
         /**
          * PublicClassroom
@@ -1035,7 +1050,7 @@ export interface components {
              * Professors
              * @default []
              */
-            professors: string[];
+            professors: components["schemas"]["ProfessorRef"][];
             /**
              * Vacancies
              * @description Vagas na coleta do seed, não em tempo real.
@@ -1684,7 +1699,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ClassroomMember"][];
+                    "application/json": components["schemas"]["ClassroomMembers"];
                 };
             };
             /** @description Credenciais ausentes ou inválidas. */

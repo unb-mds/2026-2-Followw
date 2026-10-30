@@ -87,7 +87,7 @@ export function SchedulePreview() {
                                     classNumber={item.number}
                                     time={describeSchedule(item.schedule) ?? 'Horário a definir'}
                                     location={item.room ?? undefined}
-                                    professors={item.professors}
+                                    professors={item.professors.map(({ name }) => name)}
                                     action={
                                         <Button
                                             variant="ghost"

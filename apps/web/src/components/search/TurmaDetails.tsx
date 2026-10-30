@@ -28,12 +28,10 @@ export function TurmaDetails({ subject, classroom }: TurmaProps) {
                 </Detail>
                 <Detail label="Docentes" className="col-span-2">
                     {classroom.professors.length > 0
-                        ? classroom.professors.map((professor, index) => (
-                              <span key={professor}>
+                        ? classroom.professors.map(({ name }, index) => (
+                              <span key={name}>
                                   {index > 0 && ', '}
-                                  <SubjectSearchLink query={professor}>
-                                      {professor}
-                                  </SubjectSearchLink>
+                                  <SubjectSearchLink query={name}>{name}</SubjectSearchLink>
                               </span>
                           ))
                         : 'Docentes não informados'}

@@ -15,7 +15,7 @@ from api.modules.classrooms.frequency import (
 from api.modules.classrooms.lessons import ClassroomFrequencyView
 from api.modules.classrooms.posts import ClassroomPostsServiceDep
 from api.modules.classrooms.service import (
-    ClassroomMember,
+    ClassroomMembers,
     ClassroomServiceDep,
     ParticipantClassroom,
 )
@@ -164,12 +164,12 @@ async def mark_lessons(
 
 @router.get(
     "/{classroom_id}/members",
-    response_model=list[ClassroomMember],
+    response_model=ClassroomMembers,
     summary="Consultar docentes e discentes de uma turma do usuário",
     responses=CLASSROOM_ERRORS,
 )
 async def get_classroom_members(
     service: ClassroomServiceDep,
     classroom_id: ClassroomId,
-) -> list[ClassroomMember]:
+) -> ClassroomMembers:
     return await service.list_members(classroom_id)

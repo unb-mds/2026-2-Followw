@@ -8,9 +8,14 @@ import { SubjectStatistics } from '#/components/search/SubjectStatistics';
 import { subjectStatisticsQueryOptions } from '#/queries/subject-statistics';
 
 import { useDom } from '../../helpers/dom';
+import { professorRef } from '../../helpers/professor';
 
 const dom = useDom();
-const classroom: SubjectClassroom = { number: '01', semester: '2026.2', professors: ['Ana'] };
+const classroom: SubjectClassroom = {
+    number: '01',
+    semester: '2026.2',
+    professors: [professorRef('Ana')]
+};
 const options = subjectStatisticsQueryOptions('FGA0003', classroom);
 const data: components['schemas']['SubjectStatistics'] = {
     overall: {

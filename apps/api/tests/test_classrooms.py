@@ -19,7 +19,6 @@ from sigaa_client import (
 )
 from sigaa_client import UserLevel as SigaaUserLevel
 from sqlalchemy import event, func, select, update
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import undefer
 
 from api.cookies import (
@@ -27,6 +26,7 @@ from api.cookies import (
     REFRESH_COOKIE_NAME,
     encrypt_cookie,
 )
+from api.db.enums import ClassroomRole as DbRole
 from api.db.enums import (
     ClassroomStatus,
     UserLevel,
@@ -34,6 +34,7 @@ from api.db.enums import (
 from api.db.models import Classroom as ClassroomModel
 from api.db.models import (
     ClassroomParticipant,
+    Professor,
     User,
 )
 from api.db.models import Subject as SubjectModel
@@ -443,11 +444,15 @@ def test_participantes_saem_do_cache_do_login(client, sigaa, turmas):
     response = client.get("/classrooms/AAA/members")
 
     assert response.status_code == 200
-    # Docentes primeiro, depois discentes em ordem alfabética.
-    assert [m["name"] for m in response.json()] == ["NOME DOCENTE", "ANA", "ZECA"]
-    assert response.json()[1]["registration"] == "3"
-    assert response.json()[2]["course"]["name"] == "ENGENHARIA DE SOFTWARE"
-    assert response.json()[2]["unit"] == {
+    body = response.json()
+    assert [m["name"] for m in body["students"]] == ["ANA", "ZECA"]
+    assert body["monitors"] == []
+    assert body["professors"] == [
+        {"siape": None, "name": "NOME DOCENTE", "photo": None, "email": None}
+    ]
+    assert body["students"][0]["registration"] == "3"
+    assert body["students"][1]["course"]["name"] == "ENGENHARIA DE SOFTWARE"
+    assert body["students"][1]["unit"] == {
         "id": 673,
         "code": "FCTE",
         "name": "CAMPUS UNB GAMA",
@@ -515,8 +520,9 @@ def test_refresh_dos_participantes_busca_no_sigaa(client, sigaa, turmas):
 
     response = client.get("/classrooms/AAA/members", headers=NO_CACHE)
 
-    assert [m["name"] for m in response.json()] == ["ZECA"]
-    assert [m["name"] for m in client.get("/classrooms/AAA/members").json()] == ["ZECA"]
+    assert response.json() == client.get("/classrooms/AAA/members").json()
+    assert [m["name"] for m in response.json()["students"]] == ["ZECA"]
+    assert response.json()["professors"] == []
 
 
 def test_detalhes_com_sigaa_fora_retornam_502(client, turmas, cookies):
@@ -639,7 +645,7 @@ def test_participantes_sem_cache_buscam_depois_da_tolerancia_do_semestre(
     hoje(date(2026, 12, 22))
     client.cookies.update(cookies(refresh=CREDENCIAIS))
 
-    assert len(client.get("/classrooms/AAA/members").json()) == 3
+    assert len(client.get("/classrooms/AAA/members").json()["students"]) == 2
     assert turmas.classrooms.list_classroom_members.await_count == 1
 
 
@@ -1008,23 +1014,24 @@ async def test_participantes_viram_usuarios_sombra_sem_duplicar(
     classroom_id = (await _vinculos(async_database, usuarios[0]))[0].classroom_id
     membros = [
         _membro("NOME DOCENTE", role=ClassroomRole.PROFESSOR, email="d@unb.br"),
-        _membro("Discente 0", registration="251000000", person_id=7, email="eu@x.org"),
-        _membro("COLEGA", registration="251000009", person_id=9),
+        _membro("Discente 0", registration="251000000", email="eu@x.org"),
+        _membro("COLEGA", registration="251000009", role=ClassroomRole.MONITOR),
     ]
 
     await _salvar_membros(async_database, classroom_id, membros)
     await _salvar_membros(async_database, classroom_id, membros)
 
     links = await _membros(async_database, classroom_id)
+    # Docente não vira usuário: fica em `professors`.
     assert sorted((l.user.name, l.role) for l in links) == [
-        ("COLEGA", ClassroomRole.ALUNO),
-        ("Discente 0", ClassroomRole.ALUNO),
-        ("NOME DOCENTE", ClassroomRole.PROFESSOR),
+        ("COLEGA", DbRole.MONITOR),
+        ("Discente 0", DbRole.ALUNO),
     ]
-    assert await _contar(async_database, User) == 4
+    assert await _contar(async_database, User) == 3
+    assert await _contar(async_database, Professor) == 1
     eu = next(l for l in links if l.user_id == usuarios[0].id)
     # O vínculo da própria lista continua o mesmo, e o perfil ganha o que faltava.
-    assert (eu.front_end_id, eu.user.person_id, eu.user.email) == ("AAA", 7, "eu@x.org")
+    assert (eu.front_end_id, eu.user.email) == ("AAA", "eu@x.org")
 
 
 async def test_troca_de_curso_une_a_conta_e_a_sombra_da_matricula_nova(
@@ -1037,7 +1044,7 @@ async def test_troca_de_curso_une_a_conta_e_a_sombra_da_matricula_nova(
         (await _vinculos(async_database, user))[0].classroom_id for user in usuarios
     ]
     # Antes do perfil, as listas de participantes já criaram a sombra da matrícula nova.
-    nova = _membro("Discente 0", registration="252000000", person_id=7)
+    nova = _membro("Discente 0", registration="252000000", email="eu@x.org")
     for classroom_id in turmas:
         await _salvar_membros(async_database, classroom_id, [nova])
 
@@ -1062,11 +1069,11 @@ async def test_troca_de_curso_une_a_conta_e_a_sombra_da_matricula_nova(
 
     async with async_database() as session:
         user = await UserRepository(session).get_by_registration("251000000")
-    assert (user.id, user.registration, user.old_registration, user.person_id) == (
+    assert (user.id, user.registration, user.old_registration, user.email) == (
         conta.id,
         "252000000",
         "251000000",
-        7,
+        "eu@x.org",
     )
     assert await _contar(async_database, User) == 2
     # A turma da sombra passa para a conta, sem duplicar a que as duas tinham.
@@ -1098,79 +1105,114 @@ async def test_matricula_antiga_na_lista_de_participantes_cai_na_conta(
     assert [l.user_id for l in links] == [conta.id]
 
 
-async def test_docente_e_identificado_pelo_email_entre_turmas(async_database, usuarios):
-    await _salvar_turmas(
-        async_database, usuarios[0], [_turma("AAA"), _turma("BBB", "FGA0158")]
-    )
-    links = await _vinculos(async_database, usuarios[0])
-    docente = _membro("NOME DOCENTE", role=ClassroomRole.PROFESSOR, email="d@unb.br")
-    await _salvar_membros(async_database, links[0].classroom_id, [docente])
-    # Mesmo email com outro nome é o mesmo docente; mesmo nome sem email, não.
-    await _salvar_membros(
-        async_database,
-        links[1].classroom_id,
-        [docente.model_copy(update={"name": "NOME ABREVIADO"})],
-    )
-
+async def _docentes(async_database, classroom_id: UUID) -> list[Professor]:
     async with async_database() as session:
-        docentes = list(
-            await session.scalars(select(User).where(User.email == "d@unb.br"))
-        )
-    assert [d.name for d in docentes] == ["NOME ABREVIADO"]
+        classroom = await session.get_one(ClassroomModel, classroom_id)
+        return list(classroom.professors)
 
 
-async def test_docente_visto_so_pelo_email_ganha_o_id_pessoa(async_database, usuarios):
-    await _salvar_turmas(
-        async_database, usuarios[0], [_turma("AAA"), _turma("BBB", "FGA0158")]
-    )
-    links = await _vinculos(async_database, usuarios[0])
-    docente = _membro("NOME DOCENTE", role=ClassroomRole.PROFESSOR, email="d@unb.br")
-    await _salvar_membros(async_database, links[0].classroom_id, [docente])
-    await _salvar_membros(
-        async_database,
-        links[1].classroom_id,
-        [docente.model_copy(update={"person_id": 42})],
-    )
-
-    async with async_database() as session:
-        docentes = list(
-            await session.scalars(select(User).where(User.email == "d@unb.br"))
-        )
-    assert [d.person_id for d in docentes] == [42]
-
-
-async def test_docente_sem_email_nao_duplica_no_resync_da_turma(
+async def test_docente_fora_do_catalogo_e_criado_e_atualizado_pela_turma(
     async_database, usuarios
 ):
     await _salvar_turmas(async_database, usuarios[0], [_turma("AAA")])
     classroom_id = (await _vinculos(async_database, usuarios[0]))[0].classroom_id
-    docente = _membro("NOME DOCENTE", role=ClassroomRole.PROFESSOR)
+    docente = _membro(
+        "NOME DOCENTE",
+        role=ClassroomRole.PROFESSOR,
+        person_id=42,
+        photo="a.jpg",
+        unit="CAMPUS UNB GAMA: FCTE",
+    )
 
     await _salvar_membros(async_database, classroom_id, [docente])
-    await _salvar_membros(async_database, classroom_id, [docente])
+    await _salvar_membros(
+        async_database, classroom_id, [docente.model_copy(update={"photo": "b.jpg"})]
+    )
 
-    assert await _contar(async_database, User) == 3
+    (achado,) = await _docentes(async_database, classroom_id)
+    assert (achado.siape, achado.person_id, achado.photo, achado.unit_id) == (
+        None,
+        42,
+        "b.jpg",
+        673,
+    )
+    assert await _contar(async_database, Professor) == 1
 
 
-async def test_id_pessoa_de_outro_usuario_nao_e_copiado(async_database, usuarios):
+async def test_docente_casa_com_o_catalogo_pelo_email_e_so_completa(
+    async_database, usuarios
+):
+    async with async_database() as session:
+        session.add(
+            Professor(
+                siape=1, name="MARIA DA SILVA", unit_id=673, email="m@unb.br", photo="c"
+            )
+        )
+        await session.commit()
     await _salvar_turmas(
         async_database, usuarios[0], [_turma("AAA"), _turma("BBB", "FGA0158")]
     )
     links = await _vinculos(async_database, usuarios[0])
-    await _salvar_membros(
-        async_database, links[0].classroom_id, [_membro("PESSOA", person_id=42)]
+    docente = _membro(
+        "MARIA S.", role=ClassroomRole.PROFESSOR, email="M@unb.br", person_id=42
     )
-    # Na outra turma a mesma pessoa aparece já com a matrícula de um usuário existente.
+
+    await _salvar_membros(
+        async_database,
+        links[0].classroom_id,
+        [docente.model_copy(update={"photo": "s"})],
+    )
+    # Na outra turma, só o `idPessoa` identifica o mesmo docente.
     await _salvar_membros(
         async_database,
         links[1].classroom_id,
-        [_membro("Discente 0", registration="251000000", person_id=42)],
+        [_membro("OUTRO NOME", role=ClassroomRole.PROFESSOR, person_id=42)],
     )
 
+    for link in links:
+        (achado,) = await _docentes(async_database, link.classroom_id)
+        assert (achado.siape, achado.name, achado.person_id, achado.photo) == (
+            1,
+            "MARIA DA SILVA",
+            42,
+            "c",
+        )
+    assert await _contar(async_database, Professor) == 1
+
+
+async def test_docente_casa_com_o_catalogo_pelo_nome_sem_acento_nem_caixa(
+    async_database, usuarios
+):
     async with async_database() as session:
-        eu = await session.get_one(User, usuarios[0].id)
-        assert eu.person_id is None
-    assert await _contar(async_database, User) == 3
+        session.add(Professor(siape=1, name="José  Araújo", unit_id=673))
+        await session.commit()
+    await _salvar_turmas(async_database, usuarios[0], [_turma("AAA")])
+    classroom_id = (await _vinculos(async_database, usuarios[0]))[0].classroom_id
+
+    await _salvar_membros(
+        async_database,
+        classroom_id,
+        [_membro("JOSE ARAUJO", role=ClassroomRole.PROFESSOR, email="j@unb.br")],
+    )
+
+    (achado,) = await _docentes(async_database, classroom_id)
+    assert (achado.siape, achado.email) == (1, "j@unb.br")
+
+
+async def test_docente_repetido_na_listagem_vira_um_so(async_database, usuarios):
+    await _salvar_turmas(async_database, usuarios[0], [_turma("AAA")])
+    classroom_id = (await _vinculos(async_database, usuarios[0]))[0].classroom_id
+    docente = _membro("DOCENTE", role=ClassroomRole.PROFESSOR, email="d@unb.br")
+
+    await _salvar_membros(
+        async_database,
+        classroom_id,
+        [docente, docente.model_copy(update={"person_id": 42})],
+    )
+
+    (achado,) = await _docentes(async_database, classroom_id)
+    assert achado.person_id == 42
+    assert await _contar(async_database, Professor) == 1
 
 
 async def test_turma_grande_nao_consulta_o_banco_por_participante(
@@ -1179,7 +1221,7 @@ async def test_turma_grande_nao_consulta_o_banco_por_participante(
     await _salvar_turmas(async_database, usuarios[0], [_turma("AAA")])
     classroom_id = (await _vinculos(async_database, usuarios[0]))[0].classroom_id
     membros = [
-        _membro(f"ALUNO {i}", registration=f"26{i:07}", person_id=i, email=f"{i}@x")
+        _membro(f"ALUNO {i}", registration=f"26{i:07}", email=f"{i}@x")
         for i in range(300)
     ]
     await _salvar_membros(async_database, classroom_id, membros[:100])
@@ -1217,26 +1259,6 @@ async def test_historico_nao_consulta_o_banco_por_turma(async_database, usuarios
     assert len(await _vinculos(async_database, usuarios[1])) == 40
     assert await _contar(async_database, ClassroomModel) == 40
     assert await _contar(async_database, SubjectModel) == 40
-
-
-async def test_participante_repetido_na_listagem_vira_um_usuario_so(
-    async_database, usuarios
-):
-    await _salvar_turmas(async_database, usuarios[0], [_turma("AAA")])
-    classroom_id = (await _vinculos(async_database, usuarios[0]))[0].classroom_id
-    docente = _membro("DOCENTE", role=ClassroomRole.PROFESSOR, email="d@unb.br")
-    colega = _membro("COLEGA", registration="251000009", person_id=9)
-
-    await _salvar_membros(
-        async_database,
-        classroom_id,
-        [docente, colega, docente.model_copy(update={"person_id": 42}), colega],
-    )
-
-    assert await _contar(async_database, User) == 4
-    async with async_database() as session:
-        achado = await session.scalar(select(User).where(User.email == "d@unb.br"))
-    assert achado is not None and achado.person_id == 42
 
 
 async def test_turma_passada_existente_nao_e_regravada(async_database, usuarios):
@@ -1343,14 +1365,14 @@ async def test_docente_que_saiu_da_turma_perde_o_vinculo(async_database, usuario
     docente = _membro("DOCENTE", role=ClassroomRole.PROFESSOR, email="d@unb.br")
 
     await _salvar_membros(async_database, classroom_id, [eu, docente])
-    assert (await _situacoes(async_database, classroom_id))["DOCENTE"] == (
-        None,
-        True,
-        None,
-    )
+    assert [d.name for d in await _docentes(async_database, classroom_id)] == [
+        "DOCENTE"
+    ]
     await _salvar_membros(async_database, classroom_id, [eu])
 
-    assert set(await _situacoes(async_database, classroom_id)) == {"Discente 0"}
+    assert await _docentes(async_database, classroom_id) == []
+    # O docente segue em `professors` para as outras turmas.
+    assert await _contar(async_database, Professor) == 1
 
 
 async def test_alunos_de_turma_encerrada_concluem(async_database, usuarios, hoje):
@@ -1401,25 +1423,3 @@ async def test_estatisticas_substituem_as_anteriores(async_database, usuarios):
             ClassroomModel, classroom_id, options=[undefer(ClassroomModel.statistics)]
         )
         assert classroom.statistics == []
-
-
-async def test_banco_barra_docente_duplicado_em_syncs_concorrentes(async_database):
-    """Sem o índice parcial, a corrida entre dois syncs criaria o mesmo docente
-    duas vezes; com ele, a segunda gravação falha e é refeita como update."""
-    async with async_database() as session:
-        session.add_all(
-            [User(name="DOCENTE", email="d@unb.br"), User(name="D", email="d@unb.br")]
-        )
-        with pytest.raises(IntegrityError):
-            await session.commit()
-
-    async with async_database() as session:
-        session.add_all(
-            [
-                User(name="DISCENTE", email="d@unb.br", registration="1"),
-                User(name="DOCENTE", email="d@unb.br"),
-                User(name="SEM EMAIL"),
-                User(name="SEM EMAIL"),
-            ]
-        )
-        await session.commit()

@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException
 from pydantic import BaseModel
-from sigaa_client import StatisticsShare, lookup_key
+from sigaa_client import StatisticsShare
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.main import DatabaseDep
@@ -47,20 +47,18 @@ class SubjectStatisticsService:
     async def get(self, code: str, semester: str, number: str) -> SubjectStatistics:
         async def load(session: AsyncSession) -> SubjectStatistics:
             repository = SubjectCatalogRepository(session)
-            teachers = await repository.classroom_professors(code, semester, number)
-            if teachers is None:
+            current = await repository.classroom_professors(code, semester, number)
+            if current is None:
                 raise HTTPException(404, "Turma não encontrada.")
-            professors = {lookup_key(name) for name in teachers if name.strip()}
+            professors = set(current)
             groups: dict[str, list[list[StatisticsShare]]] = defaultdict(list)
             if professors:
                 for (
                     period,
-                    teachers,
+                    previous,
                     statistics,
                 ) in await repository.historical_statistics(code, semester):
-                    if statistics and professors == {
-                        lookup_key(name) for name in teachers if name.strip()
-                    }:
+                    if statistics and professors == set(previous):
                         groups[period].append(
                             [
                                 StatisticsShare.model_validate(item)

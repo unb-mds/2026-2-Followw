@@ -102,7 +102,7 @@ class UserRepository:
         return user.settings
 
     async def _absorb(self, account: User, shadow: User) -> None:
-        """Passa para a conta as turmas e ids do usuário sombra, que é apagado."""
+        """Passa para a conta as turmas e contatos do usuário sombra, que é apagado."""
         listed = select(ClassroomParticipant.classroom_id).where(
             ClassroomParticipant.user_id == shadow.id,
             ClassroomParticipant.member.is_(True),
@@ -128,10 +128,9 @@ class UserRepository:
             .values(user_id=account.id)
             .execution_options(synchronize_session=False)
         )
-        person_id, email, photo = shadow.person_id, shadow.email, shadow.photo
+        email, photo = shadow.email, shadow.photo
         await self._session.execute(delete(User).where(User.id == shadow.id))
         await self._session.flush()
-        account.person_id = account.person_id or person_id
         account.email = account.email or email
         account.photo = account.photo or photo
 

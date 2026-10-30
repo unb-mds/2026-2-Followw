@@ -31,7 +31,7 @@ export function TurmaCard({
     prerequisitesMet,
     onOpenDetails
 }: TurmaProps & { onOpenDetails?: () => void }) {
-    const professors = classroom.professors.map(titleCase).join(', ');
+    const professors = classroom.professors.map(({ name }) => titleCase(name)).join(', ');
 
     return (
         <Dialog onOpenChange={(open) => open && onOpenDetails?.()}>

@@ -2,7 +2,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
-from api.db.models import Course, Unit
+from api.db.models import Course, Professor, Unit
 
 # Número que cabe na coluna vira o id; o resto é sigla ou nome, nunca só dígitos.
 UnitFilter = Annotated[
@@ -49,10 +49,25 @@ class UserSubject(BaseModel):
     unit: UnitRef | None = None
 
 
-class ClassroomOffer(BaseModel):
-    """Docentes e vagas da turma, como o último seed os gravou."""
+class ProfessorRef(BaseModel):
+    """Docente de uma turma; `siape` nulo quando está fora do catálogo."""
 
-    professors: tuple[str, ...] = ()
+    model_config = ConfigDict(frozen=True, from_attributes=True)
+
+    siape: int | None
+    name: str
+    photo: str | None
+    email: str | None
+
+
+def professor_refs(professors: list[Professor]) -> tuple[ProfessorRef, ...]:
+    return tuple(ProfessorRef.model_validate(professor) for professor in professors)
+
+
+class ClassroomOffer(BaseModel):
+    """Docentes da turma e vagas como o último seed as gravou."""
+
+    professors: tuple[ProfessorRef, ...] = ()
     vacancies: int | None = Field(
         default=None, description="Vagas na coleta do seed, não em tempo real."
     )

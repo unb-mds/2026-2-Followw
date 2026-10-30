@@ -31,6 +31,8 @@ import { apiClient } from '#/queries/client';
 import { meQueryOptions } from '#/queries/me';
 import { professorsQueryOptions } from '#/queries/professors';
 import { subjectsQueryOptions } from '#/queries/subjects';
+
+import { professorRef } from '../helpers/professor';
 let Route: typeof import('#/routes/_app/buscar').Route;
 
 let testing: typeof import('@testing-library/react/pure');
@@ -178,13 +180,13 @@ describe('página de busca com estado na URL', () => {
                                 number: '01',
                                 semester: '2026.2',
                                 schedule: '24N12',
-                                professors: ['Carlos Silva']
+                                professors: [professorRef('Carlos Silva')]
                             },
                             {
                                 number: '02',
                                 semester: '2026.2',
                                 schedule: '35M12',
-                                professors: ['Ana Silva']
+                                professors: [professorRef('Ana Silva')]
                             }
                         ]
                     }

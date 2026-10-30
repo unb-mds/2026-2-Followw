@@ -7,14 +7,13 @@ from pydantic import BaseModel, ConfigDict
 from sigaa_client import (
     Classroom,
     ClassroomNotFound,
-    ClassroomRole,
     Grade,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api import academic_calendar
 from api.cache import Freshness, freshness
-from api.db.enums import ClassroomStatus
+from api.db.enums import ClassroomRole, ClassroomStatus
 from api.db.models import ClassroomParticipant, OwnLink, User
 from api.modules.classrooms.repository import ClassroomRepository
 from api.modules.me.profile import sync_profile
@@ -22,9 +21,11 @@ from api.modules.me.repository import UserRepository
 from api.schemas import (
     ClassroomOffer,
     CourseRef,
+    ProfessorRef,
     UnitRef,
     UserSubject,
     course_ref,
+    professor_refs,
     unit_ref,
 )
 from api.sync import Cached, Context, SyncDep
@@ -129,13 +130,19 @@ class ClassroomMember(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     name: str
-    role: ClassroomRole
-    registration: str | None = None
+    registration: str
     photo: str | None = None
     email: str | None = None
     course: CourseRef | None = None
     unit: UnitRef | None = None
-    person_id: int | None = None
+
+
+class ClassroomMembers(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    students: list[ClassroomMember]
+    monitors: list[ClassroomMember]
+    professors: list[ProfessorRef]
 
 
 class ParticipantClassroom(Classroom, ClassroomOffer):
@@ -182,26 +189,26 @@ class ClassroomService:
             selected, key=lambda link: link.row.classroom.semester, reverse=True
         )
 
-    async def list_members(self, classroom_id: str) -> list[ClassroomMember]:
+    async def list_members(self, classroom_id: str) -> ClassroomMembers:
         link = await self.get_link(classroom_id)
 
-        async def load(session: AsyncSession) -> Cached[list[ClassroomMember]] | None:
+        async def load(session: AsyncSession) -> Cached[ClassroomMembers] | None:
             repository = ClassroomRepository(session)
             classroom = await repository.get(link.row.classroom_id)
             if classroom is None or classroom.members_synced_at is None:
                 return None
-            members = await repository.list_members(link.row.classroom_id)
+            links = await repository.list_members(link.row.classroom_id)
             return Cached(
-                [_to_member(member) for member in members],
+                ClassroomMembers(
+                    students=_members(links, ClassroomRole.ALUNO),
+                    monitors=_members(links, ClassroomRole.MONITOR),
+                    professors=list(professor_refs(classroom.professors)),
+                ),
                 classroom.members_synced_at,
                 members_freshness(link, classroom.members_synced_at),
             )
 
-        members = await self._sync.resolve(sync_members, link, load)
-
-        return sorted(
-            members, key=lambda m: (m.role != ClassroomRole.PROFESSOR, m.name)
-        )
+        return await self._sync.resolve(sync_members, link, load)
 
     async def get_link(self, classroom_id: str) -> OwnLink:
         """O vínculo pelo `Classroom.id` ou pelo `sigaa_id` da turma."""
@@ -266,24 +273,28 @@ def to_classroom(link: OwnLink) -> ParticipantClassroom:
         ),
         grade=link.row.grade,
         status=link.row.status,
-        professors=classroom.professors,
+        professors=professor_refs(classroom.professors),
         vacancies=classroom.vacancies,
         occupied=classroom.occupied,
     )
 
 
-def _to_member(link: ClassroomParticipant) -> ClassroomMember:
-    user = link.user
+def _members(
+    links: list[ClassroomParticipant], role: ClassroomRole
+) -> list[ClassroomMember]:
+    users = [link.user for link in links if link.role == role]
+    return [_to_member(user) for user in sorted(users, key=lambda u: u.name)]
 
+
+def _to_member(user: User) -> ClassroomMember:
+    assert user.registration is not None, "participante sem matrícula"
     return ClassroomMember(
         name=user.name,
-        role=ClassroomRole(link.role.value),
         registration=user.registration,
         photo=user.photo,
         email=user.email,
         course=course_ref(user.course),
         unit=unit_ref(user.course.unit) if user.course else None,
-        person_id=user.person_id,
     )
 
 

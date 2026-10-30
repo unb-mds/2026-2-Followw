@@ -13,7 +13,6 @@ from api.academic_calendar import parse_semester
 from api.db.courses import course_ids
 from api.db.enums import ClassroomRole, ClassroomStatus, LessonStatus
 from api.db.models import (
-    USER_WITHOUT_IDS,
     Classroom,
     ClassroomParticipant,
     ClassroomPosts,
@@ -22,6 +21,11 @@ from api.db.models import (
     OwnLink,
     Subject,
     User,
+)
+from api.db.professors import (
+    SeenProfessor,
+    save_classroom_professors,
+    save_professors,
 )
 from api.db.units import unit_ids
 from api.modules.classrooms.lessons import (
@@ -210,15 +214,43 @@ class ClassroomRepository:
         synced_at: datetime,
     ) -> None:
         classroom = await self._session.get_one(Classroom, classroom_id)
+        professor_members = [
+            m for m in members if m.role == sigaa_client.ClassroomRole.PROFESSOR
+        ]
+        # Só discente tem matrícula, e é ela que identifica o usuário.
+        students = [
+            m
+            for m in members
+            if m.role != sigaa_client.ClassroomRole.PROFESSOR and m.registration
+        ]
+        units = await unit_ids(
+            self._session, {_department(m) for m in professor_members}
+        )
+        professors = await save_professors(
+            self._session,
+            [
+                SeenProfessor(
+                    name=m.name,
+                    email=m.email,
+                    person_id=m.person_id,
+                    photo=m.photo,
+                    unit_id=units.get(_department(m) or ""),
+                )
+                for m in professor_members
+            ],
+        )
+        await save_classroom_professors(self._session, {classroom_id: professors})
+
         links = {link.user_id: link for link in await self._links(classroom_id)}
-        known = [link.user for link in links.values()]
         # Turma grande tem milhares de participantes: os usuários vêm de uma vez.
-        users = await self._member_users(members)
-        courses = await course_ids(self._session, {(m.course, m.unit) for m in members})
+        users = await self._member_users(students)
+        courses = await course_ids(
+            self._session, {(m.course, m.unit) for m in students}
+        )
         present = academic_calendar.member_status(classroom.semester)
         seen: set[UUID] = set()
-        for member in members:
-            user = self._save_member(member, users, known, courses)
+        for member in students:
+            user = self._save_member(member, users, courses)
             link = links.get(user.id)
             if link is None:
                 link = ClassroomParticipant(user_id=user.id, classroom_id=classroom_id)
@@ -337,47 +369,35 @@ class ClassroomRepository:
 
     async def _member_users(
         self, members: Sequence[sigaa_client.ClassroomMember]
-    ) -> _UserIndex:
+    ) -> dict[str, User]:
         registrations = {m.registration for m in members if m.registration}
-        person_ids = {m.person_id for m in members if m.person_id is not None}
-        emails = {m.email for m in members if m.email}
-        index = _UserIndex()
-        for condition in (
-            User.registration.in_(registrations),
-            User.old_registration.in_(registrations),
-            User.person_id.in_(person_ids),
-            User.email.in_(emails) & USER_WITHOUT_IDS,
+        users: dict[str, User] = {}
+        for user in await self._session.scalars(
+            select(User).where(
+                User.registration.in_(registrations)
+                | User.old_registration.in_(registrations)
+            )
         ):
-            for user in await self._session.scalars(select(User).where(condition)):
-                index.add(user)
-        return index
+            for registration in (user.registration, user.old_registration):
+                if registration is not None:
+                    users[registration] = user
+        return users
 
     def _save_member(
         self,
         member: sigaa_client.ClassroomMember,
-        users: _UserIndex,
-        known: Sequence[User],
+        users: dict[str, User],
         courses: Mapping[tuple[str, str], int],
     ) -> User:
-        user = None
-        if member.registration is not None:
-            user = users.by_registration.get(member.registration)
-        person_owner = None
-        if member.person_id is not None and (user is None or user.person_id is None):
-            person_owner = users.by_person_id.get(member.person_id)
-            user = user or person_owner
-        # Quem foi visto antes só pelo email ganha os ids quando eles aparecem.
-        if user is None and member.email is not None:
-            user = users.by_email.get(member.email)
-        if user is None and member.email is None and _without_ids(member):
-            # Sem id nem email, só dá para reconhecer quem já estava nesta turma.
-            user = next((u for u in known if _anonymous(u, member.name)), None)
+        assert member.registration is not None
+        user = users.get(member.registration)
         if user is None:
             # O id é gerado aqui porque o vínculo precisa dele antes do flush.
-            user = User(id=uuid4(), name=member.name)
+            user = users[member.registration] = User(
+                id=uuid4(), name=member.name, registration=member.registration
+            )
             self._session.add(user)
 
-        users.discard(user)
         # O perfil de quem já logou é mais confiável: só completa o que falta.
         shadow = user.profile_synced_at is None
         if shadow:
@@ -389,11 +409,6 @@ class ClassroomRepository:
         course_id = courses.get((member.course or "", member.unit or ""))
         if course_id is not None and (shadow or user.course_id is None):
             user.course_id = course_id
-        user.registration = user.registration or member.registration
-        # O `idPessoa` pode já ser de outro usuário, achado antes só por ele.
-        if person_owner is None or person_owner is user:
-            user.person_id = user.person_id or member.person_id
-        users.add(user)
 
         return user
 
@@ -784,42 +799,8 @@ def _classroom_key(item: sigaa_client.Classroom) -> _ClassroomKey | None:
     return item.subject.code.strip().upper(), item.number, item.semester
 
 
-class _UserIndex:
-    """Usuários por identidade, espelhando as consultas que o banco responderia."""
-
-    def __init__(self) -> None:
-        self.by_registration: dict[str, User] = {}
-        self.by_person_id: dict[int, User] = {}
-        self.by_email: dict[str, User] = {}
-
-    def _keys(self, user: User) -> list[tuple[dict, object]]:
-        keys: list[tuple[dict, object]] = [
-            (self.by_registration, user.registration),
-            (self.by_registration, user.old_registration),
-            (self.by_person_id, user.person_id),
-        ]
-        if user.registration is None and user.person_id is None:
-            keys.append((self.by_email, user.email))
-        return [(index, key) for index, key in keys if key is not None]
-
-    def add(self, user: User) -> None:
-        for index, key in self._keys(user):
-            index[key] = user
-
-    def discard(self, user: User) -> None:
-        for index, key in self._keys(user):
-            if index.get(key) is user:
-                del index[key]
-
-
-def _without_ids(member: sigaa_client.ClassroomMember) -> bool:
-    return member.registration is None and member.person_id is None
-
-
-def _anonymous(user: User, name: str) -> bool:
-    return (
-        user.name == name
-        and user.registration is None
-        and user.person_id is None
-        and user.email is None
-    )
+def _department(member: sigaa_client.ClassroomMember) -> str | None:
+    """`CAMPUS UNB GAMA: FCTE` -> `FCTE`, a sigla da unidade do docente."""
+    if not member.unit:
+        return None
+    return member.unit.rpartition(":")[2].strip() or None
