@@ -5,7 +5,6 @@ import type { CatalogSubject, Requirements } from '#/queries/subjects';
 
 import { RequirementList } from '#/components/search/RequirementList';
 import { TurmaDetails } from '#/components/search/TurmaDetails';
-import { prerequisitesMet } from '#/queries/subjects';
 
 import { renderWithRouter } from '../../helpers/router';
 
@@ -20,7 +19,6 @@ const renderDetails = (subject: Partial<CatalogSubject>) =>
             <TurmaDetails
                 subject={{ code: 'TARGET', name: 'Disciplina', classrooms: [], ...subject }}
                 classroom={{ number: '01', semester: '2026.2', professors: [] }}
-                prerequisitesMet={true}
             />
         </QueryClientProvider>
     );
@@ -39,7 +37,6 @@ test.each(['prerequisites', 'corequisites'] as const)(
         expect(markup).not.toContain('<summary');
         expect(markup).not.toContain('Alternativa 1');
         expect(markup).not.toContain('Todas as disciplinas abaixo são necessárias.');
-        expect(prerequisitesMet(requirements, new Set(['OLD']))).toBe(true);
     }
 );
 

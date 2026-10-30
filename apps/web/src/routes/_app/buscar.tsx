@@ -28,7 +28,6 @@ import { useProfessorSearch } from '#/queries/professors';
 import { recommendationsQueryOptions, showRecommendations } from '#/queries/recommendations';
 import { refreshQuery } from '#/queries/refresh';
 import {
-    approvedCodes,
     takenCodes,
     currentCurriculumPeriod,
     SEARCH_MAX_LENGTH,
@@ -99,7 +98,6 @@ function BuscarTurmasPage() {
         ...allClassroomsQueryOptions,
         enabled: Boolean(user)
     });
-    const approved = useMemo(() => (history ? approvedCodes(history) : null), [history]);
     const taken = useMemo(() => (history ? takenCodes(history) : null), [history]);
 
     const subjects = filterSubjects(data ?? [], graduation ? type : 'all');
@@ -145,7 +143,6 @@ function BuscarTurmasPage() {
                     <RecommendationsSection
                         type={type}
                         currentPeriod={currentPeriod}
-                        approved={approved}
                         taken={taken}
                     />
                 ) : !query ? (
@@ -187,7 +184,6 @@ function BuscarTurmasPage() {
                             title={semester ? `${title} · ${semester}` : title}
                             subjects={subjects}
                             currentPeriod={currentPeriod}
-                            approved={approved}
                             taken={taken}
                             onOpenDetails={refreshSubjects}
                         />

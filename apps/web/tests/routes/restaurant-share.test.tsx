@@ -117,7 +117,7 @@ describe('compartilhamento do cardápio', () => {
         expect(headers.get('cookie')).toBeNull();
     });
     test('o Router valida os parâmetros vindos da URL', () => {
-        const search = { date: selection.date, meal: 'dinner', campus: 'Gama' };
+        const search = { date: selection.date, meal: 'dinner', campus: 'Gama' } as const;
         expect(validateRestaurantSearch['~standard'].validate(search)).toEqual({ value: search });
     });
 

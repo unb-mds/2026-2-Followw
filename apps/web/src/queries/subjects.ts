@@ -57,16 +57,6 @@ export function takenCodes(history: Classroom[]): Set<string> {
     return taken;
 }
 
-/** OU de Es pelos códigos aprovados; `null` sem histórico para comparar. */
-export function prerequisitesMet(
-    requirements: Requirements | null | undefined,
-    approved: Set<string> | null
-): boolean | null {
-    if (!requirements?.length) return true;
-    if (!approved) return null;
-    return requirements.some((group) => group.every(({ code }) => approved.has(code)));
-}
-
 export const subjectRequirementLabel = ({ code, subject }: Requirements[number][number]) =>
     subject?.name ?? code;
 
@@ -89,13 +79,6 @@ export function seats({ vacancies, occupied }: SubjectClassroom): Seats | null {
         available: Math.max(0, vacancies - occupied),
         occupancy: ratio >= 1 ? 'full' : ratio > 0.75 ? 'filling' : 'free'
     };
-}
-
-export function lockedReasons(classroom: SubjectClassroom, met: boolean | null): string[] {
-    const reasons = [];
-    if (seats(classroom)?.available === 0) reasons.push('Turma cheia');
-    if (met === false) reasons.push('Pré-requisitos não atendidos');
-    return reasons;
 }
 
 export const withClassrooms = (subjects: CatalogSubject[]) =>

@@ -30,6 +30,9 @@ const situations: Record<Situation, { label: string; color: string }> = {
     matriculado: { label: 'Matriculado', color: 'var(--color-blue-500)' }
 };
 
+const isSituation = (value: unknown): value is Situation =>
+    typeof value === 'string' && value in situations;
+
 const percentage = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 });
 
 const formatTooltip: NonNullable<React.ComponentProps<typeof ChartTooltipContent>['formatter']> = (
@@ -37,8 +40,7 @@ const formatTooltip: NonNullable<React.ComponentProps<typeof ChartTooltipContent
     name
 ) => (
     <span>
-        {Object.entries(situations).find(([key]) => key === name)?.[1].label ?? name}:{' '}
-        {percentage.format(Number(value))}%
+        {isSituation(name) ? situations[name].label : name}: {percentage.format(Number(value))}%
     </span>
 );
 

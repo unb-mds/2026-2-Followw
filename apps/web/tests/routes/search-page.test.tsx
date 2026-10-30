@@ -33,6 +33,12 @@ import { professorsQueryOptions } from '#/queries/professors';
 import { subjectsQueryOptions } from '#/queries/subjects';
 
 import { professorRef } from '../helpers/professor';
+// Os detalhes da turma carregam as estatísticas anteriores.
+const noStatistics: components['schemas']['SubjectStatistics'] = {
+    overall: { semester: null, classrooms: 0, shares: [] },
+    semesters: []
+};
+
 let Route: typeof import('#/routes/_app/buscar').Route;
 
 let testing: typeof import('@testing-library/react/pure');
@@ -148,6 +154,7 @@ describe('página de busca com estado na URL', () => {
         middleware = {
             onRequest: ({ request }) => {
                 const url = new URL(request.url);
+                if (url.pathname.endsWith('/statistics')) return Response.json(noStatistics);
                 requests.push(url);
                 if (url.pathname.includes('/public/professors')) {
                     const q = url.searchParams.get('q');
@@ -430,6 +437,7 @@ describe('página de busca com estado na URL', () => {
         middleware = {
             onRequest: ({ request }) => {
                 const url = new URL(request.url);
+                if (url.pathname.endsWith('/statistics')) return Response.json(noStatistics);
                 requests.push(url);
                 if (url.pathname.includes('/public/professors')) {
                     return Response.json({ items: [], total: 0, page: 1, page_size: 20 });

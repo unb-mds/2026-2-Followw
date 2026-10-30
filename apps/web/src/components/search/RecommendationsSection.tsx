@@ -61,12 +61,10 @@ function WhyDialog(subject: CatalogSubject) {
 
 export function RecommendationsSection({
     currentPeriod,
-    approved,
     taken,
     type = 'all'
 }: {
     currentPeriod?: number | null;
-    approved?: Set<string> | null;
     taken?: Set<string> | null;
     type?: SubjectType;
 }) {
@@ -104,7 +102,6 @@ export function RecommendationsSection({
                             key={type}
                             subjects={subjects}
                             currentPeriod={currentPeriod}
-                            approved={approved}
                             taken={taken}
                             footer={WhyDialog}
                         />

@@ -5,7 +5,7 @@ interface TabFilterProps<T extends string> {
     label: string;
     value: T | undefined;
     options: readonly T[];
-    labels?: Record<T, string>;
+    labels?: Partial<Record<T, string>>;
     onChange: (value: T) => void;
     className?: string;
 }

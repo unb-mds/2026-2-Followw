@@ -34,28 +34,19 @@ const subject: CatalogSubject = {
 const client = new QueryClient();
 client.setQueryData(meQueryOptions.queryKey, null);
 
-const card = (turma: Partial<SubjectClassroom> = {}, met: boolean | null = true) =>
+const card = (turma: Partial<SubjectClassroom> = {}) =>
     renderWithRouter(
         <QueryClientProvider client={client}>
-            <TurmaCard
-                subject={subject}
-                classroom={{ ...classroom, ...turma }}
-                prerequisitesMet={met}
-            />
+            <TurmaCard subject={subject} classroom={{ ...classroom, ...turma }} />
         </QueryClientProvider>
     );
 
-const details = (
-    turma: Partial<SubjectClassroom> = {},
-    met: boolean | null = true,
-    materia: Partial<CatalogSubject> = {}
-) =>
+const details = (turma: Partial<SubjectClassroom> = {}, materia: Partial<CatalogSubject> = {}) =>
     renderWithRouter(
         <QueryClientProvider client={client}>
             <TurmaDetails
                 subject={{ ...subject, ...materia }}
                 classroom={{ ...classroom, ...turma }}
-                prerequisitesMet={met}
             />
         </QueryClientProvider>
     );
@@ -71,9 +62,10 @@ describe('TurmaCard', () => {
         expect(markup).toContain('aria-label="Detalhes da turma 01"');
     });
 
-    test('resumo abre os detalhes sem ocultar turmas bloqueadas', () => {
+    test('resumo abre os detalhes sem cadeado nem ocultar turmas cheias', () => {
         for (const occupied of [38, 40]) {
             const markup = card({ occupied });
+            expect(markup).not.toContain('lucide-lock');
             expect(markup).toContain('aria-haspopup="dialog"');
             expect(markup).not.toContain('disabled=""');
         }
@@ -110,33 +102,23 @@ describe('TurmaCard', () => {
         expect(markup).not.toContain('vaga');
         expect(markup).not.toContain('Cheia');
     });
-
-    test('turmas cheias ou sem pré-requisitos abrem os detalhes sem cadeado no resumo', () => {
-        for (const occupied of [38, 40]) {
-            const markup = card({ occupied }, false);
-            expect(markup).not.toContain('lucide-lock');
-            expect(markup).toContain('aria-haspopup="dialog"');
-            expect(markup).not.toContain('disabled=""');
-        }
-    });
-
-    test.each([true, null])('turma com vagas não tem cadeado quando requisito é %s', (met) => {
-        expect(card({}, met)).not.toContain('lucide-lock');
-    });
 });
 
 describe('TurmaDetails', () => {
     test.each(['prerequisites', 'corequisites', 'equivalences'] as const)(
         '%s usa o nome do catálogo e o código quando a matéria falta, buscando pelo código',
         (field) => {
-            const markup = details({}, true, {
-                [field]: [
-                    [
-                        { code: 'MAT0023', subject: { code: 'MAT0023', name: 'Cálculo 1' } },
-                        { code: 'ANTIGO', subject: null }
+            const markup = details(
+                {},
+                {
+                    [field]: [
+                        [
+                            { code: 'MAT0023', subject: { code: 'MAT0023', name: 'Cálculo 1' } },
+                            { code: 'ANTIGO', subject: null }
+                        ]
                     ]
-                ]
-            });
+                }
+            );
             expect(markup).toContain('Cálculo 1');
             expect(markup).toContain('ANTIGO');
             expect(markup).toContain('href="/buscar?q=MAT0023"');
@@ -192,9 +174,12 @@ describe('TurmaDetails', () => {
     });
 
     test('grupo único informa que todas as disciplinas são exigidas', () => {
-        const markup = details({}, true, {
-            prerequisites: [[{ code: 'FGA0001' }, { code: 'FGA0002' }]]
-        });
+        const markup = details(
+            {},
+            {
+                prerequisites: [[{ code: 'FGA0001' }, { code: 'FGA0002' }]]
+            }
+        );
         expect(markup).toContain('2 matérias');
         expect(markup).toContain('Todas as disciplinas abaixo são necessárias.');
         expect(markup.match(/<li\b/g)).toHaveLength(2);
@@ -203,9 +188,12 @@ describe('TurmaDetails', () => {
 
     test('um requisito simples exibe o nome diretamente sem expansão', () => {
         const name = 'INTRODUÇÃO ÀS CIÊNCIAS DA COMPUTAÇÃO E À ENGENHARIA DE SOFTWARE';
-        const markup = details({}, true, {
-            prerequisites: [[{ code: 'CIC0001', subject: { code: 'CIC0001', name } }]]
-        });
+        const markup = details(
+            {},
+            {
+                prerequisites: [[{ code: 'CIC0001', subject: { code: 'CIC0001', name } }]]
+            }
+        );
         expect(markup).toContain(name);
         expect(markup).toContain('href="/buscar?q=CIC0001"');
         expect(markup).not.toContain('1 matéria');
@@ -214,9 +202,12 @@ describe('TurmaDetails', () => {
     });
 
     test('desbloqueia aparece abaixo de pré-requisitos com nomes de dependentes', () => {
-        const markup = details({}, true, {
-            unlocks: [{ code: 'FGA0999', name: 'Disciplina seguinte' }]
-        });
+        const markup = details(
+            {},
+            {
+                unlocks: [{ code: 'FGA0999', name: 'Disciplina seguinte' }]
+            }
+        );
         expect(markup).toContain('Desbloqueia');
         expect(markup).not.toContain('Disciplinas que têm esta matéria');
         expect(markup).not.toContain('1 matéria');
@@ -228,13 +219,16 @@ describe('TurmaDetails', () => {
     test.each([1, 2])(
         'desbloqueia com %s disciplinas expande apenas quando há mais de uma',
         (count) => {
-            const markup = details({}, true, {
-                prerequisites: null,
-                unlocks: Array.from({ length: count }, (_, index) => ({
-                    code: `DEP${index}`,
-                    name: `Dependente ${index}`
-                }))
-            });
+            const markup = details(
+                {},
+                {
+                    prerequisites: null,
+                    unlocks: Array.from({ length: count }, (_, index) => ({
+                        code: `DEP${index}`,
+                        name: `Dependente ${index}`
+                    }))
+                }
+            );
             expect(markup).toContain('Dependente 0');
             expect(markup).toContain('href="/buscar?q=DEP0"');
             if (count === 1) {
@@ -249,21 +243,27 @@ describe('TurmaDetails', () => {
     );
 
     test('equivalências aparecem antes de desbloqueia quando existem', () => {
-        const markup = details({}, true, {
-            equivalences: [[{ code: 'FGA0004' }]],
-            unlocks: [{ code: 'FGA0999', name: 'Disciplina seguinte' }]
-        });
+        const markup = details(
+            {},
+            {
+                equivalences: [[{ code: 'FGA0004' }]],
+                unlocks: [{ code: 'FGA0999', name: 'Disciplina seguinte' }]
+            }
+        );
         expect(markup.indexOf('Equivalências')).toBeGreaterThan(markup.indexOf('Pré-requisitos'));
         expect(markup.indexOf('Equivalências')).toBeLessThan(markup.indexOf('Desbloqueia'));
     });
 
     test('listas de matérias pesquisam pelo código mesmo com nome disponível', () => {
-        const markup = details({}, true, {
-            prerequisites: [[{ code: 'PRE', subject: { code: 'PRE', name: 'Pré-requisito' } }]],
-            corequisites: [[{ code: 'COR' }]],
-            equivalences: [[{ code: 'EQU' }]],
-            unlocks: [{ code: 'DEP', name: 'Dependente' }]
-        });
+        const markup = details(
+            {},
+            {
+                prerequisites: [[{ code: 'PRE', subject: { code: 'PRE', name: 'Pré-requisito' } }]],
+                corequisites: [[{ code: 'COR' }]],
+                equivalences: [[{ code: 'EQU' }]],
+                unlocks: [{ code: 'DEP', name: 'Dependente' }]
+            }
+        );
         for (const query of ['PRE', 'COR', 'EQU', 'DEP']) {
             expect(markup).toContain(`href="/buscar?q=${query}"`);
         }
@@ -311,17 +311,14 @@ describe('TurmaDetails', () => {
     });
 
     test('substitui o aviso de impedimentos pelas estatísticas anteriores', () => {
-        const markup = details({ occupied: 40 }, false);
+        const markup = details({ occupied: 40 });
         expect(markup).not.toContain('Turma indisponível');
-        expect(markup).not.toContain('Pré-requisitos não atendidos');
         expect(markup).toContain('Estatísticas anteriores');
-        expect(details({ occupied: 40 }, null)).not.toContain('Pré-requisitos não atendidos');
     });
 
     test('dados ausentes usam textos padrão', () => {
         const markup = details(
             { vacancies: null, occupied: null, schedule: null, room: null, professors: [] },
-            true,
             { unit: null, hours: null, prerequisites: null }
         );
         for (const text of [
@@ -341,7 +338,7 @@ describe('TurmaSection', () => {
     test('um accordion recolhido por matéria', () => {
         const other = { ...subject, code: 'FGA0002', classrooms: [classroom, classroom] };
         const markup = renderWithRouter(
-            <TurmaSection title="Resultados" subjects={[subject, other]} approved={null} />
+            <TurmaSection title="Resultados" subjects={[subject, other]} />
         );
         expect(markup).toContain('Resultados');
         expect(markup).toContain('2 resultados');
@@ -360,7 +357,6 @@ describe('TurmaSection', () => {
                     { ...subject, code: 'FGA0002', kind: 'free' },
                     { ...subject, code: 'FGA0003' }
                 ]}
-                approved={null}
             />
         );
         expect(markup).toContain('Optativa');
@@ -377,7 +373,7 @@ describe('TurmaSection', () => {
                     { ...subject, curriculum_period: 2 },
                     { ...subject, code: 'FGA0002', curriculum_period: 3 }
                 ]}
-                approved={null}
+
                 taken={new Set([subject.code])}
             />
         );
@@ -385,8 +381,6 @@ describe('TurmaSection', () => {
     });
 
     test('seção vazia não é exibida', () => {
-        expect(renderWithRouter(<TurmaSection title="Vazio" subjects={[]} approved={null} />)).toBe(
-            ''
-        );
+        expect(renderWithRouter(<TurmaSection title="Vazio" subjects={[]} />)).toBe('');
     });
 });

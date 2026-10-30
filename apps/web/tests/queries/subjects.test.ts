@@ -12,8 +12,6 @@ import {
     currentCurriculumPeriod,
     filterSubjects,
     withClassrooms,
-    lockedReasons,
-    prerequisitesMet,
     seats,
     subjectRequirementLabel,
     subjectsQuery,
@@ -110,16 +108,6 @@ describe('pré-requisitos', () => {
         expect([...approved]).toEqual(['A', 'B']);
     });
 
-    test('avalia OU de Es pelos códigos aprovados', () => {
-        const groups = subject.prerequisites;
-        expect(prerequisitesMet(groups, new Set(['FGA0001', 'FGA0002']))).toBe(true);
-        expect(prerequisitesMet(groups, new Set(['FGA0010']))).toBe(true);
-        expect(prerequisitesMet(groups, new Set(['FGA0001']))).toBe(false);
-        expect(prerequisitesMet(groups, null)).toBeNull();
-        expect(prerequisitesMet(null, new Set())).toBe(true);
-        expect(prerequisitesMet([], null)).toBe(true);
-    });
-
     test('mostra nomes resolvidos e mantém códigos sem relacionamento', () => {
         const groups = [
             [
@@ -128,7 +116,6 @@ describe('pré-requisitos', () => {
             ]
         ];
         expect(groups[0].map(subjectRequirementLabel)).toEqual(['Cálculo 1', 'ANTIGO']);
-        expect(prerequisitesMet(groups, new Set(['MAT0023', 'ANTIGO']))).toBe(true);
     });
 });
 
@@ -169,11 +156,6 @@ describe('filtros no cliente', () => {
     test('cadeado distingue turma cheia de dado ausente', () => {
         expect(seats(night)?.available).toBe(0);
         expect(seats({ ...morning, vacancies: null })).toBeNull();
-        expect(lockedReasons(night, false)).toEqual([
-            'Turma cheia',
-            'Pré-requisitos não atendidos'
-        ]);
-        expect(lockedReasons(morning, null)).toEqual([]);
     });
 });
 
