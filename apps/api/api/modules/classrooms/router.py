@@ -15,7 +15,7 @@ from api.modules.classrooms.frequency import (
 from api.modules.classrooms.lessons import ClassroomFrequencyView
 from api.modules.classrooms.posts import ClassroomPostsServiceDep
 from api.modules.classrooms.service import (
-    ClassroomMember,
+    ClassroomMembers,
     ClassroomServiceDep,
     ParticipantClassroom,
 )
@@ -130,7 +130,7 @@ async def get_current_frequencies(
     "/{classroom_id}/frequency",
     response_model=ClassroomFrequencyView,
     summary="Consultar frequência e andamento de uma turma",
-    description="Aceita Classroom.id (hash) ou sigaa_id numérico. frequency_status indica nao_registrada, parcialmente_registrada ou registrada nas entradas publicadas. lessons traz as aulas da turma (criadas pelo calendário e horário no sync das turmas, com start_time e end_time) até ontem, as publicadas pelo SIGAA fora delas e as com situação do aluno, mais recentes primeiro; totals soma as marcações aos totais do SIGAA.",
+    description="Aceita Classroom.id (hash) ou sigaa_id numérico. frequency_status indica nao_registrada, parcialmente_registrada ou registrada nas entradas publicadas. lessons traz as aulas da turma (criadas pelo calendário e horário no sync das turmas, com start_time e end_time) já começadas, as publicadas pelo SIGAA fora delas e as com situação do aluno, mais recentes primeiro; totals soma as marcações aos totais do SIGAA.",
     responses={**CLASSROOM_ERRORS, 503: {"description": "Cache em atualização."}},
 )
 async def get_classroom_frequency(
@@ -144,7 +144,7 @@ async def get_classroom_frequency(
     "/{classroom_id}/frequency/lessons",
     status_code=204,
     summary="Marcar presença, falta ou aula cancelada",
-    description="Aplica todas as marcações ou nenhuma. Vale enquanto o SIGAA não registra a aula: a chamada publicada substitui a marcação. status null remove a marcação, sem apagar a chamada do SIGAA. Aula repetida ou que ainda não aconteceu retorna 422.",
+    description="Aplica todas as marcações ou nenhuma. Vale enquanto o SIGAA não registra a aula: a chamada publicada substitui a marcação. status null remove a marcação, sem apagar a chamada do SIGAA. Aula repetida ou que ainda não começou retorna 422.",
     responses={
         **CLASSROOM_ERRORS,
         404: {"description": "Turma ou aula não encontrada."},
@@ -164,12 +164,12 @@ async def mark_lessons(
 
 @router.get(
     "/{classroom_id}/members",
-    response_model=list[ClassroomMember],
+    response_model=ClassroomMembers,
     summary="Consultar docentes e discentes de uma turma do usuário",
     responses=CLASSROOM_ERRORS,
 )
 async def get_classroom_members(
     service: ClassroomServiceDep,
     classroom_id: ClassroomId,
-) -> list[ClassroomMember]:
+) -> ClassroomMembers:
     return await service.list_members(classroom_id)

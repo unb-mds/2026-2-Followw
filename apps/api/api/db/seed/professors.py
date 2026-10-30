@@ -4,11 +4,12 @@ import json
 from pathlib import Path
 
 from pydantic import TypeAdapter, ValidationError
-from sigaa_client import ProfessorDegree
-from sqlalchemy import delete
+from sigaa_client import ProfessorDegree, lookup_key
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.models import Professor
+from api.db.search import lookup_sql
 from api.db.seed import read_csv, upsert
 
 _DEGREES = TypeAdapter(list[ProfessorDegree])
@@ -94,6 +95,7 @@ async def seed_professors(
     replace_all: bool = False,
 ) -> None:
     professors = read_professors(profiles_path)
+    await _adopt_unlisted(session, professors)
     await upsert(
         session,
         Professor,
@@ -113,10 +115,35 @@ async def seed_professors(
     )
     if replace_all:
         await session.execute(
+            # Quem veio só das turmas, sem siape, não é do catálogo.
             delete(Professor).where(
-                Professor.siape.not_in([item.siape for item in professors])
+                Professor.siape.is_not(None),
+                Professor.siape.not_in([item.siape for item in professors]),
             )
         )
+
+
+async def _adopt_unlisted(session: AsyncSession, professors: list[Professor]) -> None:
+    """Dá o siape ao docente de mesmo nome criado pelas turmas, mantendo os vínculos."""
+    saved = set(await session.scalars(select(Professor.siape)))
+    missing = {
+        lookup_key(item.name): item.siape
+        for item in professors
+        if item.siape not in saved
+    }
+    if not missing:
+        return
+    unlisted = await session.scalars(
+        select(Professor)
+        .where(
+            Professor.siape.is_(None),
+            lookup_sql(Professor.name).in_(missing),
+        )
+        .order_by(Professor.created_at)
+    )
+    for professor in unlisted:
+        professor.siape = missing.pop(lookup_key(professor.name), None)
+    await session.flush()
 
 
 def main() -> None:

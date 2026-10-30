@@ -133,7 +133,7 @@ export interface paths {
         };
         /**
          * Consultar frequência e andamento de uma turma
-         * @description Aceita Classroom.id (hash) ou sigaa_id numérico. frequency_status indica nao_registrada, parcialmente_registrada ou registrada nas entradas publicadas. lessons traz as aulas da turma (criadas pelo calendário e horário no sync das turmas, com start_time e end_time) até ontem, as publicadas pelo SIGAA fora delas e as com situação do aluno, mais recentes primeiro; totals soma as marcações aos totais do SIGAA.
+         * @description Aceita Classroom.id (hash) ou sigaa_id numérico. frequency_status indica nao_registrada, parcialmente_registrada ou registrada nas entradas publicadas. lessons traz as aulas da turma (criadas pelo calendário e horário no sync das turmas, com start_time e end_time) já começadas, as publicadas pelo SIGAA fora delas e as com situação do aluno, mais recentes primeiro; totals soma as marcações aos totais do SIGAA.
          */
         get: operations["get_classroom_frequency_classrooms__classroom_id__frequency_get"];
         put?: never;
@@ -159,7 +159,7 @@ export interface paths {
         head?: never;
         /**
          * Marcar presença, falta ou aula cancelada
-         * @description Aplica todas as marcações ou nenhuma. Vale enquanto o SIGAA não registra a aula: a chamada publicada substitui a marcação. status null remove a marcação, sem apagar a chamada do SIGAA. Aula repetida ou que ainda não aconteceu retorna 422.
+         * @description Aplica todas as marcações ou nenhuma. Vale enquanto o SIGAA não registra a aula: a chamada publicada substitui a marcação. status null remove a marcação, sem apagar a chamada do SIGAA. Aula repetida ou que ainda não começou retorna 422.
          */
         patch: operations["mark_lessons_classrooms__classroom_id__frequency_lessons_patch"];
         trace?: never;
@@ -304,6 +304,26 @@ export interface paths {
         };
         /** Consultar o cardápio público do RU */
         get: operations["get_menu_public_restaurant_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/subjects/{code}/statistics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Estatísticas anteriores da matéria com os mesmos docentes
+         * @description Média simples por turma com dados, por semestre e geral. Considera apenas semestres anteriores à turma indicada e o mesmo conjunto de docentes. A cobertura depende dos dados já coletados; não consulta o SIGAA.
+         */
+        get: operations["subject_statistics_public_subjects__code__statistics_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -508,17 +528,23 @@ export interface components {
         ClassroomMember: {
             /** Name */
             name: string;
-            role: components["schemas"]["ClassroomRole"];
             /** Registration */
-            registration?: string | null;
+            registration: string;
             /** Photo */
             photo?: string | null;
             /** Email */
             email?: string | null;
             course?: components["schemas"]["CourseRef"] | null;
             unit?: components["schemas"]["UnitRef"] | null;
-            /** Person Id */
-            person_id?: number | null;
+        };
+        /** ClassroomMembers */
+        ClassroomMembers: {
+            /** Students */
+            students: components["schemas"]["ClassroomMember"][];
+            /** Monitors */
+            monitors: components["schemas"]["ClassroomMember"][];
+            /** Professors */
+            professors: components["schemas"]["ProfessorRef"][];
         };
         /** ClassroomPost */
         ClassroomPost: {
@@ -567,11 +593,6 @@ export interface components {
             /** Percentage */
             percentage: number;
         };
-        /**
-         * ClassroomRole
-         * @enum {string}
-         */
-        ClassroomRole: "aluno" | "professor" | "monitor";
         /**
          * ClassroomStatus
          * @enum {string}
@@ -781,7 +802,7 @@ export interface components {
              * Professors
              * @default []
              */
-            professors: string[];
+            professors: components["schemas"]["ProfessorRef"][];
             /**
              * Vacancies
              * @description Vagas na coleta do seed, não em tempo real.
@@ -882,6 +903,20 @@ export interface components {
             page_size: number;
         };
         /**
+         * ProfessorRef
+         * @description Docente de uma turma; `siape` nulo quando está fora do catálogo.
+         */
+        ProfessorRef: {
+            /** Siape */
+            siape: number | null;
+            /** Name */
+            name: string;
+            /** Photo */
+            photo: string | null;
+            /** Email */
+            email: string | null;
+        };
+        /**
          * PublicClassroom
          * @description Turma da busca pública.
          *
@@ -966,6 +1001,33 @@ export interface components {
             /** Password */
             password: string;
         };
+        /** StatisticsPeriod */
+        StatisticsPeriod: {
+            /** Semester */
+            semester: string | null;
+            /** Classrooms */
+            classrooms: number;
+            /** Shares */
+            shares: components["schemas"]["StatisticsShare"][];
+        };
+        /**
+         * StatisticsShare
+         * @description Uma fatia do gráfico de estatísticas: a porcentagem dos discentes da turma.
+         *
+         *     O SIGAA arredonda cada fatia em uma casa, então a soma pode fechar em 99.9
+         *     ou 100.1. O gráfico não expõe a contagem de alunos, só a porcentagem.
+         */
+        StatisticsShare: {
+            situation: components["schemas"]["StudentSituation"];
+            /** Percentage */
+            percentage: number;
+        };
+        /**
+         * StudentSituation
+         * @description As situações do gráfico "Situação dos Discentes", na ordem da legenda.
+         * @enum {string}
+         */
+        StudentSituation: "aprovado" | "reprovado" | "reprovado_por_faltas" | "reprovado_por_media_e_por_faltas" | "aprovado_por_nota" | "reprovado_por_nota" | "reprovado_por_nota_e_faltas" | "trancado" | "matriculado";
         /**
          * Subject
          * @description Componente curricular, nos campos da tabela `subjects`.
@@ -988,7 +1050,7 @@ export interface components {
              * Professors
              * @default []
              */
-            professors: string[];
+            professors: components["schemas"]["ProfessorRef"][];
             /**
              * Vacancies
              * @description Vagas na coleta do seed, não em tempo real.
@@ -1036,6 +1098,12 @@ export interface components {
             /** Code */
             code: string;
             subject?: components["schemas"]["SubjectReference"] | null;
+        };
+        /** SubjectStatistics */
+        SubjectStatistics: {
+            overall: components["schemas"]["StatisticsPeriod"];
+            /** Semesters */
+            semesters: components["schemas"]["StatisticsPeriod"][];
         };
         /** TaughtDiscipline */
         TaughtDiscipline: {
@@ -1631,7 +1699,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ClassroomMember"][];
+                    "application/json": components["schemas"]["ClassroomMembers"];
                 };
             };
             /** @description Credenciais ausentes ou inválidas. */
@@ -1938,6 +2006,40 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    subject_statistics_public_subjects__code__statistics_get: {
+        parameters: {
+            query: {
+                semester: string;
+                number: string;
+            };
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubjectStatistics"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };

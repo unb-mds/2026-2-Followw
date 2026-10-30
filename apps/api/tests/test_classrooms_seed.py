@@ -1,7 +1,8 @@
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 
-from api.db.models import Classroom, Subject
+from api.db.models import Classroom, Professor, Subject
+from api.db.professors import save_classroom_professors
 from api.db.seed.classrooms import CLASSROOMS_CSV, read_classrooms, seed_classrooms
 from api.db.seed.subjects import SUBJECTS_CSV, read_subjects
 
@@ -22,14 +23,14 @@ def test_csv_do_repositorio_aponta_para_componentes_que_existem():
     classrooms = read_classrooms(CLASSROOMS_CSV)
 
     assert classrooms
-    assert {c.subject_code for c in classrooms} <= subjects
+    assert {c.subject_code for c, _ in classrooms} <= subjects
 
 
 def test_campos_vazios_ficam_nulos_e_turma_repetida_e_barulhenta(tmp_path):
-    (classroom,) = read_classrooms(_csv(tmp_path, " fga0001 ,01,2026.2,,,,,"))
+    ((classroom, names),) = read_classrooms(_csv(tmp_path, " fga0001 ,01,2026.2,,,,,"))
     assert classroom.subject_code == "FGA0001"
     assert (classroom.schedule, classroom.room) == (None, None)
-    assert (classroom.professors, classroom.vacancies, classroom.occupied) == (
+    assert (names, classroom.vacancies, classroom.occupied) == (
         [],
         None,
         None,
@@ -79,7 +80,14 @@ async def test_seed_atualiza_so_docentes_e_vagas_e_ignora_componente_desconhecid
             await session.scalars(select(Classroom).order_by(Classroom.number))
         ).all()
     assert [
-        (c.number, c.schedule, c.room, c.professors, c.vacancies, c.occupied)
+        (
+            c.number,
+            c.schedule,
+            c.room,
+            [p.name for p in c.professors],
+            c.vacancies,
+            c.occupied,
+        )
         for c in classrooms
     ] == [
         ("01", "35M12", "S1", ["BELTRANO"], 60, 12),
@@ -101,3 +109,48 @@ async def test_turmas_de_componente_desconhecido_sao_contadas_no_log(
         )
 
     assert [e["skipped_count"] for e in events] == [2]
+
+
+async def test_seed_vincula_docentes_ao_catalogo_e_preserva_turma_sem_nomes(
+    async_database, tmp_path
+):
+    async with async_database.begin() as session:
+        session.add(Subject(code="FGA0001", name="A", unit_id=673))
+        session.add(Professor(siape=1, name="José Araújo", unit_id=673))
+    async with async_database.begin() as session:
+        await seed_classrooms(
+            session,
+            _csv(
+                tmp_path,
+                "FGA0001,01,2026.2,,,,,JOSE ARAUJO; NOVO",
+                "FGA0001,02,2026.2,,,,,",
+            ),
+        )
+        vista = Professor(name="DA LISTA")
+        session.add(vista)
+        await session.flush()
+        segunda = await session.scalar(
+            select(Classroom).where(Classroom.number == "02")
+        )
+        await save_classroom_professors(session, {segunda.id: [vista]})
+    async with async_database.begin() as session:
+        await seed_classrooms(
+            session,
+            _csv(
+                tmp_path,
+                "FGA0001,01,2026.2,,,,,JOSE ARAUJO; NOVO",
+                "FGA0001,02,2026.2,,,,,",
+            ),
+        )
+
+    async with async_database() as session:
+        classrooms = (
+            await session.scalars(select(Classroom).order_by(Classroom.number))
+        ).all()
+        professors = await session.scalar(select(func.count()).select_from(Professor))
+    assert [[(p.siape, p.name) for p in c.professors] for c in classrooms] == [
+        [(1, "José Araújo"), (None, "NOVO")],
+        [(None, "DA LISTA")],
+    ]
+    # O docente fora do catálogo não é recriado a cada seed.
+    assert professors == 3

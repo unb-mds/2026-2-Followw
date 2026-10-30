@@ -182,3 +182,24 @@ async def test_carga_parcial_preserva_outros_docentes_e_substituicao_remove(
             await session.scalar(select(Professor).where(Professor.siape == 456))
             is None
         )
+
+
+async def test_seed_adota_docente_sem_siape_de_mesmo_nome_e_substituicao_o_preserva(
+    async_database, tmp_path
+):
+    async with async_database.begin() as session:
+        vista = Professor(name="Maria", person_id=42)
+        session.add_all([vista, Professor(name="SÓ NA TURMA")])
+    profiles = _files(tmp_path)
+
+    async with async_database.begin() as session:
+        await seed_professors(session, profiles, replace_all=True)
+
+    async with async_database() as session:
+        professors = (
+            await session.scalars(select(Professor).order_by(Professor.name))
+        ).all()
+    assert [(p.id, p.siape, p.name, p.person_id) for p in professors] == [
+        (vista.id, 123, "MARIA", 42),
+        (professors[1].id, None, "SÓ NA TURMA", None),
+    ]

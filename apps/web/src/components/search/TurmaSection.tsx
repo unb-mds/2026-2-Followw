@@ -11,14 +11,12 @@ import {
     AccordionTrigger
 } from '#/components/ui/accordion';
 import { Button } from '#/components/ui/button';
-import { prerequisitesMet } from '#/queries/subjects';
 
 const PAGE_SIZE = 20;
 
 export function TurmaSection({
     title,
     subjects,
-    approved = null,
     taken,
     onOpenDetails,
     currentPeriod,
@@ -27,7 +25,6 @@ export function TurmaSection({
     currentPeriod?: number | null;
     title?: string;
     subjects: CatalogSubject[];
-    approved?: Set<string> | null;
     taken?: Set<string> | null;
     onOpenDetails?: () => void;
     footer?: (subject: CatalogSubject) => ReactNode;
@@ -70,10 +67,6 @@ export function TurmaSection({
                                         subject={subject}
                                         classroom={classroom}
                                         onOpenDetails={onOpenDetails}
-                                        prerequisitesMet={prerequisitesMet(
-                                            subject.prerequisites,
-                                            approved
-                                        )}
                                     />
                                 ))}
                             </div>

@@ -19,7 +19,8 @@ class ProfessorRepository:
         page: int,
         page_size: int,
     ) -> tuple[list[Professor], int]:
-        conditions = []
+        # Os vistos só nas turmas, sem siape, não têm perfil público.
+        conditions = [Professor.siape.is_not(None)]
         if q is not None:
             conditions.append(
                 lookup_sql(Professor.name).contains(lookup_key(q), autoescape=True)

@@ -15,7 +15,7 @@ const SECTION_GAP = 40;
 const FOOTER_HEIGHT = 64;
 
 const details = (item: PlannedClass) =>
-    [item.room, item.professors.join(', ')].filter(Boolean).join(' · ');
+    [item.room, item.professors.map(({ name }) => name).join(', ')].filter(Boolean).join(' · ');
 const cardHeight = (item: PlannedClass) => (details(item) ? 100 : 76);
 
 export async function createSchedulePng(sections: GridSemester[]): Promise<Blob> {

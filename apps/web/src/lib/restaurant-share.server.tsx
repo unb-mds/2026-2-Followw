@@ -26,7 +26,7 @@ export async function restaurantShareResponse(request: Request) {
                 'Content-Type': 'image/png',
                 // Cardápio ainda não publicado não pode ficar preso no cache.
                 'Cache-Control':
-                    search.data && search.refeicao && search.campus && sections.length
+                    search.date && search.meal && search.campus && sections.length
                         ? 'public, max-age=5400, s-maxage=5400'
                         : 'no-store'
             }

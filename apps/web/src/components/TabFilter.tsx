@@ -5,6 +5,7 @@ interface TabFilterProps<T extends string> {
     label: string;
     value: T | undefined;
     options: readonly T[];
+    labels?: Partial<Record<T, string>>;
     onChange: (value: T) => void;
     className?: string;
 }
@@ -13,6 +14,7 @@ export function TabFilter<T extends string>({
     label,
     value,
     options,
+    labels,
     onChange,
     className
 }: TabFilterProps<T>) {
@@ -32,7 +34,7 @@ export function TabFilter<T extends string>({
                     onClick={() => onChange(option)}
                     className="shrink-0"
                 >
-                    {option}
+                    {labels?.[option] ?? option}
                 </Button>
             ))}
         </fieldset>

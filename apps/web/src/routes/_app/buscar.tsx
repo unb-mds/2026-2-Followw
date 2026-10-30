@@ -28,15 +28,15 @@ import { useProfessorSearch } from '#/queries/professors';
 import { recommendationsQueryOptions, showRecommendations } from '#/queries/recommendations';
 import { refreshQuery } from '#/queries/refresh';
 import {
-    approvedCodes,
     takenCodes,
     currentCurriculumPeriod,
     SEARCH_MAX_LENGTH,
     SEARCH_MIN_LENGTH,
     subjectsQuery,
     subjectsQueryOptions,
-    TIPOS,
-    withClassrooms
+    SUBJECT_TYPES,
+    subjectTypeLabels,
+    filterSubjects
 } from '#/queries/subjects';
 
 export const Route = createFileRoute('/_app/buscar')({
@@ -69,8 +69,9 @@ export const Route = createFileRoute('/_app/buscar')({
 function BuscarTurmasPage() {
     const queryClient = useQueryClient();
     const { data: user } = useSuspenseQuery(meQueryOptions);
-    const [{ q, tipo }, setSearch] = useSearchState();
-    const recommendations = showRecommendations(user, { q, tipo });
+    const [{ q, type }, setSearch] = useSearchState();
+    const recommendations = showRecommendations(user, { q });
+    const graduation = user?.level === 'Graduação';
     const unit = user?.unit?.code ?? null;
     const currentPeriod = currentCurriculumPeriod(
         user?.entry_semester,
@@ -97,10 +98,9 @@ function BuscarTurmasPage() {
         ...allClassroomsQueryOptions,
         enabled: Boolean(user)
     });
-    const approved = useMemo(() => (history ? approvedCodes(history) : null), [history]);
     const taken = useMemo(() => (history ? takenCodes(history) : null), [history]);
 
-    const subjects = withClassrooms(data ?? []);
+    const subjects = filterSubjects(data ?? [], graduation ? type : 'all');
     const semester = subjects[0]?.classrooms[0]?.semester;
     const title = query?.unit ? `Matérias da ${query.unit}` : 'Resultados da busca';
     const refreshSubjects = () => {
@@ -127,12 +127,13 @@ function BuscarTurmasPage() {
                     className="h-11 bg-card pl-10 text-sm"
                 />
             </div>
-            {user?.level === 'Graduação' && (
+            {graduation && (
                 <TabFilter
                     label="Tipo de matéria"
-                    value={tipo}
-                    options={TIPOS}
-                    onChange={(value) => void setSearch({ tipo: value })}
+                    value={type}
+                    options={SUBJECT_TYPES}
+                    labels={subjectTypeLabels}
+                    onChange={(value) => void setSearch({ type: value })}
                     className="-my-2"
                 />
             )}
@@ -140,9 +141,8 @@ function BuscarTurmasPage() {
             <div aria-live="polite" aria-busy={isFetching} className="flex flex-col gap-5 pb-8">
                 {recommendations ? (
                     <RecommendationsSection
-                        filters={{ tipo, q }}
+                        type={type}
                         currentPeriod={currentPeriod}
-                        approved={approved}
                         taken={taken}
                     />
                 ) : !query ? (
@@ -184,7 +184,6 @@ function BuscarTurmasPage() {
                             title={semester ? `${title} · ${semester}` : title}
                             subjects={subjects}
                             currentPeriod={currentPeriod}
-                            approved={approved}
                             taken={taken}
                             onOpenDetails={refreshSubjects}
                         />

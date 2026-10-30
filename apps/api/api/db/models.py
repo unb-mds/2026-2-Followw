@@ -118,8 +118,6 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     registration: Mapped[str | None] = mapped_column(unique=True)
     # Quem troca de curso segue logando no CAS com a matrícula antiga.
     old_registration: Mapped[str | None] = mapped_column(unique=True)
-    # `idPessoa` do SIGAA: único identificador dos docentes na lista de participantes.
-    person_id: Mapped[int | None] = mapped_column(unique=True)
     photo: Mapped[str | None] = mapped_column()
     email: Mapped[str | None] = mapped_column()
     bio: Mapped[str | None] = mapped_column(Text)
@@ -151,11 +149,15 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
 
 class Professor(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """Docente do catálogo (pelo `siape`) ou, sem ele, visto só numa turma."""
+
     __tablename__ = "professors"
 
-    siape: Mapped[int] = mapped_column(unique=True)
+    siape: Mapped[int | None] = mapped_column(unique=True)
+    # `idPessoa` do SIGAA: único identificador dos docentes na lista de participantes.
+    person_id: Mapped[int | None] = mapped_column(unique=True)
     name: Mapped[str] = mapped_column()
-    unit_id: Mapped[int] = mapped_column(ForeignKey("units.id"))
+    unit_id: Mapped[int | None] = mapped_column(ForeignKey("units.id"))
     photo: Mapped[str | None] = mapped_column()
     description: Mapped[str | None] = mapped_column(Text)
     education: Mapped[list[dict[str, object]] | None] = mapped_column(
@@ -166,17 +168,7 @@ class Professor(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     email: Mapped[str | None] = mapped_column()
     disciplines: Mapped[list[dict[str, object]]] = mapped_column(JSONB, default=list)
 
-    unit: Mapped[Unit] = relationship(lazy="joined")
-
-
-# Docentes chegam sem matrícula nem `idPessoa`: aí o email é a identidade.
-USER_WITHOUT_IDS = User.registration.is_(None) & User.person_id.is_(None)
-Index(
-    "uq_user_email_without_ids",
-    User.email,
-    unique=True,
-    postgresql_where=USER_WITHOUT_IDS,
-)
+    unit: Mapped[Unit | None] = relationship(lazy="joined")
 
 
 class Subject(Base, TimestampMixin):
@@ -208,8 +200,7 @@ class Classroom(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     semester: Mapped[str] = mapped_column()
     schedule: Mapped[str | None] = mapped_column()
     room: Mapped[str | None] = mapped_column()
-    # Docentes, vagas e ocupação vêm da busca pública, pelo seed.
-    professors: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    # Vagas e ocupação vêm da busca pública, pelo seed.
     vacancies: Mapped[int | None] = mapped_column(SmallInteger)
     occupied: Mapped[int | None] = mapped_column(SmallInteger)
     enrollment_requests: Mapped[int | None] = mapped_column(SmallInteger)
@@ -231,8 +222,29 @@ class Classroom(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     progress_percentage: Mapped[int | None] = mapped_column(SmallInteger)
 
     subject: Mapped[Subject] = relationship(back_populates="classrooms")
+    # Gravados por `save_classroom_professors`, do seed ou da lista de participantes.
+    professors: Mapped[list[Professor]] = relationship(
+        secondary="classroom_professors",
+        viewonly=True,
+        lazy="selectin",
+        order_by=Professor.name,
+    )
     participant_links: Mapped[list[ClassroomParticipant]] = relationship(
         back_populates="classroom", cascade="all, delete-orphan"
+    )
+
+
+class ClassroomProfessor(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "classroom_professors"
+    __table_args__ = (
+        UniqueConstraint("classroom_id", "professor_id", name="uq_classroom_professor"),
+    )
+
+    classroom_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("classrooms.id", ondelete="CASCADE")
+    )
+    professor_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("professors.id", ondelete="CASCADE"), index=True
     )
 
 

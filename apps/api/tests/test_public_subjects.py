@@ -1,8 +1,19 @@
 import pytest
 
-from api.db.models import Classroom, Subject, Unit
+from api.db.models import Classroom, ClassroomProfessor, Professor, Subject, Unit
 from api.db.seed.subjects import read_subjects
 from api.sigaa import get_sigaa_public_client
+
+
+def _link(session, classroom, *names):
+    session.flush()
+    for name in names:
+        professor = Professor(name=name)
+        session.add(professor)
+        session.flush()
+        session.add(
+            ClassroomProfessor(classroom_id=classroom.id, professor_id=professor.id)
+        )
 
 
 @pytest.fixture
@@ -28,24 +39,25 @@ def catalog(client, database):
                 Subject(code="XYZ0001", name="SEM UNIDADE"),
             ]
         )
+        offered = Classroom(
+            subject_code="FGA0003",
+            number="01",
+            semester="2026.2",
+            sigaa_id=10,
+            schedule="35M12",
+            room="S3",
+            vacancies=50,
+            occupied=48,
+        )
         session.add_all(
             [
                 Classroom(subject_code="FGA0003", number="02", semester="2026.2"),
-                Classroom(
-                    subject_code="FGA0003",
-                    number="01",
-                    semester="2026.2",
-                    sigaa_id=10,
-                    schedule="35M12",
-                    room="S3",
-                    professors=["FULANO", "CICLANO"],
-                    vacancies=50,
-                    occupied=48,
-                ),
+                offered,
                 Classroom(subject_code="FGA0003", number="01", semester="2026.1"),
                 Classroom(subject_code="FGA0001", number="01", semester="2026.1"),
             ]
         )
+        _link(session, offered, "FULANO", "CICLANO")
     return client
 
 
@@ -123,7 +135,10 @@ def test_componente_traz_as_turmas_do_semestre_mais_recente(catalog):
                     "semester": "2026.2",
                     "schedule": "35M12",
                     "room": "S3",
-                    "professors": ["FULANO", "CICLANO"],
+                    "professors": [
+                        {"siape": None, "name": name, "photo": None, "email": None}
+                        for name in ["CICLANO", "FULANO"]
+                    ],
                     "vacancies": 50,
                     "occupied": 48,
                 },
@@ -232,11 +247,10 @@ def test_docentes_respeitam_semestre_e_unidade_sem_duplicar(catalog, database):
     with database.begin() as session:
         classrooms = session.query(Classroom).filter_by(subject_code="FGA0003").all()
         for classroom in classrooms:
-            classroom.professors = (
-                ["Cárlos Silva", "Carlos Sousa"]
-                if classroom.semester == "2026.2"
-                else ["Docente Antigo"]
-            )
+            if classroom.semester == "2026.2":
+                _link(session, classroom, "Cárlos Silva", "Carlos Sousa")
+            else:
+                _link(session, classroom, "Docente Antigo")
 
     for q in ["  carlos   silva ", "Carlos"]:
         assert [s["code"] for s in _search(catalog, q=q)] == ["FGA0003"]

@@ -31,6 +31,14 @@ import { apiClient } from '#/queries/client';
 import { meQueryOptions } from '#/queries/me';
 import { professorsQueryOptions } from '#/queries/professors';
 import { subjectsQueryOptions } from '#/queries/subjects';
+
+import { professorRef } from '../helpers/professor';
+// Os detalhes da turma carregam as estatísticas anteriores.
+const noStatistics: components['schemas']['SubjectStatistics'] = {
+    overall: { semester: null, classrooms: 0, shares: [] },
+    semesters: []
+};
+
 let Route: typeof import('#/routes/_app/buscar').Route;
 
 let testing: typeof import('@testing-library/react/pure');
@@ -47,7 +55,7 @@ function BuscarTurmasPage() {
 
 function ResetFilters() {
     const [, setSearch] = useSearchState();
-    return <button onClick={() => void setSearch({ tipo: null })}>Limpar filtros</button>;
+    return <button onClick={() => void setSearch({ type: null })}>Limpar filtros</button>;
 }
 
 function makeSearchRouter(isServer: boolean) {
@@ -146,6 +154,7 @@ describe('página de busca com estado na URL', () => {
         middleware = {
             onRequest: ({ request }) => {
                 const url = new URL(request.url);
+                if (url.pathname.endsWith('/statistics')) return Response.json(noStatistics);
                 requests.push(url);
                 if (url.pathname.includes('/public/professors')) {
                     const q = url.searchParams.get('q');
@@ -178,13 +187,13 @@ describe('página de busca com estado na URL', () => {
                                 number: '01',
                                 semester: '2026.2',
                                 schedule: '24N12',
-                                professors: ['Carlos Silva']
+                                professors: [professorRef('Carlos Silva')]
                             },
                             {
                                 number: '02',
                                 semester: '2026.2',
                                 schedule: '35M12',
-                                professors: ['Ana Silva']
+                                professors: [professorRef('Ana Silva')]
                             }
                         ]
                     }
@@ -299,9 +308,9 @@ describe('página de busca com estado na URL', () => {
     });
 
     test('limpar o filtro remove seu parâmetro e preserva a consulta', async () => {
-        const page = renderPage('?q=calculo&tipo=Optativas');
+        const page = renderPage('?q=calculo&type=optional');
         testing.fireEvent.click(page.getByRole('button', { name: 'Limpar filtros' }));
-        await testing.waitFor(() => expect(updates.at(-1)?.searchParams.has('tipo')).toBe(false));
+        await testing.waitFor(() => expect(updates.at(-1)?.searchParams.has('type')).toBe(false));
         expect(updates.at(-1)?.searchParams.get('q')).toBe('calculo');
         await testing.waitFor(() => expect(page.getByText('2 turmas')).toBeDefined());
     });
@@ -334,7 +343,7 @@ describe('página de busca com estado na URL', () => {
         expect(page.getByRole('table').textContent).toContain('MAT0023');
     });
 
-    test('abas mostram só as recomendações do tipo, na ordem da API, mesmo com busca', async () => {
+    test('abas mostram recomendações sem busca e toda a oferta do tipo com busca', async () => {
         const user: components['schemas']['UserProfile'] = {
             name: 'Discente',
             registration: '202600001',
@@ -363,23 +372,22 @@ describe('página de busca com estado na URL', () => {
             { code: 'MAT0025', name: 'Cálculo 1', kind: 'mandatory', classrooms },
             { code: 'MAT0026', name: 'Cálculo 2', kind: 'optional', classrooms }
         ];
-        const page = renderPage('?q=calculo');
+        const page = renderPage('?type=optional');
         const tab = (name: string) => page.getByRole('button', { name });
         const shown = () =>
             Array.from(page.container.querySelectorAll('[data-slot="accordion-item"]'), (item) =>
                 item.textContent?.match(/[A-Z]{3}\d{4}/)?.at(0)
             );
-        expect(tab('Todas').getAttribute('aria-pressed')).toBe('true');
         expect(page.queryByRole('button', { name: 'Módulo livre' })).toBeNull();
-        expect(shown()).toEqual(['MAT0025', 'MAT0029']);
-        testing.fireEvent.click(tab('Optativas'));
-        await testing.waitFor(() =>
-            expect(updates.at(-1)?.searchParams.get('tipo')).toBe('Optativas')
-        );
-        await testing.waitFor(() => expect(shown()).toEqual(['MAT0027', 'MAT0026']));
+        await testing.waitFor(() => expect(shown()).toEqual(['MAT0027', 'FIS0001', 'MAT0026']));
         expect(page.getByRole('region', { name: 'Optativas disponíveis' })).toBeDefined();
+        testing.fireEvent.change(searchbox(page), { target: { value: 'calculo' } });
+        await testing.waitFor(() => expect(shown()).toEqual(['MAT0029']));
+        expect(page.queryByRole('region', { name: 'Optativas disponíveis' })).toBeNull();
         testing.fireEvent.click(tab('Obrigatórias'));
         await testing.waitFor(() => expect(shown()).toEqual(['MAT0025']));
+        testing.fireEvent.click(tab('Todas'));
+        await testing.waitFor(() => expect(shown()).toEqual(['MAT0025', 'MAT0029']));
     });
 
     test('abas de tipo só aparecem com a conta logada', () => {
@@ -429,6 +437,7 @@ describe('página de busca com estado na URL', () => {
         middleware = {
             onRequest: ({ request }) => {
                 const url = new URL(request.url);
+                if (url.pathname.endsWith('/statistics')) return Response.json(noStatistics);
                 requests.push(url);
                 if (url.pathname.includes('/public/professors')) {
                     return Response.json({ items: [], total: 0, page: 1, page_size: 20 });

@@ -823,7 +823,6 @@ async def test_perfil_assume_o_usuario_sombra_da_mesma_matricula(async_database)
             User(
                 name="NOME DA LISTA",
                 registration="251000000",
-                person_id=42,
                 email="discente@example.org",
             )
         )
@@ -838,7 +837,7 @@ async def test_perfil_assume_o_usuario_sombra_da_mesma_matricula(async_database)
     assert len(users) == 1
     assert users[0].name == "NOME DISCENTE"
     # O perfil não traz esses campos: o que a lista de participantes trouxe fica.
-    assert (users[0].person_id, users[0].email) == (42, "discente@example.org")
+    assert users[0].email == "discente@example.org"
 
 
 async def test_settings_retorna_vazio_quando_usuario_nao_tem_configuracoes(

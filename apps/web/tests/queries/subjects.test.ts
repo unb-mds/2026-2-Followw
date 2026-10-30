@@ -12,8 +12,6 @@ import {
     currentCurriculumPeriod,
     filterSubjects,
     withClassrooms,
-    lockedReasons,
-    prerequisitesMet,
     seats,
     subjectRequirementLabel,
     subjectsQuery,
@@ -110,16 +108,6 @@ describe('pré-requisitos', () => {
         expect([...approved]).toEqual(['A', 'B']);
     });
 
-    test('avalia OU de Es pelos códigos aprovados', () => {
-        const groups = subject.prerequisites;
-        expect(prerequisitesMet(groups, new Set(['FGA0001', 'FGA0002']))).toBe(true);
-        expect(prerequisitesMet(groups, new Set(['FGA0010']))).toBe(true);
-        expect(prerequisitesMet(groups, new Set(['FGA0001']))).toBe(false);
-        expect(prerequisitesMet(groups, null)).toBeNull();
-        expect(prerequisitesMet(null, new Set())).toBe(true);
-        expect(prerequisitesMet([], null)).toBe(true);
-    });
-
     test('mostra nomes resolvidos e mantém códigos sem relacionamento', () => {
         const groups = [
             [
@@ -128,7 +116,6 @@ describe('pré-requisitos', () => {
             ]
         ];
         expect(groups[0].map(subjectRequirementLabel)).toEqual(['Cálculo 1', 'ANTIGO']);
-        expect(prerequisitesMet(groups, new Set(['MAT0023', 'ANTIGO']))).toBe(true);
     });
 });
 
@@ -143,24 +130,9 @@ describe('filtros no cliente', () => {
             { ...subject, code: 'optional', kind: 'optional' },
             { ...subject, code: 'free', kind: 'free' }
         ];
-        expect(filterSubjects(kinds, { tipo: 'Todas', q: '' })).toHaveLength(3);
-        expect(filterSubjects(kinds, { tipo: 'Optativas', q: '' }).map((s) => s.code)).toEqual([
-            'optional'
-        ]);
-        expect(filterSubjects([subject], { tipo: 'Obrigatórias', q: '' })).toEqual([]);
-    });
-
-    test('texto busca código, nome e professor sem acento nem caixa', () => {
-        const withProfessor = {
-            ...subject,
-            classrooms: [{ ...morning, professors: ['JOSÉ  da Silva'] }]
-        };
-        const search = (q: string) => filterSubjects([withProfessor], { tipo: 'Todas', q }).length;
-        expect(search('fga00')).toBe(1);
-        expect(search('compiladôres')).toBe(1);
-        expect(search('jose da')).toBe(1);
-        expect(search('  ')).toBe(1);
-        expect(search('calculo')).toBe(0);
+        expect(filterSubjects(kinds, 'all')).toHaveLength(3);
+        expect(filterSubjects(kinds, 'optional').map((s) => s.code)).toEqual(['optional']);
+        expect(filterSubjects([subject], 'mandatory')).toEqual([]);
     });
 
     test.each([
@@ -184,11 +156,6 @@ describe('filtros no cliente', () => {
     test('cadeado distingue turma cheia de dado ausente', () => {
         expect(seats(night)?.available).toBe(0);
         expect(seats({ ...morning, vacancies: null })).toBeNull();
-        expect(lockedReasons(night, false)).toEqual([
-            'Turma cheia',
-            'Pré-requisitos não atendidos'
-        ]);
-        expect(lockedReasons(morning, null)).toEqual([]);
     });
 });
 

@@ -136,3 +136,12 @@ def test_nome_curto_e_paginacao_invalida_retornam_422(client, catalog):
         "/public/professors/2147483648",
     ):
         assert client.get(path).status_code == 422
+
+
+def test_docente_sem_siape_fica_fora_do_catalogo(client, catalog, database):
+    with database.begin() as session:
+        session.add(Professor(name="JOÃO DA TURMA", unit_id=673))
+
+    data = client.get("/public/professors", params={"q": "joão"}).json()
+    assert [item["siape"] for item in data["items"]] == [456]
+    assert data["total"] == 1

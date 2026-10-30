@@ -18,12 +18,12 @@ type SubjectsQuery = NonNullable<
     operations['search_subjects_public_subjects_get']['parameters']['query']
 >;
 
-export const TIPOS = ['Todas', 'Obrigatórias', 'Optativas'] as const;
-export type Tipo = (typeof TIPOS)[number];
-const KINDS: Record<Tipo, SubjectKind | null> = {
-    Todas: null,
-    Obrigatórias: 'mandatory',
-    Optativas: 'optional'
+export const SUBJECT_TYPES = ['all', 'mandatory', 'optional'] as const;
+export type SubjectType = (typeof SUBJECT_TYPES)[number];
+export const subjectTypeLabels: Record<SubjectType, string> = {
+    all: 'Todas',
+    mandatory: 'Obrigatórias',
+    optional: 'Optativas'
 };
 
 export const SEARCH_MIN_LENGTH = 3;
@@ -57,16 +57,6 @@ export function takenCodes(history: Classroom[]): Set<string> {
     return taken;
 }
 
-/** OU de Es pelos códigos aprovados; `null` sem histórico para comparar. */
-export function prerequisitesMet(
-    requirements: Requirements | null | undefined,
-    approved: Set<string> | null
-): boolean | null {
-    if (!requirements?.length) return true;
-    if (!approved) return null;
-    return requirements.some((group) => group.every(({ code }) => approved.has(code)));
-}
-
 export const subjectRequirementLabel = ({ code, subject }: Requirements[number][number]) =>
     subject?.name ?? code;
 
@@ -91,46 +81,12 @@ export function seats({ vacancies, occupied }: SubjectClassroom): Seats | null {
     };
 }
 
-export function lockedReasons(classroom: SubjectClassroom, met: boolean | null): string[] {
-    const reasons = [];
-    if (seats(classroom)?.available === 0) reasons.push('Turma cheia');
-    if (met === false) reasons.push('Pré-requisitos não atendidos');
-    return reasons;
-}
-
-/** Igual ao `lookup_key` da API: sem acento, minúscula e com espaços colapsados. */
-const lookupKey = (value: string) =>
-    value
-        .normalize('NFKD')
-        .replace(/\p{M}/gu, '')
-        .toLowerCase()
-        .split(/\s+/)
-        .filter(Boolean)
-        .join(' ');
-
-/** Mesmos campos da busca da API: código, nome e professores. */
-function matchesText(subject: CatalogSubject, text: string) {
-    const needle = lookupKey(text);
-    if (!needle) return true;
-    return [
-        subject.code,
-        subject.name,
-        ...subject.classrooms.flatMap((classroom) => classroom.professors)
-    ].some((value) => lookupKey(value).includes(needle));
-}
-
 export const withClassrooms = (subjects: CatalogSubject[]) =>
     subjects.filter((subject) => subject.classrooms.length > 0);
 
-/** Filtra no cliente por tipo e texto, descartando as matérias sem turmas. */
-export function filterSubjects(
-    subjects: CatalogSubject[],
-    { tipo, q }: { tipo: Tipo; q: string }
-): CatalogSubject[] {
-    return withClassrooms(subjects).filter(
-        (subject) => (!KINDS[tipo] || subject.kind === KINDS[tipo]) && matchesText(subject, q)
-    );
-}
+/** Filtra no cliente por tipo, descartando as matérias sem turmas. */
+export const filterSubjects = (subjects: CatalogSubject[], type: SubjectType) =>
+    withClassrooms(subjects).filter((subject) => type === 'all' || subject.kind === type);
 
 export function currentCurriculumPeriod(
     entry: string | null | undefined,

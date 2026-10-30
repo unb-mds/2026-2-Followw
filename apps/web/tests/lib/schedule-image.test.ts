@@ -6,6 +6,7 @@ import { weeklyGrid } from '#/lib/planned-schedule';
 import { createSchedulePng as render } from '#/lib/schedule-image';
 
 import { useDom } from '../helpers/dom';
+import { professorRef } from '../helpers/professor';
 
 useDom();
 afterEach(() => mock.restore());
@@ -19,7 +20,7 @@ const items: PlannedClass[] = [
         number: '01',
         schedule: '35T23',
         room: 'FCTE - I2',
-        professors: ['LINDOMAR DE JESUS']
+        professors: [professorRef('LINDOMAR DE JESUS')]
     }
 ];
 const createSchedulePng = (classes: PlannedClass[]) => render(weeklyGrid(classes));

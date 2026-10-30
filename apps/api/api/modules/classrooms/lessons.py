@@ -4,7 +4,7 @@ import re
 from collections import Counter
 from collections.abc import Collection, Iterable, Iterator, Mapping
 from dataclasses import dataclass
-from datetime import date, time
+from datetime import date, datetime, time
 from typing import Self
 from uuid import UUID
 
@@ -113,17 +113,17 @@ class ClassroomFrequencyView(BaseModel):
         summary: FrequencySummary,
         rows: Collection[tuple[models.Lesson, models.LessonAttendance | None]],
         *,
-        today: date,
+        now: datetime,
         workload: int | None,
     ) -> Self:
-        """As aulas até ontem, as publicadas pelo SIGAA e as com situação, com os totais."""
+        """As aulas já começadas, as publicadas pelo SIGAA e as com situação, com os totais."""
         planned = any(row.scheduled for row, _ in rows)
         lessons = tuple(
             sorted(
                 (
                     _lesson(row, attendance)
                     for row, attendance in rows
-                    if attendance or not row.scheduled or row.occurred_on < today
+                    if attendance or not row.scheduled or started(row, now)
                 ),
                 key=lesson_order,
                 reverse=True,
@@ -171,6 +171,12 @@ class Timetable:
 def max_absences(workload: int | None) -> int | None:
     """Horas-aula de falta em 25% da carga horária."""
     return workload // 4 if workload else None
+
+
+def started(lesson: models.Lesson, now: datetime) -> bool:
+    if lesson.occurred_on != now.date():
+        return lesson.occurred_on < now.date()
+    return lesson.start_time is None or lesson.start_time <= now.time()
 
 
 def positioned(

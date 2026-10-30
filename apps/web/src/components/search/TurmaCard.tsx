@@ -22,16 +22,14 @@ import { cn } from '#/lib/shadcn';
 export interface TurmaProps {
     subject: CatalogSubject;
     classroom: SubjectClassroom;
-    prerequisitesMet: boolean | null;
 }
 
 export function TurmaCard({
     subject,
     classroom,
-    prerequisitesMet,
     onOpenDetails
 }: TurmaProps & { onOpenDetails?: () => void }) {
-    const professors = classroom.professors.map(titleCase).join(', ');
+    const professors = classroom.professors.map(({ name }) => titleCase(name)).join(', ');
 
     return (
         <Dialog onOpenChange={(open) => open && onOpenDetails?.()}>
@@ -88,11 +86,7 @@ export function TurmaCard({
                         <X className="size-5" aria-hidden="true" />
                     </DialogClose>
                 </div>
-                <TurmaDetails
-                    subject={subject}
-                    classroom={classroom}
-                    prerequisitesMet={prerequisitesMet}
-                />
+                <TurmaDetails subject={subject} classroom={classroom} />
             </DialogContent>
         </Dialog>
     );

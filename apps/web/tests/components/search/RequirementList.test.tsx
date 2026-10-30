@@ -1,10 +1,10 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { expect, test } from 'bun:test';
 
 import type { CatalogSubject, Requirements } from '#/queries/subjects';
 
 import { RequirementList } from '#/components/search/RequirementList';
 import { TurmaDetails } from '#/components/search/TurmaDetails';
-import { prerequisitesMet } from '#/queries/subjects';
 
 import { renderWithRouter } from '../../helpers/router';
 
@@ -15,11 +15,12 @@ const requirements: Requirements = [
 
 const renderDetails = (subject: Partial<CatalogSubject>) =>
     renderWithRouter(
-        <TurmaDetails
-            subject={{ code: 'TARGET', name: 'Disciplina', classrooms: [], ...subject }}
-            classroom={{ number: '01', semester: '2026.2', professors: [] }}
-            prerequisitesMet={true}
-        />
+        <QueryClientProvider client={new QueryClient()}>
+            <TurmaDetails
+                subject={{ code: 'TARGET', name: 'Disciplina', classrooms: [], ...subject }}
+                classroom={{ number: '01', semester: '2026.2', professors: [] }}
+            />
+        </QueryClientProvider>
     );
 
 test.each(['prerequisites', 'corequisites'] as const)(
@@ -36,7 +37,6 @@ test.each(['prerequisites', 'corequisites'] as const)(
         expect(markup).not.toContain('<summary');
         expect(markup).not.toContain('Alternativa 1');
         expect(markup).not.toContain('Todas as disciplinas abaixo são necessárias.');
-        expect(prerequisitesMet(requirements, new Set(['OLD']))).toBe(true);
     }
 );
 

@@ -1,5 +1,5 @@
 import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState } from 'react';
 
 import type { components } from '#/queries/schema.gen';
@@ -15,7 +15,6 @@ import { LoadingText } from '#/components/LoadingText';
 import { Card, CardContent } from '#/components/ui/card';
 import { PersonPhoto } from '#/components/ui/person-photo';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
-import { groupMembers } from '#/lib/classroom-details';
 import { mailto } from '#/lib/contact';
 import { titleCase } from '#/lib/profile';
 import {
@@ -29,6 +28,7 @@ import { meQueryOptions } from '#/queries/me';
 
 type Tab = 'posts' | 'frequency' | 'members';
 type Member = components['schemas']['ClassroomMember'];
+type Professor = components['schemas']['ProfessorRef'];
 
 const tabs: { id: Tab; label: string }[] = [
     { id: 'frequency', label: 'Frequência' },
@@ -176,54 +176,108 @@ function MembersTab({ id }: { id: string }) {
 
     if (members.isPending) return <TabLoading />;
     if (members.isLoadingError) return <TabError onRetry={() => members.refetch()} />;
-    if (members.data.length === 0)
+    const { professors, monitors, students } = members.data;
+    if (professors.length + monitors.length + students.length === 0)
         return <InformationCard>Nenhum participante encontrado.</InformationCard>;
 
-    const groups = groupMembers(members.data);
     return (
         <div className="flex flex-col gap-4">
-            <MemberGroup title="Professores" members={groups.professors} />
-            <MemberGroup title="Monitores" members={groups.monitors} />
-            <MemberGroup title="Estudantes" members={groups.students} />
+            <MemberGroup title="Professores" count={professors.length}>
+                {professors.map((professor) => (
+                    <ProfessorRow key={professor.siape ?? professor.name} professor={professor} />
+                ))}
+            </MemberGroup>
+            <MemberGroup title="Monitores" count={monitors.length}>
+                {monitors.map((member) => (
+                    <MemberRow key={member.registration} member={member} />
+                ))}
+            </MemberGroup>
+            <MemberGroup title="Estudantes" count={students.length}>
+                {students.map((member) => (
+                    <MemberRow key={member.registration} member={member} />
+                ))}
+            </MemberGroup>
         </div>
     );
 }
 
-function MemberGroup({ title, members }: { title: string; members: Member[] }) {
-    if (members.length === 0) return null;
+function MemberGroup({
+    title,
+    count,
+    children
+}: {
+    title: string;
+    count: number;
+    children: React.ReactNode;
+}) {
+    if (count === 0) return null;
     return (
         <section>
-            <GroupTitle title={title} count={members.length} />
-            <ListCard>
-                {members.map((member, index) => (
-                    <div
-                        key={member.person_id ?? member.registration ?? index}
-                        className="flex items-center gap-3 py-2.5"
-                    >
-                        <PersonPhoto src={member.photo} />
-                        <div className="min-w-0 text-xs text-muted-foreground">
-                            <p className="truncate text-sm font-medium text-foreground">
-                                {titleCase(member.name)}
-                            </p>
-                            {(member.course || member.registration) && (
-                                <p className="truncate">
-                                    {[
-                                        member.course && titleCase(member.course.name),
-                                        member.registration
-                                    ]
-                                        .filter(Boolean)
-                                        .join(' · ')}
-                                </p>
-                            )}
-                            {member.email && (
-                                <a className="break-all text-primary" href={mailto(member.email)}>
-                                    {member.email}
-                                </a>
-                            )}
-                        </div>
-                    </div>
-                ))}
-            </ListCard>
+            <GroupTitle title={title} count={count} />
+            <ListCard>{children}</ListCard>
         </section>
+    );
+}
+
+function ProfessorRow({ professor }: { professor: Professor }) {
+    const name = titleCase(professor.name);
+    return (
+        <PersonRow
+            photo={professor.photo}
+            name={
+                professor.siape == null ? (
+                    name
+                ) : (
+                    <Link
+                        to="/professores/$siape"
+                        params={{ siape: professor.siape }}
+                        className="hover:text-primary"
+                    >
+                        {name}
+                    </Link>
+                )
+            }
+            email={professor.email}
+        />
+    );
+}
+
+function MemberRow({ member }: { member: Member }) {
+    return (
+        <PersonRow
+            photo={member.photo}
+            name={titleCase(member.name)}
+            details={[member.course && titleCase(member.course.name), member.registration]
+                .filter(Boolean)
+                .join(' · ')}
+            email={member.email}
+        />
+    );
+}
+
+function PersonRow({
+    photo,
+    name,
+    details,
+    email
+}: {
+    photo?: string | null;
+    name: React.ReactNode;
+    details?: string;
+    email?: string | null;
+}) {
+    return (
+        <div className="flex items-center gap-3 py-2.5">
+            <PersonPhoto src={photo} />
+            <div className="min-w-0 text-xs text-muted-foreground">
+                <p className="truncate text-sm font-medium text-foreground">{name}</p>
+                {details && <p className="truncate">{details}</p>}
+                {email && (
+                    <a className="break-all text-primary" href={mailto(email)}>
+                        {email}
+                    </a>
+                )}
+            </div>
+        </div>
     );
 }
