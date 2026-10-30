@@ -1,6 +1,6 @@
 import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useQueryStates } from 'nuqs';
 
 import type { components } from '#/queries/schema.gen';
 
@@ -15,6 +15,7 @@ import { LoadingText } from '#/components/LoadingText';
 import { Card, CardContent } from '#/components/ui/card';
 import { PersonPhoto } from '#/components/ui/person-photo';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
+import { classroomSearchParsers, validateClassroomSearch } from '#/lib/classroom-search';
 import { mailto } from '#/lib/contact';
 import { titleCase } from '#/lib/profile';
 import {
@@ -37,6 +38,7 @@ const tabs: { id: Tab; label: string }[] = [
 ];
 
 export const Route = createFileRoute('/_app/turmas_/$id')({
+    validateSearch: validateClassroomSearch,
     loader: async ({ context: { queryClient }, params }) => {
         const user = await loadQuery(queryClient, meQueryOptions);
         const classrooms = user
@@ -58,7 +60,10 @@ function ClassroomPage() {
     const { id } = Route.useParams();
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const classrooms = useQuery({ ...allClassroomsQueryOptions, enabled: Boolean(user) });
-    const [tab, setTab] = useState<Tab>(tabs[0].id);
+    const [{ tab }, setSearch] = useQueryStates(classroomSearchParsers, {
+        history: 'replace',
+        scroll: false
+    });
     const classroom = classrooms.data?.find((item) => item.id === id);
 
     return (
@@ -80,7 +85,7 @@ function ClassroomPage() {
                         value={tab}
                         onValueChange={(value) => {
                             if (value === 'posts' || value === 'frequency' || value === 'members') {
-                                setTab(value);
+                                void setSearch({ tab: value });
                             }
                         }}
                         className="mt-5 gap-4"
