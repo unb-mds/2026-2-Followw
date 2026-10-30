@@ -249,6 +249,7 @@ describe('página de busca com estado na URL', () => {
             {
                 id: 1,
                 sigaa_id: 100,
+                level: 'Graduação',
                 name: 'CÁLCULO APLICADO',
                 shift: 'DIURNO',
                 unit: { id: 1, code: 'MAT', name: 'DEPARTAMENTO DE MATEMÁTICA' }
@@ -256,6 +257,7 @@ describe('página de busca com estado na URL', () => {
             {
                 id: 2,
                 sigaa_id: 101,
+                level: 'Graduação',
                 name: 'FÍSICA',
                 shift: null,
                 unit: { id: 1, code: 'MAT', name: 'DEPARTAMENTO DE MATEMÁTICA' }
@@ -284,6 +286,7 @@ describe('página de busca com estado na URL', () => {
                 Array.from({ length: total }, (_, index) => ({
                     id: index + 1,
                     sigaa_id: 100 + index,
+                    level: 'Graduação',
                     name: `ENGENHARIA CIVIL ${index + 1}`,
                     shift: 'DIURNO',
                     unit: { id: 1, code: 'ENG', name: 'ENGENHARIA' }
@@ -311,6 +314,7 @@ describe('página de busca com estado na URL', () => {
             Array.from({ length: 12 }, (_, index) => ({
                 id: index + 1,
                 sigaa_id: 100 + index,
+                level: 'Graduação',
                 name: `ENGENHARIA CIVIL ${index + 1}`,
                 shift: null,
                 unit: { id: 1, code: 'ENG', name: 'ENGENHARIA' }
@@ -336,6 +340,7 @@ describe('página de busca com estado na URL', () => {
             {
                 id: 1,
                 sigaa_id: 100,
+                level: 'Graduação',
                 name: 'CÁLCULO APLICADO',
                 shift: null,
                 unit: { id: 1, code: null, name: 'MATEMÁTICA' }
@@ -478,6 +483,7 @@ describe('página de busca com estado na URL', () => {
             {
                 id: 1,
                 sigaa_id: 100,
+                level: 'Graduação',
                 name: 'ESTUDOS CARLOS SILVA',
                 shift: null,
                 unit: { id: 1, code: null, name: 'UNIDADE' }
@@ -589,6 +595,7 @@ describe('página de busca com estado na URL', () => {
             {
                 id: 1,
                 sigaa_id: 100,
+                level: 'Graduação',
                 name: 'ESTUDOS CARLOS SILVA',
                 shift: null,
                 unit: { id: 1, code: null, name: 'UNIDADE' }

@@ -1,7 +1,11 @@
 import { queryOptions } from '@tanstack/react-query';
 
+import type { components } from '#/queries/schema.gen';
+
 import { api } from '#/queries/api.ts';
 import { ApiError } from '#/queries/errors.ts';
+
+export type UserProfile = components['schemas']['UserProfile'];
 
 const { queryKey, queryFn } = api.queryOptions('get', '/me');
 

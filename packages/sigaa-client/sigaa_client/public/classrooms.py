@@ -22,12 +22,12 @@ from ..utils.jsf import (
 from ..utils.parsing import (
     clean_text,
     lookup_key,
-    parse_hours,
     schedule_code,
     split_location,
     visible_text,
 )
 from .session import PublicSession
+from .subject_details import parse_subject_details
 from .units import parse_units, resolve_unit
 
 FORM_ID = "formTurma"
@@ -37,12 +37,6 @@ LEVEL_FIELD = "formTurma:inputNivel"
 UNIT_FIELD = "formTurma:inputDepto"
 YEAR_FIELD = "formTurma:inputAno"
 PERIOD_FIELD = "formTurma:inputPeriodo"
-
-CODE_FIELD = "Código:"
-PREREQUISITES_FIELD = "Pré-Requisitos:"
-COREQUISITES_FIELD = "Co-Requisitos:"
-EQUIVALENCES_FIELD = "Equivalências:"
-TOTAL_HOURS_LABEL = "Total de Carga Horária do Componente"
 
 _COLUMNS = 8
 _ROW_CLASSES = frozenset({"linhaPar", "linhaImpar"})
@@ -109,7 +103,7 @@ class PublicClassrooms:
                 await self._session.restart()
                 page = await self._search(unit, level, year, period)
                 details = await self._open_details(page, sigaa_id)
-            yield _parse_details(details, subject)
+            yield parse_subject_details(details, subject)
 
     async def _open_details(self, page: BeautifulSoup, sigaa_id: int) -> BeautifulSoup:
         form = read_form(page, FORM_ID)
@@ -211,61 +205,6 @@ def _listed_subjects(soup: BeautifulSoup) -> dict[int, Subject]:
         if known is None or (known.unit is None and subject.unit is not None):
             subjects[subject.sigaa_id] = subject
     return subjects
-
-
-def _parse_details(soup: BeautifulSoup, subject: Subject) -> SubjectDetails:
-    table = soup.find("table", class_="visualizacao")
-    if not isinstance(table, Tag):
-        raise SigaaParseError("Resumo do componente não veio na tela de detalhes.")
-
-    fields = {
-        clean_text(header): cell
-        for header in table.find_all("th")
-        if isinstance(cell := header.find_next_sibling("td"), Tag)
-    }
-    for label in (
-        CODE_FIELD,
-        PREREQUISITES_FIELD,
-        COREQUISITES_FIELD,
-        EQUIVALENCES_FIELD,
-    ):
-        if label not in fields:
-            raise SigaaParseError(
-                f"Campo `{label}` ausente nos detalhes do componente."
-            )
-
-    # O contexto vive na sessão: confere que a tela é do componente pedido.
-    code = clean_text(fields[CODE_FIELD])
-    if code != subject.code:
-        raise SigaaParseError(
-            f"Detalhes de `{code}` onde se esperava `{subject.code}`."
-        )
-
-    return SubjectDetails(
-        **subject.model_dump(exclude={"hours"}),
-        hours=_total_hours(soup) or subject.hours,
-        prerequisites=_expression(fields[PREREQUISITES_FIELD]),
-        corequisites=_expression(fields[COREQUISITES_FIELD]),
-        # O resumo traz a expressão ativa; as antigas ficam só no histórico.
-        equivalences=_expression(fields[EQUIVALENCES_FIELD]),
-    )
-
-
-def _expression(cell: Tag) -> str | None:
-    """`( ( <acronym>CIC0004</acronym> ) )` -> `( ( CIC0004 ) )`; `-` é sem requisito."""
-    text = clean_text(cell)
-    return None if text in ("", "-") else text
-
-
-def _total_hours(soup: BeautifulSoup) -> int | None:
-    for cell in soup.find_all("td"):
-        if not clean_text(cell).startswith(TOTAL_HOURS_LABEL):
-            continue
-        value = cell.find_next_sibling("td")
-        hours = parse_hours(clean_text(value)) if isinstance(value, Tag) else None
-        if hours is not None:
-            return hours
-    return None
 
 
 def _classroom(row: Tag, subject: Subject) -> PublicClassroom:

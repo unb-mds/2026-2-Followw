@@ -618,6 +618,10 @@ export interface components {
             periods: components["schemas"]["CurriculumPeriod"][];
             /** Complementary */
             complementary: components["schemas"]["CurriculumSubject"][];
+            /** Degree */
+            readonly degree: string | null;
+            /** Modality */
+            readonly modality: string | null;
         };
         /** CourseRef */
         CourseRef: {
@@ -644,9 +648,9 @@ export interface components {
             /** Hours */
             hours?: number | null;
             unit?: components["schemas"]["UnitRef"] | null;
-            prerequisites?: components["schemas"]["Requirements"] | null;
-            corequisites?: components["schemas"]["Requirements"] | null;
-            equivalences?: components["schemas"]["Requirements"] | null;
+            prerequisites?: components["schemas"]["CatalogRequirements"] | null;
+            corequisites?: components["schemas"]["CatalogRequirements"] | null;
+            equivalences?: components["schemas"]["CatalogRequirements"] | null;
         };
         /**
          * CurriculumWorkload
@@ -956,10 +960,11 @@ export interface components {
             /** Shift */
             shift: string | null;
             unit: components["schemas"]["UnitRef"];
+            /** Level */
+            level: "Graduação" | null;
         };
         /** @enum {string} */
         ReasonCode: "required" | "target_period" | "overdue" | "same_unit" | "chain_length" | "chain_width" | "hours";
-        Requirements: string[][];
         /** RestaurantCredentials */
         RestaurantCredentials: {
             /** Token */

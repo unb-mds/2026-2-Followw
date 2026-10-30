@@ -1,21 +1,36 @@
 import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, notFound, rootRouteId } from '@tanstack/react-router';
-import { useEffect, useRef, useState } from 'react';
+
+import type { UserProfile } from '#/queries/me';
 
 import { getCurrentSemester } from '#/calendar';
-import { CourseInfo } from '#/components/curriculum/CourseInfo';
+import { CourseSummary } from '#/components/curriculum/CourseSummary';
 import { CurriculumView } from '#/components/curriculum/CurriculumView';
-import { FlowClose } from '#/components/curriculum/FlowClose';
 import { Legend } from '#/components/curriculum/Legend';
 import { ErrorCard, ErrorState } from '#/components/ErrorState';
+import { BackHeader } from '#/components/HeaderBar';
 import { LoadingText } from '#/components/LoadingText';
 import { validateFlowSearch } from '#/lib/curriculum/navigation';
+import { useWidth } from '#/lib/width';
 import { allClassroomsQueryOptions } from '#/queries/classrooms';
 import { coursesQueryOptions } from '#/queries/courses';
 import { curriculumQueryOptions } from '#/queries/curriculum';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
 import { currentCurriculumPeriod } from '#/queries/subjects';
+
+const DESKTOP_MIN_WIDTH = 1024;
+
+/** O curso do aluno usa o ingresso dele; outro curso, a matriz vigente no semestre atual. */
+function flowTarget(user: UserProfile | null | undefined, courseId: number) {
+    const semester = getCurrentSemester()?.semester;
+    const ownCourse = courseId === user?.course?.id;
+    return {
+        ownCourse,
+        entrySemester: ownCourse ? user?.entry_semester : semester,
+        currentPeriod: ownCourse ? currentCurriculumPeriod(user?.entry_semester, semester) : null
+    };
+}
 
 export const Route = createFileRoute('/_app/cursos/$id')({
     head: () => ({ meta: [{ title: 'Fluxo acadêmico | Followw' }] }),
@@ -32,8 +47,7 @@ export const Route = createFileRoute('/_app/cursos/$id')({
     },
     loader: async ({ context: { queryClient }, params: { id: courseId } }) => {
         const user = await loadQuery(queryClient, meQueryOptions);
-        const ownCourse = courseId === user?.course?.id;
-        const entrySemester = ownCourse ? user?.entry_semester : getCurrentSemester()?.semester;
+        const { ownCourse, entrySemester } = flowTarget(user, courseId);
         await Promise.all([
             !ownCourse && loadQuery(queryClient, coursesQueryOptions).catch(noop),
             entrySemester &&
@@ -44,53 +58,39 @@ export const Route = createFileRoute('/_app/cursos/$id')({
         ]);
     },
     pendingComponent: () => (
-        <div className="flex flex-col gap-4 p-6">
-            <FlowClose />
+        <div className="flex flex-col gap-4 px-4 lg:px-6">
+            <FlowHeader />
             <LoadingText>Carregando fluxo...</LoadingText>
         </div>
     ),
     errorComponent: (props) => (
-        <div className="flex flex-col gap-4 p-6">
-            <FlowClose />
+        <div className="flex flex-col gap-4 px-4 lg:px-6">
+            <FlowHeader />
             <ErrorState {...props} />
         </div>
     ),
     component: FlowPage
 });
 
+function FlowHeader({ legend = false }: { legend?: boolean }) {
+    return <BackHeader to="/buscar" title="Fluxo acadêmico" actions={legend && <Legend />} />;
+}
+
 function FlowPage() {
-    const ref = useRef<HTMLDivElement>(null);
-    const [desktop, setDesktop] = useState<boolean | null>(null);
-    useEffect(() => {
-        const observer = new ResizeObserver((entries) =>
-            setDesktop(entries[0].contentRect.width >= 1024)
-        );
-        if (ref.current) observer.observe(ref.current);
-        return () => observer.disconnect();
-    }, []);
+    const { ref, width } = useWidth<HTMLDivElement>();
+    const desktop = width ? width >= DESKTOP_MIN_WIDTH : null;
     const search = Route.useSearch();
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const { id: courseId } = Route.useParams();
-    const ownCourse = courseId === user?.course?.id;
-    const courses = useQuery({
-        ...coursesQueryOptions,
-        enabled: !ownCourse
-    });
+    const { ownCourse, entrySemester, currentPeriod } = flowTarget(user, courseId);
+    const courses = useQuery({ ...coursesQueryOptions, enabled: !ownCourse });
     const course = ownCourse ? user?.course : courses.data?.find((item) => item.id === courseId);
-    const entrySemester = ownCourse ? user?.entry_semester : getCurrentSemester()?.semester;
-    const currentPeriod = ownCourse
-        ? currentCurriculumPeriod(user?.entry_semester, getCurrentSemester()?.semester)
-        : null;
     return (
         <div ref={ref} className="flex min-h-0 flex-1 flex-col">
-            <header className="relative flex shrink-0 items-center justify-between gap-4 border-b px-4 py-5 lg:px-6">
-                <div className="flex min-w-0 flex-col gap-1 lg:max-w-60 xl:max-w-80">
-                    <h1 className="text-2xl font-bold">Fluxo acadêmico</h1>
-                    {course && <CourseInfo course={course} entrySemester={entrySemester} />}
-                </div>
-                {desktop && ownCourse && course && entrySemester && <Legend />}
-                <FlowClose />
-            </header>
+            <div className="shrink-0 border-b px-4 pb-5 lg:px-6">
+                <FlowHeader legend={Boolean(desktop && ownCourse && course && entrySemester)} />
+                {course && <CourseSummary course={course} entrySemester={entrySemester} />}
+            </div>
             {!ownCourse && courses.isPending ? (
                 <LoadingText className="p-4">Carregando curso...</LoadingText>
             ) : !ownCourse && courses.isLoadingError ? (
@@ -114,7 +114,7 @@ function FlowPage() {
                     entrySemester={entrySemester}
                     currentPeriod={currentPeriod}
                     selected={search.materia}
-                    studentContext={ownCourse}
+                    ownCourse={ownCourse}
                     desktop={desktop}
                 />
             )}

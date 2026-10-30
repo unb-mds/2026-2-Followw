@@ -1,55 +1,35 @@
-import { useQueries } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { X } from 'lucide-react';
 
-import type { AcademicState, CurriculumModel, FlowSubject } from '#/lib/curriculum/model';
+import type { AcademicState, FlowSubject } from '#/lib/curriculum/types';
 
-import { LoadingText } from '#/components/LoadingText';
 import { Button, buttonVariants } from '#/components/ui/button';
 import { DialogClose, DialogDescription, DialogTitle } from '#/components/ui/dialog';
-import { requirementsText, stateLabels } from '#/lib/curriculum/model';
+import { requirementsText, subjectsText } from '#/lib/curriculum/format';
+import { stateLabels } from '#/lib/curriculum/model';
 import { titleCase } from '#/lib/profile';
 import { cn } from '#/lib/shadcn';
-import { subjectsQueryOptions } from '#/queries/subjects';
 
 export function SubjectDetails({
     subject,
-    model,
-    state
+    state,
+    unlocks
 }: {
     subject: FlowSubject;
-    model: CurriculumModel;
-    state: AcademicState | null;
+    state?: AcademicState;
+    unlocks?: FlowSubject[];
 }) {
-    const relations = [
-        ['Pré-requisitos', subject.prerequisites],
-        ['Correquisitos', subject.corequisites],
-        ['Equivalências', subject.equivalences]
-    ] as const;
-    const names = new Map(
-        [...model.byCode].flatMap(([code, item]) =>
-            item.name?.trim() ? [[code, item.name] as const] : []
-        )
-    );
-    const missing = [...new Set(relations.flatMap(([, groups]) => groups?.flat() ?? []))].filter(
-        (code) => !names.has(code)
-    );
-    const queries = useQueries({ queries: missing.map((code) => subjectsQueryOptions({ code })) });
-    queries.forEach((query, index) => {
-        const item = query.data?.find((candidate) => candidate.code === missing[index]);
-        if (item?.name?.trim()) names.set(item.code, item.name);
-    });
-    const sections = relations.flatMap(([label, groups]) => {
-        const text = requirementsText(groups, names);
-        return text ? [{ label, text }] : [];
-    });
+    const sections = [
+        { label: 'Pré-requisitos', text: requirementsText(subject.prerequisites) },
+        { label: 'Correquisitos', text: requirementsText(subject.corequisites) },
+        { label: 'Equivalências', text: requirementsText(subject.equivalences) },
+        { label: 'Desbloqueia', text: subjectsText(unlocks) }
+    ].filter((section) => section.text);
     return (
         <>
             <div className="flex flex-col gap-1">
                 <div className="flex items-start gap-2">
-                    <DialogTitle className="min-w-0 flex-1">
-                        {titleCase(subject.name ?? '')}
-                    </DialogTitle>
+                    <DialogTitle className="min-w-0 flex-1">{titleCase(subject.name)}</DialogTitle>
                     <DialogClose
                         render={
                             <Button variant="ghost" size="icon-sm" className="-mt-1 shrink-0" />
@@ -64,9 +44,6 @@ export function SubjectDetails({
                     {subject.period}º semestre
                 </DialogDescription>
             </div>
-            {queries.some((query) => query.isPending) && (
-                <LoadingText>Carregando relações...</LoadingText>
-            )}
             {sections.length > 0 && (
                 <dl className="flex flex-col gap-4 text-sm">
                     {sections.map(({ label, text }) => (

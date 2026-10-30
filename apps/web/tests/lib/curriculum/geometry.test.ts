@@ -1,17 +1,14 @@
 import { describe, expect, test } from 'bun:test';
 
-import type { FlowGeometry } from '#/lib/curriculum/geometry';
-import type { CourseCurriculum } from '#/queries/curriculum';
+import type { FlowGeometry } from '#/lib/curriculum/types';
 
-import {
-    DESKTOP_CARD_HEIGHT,
-    DESKTOP_CARD_MAX_WIDTH,
-    layoutCurriculum
-} from '#/lib/curriculum/geometry';
+import { DESKTOP, layoutCurriculum, MOBILE } from '#/lib/curriculum/geometry';
 import { normalizeCurriculum } from '#/lib/curriculum/model';
 import { connectionSegments } from '#/lib/curriculum/segments';
 
-const matrix: CourseCurriculum = {
+import { curriculum as named, type RawCurriculum } from '../../helpers/curriculum';
+
+const matrix: RawCurriculum = {
     sigaa_id: 1,
     code: '01',
     course_id: 42,
@@ -40,7 +37,14 @@ const matrix: CourseCurriculum = {
     })),
     complementary: []
 };
-const model = normalizeCurriculum(matrix);
+const model = normalizeCurriculum(named(matrix));
+const DESKTOP_CARD_HEIGHT = 112;
+const DESKTOP_CARD_MAX_WIDTH = DESKTOP.cardWidth.max;
+const mobile = (
+    curriculum: Parameters<typeof layoutCurriculum>[0],
+    width: number,
+    period: number
+) => layoutCurriculum(curriculum, width, MOBILE, [period]);
 function assertRoutes(geometry: FlowGeometry) {
     for (const { points } of geometry.edges) {
         for (let i = 1; i < points.length; i++) {
@@ -66,26 +70,31 @@ function assertRoutes(geometry: FlowGeometry) {
 
 describe('geometria do fluxo', () => {
     test('usa o corredor entre as matérias intermediárias sem subir além do destino', () => {
-        const curriculum = normalizeCurriculum({
-            ...matrix,
-            periods: [
-                {
-                    period: 1,
-                    subjects: [
-                        { code: 'A0', name: 'Base' },
-                        { code: 'A1', name: 'Origem' }
-                    ]
-                },
-                {
-                    period: 2,
-                    subjects: [
-                        { code: 'M0', name: 'Intermediária superior' },
-                        { code: 'M1', name: 'Intermediária inferior' }
-                    ]
-                },
-                { period: 3, subjects: [{ code: 'Z', name: 'Destino', prerequisites: [['A1']] }] }
-            ]
-        });
+        const curriculum = normalizeCurriculum(
+            named({
+                ...matrix,
+                periods: [
+                    {
+                        period: 1,
+                        subjects: [
+                            { code: 'A0', name: 'Base' },
+                            { code: 'A1', name: 'Origem' }
+                        ]
+                    },
+                    {
+                        period: 2,
+                        subjects: [
+                            { code: 'M0', name: 'Intermediária superior' },
+                            { code: 'M1', name: 'Intermediária inferior' }
+                        ]
+                    },
+                    {
+                        period: 3,
+                        subjects: [{ code: 'Z', name: 'Destino', prerequisites: [['A1']] }]
+                    }
+                ]
+            })
+        );
         for (const width of [1024, 1440, 2560]) {
             const geometry = layoutCurriculum(curriculum, width);
             const { points } = geometry.edges[0];
@@ -106,17 +115,19 @@ describe('geometria do fluxo', () => {
     });
     test('liga diretamente matérias alinhadas quando o semestre intermediário está livre', () => {
         const geometry = layoutCurriculum(
-            normalizeCurriculum({
-                ...matrix,
-                periods: [
-                    { period: 1, subjects: [{ code: 'A', name: 'Origem' }] },
-                    { period: 2, subjects: [] },
-                    {
-                        period: 3,
-                        subjects: [{ code: 'B', name: 'Destino', prerequisites: [['A']] }]
-                    }
-                ]
-            }),
+            normalizeCurriculum(
+                named({
+                    ...matrix,
+                    periods: [
+                        { period: 1, subjects: [{ code: 'A', name: 'Origem' }] },
+                        { period: 2, subjects: [] },
+                        {
+                            period: 3,
+                            subjects: [{ code: 'B', name: 'Destino', prerequisites: [['A']] }]
+                        }
+                    ]
+                })
+            ),
             1440
         );
         expect(geometry.edges[0].points).toHaveLength(2);
@@ -124,17 +135,19 @@ describe('geometria do fluxo', () => {
     });
     test('mantém o desvio necessário quando uma matéria bloqueia a linha direta', () => {
         const geometry = layoutCurriculum(
-            normalizeCurriculum({
-                ...matrix,
-                periods: [
-                    { period: 1, subjects: [{ code: 'A', name: 'Origem' }] },
-                    { period: 2, subjects: [{ code: 'M', name: 'Obstáculo' }] },
-                    {
-                        period: 3,
-                        subjects: [{ code: 'B', name: 'Destino', prerequisites: [['A']] }]
-                    }
-                ]
-            }),
+            normalizeCurriculum(
+                named({
+                    ...matrix,
+                    periods: [
+                        { period: 1, subjects: [{ code: 'A', name: 'Origem' }] },
+                        { period: 2, subjects: [{ code: 'M', name: 'Obstáculo' }] },
+                        {
+                            period: 3,
+                            subjects: [{ code: 'B', name: 'Destino', prerequisites: [['A']] }]
+                        }
+                    ]
+                })
+            ),
             1440
         );
         expect(geometry.edges[0].points.length).toBeGreaterThan(2);
@@ -188,7 +201,7 @@ describe('geometria do fluxo', () => {
         }
     });
     test('mobile só mostra o semestre selecionado e continua somente relações reais', () => {
-        const geometry = layoutCurriculum(model, 390, 2);
+        const geometry = mobile(model, 390, 2);
         expect(geometry.nodes.every((n) => n.subject.period === 2)).toBe(true);
         expect(geometry.edges.map((e) => e.edge.id)).toEqual(
             model.edges
@@ -204,22 +217,24 @@ describe('geometria do fluxo', () => {
         expect(geometry.edges.some((e) => e.points.at(-1)!.x === geometry.width)).toBe(true);
     });
     test('mobile acomoda quatro matérias em uma área compacta e mantém os correquisitos alinhados', () => {
-        const compact = normalizeCurriculum({
-            ...matrix,
-            periods: [
-                {
-                    period: 1,
-                    subjects: Array.from({ length: 4 }, (_, index) => ({
-                        code: `A${index}`,
-                        name: 'Disciplina com nome longo que ocupa três linhas no cartão',
-                        hours: index === 3 ? null : 60,
-                        corequisites: index === 0 ? [['A1']] : []
-                    }))
-                }
-            ]
-        });
+        const compact = normalizeCurriculum(
+            named({
+                ...matrix,
+                periods: [
+                    {
+                        period: 1,
+                        subjects: Array.from({ length: 4 }, (_, index) => ({
+                            code: `A${index}`,
+                            name: 'Disciplina com nome longo que ocupa três linhas no cartão',
+                            hours: index === 3 ? null : 60,
+                            corequisites: index === 0 ? [['A1']] : []
+                        }))
+                    }
+                ]
+            })
+        );
         for (const width of [320, 390]) {
-            const geometry = layoutCurriculum(compact, width, 1);
+            const geometry = mobile(compact, width, 1);
             expect(geometry.nodes).toHaveLength(4);
             expect(geometry.height).toBeLessThanOrEqual(592);
             expect(geometry.width).toBeLessThanOrEqual(width);
@@ -236,59 +251,65 @@ describe('geometria do fluxo', () => {
         }
     });
     test('correquisitos ficam próximos na vertical, sem linhas atravessando os cartões', () => {
-        const paired = normalizeCurriculum({
-            ...matrix,
-            periods: [
-                {
-                    period: 1,
-                    subjects: [
-                        { code: 'A', name: 'Teoria', corequisites: [['Z']] },
-                        { code: 'B', name: 'Outra disciplina' },
-                        { code: 'Z', name: 'Prática', corequisites: [['A']] }
-                    ]
-                }
-            ]
-        });
-        for (const mobilePeriod of [undefined, 1]) {
-            const geometry = layoutCurriculum(paired, mobilePeriod ? 390 : 1440, mobilePeriod);
+        const paired = normalizeCurriculum(
+            named({
+                ...matrix,
+                periods: [
+                    {
+                        period: 1,
+                        subjects: [
+                            { code: 'A', name: 'Teoria', corequisites: [['Z']] },
+                            { code: 'B', name: 'Outra disciplina' },
+                            { code: 'Z', name: 'Prática', corequisites: [['A']] }
+                        ]
+                    }
+                ]
+            })
+        );
+        for (const geometry of [layoutCurriculum(paired, 1440), mobile(paired, 390, 1)]) {
             expect(geometry.nodes.map((n) => n.subject.code)).toEqual(['A', 'Z', 'B']);
             expect(geometry.edges).toHaveLength(1);
             const points = geometry.edges[0].points;
             expect(points[0].x).toBe(points.at(-1)!.x);
             expect(Math.abs(points[0].y - points.at(-1)!.y)).toBeGreaterThan(0);
-            expect(geometry.edges[0].label).toContain('correquisito');
+            expect(geometry.edges[0].edge.kind).toBe('corequisite');
             assertRoutes(geometry);
         }
     });
     test('vários correquisitos não adjacentes usam os corredores sem cruzar cartões', () => {
-        const dense = normalizeCurriculum({
-            ...matrix,
-            periods: [
-                {
-                    period: 1,
-                    subjects: Array.from({ length: 6 }, (_item, index) => ({
-                        code: `A${index}`,
-                        name: 'Disciplina',
-                        corequisites: [Array.from({ length: 6 }, (_other, other) => `A${other}`)]
-                    }))
-                }
-            ]
-        });
-        for (const mobilePeriod of [undefined, 1]) {
-            const geometry = layoutCurriculum(dense, 1440, mobilePeriod);
+        const dense = normalizeCurriculum(
+            named({
+                ...matrix,
+                periods: [
+                    {
+                        period: 1,
+                        subjects: Array.from({ length: 6 }, (_item, index) => ({
+                            code: `A${index}`,
+                            name: 'Disciplina',
+                            corequisites: [
+                                Array.from({ length: 6 }, (_other, other) => `A${other}`)
+                            ]
+                        }))
+                    }
+                ]
+            })
+        );
+        for (const geometry of [layoutCurriculum(dense, 1440), mobile(dense, 1440, 1)]) {
             expect(geometry.edges).toHaveLength(15);
             assertRoutes(geometry);
         }
     });
     test('desktop compacto mantém largura e altura legíveis com mais cartões na área disponível', () => {
         const compact = layoutCurriculum(
-            normalizeCurriculum({
-                ...matrix,
-                periods: Array.from({ length: 10 }, (_item, index) => ({
-                    period: index + 1,
-                    subjects: [{ code: `A${index}`, name: 'Disciplina', hours: 60 }]
-                }))
-            }),
+            normalizeCurriculum(
+                named({
+                    ...matrix,
+                    periods: Array.from({ length: 10 }, (_item, index) => ({
+                        period: index + 1,
+                        subjects: [{ code: `A${index}`, name: 'Disciplina', hours: 60 }]
+                    }))
+                })
+            ),
             1440
         );
         expect(
@@ -300,25 +321,27 @@ describe('geometria do fluxo', () => {
     });
     test('centenas de relações alternativas não geram cartões gigantes ou corredores por relação', () => {
         const codes = Array.from({ length: 80 }, (_, index) => `A${index}`);
-        const curriculum = normalizeCurriculum({
-            ...matrix,
-            periods: [
-                {
-                    period: 1,
-                    subjects: codes.map((code) => ({ code, name: 'Disciplina', hours: 60 }))
-                },
-                {
-                    period: 2,
-                    subjects: [
-                        {
-                            code: 'DESTINO',
-                            name: 'Nome muito longo '.repeat(30),
-                            prerequisites: codes.map((code) => [code])
-                        }
-                    ]
-                }
-            ]
-        });
+        const curriculum = normalizeCurriculum(
+            named({
+                ...matrix,
+                periods: [
+                    {
+                        period: 1,
+                        subjects: codes.map((code) => ({ code, name: 'Disciplina', hours: 60 }))
+                    },
+                    {
+                        period: 2,
+                        subjects: [
+                            {
+                                code: 'DESTINO',
+                                name: 'Nome muito longo '.repeat(30),
+                                prerequisites: codes.map((code) => [code])
+                            }
+                        ]
+                    }
+                ]
+            })
+        );
         const geometry = layoutCurriculum(curriculum, 1440);
         expect(geometry.edges).toHaveLength(80);
         expect(
@@ -333,10 +356,10 @@ describe('geometria do fluxo', () => {
         expect(arrows.filter((arrow) => arrow.endArrow)).toHaveLength(1);
         expect(segments.length).toBeLessThan(100);
         assertRoutes(geometry);
-        const mobile = layoutCurriculum(curriculum, 390, 2);
-        expect(mobile.nodes[0].height).toBeLessThanOrEqual(160);
-        expect(mobile.edges).toHaveLength(80);
-        assertRoutes(mobile);
+        const column = mobile(curriculum, 390, 2);
+        expect(column.nodes[0].height).toBeLessThanOrEqual(160);
+        expect(column.edges).toHaveLength(80);
+        assertRoutes(column);
     });
     test('centraliza cada título de semestre sobre seus cartões em diferentes larguras', () => {
         for (const width of [1024, 1440, 2560]) {
@@ -353,7 +376,10 @@ describe('geometria do fluxo', () => {
         }
     });
     test('matriz vazia produz dimensões finitas sem inventar componentes', () => {
-        const empty = layoutCurriculum(normalizeCurriculum({ ...matrix, periods: [] }), 1200);
+        const empty = layoutCurriculum(
+            normalizeCurriculum(named({ ...matrix, periods: [] })),
+            1200
+        );
         expect(empty.nodes).toEqual([]);
         expect(Number.isFinite(empty.height)).toBe(true);
         expect(Number.isFinite(empty.width)).toBe(true);

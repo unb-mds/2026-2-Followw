@@ -1,7 +1,7 @@
 import { noop, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, CircleHelp } from 'lucide-react';
 
-import type { CatalogSubject, SubjectType } from '#/queries/subjects';
+import type { CatalogSubject } from '#/queries/subjects';
 
 import { ErrorCard } from '#/components/ErrorState';
 import { LoadingText } from '#/components/LoadingText';
@@ -18,7 +18,7 @@ import {
 } from '#/components/ui/dialog';
 import { reasonLabel, recommendationsQueryOptions } from '#/queries/recommendations';
 import { refreshQuery } from '#/queries/refresh';
-import { filterSubjects, subjectTypeLabels } from '#/queries/subjects';
+import { withClassrooms } from '#/queries/subjects';
 
 export function RecommendationReasons({ subject }: { subject: CatalogSubject }) {
     const reasons = subject.recommendation?.reasons ?? [];
@@ -61,21 +61,21 @@ function WhyDialog(subject: CatalogSubject) {
 
 export function RecommendationsSection({
     currentPeriod,
-    taken,
-    type = 'all'
+    taken
 }: {
     currentPeriod?: number | null;
     taken?: Set<string> | null;
-    type?: SubjectType;
 }) {
     const client = useQueryClient();
     const query = useQuery(recommendationsQueryOptions);
     const refresh = () => void refreshQuery(client, recommendationsQueryOptions).catch(noop);
-    const subjects = query.data && filterSubjects(query.data, type);
-    const title =
-        type === 'all' ? 'Matérias recomendadas' : `${subjectTypeLabels[type]} disponíveis`;
+    const subjects = query.data && withClassrooms(query.data);
     return (
-        <section aria-label={title} className="flex flex-col gap-3" aria-busy={query.isFetching}>
+        <section
+            aria-label="Matérias recomendadas"
+            className="flex flex-col gap-3"
+            aria-busy={query.isFetching}
+        >
             {query.isPending ? (
                 <LoadingText>Buscando recomendações...</LoadingText>
             ) : query.isLoadingError ? (
@@ -93,13 +93,10 @@ export function RecommendationsSection({
                     )}
                     {subjects.length === 0 ? (
                         <p className="rounded-2xl border bg-card p-4 text-sm">
-                            {type === 'all'
-                                ? 'Nenhuma matéria da oferta atual foi recomendada para você.'
-                                : 'Nenhuma matéria disponível para você com esse filtro.'}
+                            Nenhuma matéria da oferta atual foi recomendada para você.
                         </p>
                     ) : (
                         <TurmaSection
-                            key={type}
                             subjects={subjects}
                             currentPeriod={currentPeriod}
                             taken={taken}

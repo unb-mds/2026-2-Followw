@@ -4,7 +4,10 @@ import { api } from '#/queries/api';
 
 export type CourseCurriculum = components['schemas']['CourseCurriculum'];
 export type CurriculumSubject = components['schemas']['CurriculumSubject'];
-export type CurriculumRequirements = components['schemas']['Requirements'];
+export const shiftLabels: Record<NonNullable<CourseCurriculum['shift']>, string> = {
+    D: 'Diurno',
+    N: 'Noturno'
+};
 
 export const curriculumQueryOptions = (courseId: number, entrySemester: string) =>
     api.queryOptions('get', '/public/courses/{course_id}/curriculum', {

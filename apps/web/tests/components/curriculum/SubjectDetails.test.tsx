@@ -1,6 +1,3 @@
-import type { Middleware } from 'openapi-fetch';
-
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
     createMemoryHistory,
     createRootRoute,
@@ -9,65 +6,59 @@ import {
     Outlet,
     RouterProvider
 } from '@tanstack/react-router';
-import { afterEach, beforeEach, expect, test } from 'bun:test';
+import { afterEach, expect, test } from 'bun:test';
 
-import type { AcademicState, CurriculumModel, FlowSubject } from '#/lib/curriculum/model';
+import type { AcademicState, FlowSubject } from '#/lib/curriculum/types';
 
 import { SubjectDetails } from '#/components/curriculum/SubjectDetails';
 import { Dialog } from '#/components/ui/dialog';
+import { normalizeCurriculum } from '#/lib/curriculum/model';
 import { parseRouterSearch, stringifyRouterSearch, validateSearch } from '#/lib/search-params';
-import { apiClient } from '#/queries/client';
 
+import { curriculum, type RawSubject } from '../../helpers/curriculum';
 import { useDom } from '../../helpers/dom';
 
 const dom = useDom();
-const base: FlowSubject = { code: 'A', name: 'CÁLCULO 1', period: 1 };
-const other: FlowSubject = { code: 'C', name: 'PROGRAMAÇÃO', period: 1 };
-const subject: FlowSubject = {
+const matrix = (subject: RawSubject) =>
+    curriculum(
+        {
+            sigaa_id: 1,
+            code: '01',
+            course_id: 42,
+            entry_semester: '2024.2',
+            valid_from: '2024.1',
+            matrix: 'Teste',
+            shift: null,
+            periods: [
+                {
+                    period: 1,
+                    subjects: [
+                        { code: 'A', name: 'CÁLCULO 1' },
+                        { code: 'C', name: 'PROGRAMAÇÃO' }
+                    ]
+                },
+                { period: 2, subjects: [subject] }
+            ]
+        },
+        { EXTERNA: 'ÁLGEBRA LINEAR' }
+    );
+const flowSubject = (raw: RawSubject): FlowSubject =>
+    normalizeCurriculum(matrix(raw)).byCode.get(raw.code)!;
+const subject = flowSubject({
     code: 'B',
     name: 'ESTRUTURAS DE DADOS 1',
-    period: 2,
     prerequisites: [['A', 'EXTERNA'], ['C']],
     equivalences: [['C']]
-};
-const model: CurriculumModel = {
-    subjects: [base, other, subject],
-    periods: [1, 2],
-    byCode: new Map([base, other, subject].map((item) => [item.code, item])),
-    edges: []
-};
-let client: QueryClient;
-let middleware: Middleware;
-let requests: string[];
-beforeEach(() => {
-    client = new QueryClient({
-        defaultOptions: { queries: { retry: false, staleTime: Infinity } }
-    });
-    requests = [];
-    middleware = {
-        onRequest: ({ request }) => {
-            const code = new URL(request.url).searchParams.get('code')!;
-            requests.push(code);
-            return Response.json(
-                code === 'EXTERNA' ? [{ code, name: 'ÁLGEBRA LINEAR', classrooms: [] }] : []
-            );
-        }
-    };
-    apiClient.use(middleware);
 });
-afterEach(() => {
-    dom.testing.cleanup();
-    client.clear();
-    apiClient.eject(middleware);
-});
-async function renderDetails(item = subject, state: AcademicState | null = 'enrolled') {
+afterEach(() => dom.testing.cleanup());
+async function renderDetails(item = subject, state?: AcademicState, unlocks?: FlowSubject[]) {
     const root = createRootRoute({ component: Outlet });
     const flow = createRoute({
         getParentRoute: () => root,
         path: '/cursos/$id',
         component: () => (
             <Dialog>
-                <SubjectDetails subject={item} model={model} state={state} />
+                <SubjectDetails subject={item} state={state} unlocks={unlocks} />
             </Dialog>
         )
     });
@@ -86,16 +77,12 @@ async function renderDetails(item = subject, state: AcademicState | null = 'enro
         stringifySearch: stringifyRouterSearch
     });
     await router.load();
-    const page = dom.testing.render(
-        <QueryClientProvider client={client}>
-            <RouterProvider router={router} />
-        </QueryClientProvider>
-    );
+    const page = dom.testing.render(<RouterProvider router={router} />);
     return { ...page, router };
 }
 
-test('exibe título sem código, relações apenas por nomes e consulta componentes fora da matriz', async () => {
-    const page = await renderDetails();
+test('exibe título sem código e relações apenas pelos nomes do catálogo', async () => {
+    const page = await renderDetails(subject, 'enrolled');
     await page.findByText('(Cálculo 1 e Álgebra Linear) ou Programação');
     expect(page.getByRole('heading', { name: 'Estruturas de Dados 1' })).toBeDefined();
     expect(page.getByText('Equivalências')).toBeDefined();
@@ -104,28 +91,37 @@ test('exibe título sem código, relações apenas por nomes e consulta componen
     expect(page.container.textContent).not.toContain('Nenhum informado');
     expect(page.container.textContent).not.toContain('As linhas tracejadas');
     expect(page.container.textContent).not.toContain('EXTERNA');
-    expect(requests).toEqual(['EXTERNA']);
     expect(page.getByRole('button', { name: 'Fechar detalhes da matéria' })).toBeDefined();
 });
 
+test('exibe as matérias que ela desbloqueia', async () => {
+    const page = await renderDetails(flowSubject({ code: 'A', name: 'CÁLCULO 1' }), undefined, [
+        subject,
+        flowSubject({ code: 'D', name: 'CÁLCULO 2' })
+    ]);
+    expect(page.getByText('Desbloqueia')).toBeDefined();
+    expect(page.getByText('Estruturas de Dados 1 e Cálculo 2')).toBeDefined();
+});
+
 test('oculta seções sem relações ou sem nomes disponíveis no catálogo', async () => {
-    const page = await renderDetails({
-        ...subject,
-        prerequisites: [['DESCONHECIDA']],
-        corequisites: [],
-        equivalences: null
-    });
-    await dom.testing.waitFor(() =>
-        expect(page.queryByText('Carregando relações...') === null).toBe(true)
+    const page = await renderDetails(
+        flowSubject({
+            code: 'B',
+            name: 'ESTRUTURAS DE DADOS 1',
+            prerequisites: [['DESCONHECIDA']],
+            corequisites: [],
+            equivalences: null
+        })
     );
     expect(page.queryByText('Pré-requisitos')).toBeNull();
     expect(page.queryByText('Correquisitos')).toBeNull();
     expect(page.queryByText('Equivalências')).toBeNull();
+    expect(page.queryByText('Desbloqueia')).toBeNull();
     expect(page.container.textContent).not.toContain('DESCONHECIDA');
 });
 
 test('omite o estado acadêmico ao consultar uma matéria de outro curso', async () => {
-    const page = await renderDetails(base, null);
+    const page = await renderDetails(flowSubject({ code: 'A', name: 'CÁLCULO 1' }));
     expect(page.getByText('1º semestre')).toBeDefined();
     expect(page.container.textContent).not.toMatch(
         /Concluída|Em curso|Pendente|Atrasada|Histórico indisponível/

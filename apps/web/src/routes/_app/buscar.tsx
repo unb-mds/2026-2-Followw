@@ -26,6 +26,7 @@ import {
     currentCurriculumPeriod,
     SEARCH_MAX_LENGTH,
     SEARCH_MIN_LENGTH,
+    searchText,
     subjectsQuery,
     subjectsQueryOptions
 } from '#/queries/subjects';
@@ -40,8 +41,8 @@ export const Route = createFileRoute('/_app/buscar')({
         const search = loadSearchParams(location.searchStr);
         const sections = searchSections(search.category);
         const recommendations = sections.classrooms && showRecommendations(user, search);
-        const query = recommendations ? null : subjectsQuery(search.q, user?.unit?.code ?? null);
-        const text = subjectsQuery(search.q, null)?.q;
+        const text = searchText(search.q);
+        const query = recommendations ? null : subjectsQuery(text, user?.unit?.code ?? null);
         const professorName = professorSearch(text);
         await Promise.all([
             sections.classrooms &&
@@ -78,21 +79,18 @@ function BuscarPage() {
         user?.entry_semester,
         getCurrentSemester()?.semester
     );
-    // Consulta aplicada após o debounce de 300 ms; texto inválido mantém a anterior.
-    const [query, setQuery] = useState(() => subjectsQuery(q, unit));
+    // Texto aplicado após o debounce de 300 ms; inválido mantém o anterior.
+    const [text, setText] = useState(() => searchText(q));
     useEffect(() => {
-        const timer = setTimeout(
-            () => setQuery((previous) => subjectsQuery(q, unit, previous)),
-            300
-        );
+        const timer = setTimeout(() => setText((previous) => searchText(q, previous)), 300);
         return () => clearTimeout(timer);
-    }, [q, unit]);
+    }, [q]);
+    const query = subjectsQuery(text, unit);
     const { data: history } = useQuery({
         ...allClassroomsQueryOptions,
         enabled: sections.classrooms && Boolean(user)
     });
     const taken = useMemo(() => (history ? takenCodes(history) : null), [history]);
-    const text = query?.q ?? '';
     const canSearch = recommendations || (sections.classrooms && query != null) || Boolean(text);
     return (
         <div className="flex flex-col gap-5">

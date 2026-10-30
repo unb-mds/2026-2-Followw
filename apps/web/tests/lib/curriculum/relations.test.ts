@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import type { FlowEdge } from '#/lib/curriculum/model';
+import type { FlowEdge } from '#/lib/curriculum/types';
 
 import { relatedEdgeIds } from '#/lib/curriculum/relations';
 

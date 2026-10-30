@@ -1,4 +1,4 @@
-import type { FlowNode, Point } from '#/lib/curriculum/geometry';
+import type { FlowNode, Point } from '#/lib/curriculum/types';
 
 const CLEARANCE = 8;
 

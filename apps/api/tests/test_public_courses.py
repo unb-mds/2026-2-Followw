@@ -47,6 +47,7 @@ def test_lista_cursos_com_ids_turnos_e_unidades(client, database):
             "name": "ADMINISTRAÇÃO",
             "shift": "DIURNO",
             "unit": {"id": 673, "code": "FCTE", "name": "CAMPUS UNB GAMA"},
+            "level": "Graduação",
         },
         {
             "id": 11,
@@ -54,6 +55,7 @@ def test_lista_cursos_com_ids_turnos_e_unidades(client, database):
             "name": "ADMINISTRAÇÃO",
             "shift": "NOTURNO",
             "unit": {"id": 673, "code": "FCTE", "name": "CAMPUS UNB GAMA"},
+            "level": "Graduação",
         },
         {
             "id": 12,
@@ -61,6 +63,7 @@ def test_lista_cursos_com_ids_turnos_e_unidades(client, database):
             "name": "CRIADO NO SYNC",
             "shift": None,
             "unit": {"id": 999, "code": None, "name": "UNIDADE SEM SIGLA"},
+            "level": None,
         },
         {
             "id": 50,
@@ -68,6 +71,7 @@ def test_lista_cursos_com_ids_turnos_e_unidades(client, database):
             "name": "TURISMO",
             "shift": "INTEGRAL",
             "unit": {"id": 673, "code": "FCTE", "name": "CAMPUS UNB GAMA"},
+            "level": "Graduação",
         },
     ]
 
@@ -240,6 +244,8 @@ def test_curriculo_por_ingresso_traz_materias_agrupadas_e_requisitos(catalog):
         "matrix": "SOFTWARE - ATUAL",
         "valid_from": "2024.2",
         "shift": "D",
+        "degree": None,
+        "modality": None,
         "entry_semester": "2026.1",
         "periods": [
             {
@@ -264,9 +270,22 @@ def test_curriculo_por_ingresso_traz_materias_agrupadas_e_requisitos(catalog):
                         "name": "INTRODUÇÃO",
                         "hours": 60,
                         "unit": {"id": 673, "code": "FCTE", "name": "CAMPUS UNB GAMA"},
-                        "prerequisites": [["MAT0001", "MAT0002"], ["MAT0003"]],
-                        "corequisites": [["FGA0002"]],
-                        "equivalences": [["CIC0001"]],
+                        "prerequisites": [
+                            [
+                                {"code": "MAT0001", "subject": None},
+                                {"code": "MAT0002", "subject": None},
+                            ],
+                            [{"code": "MAT0003", "subject": None}],
+                        ],
+                        "corequisites": [
+                            [
+                                {
+                                    "code": "FGA0002",
+                                    "subject": {"code": "FGA0002", "name": "OPTATIVA"},
+                                }
+                            ]
+                        ],
+                        "equivalences": [[{"code": "CIC0001", "subject": None}]],
                     }
                 ],
             },
@@ -297,6 +316,36 @@ def test_curriculo_por_ingresso_traz_materias_agrupadas_e_requisitos(catalog):
             }
         ],
     }
+
+
+@pytest.mark.parametrize(
+    ("matrix", "degree", "modality"),
+    [
+        ("TURISMO/CET - Bacharelado - Presencial - D", "Bacharelado", "Presencial"),
+        (
+            "CONTROLE E AUTOMAÇÃO/FTD - Engenheiro de Controle e Automação - Presencial - D",
+            "Engenheiro de Controle e Automação",
+            "Presencial",
+        ),
+        (
+            "LETRAS - FRANCÊS - Licenciatura - A Distância - N",
+            "Licenciatura",
+            "A Distância",
+        ),
+        ("SOFTWARE - ATUAL", None, None),
+    ],
+)
+def test_grau_e_modalidade_vem_das_partes_da_matriz(
+    catalog, database, matrix, degree, modality
+):
+    with database.begin() as session:
+        session.get(Curriculum, _selected_id(session)).matrix = matrix
+    result = _get(catalog).json()
+    assert (result["degree"], result["modality"]) == (degree, modality)
+
+
+def _selected_id(session):
+    return session.query(Curriculum).filter_by(sigaa_id=201).one().id
 
 
 @pytest.mark.parametrize(

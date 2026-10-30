@@ -1,16 +1,19 @@
 import { useId, useMemo } from 'react';
 
-import type { FlowGeometry } from '#/lib/curriculum/geometry';
+import type { CurriculumModel, FlowGeometry } from '#/lib/curriculum/types';
 
+import { edgeLabel } from '#/lib/curriculum/format';
 import { pathData } from '#/lib/curriculum/geometry';
 import { connectionSegments } from '#/lib/curriculum/segments';
 
 export function Connections({
+    model,
     geometry,
     visibleEdges
 }: {
+    model: CurriculumModel;
     geometry: FlowGeometry;
-    visibleEdges?: Set<string> | null;
+    visibleEdges: Set<string> | null;
 }) {
     const marker = useId().replaceAll(':', '');
     const routes = useMemo(
@@ -61,9 +64,9 @@ export function Connections({
             {junctions.map(({ x, y }) => (
                 <circle key={`${x}:${y}`} cx={x} cy={y} r="2" fill="currentColor" />
             ))}
-            {routes.map(({ edge, label }) => (
+            {routes.map(({ edge }) => (
                 <g key={edge.id} data-edge-id={edge.id} data-relation={edge.kind}>
-                    <title>{label}</title>
+                    <title>{edgeLabel(edge, model.byCode)}</title>
                     {arrows
                         .filter(({ edgeIds }) => edgeIds[0] === edge.id)
                         .map(({ points, startArrow, endArrow }) => (

@@ -16,7 +16,15 @@ from api.modules.recommendations.ranking import (
 )
 from api.modules.recommendations.repository import RecommendationRepository
 from api.modules.recommendations.service import Ranking, RecommendationService
-from api.schemas import ClassroomOffer, UserSubject, unit_ref
+from api.schemas import (
+    CatalogRequirements,
+    ClassroomOffer,
+    SubjectReference,
+    UserSubject,
+    named_requirements,
+    requirement_codes,
+    unit_ref,
+)
 from api.sync import Sync
 
 
@@ -28,19 +36,6 @@ class SubjectClassroom(ClassroomOffer):
     semester: str
     schedule: str | None = None
     room: str | None = None
-
-
-class SubjectReference(BaseModel):
-    code: str
-    name: str
-
-
-class SubjectRequirement(BaseModel):
-    code: str
-    subject: SubjectReference | None = None
-
-
-type CatalogRequirements = list[list[SubjectRequirement]]
 
 
 class SubjectReason(BaseModel):
@@ -153,28 +148,18 @@ async def _catalog(
 ) -> list[CatalogSubject]:
     repository = SubjectCatalogRepository(session)
     unlocks = await repository.unlocked_subjects({subject.code for subject in subjects})
-    requirement_codes = {
-        code
-        for subject in subjects
-        for requirements in (
-            subject.prerequisites,
-            subject.corequisites,
-            subject.equivalences,
-        )
-        for group in requirements or []
-        for code in group
-    }
-    names = await repository.subject_names(requirement_codes)
-    offered = await repository.offered_subject_codes(requirement_codes, semester)
+    codes = requirement_codes(subjects)
+    names = await repository.subject_names(codes)
+    offered = await repository.offered_subject_codes(codes, semester)
     return [
         CatalogSubject(
             code=subject.code,
             name=subject.name,
             hours=subject.hours,
             unit=unit_ref(subject.unit),
-            prerequisites=_requirements(subject.prerequisites, names),
-            corequisites=_requirements(subject.corequisites, names),
-            equivalences=_requirements(subject.equivalences, names),
+            prerequisites=named_requirements(subject.prerequisites, names),
+            corequisites=named_requirements(subject.corequisites, names),
+            equivalences=named_requirements(subject.equivalences, names),
             offered_equivalences=_offered_requirements(
                 subject.equivalences, names, offered
             ),
@@ -206,25 +191,6 @@ async def _catalog(
     ]
 
 
-def _requirements(
-    requirements: Requirements | None, names: dict[str, str]
-) -> CatalogRequirements | None:
-    if requirements is None:
-        return None
-    return [
-        [
-            SubjectRequirement(
-                code=code,
-                subject=SubjectReference(code=code, name=names[code])
-                if code in names
-                else None,
-            )
-            for code in group
-        ]
-        for group in requirements
-    ]
-
-
 def _curriculum_requirements(
     requirements: Requirements | None,
     names: dict[str, str],
@@ -239,7 +205,7 @@ def _curriculum_requirements(
         if group and all(normalize(code) in curriculum for code in group)
     ]
     return (
-        _requirements(selected, names)
+        named_requirements(selected, names)
         if selected
         else _offered_requirements(requirements, names, offered)
     )
@@ -250,7 +216,7 @@ def _offered_requirements(
 ) -> CatalogRequirements | None:
     if requirements is None:
         return None
-    return _requirements(
+    return named_requirements(
         [
             group
             for group in requirements

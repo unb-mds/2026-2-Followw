@@ -10,10 +10,10 @@ import { apiClient } from '#/queries/client';
 import {
     approvedCodes,
     currentCurriculumPeriod,
-    filterSubjects,
     withClassrooms,
     seats,
     subjectRequirementLabel,
+    searchText,
     subjectsQuery,
     subjectsQueryOptions
 } from '#/queries/subjects';
@@ -77,13 +77,13 @@ describe('busca de matérias', () => {
         ['  ', 'FCTE', { unit: 'FCTE' }],
         ['', null, null]
     ])('"%s" com unidade %s busca %p', (q, unit, expected) => {
-        expect(subjectsQuery(q, unit)).toEqual(expected);
+        expect(subjectsQuery(searchText(q), unit)).toEqual(expected);
     });
 
-    test('texto fora dos limites mantém a consulta anterior', () => {
-        expect(subjectsQuery('ab', 'FCTE', { q: 'calculo' })).toEqual({ q: 'calculo' });
-        expect(subjectsQuery('a'.repeat(33), null, null)).toBeNull();
-        expect(subjectsQuery('', 'FCTE', { q: 'calculo' })).toEqual({ unit: 'FCTE' });
+    test('texto fora dos limites mantém o anterior', () => {
+        expect(searchText('ab', 'calculo')).toBe('calculo');
+        expect(searchText('a'.repeat(33))).toBeNull();
+        expect(subjectsQuery(searchText('', 'calculo'), 'FCTE')).toEqual({ unit: 'FCTE' });
     });
 });
 
@@ -122,17 +122,6 @@ describe('pré-requisitos', () => {
 describe('filtros no cliente', () => {
     test('descarta matérias sem turmas', () => {
         expect(withClassrooms([subject, { ...subject, classrooms: [] }])).toEqual([subject]);
-    });
-
-    test('tipo mantém só as matérias do tipo escolhido', () => {
-        const kinds: CatalogSubject[] = [
-            { ...subject, code: 'mandatory', kind: 'mandatory' },
-            { ...subject, code: 'optional', kind: 'optional' },
-            { ...subject, code: 'free', kind: 'free' }
-        ];
-        expect(filterSubjects(kinds, 'all')).toHaveLength(3);
-        expect(filterSubjects(kinds, 'optional').map((s) => s.code)).toEqual(['optional']);
-        expect(filterSubjects([subject], 'mandatory')).toEqual([]);
     });
 
     test.each([

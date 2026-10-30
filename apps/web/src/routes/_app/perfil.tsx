@@ -101,7 +101,6 @@ function AccountSection({
                         <Link
                             to="/cursos/$id"
                             params={{ id: courseId }}
-                            search={{}}
                             className={cn(
                                 buttonVariants({ variant: 'ghost' }),
                                 'h-auto min-h-12 w-full justify-start gap-3 rounded-none px-3 py-2.5'

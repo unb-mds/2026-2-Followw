@@ -1,8 +1,9 @@
+from collections.abc import Iterable
 from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
-from api.db.models import Course, Professor, Unit
+from api.db.models import Course, Professor, Requirements, Subject, Unit
 
 # Número que cabe na coluna vira o id; o resto é sigla ou nome, nunca só dígitos.
 UnitFilter = Annotated[
@@ -47,6 +48,52 @@ class UserSubject(BaseModel):
     name: str
     hours: int | None = None
     unit: UnitRef | None = None
+
+
+class SubjectReference(BaseModel):
+    code: str
+    name: str
+
+
+class SubjectRequirement(BaseModel):
+    code: str
+    subject: SubjectReference | None = None
+
+
+type CatalogRequirements = list[list[SubjectRequirement]]
+
+
+def named_requirements(
+    requirements: Requirements | None, names: dict[str, str]
+) -> CatalogRequirements | None:
+    if requirements is None:
+        return None
+    return [
+        [
+            SubjectRequirement(
+                code=code,
+                subject=SubjectReference(code=code, name=names[code])
+                if code in names
+                else None,
+            )
+            for code in group
+        ]
+        for group in requirements
+    ]
+
+
+def requirement_codes(subjects: Iterable[Subject]) -> set[str]:
+    return {
+        code
+        for subject in subjects
+        for requirements in (
+            subject.prerequisites,
+            subject.corequisites,
+            subject.equivalences,
+        )
+        for group in requirements or []
+        for code in group
+    }
 
 
 class ProfessorRef(BaseModel):

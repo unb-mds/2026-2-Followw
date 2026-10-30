@@ -1,29 +1,23 @@
 import { describe, expect, test } from 'bun:test';
 
 import { getCurrentSemester } from '#/calendar';
-import { searchDestination, validateFlowSearch } from '#/lib/curriculum/navigation';
+import { validateFlowSearch } from '#/lib/curriculum/navigation';
 import { Route } from '#/routes/_app/cursos.$id';
 
 import { callRoute, fakeQueryClient, runLoader } from '../helpers/route';
 
 describe('rota de curso (/cursos/$id)', () => {
-    test('valida a busca sem aceitar ID do curso ou destino externo nos query params', () => {
+    test('valida a busca aceitando só a matéria selecionada', () => {
         expect(
             validateFlowSearch({
                 materia: 'FGA0146',
                 q: 'dados',
-                category: 'courses',
                 curso: 99,
                 returnTo: 'https://externo.test'
             })
-        ).toEqual({ materia: 'FGA0146', q: 'dados', category: 'courses' });
-        expect(validateFlowSearch({ materia: ['FGA0146'], q: {}, category: 'qualquer' })).toEqual({
-            materia: undefined,
-            q: undefined,
-            category: undefined
-        });
+        ).toEqual({ materia: 'FGA0146' });
+        expect(validateFlowSearch({ materia: ['FGA0146'] })).toEqual({ materia: undefined });
         expect(validateFlowSearch({ materia: '../login' }).materia).toBeUndefined();
-        expect(validateFlowSearch({ q: 'a'.repeat(40) }).q).toHaveLength(32);
     });
     test('converte o ID do caminho para número e o serializa para navegação', () => {
         expect(callRoute(Route.options.params?.parse, { id: '152' })).toEqual({ id: 152 });
@@ -64,16 +58,6 @@ describe('rota de curso (/cursos/$id)', () => {
                 }
             }
         ]);
-    });
-    test('fechamento preserva pesquisa e filtro e usa busca como destino seguro', () => {
-        expect(searchDestination({ materia: 'FGA0146', q: 'dados', category: 'courses' })).toEqual({
-            to: '/buscar',
-            search: { q: 'dados', category: 'courses' }
-        });
-        expect(searchDestination({})).toEqual({
-            to: '/buscar',
-            search: { q: undefined, category: undefined }
-        });
     });
     test('curso do aluno usa seu ingresso e pré-carrega o histórico', async () => {
         const keys: unknown[] = [];

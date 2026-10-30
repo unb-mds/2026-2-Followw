@@ -10,21 +10,24 @@ const courses: PublicCourse[] = [
         sigaa_id: 100,
         name: 'CIÊNCIA DA COMPUTAÇÃO',
         shift: 'DIURNO',
-        unit: { id: 1, code: 'CIC', name: 'COMPUTAÇÃO' }
+        unit: { id: 1, code: 'CIC', name: 'COMPUTAÇÃO' },
+        level: 'Graduação'
     },
     {
         id: 2,
         sigaa_id: 101,
         name: 'CIÊNCIA DA COMPUTAÇÃO',
         shift: 'NOTURNO',
-        unit: { id: 1, code: 'CIC', name: 'COMPUTAÇÃO' }
+        unit: { id: 1, code: 'CIC', name: 'COMPUTAÇÃO' },
+        level: 'Graduação'
     },
     {
         id: 3,
         sigaa_id: null,
         name: 'FÍSICA',
         shift: null,
-        unit: { id: 2, code: null, name: 'FÍSICA' }
+        unit: { id: 2, code: null, name: 'FÍSICA' },
+        level: null
     }
 ];
 

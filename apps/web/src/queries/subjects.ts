@@ -18,29 +18,20 @@ export type SubjectsQuery = NonNullable<
     operations['search_subjects_public_subjects_get']['parameters']['query']
 >;
 
-export const SUBJECT_TYPES = ['all', 'mandatory', 'optional'] as const;
-export type SubjectType = (typeof SUBJECT_TYPES)[number];
-export const subjectTypeLabels: Record<SubjectType, string> = {
-    all: 'Todas',
-    mandatory: 'Obrigatórias',
-    optional: 'Optativas'
-};
-
 export const SEARCH_MIN_LENGTH = 3;
 export const SEARCH_MAX_LENGTH = 32;
 const APPROVED = new Set(['SS', 'MS', 'MM']);
 
-/** Sem texto, lista a unidade; texto fora dos limites mantém a consulta anterior. */
-export function subjectsQuery(
-    q: string,
-    unit: string | null,
-    previous: SubjectsQuery | null = unit ? { unit } : null
-): SubjectsQuery | null {
+/** Texto válido da busca; fora dos limites mantém o anterior. */
+export function searchText(q: string, previous: string | null = null): string | null {
     const text = q.trim();
-    if (!text) return unit ? { unit } : null;
-    if (text.length < SEARCH_MIN_LENGTH || text.length > SEARCH_MAX_LENGTH) return previous;
-    return { q: text };
+    if (!text) return null;
+    return text.length < SEARCH_MIN_LENGTH || text.length > SEARCH_MAX_LENGTH ? previous : text;
 }
+
+/** Com texto busca por ele; sem texto, lista a unidade. */
+export const subjectsQuery = (text: string | null, unit: string | null): SubjectsQuery | null =>
+    text ? { q: text } : unit ? { unit } : null;
 
 export const subjectsQueryOptions = (query: SubjectsQuery) =>
     api.queryOptions('get', '/public/subjects', { params: { query } });
@@ -83,10 +74,6 @@ export function seats({ vacancies, occupied }: SubjectClassroom): Seats | null {
 
 export const withClassrooms = (subjects: CatalogSubject[]) =>
     subjects.filter((subject) => subject.classrooms.length > 0);
-
-/** Filtra no cliente por tipo, descartando as matérias sem turmas. */
-export const filterSubjects = (subjects: CatalogSubject[], type: SubjectType) =>
-    withClassrooms(subjects).filter((subject) => type === 'all' || subject.kind === type);
 
 export function currentCurriculumPeriod(
     entry: string | null | undefined,

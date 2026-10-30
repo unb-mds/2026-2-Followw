@@ -80,6 +80,10 @@ de limite de 2000 resultados preserva a lista parcial e marca `truncated=True`; 
 para obter resultados completos. Busca vazia retorna `items=()` e a mensagem da origem; filtros
 recusados levantam `SigaaSearchError`.
 
+`client.subjects.get_details(subject)` abre o resumo de um `PublicSubject` da busca e devolve o
+mesmo `SubjectDetails` de `iter_subjects`, com requisitos e carga horária, mesmo sem oferta no
+semestre.
+
 Na página do SIGAA, o aviso aparece acima do formulário, abaixo do cabeçalho, no painel
 `#painel-erros` (`ul.erros`), com texto vermelho e ícone. Fechar o painel apenas o remove da tela;
 uma nova busca que exceda o limite faz o aviso reaparecer. O client preserva seu texto em
@@ -103,7 +107,9 @@ ofertados por uma unidade e entrega cada um como `SubjectDetails`: o `Subject` c
 não há.
 
 `collect_subjects.py` também completa os componentes obrigatórios das matrizes e os citados nos
-requisitos pelo catálogo público, mesmo sem oferta no semestre. Para completar um CSV existente, rode da raiz do monorepo:
+requisitos pelo catálogo público, mesmo sem oferta no semestre, já com os requisitos de cada um (e
+os componentes que estes citarem). Linhas sem unidade são completadas de novo a cada execução. Para
+completar um CSV existente, rode da raiz do monorepo:
 `uv run python packages/sigaa-client/scripts/complete_subjects.py`.
 Depois execute `uv run db-init` em `apps/api/` para carregar o catálogo no banco local.
 

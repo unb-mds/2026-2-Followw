@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 
-import type { RoutedEdge } from '#/lib/curriculum/geometry';
+import type { RoutedEdge } from '#/lib/curriculum/types';
 
 import { connectionSegments } from '#/lib/curriculum/segments';
 
@@ -9,8 +9,7 @@ const route = (id: string, start: number, alternative = false): RoutedEdge => ({
     points: [
         { x: start, y: 20 },
         { x: 100, y: 20 }
-    ],
-    label: id
+    ]
 });
 
 test('une trechos parcialmente sobrepostos e desenha uma única ponta para o mesmo destino', () => {

@@ -1,5 +1,4 @@
-import type { Point, RoutedEdge } from '#/lib/curriculum/geometry';
-import type { FlowEdge } from '#/lib/curriculum/model';
+import type { FlowEdge, Point, RoutedEdge } from '#/lib/curriculum/types';
 
 interface Segment {
     points: [Point, Point];
@@ -23,7 +22,6 @@ export function connectionSegments(routes: RoutedEdge[]) {
         for (let index = 1; index < points.length; index++) {
             const a = points[index - 1];
             const b = points[index];
-            if (a.x === b.x && a.y === b.y) continue;
             const horizontal = a.y === b.y;
             const axis = horizontal ? 'x' : 'y';
             const pair: [Point, Point] = a[axis] <= b[axis] ? [a, b] : [b, a];
