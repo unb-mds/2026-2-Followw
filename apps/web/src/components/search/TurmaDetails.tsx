@@ -4,14 +4,14 @@ import { RequirementList } from '#/components/search/RequirementList';
 import { OCCUPANCY_COLOR } from '#/components/search/Seats';
 import { SubjectDisclosure } from '#/components/search/SubjectDisclosure';
 import { SubjectSearchLink } from '#/components/search/SubjectSearchLink';
+import { SubjectStatistics } from '#/components/search/SubjectStatistics';
 import { unitLabel } from '#/lib/profile';
 import { describeSchedule } from '#/lib/schedule';
 import { cn } from '#/lib/shadcn';
-import { lockedReasons, seats } from '#/queries/subjects';
+import { seats } from '#/queries/subjects';
 
-export function TurmaDetails({ subject, classroom, prerequisitesMet }: TurmaProps) {
+export function TurmaDetails({ subject, classroom }: TurmaProps) {
     const equivalences = subject.offered_equivalences ?? subject.equivalences;
-    const reasons = lockedReasons(classroom, prerequisitesMet);
     const status = seats(classroom);
 
     return (
@@ -89,12 +89,11 @@ export function TurmaDetails({ subject, classroom, prerequisitesMet }: TurmaProp
                     </span>
                 </Detail>
             </dl>
-            {reasons.length > 0 && (
-                <section className="flex flex-col gap-2 rounded-xl border p-4">
-                    <h3 className="text-sm font-semibold">Turma indisponível</h3>
-                    <p className="text-sm text-muted-foreground">{reasons.join(' · ')}</p>
-                </section>
-            )}
+            <SubjectStatistics
+                key={`${subject.code}/${classroom.semester}/${classroom.number}`}
+                code={subject.code}
+                classroom={classroom}
+            />
         </div>
     );
 }

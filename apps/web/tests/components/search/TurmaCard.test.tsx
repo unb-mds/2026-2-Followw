@@ -50,11 +50,13 @@ const details = (
     materia: Partial<CatalogSubject> = {}
 ) =>
     renderWithRouter(
-        <TurmaDetails
-            subject={{ ...subject, ...materia }}
-            classroom={{ ...classroom, ...turma }}
-            prerequisitesMet={met}
-        />
+        <QueryClientProvider client={client}>
+            <TurmaDetails
+                subject={{ ...subject, ...materia }}
+                classroom={{ ...classroom, ...turma }}
+                prerequisitesMet={met}
+            />
+        </QueryClientProvider>
     );
 
 describe('TurmaCard', () => {
@@ -305,13 +307,14 @@ describe('TurmaDetails', () => {
     test('capacidade zero aparece como cheia, igual ao impedimento', () => {
         const markup = details({ occupied: 0, vacancies: 0 });
         expect(markup).toContain('class="tabular-nums text-destructive"');
-        expect(markup).toContain('Turma cheia');
+        expect(markup).not.toContain('Turma indisponível');
     });
 
-    test('mostra os impedimentos da turma', () => {
-        expect(details({ occupied: 40 }, false)).toContain(
-            'Turma cheia · Pré-requisitos não atendidos'
-        );
+    test('substitui o aviso de impedimentos pelas estatísticas anteriores', () => {
+        const markup = details({ occupied: 40 }, false);
+        expect(markup).not.toContain('Turma indisponível');
+        expect(markup).not.toContain('Pré-requisitos não atendidos');
+        expect(markup).toContain('Estatísticas anteriores');
         expect(details({ occupied: 40 }, null)).not.toContain('Pré-requisitos não atendidos');
     });
 

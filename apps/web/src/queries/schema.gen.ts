@@ -312,6 +312,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/public/subjects/{code}/statistics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Estatísticas anteriores da matéria com os mesmos docentes
+         * @description Média simples por turma com dados, por semestre e geral. Considera apenas semestres anteriores à turma indicada e o mesmo conjunto de docentes. A cobertura depende dos dados já coletados; não consulta o SIGAA.
+         */
+        get: operations["subject_statistics_public_subjects__code__statistics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/public/subjects": {
         parameters: {
             query?: never;
@@ -966,6 +986,33 @@ export interface components {
             /** Password */
             password: string;
         };
+        /** StatisticsPeriod */
+        StatisticsPeriod: {
+            /** Semester */
+            semester: string | null;
+            /** Classrooms */
+            classrooms: number;
+            /** Shares */
+            shares: components["schemas"]["StatisticsShare"][];
+        };
+        /**
+         * StatisticsShare
+         * @description Uma fatia do gráfico de estatísticas: a porcentagem dos discentes da turma.
+         *
+         *     O SIGAA arredonda cada fatia em uma casa, então a soma pode fechar em 99.9
+         *     ou 100.1. O gráfico não expõe a contagem de alunos, só a porcentagem.
+         */
+        StatisticsShare: {
+            situation: components["schemas"]["StudentSituation"];
+            /** Percentage */
+            percentage: number;
+        };
+        /**
+         * StudentSituation
+         * @description As situações do gráfico "Situação dos Discentes", na ordem da legenda.
+         * @enum {string}
+         */
+        StudentSituation: "aprovado" | "reprovado" | "reprovado_por_faltas" | "reprovado_por_media_e_por_faltas" | "aprovado_por_nota" | "reprovado_por_nota" | "reprovado_por_nota_e_faltas" | "trancado" | "matriculado";
         /**
          * Subject
          * @description Componente curricular, nos campos da tabela `subjects`.
@@ -1036,6 +1083,12 @@ export interface components {
             /** Code */
             code: string;
             subject?: components["schemas"]["SubjectReference"] | null;
+        };
+        /** SubjectStatistics */
+        SubjectStatistics: {
+            overall: components["schemas"]["StatisticsPeriod"];
+            /** Semesters */
+            semesters: components["schemas"]["StatisticsPeriod"][];
         };
         /** TaughtDiscipline */
         TaughtDiscipline: {
@@ -1938,6 +1991,40 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    subject_statistics_public_subjects__code__statistics_get: {
+        parameters: {
+            query: {
+                semester: string;
+                number: string;
+            };
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubjectStatistics"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };

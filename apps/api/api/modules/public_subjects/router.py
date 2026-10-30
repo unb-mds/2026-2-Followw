@@ -6,10 +6,32 @@ from pydantic import StringConstraints
 from api.cache import no_store
 from api.modules.public_classrooms.code import ClassroomCode
 from api.modules.public_subjects.service import CatalogSubject, PublicSubjectServiceDep
+from api.modules.public_subjects.statistics import (
+    SubjectStatistics,
+    SubjectStatisticsServiceDep,
+)
 from api.schemas import UnitFilter
 from api.sync import OptionalSyncDep
 
 router = APIRouter()
+
+
+@router.get(
+    "/{code}/statistics",
+    response_model=SubjectStatistics,
+    summary="Estatísticas anteriores da matéria com os mesmos docentes",
+    description="Média simples por turma com dados, por semestre e geral. Considera apenas semestres anteriores à turma indicada e o mesmo conjunto de docentes. A cobertura depende dos dados já coletados; não consulta o SIGAA.",
+)
+async def subject_statistics(
+    code: ClassroomCode,
+    service: SubjectStatisticsServiceDep,
+    response: Response,
+    semester: Annotated[str, Query(pattern=r"^[0-9]{4}\.[0-9]$")],
+    number: Annotated[str, Query(min_length=1, max_length=32)],
+) -> SubjectStatistics:
+    result = await service.get(code, semester, number)
+    no_store(response)
+    return result
 
 
 @router.get(

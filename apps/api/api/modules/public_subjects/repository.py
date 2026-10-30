@@ -1,10 +1,30 @@
 from sigaa_client import lookup_key
-from sqlalchemy import ColumnElement, exists, func, literal_column, or_, select
+from sqlalchemy import ColumnElement, cast, exists, func, literal_column, or_, select
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from api.db.models import Classroom, Subject
+from api.db.enums import ClassroomRole
+from api.db.models import Classroom, ClassroomParticipant, Subject, User
 from api.db.search import lookup_sql
+
+
+def _professors() -> ColumnElement[list[str]]:
+    members = (
+        select(func.jsonb_agg(User.name))
+        .select_from(ClassroomParticipant)
+        .join(User, User.id == ClassroomParticipant.user_id)
+        .where(
+            ClassroomParticipant.classroom_id == Classroom.id,
+            ClassroomParticipant.role == ClassroomRole.PROFESSOR,
+            ClassroomParticipant.member.is_(True),
+        )
+        .correlate(Classroom)
+        .scalar_subquery()
+    )
+    # O seed informa docentes só da oferta; turmas históricas usam os participantes.
+    empty = cast([], JSONB)
+    return func.coalesce(func.nullif(Classroom.professors, empty), members, empty)
 
 
 def _matches_query(q: str, semester: str | None) -> ColumnElement[bool]:
@@ -40,6 +60,39 @@ class SubjectCatalogRepository:
 
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+
+    async def classroom_professors(
+        self, code: str, semester: str, number: str
+    ) -> list[str] | None:
+        return await self._session.scalar(
+            select(_professors())
+            .select_from(Classroom)
+            .where(
+                Classroom.subject_code == code,
+                Classroom.semester == semester,
+                Classroom.number == number,
+            )
+        )
+
+    async def historical_statistics(
+        self, code: str, before: str
+    ) -> list[tuple[str, list[str], list[dict[str, object]]]]:
+        rows = (
+            await self._session.execute(
+                select(Classroom.semester, _professors(), Classroom.statistics)
+                .where(
+                    Classroom.subject_code == code,
+                    Classroom.semester < before,
+                    Classroom.statistics.is_not(None),
+                    Classroom.statistics != [],
+                )
+                .order_by(Classroom.semester.desc(), Classroom.number)
+            )
+        ).all()
+        return [
+            (semester, professors, statistics)
+            for semester, professors, statistics in rows
+        ]
 
     async def subject_names(self, codes: set[str]) -> dict[str, str]:
         if not codes:

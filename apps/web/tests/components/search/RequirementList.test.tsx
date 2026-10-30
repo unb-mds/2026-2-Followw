@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { expect, test } from 'bun:test';
 
 import type { CatalogSubject, Requirements } from '#/queries/subjects';
@@ -15,11 +16,13 @@ const requirements: Requirements = [
 
 const renderDetails = (subject: Partial<CatalogSubject>) =>
     renderWithRouter(
-        <TurmaDetails
-            subject={{ code: 'TARGET', name: 'Disciplina', classrooms: [], ...subject }}
-            classroom={{ number: '01', semester: '2026.2', professors: [] }}
-            prerequisitesMet={true}
-        />
+        <QueryClientProvider client={new QueryClient()}>
+            <TurmaDetails
+                subject={{ code: 'TARGET', name: 'Disciplina', classrooms: [], ...subject }}
+                classroom={{ number: '01', semester: '2026.2', professors: [] }}
+                prerequisitesMet={true}
+            />
+        </QueryClientProvider>
     );
 
 test.each(['prerequisites', 'corequisites'] as const)(
