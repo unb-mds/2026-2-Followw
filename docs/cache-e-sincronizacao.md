@@ -154,6 +154,12 @@ tópico de outra turma.
 `GET /classrooms/{classroom_id}/posts/{post_id}` usa o `id` opaco da listagem. `/posts` é o feed
 recente da home do SIGAA (notícias e avaliações de todas as turmas atuais), sem cache e sem IDs.
 
+`GET /posts/news` devolve até cinco notícias das turmas atuais diretamente do banco, com IDs e
+conteúdo já salvo. A identidade é `(classroom_id, source_id)`, nunca título e data. Listas vencidas
+viram `sync_posts` no job de cada turma; o conteúdo das notícias continua sob demanda. Resultados
+disponíveis são retornados enquanto outras turmas ainda não têm cache. `updating` orienta a home a
+reler o feed a cada cinco segundos até as listas sincronizarem.
+
 `sync_posts` atualiza a lista completa a cada 60 minutos nas turmas atuais; listas históricas não
 vencem. Tópicos, materiais e avaliações atualizam seus conteúdos junto com a lista. Notícias mantêm
 o carregamento de conteúdo sob demanda por `sync_news_content`, com revalidação por

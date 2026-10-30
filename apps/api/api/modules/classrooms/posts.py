@@ -2,17 +2,40 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import Depends, HTTPException
+from pydantic import BaseModel, ConfigDict
 from sigaa_client import ClassroomPost, PostType
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.cache import freshness
+from api.cache import Freshness, freshness
 from api.db.models import ClassroomPosts, OwnLink
 from api.modules.classrooms.repository import ClassroomRepository, PostsRepository
-from api.modules.classrooms.service import ClassroomServiceDep
+from api.modules.classrooms.service import (
+    ClassroomServiceDep,
+    ParticipantClassroom,
+    to_classroom,
+)
 from api.sync import Cached, Context, Item, SyncDep
 
 POSTS_LIST_TTL = timedelta(minutes=60)
 NEWS_CONTENT_TTL: timedelta | None = None
+LATEST_NEWS_LIMIT = 5
+
+
+def posts_freshness(link: OwnLink, synced_at: datetime | None) -> Freshness:
+    # Listas históricas não vencem.
+    return freshness(synced_at, POSTS_LIST_TTL if link.row.current else None)
+
+
+class ClassroomNews(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    classroom: ParticipantClassroom
+    post: ClassroomPost
+
+
+class LatestNewsFeed(BaseModel):
+    items: list[ClassroomNews]
+    updating: bool
 
 
 async def sync_posts(ctx: Context[OwnLink]) -> None:
@@ -40,6 +63,38 @@ class ClassroomPostsService:
         self._sync = sync
         self._classrooms = classrooms
 
+    async def latest_news(self) -> LatestNewsFeed:
+        """O conteúdo de cada notícia segue sob demanda, por `get_post`."""
+        links = await self._classrooms.list_links()
+        by_id = {link.row.classroom_id: link for link in links}
+        posts = await self._sync.db.read(
+            lambda session: PostsRepository(session).latest_news(
+                by_id.keys(), LATEST_NEWS_LIMIT
+            )
+        )
+        stale = [
+            link
+            for link in links
+            if posts_freshness(link, link.row.classroom.posts_synced_at)
+            is Freshness.STALE
+        ]
+        for link in stale:
+            self._sync.schedule(sync_posts, link)
+        return LatestNewsFeed(
+            items=[
+                ClassroomNews(
+                    classroom=to_classroom(by_id[post.classroom_id]),
+                    post=_to_post(
+                        post,
+                        by_id[post.classroom_id].row.classroom.sigaa_id,
+                        detail=True,
+                    ),
+                )
+                for post in posts
+            ],
+            updating=bool(stale),
+        )
+
     async def list_posts(self, classroom_id: str) -> list[ClassroomPost]:
         link = await self._classrooms.get_link(classroom_id)
 
@@ -53,10 +108,7 @@ class ClassroomPostsService:
             return Cached(
                 [_to_post(item, classroom.sigaa_id) for item in posts],
                 classroom.posts_synced_at,
-                freshness(
-                    classroom.posts_synced_at,
-                    POSTS_LIST_TTL if link.row.current else None,
-                ),
+                posts_freshness(link, classroom.posts_synced_at),
             )
 
         return await self._sync.resolve(sync_posts, link, load)

@@ -458,6 +458,26 @@ export interface paths {
         patch: operations["update_settings_me_settings_patch"];
         trace?: never;
     };
+    "/posts/news": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Consultar até cinco notícias recentes das turmas atuais
+         * @description Retorna imediatamente as notícias disponíveis no banco, com IDs e o conteúdo já salvo. Listas vencidas são sincronizadas num job por turma, sem bloquear a resposta; o conteúdo de cada notícia segue sob demanda pelo detalhe da postagem. updating indica listas pendentes. A identidade é o par turma e ID do post.
+         */
+        get: operations["get_latest_news_posts_news_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/posts": {
         parameters: {
             query?: never;
@@ -545,6 +565,11 @@ export interface components {
             monitors: components["schemas"]["ClassroomMember"][];
             /** Professors */
             professors: components["schemas"]["ProfessorRef"][];
+        };
+        /** ClassroomNews */
+        ClassroomNews: {
+            classroom: components["schemas"]["ParticipantClassroom"];
+            post: components["schemas"]["ClassroomPost"];
         };
         /** ClassroomPost */
         ClassroomPost: {
@@ -725,6 +750,13 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** LatestNewsFeed */
+        LatestNewsFeed: {
+            /** Items */
+            items: components["schemas"]["ClassroomNews"][];
+            /** Updating */
+            updating: boolean;
         };
         /**
          * Lesson
@@ -2360,6 +2392,52 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserSettings"];
+                };
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description SIGAA indisponível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_latest_news_posts_news_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description `no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache). */
+                "Cache-Control"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LatestNewsFeed"];
                 };
             };
             /** @description Credenciais ausentes ou inválidas. */

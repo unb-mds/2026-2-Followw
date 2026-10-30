@@ -470,6 +470,30 @@ class PostsRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
+    async def latest_news(
+        self, classroom_ids: Collection[UUID], limit: int
+    ) -> list[ClassroomPosts]:
+        return list(
+            await self._session.scalars(
+                select(ClassroomPosts)
+                .where(
+                    ClassroomPosts.classroom_id.in_(classroom_ids),
+                    ClassroomPosts.type == sigaa_client.PostType.NEWS,
+                )
+                .order_by(
+                    func.coalesce(
+                        ClassroomPosts.published_at,
+                        ClassroomPosts.published_on,
+                    )
+                    .desc()
+                    .nulls_last(),
+                    ClassroomPosts.classroom_id,
+                    ClassroomPosts.source_id,
+                )
+                .limit(limit)
+            )
+        )
+
     async def list_by_classroom(self, classroom_id: UUID) -> list[ClassroomPosts]:
         return list(
             await self._session.scalars(

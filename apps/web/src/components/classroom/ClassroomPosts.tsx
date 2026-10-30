@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 import type { ClassroomPost, PostType } from '#/queries/classrooms';
 
-import { ErrorCard, SIGAA_DOWN_MESSAGE } from '#/components/ErrorState';
+import { ErrorCard, SIGAA_DOWN_MESSAGE, StaleDataNotice } from '#/components/ErrorState';
 import { ListCard } from '#/components/ListCard';
 import { LoadingText } from '#/components/LoadingText';
 import {
@@ -98,11 +98,7 @@ export function ClassroomPosts({ id }: { id: string }) {
                     Atualizar
                 </Button>
             </div>
-            {posts.isError && (
-                <output className="text-sm text-muted-foreground">
-                    Não foi possível atualizar as postagens. Exibindo os dados salvos.
-                </output>
-            )}
+            {posts.isError && <StaleDataNotice subject="as postagens" />}
             {visible.length === 0 ? (
                 <PostsMessage>
                     {posts.data.length === 0
@@ -175,11 +171,7 @@ function PostDetail({ classroomId, postId }: { classroomId: string; postId: stri
         return <ErrorCard message={SIGAA_DOWN_MESSAGE} onRetry={() => detail.refetch()} />;
     return (
         <>
-            {detail.isError && (
-                <output className="mb-3 block text-sm text-muted-foreground">
-                    Não foi possível atualizar esta postagem. Exibindo os dados salvos.
-                </output>
-            )}
+            {detail.isError && <StaleDataNotice subject="esta postagem" className="mb-3" />}
             <PostContent post={detail.data} />
         </>
     );

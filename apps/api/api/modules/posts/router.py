@@ -3,9 +3,21 @@ from sigaa_client import DashboardPost
 
 from api.cache import NoStore
 from api.errors import SIGAA_ERRORS
+from api.modules.classrooms.posts import ClassroomPostsServiceDep, LatestNewsFeed
 from api.sigaa import SigaaClientDep
 
 router = APIRouter()
+
+
+@router.get(
+    "/news",
+    response_model=LatestNewsFeed,
+    summary="Consultar até cinco notícias recentes das turmas atuais",
+    description="Retorna imediatamente as notícias disponíveis no banco, com IDs e o conteúdo já salvo. Listas vencidas são sincronizadas num job por turma, sem bloquear a resposta; o conteúdo de cada notícia segue sob demanda pelo detalhe da postagem. updating indica listas pendentes. A identidade é o par turma e ID do post.",
+    responses=SIGAA_ERRORS,
+)
+async def get_latest_news(service: ClassroomPostsServiceDep) -> LatestNewsFeed:
+    return await service.latest_news()
 
 
 @router.get(

@@ -23,6 +23,8 @@ bun generate-api           # gera src/queries/schema.gen.ts a partir de localhos
   com header e navbar. Cada rota passa o header em `staticData: { header }`; estado dividido entre
   header e página vai para `usePageState`. Páginas fora do app (como `/login`) ficam na raiz de
   `routes/`.
+- Use sempre **nuqs** (`useQueryState`/`useQueryStates`) para ler e atualizar parâmetros da URL;
+  compartilhe os parsers com `validateSearch` via `createStandardSchemaV1`, sem `Route.useSearch()`.
 - Cores só pelo `@theme` de `src/styles.css`, nunca hex solto. Sem valores arbitrários
   (`text-[13px]`): use a escala do Tailwind, preferencialmente valores pares.
 - Prefira flex + gap a space- do tailwind.

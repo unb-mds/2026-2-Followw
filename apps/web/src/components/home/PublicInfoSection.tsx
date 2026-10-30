@@ -36,7 +36,7 @@ export const PublicInfoSection: React.FC<PublicInfoSectionProps> = ({
     ].filter((meal) => meal.dish);
 
     return (
-        <section className="mt-6" aria-label="RU">
+        <section aria-label="RU">
             <SectionHeader title="RU" actionLabel="Ver Cardápio" actionTo="/ru" />
             <Card size="sm" className="relative gap-2 px-3">
                 <Link
