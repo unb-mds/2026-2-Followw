@@ -9,7 +9,7 @@ from api.db.main import DatabaseDep
 from api.logger import event, operation
 from api.modules.auth.account import sync_account
 from api.modules.classrooms.frequency import sync_frequency
-from api.modules.classrooms.posts import sync_latest_news, sync_news_content, sync_posts
+from api.modules.classrooms.posts import sync_news_content, sync_posts
 from api.modules.classrooms.service import (
     find_link,
     sync_classrooms,
@@ -44,7 +44,6 @@ TASKS: dict[str, Task] = {
         sync_frequency,
         sync_grades,
         sync_posts,
-        sync_latest_news,
         sync_news_content,
     )
 }

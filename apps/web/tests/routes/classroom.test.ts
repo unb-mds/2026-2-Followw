@@ -6,16 +6,12 @@ import { describe, expect, test } from 'bun:test';
 import type { Classroom } from '#/queries/classrooms';
 import type { components } from '#/queries/schema.gen';
 
-import {
-    allClassroomsQueryOptions,
-    classroomFrequencyQueryOptions,
-    classroomPostsQueryOptions
-} from '#/queries/classrooms';
+import { allClassroomsQueryOptions, classroomFrequencyQueryOptions } from '#/queries/classrooms';
 import { apiClient } from '#/queries/client';
 import { meQueryOptions } from '#/queries/me';
 import { Route } from '#/routes/_app/turmas_.$id';
 
-import { fakeQueryClient, runLoader } from '../helpers/route';
+import { callRoute, fakeQueryClient, runLoader } from '../helpers/route';
 
 const classroom: Classroom = {
     id: 'AAA',
@@ -26,8 +22,20 @@ const classroom: Classroom = {
     subject: { code: 'FGA0001', name: 'Cálculo' }
 };
 
+function load(queryClient: QueryClient, searchStr = '') {
+    return runLoader(Route, {
+        context: { queryClient },
+        params: { id: 'AAA' },
+        location: { searchStr }
+    });
+}
+
 describe('cache da página da turma', () => {
-    test('pré-carrega postagens e frequência antes de exibir as abas', async () => {
+    test.each([
+        ['', '/classrooms/{classroom_id}/frequency'],
+        ['?tab=posts', '/classrooms/{classroom_id}/posts'],
+        ['?tab=members', '/classrooms/{classroom_id}/members']
+    ])('pré-carrega só a aba aberta em %p', async (searchStr, tabPath) => {
         const paths: unknown[] = [];
         const client = fakeQueryClient((key) => {
             paths.push(key[1]);
@@ -35,17 +43,14 @@ describe('cache da página da turma', () => {
             if (key[1] === '/classrooms') return [classroom];
             return [];
         });
-        const loaded = await runLoader(Route, {
-            context: { queryClient: client },
-            params: { id: 'AAA' }
-        });
+        const loaded = await load(client, searchStr);
         expect(loaded.subjectName).toBe('Cálculo');
-        expect(paths).toEqual([
-            '/me',
-            '/classrooms',
-            '/classrooms/{classroom_id}/posts',
-            '/classrooms/{classroom_id}/frequency'
-        ]);
+        expect(paths).toEqual(['/me', '/classrooms', tabPath]);
+    });
+
+    test('trocar de aba não recarrega a rota', () => {
+        expect(callRoute(Route.options.shouldReload, { cause: 'stay' })).toBe(false);
+        expect(callRoute(Route.options.shouldReload, { cause: 'enter' })).toBe(true);
     });
 
     test.each([null, { registration: '123' }])(
@@ -56,38 +61,29 @@ describe('cache da página da turma', () => {
                 paths.push(key[1]);
                 return key[1] === '/me' ? user : [];
             });
-            await runLoader(Route, { context: { queryClient: client }, params: { id: 'AAA' } });
+            await load(client, '?tab=posts');
             expect(paths).not.toContain('/classrooms/{classroom_id}/posts');
-            expect(paths).not.toContain('/classrooms/{classroom_id}/frequency');
         }
     );
 
-    test('falha nas postagens não impede carregar frequência e identificar a turma', async () => {
-        const paths: unknown[] = [];
+    test('falha na aba aberta não impede identificar a turma', async () => {
         const client = fakeQueryClient((key) => {
-            paths.push(key[1]);
             if (key[1] === '/me') return { registration: '123' };
             if (key[1] === '/classrooms') return [classroom];
-            if (key[1] === '/classrooms/{classroom_id}/posts')
-                throw new Error('SIGAA indisponível');
-            return {};
+            throw new Error('SIGAA indisponível');
         });
-        expect(
-            await runLoader(Route, { context: { queryClient: client }, params: { id: 'AAA' } })
-        ).toEqual({ subjectName: 'Cálculo' });
-        expect(paths).toContain('/classrooms/{classroom_id}/frequency');
+        expect(await load(client, '?tab=posts')).toEqual({ subjectName: 'Cálculo' });
     });
 
     test('cache vencido aparece sem esperar a rede e é substituído após revalidar', async () => {
         const client = new QueryClient({
             defaultOptions: { queries: { retry: false, staleTime: Infinity } }
         });
-        const posts = classroomPostsQueryOptions('AAA');
         const frequency = classroomFrequencyQueryOptions('AAA');
         const network = Promise.withResolvers<void>();
         const requested: string[] = [];
-        const savedPosts = [{ id: 'news:1', type: 'news', title: 'Aviso salvo', attachments: [] }];
         const savedFrequency = { lessons: [], frequency_status: 'nao_registrada' };
+        const freshFrequency = { lessons: [], frequency_status: 'registrada' };
         client.setQueryData<components['schemas']['UserProfile']>(meQueryOptions.queryKey, {
             name: 'Discente',
             registration: '123',
@@ -104,29 +100,25 @@ describe('cache da página da turma', () => {
             level: 'Graduação'
         });
         client.setQueryData(allClassroomsQueryOptions.queryKey, [classroom]);
-        client.setQueryData(posts.queryKey, savedPosts, { updatedAt: 1 });
         client.setQueryData(frequency.queryKey, savedFrequency, { updatedAt: 1 });
-        client.setQueryDefaults(posts.queryKey, { staleTime: 0 });
         client.setQueryDefaults(frequency.queryKey, { staleTime: 0 });
         const middleware: Middleware = {
             onRequest: async ({ request }) => {
                 const path = new URL(request.url).pathname;
                 requested.push(path);
                 await network.promise;
-                return Response.json(path.endsWith('/posts') ? [] : savedFrequency);
+                return Response.json(freshFrequency);
             }
         };
         apiClient.use(middleware);
         try {
-            await runLoader(Route, { context: { queryClient: client }, params: { id: 'AAA' } });
-            expect(client.getQueryData(posts.queryKey)).toEqual(savedPosts);
+            await load(client);
             expect(client.getQueryData(frequency.queryKey)).toEqual(savedFrequency);
-            expect(client.getQueryState(posts.queryKey)?.fetchStatus).toBe('fetching');
             expect(client.getQueryState(frequency.queryKey)?.fetchStatus).toBe('fetching');
             network.resolve();
-            await Promise.all([client.query(posts), client.query(frequency)]);
-            expect(requested).toHaveLength(2);
-            expect(client.getQueryData(posts.queryKey)).toEqual([]);
+            await client.query(frequency);
+            expect(requested).toHaveLength(1);
+            expect(client.getQueryData(frequency.queryKey)).toEqual(freshFrequency);
         } finally {
             network.resolve();
             apiClient.eject(middleware);

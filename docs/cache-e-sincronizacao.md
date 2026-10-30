@@ -156,9 +156,9 @@ recente da home do SIGAA (notícias e avaliações de todas as turmas atuais), s
 
 `GET /posts/news` devolve até cinco notícias das turmas atuais diretamente do banco, com IDs e
 conteúdo já salvo. A identidade é `(classroom_id, source_id)`, nunca título e data. Listas vencidas
-e prévias ausentes são atualizadas pelo job único `sync_latest_news`; resultados disponíveis são
-retornados enquanto outras turmas ainda não têm cache. `updating` orienta a home a reler o feed
-a cada cinco segundos até a sincronização terminar.
+viram `sync_posts` no job de cada turma; o conteúdo das notícias continua sob demanda. Resultados
+disponíveis são retornados enquanto outras turmas ainda não têm cache. `updating` orienta a home a
+reler o feed a cada cinco segundos até as listas sincronizarem.
 
 `sync_posts` atualiza a lista completa a cada 60 minutos nas turmas atuais; listas históricas não
 vencem. Tópicos, materiais e avaliações atualizam seus conteúdos junto com a lista. Notícias mantêm

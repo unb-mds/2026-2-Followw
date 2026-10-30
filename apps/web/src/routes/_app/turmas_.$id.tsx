@@ -1,4 +1,4 @@
-import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import { type QueryClient, noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useQueryStates } from 'nuqs';
 
@@ -7,7 +7,12 @@ import type { components } from '#/queries/schema.gen';
 import { ClassroomPosts } from '#/components/classroom/ClassroomPosts';
 import { ClassroomSummary } from '#/components/classroom/ClassroomSummary';
 import { FrequencyContent } from '#/components/classroom/FrequencyContent';
-import { ErrorCard, ErrorState, SIGAA_DOWN_MESSAGE } from '#/components/ErrorState';
+import {
+    ErrorCard,
+    ErrorState,
+    SIGAA_DOWN_MESSAGE,
+    StaleDataNotice
+} from '#/components/ErrorState';
 import { BackHeader } from '#/components/HeaderBar';
 import { LoginPromptCard } from '#/components/home/LoginPromptCard';
 import { ListCard } from '#/components/ListCard';
@@ -15,7 +20,13 @@ import { LoadingText } from '#/components/LoadingText';
 import { Card, CardContent } from '#/components/ui/card';
 import { PersonPhoto } from '#/components/ui/person-photo';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
-import { classroomSearchParsers, validateClassroomSearch } from '#/lib/classroom-search';
+import {
+    CLASSROOM_TABS,
+    type ClassroomTab,
+    classroomSearchParsers,
+    loadClassroomSearch,
+    validateClassroomSearch
+} from '#/lib/classroom-search';
 import { mailto } from '#/lib/contact';
 import { titleCase } from '#/lib/profile';
 import {
@@ -28,29 +39,35 @@ import {
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
 
-type Tab = 'posts' | 'frequency' | 'members';
 type Member = components['schemas']['ClassroomMember'];
 type Professor = components['schemas']['ProfessorRef'];
 
-const tabs: { id: Tab; label: string }[] = [
-    { id: 'frequency', label: 'Frequência' },
-    { id: 'posts', label: 'Postagens' },
-    { id: 'members', label: 'Participantes' }
-];
+const TAB_LABELS: Record<ClassroomTab, string> = {
+    frequency: 'Frequência',
+    posts: 'Postagens',
+    members: 'Participantes'
+};
+
+// a aba aberta é pré-carregada; as outras buscam ao serem abertas
+const PRELOAD_TAB: Record<ClassroomTab, (client: QueryClient, id: string) => Promise<unknown>> = {
+    frequency: (client, id) => loadQuery(client, classroomFrequencyQueryOptions(id)),
+    posts: (client, id) => loadQuery(client, classroomPostsQueryOptions(id)),
+    members: (client, id) => loadQuery(client, classroomMembersQueryOptions(id))
+};
 
 export const Route = createFileRoute('/_app/turmas_/$id')({
     validateSearch: validateClassroomSearch,
-    loader: async ({ context: { queryClient }, params }) => {
+    // Trocar de aba só muda a URL: o componente consulta a aba.
+    shouldReload: ({ cause }) => cause !== 'stay',
+    loader: async ({ context: { queryClient }, params, location }) => {
         const user = await loadQuery(queryClient, meQueryOptions);
         const classrooms = user
             ? await loadQuery(queryClient, allClassroomsQueryOptions).catch(noop)
             : undefined;
         const classroom = classrooms?.find(({ id }) => id === params.id);
         if (classroom) {
-            await Promise.all([
-                loadQuery(queryClient, classroomPostsQueryOptions(classroom.id)).catch(noop),
-                loadQuery(queryClient, classroomFrequencyQueryOptions(classroom.id)).catch(noop)
-            ]);
+            const { tab } = loadClassroomSearch(location.searchStr);
+            await PRELOAD_TAB[tab](queryClient, classroom.id).catch(noop);
         }
         return { subjectName: classroom?.subject.name };
     },
@@ -91,11 +108,7 @@ function ClassroomPage() {
                     <ClassroomSummary classroom={classroom} />
                     <Tabs
                         value={tab}
-                        onValueChange={(value) => {
-                            if (value === 'posts' || value === 'frequency' || value === 'members') {
-                                void setSearch({ tab: value });
-                            }
-                        }}
+                        onValueChange={(value: ClassroomTab) => void setSearch({ tab: value })}
                         className="mt-5 gap-4"
                     >
                         <TabsList
@@ -103,13 +116,13 @@ function ClassroomPage() {
                             className="grid w-full grid-cols-3 border-b border-border group-data-horizontal/tabs:h-auto"
                             aria-label="Detalhes da turma"
                         >
-                            {tabs.map((item) => (
+                            {CLASSROOM_TABS.map((item) => (
                                 <TabsTrigger
-                                    key={item.id}
-                                    value={item.id}
+                                    key={item}
+                                    value={item}
                                     className="h-auto min-w-0 py-2 after:bg-primary data-active:text-primary"
                                 >
-                                    {item.label}
+                                    {TAB_LABELS[item]}
                                 </TabsTrigger>
                             ))}
                         </TabsList>
@@ -160,11 +173,7 @@ function FrequencyTab({ id }: { id: string }) {
 
     return (
         <>
-            {frequency.isError && (
-                <output className="mb-2 block text-sm text-muted-foreground">
-                    Não foi possível atualizar a frequência. Exibindo os dados salvos.
-                </output>
-            )}
+            {frequency.isError && <StaleDataNotice subject="a frequência" className="mb-2" />}
             {markLessons.isError && (
                 <p role="alert" className="mb-2 text-sm text-destructive">
                     Não foi possível salvar a marcação. Tente novamente.

@@ -1,16 +1,14 @@
 import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 
 import { getNoClassReason } from '#/calendar';
-import { ErrorCard, ErrorState, SIGAA_DOWN_MESSAGE } from '#/components/ErrorState';
+import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderToggle } from '#/components/HeaderBar';
-import { ClassCard } from '#/components/home/ClassCard';
 import { LatestNewsSection } from '#/components/home/LatestNewsSection';
-import { LoginPromptCard } from '#/components/home/LoginPromptCard';
 import { PublicInfoSection } from '#/components/home/PublicInfoSection';
+import { TodayClassesSection } from '#/components/home/TodayClassesSection';
 import { usePageState } from '#/components/PageState';
-import { SectionHeader } from '#/components/SectionHeader';
 import { WeekDayPicker } from '#/components/WeekDayPicker';
 import { classesOn, nowInBrasilia, weekDays } from '#/lib/schedule';
 import { publicPageHead } from '#/lib/seo';
@@ -105,7 +103,6 @@ function HomeHeader() {
 }
 
 function HomePage() {
-    const navigate = useNavigate();
     const { now, days, selectedDay, isToday, label, setPicked } = useSelectedDay();
     const [weekOpen] = useWeekOpen();
 
@@ -133,51 +130,13 @@ function HomePage() {
             )}
 
             <div className="flex flex-col gap-6">
-                {!user ? (
-                    <section>
-                        <SectionHeader title="Aulas do dia" />
-                        <LoginPromptCard />
-                    </section>
-                ) : noClassReason ? (
-                    <section>
-                        <SectionHeader title="Aulas do dia" />
-                        <div className="rounded-2xl bg-card p-4">
-                            <p className="font-semibold">Não há aulas hoje</p>
-                            <p className="text-sm text-muted-foreground">{noClassReason}</p>
-                        </div>
-                    </section>
-                ) : classroomsQuery.isLoadingError ? (
-                    <section>
-                        <SectionHeader title="Aulas do dia" />
-                        <ErrorCard
-                            message={SIGAA_DOWN_MESSAGE}
-                            onRetry={() => classroomsQuery.refetch()}
-                        />
-                    </section>
-                ) : (
-                    classes.length > 0 && (
-                        <section>
-                            <SectionHeader title="Aulas do dia" />
-                            <div className="flex flex-col gap-2">
-                                {classes.map(({ item, start, end, status }) => (
-                                    <ClassCard
-                                        key={`${item.id}-${start}`}
-                                        title={item.subject.name}
-                                        code={item.subject.code}
-                                        classNumber={item.number}
-                                        time={`${start}–${end}`}
-                                        location={item.room ?? 'Local não informado'}
-                                        status={status}
-                                        onClick={() =>
-                                            navigate({ to: '/turmas/$id', params: { id: item.id } })
-                                        }
-                                    />
-                                ))}
-                            </div>
-                        </section>
-                    )
-                )}
-
+                <TodayClassesSection
+                    loggedIn={Boolean(user)}
+                    noClassReason={noClassReason}
+                    isLoadingError={classroomsQuery.isLoadingError}
+                    onRetry={() => void classroomsQuery.refetch()}
+                    classes={classes}
+                />
                 <PublicInfoSection
                     campus={campusOf(user?.unit?.code)}
                     menu={menu.data?.[0]}

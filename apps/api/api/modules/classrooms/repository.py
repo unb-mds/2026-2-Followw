@@ -471,7 +471,7 @@ class PostsRepository:
         self._session = session
 
     async def latest_news(
-        self, classroom_ids: Collection[UUID]
+        self, classroom_ids: Collection[UUID], limit: int
     ) -> list[ClassroomPosts]:
         return list(
             await self._session.scalars(
@@ -490,7 +490,7 @@ class PostsRepository:
                     ClassroomPosts.classroom_id,
                     ClassroomPosts.source_id,
                 )
-                .limit(5)
+                .limit(limit)
             )
         )
 

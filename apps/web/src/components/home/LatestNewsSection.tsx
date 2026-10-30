@@ -8,7 +8,7 @@ import ReactMarkdown from 'react-markdown';
 
 import type { ClassroomNews } from '#/queries/posts';
 
-import { ErrorCard, SIGAA_DOWN_MESSAGE } from '#/components/ErrorState';
+import { ErrorCard, SIGAA_DOWN_MESSAGE, StaleDataNotice } from '#/components/ErrorState';
 import { LoadingText } from '#/components/LoadingText';
 import { SectionHeader } from '#/components/SectionHeader';
 import { Button } from '#/components/ui/button';
@@ -19,47 +19,40 @@ import { latestNewsQueryOptions } from '#/queries/posts';
 const previewComponents: Components = { p: ({ children }) => <span>{children} </span> };
 
 export function LatestNewsSection() {
-    const feed = useQuery(latestNewsQueryOptions);
-    const news = feed.data?.items ?? [];
-
     return (
         <section aria-label="Últimas notícias">
             <SectionHeader title="Últimas notícias" />
             <div className="flex flex-col gap-2">
-                {feed.isPending ? (
-                    <NewsMessage>
-                        <LoadingText>Carregando notícias...</LoadingText>
-                    </NewsMessage>
-                ) : (
-                    <>
-                        {feed.isLoadingError ? (
-                            <ErrorCard
-                                message={SIGAA_DOWN_MESSAGE}
-                                onRetry={() => void feed.refetch()}
-                            />
-                        ) : (
-                            feed.isError && (
-                                <output className="text-sm text-muted-foreground">
-                                    Não foi possível atualizar as notícias. Exibindo os dados
-                                    salvos.
-                                </output>
-                            )
-                        )}
-                        {news.length > 0 ? (
-                            <NewsCarousel news={news} />
-                        ) : (
-                            !feed.isLoadingError && (
-                                <NewsMessage>
-                                    {feed.data?.updating
-                                        ? 'Buscando notícias das turmas...'
-                                        : 'Nenhuma notícia por enquanto.'}
-                                </NewsMessage>
-                            )
-                        )}
-                    </>
-                )}
+                <LatestNews />
             </div>
         </section>
+    );
+}
+
+function LatestNews() {
+    const feed = useQuery(latestNewsQueryOptions);
+
+    if (feed.isPending)
+        return (
+            <NewsMessage>
+                <LoadingText>Carregando notícias...</LoadingText>
+            </NewsMessage>
+        );
+    if (feed.isLoadingError)
+        return <ErrorCard message={SIGAA_DOWN_MESSAGE} onRetry={() => void feed.refetch()} />;
+
+    const { items, updating } = feed.data;
+    return (
+        <>
+            {feed.isError && <StaleDataNotice subject="as notícias" />}
+            {items.length > 0 ? (
+                <NewsCarousel news={items} />
+            ) : (
+                <NewsMessage>
+                    {updating ? 'Buscando notícias das turmas...' : 'Nenhuma notícia por enquanto.'}
+                </NewsMessage>
+            )}
+        </>
     );
 }
 
