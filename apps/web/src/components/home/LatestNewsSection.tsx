@@ -42,7 +42,7 @@ export function LatestNewsSection() {
           );
 
     return (
-        <section className="mt-6" aria-label="Últimas notícias">
+        <section aria-label="Últimas notícias">
             <SectionHeader title="Últimas notícias" />
             <div className="flex flex-col gap-2">
                 {loading ? (

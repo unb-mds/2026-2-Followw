@@ -132,60 +132,60 @@ function HomePage() {
                 />
             )}
 
-            {!user ? (
-                <section>
-                    <SectionHeader title="Aulas do dia" />
-                    <div className="mb-4">
-                        <LoginPromptCard />
-                    </div>
-                </section>
-            ) : noClassReason ? (
-                <section>
-                    <SectionHeader title="Aulas do dia" />
-                    <div className="rounded-2xl border bg-card p-4">
-                        <p className="font-semibold">Não há aulas hoje</p>
-                        <p className="text-sm text-muted-foreground">{noClassReason}</p>
-                    </div>
-                </section>
-            ) : classroomsQuery.isLoadingError ? (
-                <section>
-                    <SectionHeader title="Aulas do dia" />
-                    <ErrorCard
-                        message={SIGAA_DOWN_MESSAGE}
-                        onRetry={() => classroomsQuery.refetch()}
-                    />
-                </section>
-            ) : (
-                classes.length > 0 && (
+            <div className="flex flex-col gap-6">
+                {!user ? (
                     <section>
                         <SectionHeader title="Aulas do dia" />
-                        <div className="flex flex-col gap-2">
-                            {classes.map(({ item, start, end, status }) => (
-                                <ClassCard
-                                    key={`${item.id}-${start}`}
-                                    title={item.subject.name}
-                                    code={item.subject.code}
-                                    classNumber={item.number}
-                                    time={`${start}–${end}`}
-                                    location={item.room ?? 'Local não informado'}
-                                    status={status}
-                                    onClick={() =>
-                                        navigate({ to: '/turmas/$id', params: { id: item.id } })
-                                    }
-                                />
-                            ))}
+                        <LoginPromptCard />
+                    </section>
+                ) : noClassReason ? (
+                    <section>
+                        <SectionHeader title="Aulas do dia" />
+                        <div className="rounded-2xl bg-card p-4">
+                            <p className="font-semibold">Não há aulas hoje</p>
+                            <p className="text-sm text-muted-foreground">{noClassReason}</p>
                         </div>
                     </section>
-                )
-            )}
+                ) : classroomsQuery.isLoadingError ? (
+                    <section>
+                        <SectionHeader title="Aulas do dia" />
+                        <ErrorCard
+                            message={SIGAA_DOWN_MESSAGE}
+                            onRetry={() => classroomsQuery.refetch()}
+                        />
+                    </section>
+                ) : (
+                    classes.length > 0 && (
+                        <section>
+                            <SectionHeader title="Aulas do dia" />
+                            <div className="flex flex-col gap-2">
+                                {classes.map(({ item, start, end, status }) => (
+                                    <ClassCard
+                                        key={`${item.id}-${start}`}
+                                        title={item.subject.name}
+                                        code={item.subject.code}
+                                        classNumber={item.number}
+                                        time={`${start}–${end}`}
+                                        location={item.room ?? 'Local não informado'}
+                                        status={status}
+                                        onClick={() =>
+                                            navigate({ to: '/turmas/$id', params: { id: item.id } })
+                                        }
+                                    />
+                                ))}
+                            </div>
+                        </section>
+                    )
+                )}
 
-            <PublicInfoSection
-                campus={campusOf(user?.unit?.code)}
-                menu={menu.data?.[0]}
-                isLoading={menu.isPending}
-                day={label}
-            />
-            {user && <LatestNewsSection />}
+                <PublicInfoSection
+                    campus={campusOf(user?.unit?.code)}
+                    menu={menu.data?.[0]}
+                    isLoading={menu.isPending}
+                    day={label}
+                />
+                {user && <LatestNewsSection />}
+            </div>
         </>
     );
 }
