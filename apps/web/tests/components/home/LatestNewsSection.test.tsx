@@ -12,13 +12,8 @@ import type { Classroom, ClassroomPost } from '#/queries/classrooms';
 
 import { LatestNewsSection } from '#/components/home/LatestNewsSection';
 import { classroomSearchParsers, validateClassroomSearch } from '#/lib/classroom-search';
-import { latestNews } from '#/lib/latest-news';
 import { parseRouterSearch, stringifyRouterSearch } from '#/lib/search-params';
-import {
-    classroomPostDetailQueryOptions,
-    classroomPostsQueryOptions,
-    classroomsQueryOptions
-} from '#/queries/classrooms';
+import { latestNewsQueryOptions } from '#/queries/posts';
 import { Route as ClassroomRoute } from '#/routes/_app/turmas_.$id';
 
 import { useDom } from '../../helpers/dom';
@@ -57,111 +52,28 @@ function clientWith(posts: ClassroomPost[]) {
     const client = new QueryClient({
         defaultOptions: { queries: { retry: false, retryOnMount: false, staleTime: Infinity } }
     });
-    client.setQueryData(classroomsQueryOptions.queryKey, [classroom]);
-    client.setQueryData(classroomPostsQueryOptions(classroom.id, 'news').queryKey, posts);
+    client.setQueryData(latestNewsQueryOptions.queryKey, {
+        items: posts.map((post) => ({ classroom, post })),
+        updating: false
+    });
     return client;
 }
 
 describe('últimas notícias da home', () => {
-    test('seleciona cinco notícias mais recentes entre turmas atuais e ignora avaliações', () => {
-        const posts = [
-            news(1, '2026-10-01'),
-            news(2, '2026-10-20'),
-            news(3, '2026-10-12'),
-            news(4, '2026-10-15'),
-            news(5, '2026-10-29'),
-            news(6, '2026-10-25'),
-            { ...news(8, '2026-10-30'), type: 'assessment' as const }
-        ];
-        const selected = latestNews([
-            { classroom, posts },
-            { classroom: { ...classroom, id: 'BBB' }, posts: [news(7, '2026-10-28')] },
-            { classroom: { ...classroom, current: false }, posts: [news(9, '2026-10-30')] }
-        ]);
-        expect(selected.map(({ post }) => post.id)).toEqual([
-            'news:5',
-            'news:7',
-            'news:6',
-            'news:2',
-            'news:4'
-        ]);
-        expect(posts[0].id).toBe('news:1');
-    });
-
-    test('datas ausentes ficam ao fim e empates têm ordem estável', () => {
-        const posts = [news(3), news(2, '2026-10-15'), news(1, '2026-10-15')];
-        expect(latestNews([{ classroom, posts }]).map(({ post }) => post.id)).toEqual([
-            'news:1',
-            'news:2',
-            'news:3'
-        ]);
-    });
-
-    test('remove notícias com mesmo ID ou título e dia entre turmas antes do limite', () => {
-        const repeated = { ...news(1, '2026-10-30'), title: 'Aviso importante' };
-        const selected = latestNews([
-            {
-                classroom,
-                posts: [
-                    repeated,
-                    { ...repeated },
-                    news(2, '2026-10-29'),
-                    news(3, '2026-10-28'),
-                    news(4, '2026-10-27'),
-                    news(5, '2026-10-26')
-                ]
-            },
-            {
-                classroom: { ...classroom, id: 'BBB' },
-                posts: [
-                    {
-                        ...repeated,
-                        id: 'news:99',
-                        title: '  AVISO   IMPORTANTE  ',
-                        published_on: undefined,
-                        published_at: '2026-10-30T10:00:00'
-                    }
-                ]
-            }
-        ]);
-        expect(selected.map(({ post }) => post.id)).toEqual([
-            'news:99',
-            'news:2',
-            'news:3',
-            'news:4',
-            'news:5'
-        ]);
-    });
-
-    test('retorna menos de cinco quando só há duas notícias distintas', () => {
-        const first = news(1, '2026-10-30');
-        const second = news(2, '2026-10-29');
-        const selected = latestNews([{ classroom, posts: [first, first, second, second, first] }]);
-        expect(selected.map(({ post }) => post.id)).toEqual(['news:1', 'news:2']);
-    });
-
-    test('preserva títulos iguais publicados em dias diferentes e não deduz duplicatas sem data', () => {
-        const first = news(1, '2026-10-30');
-        const selected = latestNews([
-            {
-                classroom,
-                posts: [
-                    first,
-                    { ...first, id: 'news:2', published_on: '2026-10-29' },
-                    { ...first, id: 'news:3', published_on: null },
-                    { ...first, id: 'news:4', published_on: null }
-                ]
-            }
-        ]);
-        expect(selected).toHaveLength(4);
-    });
-
     test('mostra título, turma, data, prévia e link para Postagens', () => {
         const post = news(1, '2026-10-29');
         const client = clientWith([post]);
-        client.setQueryData(classroomPostDetailQueryOptions(classroom.id, post.id).queryKey, {
-            ...post,
-            content: 'Leia **o capítulo 1** e [o aviso](https://unb.br).'
+        client.setQueryData(latestNewsQueryOptions.queryKey, {
+            items: [
+                {
+                    classroom,
+                    post: {
+                        ...post,
+                        content: 'Leia **o capítulo 1** e [o aviso](https://unb.br).'
+                    }
+                }
+            ],
+            updating: false
         });
         const markup = renderSection(client);
         expect(markup).toContain('Últimas notícias');
@@ -178,45 +90,59 @@ describe('últimas notícias da home', () => {
     test('informa que não há notícias mesmo sem turmas atuais', () => {
         expect(renderSection(clientWith([]))).toContain('Nenhuma notícia por enquanto.');
         const client = clientWith([]);
-        client.setQueryData(classroomsQueryOptions.queryKey, []);
+        client.setQueryData(latestNewsQueryOptions.queryKey, { items: [], updating: false });
         expect(renderSection(client)).toContain('Nenhuma notícia por enquanto.');
-    });
-
-    test('notícias repetidas não criam controles para preencher cinco posições', () => {
-        const post = news(1, '2026-10-30');
-        const markup = renderSection(clientWith([post, post, post, post, post]));
-        expect(markup).toContain('Notícia 1');
-        expect(markup).not.toContain('Próxima notícia');
-        expect(markup).not.toContain('Parar');
     });
 
     test('carregamento não é confundido com ausência de notícias', () => {
         const client = new QueryClient();
-        client.setQueryData(classroomsQueryOptions.queryKey, [classroom]);
+
         const markup = renderSection(client);
         expect(markup).toContain('Carregando notícias');
         expect(markup).not.toContain('Nenhuma notícia por enquanto.');
     });
 
-    test('falha na listagem mantém notícias de outras turmas e permite tentar novamente', () => {
-        const post = news(1, '2026-10-29');
-        const client = clientWith([post]);
-        client.setQueryData(classroomsQueryOptions.queryKey, [
-            classroom,
-            { ...classroom, id: 'BBB' }
-        ]);
+    test('mostra notícias disponíveis enquanto outras turmas são sincronizadas', () => {
+        const client = clientWith([]);
+        client.setQueryData(latestNewsQueryOptions.queryKey, {
+            items: [{ classroom, post: news(1) }],
+            updating: true
+        });
+        const markup = renderSection(client);
+        expect(markup).toContain('Notícia 1');
+        expect(markup).not.toContain('Carregando notícias');
+        expect(markup).not.toContain('Nenhuma notícia por enquanto.');
+    });
+
+    test('revalidação com falha preserva notícias salvas', () => {
+        const client = clientWith([news(1)]);
         client
             .getQueryCache()
-            .build(client, classroomPostsQueryOptions('BBB', 'news'))
-            .setState({
+            .find({ queryKey: latestNewsQueryOptions.queryKey })
+            ?.setState({
                 status: 'error',
-                fetchStatus: 'idle',
-                error: { detail: [] }
+                error: new Error('SIGAA indisponível'),
+                fetchStatus: 'idle'
             });
         const markup = renderSection(client);
         expect(markup).toContain('Notícia 1');
-        expect(markup).toContain('Tentar novamente');
-        expect(markup).not.toContain('Nenhuma notícia por enquanto.');
+        expect(markup).toContain('Exibindo os dados salvos');
+    });
+
+    test('consulta agregada não abre consultas adicionais por turma ou prévia', () => {
+        const client = clientWith([news(1)]);
+        renderWithRouter(
+            <QueryClientProvider client={client}>
+                <LatestNewsSection />
+            </QueryClientProvider>
+        );
+        expect(
+            client
+                .getQueryCache()
+                .getAll()
+                .map((query) => query.queryKey[1])
+        ).toEqual(['/posts/news']);
+        client.clear();
     });
 
     test('aba de destino é validada e mantém frequência como padrão', () => {
@@ -247,12 +173,6 @@ describe('card rotativo de notícias', () => {
     function mount(count: number) {
         const posts = Array.from({ length: count }, (_, index) => news(index + 1));
         client = clientWith(posts);
-        for (const post of posts) {
-            client.setQueryData(classroomPostDetailQueryOptions(classroom.id, post.id).queryKey, {
-                ...post,
-                content: `Prévia de ${post.title}`
-            });
-        }
         const router = createRouter({
             routeTree: createRootRoute(),
             history: createMemoryHistory(),

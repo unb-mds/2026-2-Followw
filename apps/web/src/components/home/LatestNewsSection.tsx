@@ -1,12 +1,12 @@
 import type { Components } from 'react-markdown';
 
-import { useQueries, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 
-import type { ClassroomNews } from '#/lib/latest-news';
+import type { ClassroomNews } from '#/queries/posts';
 
 import { ErrorCard, SIGAA_DOWN_MESSAGE } from '#/components/ErrorState';
 import { LoadingText } from '#/components/LoadingText';
@@ -14,53 +14,31 @@ import { SectionHeader } from '#/components/SectionHeader';
 import { Button } from '#/components/ui/button';
 import { Card, CardContent } from '#/components/ui/card';
 import { postDateLabel } from '#/lib/classroom-posts';
-import { latestNews } from '#/lib/latest-news';
-import {
-    classroomPostDetailQueryOptions,
-    classroomPostsQueryOptions,
-    classroomsQueryOptions
-} from '#/queries/classrooms';
+import { latestNewsQueryOptions } from '#/queries/posts';
 
 const previewComponents: Components = { p: ({ children }) => <span>{children} </span> };
 
 export function LatestNewsSection() {
-    const classrooms = useQuery(classroomsQueryOptions);
-    const current = classrooms.data?.filter((classroom) => classroom.current) ?? [];
-    const lists = useQueries({
-        queries: current.map((classroom) => classroomPostsQueryOptions(classroom.id, 'news'))
-    });
-    const loading = classrooms.isPending || lists.some((query) => query.isPending);
-    const failed = classrooms.isLoadingError || lists.some((query) => query.isLoadingError);
-    const stale = classrooms.isError || lists.some((query) => query.isError);
-    const news = loading
-        ? []
-        : latestNews(
-              current.map((classroom, index) => ({
-                  classroom,
-                  posts: lists[index].data ?? []
-              }))
-          );
+    const feed = useQuery(latestNewsQueryOptions);
+    const news = feed.data?.items ?? [];
 
     return (
         <section aria-label="Últimas notícias">
             <SectionHeader title="Últimas notícias" />
             <div className="flex flex-col gap-2">
-                {loading ? (
+                {feed.isPending ? (
                     <NewsMessage>
                         <LoadingText>Carregando notícias...</LoadingText>
                     </NewsMessage>
                 ) : (
                     <>
-                        {failed ? (
+                        {feed.isLoadingError ? (
                             <ErrorCard
                                 message={SIGAA_DOWN_MESSAGE}
-                                onRetry={() => {
-                                    void classrooms.refetch();
-                                    for (const query of lists) void query.refetch();
-                                }}
+                                onRetry={() => void feed.refetch()}
                             />
                         ) : (
-                            stale && (
+                            feed.isError && (
                                 <output className="text-sm text-muted-foreground">
                                     Não foi possível atualizar as notícias. Exibindo os dados
                                     salvos.
@@ -70,7 +48,13 @@ export function LatestNewsSection() {
                         {news.length > 0 ? (
                             <NewsCarousel news={news} />
                         ) : (
-                            !failed && <NewsMessage>Nenhuma notícia por enquanto.</NewsMessage>
+                            !feed.isLoadingError && (
+                                <NewsMessage>
+                                    {feed.data?.updating
+                                        ? 'Buscando notícias das turmas...'
+                                        : 'Nenhuma notícia por enquanto.'}
+                                </NewsMessage>
+                            )
                         )}
                     </>
                 )}
@@ -159,7 +143,6 @@ function NewsCarousel({ news }: { news: ClassroomNews[] }) {
 }
 
 function NewsContent({ item: { classroom, post } }: { item: ClassroomNews }) {
-    const detail = useQuery(classroomPostDetailQueryOptions(classroom.id, post.id));
     const date = postDateLabel(post);
     return (
         <div className="relative flex min-h-28 flex-col gap-2 px-4 py-3">
@@ -180,21 +163,17 @@ function NewsContent({ item: { classroom, post } }: { item: ClassroomNews }) {
                 {post.title}
             </h3>
             <div className="pointer-events-none relative line-clamp-2 text-sm text-muted-foreground">
-                {detail.data?.content ? (
+                {post.content ? (
                     <ReactMarkdown
                         skipHtml
                         allowedElements={['p', 'br']}
                         unwrapDisallowed
                         components={previewComponents}
                     >
-                        {detail.data.content}
+                        {post.content}
                     </ReactMarkdown>
-                ) : detail.isPending ? (
-                    <LoadingText>Carregando prévia...</LoadingText>
-                ) : detail.isError ? (
-                    'Prévia indisponível. Abra as postagens da turma para tentar novamente.'
                 ) : (
-                    'Nenhum texto adicional publicado.'
+                    'Abra as postagens da turma para ler a notícia.'
                 )}
             </div>
         </div>

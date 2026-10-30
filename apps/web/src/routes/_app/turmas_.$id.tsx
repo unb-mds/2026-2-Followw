@@ -22,6 +22,7 @@ import {
     allClassroomsQueryOptions,
     classroomFrequencyQueryOptions,
     classroomMembersQueryOptions,
+    classroomPostsQueryOptions,
     useMarkLessons
 } from '#/queries/classrooms';
 import { loadQuery } from '#/queries/load';
@@ -44,7 +45,14 @@ export const Route = createFileRoute('/_app/turmas_/$id')({
         const classrooms = user
             ? await loadQuery(queryClient, allClassroomsQueryOptions).catch(noop)
             : undefined;
-        return { subjectName: classrooms?.find(({ id }) => id === params.id)?.subject.name };
+        const classroom = classrooms?.find(({ id }) => id === params.id);
+        if (classroom) {
+            await Promise.all([
+                loadQuery(queryClient, classroomPostsQueryOptions(classroom.id)).catch(noop),
+                loadQuery(queryClient, classroomFrequencyQueryOptions(classroom.id)).catch(noop)
+            ]);
+        }
+        return { subjectName: classroom?.subject.name };
     },
     head: ({ loaderData }) => ({
         meta: [{ title: `${loaderData?.subjectName ?? 'Turma'} | Followw` }]
@@ -152,6 +160,11 @@ function FrequencyTab({ id }: { id: string }) {
 
     return (
         <>
+            {frequency.isError && (
+                <output className="mb-2 block text-sm text-muted-foreground">
+                    Não foi possível atualizar a frequência. Exibindo os dados salvos.
+                </output>
+            )}
             {markLessons.isError && (
                 <p role="alert" className="mb-2 text-sm text-destructive">
                     Não foi possível salvar a marcação. Tente novamente.

@@ -1,5 +1,7 @@
 from datetime import UTC, date, datetime, timedelta
-from unittest.mock import AsyncMock
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock
+from uuid import uuid4
 
 import httpx
 import pytest
@@ -24,13 +26,159 @@ from sqlalchemy import select
 from api.db.main import get_sessionmaker
 from api.db.models import Classroom as DBClassroom
 from api.db.models import ClassroomPosts
+from api.modules.classrooms import posts as posts_module
 from api.modules.classrooms.posts import sync_news_content
+from api.modules.classrooms.service import ParticipantClassroom
 from api.sync.engine import Job, Step
 
 CREDENTIALS = Credentials(registration="251000000", password=SecretStr("senha123"))
 DETAIL_PATH = "/classrooms/AAA/posts/news:1"
 DETAIL_PATHS = [DETAIL_PATH, "/classrooms/123/posts/news:1"]
 PATHS = ["/posts", "/classrooms/AAA/posts", "/classrooms/123/posts", *DETAIL_PATHS]
+
+
+@pytest.mark.asyncio
+async def test_feed_agregado_le_apenas_turmas_do_usuario_sem_consultar_sigaa(
+    monkeypatch,
+):
+    classroom_id = uuid4()
+    now = datetime.now(UTC)
+    link = SimpleNamespace(
+        front_end_id="AAA",
+        row=SimpleNamespace(
+            classroom_id=classroom_id,
+            classroom=SimpleNamespace(sigaa_id=123, posts_synced_at=None),
+        ),
+    )
+    post = ClassroomPost.from_news(
+        News(
+            id=1,
+            title="Aviso importante",
+            published_on=date(2026, 9, 24),
+            content="Texto salvo",
+        )
+    )
+    fields = post.model_dump()
+    fields["source_id"] = fields.pop("id")
+    saved = SimpleNamespace(**fields, classroom_id=classroom_id, content_synced_at=now)
+    latest = AsyncMock(return_value=[saved])
+    monkeypatch.setattr(posts_module.PostsRepository, "latest_news", latest)
+    monkeypatch.setattr(
+        posts_module,
+        "to_classroom",
+        lambda _: ParticipantClassroom(
+            id="AAA",
+            number="01",
+            semester="2026.2",
+            current=True,
+            subject={"code": "FGA0146", "name": "Estruturas de dados"},
+            professors=[],
+        ),
+    )
+
+    async def read(load):
+        return await load(None)
+
+    sync = Mock()
+    sync.db.read = read
+    classrooms = Mock()
+    classrooms.list_links = AsyncMock(return_value=[link])
+    result = await posts_module.ClassroomPostsService(sync, classrooms).latest_news()
+    assert result.items[0].post.id == "news:1"
+    assert result.items[0].post.content == "Texto salvo"
+    assert result.updating is True
+    assert set(latest.call_args.args[0]) == {classroom_id}
+    sync.perform.assert_not_called()
+    sync.schedule.assert_called_once_with(posts_module.sync_latest_news, None)
+
+
+@pytest.mark.asyncio
+async def test_feed_agregado_sem_turmas_nao_agenda_scraping(monkeypatch):
+    latest = AsyncMock(return_value=[])
+    monkeypatch.setattr(posts_module.PostsRepository, "latest_news", latest)
+
+    async def read(load):
+        return await load(None)
+
+    sync = Mock()
+    sync.db.read = read
+    classrooms = Mock()
+    classrooms.list_links = AsyncMock(return_value=[])
+    result = await posts_module.ClassroomPostsService(sync, classrooms).latest_news()
+    assert result.model_dump() == {"items": [], "updating": False}
+    sync.schedule.assert_not_called()
+
+
+def test_noticias_agregadas_retornam_ate_cinco_com_ids_e_conteudo_salvo(
+    client, cookies, posts_sigaa
+):
+    client.cookies.update(cookies(refresh=CREDENTIALS))
+    posts_sigaa.classrooms.list_classroom_posts.return_value = [
+        ClassroomPost.from_news(
+            News(id=i, title="Aviso", published_on=date(2026, 9, i))
+        )
+        for i in range(1, 8)
+    ]
+    client.get("/classrooms/AAA/posts")
+    posts_sigaa.classrooms.get_classroom_news.return_value = News(
+        id=7, title="Aviso", published_on=date(2026, 9, 7), content="Texto salvo"
+    )
+    client.get("/classrooms/AAA/posts/news:7")
+    response = client.get("/posts/news")
+    assert response.status_code == 200
+    items = response.json()["items"]
+    assert [item["post"]["id"] for item in items] == [
+        f"news:{i}" for i in range(7, 2, -1)
+    ]
+    assert items[0]["post"]["content"] == "Texto salvo"
+    assert all(item["classroom"]["id"] == "AAA" for item in items)
+
+
+def test_noticias_agregadas_preservam_mesmo_titulo_dia_e_id_em_turmas_distintas(
+    client, cookies, posts_sigaa
+):
+    client.cookies.update(cookies(refresh=CREDENTIALS))
+    original = posts_sigaa.classrooms.list_classrooms.return_value[0]
+    posts_sigaa.classrooms.list_classrooms.return_value = [
+        original,
+        original.model_copy(update={"id": "BBB", "sigaa_id": 124, "number": "02"}),
+    ]
+    client.get("/classrooms/AAA/posts")
+    client.get("/classrooms/BBB/posts")
+    items = client.get("/posts/news").json()["items"]
+    assert len(items) == 2
+    assert {item["classroom"]["id"] for item in items} == {"AAA", "BBB"}
+    assert [item["post"]["id"] for item in items] == ["news:1", "news:1"]
+
+
+def test_feed_frio_agenda_um_job_e_devolve_cache_sem_esperar_todas_as_turmas(
+    client, cookies, posts_sigaa, qstash
+):
+    client.cookies.update(cookies(refresh=CREDENTIALS))
+    client.get("/classrooms")
+    posts_sigaa.created.reset_mock()
+    response = client.get("/posts/news")
+    assert response.json() == {"items": [], "updating": True}
+    posts_sigaa.classrooms.list_classroom_posts.assert_awaited_once()
+    assert len(qstash.published) == 1
+    assert [step.task for step in qstash.jobs()[0].steps] == ["sync_latest_news"]
+    assert client.get("/posts/news").json()["items"][0]["post"]["id"] == "news:1"
+
+
+def test_feed_devolve_noticias_disponiveis_enquanto_outra_turma_nao_tem_cache(
+    client, cookies, posts_sigaa
+):
+    client.cookies.update(cookies(refresh=CREDENTIALS))
+    original = posts_sigaa.classrooms.list_classrooms.return_value[0]
+    posts_sigaa.classrooms.list_classrooms.return_value = [
+        original,
+        original.model_copy(update={"id": "BBB", "sigaa_id": 124, "number": "02"}),
+    ]
+    client.get("/classrooms/AAA/posts")
+    response = client.get("/posts/news")
+    assert response.status_code == 200
+    assert response.json()["updating"] is True
+    assert [item["classroom"]["id"] for item in response.json()["items"]] == ["AAA"]
 
 
 @pytest.fixture

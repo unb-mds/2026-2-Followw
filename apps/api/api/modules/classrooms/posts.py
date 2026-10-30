@@ -2,17 +2,54 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import Depends, HTTPException
+from pydantic import BaseModel, ConfigDict
 from sigaa_client import ClassroomPost, PostType
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.cache import freshness
+from api.cache import freshness, is_stale
 from api.db.models import ClassroomPosts, OwnLink
 from api.modules.classrooms.repository import ClassroomRepository, PostsRepository
-from api.modules.classrooms.service import ClassroomServiceDep
+from api.modules.classrooms.service import (
+    ClassroomService,
+    ClassroomServiceDep,
+    ParticipantClassroom,
+    to_classroom,
+)
 from api.sync import Cached, Context, Item, SyncDep
 
 POSTS_LIST_TTL = timedelta(minutes=60)
 NEWS_CONTENT_TTL: timedelta | None = None
+
+
+class ClassroomNews(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    classroom: ParticipantClassroom
+    post: ClassroomPost
+
+
+class LatestNewsFeed(BaseModel):
+    items: list[ClassroomNews]
+    updating: bool
+
+
+async def sync_latest_news(ctx: Context[None]) -> None:
+    links = await ClassroomService(ctx.sync).list_links()
+    for link in links:
+        if is_stale(link.row.classroom.posts_synced_at, POSTS_LIST_TTL):
+            await ctx.sync.perform(sync_posts, link)
+    by_id = {link.row.classroom_id: link for link in links}
+    posts = await ctx.sync.db.read(
+        lambda session: PostsRepository(session).latest_news(by_id)
+    )
+    for post in posts:
+        if post.content_synced_at is None:
+            await ctx.sync.perform(
+                sync_news_content,
+                Item(
+                    by_id[post.classroom_id], int(post.source_id.removeprefix("news:"))
+                ),
+            )
 
 
 async def sync_posts(ctx: Context[OwnLink]) -> None:
@@ -39,6 +76,33 @@ class ClassroomPostsService:
     def __init__(self, sync: SyncDep, classrooms: ClassroomServiceDep) -> None:
         self._sync = sync
         self._classrooms = classrooms
+
+    async def latest_news(self) -> LatestNewsFeed:
+        links = await self._classrooms.list_links()
+        by_id = {link.row.classroom_id: link for link in links}
+        posts = await self._sync.db.read(
+            lambda session: PostsRepository(session).latest_news(by_id)
+        )
+        updating = any(
+            is_stale(link.row.classroom.posts_synced_at, POSTS_LIST_TTL)
+            for link in links
+        ) or any(post.content_synced_at is None for post in posts)
+        if updating:
+            self._sync.schedule(sync_latest_news, None)
+        return LatestNewsFeed(
+            items=[
+                ClassroomNews(
+                    classroom=to_classroom(by_id[post.classroom_id]),
+                    post=_to_post(
+                        post,
+                        by_id[post.classroom_id].row.classroom.sigaa_id,
+                        detail=True,
+                    ),
+                )
+                for post in posts
+            ],
+            updating=updating,
+        )
 
     async def list_posts(self, classroom_id: str) -> list[ClassroomPost]:
         link = await self._classrooms.get_link(classroom_id)
