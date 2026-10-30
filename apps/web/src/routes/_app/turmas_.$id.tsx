@@ -1,6 +1,5 @@
 import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useState } from 'react';
 
 import type { components } from '#/queries/schema.gen';
 
@@ -37,6 +36,12 @@ const tabs: { id: Tab; label: string }[] = [
 ];
 
 export const Route = createFileRoute('/_app/turmas_/$id')({
+    validateSearch: (search: Record<string, unknown>): { tab?: Tab } => ({
+        tab:
+            search.tab === 'posts' || search.tab === 'members' || search.tab === 'frequency'
+                ? search.tab
+                : undefined
+    }),
     loader: async ({ context: { queryClient }, params }) => {
         const user = await loadQuery(queryClient, meQueryOptions);
         const classrooms = user
@@ -58,7 +63,8 @@ function ClassroomPage() {
     const { id } = Route.useParams();
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const classrooms = useQuery({ ...allClassroomsQueryOptions, enabled: Boolean(user) });
-    const [tab, setTab] = useState<Tab>(tabs[0].id);
+    const { tab = 'frequency' } = Route.useSearch();
+    const navigate = Route.useNavigate();
     const classroom = classrooms.data?.find((item) => item.id === id);
 
     return (
@@ -80,7 +86,7 @@ function ClassroomPage() {
                         value={tab}
                         onValueChange={(value) => {
                             if (value === 'posts' || value === 'frequency' || value === 'members') {
-                                setTab(value);
+                                void navigate({ search: { tab: value }, replace: true });
                             }
                         }}
                         className="mt-5 gap-4"
