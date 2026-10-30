@@ -60,6 +60,14 @@ function clientWith(posts: ClassroomPost[]) {
 }
 
 describe('últimas notícias da home', () => {
+    test.each([null, undefined, '', '  \n  '])(
+        'notícia sem texto mostra convite para leitura: %p',
+        (content) => {
+            const markup = renderSection(clientWith([{ ...news(1), content }]));
+            expect(markup).toContain('Clique para ler mais.');
+            expect(markup).toContain('href="/turmas/AAA?tab=posts"');
+        }
+    );
     test('mostra título, turma, data, prévia e link para Postagens', () => {
         const post = news(1, '2026-10-29');
         const client = clientWith([post]);
@@ -193,6 +201,8 @@ describe('card rotativo de notícias', () => {
         expect(view.getAllByRole('heading', { level: 3 })).toHaveLength(1);
         expect(view.getByRole('heading', { name: 'Notícia 1' })).toBeTruthy();
         expect(view.getByText('1 / 5')).toBeTruthy();
+        expect(view.queryByRole('button', { name: 'Parar' })).toBeNull();
+        expect(view.queryByRole('button', { name: 'Continuar' })).toBeNull();
         dom.testing.fireEvent.click(view.getByRole('button', { name: 'Notícia anterior' }));
         expect(view.getByRole('heading', { name: 'Notícia 5' })).toBeTruthy();
         dom.testing.fireEvent.click(view.getByRole('button', { name: 'Próxima notícia' }));
@@ -201,28 +211,18 @@ describe('card rotativo de notícias', () => {
         expect(view.getByRole('link').getAttribute('href')).toBe('/turmas/AAA?tab=posts');
     });
 
-    test('alterna a cada cinco segundos e permite parar e continuar', () => {
+    test('alterna automaticamente a cada cinco segundos', () => {
         const intervals = spyOn(globalThis, 'setInterval');
-        const clears = spyOn(globalThis, 'clearInterval');
         try {
             const view = mount(2);
             const tick = intervals.mock.calls.find((call) => call[1] === 5000)?.[0];
             if (typeof tick !== 'function') throw new Error('Rotação automática não iniciou');
             dom.testing.act(() => tick());
             expect(view.getByRole('heading', { name: 'Notícia 2' })).toBeTruthy();
-            dom.testing.fireEvent.click(view.getByRole('button', { name: 'Parar' }));
-            expect(clears).toHaveBeenCalled();
-            expect(
-                view.getByRole('button', { name: 'Continuar' }).getAttribute('aria-pressed')
-            ).toBe('true');
-            const started = intervals.mock.calls.filter((call) => call[1] === 5000).length;
-            dom.testing.fireEvent.click(view.getByRole('button', { name: 'Continuar' }));
-            expect(intervals.mock.calls.filter((call) => call[1] === 5000)).toHaveLength(
-                started + 1
-            );
+            dom.testing.act(() => tick());
+            expect(view.getByRole('heading', { name: 'Notícia 1' })).toBeTruthy();
         } finally {
             intervals.mockRestore();
-            clears.mockRestore();
         }
     });
 

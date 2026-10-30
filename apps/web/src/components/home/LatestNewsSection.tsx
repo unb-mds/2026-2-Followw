@@ -73,23 +73,22 @@ function NewsMessage({ children }: { children: React.ReactNode }) {
 
 function NewsCarousel({ news }: { news: ClassroomNews[] }) {
     const [index, setIndex] = useState(0);
-    const [paused, setPaused] = useState(false);
     const [hovered, setHovered] = useState(false);
     const [focused, setFocused] = useState(false);
     const count = news.length;
     const active = index % count;
 
     useEffect(() => {
-        if (count < 2 || paused || hovered || focused) return undefined;
+        if (count < 2 || hovered || focused) return undefined;
         const timer = setInterval(() => setIndex((current) => (current + 1) % count), 5000);
         return () => clearInterval(timer);
-    }, [count, paused, hovered, focused]);
+    }, [count, hovered, focused]);
 
     return (
         <Card
             as="section"
             size="sm"
-            className="gap-0 py-0"
+            className="relative isolate gap-0 overflow-clip py-0"
             aria-roledescription="carrossel"
             aria-label="Notícias recentes das turmas"
             onMouseEnter={() => setHovered(true)}
@@ -99,12 +98,15 @@ function NewsCarousel({ news }: { news: ClassroomNews[] }) {
                 if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false);
             }}
         >
+            <div aria-live={hovered || focused ? 'polite' : 'off'} aria-atomic="true">
+                <NewsContent
+                    key={`${news[active].classroom.id}-${news[active].post.id}`}
+                    item={news[active]}
+                />
+            </div>
             {count > 1 && (
-                <div className="flex items-center justify-start border-b border-border bg-muted/40 px-4 py-1">
+                <div className="flex items-center justify-start border-t border-border bg-muted/40 px-4 py-1">
                     <div className="flex items-center gap-1">
-                        <span className="mr-1 text-xs text-muted-foreground tabular-nums">
-                            {active + 1} / {count}
-                        </span>
                         <Button
                             variant="ghost"
                             size="icon-xs"
@@ -113,14 +115,9 @@ function NewsCarousel({ news }: { news: ClassroomNews[] }) {
                         >
                             <ChevronLeft aria-hidden="true" />
                         </Button>
-                        <Button
-                            variant="ghost"
-                            size="xs"
-                            aria-pressed={paused}
-                            onClick={() => setPaused(!paused)}
-                        >
-                            {paused ? 'Continuar' : 'Parar'}
-                        </Button>
+                        <span className="text-xs text-muted-foreground tabular-nums">
+                            {active + 1} / {count}
+                        </span>
                         <Button
                             variant="ghost"
                             size="icon-xs"
@@ -132,12 +129,6 @@ function NewsCarousel({ news }: { news: ClassroomNews[] }) {
                     </div>
                 </div>
             )}
-            <div aria-live={paused || hovered || focused ? 'polite' : 'off'} aria-atomic="true">
-                <NewsContent
-                    key={`${news[active].classroom.id}-${news[active].post.id}`}
-                    item={news[active]}
-                />
-            </div>
         </Card>
     );
 }
@@ -151,7 +142,7 @@ function NewsContent({ item: { classroom, post } }: { item: ClassroomNews }) {
                 params={{ id: classroom.id }}
                 search={{ tab: 'posts' }}
                 aria-label={`${post.title} — ver postagens de ${classroom.subject.name}`}
-                className="absolute inset-0 rounded-2xl transition-colors hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-ring"
+                className="absolute inset-0 transition-colors hover:bg-primary/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
             />
             <div className="pointer-events-none relative flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-xs text-muted-foreground">
                 <span className="min-w-0 font-medium break-words text-primary">
@@ -163,7 +154,7 @@ function NewsContent({ item: { classroom, post } }: { item: ClassroomNews }) {
                 {post.title}
             </h3>
             <div className="pointer-events-none relative line-clamp-2 text-sm text-muted-foreground">
-                {post.content ? (
+                {post.content?.trim() ? (
                     <ReactMarkdown
                         skipHtml
                         allowedElements={['p', 'br']}
@@ -173,7 +164,7 @@ function NewsContent({ item: { classroom, post } }: { item: ClassroomNews }) {
                         {post.content}
                     </ReactMarkdown>
                 ) : (
-                    'Abra as postagens da turma para ler a notícia.'
+                    'Clique para ler mais.'
                 )}
             </div>
         </div>
