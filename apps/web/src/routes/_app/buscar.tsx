@@ -1,77 +1,78 @@
-import {
-    keepPreviousData,
-    noop,
-    useQuery,
-    useQueryClient,
-    useSuspenseQuery
-} from '@tanstack/react-query';
+import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { getCurrentSemester } from '#/calendar';
-import { ErrorCard, ErrorState } from '#/components/ErrorState';
+import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
-import { LoadingText } from '#/components/LoadingText';
 import { SchedulePreview } from '#/components/schedule/SchedulePreview';
-import { ProfessorSection } from '#/components/search/ProfessorSection';
+import { CourseSection } from '#/components/search/CourseSection';
+import { ProfessorResults } from '#/components/search/ProfessorResults';
 import { RecommendationsSection } from '#/components/search/RecommendationsSection';
-import { TurmaSection } from '#/components/search/TurmaSection';
+import { SubjectResults } from '#/components/search/SubjectResults';
 import { TabFilter } from '#/components/TabFilter';
 import { Input } from '#/components/ui/input';
-import { useOnline } from '#/lib/online';
+import { SEARCH_CATEGORIES, searchCategoryLabels, searchSections } from '#/lib/search-categories';
 import { loadSearchParams, useSearchState, validateSearch } from '#/lib/search-params';
 import { allClassroomsQueryOptions } from '#/queries/classrooms';
+import { coursesQueryOptions } from '#/queries/courses';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
-import { useProfessorSearch } from '#/queries/professors';
+import { professorSearch, professorsQueryOptions } from '#/queries/professors';
 import { recommendationsQueryOptions, showRecommendations } from '#/queries/recommendations';
-import { refreshQuery } from '#/queries/refresh';
 import {
     takenCodes,
     currentCurriculumPeriod,
     SEARCH_MAX_LENGTH,
     SEARCH_MIN_LENGTH,
     subjectsQuery,
-    subjectsQueryOptions,
-    SUBJECT_TYPES,
-    subjectTypeLabels,
-    filterSubjects
+    subjectsQueryOptions
 } from '#/queries/subjects';
 
 export const Route = createFileRoute('/_app/buscar')({
-    head: () => ({ meta: [{ title: 'Buscar Turmas | Followw' }] }),
+    head: () => ({ meta: [{ title: 'Buscar | Followw' }] }),
     validateSearch,
     // O componente consulta após o debounce; o loader só pré-carrega ao entrar na página.
     shouldReload: ({ cause }) => cause !== 'stay',
     loader: async ({ context: { queryClient }, location }) => {
         const user = await loadQuery(queryClient, meQueryOptions);
         const search = loadSearchParams(location.searchStr);
-        const recommendations = showRecommendations(user, search);
+        const sections = searchSections(search.category);
+        const recommendations = sections.classrooms && showRecommendations(user, search);
         const query = recommendations ? null : subjectsQuery(search.q, user?.unit?.code ?? null);
+        const text = subjectsQuery(search.q, null)?.q;
+        const professorName = professorSearch(text);
         await Promise.all([
-            user && loadQuery(queryClient, allClassroomsQueryOptions).catch(noop),
-            query && loadQuery(queryClient, subjectsQueryOptions(query)).catch(noop),
+            sections.classrooms &&
+                user &&
+                loadQuery(queryClient, allClassroomsQueryOptions).catch(noop),
+            sections.classrooms &&
+                query &&
+                loadQuery(queryClient, subjectsQueryOptions(query)).catch(noop),
+            sections.courses && text && loadQuery(queryClient, coursesQueryOptions).catch(noop),
+            sections.professors &&
+                professorName &&
+                loadQuery(queryClient, professorsQueryOptions(professorName)).catch(noop),
             recommendations && loadQuery(queryClient, recommendationsQueryOptions).catch(noop)
         ]);
     },
     staticData: {
         header: () => (
             <HeaderBar>
-                <HeaderTitle>Buscar Turmas</HeaderTitle>
+                <HeaderTitle>Buscar</HeaderTitle>
             </HeaderBar>
         )
     },
     errorComponent: ErrorState,
-    component: BuscarTurmasPage
+    component: BuscarPage
 });
 
-function BuscarTurmasPage() {
-    const queryClient = useQueryClient();
+function BuscarPage() {
     const { data: user } = useSuspenseQuery(meQueryOptions);
-    const [{ q, type }, setSearch] = useSearchState();
-    const recommendations = showRecommendations(user, { q });
-    const graduation = user?.level === 'Graduação';
+    const [{ q, category }, setSearch] = useSearchState();
+    const sections = searchSections(category);
+    const recommendations = sections.classrooms && showRecommendations(user, { q });
     const unit = user?.unit?.code ?? null;
     const currentPeriod = currentCurriculumPeriod(
         user?.entry_semester,
@@ -79,34 +80,20 @@ function BuscarTurmasPage() {
     );
     // Consulta aplicada após o debounce de 300 ms; texto inválido mantém a anterior.
     const [query, setQuery] = useState(() => subjectsQuery(q, unit));
-    const online = useOnline();
-
     useEffect(() => {
-        const timer = setTimeout(() => {
-            setQuery((previous) => subjectsQuery(q, unit, previous));
-        }, 300);
+        const timer = setTimeout(
+            () => setQuery((previous) => subjectsQuery(q, unit, previous)),
+            300
+        );
         return () => clearTimeout(timer);
     }, [q, unit]);
-
-    const { data, isPending, isFetching, isLoadingError, isError, refetch } = useQuery({
-        ...subjectsQueryOptions(query ?? {}),
-        enabled: !recommendations && query != null,
-        placeholderData: keepPreviousData
-    });
-    const professors = useProfessorSearch(query?.q, !recommendations);
     const { data: history } = useQuery({
         ...allClassroomsQueryOptions,
-        enabled: Boolean(user)
+        enabled: sections.classrooms && Boolean(user)
     });
     const taken = useMemo(() => (history ? takenCodes(history) : null), [history]);
-
-    const subjects = filterSubjects(data ?? [], graduation ? type : 'all');
-    const semester = subjects[0]?.classrooms[0]?.semester;
-    const title = query?.unit ? `Matérias da ${query.unit}` : 'Resultados da busca';
-    const refreshSubjects = () => {
-        if (query) void refreshQuery(queryClient, subjectsQueryOptions(query)).catch(noop);
-    };
-
+    const text = query?.q ?? '';
+    const canSearch = recommendations || (sections.classrooms && query != null) || Boolean(text);
     return (
         <div className="flex flex-col gap-5">
             <div className="relative">
@@ -117,84 +104,55 @@ function BuscarTurmasPage() {
                 <Input
                     type="search"
                     value={q}
-                    onChange={(e) => {
-                        const value = e.target.value.slice(0, SEARCH_MAX_LENGTH);
+                    onChange={(event) => {
+                        const value = event.target.value.slice(0, SEARCH_MAX_LENGTH);
                         void setSearch({ q: value.trim() ? value : null });
                     }}
                     maxLength={SEARCH_MAX_LENGTH}
-                    placeholder="Busque por matéria, código ou professor..."
-                    aria-label="Busque pelo nome, código da matéria ou professor"
+                    placeholder="Busque por matérias, código, curso ou professor..."
+                    aria-label="Busque por matérias, código, curso ou professor"
                     className="h-11 bg-card pl-10 text-sm"
                 />
             </div>
-            {graduation && (
-                <TabFilter
-                    label="Tipo de matéria"
-                    value={type}
-                    options={SUBJECT_TYPES}
-                    labels={subjectTypeLabels}
-                    onChange={(value) => void setSearch({ type: value })}
-                    className="-my-2"
-                />
-            )}
+            <TabFilter
+                label="Categoria da busca"
+                value={category}
+                options={SEARCH_CATEGORIES}
+                labels={searchCategoryLabels}
+                onChange={(value) => void setSearch({ category: value })}
+                className="-my-2"
+            />
             <SchedulePreview />
-            <div aria-live="polite" aria-busy={isFetching} className="flex flex-col gap-5 pb-8">
-                {recommendations ? (
-                    <RecommendationsSection
-                        type={type}
-                        currentPeriod={currentPeriod}
-                        taken={taken}
-                    />
-                ) : !query ? (
-                    <p className="py-8 text-center text-sm text-muted-foreground">
-                        {`Digite de ${SEARCH_MIN_LENGTH} a ${SEARCH_MAX_LENGTH} caracteres do nome, código da matéria ou professor para ver as turmas.`}
-                    </p>
-                ) : isPending ? (
-                    <LoadingText className="justify-center">Buscando turmas...</LoadingText>
-                ) : isLoadingError ? (
-                    <ErrorCard
-                        message="Não foi possível buscar as turmas."
-                        onRetry={() => refetch()}
-                    />
-                ) : (
-                    <>
-                        {isError && online && (
-                            <ErrorCard
-                                message="Não foi possível atualizar as turmas. Exibindo os dados salvos."
-                                onRetry={() => refetch()}
-                            />
-                        )}
-                        {!user && (
-                            <p className="text-sm text-muted-foreground">
-                                <Link
-                                    className="font-bold text-primary hover:underline"
-                                    to="/login"
-                                >
-                                    Entre na sua conta
-                                </Link>{' '}
-                                para visualizar seu fluxo.
-                            </p>
-                        )}
-                        <ProfessorSection
-                            professors={professors?.items ?? []}
-                            total={professors?.total ?? 0}
-                        />
-                        <TurmaSection
-                            key={JSON.stringify(query)}
-                            title={semester ? `${title} · ${semester}` : title}
-                            subjects={subjects}
-                            currentPeriod={currentPeriod}
-                            taken={taken}
-                            onOpenDetails={refreshSubjects}
-                        />
-                        {subjects.length === 0 && !professors?.items.length && (
-                            <p className="py-8 text-center text-sm text-muted-foreground">
-                                Nenhuma turma ou docente encontrado. Tente mudar a busca ou os
-                                filtros.
-                            </p>
-                        )}
-                    </>
+            <div aria-live="polite" className="flex flex-col gap-5 pb-8">
+                {!canSearch && (
+                    <p className="py-8 text-center text-sm text-muted-foreground">{`Digite de ${SEARCH_MIN_LENGTH} a ${SEARCH_MAX_LENGTH} caracteres do nome, código da matéria, curso ou professor para ver os resultados.`}</p>
                 )}
+                {sections.courses && text && (
+                    <CourseSection key={text} text={text} showEmpty={category === 'courses'} />
+                )}
+                {sections.classrooms && !user && query && (
+                    <p className="text-sm text-muted-foreground">
+                        <Link className="font-bold text-primary hover:underline" to="/login">
+                            Entre na sua conta
+                        </Link>{' '}
+                        para visualizar seu fluxo.
+                    </p>
+                )}
+                {sections.professors && text && (
+                    <ProfessorResults text={text} showEmpty={category === 'professors'} />
+                )}
+                {sections.classrooms &&
+                    (recommendations ? (
+                        <RecommendationsSection currentPeriod={currentPeriod} taken={taken} />
+                    ) : (
+                        query && (
+                            <SubjectResults
+                                query={query}
+                                currentPeriod={currentPeriod}
+                                taken={taken}
+                            />
+                        )
+                    ))}
             </div>
         </div>
     );

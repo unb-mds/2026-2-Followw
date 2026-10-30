@@ -1,6 +1,6 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { Navigate, createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
-import { LogOut, Pencil } from 'lucide-react';
+import { Link, Navigate, createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
+import { GitFork, LogOut, Pencil } from 'lucide-react';
 import { useState } from 'react';
 
 import { ErrorState } from '#/components/ErrorState';
@@ -26,7 +26,7 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger
 } from '#/components/ui/alert-dialog';
-import { Button } from '#/components/ui/button';
+import { Button, buttonVariants } from '#/components/ui/button';
 import {
     Dialog,
     DialogContent,
@@ -39,6 +39,7 @@ import {
 import { Input } from '#/components/ui/input';
 import { Label } from '#/components/ui/label';
 import { useOnline } from '#/lib/online';
+import { cn } from '#/lib/shadcn';
 import { useLogout } from '#/queries/auth';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
@@ -76,19 +77,43 @@ function PerfilPage() {
                 <InstallPromptCard />
                 <AcademicPerformance user={user} />
                 <ProgressSection user={user} />
-                <AccountSection displayName={settings.displayName} />
+                <AccountSection displayName={settings.displayName} courseId={user.course?.id} />
             </div>
         </>
     );
 }
 
-function AccountSection({ displayName }: { displayName?: string | null }) {
+function AccountSection({
+    displayName,
+    courseId
+}: {
+    displayName?: string | null;
+    courseId?: number;
+}) {
     return (
         <ProfileSection title="Conta">
             <ListCard>
                 <div className="-mx-3">
                     <DisplayNameButton displayName={displayName} />
                 </div>
+                {courseId != null && (
+                    <div className="-mx-3">
+                        <Link
+                            to="/cursos/$id"
+                            params={{ id: courseId }}
+                            search={{}}
+                            className={cn(
+                                buttonVariants({ variant: 'ghost' }),
+                                'h-auto min-h-12 w-full justify-start gap-3 rounded-none px-3 py-2.5'
+                            )}
+                        >
+                            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                <GitFork className="size-4" aria-hidden="true" />
+                            </span>
+                            <span className="flex-1 text-left">Visualizar fluxo acadêmico</span>
+                        </Link>
+                    </div>
+                )}
                 <DocumentDownloads />
                 <LogoutButton />
             </ListCard>

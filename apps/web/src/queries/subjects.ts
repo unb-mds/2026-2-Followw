@@ -14,7 +14,7 @@ export const subjectKindLabels: Record<SubjectKind, string> = {
     optional: 'Optativa',
     free: 'Módulo livre'
 };
-type SubjectsQuery = NonNullable<
+export type SubjectsQuery = NonNullable<
     operations['search_subjects_public_subjects_get']['parameters']['query']
 >;
 

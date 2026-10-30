@@ -1,9 +1,10 @@
-"""Completa o CSV com os componentes citados nos requisitos, mesmo sem oferta."""
+"""Completa o CSV com componentes das matrizes e dos requisitos, mesmo sem oferta."""
 
 import argparse
 import asyncio
 import csv
 import re
+from collections.abc import Iterable
 from pathlib import Path
 
 from _by_unit import DATA_DIR, TIMEOUT, write_csv
@@ -11,19 +12,38 @@ from _by_unit import DATA_DIR, TIMEOUT, write_csv
 from sigaa_client import SigaaPublicClient
 
 OUTPUT = DATA_DIR / "subjects.csv"
+CURRICULUM_COMPONENTS = DATA_DIR / "curriculum_components.csv"
 SEARCH_DELAY = 0.3
 REQUIREMENTS = ("prerequisites", "corequisites", "equivalences")
 _CODE_RE = re.compile(r"\b[A-Z]+[0-9]+\b")
 
 
-async def complete_subjects(rows: list[dict[str, object]]) -> list[dict[str, object]]:
+def read_curriculum_codes(path: Path = CURRICULUM_COMPONENTS) -> set[str]:
+    with path.open(encoding="utf-8", newline="") as file:
+        reader = csv.DictReader(file)
+        if not {"kind", "subject_codes"}.issubset(reader.fieldnames or []):
+            raise ValueError("CSV de matrizes sem colunas kind e subject_codes.")
+        return {
+            code.strip().upper()
+            for row in reader
+            if row["kind"] == "required"
+            for code in row["subject_codes"].split()
+        }
+
+
+async def complete_subjects(
+    rows: list[dict[str, object]], curriculum_codes: Iterable[str] = ()
+) -> list[dict[str, object]]:
     codes = {str(row["code"]) for row in rows}
-    missing = {
-        code
-        for row in rows
-        for field in REQUIREMENTS
-        for code in _CODE_RE.findall(str(row[field] or ""))
-    } - codes
+    missing = (
+        {
+            code
+            for row in rows
+            for field in REQUIREMENTS
+            for code in _CODE_RE.findall(str(row[field] or ""))
+        }
+        | set(curriculum_codes)
+    ) - codes
     if not missing:
         return rows
 
@@ -71,6 +91,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path, default=OUTPUT)
     parser.add_argument("--output", type=Path, default=OUTPUT)
+    parser.add_argument(
+        "--curriculum-components", type=Path, default=CURRICULUM_COMPONENTS
+    )
     args = parser.parse_args()
     with args.input.open(encoding="utf-8", newline="") as file:
         reader = csv.DictReader(file)
@@ -78,7 +101,13 @@ def main():
         rows = list(reader)
     if columns is None:
         raise ValueError("CSV de componentes sem cabeçalho.")
-    write_csv(asyncio.run(complete_subjects(rows)), columns, args.output)
+    write_csv(
+        asyncio.run(
+            complete_subjects(rows, read_curriculum_codes(args.curriculum_components))
+        ),
+        columns,
+        args.output,
+    )
 
 
 if __name__ == "__main__":

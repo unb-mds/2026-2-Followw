@@ -102,8 +102,8 @@ ofertados por uma unidade e entrega cada um como `SubjectDetails`: o `Subject` c
 `corequisites` e `equivalences` (só a expressão ativa), como o SIGAA as escreve, ou `None` quando
 não há.
 
-`collect_subjects.py` também completa os componentes citados nos requisitos pelo catálogo público,
-mesmo sem oferta no semestre. Para completar um CSV existente, rode da raiz do monorepo:
+`collect_subjects.py` também completa os componentes obrigatórios das matrizes e os citados nos
+requisitos pelo catálogo público, mesmo sem oferta no semestre. Para completar um CSV existente, rode da raiz do monorepo:
 `uv run python packages/sigaa-client/scripts/complete_subjects.py`.
 Depois execute `uv run db-init` em `apps/api/` para carregar o catálogo no banco local.
 

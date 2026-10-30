@@ -159,17 +159,22 @@ describe('seção de recomendações', () => {
         expect(page.queryByText('104 pontos')).toBeNull();
         testing.fireEvent.click(page.getByRole('button', { name: /FGA0001/ }));
         await testing.waitFor(() =>
-            expect(page.getByRole('button', { name: 'Por que esta matéria?' })).toBeDefined()
+            expect(
+                page.getByRole('button', { name: 'Por que esta matéria?', hidden: true })
+            ).toBeDefined()
         );
         expect(page.queryByRole('list', { name: 'Critérios atendidos' })).toBeNull();
         const classrooms = page.getAllByRole('button', { name: /^Detalhes da turma/ });
         expect(classrooms).toHaveLength(2);
-        testing.fireEvent.click(page.getByRole('button', { name: 'Por que esta matéria?' }), {
-            button: 0
-        });
+        testing.fireEvent.click(
+            page.getByRole('button', { name: 'Por que esta matéria?', hidden: true }),
+            {
+                button: 0
+            }
+        );
         expect(
             page
-                .getByRole('button', { name: 'Por que esta matéria?' })
+                .getByRole('button', { name: 'Por que esta matéria?', hidden: true })
                 .getAttribute('aria-expanded')
         ).toBe('true');
         const criteria = document.createElement('div');

@@ -28,6 +28,7 @@ import {
 } from '#/lib/search-params';
 import { allClassroomsQueryOptions } from '#/queries/classrooms';
 import { apiClient } from '#/queries/client';
+import { coursesQueryOptions } from '#/queries/courses';
 import { meQueryOptions } from '#/queries/me';
 import { professorsQueryOptions } from '#/queries/professors';
 import { subjectsQueryOptions } from '#/queries/subjects';
@@ -55,7 +56,7 @@ function BuscarTurmasPage() {
 
 function ResetFilters() {
     const [, setSearch] = useSearchState();
-    return <button onClick={() => void setSearch({ type: null })}>Limpar filtros</button>;
+    return <button onClick={() => void setSearch({ category: null })}>Limpar filtros</button>;
 }
 
 function makeSearchRouter(isServer: boolean) {
@@ -142,15 +143,18 @@ describe('página de busca com estado na URL', () => {
     let requests: URL[];
     let updates: UrlUpdateEvent[];
     let recommended: unknown[];
+    let courses: unknown[];
 
     beforeEach(() => {
         requests = [];
         updates = [];
         recommended = [];
+        courses = [];
         client = new QueryClient({
             defaultOptions: { queries: { retry: false, staleTime: Infinity } }
         });
         client.setQueryData(meQueryOptions.queryKey, null);
+        client.setQueryData(coursesQueryOptions.queryKey, []);
         middleware = {
             onRequest: ({ request }) => {
                 const url = new URL(request.url);
@@ -176,6 +180,7 @@ describe('página de busca com estado na URL', () => {
                         page_size: 20
                     });
                 }
+                if (url.pathname.endsWith('/public/courses')) return Response.json(courses);
                 if (url.pathname.endsWith('/public/subjects') && !url.search)
                     return Response.json(recommended);
                 return Response.json([
@@ -237,6 +242,116 @@ describe('página de busca com estado na URL', () => {
         expect(searchbox(page).value).toBe('calculo');
         await testing.waitFor(() => expect(page.getByText('Cálculo 1')).toBeDefined());
         expect(requests[0].searchParams.get('q')).toBe('calculo');
+    });
+
+    test('exibe cursos antes das turmas com nome, graduação, turno e unidade', async () => {
+        client.setQueryData(coursesQueryOptions.queryKey, [
+            {
+                id: 1,
+                sigaa_id: 100,
+                name: 'CÁLCULO APLICADO',
+                shift: 'DIURNO',
+                unit: { id: 1, code: 'MAT', name: 'DEPARTAMENTO DE MATEMÁTICA' }
+            },
+            {
+                id: 2,
+                sigaa_id: 101,
+                name: 'FÍSICA',
+                shift: null,
+                unit: { id: 1, code: 'MAT', name: 'DEPARTAMENTO DE MATEMÁTICA' }
+            }
+        ]);
+        const page = renderPage('?q=calculo');
+        await page.findByText('Cálculo 1');
+        const course = page.getByRole('heading', { name: 'Cálculo Aplicado' });
+        const subjects = page.getByRole('heading', { name: /^Matérias$/ });
+        expect(
+            course.compareDocumentPosition(subjects) & Node.DOCUMENT_POSITION_FOLLOWING
+        ).toBeTruthy();
+        expect(page.getByText('Graduação · Diurno')).toBeDefined();
+        expect(page.getByText('Departamento de Matemática')).toBeDefined();
+        expect(page.queryByText('Física')).toBeNull();
+        expect(searchbox(page).placeholder).toBe(
+            'Busque por matérias, código, curso ou professor...'
+        );
+    });
+
+    test.each([1, 5, 12])(
+        'lista %i cursos em lotes de cinco e atualiza a quantidade restante',
+        async (total) => {
+            client.setQueryData(
+                coursesQueryOptions.queryKey,
+                Array.from({ length: total }, (_, index) => ({
+                    id: index + 1,
+                    sigaa_id: 100 + index,
+                    name: `ENGENHARIA CIVIL ${index + 1}`,
+                    shift: 'DIURNO',
+                    unit: { id: 1, code: 'ENG', name: 'ENGENHARIA' }
+                }))
+            );
+            const page = renderPage('?q=engenharia&category=courses');
+            const section = testing.within(await page.findByRole('region', { name: 'Cursos' }));
+            expect(section.getByText(`${total} ${total === 1 ? 'curso' : 'cursos'}`)).toBeDefined();
+            expect(section.getAllByRole('link')).toHaveLength(Math.min(total, 5));
+            for (let visible = 5; visible < total; visible += 5) {
+                testing.fireEvent.click(
+                    section.getByRole('button', {
+                        name: `Ver mais cursos (${total - visible} restantes)`
+                    })
+                );
+                expect(section.getAllByRole('link')).toHaveLength(Math.min(total, visible + 5));
+            }
+            expect(section.queryByRole('button', { name: /Ver mais cursos/ })).toBeNull();
+        }
+    );
+
+    test('uma nova busca volta a mostrar os cinco primeiros cursos', async () => {
+        client.setQueryData(
+            coursesQueryOptions.queryKey,
+            Array.from({ length: 12 }, (_, index) => ({
+                id: index + 1,
+                sigaa_id: 100 + index,
+                name: `ENGENHARIA CIVIL ${index + 1}`,
+                shift: null,
+                unit: { id: 1, code: 'ENG', name: 'ENGENHARIA' }
+            }))
+        );
+        const page = renderPage('?q=eng&category=courses');
+        testing.fireEvent.click(
+            await page.findByRole('button', { name: 'Ver mais cursos (7 restantes)' })
+        );
+        expect(
+            testing.within(page.getByRole('region', { name: 'Cursos' })).getAllByRole('link')
+        ).toHaveLength(10);
+        testing.fireEvent.change(searchbox(page), { target: { value: 'engenharia' } });
+        await page.findByRole('button', { name: 'Ver mais cursos (7 restantes)' });
+        expect(
+            testing.within(page.getByRole('region', { name: 'Cursos' })).getAllByRole('link')
+        ).toHaveLength(5);
+    });
+
+    test('consulta o catálogo de cursos ao pesquisar e o esconde ao limpar o campo', async () => {
+        client.removeQueries({ queryKey: coursesQueryOptions.queryKey });
+        courses = [
+            {
+                id: 1,
+                sigaa_id: 100,
+                name: 'CÁLCULO APLICADO',
+                shift: null,
+                unit: { id: 1, code: null, name: 'MATEMÁTICA' }
+            }
+        ];
+        const page = renderPage();
+        expect(requests).toHaveLength(0);
+        testing.fireEvent.change(searchbox(page), { target: { value: 'calculo' } });
+        await testing.waitFor(() =>
+            expect(requests.some((url) => url.pathname.endsWith('/public/courses'))).toBe(true)
+        );
+        await page.findByRole('heading', { name: 'Cálculo Aplicado' });
+        testing.fireEvent.change(searchbox(page), { target: { value: '' } });
+        await testing.waitFor(() =>
+            expect(page.queryByRole('region', { name: 'Cursos' }) === null).toBe(true)
+        );
     });
 
     test('pesquisa não tem filtros de turno nem barra da grade sem turmas', async () => {
@@ -308,9 +423,11 @@ describe('página de busca com estado na URL', () => {
     });
 
     test('limpar o filtro remove seu parâmetro e preserva a consulta', async () => {
-        const page = renderPage('?q=calculo&type=optional');
+        const page = renderPage('?q=calculo&category=courses');
         testing.fireEvent.click(page.getByRole('button', { name: 'Limpar filtros' }));
-        await testing.waitFor(() => expect(updates.at(-1)?.searchParams.has('type')).toBe(false));
+        await testing.waitFor(() =>
+            expect(updates.at(-1)?.searchParams.has('category')).toBe(false)
+        );
         expect(updates.at(-1)?.searchParams.get('q')).toBe('calculo');
         await testing.waitFor(() => expect(page.getByText('2 turmas')).toBeDefined());
     });
@@ -343,10 +460,96 @@ describe('página de busca com estado na URL', () => {
         expect(page.getByRole('table').textContent).toContain('MAT0023');
     });
 
-    test('abas mostram recomendações sem busca e toda a oferta do tipo com busca', async () => {
+    test('abas de categoria aparecem para visitantes e substituem os tipos de matéria', () => {
+        const page = renderPage('?q=calculo');
+        expect(page.getByRole('group', { name: 'Categoria da busca' })).toBeDefined();
+        for (const name of ['Todos', 'Matérias', 'Cursos', 'Docentes']) {
+            expect(page.getByRole('button', { name })).toBeDefined();
+        }
+        expect(page.getByRole('button', { name: 'Todos' }).getAttribute('aria-pressed')).toBe(
+            'true'
+        );
+        expect(page.queryByRole('button', { name: 'Obrigatórias' })).toBeNull();
+        expect(page.queryByRole('button', { name: 'Optativas' })).toBeNull();
+    });
+
+    test('cada aba mostra apenas a categoria escolhida e preserva o texto da busca', async () => {
+        client.setQueryData(coursesQueryOptions.queryKey, [
+            {
+                id: 1,
+                sigaa_id: 100,
+                name: 'ESTUDOS CARLOS SILVA',
+                shift: null,
+                unit: { id: 1, code: null, name: 'UNIDADE' }
+            }
+        ]);
+        const page = renderPage('?q=Carlos Silva');
+        const tab = (name: string) => page.getByRole('button', { name });
+        await page.findByRole('heading', { name: 'Docentes' });
+        await page.findByText('Cálculo 1');
+        expect(page.getByRole('heading', { name: 'Estudos Carlos Silva' })).toBeDefined();
+        testing.fireEvent.click(tab('Matérias'));
+        await testing.waitFor(() =>
+            expect(page.queryByRole('heading', { name: 'Docentes' })).toBeNull()
+        );
+        expect(page.queryByRole('region', { name: 'Cursos' })).toBeNull();
+        expect(page.getByText('Cálculo 1')).toBeDefined();
+        expect(updates.at(-1)?.searchParams.get('category')).toBe('classrooms');
+        testing.fireEvent.click(tab('Cursos'));
+        await page.findByRole('heading', { name: 'Estudos Carlos Silva' });
+        expect(page.queryByText('Cálculo 1')).toBeNull();
+        expect(page.queryByRole('heading', { name: 'Docentes' })).toBeNull();
+        testing.fireEvent.click(tab('Docentes'));
+        await page.findByRole('heading', { name: 'Docentes' });
+        expect(page.queryByRole('region', { name: 'Cursos' })).toBeNull();
+        expect(page.queryByText('Cálculo 1')).toBeNull();
+        expect(updates.at(-1)?.searchParams.get('q')).toBe('Carlos Silva');
+        testing.fireEvent.click(tab('Todos'));
+        await page.findByText('Cálculo 1');
+        expect(page.getByRole('heading', { name: 'Estudos Carlos Silva' })).toBeDefined();
+        expect(page.getByRole('heading', { name: 'Docentes' })).toBeDefined();
+        expect(updates.at(-1)?.searchParams.has('category')).toBe(false);
+    });
+
+    test.each([
+        ['classrooms', '/public/subjects'],
+        ['courses', '/public/courses'],
+        ['professors', '/public/professors']
+    ] as const)(
+        'URL direta da categoria %s consulta somente o recurso correspondente',
+        async (category, resource) => {
+            client.removeQueries({ queryKey: coursesQueryOptions.queryKey });
+            const page = renderPage(`?q=Carlos Silva&category=${category}`);
+            await testing.waitFor(() => expect(requests.length).toBe(1));
+            expect(requests[0].pathname.endsWith(resource)).toBe(true);
+            expect(
+                page
+                    .getByRole('button', {
+                        name: { classrooms: 'Matérias', courses: 'Cursos', professors: 'Docentes' }[
+                            category
+                        ]
+                    })
+                    .getAttribute('aria-pressed')
+            ).toBe('true');
+        }
+    );
+
+    test.each([
+        ['courses', 'Nenhum curso encontrado. Tente mudar a busca.'],
+        ['professors', 'Nenhum docente encontrado. Tente mudar a busca.']
+    ])(
+        'categoria %s informa ausência de resultados sem consultar turmas',
+        async (category, message) => {
+            const page = renderPage(`?q=calculo&category=${category}`);
+            await page.findByText(message);
+            expect(requests.some((url) => url.pathname.endsWith('/public/subjects'))).toBe(false);
+        }
+    );
+
+    test('recomendações continuam em Todos e Turmas e não aparecem nas outras categorias', async () => {
         const user: components['schemas']['UserProfile'] = {
             name: 'Discente',
-            registration: '202600001',
+            registration: '1',
             photo: null,
             bio: null,
             unit: null,
@@ -362,37 +565,49 @@ describe('página de busca com estado na URL', () => {
         client.setQueryData(meQueryOptions.queryKey, user);
         client.setQueryData(allClassroomsQueryOptions.queryKey, []);
         const classrooms = [{ number: '01', semester: '2026.2', professors: [] }];
-        client.setQueryData(subjectsQueryOptions({ q: 'calculo' }).queryKey, [
+        recommended = [
             { code: 'MAT0025', name: 'Cálculo 1', kind: 'mandatory', classrooms },
             { code: 'MAT0029', name: 'Cálculo 9', kind: 'optional', classrooms }
-        ]);
-        recommended = [
-            { code: 'MAT0027', name: 'Cálculo 3', kind: 'optional', classrooms },
-            { code: 'FIS0001', name: 'Física 1', kind: 'optional', classrooms },
-            { code: 'MAT0025', name: 'Cálculo 1', kind: 'mandatory', classrooms },
-            { code: 'MAT0026', name: 'Cálculo 2', kind: 'optional', classrooms }
         ];
-        const page = renderPage('?type=optional');
-        const tab = (name: string) => page.getByRole('button', { name });
-        const shown = () =>
-            Array.from(page.container.querySelectorAll('[data-slot="accordion-item"]'), (item) =>
-                item.textContent?.match(/[A-Z]{3}\d{4}/)?.at(0)
-            );
-        expect(page.queryByRole('button', { name: 'Módulo livre' })).toBeNull();
-        await testing.waitFor(() => expect(shown()).toEqual(['MAT0027', 'FIS0001', 'MAT0026']));
-        expect(page.getByRole('region', { name: 'Optativas disponíveis' })).toBeDefined();
-        testing.fireEvent.change(searchbox(page), { target: { value: 'calculo' } });
-        await testing.waitFor(() => expect(shown()).toEqual(['MAT0029']));
-        expect(page.queryByRole('region', { name: 'Optativas disponíveis' })).toBeNull();
-        testing.fireEvent.click(tab('Obrigatórias'));
-        await testing.waitFor(() => expect(shown()).toEqual(['MAT0025']));
-        testing.fireEvent.click(tab('Todas'));
-        await testing.waitFor(() => expect(shown()).toEqual(['MAT0025', 'MAT0029']));
+        const page = renderPage();
+        await page.findByText('Cálculo 1');
+        expect(page.getByText('Cálculo 9')).toBeDefined();
+        testing.fireEvent.click(page.getByRole('button', { name: 'Matérias' }));
+        await page.findByRole('region', { name: 'Matérias recomendadas' });
+        testing.fireEvent.click(page.getByRole('button', { name: 'Cursos' }));
+        await testing.waitFor(() =>
+            expect(page.queryByRole('region', { name: 'Matérias recomendadas' })).toBeNull()
+        );
+        expect(page.getByText(/Digite de 3 a 32/)).toBeDefined();
+        testing.fireEvent.click(page.getByRole('button', { name: 'Docentes' }));
+        await testing.waitFor(() => expect(page.queryByText('Cálculo 1')).toBeNull());
+        expect(requests.every((url) => !url.search)).toBe(true);
     });
 
-    test('abas de tipo só aparecem com a conta logada', () => {
-        const page = renderPage('?q=calculo');
-        expect(page.queryByRole('group', { name: 'Tipo de matéria' })).toBeNull();
+    test('falha na busca de turmas não impede mostrar cursos e docentes em Todos', async () => {
+        client.setQueryData(coursesQueryOptions.queryKey, [
+            {
+                id: 1,
+                sigaa_id: 100,
+                name: 'ESTUDOS CARLOS SILVA',
+                shift: null,
+                unit: { id: 1, code: null, name: 'UNIDADE' }
+            }
+        ]);
+        const respond = middleware.onRequest!;
+        apiClient.eject(middleware);
+        middleware = {
+            onRequest: (context) => {
+                if (new URL(context.request.url).pathname.endsWith('/public/subjects'))
+                    throw new Error('Sem conexão');
+                return respond(context);
+            }
+        };
+        apiClient.use(middleware);
+        const page = renderPage('?q=Carlos Silva');
+        await page.findByText('Não foi possível buscar as matérias.');
+        expect(page.getByRole('heading', { name: 'Estudos Carlos Silva' })).toBeDefined();
+        await page.findByRole('heading', { name: 'Docentes' });
     });
 
     test('mostra as matérias em lotes de 20', async () => {
@@ -519,9 +734,11 @@ describe('página de busca com estado na URL', () => {
 
     test('exibe docentes no topo antes das turmas quando houver professor correspondente', async () => {
         const page = renderPage('?q=Carlos Silva');
-        await testing.waitFor(() => expect(page.getByText('Docentes')).toBeDefined());
+        await testing.waitFor(() =>
+            expect(page.getByRole('heading', { name: 'Docentes' })).toBeDefined()
+        );
         await testing.waitFor(() => expect(page.getByText('Cálculo 1')).toBeDefined());
-        const docentes = page.getByText('Docentes');
+        const docentes = page.getByRole('heading', { name: 'Docentes' });
         const materias = page.getByText('Cálculo 1');
         // Prioridade pré-estabelecida: a seção de matérias segue a seção de docentes
         expect(docentes.compareDocumentPosition(materias)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
@@ -529,11 +746,15 @@ describe('página de busca com estado na URL', () => {
 
     test('buscar código depois de um nome esconde os docentes da busca anterior', async () => {
         const page = renderPage('?q=Carlos Silva');
-        await testing.waitFor(() => expect(page.getByText('Docentes')).toBeDefined());
+        await testing.waitFor(() =>
+            expect(page.getByRole('heading', { name: 'Docentes' })).toBeDefined()
+        );
 
         testing.fireEvent.change(searchbox(page), { target: { value: 'MAT0023' } });
         await testing.act(() => new Promise((resolve) => setTimeout(resolve, 350)));
-        await testing.waitFor(() => expect(page.queryByText('Docentes')).toBeNull());
+        await testing.waitFor(() =>
+            expect(page.queryByRole('heading', { name: 'Docentes' })).toBeNull()
+        );
         expect(page.getByText('Cálculo 1')).toBeDefined();
     });
 });

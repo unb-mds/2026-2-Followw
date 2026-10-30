@@ -564,3 +564,40 @@ async def test_falha_da_origem_nao_devolve_catalogo_parcial(
     with pytest.raises(SigaaError, match="indisponível"):
         await completion_script.complete_subjects(rows)
     assert [row["code"] for row in rows] == ["FGA0001"]
+
+
+def test_le_codigos_obrigatorios_das_matrizes_sem_duplicar(completion_script, tmp_path):
+    path = tmp_path / "components.csv"
+    path.write_text(
+        "kind,subject_codes\nrequired,FGA0001 FGA0002\nrequired,FGA0002\noptional,OPT0001\ncomplementary,EXT0001\nrequired,\n"
+    )
+    assert completion_script.read_curriculum_codes(path) == {"FGA0001", "FGA0002"}
+    path.write_text("code\nFGA0001\n")
+    with pytest.raises(ValueError, match="kind e subject_codes"):
+        completion_script.read_curriculum_codes(path)
+
+
+async def test_completa_materia_presente_so_na_matriz_sem_apagar_as_existentes(
+    completion_script, subjects_script, monkeypatch
+):
+    rows = subjects_script.subject_rows(
+        [(673, SubjectDetails(code="FGA0001", name="BASE"))]
+    )
+    calls = []
+
+    async def search(*, code):
+        calls.append(code)
+        return SubjectSearchResult(
+            items=(_catalog_subject("FGA0250", "PROJETO INTEGRADOR DE ENGENHARIA 2"),)
+        )
+
+    monkeypatch.setattr(
+        FakeClient, "subjects", SimpleNamespace(search=search), raising=False
+    )
+    result = await completion_script.complete_subjects(rows, {"FGA0001", "FGA0250"})
+    assert calls == ["FGA"]
+    assert result[0] == rows[0]
+    assert result[1]["code"] == "FGA0250"
+    assert result[1]["name"] == "PROJETO INTEGRADOR DE ENGENHARIA 2"
+    assert result[1]["hours"] == 90
+    assert len(rows) == 1

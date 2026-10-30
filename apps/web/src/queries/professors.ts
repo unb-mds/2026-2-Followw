@@ -1,5 +1,3 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
-
 import type { components } from '#/queries/schema.gen';
 
 import { api } from '#/queries/api';
@@ -27,15 +25,4 @@ export const professorsQueryOptions = (q: string) =>
 // nomes de docentes não têm dígitos: buscar por código de matéria não consulta docentes
 export function professorSearch(q: string | null | undefined): string | null {
     return q && !/\d/.test(q) ? q : null;
-}
-
-// a página anterior só segura o lugar enquanto a próxima busca de docentes carrega
-export function useProfessorSearch(q: string | null | undefined, enabled: boolean) {
-    const name = enabled ? professorSearch(q) : null;
-    const { data } = useQuery({
-        ...professorsQueryOptions(name ?? ''),
-        enabled: name != null,
-        placeholderData: keepPreviousData
-    });
-    return name == null ? undefined : data;
 }
