@@ -105,11 +105,11 @@ function NewsCarousel({ news }: { news: ClassroomNews[] }) {
                 />
             </div>
             {count > 1 && (
-                <div className="flex items-center justify-start border-t border-border bg-muted/40 px-4 py-1">
+                <div className="flex items-center justify-end border-t border-border bg-muted/40 px-4 py-1">
                     <div className="flex items-center gap-1">
                         <Button
                             variant="ghost"
-                            size="icon-xs"
+                            size="icon-sm"
                             aria-label="Notícia anterior"
                             onClick={() => setIndex((active + count - 1) % count)}
                         >
@@ -120,7 +120,7 @@ function NewsCarousel({ news }: { news: ClassroomNews[] }) {
                         </span>
                         <Button
                             variant="ghost"
-                            size="icon-xs"
+                            size="icon-sm"
                             aria-label="Próxima notícia"
                             onClick={() => setIndex((active + 1) % count)}
                         >
@@ -136,7 +136,7 @@ function NewsCarousel({ news }: { news: ClassroomNews[] }) {
 function NewsContent({ item: { classroom, post } }: { item: ClassroomNews }) {
     const date = postDateLabel(post);
     return (
-        <div className="relative flex min-h-28 flex-col gap-2 px-4 py-3">
+        <div className="relative flex h-32 flex-col gap-2 overflow-hidden px-4 py-3">
             <Link
                 to="/turmas/$id"
                 params={{ id: classroom.id }}
@@ -144,13 +144,13 @@ function NewsContent({ item: { classroom, post } }: { item: ClassroomNews }) {
                 aria-label={`${post.title} — ver postagens de ${classroom.subject.name}`}
                 className="absolute inset-0 transition-colors hover:bg-primary/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
             />
-            <div className="pointer-events-none relative flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                <span className="min-w-0 font-medium break-words text-primary">
-                    {classroom.subject.name} · Turma {classroom.number}
+            <div className="pointer-events-none relative flex items-baseline justify-between gap-3 text-xs text-muted-foreground">
+                <span className="min-w-0 truncate font-medium text-primary">
+                    {classroom.subject.name}
                 </span>
-                {date && <span className="tabular-nums">{date}</span>}
+                {date && <span className="shrink-0 tabular-nums">{date}</span>}
             </div>
-            <h3 className="pointer-events-none relative text-sm font-semibold wrap-anywhere">
+            <h3 className="pointer-events-none relative line-clamp-1 text-sm font-semibold wrap-anywhere">
                 {post.title}
             </h3>
             <div className="pointer-events-none relative line-clamp-2 text-sm text-muted-foreground">

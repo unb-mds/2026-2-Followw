@@ -87,7 +87,6 @@ describe('últimas notícias da home', () => {
         expect(markup).toContain('Últimas notícias');
         expect(markup).toContain('Notícia 1');
         expect(markup).toContain('Cálculo');
-        expect(markup).toContain('Turma 01');
         expect(markup).toContain('29/10/2026');
         expect(markup).toContain('o capítulo 1');
         expect(markup).not.toContain('**');
