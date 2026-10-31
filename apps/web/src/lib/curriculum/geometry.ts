@@ -10,8 +10,8 @@ export interface LayoutMetrics {
     margin: number;
     minGap: number;
     headings: boolean;
-    // sobra de largura vira margem igual dos dois lados
-    centered: boolean;
+    // cada semestre ocupa a tela, com folga nas pontas para centralizá-lo
+    paged: boolean;
     // cartões com texto menor e créditos abreviados
     compact: boolean;
 }
@@ -21,24 +21,24 @@ export const DESKTOP: LayoutMetrics = {
     margin: 0,
     minGap: 40,
     headings: true,
-    centered: false,
+    paged: false,
     compact: true
 };
 export const MOBILE: LayoutMetrics = {
     cardWidth: { min: 220, max: 432 },
     cardHeight: (subject) => (subject.hours == null ? 120 : 104),
-    margin: 24,
+    margin: 88,
     minGap: 24,
     headings: false,
-    centered: true,
+    paged: true,
     compact: false
 };
 const PAD = 24;
 const HEADING_HEIGHT = 40;
 
-function orderedColumns(model: CurriculumModel, periods: number[]) {
+function orderedColumns(model: CurriculumModel) {
     const positions = new Map<string, number>();
-    return periods.map((period) => {
+    return model.periods.map((period) => {
         const score = (subject: FlowSubject) => {
             const rows = model.edges
                 .filter((e) => e.kind === 'prerequisite' && e.target === subject.code)
@@ -62,27 +62,27 @@ function orderedColumns(model: CurriculumModel, periods: number[]) {
 export function layoutCurriculum(
     model: CurriculumModel,
     availableWidth: number,
-    metrics: LayoutMetrics = DESKTOP,
-    periods: number[] = model.periods
+    metrics: LayoutMetrics = DESKTOP
 ): FlowGeometry {
-    const columns = orderedColumns(model, periods);
-    const present = new Set(columns.flat().map((s) => s.code));
-    const plan = planConnections(
-        columns,
-        model.edges.filter((e) => present.has(e.source) || present.has(e.target)),
-        metrics.minGap
-    );
+    const { periods } = model;
+    const columns = orderedColumns(model);
+    const plan = planConnections(columns, model.edges, metrics.minGap);
     const gapWidths = [...plan.gapWidths];
     const gapTotal = gapWidths.reduce((a, b) => a + b, 0);
     const { min, max } = metrics.cardWidth;
     const cardWidth = Math.max(
         min,
-        Math.min(max, (availableWidth - gapTotal - metrics.margin) / Math.max(1, periods.length))
+        Math.min(
+            max,
+            metrics.paged
+                ? availableWidth - metrics.margin
+                : (availableWidth - gapTotal - metrics.margin) / Math.max(1, periods.length)
+        )
     );
-    const extra = availableWidth - gapTotal - cardWidth * periods.length;
-    if (metrics.centered && extra > 0) {
-        gapWidths[0] += extra / 2;
-        gapWidths[gapWidths.length - 1] += extra / 2;
+    if (metrics.paged) {
+        const side = (availableWidth - cardWidth) / 2;
+        gapWidths[0] = Math.max(gapWidths[0], side);
+        gapWidths[gapWidths.length - 1] = Math.max(gapWidths.at(-1)!, side);
     }
     const gapStarts: number[] = [0];
     const columnXs: number[] = [];
@@ -117,10 +117,8 @@ export function layoutCurriculum(
         width,
         height: y + PAD,
         nodes,
-        edges: plan.route(nodes, gapStarts, rowTops, width),
-        headings: metrics.headings
-            ? periods.map((period, column) => ({ period, x: columnXs[column] + cardWidth / 2 }))
-            : []
+        edges: plan.route(nodes, gapStarts, rowTops),
+        columns: periods.map((period, column) => ({ period, x: columnXs[column] + cardWidth / 2 }))
     };
 }
 

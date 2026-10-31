@@ -488,6 +488,9 @@ export interface components {
          * @description O componente com as turmas do semestre consultado e os requisitos.
          */
         CatalogSubject: {
+            curriculum_prerequisites?: components["schemas"]["CatalogRequirements"] | null;
+            curriculum_corequisites?: components["schemas"]["CatalogRequirements"] | null;
+            offered_equivalences?: components["schemas"]["CatalogRequirements"] | null;
             /** Code */
             code: string;
             /** Name */
@@ -498,9 +501,6 @@ export interface components {
             prerequisites?: components["schemas"]["CatalogRequirements"] | null;
             corequisites?: components["schemas"]["CatalogRequirements"] | null;
             equivalences?: components["schemas"]["CatalogRequirements"] | null;
-            curriculum_prerequisites?: components["schemas"]["CatalogRequirements"] | null;
-            curriculum_corequisites?: components["schemas"]["CatalogRequirements"] | null;
-            offered_equivalences?: components["schemas"]["CatalogRequirements"] | null;
             /** Classrooms */
             classrooms: components["schemas"]["SubjectClassroom"][];
             /** Kind */
@@ -641,6 +641,9 @@ export interface components {
         };
         /** CurriculumSubject */
         CurriculumSubject: {
+            curriculum_prerequisites?: components["schemas"]["CatalogRequirements"] | null;
+            curriculum_corequisites?: components["schemas"]["CatalogRequirements"] | null;
+            offered_equivalences?: components["schemas"]["CatalogRequirements"] | null;
             /** Code */
             code: string;
             /** Name */

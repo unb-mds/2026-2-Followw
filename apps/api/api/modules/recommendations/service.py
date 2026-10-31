@@ -19,10 +19,10 @@ from api.modules.me.repository import UserRepository
 from api.modules.recommendations.ranking import (
     Component,
     Recommendation,
-    normalize,
     rank,
 )
 from api.modules.recommendations.repository import RecommendationRepository
+from api.schemas import normalize
 from api.sync import Cached, Sync
 
 # Trancamento ou indeferimento não deixa menção pendente: a tentativa não conta.

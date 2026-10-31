@@ -5,13 +5,12 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.main import DatabaseDep
-from api.db.models import Requirements, Subject
+from api.db.models import Subject
 from api.db.units import find_unit
 from api.modules.public_subjects.repository import SubjectCatalogRepository
 from api.modules.recommendations.ranking import (
     Component,
     ReasonCode,
-    normalize,
     subject_kind,
 )
 from api.modules.recommendations.repository import RecommendationRepository
@@ -19,9 +18,12 @@ from api.modules.recommendations.service import Ranking, RecommendationService
 from api.schemas import (
     CatalogRequirements,
     ClassroomOffer,
+    DisplayedRequirements,
     SubjectReference,
     UserSubject,
+    displayed_requirements,
     named_requirements,
+    normalize,
     requirement_codes,
     unit_ref,
 )
@@ -52,17 +54,13 @@ class SubjectRecommendation(BaseModel):
     reasons: list[SubjectReason]
 
 
-class CatalogSubject(UserSubject):
+class CatalogSubject(UserSubject, DisplayedRequirements):
     """O componente com as turmas do semestre consultado e os requisitos."""
 
     # OU de Es: `[["A", "B"], ["C"]]` é `(A E B) OU C`; nulo quando desconhecido.
     prerequisites: CatalogRequirements | None = None
     corequisites: CatalogRequirements | None = None
     equivalences: CatalogRequirements | None = None
-    # Apenas para exibição; os requisitos completos continuam valendo na validação.
-    curriculum_prerequisites: CatalogRequirements | None = None
-    curriculum_corequisites: CatalogRequirements | None = None
-    offered_equivalences: CatalogRequirements | None = None
     classrooms: list[SubjectClassroom]
     # Tipo na matriz estimada de quem está logado; nulo sem login ou sem matriz.
     kind: Literal["mandatory", "optional", "free"] | None = None
@@ -150,7 +148,10 @@ async def _catalog(
     unlocks = await repository.unlocked_subjects({subject.code for subject in subjects})
     codes = requirement_codes(subjects)
     names = await repository.subject_names(codes)
-    offered = await repository.offered_subject_codes(codes, semester)
+    offered = {
+        normalize(code)
+        for code in await repository.offered_subject_codes(codes, semester)
+    }
     return [
         CatalogSubject(
             code=subject.code,
@@ -160,15 +161,7 @@ async def _catalog(
             prerequisites=named_requirements(subject.prerequisites, names),
             corequisites=named_requirements(subject.corequisites, names),
             equivalences=named_requirements(subject.equivalences, names),
-            offered_equivalences=_offered_requirements(
-                subject.equivalences, names, offered
-            ),
-            curriculum_prerequisites=_curriculum_requirements(
-                subject.prerequisites, names, curriculum, offered
-            ),
-            curriculum_corequisites=_curriculum_requirements(
-                subject.corequisites, names, curriculum, offered
-            ),
+            **displayed_requirements(subject, names, curriculum, offered),
             classrooms=[
                 SubjectClassroom.model_validate(classroom)
                 for classroom in sorted(subject.classrooms, key=lambda c: c.number)
@@ -189,41 +182,6 @@ async def _catalog(
         )
         for subject in subjects
     ]
-
-
-def _curriculum_requirements(
-    requirements: Requirements | None,
-    names: dict[str, str],
-    curriculum: dict[str, Component] | None,
-    offered: set[str],
-) -> CatalogRequirements | None:
-    if not curriculum or requirements is None:
-        return None
-    selected = [
-        group
-        for group in requirements
-        if group and all(normalize(code) in curriculum for code in group)
-    ]
-    return (
-        named_requirements(selected, names)
-        if selected
-        else _offered_requirements(requirements, names, offered)
-    )
-
-
-def _offered_requirements(
-    requirements: Requirements | None, names: dict[str, str], offered: set[str]
-) -> CatalogRequirements | None:
-    if requirements is None:
-        return None
-    return named_requirements(
-        [
-            group
-            for group in requirements
-            if group and all(normalize(code) in offered for code in group)
-        ],
-        names,
-    )
 
 
 def _invalid(detail: str) -> HTTPException:

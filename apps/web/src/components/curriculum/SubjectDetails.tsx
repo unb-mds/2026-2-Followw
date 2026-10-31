@@ -9,6 +9,7 @@ import { requirementsText, subjectsText } from '#/lib/curriculum/format';
 import { stateLabels } from '#/lib/curriculum/model';
 import { titleCase } from '#/lib/profile';
 import { cn } from '#/lib/shadcn';
+import { displayedRequirements } from '#/queries/subjects';
 
 export function SubjectDetails({
     subject,
@@ -19,10 +20,16 @@ export function SubjectDetails({
     state?: AcademicState;
     unlocks?: FlowSubject[];
 }) {
+    const displayed = displayedRequirements(subject);
+    // como na busca, requisito existente sem alternativa exibida ganha aviso
+    const requirements = (key: 'prerequisites' | 'corequisites') =>
+        requirementsText(displayed[key]) ??
+        (requirementsText(subject[key]) &&
+            'Nenhuma alternativa na matriz ou com turmas no semestre.');
     const sections = [
-        { label: 'Pré-requisitos', text: requirementsText(subject.prerequisites) },
-        { label: 'Correquisitos', text: requirementsText(subject.corequisites) },
-        { label: 'Equivalências', text: requirementsText(subject.equivalences) },
+        { label: 'Pré-requisitos', text: requirements('prerequisites') },
+        { label: 'Correquisitos', text: requirements('corequisites') },
+        { label: 'Equivalências', text: requirementsText(displayed.equivalences) },
         { label: 'Desbloqueia', text: subjectsText(unlocks) }
     ].filter((section) => section.text);
     return (

@@ -41,5 +41,6 @@ export interface FlowGeometry {
     height: number;
     nodes: FlowNode[];
     edges: RoutedEdge[];
-    headings: { period: number; x: number }[];
+    // centro horizontal de cada semestre
+    columns: { period: number; x: number }[];
 }

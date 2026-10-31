@@ -1,14 +1,16 @@
 import type { CourseCurriculum, CurriculumSubject } from '#/queries/curriculum';
 
 type Codes = string[][] | null;
-export type RawSubject = Omit<
-    CurriculumSubject,
-    'prerequisites' | 'corequisites' | 'equivalences'
-> & {
-    prerequisites?: Codes;
-    corequisites?: Codes;
-    equivalences?: Codes;
-};
+const REQUIREMENTS = [
+    'prerequisites',
+    'corequisites',
+    'equivalences',
+    'curriculum_prerequisites',
+    'curriculum_corequisites',
+    'offered_equivalences'
+] as const;
+export type RawSubject = Omit<CurriculumSubject, (typeof REQUIREMENTS)[number]> &
+    Partial<Record<(typeof REQUIREMENTS)[number], Codes>>;
 export interface RawCurriculum extends Omit<
     CourseCurriculum,
     'periods' | 'complementary' | 'degree' | 'modality'
@@ -39,11 +41,14 @@ export function curriculum(
                       return { code, subject: name === undefined ? null : { code, name } };
                   })
               );
-    const subject = ({ prerequisites, corequisites, equivalences, ...data }: RawSubject) => ({
-        ...data,
-        prerequisites: named(prerequisites),
-        corequisites: named(corequisites),
-        equivalences: named(equivalences)
+    const subject = (item: RawSubject): CurriculumSubject => ({
+        ...item,
+        prerequisites: named(item.prerequisites),
+        corequisites: named(item.corequisites),
+        equivalences: named(item.equivalences),
+        curriculum_prerequisites: named(item.curriculum_prerequisites),
+        curriculum_corequisites: named(item.curriculum_corequisites),
+        offered_equivalences: named(item.offered_equivalences)
     });
     return {
         degree: null,

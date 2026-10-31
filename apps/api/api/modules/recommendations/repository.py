@@ -10,8 +10,8 @@ from api.modules.recommendations.ranking import (
     CatalogSubject,
     Component,
     components_by_code,
-    normalize,
 )
+from api.schemas import normalize
 
 
 class RecommendationRepository:

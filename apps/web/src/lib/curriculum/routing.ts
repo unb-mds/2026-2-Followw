@@ -8,8 +8,6 @@ const SPACING = 8;
 const INSET = 16;
 
 type Connection =
-    // ponta fora do semestre exibido no mobile
-    | { kind: 'incoming' | 'outgoing'; edge: FlowEdge }
     // correquisito no mesmo semestre, desenhado na vertical
     | { kind: 'stacked'; edge: FlowEdge }
     // pelos corredores entre semestres, compartilhado por destino
@@ -40,10 +38,8 @@ export function planConnections(columns: FlowSubject[][], edges: FlowEdge[], min
         )
     );
     const connections = edges.map((edge): Connection => {
-        const source = locations.get(edge.source);
-        const target = locations.get(edge.target);
-        if (!source) return { kind: 'incoming', edge };
-        if (!target) return { kind: 'outgoing', edge };
+        const source = locations.get(edge.source)!;
+        const target = locations.get(edge.target)!;
         if (edge.kind === 'corequisite' && source.col === target.col)
             return { kind: 'stacked', edge };
         return { kind: 'channel', edge, net: `${edge.kind}:${edge.target}:${edge.alternative}` };
@@ -82,7 +78,7 @@ export function planConnections(columns: FlowSubject[][], edges: FlowEdge[], min
     return {
         gapWidths: gaps.map(({ count }) => Math.max(minGap, INSET * 2 + count * SPACING)),
         gutterHeights: gutters.map(({ count }) => Math.max(32, INSET * 2 + count * SPACING)),
-        route(nodes: FlowNode[], gapStarts: number[], rowTops: number[], width: number) {
+        route(nodes: FlowNode[], gapStarts: number[], rowTops: number[]) {
             const byCode = new Map(nodes.map((node) => [node.subject.code, node]));
             const node = (code: string) => byCode.get(code)!;
             const portStyles = groupBy(
@@ -116,39 +112,29 @@ export function planConnections(columns: FlowSubject[][], edges: FlowEdge[], min
 
             function path(connection: Connection): Point[] {
                 const { edge } = connection;
-                switch (connection.kind) {
-                    case 'incoming': {
-                        const to = port(edge.target, edge, 'target');
-                        return [{ x: 0, y: to.y }, to];
-                    }
-                    case 'outgoing': {
-                        const from = port(edge.source, edge, 'source');
-                        return [from, { x: width, y: from.y }];
-                    }
-                    case 'stacked': {
-                        const source = node(edge.source);
-                        const [upper, lower] = [source, node(edge.target)].toSorted(
-                            (a, b) => a.row - b.row
-                        );
-                        const x = upper.x + upper.width / 2;
-                        const from = { x, y: upper.y + upper.height };
-                        const to = { x, y: lower.y };
-                        const departure = laneY(upper.row + 1, edge.id);
-                        const arrival = laneY(lower.row, edge.id);
-                        const lane = laneX(source.column + 1, edge.id);
-                        const points =
-                            lower.row === upper.row + 1
-                                ? [from, to]
-                                : [
-                                      from,
-                                      { x, y: departure },
-                                      { x: lane, y: departure },
-                                      { x: lane, y: arrival },
-                                      { x, y: arrival },
-                                      to
-                                  ];
-                        return upper === source ? points : points.toReversed();
-                    }
+                if (connection.kind === 'stacked') {
+                    const source = node(edge.source);
+                    const [upper, lower] = [source, node(edge.target)].toSorted(
+                        (a, b) => a.row - b.row
+                    );
+                    const x = upper.x + upper.width / 2;
+                    const from = { x, y: upper.y + upper.height };
+                    const to = { x, y: lower.y };
+                    const departure = laneY(upper.row + 1, edge.id);
+                    const arrival = laneY(lower.row, edge.id);
+                    const lane = laneX(source.column + 1, edge.id);
+                    const points =
+                        lower.row === upper.row + 1
+                            ? [from, to]
+                            : [
+                                  from,
+                                  { x, y: departure },
+                                  { x: lane, y: departure },
+                                  { x: lane, y: arrival },
+                                  { x, y: arrival },
+                                  to
+                              ];
+                    return upper === source ? points : points.toReversed();
                 }
                 const { net } = connection;
                 const from = port(edge.source, edge, 'source');

@@ -55,7 +55,11 @@ export function CourseSummary({ course, entrySemester }: CourseSummaryProps) {
                     <SummaryItem icon={Layers}>
                         {[
                             plural(flow.periods.length, 'semestre', 'semestres'),
-                            plural(flow.subjects.length, 'matéria obrigatória', 'matérias obrigatórias')
+                            plural(
+                                flow.subjects.length,
+                                'matéria obrigatória',
+                                'matérias obrigatórias'
+                            )
                         ].join(' · ')}
                     </SummaryItem>
                 )}

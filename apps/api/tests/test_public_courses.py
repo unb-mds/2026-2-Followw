@@ -1,6 +1,13 @@
 import pytest
 
-from api.db.models import Course, Curriculum, CurriculumComponent, Subject, Unit
+from api.db.models import (
+    Classroom,
+    Course,
+    Curriculum,
+    CurriculumComponent,
+    Subject,
+    Unit,
+)
 from api.sigaa import get_sigaa_public_client
 
 URL = "/public/courses/77/curriculum"
@@ -259,6 +266,9 @@ def test_curriculo_por_ingresso_traz_materias_agrupadas_e_requisitos(catalog):
                         "prerequisites": None,
                         "corequisites": None,
                         "equivalences": None,
+                        "curriculum_prerequisites": None,
+                        "curriculum_corequisites": None,
+                        "offered_equivalences": None,
                     }
                 ],
             },
@@ -286,6 +296,16 @@ def test_curriculo_por_ingresso_traz_materias_agrupadas_e_requisitos(catalog):
                             ]
                         ],
                         "equivalences": [[{"code": "CIC0001", "subject": None}]],
+                        "curriculum_prerequisites": [],
+                        "curriculum_corequisites": [
+                            [
+                                {
+                                    "code": "FGA0002",
+                                    "subject": {"code": "FGA0002", "name": "OPTATIVA"},
+                                }
+                            ]
+                        ],
+                        "offered_equivalences": [],
                     }
                 ],
             },
@@ -300,6 +320,9 @@ def test_curriculo_por_ingresso_traz_materias_agrupadas_e_requisitos(catalog):
                         "prerequisites": None,
                         "corequisites": None,
                         "equivalences": None,
+                        "curriculum_prerequisites": None,
+                        "curriculum_corequisites": None,
+                        "offered_equivalences": None,
                     }
                 ],
             },
@@ -313,9 +336,52 @@ def test_curriculo_por_ingresso_traz_materias_agrupadas_e_requisitos(catalog):
                 "prerequisites": None,
                 "corequisites": None,
                 "equivalences": None,
+                "curriculum_prerequisites": None,
+                "curriculum_corequisites": None,
+                "offered_equivalences": None,
             }
         ],
     }
+
+
+def _displayed(client):
+    subject = _get(client).json()["periods"][1]["subjects"][0]
+    return {
+        field: [[item["code"] for item in group] for group in subject[field]]
+        for field in ("curriculum_prerequisites", "offered_equivalences")
+    }
+
+
+def test_requisitos_exibidos_preferem_a_matriz_e_depois_os_com_turmas(
+    catalog, database
+):
+    codes = ("MAT0001", "MAT0002", "MAT0003", "CIC0001")
+    with database.begin() as session:
+        session.add_all(Subject(code=code, name=code) for code in codes)
+        session.flush()
+        session.add_all(
+            [
+                Classroom(subject_code="MAT0003", number="01", semester="2026.2"),
+                Classroom(subject_code="CIC0001", number="01", semester="2026.2"),
+                # só o semestre mais recente conta como oferta
+                Classroom(subject_code="MAT0001", number="01", semester="2026.1"),
+                Classroom(subject_code="MAT0002", number="01", semester="2026.1"),
+            ]
+        )
+    assert _displayed(catalog) == {
+        "curriculum_prerequisites": [["MAT0003"]],
+        "offered_equivalences": [["CIC0001"]],
+    }
+
+    with database.begin() as session:
+        matrix = session.query(Curriculum).filter_by(sigaa_id=201).one()
+        session.add_all(
+            CurriculumComponent(
+                curriculum_id=matrix.id, subject_code=code, kind="optional", period=0
+            )
+            for code in ("MAT0001", "MAT0002")
+        )
+    assert _displayed(catalog)["curriculum_prerequisites"] == [["MAT0001", "MAT0002"]]
 
 
 @pytest.mark.parametrize(

@@ -1,5 +1,5 @@
 import re
-from collections.abc import Iterable
+from collections.abc import Container, Iterable
 from typing import Annotated, Literal, Protocol
 
 from fastapi import Depends, HTTPException
@@ -13,8 +13,11 @@ from api.modules.public_courses.repository import PublicCourseRepository
 from api.modules.public_subjects.repository import SubjectCatalogRepository
 from api.schemas import (
     CatalogRequirements,
+    DisplayedRequirements,
     UnitRef,
+    displayed_requirements,
     named_requirements,
+    normalize,
     requirement_codes,
     unit_ref,
 )
@@ -55,7 +58,7 @@ class CurriculumOption(BaseModel):
         return _matrix_part(self.matrix, -2)
 
 
-class CurriculumSubject(BaseModel):
+class CurriculumSubject(DisplayedRequirements):
     model_config = ConfigDict(frozen=True)
 
     code: str
@@ -131,13 +134,17 @@ async def _load(
         raise HTTPException(404, "Curso sem currículos ativos cadastrados.")
     selected = _select(options, curriculum_sigaa_id)
     components = await repository.list_components(selected.id)
-    names = await SubjectCatalogRepository(session).subject_names(
-        requirement_codes(subject for _, subject in components if subject)
-    )
+    catalog = SubjectCatalogRepository(session)
+    codes = requirement_codes(subject for _, subject in components if subject)
+    names = await catalog.subject_names(codes)
+    offered = {
+        normalize(code) for code in await catalog.offered_subject_codes(codes, None)
+    }
+    matrix = {normalize(component.subject_code) for component, _ in components}
     periods: dict[int, list[CurriculumSubject]] = {0: []}
     complementary = []
     for component, subject in components:
-        item = _subject(component.subject_code, subject, names)
+        item = _subject(component.subject_code, subject, names, matrix, offered)
         if component.kind == "complementary":
             complementary.append(item)
         else:
@@ -194,7 +201,11 @@ def _matrix_part(matrix: str, index: int) -> str | None:
 
 
 def _subject(
-    code: str, subject: Subject | None, names: dict[str, str]
+    code: str,
+    subject: Subject | None,
+    names: dict[str, str],
+    matrix: Container[str],
+    offered: set[str],
 ) -> CurriculumSubject:
     if subject is None:
         return CurriculumSubject(code=code)
@@ -206,6 +217,7 @@ def _subject(
         prerequisites=named_requirements(subject.prerequisites, names),
         corequisites=named_requirements(subject.corequisites, names),
         equivalences=named_requirements(subject.equivalences, names),
+        **displayed_requirements(subject, names, matrix, offered),
     )
 
 
