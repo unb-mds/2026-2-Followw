@@ -415,6 +415,20 @@ def _catalog_subject(code, name):
     )
 
 
+def _catalog(search, requirements=None):
+    """Catálogo de mentira: a busca do teste e o resumo com `requirements` por código."""
+
+    async def get_details(subject):
+        return SubjectDetails(
+            code=subject.code,
+            name=subject.name,
+            hours=subject.hours,
+            **(requirements or {}).get(subject.code, {}),
+        )
+
+    return SimpleNamespace(search=search, get_details=get_details)
+
+
 async def test_completa_referencias_dos_tres_campos_por_prefixo(
     completion_script, subjects_script, monkeypatch
 ):
@@ -447,9 +461,7 @@ async def test_completa_referencias_dos_tres_campos_por_prefixo(
             )
         )
 
-    monkeypatch.setattr(
-        FakeClient, "subjects", SimpleNamespace(search=search), raising=False
-    )
+    monkeypatch.setattr(FakeClient, "subjects", _catalog(search), raising=False)
     completed = await completion_script.complete_subjects(rows)
     by_code = {row["code"]: row for row in completed}
 
@@ -493,9 +505,7 @@ async def test_catalogo_truncado_busca_codigos_que_faltam_exatamente(
             )
         return SubjectSearchResult(items=(_catalog_subject("IQD0052", "OUTRA"),))
 
-    monkeypatch.setattr(
-        FakeClient, "subjects", SimpleNamespace(search=search), raising=False
-    )
+    monkeypatch.setattr(FakeClient, "subjects", _catalog(search), raising=False)
     completed = await completion_script.complete_subjects(rows)
 
     assert calls == ["IQD", "IQD0052"]
@@ -521,9 +531,7 @@ async def test_referencia_ausente_na_origem_nao_ganha_nome_inventado(
     async def search(**_):
         return SubjectSearchResult()
 
-    monkeypatch.setattr(
-        FakeClient, "subjects", SimpleNamespace(search=search), raising=False
-    )
+    monkeypatch.setattr(FakeClient, "subjects", _catalog(search), raising=False)
     assert await completion_script.complete_subjects(rows) == rows
 
 
@@ -558,9 +566,102 @@ async def test_falha_da_origem_nao_devolve_catalogo_parcial(
             )
         raise SigaaError("indisponível")
 
-    monkeypatch.setattr(
-        FakeClient, "subjects", SimpleNamespace(search=search), raising=False
-    )
+    monkeypatch.setattr(FakeClient, "subjects", _catalog(search), raising=False)
     with pytest.raises(SigaaError, match="indisponível"):
         await completion_script.complete_subjects(rows)
     assert [row["code"] for row in rows] == ["FGA0001"]
+
+
+def test_le_codigos_obrigatorios_das_matrizes_sem_duplicar(completion_script, tmp_path):
+    path = tmp_path / "components.csv"
+    path.write_text(
+        "kind,subject_codes\nrequired,FGA0001 FGA0002\nrequired,FGA0002\noptional,OPT0001\ncomplementary,EXT0001\nrequired,\n"
+    )
+    assert completion_script.read_curriculum_codes(path) == {"FGA0001", "FGA0002"}
+    path.write_text("code\nFGA0001\n")
+    with pytest.raises(ValueError, match="kind e subject_codes"):
+        completion_script.read_curriculum_codes(path)
+
+
+async def test_completa_materia_presente_so_na_matriz_sem_apagar_as_existentes(
+    completion_script, subjects_script, monkeypatch
+):
+    rows = subjects_script.subject_rows(
+        [(673, SubjectDetails(code="FGA0001", name="BASE"))]
+    )
+    calls = []
+
+    async def search(*, code):
+        calls.append(code)
+        return SubjectSearchResult(
+            items=(_catalog_subject("FGA0250", "PROJETO INTEGRADOR DE ENGENHARIA 2"),)
+        )
+
+    monkeypatch.setattr(FakeClient, "subjects", _catalog(search), raising=False)
+    result = await completion_script.complete_subjects(rows, {"FGA0001", "FGA0250"})
+    assert calls == ["FGA"]
+    assert result[0] == rows[0]
+    assert result[1]["code"] == "FGA0250"
+    assert result[1]["name"] == "PROJETO INTEGRADOR DE ENGENHARIA 2"
+    assert result[1]["hours"] == 90
+    assert len(rows) == 1
+
+
+async def test_acrescentadas_trazem_requisitos_e_buscam_os_componentes_citados(
+    completion_script, subjects_script, monkeypatch
+):
+    rows = subjects_script.subject_rows(
+        [(673, SubjectDetails(code="FGA0001", name="BASE"))]
+    )
+    calls = []
+
+    async def search(*, code):
+        calls.append(code)
+        return SubjectSearchResult(
+            items=(
+                _catalog_subject("FEF0500", "ESTÁGIO 3"),
+                _catalog_subject("FEF0497", "ESTÁGIO 2"),
+                _catalog_subject("MAT0025", "CÁLCULO 1"),
+            )
+        )
+
+    requirements = {
+        "FEF0500": {"prerequisites": "( ( FEF0497 ) )", "corequisites": "( MAT0025 )"},
+        "FEF0497": {"prerequisites": "( ( FGA0001 ) )"},
+    }
+    monkeypatch.setattr(
+        FakeClient, "subjects", _catalog(search, requirements), raising=False
+    )
+    completed = await completion_script.complete_subjects(rows, {"FEF0500"})
+    by_code = {row["code"]: row for row in completed}
+
+    assert calls == ["FEF", "FEF", "MAT"]
+    assert set(by_code) == {"FGA0001", "FEF0497", "FEF0500", "MAT0025"}
+    assert by_code["FEF0500"]["prerequisites"] == "( ( FEF0497 ) )"
+    assert by_code["FEF0500"]["corequisites"] == "( MAT0025 )"
+    assert by_code["FEF0497"]["unit_id"] is None
+
+
+async def test_linhas_completadas_antes_sao_refeitas_com_os_requisitos(
+    completion_script, monkeypatch
+):
+    columns = ("code", "name", "hours", "unit_id", *completion_script.REQUIREMENTS)
+    rows = [
+        dict(zip(columns, ("FGA0001", "BASE", "60", "673", "", "", ""))),
+        dict(zip(columns, ("FEF0500", "ESTÁGIO 3", "150", "", "", "", ""))),
+    ]
+
+    async def search(*, code):
+        return SubjectSearchResult(items=(_catalog_subject("FEF0500", "ESTÁGIO 3"),))
+
+    monkeypatch.setattr(
+        FakeClient,
+        "subjects",
+        _catalog(search, {"FEF0500": {"prerequisites": "( ( FGA0001 ) )"}}),
+        raising=False,
+    )
+    completed = await completion_script.complete_subjects(rows, {"FEF0500"})
+
+    assert [row["code"] for row in completed] == ["FEF0500", "FGA0001"]
+    assert completed[0]["prerequisites"] == "( ( FGA0001 ) )"
+    assert completed[1] is rows[0]

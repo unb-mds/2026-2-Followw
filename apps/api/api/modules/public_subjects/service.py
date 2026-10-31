@@ -5,18 +5,28 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.main import DatabaseDep
-from api.db.models import Requirements, Subject
+from api.db.models import Subject
 from api.db.units import find_unit
 from api.modules.public_subjects.repository import SubjectCatalogRepository
 from api.modules.recommendations.ranking import (
     Component,
     ReasonCode,
-    normalize,
     subject_kind,
 )
 from api.modules.recommendations.repository import RecommendationRepository
 from api.modules.recommendations.service import Ranking, RecommendationService
-from api.schemas import ClassroomOffer, UserSubject, unit_ref
+from api.schemas import (
+    CatalogRequirements,
+    ClassroomOffer,
+    DisplayedRequirements,
+    SubjectReference,
+    UserSubject,
+    displayed_requirements,
+    named_requirements,
+    normalize,
+    requirement_codes,
+    unit_ref,
+)
 from api.sync import Sync
 
 
@@ -28,19 +38,6 @@ class SubjectClassroom(ClassroomOffer):
     semester: str
     schedule: str | None = None
     room: str | None = None
-
-
-class SubjectReference(BaseModel):
-    code: str
-    name: str
-
-
-class SubjectRequirement(BaseModel):
-    code: str
-    subject: SubjectReference | None = None
-
-
-type CatalogRequirements = list[list[SubjectRequirement]]
 
 
 class SubjectReason(BaseModel):
@@ -57,17 +54,13 @@ class SubjectRecommendation(BaseModel):
     reasons: list[SubjectReason]
 
 
-class CatalogSubject(UserSubject):
+class CatalogSubject(UserSubject, DisplayedRequirements):
     """O componente com as turmas do semestre consultado e os requisitos."""
 
     # OU de Es: `[["A", "B"], ["C"]]` é `(A E B) OU C`; nulo quando desconhecido.
     prerequisites: CatalogRequirements | None = None
     corequisites: CatalogRequirements | None = None
     equivalences: CatalogRequirements | None = None
-    # Apenas para exibição; os requisitos completos continuam valendo na validação.
-    curriculum_prerequisites: CatalogRequirements | None = None
-    curriculum_corequisites: CatalogRequirements | None = None
-    offered_equivalences: CatalogRequirements | None = None
     classrooms: list[SubjectClassroom]
     # Tipo na matriz estimada de quem está logado; nulo sem login ou sem matriz.
     kind: Literal["mandatory", "optional", "free"] | None = None
@@ -153,37 +146,22 @@ async def _catalog(
 ) -> list[CatalogSubject]:
     repository = SubjectCatalogRepository(session)
     unlocks = await repository.unlocked_subjects({subject.code for subject in subjects})
-    requirement_codes = {
-        code
-        for subject in subjects
-        for requirements in (
-            subject.prerequisites,
-            subject.corequisites,
-            subject.equivalences,
-        )
-        for group in requirements or []
-        for code in group
+    codes = requirement_codes(subjects)
+    names = await repository.subject_names(codes)
+    offered = {
+        normalize(code)
+        for code in await repository.offered_subject_codes(codes, semester)
     }
-    names = await repository.subject_names(requirement_codes)
-    offered = await repository.offered_subject_codes(requirement_codes, semester)
     return [
         CatalogSubject(
             code=subject.code,
             name=subject.name,
             hours=subject.hours,
             unit=unit_ref(subject.unit),
-            prerequisites=_requirements(subject.prerequisites, names),
-            corequisites=_requirements(subject.corequisites, names),
-            equivalences=_requirements(subject.equivalences, names),
-            offered_equivalences=_offered_requirements(
-                subject.equivalences, names, offered
-            ),
-            curriculum_prerequisites=_curriculum_requirements(
-                subject.prerequisites, names, curriculum, offered
-            ),
-            curriculum_corequisites=_curriculum_requirements(
-                subject.corequisites, names, curriculum, offered
-            ),
+            prerequisites=named_requirements(subject.prerequisites, names),
+            corequisites=named_requirements(subject.corequisites, names),
+            equivalences=named_requirements(subject.equivalences, names),
+            **displayed_requirements(subject, names, curriculum, offered),
             classrooms=[
                 SubjectClassroom.model_validate(classroom)
                 for classroom in sorted(subject.classrooms, key=lambda c: c.number)
@@ -204,60 +182,6 @@ async def _catalog(
         )
         for subject in subjects
     ]
-
-
-def _requirements(
-    requirements: Requirements | None, names: dict[str, str]
-) -> CatalogRequirements | None:
-    if requirements is None:
-        return None
-    return [
-        [
-            SubjectRequirement(
-                code=code,
-                subject=SubjectReference(code=code, name=names[code])
-                if code in names
-                else None,
-            )
-            for code in group
-        ]
-        for group in requirements
-    ]
-
-
-def _curriculum_requirements(
-    requirements: Requirements | None,
-    names: dict[str, str],
-    curriculum: dict[str, Component] | None,
-    offered: set[str],
-) -> CatalogRequirements | None:
-    if not curriculum or requirements is None:
-        return None
-    selected = [
-        group
-        for group in requirements
-        if group and all(normalize(code) in curriculum for code in group)
-    ]
-    return (
-        _requirements(selected, names)
-        if selected
-        else _offered_requirements(requirements, names, offered)
-    )
-
-
-def _offered_requirements(
-    requirements: Requirements | None, names: dict[str, str], offered: set[str]
-) -> CatalogRequirements | None:
-    if requirements is None:
-        return None
-    return _requirements(
-        [
-            group
-            for group in requirements
-            if group and all(normalize(code) in offered for code in group)
-        ],
-        names,
-    )
 
 
 def _invalid(detail: str) -> HTTPException:

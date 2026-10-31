@@ -1,8 +1,9 @@
+from collections.abc import Container, Iterable
 from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
-from api.db.models import Course, Professor, Unit
+from api.db.models import Course, Professor, Requirements, Subject, Unit
 
 # Número que cabe na coluna vira o id; o resto é sigla ou nome, nunca só dígitos.
 UnitFilter = Annotated[
@@ -47,6 +48,114 @@ class UserSubject(BaseModel):
     name: str
     hours: int | None = None
     unit: UnitRef | None = None
+
+
+class SubjectReference(BaseModel):
+    code: str
+    name: str
+
+
+class SubjectRequirement(BaseModel):
+    code: str
+    subject: SubjectReference | None = None
+
+
+type CatalogRequirements = list[list[SubjectRequirement]]
+
+
+def named_requirements(
+    requirements: Requirements | None, names: dict[str, str]
+) -> CatalogRequirements | None:
+    if requirements is None:
+        return None
+    return [
+        [
+            SubjectRequirement(
+                code=code,
+                subject=SubjectReference(code=code, name=names[code])
+                if code in names
+                else None,
+            )
+            for code in group
+        ]
+        for group in requirements
+    ]
+
+
+def normalize(code: str) -> str:
+    return code.strip().upper()
+
+
+class DisplayedRequirements(BaseModel):
+    """Requisitos só para exibição; os completos continuam valendo na validação."""
+
+    # Grupos inteiros na matriz ou, sem nenhum, os com turmas; nulo sem matriz.
+    curriculum_prerequisites: CatalogRequirements | None = None
+    curriculum_corequisites: CatalogRequirements | None = None
+    # Só os grupos com turmas no semestre.
+    offered_equivalences: CatalogRequirements | None = None
+
+
+def displayed_requirements(
+    subject: Subject,
+    names: dict[str, str],
+    curriculum: Container[str] | None,
+    offered: set[str],
+) -> dict[str, CatalogRequirements | None]:
+    """Campos de `DisplayedRequirements`; `curriculum` e `offered` normalizados."""
+    return {
+        "curriculum_prerequisites": _curriculum_requirements(
+            subject.prerequisites, names, curriculum, offered
+        ),
+        "curriculum_corequisites": _curriculum_requirements(
+            subject.corequisites, names, curriculum, offered
+        ),
+        "offered_equivalences": _requirements_within(
+            subject.equivalences, names, offered
+        ),
+    }
+
+
+def _curriculum_requirements(
+    requirements: Requirements | None,
+    names: dict[str, str],
+    curriculum: Container[str] | None,
+    offered: set[str],
+) -> CatalogRequirements | None:
+    if not curriculum or requirements is None:
+        return None
+    return _requirements_within(
+        requirements, names, curriculum
+    ) or _requirements_within(requirements, names, offered)
+
+
+def _requirements_within(
+    requirements: Requirements | None, names: dict[str, str], codes: Container[str]
+) -> CatalogRequirements | None:
+    if requirements is None:
+        return None
+    return named_requirements(
+        [
+            group
+            for group in requirements
+            if group and all(normalize(code) in codes for code in group)
+        ],
+        names,
+    )
+
+
+def requirement_codes(subjects: Iterable[Subject]) -> set[str]:
+    return {
+        code
+        for subject in subjects
+        for requirements in (
+            subject.prerequisites,
+            subject.corequisites,
+            subject.equivalences,
+        )
+        for group in requirements or []
+        for code in group
+    }
 
 
 class ProfessorRef(BaseModel):

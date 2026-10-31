@@ -39,6 +39,31 @@ def test_catalogo_inclui_nomes_dos_requisitos_sem_oferta():
     assert subjects["FGA0138"].name == "MÉTODOS DE DESENVOLVIMENTO DE SOFTWARE"
 
 
+async def test_seed_preserva_materia_do_banco_ausente_no_csv(async_database, tmp_path):
+    async with async_database.begin() as session:
+        session.add(
+            Subject(
+                code="FGA0288",
+                name="ESTÁGIO SUPERVISIONADO",
+                hours=210,
+                unit_id=673,
+                prerequisites=[["FGA0001"]],
+            )
+        )
+    async with async_database.begin() as session:
+        await seed_subjects(session, _csv(tmp_path, "FGA0001,INTRODUÇÃO,60,673,,,"))
+
+    async with async_database() as session:
+        subject = await session.get(Subject, "FGA0288")
+        assert subject is not None
+        assert (subject.name, subject.hours, subject.unit_id) == (
+            "ESTÁGIO SUPERVISIONADO",
+            210,
+            673,
+        )
+        assert subject.prerequisites == [["FGA0001"]]
+
+
 @pytest.mark.parametrize(
     ("expression", "expected"),
     [

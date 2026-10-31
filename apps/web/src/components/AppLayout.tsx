@@ -11,6 +11,7 @@ declare module '@tanstack/react-router' {
     interface StaticDataRouteOption {
         // header da página; sem ele, só o logo
         header?: React.FC;
+        presentation?: 'fullscreen';
     }
 }
 
@@ -22,6 +23,18 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     const header =
         useMatches({ select: (matches) => matches.at(-1)?.staticData.header }) ?? HeaderBar;
     const pathname = useLocation({ select: (location) => location.pathname });
+
+    const fullscreen = useMatches({
+        select: (matches) => matches.at(-1)?.staticData.presentation === 'fullscreen'
+    });
+    if (fullscreen)
+        return (
+            <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
+                <OfflineBanner />
+                <main className="flex min-h-0 flex-1 flex-col">{children}</main>
+                <Toaster />
+            </div>
+        );
 
     return (
         <div className="flex min-h-screen flex-col overflow-x-hidden bg-background text-foreground">

@@ -8,10 +8,10 @@ import { SubjectStatistics } from '#/components/search/SubjectStatistics';
 import { unitLabel } from '#/lib/profile';
 import { describeSchedule } from '#/lib/schedule';
 import { cn } from '#/lib/shadcn';
-import { seats } from '#/queries/subjects';
+import { displayedRequirements, seats } from '#/queries/subjects';
 
 export function TurmaDetails({ subject, classroom }: TurmaProps) {
-    const equivalences = subject.offered_equivalences ?? subject.equivalences;
+    const { prerequisites, corequisites, equivalences } = displayedRequirements(subject);
     const status = seats(classroom);
 
     return (
@@ -41,9 +41,7 @@ export function TurmaDetails({ subject, classroom }: TurmaProps) {
                 </Detail>
                 {subject.prerequisites?.length ? (
                     <Detail label="Pré-requisitos" className="col-span-2">
-                        <RequirementList
-                            requirements={subject.curriculum_prerequisites ?? subject.prerequisites}
-                        />
+                        <RequirementList requirements={prerequisites ?? []} />
                     </Detail>
                 ) : null}
                 {subject.corequisites?.length ? (
@@ -51,9 +49,7 @@ export function TurmaDetails({ subject, classroom }: TurmaProps) {
                         <p className="mb-2 text-xs text-muted-foreground">
                             Podem ser cursados junto com esta matéria, conforme a regra acadêmica.
                         </p>
-                        <RequirementList
-                            requirements={subject.curriculum_corequisites ?? subject.corequisites}
-                        />
+                        <RequirementList requirements={corequisites ?? []} />
                     </Detail>
                 ) : null}
                 {equivalences?.length ? (
