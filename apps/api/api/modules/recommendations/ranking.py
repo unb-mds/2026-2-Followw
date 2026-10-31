@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
 from api.modules.public_courses.service import in_force, revision
+from api.schemas import normalize
 
 _KIND_ORDER = {"required": 0, "optional": 1, "complementary": 2}
 _SHIFTS = {"DIURNO": "D", "NOTURNO": "N"}
@@ -60,10 +61,6 @@ class Recommendation(Model):
     code: str
     score: int
     reasons: list[Reason]
-
-
-def normalize(code: str) -> str:
-    return code.strip().upper()
 
 
 def satisfies(rules: Rules, approved: set[str]) -> bool:

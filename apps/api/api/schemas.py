@@ -1,4 +1,4 @@
-from collections.abc import Iterable
+from collections.abc import Container, Iterable
 from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
@@ -80,6 +80,68 @@ def named_requirements(
         ]
         for group in requirements
     ]
+
+
+def normalize(code: str) -> str:
+    return code.strip().upper()
+
+
+class DisplayedRequirements(BaseModel):
+    """Requisitos só para exibição; os completos continuam valendo na validação."""
+
+    # Grupos inteiros na matriz ou, sem nenhum, os com turmas; nulo sem matriz.
+    curriculum_prerequisites: CatalogRequirements | None = None
+    curriculum_corequisites: CatalogRequirements | None = None
+    # Só os grupos com turmas no semestre.
+    offered_equivalences: CatalogRequirements | None = None
+
+
+def displayed_requirements(
+    subject: Subject,
+    names: dict[str, str],
+    curriculum: Container[str] | None,
+    offered: set[str],
+) -> dict[str, CatalogRequirements | None]:
+    """Campos de `DisplayedRequirements`; `curriculum` e `offered` normalizados."""
+    return {
+        "curriculum_prerequisites": _curriculum_requirements(
+            subject.prerequisites, names, curriculum, offered
+        ),
+        "curriculum_corequisites": _curriculum_requirements(
+            subject.corequisites, names, curriculum, offered
+        ),
+        "offered_equivalences": _requirements_within(
+            subject.equivalences, names, offered
+        ),
+    }
+
+
+def _curriculum_requirements(
+    requirements: Requirements | None,
+    names: dict[str, str],
+    curriculum: Container[str] | None,
+    offered: set[str],
+) -> CatalogRequirements | None:
+    if not curriculum or requirements is None:
+        return None
+    return _requirements_within(
+        requirements, names, curriculum
+    ) or _requirements_within(requirements, names, offered)
+
+
+def _requirements_within(
+    requirements: Requirements | None, names: dict[str, str], codes: Container[str]
+) -> CatalogRequirements | None:
+    if requirements is None:
+        return None
+    return named_requirements(
+        [
+            group
+            for group in requirements
+            if group and all(normalize(code) in codes for code in group)
+        ],
+        names,
+    )
 
 
 def requirement_codes(subjects: Iterable[Subject]) -> set[str]:

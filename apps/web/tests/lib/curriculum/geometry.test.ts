@@ -40,11 +40,8 @@ const matrix: RawCurriculum = {
 const model = normalizeCurriculum(named(matrix));
 const DESKTOP_CARD_HEIGHT = 112;
 const DESKTOP_CARD_MAX_WIDTH = DESKTOP.cardWidth.max;
-const mobile = (
-    curriculum: Parameters<typeof layoutCurriculum>[0],
-    width: number,
-    period: number
-) => layoutCurriculum(curriculum, width, MOBILE, [period]);
+const mobile = (curriculum: Parameters<typeof layoutCurriculum>[0], width: number) =>
+    layoutCurriculum(curriculum, width, MOBILE);
 function assertRoutes(geometry: FlowGeometry) {
     for (const { points } of geometry.edges) {
         for (let i = 1; i < points.length; i++) {
@@ -200,21 +197,21 @@ describe('geometria do fluxo', () => {
             }
         }
     });
-    test('mobile só mostra o semestre selecionado e continua somente relações reais', () => {
-        const geometry = mobile(model, 390, 2);
-        expect(geometry.nodes.every((n) => n.subject.period === 2)).toBe(true);
-        expect(geometry.edges.map((e) => e.edge.id)).toEqual(
-            model.edges
-                .filter(
-                    (e) =>
-                        model.byCode.get(e.source)!.period === 2 ||
-                        model.byCode.get(e.target)!.period === 2
-                )
-                .map((e) => e.id)
-        );
+    test('mobile põe todos os semestres lado a lado, cada um centralizável na tela', () => {
+        const width = 390;
+        const geometry = mobile(model, width);
+        expect(geometry.nodes.every((n) => n.width === width - MOBILE.margin)).toBe(true);
+        expect(geometry.columns.map((c) => c.period)).toEqual(model.periods);
+        for (const { x } of geometry.columns) {
+            expect(x - width / 2).toBeGreaterThanOrEqual(0);
+            expect(x + width / 2).toBeLessThanOrEqual(geometry.width);
+        }
+        expect(geometry.edges).toHaveLength(model.edges.length);
         assertRoutes(geometry);
-        expect(geometry.edges.some((e) => e.points[0].x === 0)).toBe(true);
-        expect(geometry.edges.some((e) => e.points.at(-1)!.x === geometry.width)).toBe(true);
+        for (const { points } of geometry.edges) {
+            expect(points[0].x).toBeGreaterThan(0);
+            expect(points.at(-1)!.x).toBeLessThan(geometry.width);
+        }
     });
     test('mobile acomoda quatro matérias em uma área compacta e mantém os correquisitos alinhados', () => {
         const compact = normalizeCurriculum(
@@ -234,7 +231,7 @@ describe('geometria do fluxo', () => {
             })
         );
         for (const width of [320, 390]) {
-            const geometry = mobile(compact, width, 1);
+            const geometry = mobile(compact, width);
             expect(geometry.nodes).toHaveLength(4);
             expect(geometry.height).toBeLessThanOrEqual(592);
             expect(geometry.width).toBeLessThanOrEqual(width);
@@ -266,7 +263,7 @@ describe('geometria do fluxo', () => {
                 ]
             })
         );
-        for (const geometry of [layoutCurriculum(paired, 1440), mobile(paired, 390, 1)]) {
+        for (const geometry of [layoutCurriculum(paired, 1440), mobile(paired, 390)]) {
             expect(geometry.nodes.map((n) => n.subject.code)).toEqual(['A', 'Z', 'B']);
             expect(geometry.edges).toHaveLength(1);
             const points = geometry.edges[0].points;
@@ -294,7 +291,7 @@ describe('geometria do fluxo', () => {
                 ]
             })
         );
-        for (const geometry of [layoutCurriculum(dense, 1440), mobile(dense, 1440, 1)]) {
+        for (const geometry of [layoutCurriculum(dense, 1440), mobile(dense, 1440)]) {
             expect(geometry.edges).toHaveLength(15);
             assertRoutes(geometry);
         }
@@ -356,7 +353,7 @@ describe('geometria do fluxo', () => {
         expect(arrows.filter((arrow) => arrow.endArrow)).toHaveLength(1);
         expect(segments.length).toBeLessThan(100);
         assertRoutes(geometry);
-        const column = mobile(curriculum, 390, 2);
+        const column = mobile(curriculum, 390);
         expect(column.nodes[0].height).toBeLessThanOrEqual(160);
         expect(column.edges).toHaveLength(80);
         assertRoutes(column);
@@ -364,7 +361,7 @@ describe('geometria do fluxo', () => {
     test('centraliza cada título de semestre sobre seus cartões em diferentes larguras', () => {
         for (const width of [1024, 1440, 2560]) {
             const geometry = layoutCurriculum(model, width);
-            for (const heading of geometry.headings) {
+            for (const heading of geometry.columns) {
                 const cards = geometry.nodes.filter(
                     (node) => node.subject.period === heading.period
                 );

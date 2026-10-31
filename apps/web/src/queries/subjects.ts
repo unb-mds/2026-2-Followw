@@ -8,6 +8,15 @@ export type CatalogSubject = components['schemas']['CatalogSubject'];
 export type SubjectClassroom = components['schemas']['SubjectClassroom'];
 export type Requirements = components['schemas']['CatalogRequirements'];
 export type SubjectKind = NonNullable<CatalogSubject['kind']>;
+type RequirementFields = Pick<
+    CatalogSubject,
+    | 'prerequisites'
+    | 'corequisites'
+    | 'equivalences'
+    | 'curriculum_prerequisites'
+    | 'curriculum_corequisites'
+    | 'offered_equivalences'
+>;
 
 export const subjectKindLabels: Record<SubjectKind, string> = {
     mandatory: 'Obrigatória',
@@ -17,6 +26,15 @@ export const subjectKindLabels: Record<SubjectKind, string> = {
 export type SubjectsQuery = NonNullable<
     operations['search_subjects_public_subjects_get']['parameters']['query']
 >;
+
+/** Requisitos que a API filtra para exibição; sem o filtro, os completos. */
+export function displayedRequirements(subject: RequirementFields) {
+    return {
+        prerequisites: subject.curriculum_prerequisites ?? subject.prerequisites,
+        corequisites: subject.curriculum_corequisites ?? subject.corequisites,
+        equivalences: subject.offered_equivalences ?? subject.equivalences
+    };
+}
 
 export const SEARCH_MIN_LENGTH = 3;
 export const SEARCH_MAX_LENGTH = 32;

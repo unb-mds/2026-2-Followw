@@ -314,8 +314,6 @@ describe('fluxograma integrado', () => {
         expect(
             page.getByRole('button', { name: 'Próximo semestre' }).hasAttribute('disabled')
         ).toBe(true);
-        expect(page.queryByRole('button', { name: /A, Base, Em curso/ })).toBeNull();
-        expect(page.getByRole('button', { name: /B, Avançada/ })).toBeDefined();
         testing.act(() => {
             width = 1024;
             for (const observer of ViewportObserver.active) observer.emit();
@@ -330,7 +328,36 @@ describe('fluxograma integrado', () => {
         });
         await page.findByRole('button', { name: 'Próximo semestre' });
         expect(page.queryByRole('list', { name: 'Legenda dos estados acadêmicos' })).toBeNull();
-        expect(page.getAllByRole('button', { name: /Ver requisitos/ })).toHaveLength(1);
+    });
+    test('mobile mantém todos os semestres e a linha entre eles, rolando suavemente no seletor', async () => {
+        const page = await renderPage();
+        const region = await page.findByRole('region', { name: /um semestre por vez/ });
+        expect(page.getByRole('button', { name: /A, Base, Em curso/ })).toBeDefined();
+        expect(page.getByRole('button', { name: /B, Avançada/ })).toBeDefined();
+        expect(region.querySelectorAll('[data-edge-id]')).toHaveLength(1);
+        const calls: ScrollToOptions[] = [];
+        region.scrollTo = (options?: ScrollToOptions | number) => {
+            if (typeof options === 'object') calls.push(options);
+        };
+        testing.fireEvent.click(page.getByRole('button', { name: 'Próximo semestre' }));
+        await page.findByRole('heading', { name: '2º semestre' });
+        expect(calls).toEqual([{ left: expect.any(Number), behavior: 'smooth' }]);
+        expect(calls[0].left).toBeGreaterThan(0);
+    });
+    test('rolagem horizontal do mobile atualiza o semestre exibido', async () => {
+        const page = await renderPage();
+        const region = await page.findByRole('region', { name: /um semestre por vez/ });
+        await page.findByRole('heading', { name: '1º semestre' });
+        region.scrollLeft = 10_000;
+        testing.fireEvent.scroll(region);
+        await page.findByRole('heading', { name: '2º semestre' });
+        expect(
+            page.getByRole('button', { name: 'Próximo semestre' }).hasAttribute('disabled')
+        ).toBe(true);
+    });
+    test('mobile abre no semestre da matéria selecionada', async () => {
+        const page = await renderPage('/cursos/42?materia=B');
+        await page.findByRole('heading', { name: '2º semestre' });
     });
     test('cliques rápidos no seletor avançam um semestre por clique', async () => {
         client.setQueryData(
@@ -364,7 +391,6 @@ describe('fluxograma integrado', () => {
         client.setQueryData(curriculumQueryOptions(42, '2026.1').queryKey, matrix);
         const page = await renderPage('/cursos/42');
         await page.findByRole('heading', { name: '2º semestre' });
-        expect(page.queryByRole('button', { name: /A, Base/ })).toBeNull();
         testing.fireEvent.click(page.getByRole('button', { name: 'Semestre anterior' }));
         await page.findByRole('heading', { name: '1º semestre' });
         expect(page.getByRole('button', { name: /A, Base, Em curso/ })).toBeDefined();

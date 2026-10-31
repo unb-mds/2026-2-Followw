@@ -73,11 +73,11 @@ function renderSummary(props: CourseSummaryProps = { course, entrySemester: '202
 test('resume unidade, turno, grau e matriz do curso com os dados já salvos', () => {
     const page = renderSummary();
     expect(page.getByRole('heading', { name: 'ENGENHARIA DE SOFTWARE' })).toBeDefined();
-    expect(page.getByText('FCTE').parentElement?.textContent).toBe('FCTE · Matriz 0123 · 2026.2');
+    expect(page.getByText('FCTE').parentElement?.textContent).toBe('FCTE · Matriz 0123 - 2024.1');
     expect(page.getByText('Diurno · Presencial')).toBeDefined();
     expect(page.getByText('Bacharelado')).toBeDefined();
     expect(page.getByText('Faculdade de Ciências e Tecnologias em Engenharia')).toBeDefined();
-    expect(page.getByText('2 semestres · 2 matérias')).toBeDefined();
+    expect(page.getByText('2 semestres · 2 matérias obrigatórias')).toBeDefined();
     expect(page.queryByText(matrix.matrix)).toBeNull();
     expect(requests).toEqual([]);
 });
@@ -131,7 +131,7 @@ test('contagem inclui somente matérias únicas que aparecem no fluxo', () => {
         complementary: [{ code: 'OPT', name: 'Optativa fora do fluxo' }]
     });
     const page = renderSummary();
-    expect(page.getByText('2 semestres · 2 matérias')).toBeDefined();
+    expect(page.getByText('2 semestres · 2 matérias obrigatórias')).toBeDefined();
 });
 
 test('matriz vazia usa o singular e o plural corretos', () => {
@@ -140,7 +140,7 @@ test('matriz vazia usa o singular e o plural corretos', () => {
         periods: [{ period: 1, subjects: [{ code: 'A', name: 'Base' }] }]
     });
     const page = renderSummary();
-    expect(page.getByText('1 semestre · 1 matéria')).toBeDefined();
+    expect(page.getByText('1 semestre · 1 matéria obrigatória')).toBeDefined();
 });
 
 test('grau e modalidade ausentes na matriz são omitidos', () => {

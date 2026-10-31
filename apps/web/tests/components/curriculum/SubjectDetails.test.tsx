@@ -120,6 +120,37 @@ test('oculta seções sem relações ou sem nomes disponíveis no catálogo', as
     expect(page.container.textContent).not.toContain('DESCONHECIDA');
 });
 
+test('exibe somente os requisitos que a API seleciona, como na busca de turmas', async () => {
+    const page = await renderDetails(
+        flowSubject({
+            code: 'B',
+            name: 'ESTRUTURAS DE DADOS 1',
+            prerequisites: [['A', 'EXTERNA'], ['C']],
+            curriculum_prerequisites: [['C']],
+            equivalences: [['A'], ['C']],
+            offered_equivalences: [['A']]
+        })
+    );
+    expect(page.getByText('Programação')).toBeDefined();
+    expect(page.getByText('Cálculo 1')).toBeDefined();
+    expect(page.container.textContent).not.toContain('Álgebra Linear');
+});
+
+test('avisa quando nenhum requisito está na matriz ou tem turmas', async () => {
+    const page = await renderDetails(
+        flowSubject({
+            code: 'B',
+            name: 'ESTRUTURAS DE DADOS 1',
+            prerequisites: [['A', 'EXTERNA']],
+            curriculum_prerequisites: []
+        })
+    );
+    expect(page.getByText('Pré-requisitos')).toBeDefined();
+    expect(
+        page.getByText('Nenhuma alternativa na matriz ou com turmas no semestre.')
+    ).toBeDefined();
+});
+
 test('omite o estado acadêmico ao consultar uma matéria de outro curso', async () => {
     const page = await renderDetails(flowSubject({ code: 'A', name: 'CÁLCULO 1' }));
     expect(page.getByText('1º semestre')).toBeDefined();
