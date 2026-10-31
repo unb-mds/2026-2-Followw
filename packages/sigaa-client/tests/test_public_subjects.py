@@ -3,11 +3,13 @@ import pytest
 from bs4 import BeautifulSoup
 
 from sigaa_client import (
+    PublicSubject,
     SessionExpired,
     SigaaParseError,
     SigaaPublicClient,
     SigaaSearchError,
     SubjectType,
+    TeachingLevel,
     Unit,
 )
 from sigaa_client.config import PUBLIC_HOME_PATH, PUBLIC_SUBJECTS_PATH
@@ -47,10 +49,12 @@ def notice(text):
 
 
 class FakeSigaa:
-    def __init__(self, result=RESULTS, expired=0):
+    def __init__(self, result=RESULTS, expired=0, details=None, details_expired=0):
         self.result = result
         self.form = FORM
         self.expired = expired
+        self.details = details
+        self.details_expired = details_expired
         self.paths = []
         self.payloads = []
         self.views = 0
@@ -69,6 +73,13 @@ class FakeSigaa:
                 200, text=self.form.replace('value="view"', f'value="view{self.views}"')
             )
         payload = dict(httpx.QueryParams(request.content.decode()))
+        if "id" in payload:
+            assert payload["javax.faces.ViewState"] == "results"
+            self.payloads.append(payload)
+            if self.details_expired:
+                self.details_expired -= 1
+                return httpx.Response(302, headers={"location": PUBLIC_HOME_PATH})
+            return httpx.Response(200, text=self.details)
         assert payload["javax.faces.ViewState"] == f"view{self.views}"
         self.payloads.append(payload)
         if self.expired:
@@ -259,3 +270,69 @@ async def test_truncamento_depende_do_aviso_e_nao_da_contagem():
     assert result.returned_count == 2000
     assert result.truncated is False
     assert result.messages == ()
+
+
+DETAILS_RESULTS = (
+    '<form id="formListagemComponentes" action="/sigaa/public/componentes/busca_componentes.jsf">'
+    '<input type="hidden" name="javax.faces.ViewState" value="results">'
+    "<table><tr><th>Código</th></tr>"
+    + ROW.replace("176389", "176390").replace("0003", "00030")
+    + ROW
+    + "</table></form>"
+)
+DETAILS = """
+<table class="visualizacao">
+  <tr><th>Código:</th><td>0003</td></tr>
+  <tr><th>Pré-Requisitos:</th><td>
+    ( ( <acronym title="CIC0004 - X">CIC0004</acronym> ) OU ( CIC0088 ) )
+  </td></tr>
+  <tr><th>Co-Requisitos:</th><td>-</td></tr>
+  <tr><th>Equivalências:</th><td>( CIC0099 )</td></tr>
+  <tr><td colspan="2"><table class="subFormulario">
+    <tr><td>Total de Carga Horária do Componente</td><td><b>90h</b></td></tr>
+  </table></td></tr>
+</table>
+"""
+COMPILATION = PublicSubject(
+    code="0003",
+    sigaa_id=176389,
+    name="COMPILAÇÃO",
+    hours=60,
+    level=TeachingLevel.GRADUACAO,
+    type=SubjectType.DISCIPLINA,
+)
+
+
+async def details(fake):
+    async with SigaaPublicClient(transport=httpx.MockTransport(fake)) as client:
+        return await client.subjects.get_details(COMPILATION)
+
+
+async def test_resumo_traz_requisitos_e_carga_horaria_do_componente_pelo_id():
+    fake = FakeSigaa(DETAILS_RESULTS, details=DETAILS)
+    subject = await details(fake)
+    assert subject.model_dump() == {
+        "code": "0003",
+        "sigaa_id": 176389,
+        "name": "COMPILAÇÃO",
+        "hours": 90,
+        "unit": None,
+        "prerequisites": "( ( CIC0004 ) OU ( CIC0088 ) )",
+        "corequisites": None,
+        "equivalences": "( CIC0099 )",
+    }
+    search, postback = fake.payloads
+    assert search["form:generated11"] == "0003"
+    assert postback["id"] == "176389"
+
+
+async def test_componente_sem_link_de_detalhes_e_barulhento():
+    fake = FakeSigaa(DETAILS_RESULTS.replace("176389", "1"), details=DETAILS)
+    with pytest.raises(SigaaParseError, match="sem link de detalhes"):
+        await details(fake)
+
+
+async def test_sessao_expirada_no_resumo_refaz_a_busca_uma_vez():
+    fake = FakeSigaa(DETAILS_RESULTS, details=DETAILS, details_expired=1)
+    assert (await details(fake)).prerequisites == "( ( CIC0004 ) OU ( CIC0088 ) )"
+    assert fake.views == 2

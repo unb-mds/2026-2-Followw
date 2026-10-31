@@ -6,6 +6,7 @@ from ..config import PUBLIC_SUBJECTS_PATH
 from ..exceptions import SessionExpired, SigaaParseError, SigaaSearchError
 from ..models import (
     PublicSubject,
+    SubjectDetails,
     SubjectLevel,
     SubjectSearchMessage,
     SubjectSearchResult,
@@ -13,9 +14,16 @@ from ..models import (
     TeachingLevel,
     Unit,
 )
-from ..utils.jsf import build_submit, link_params, read_form, read_viewstate
+from ..utils.jsf import (
+    build_postback,
+    build_submit,
+    link_params,
+    read_form,
+    read_viewstate,
+)
 from ..utils.parsing import clean_text, lookup_key, parse_hours
 from .session import PublicSession
+from .subject_details import parse_subject_details
 from .units import parse_units, resolve_unit
 
 FORM_ID = "form"
@@ -28,6 +36,7 @@ TYPE_CHECK = "form:checkTipo"
 CODE_CHECK = "form:checkCodigo"
 NAME_CHECK = "form:checkNome"
 UNIT_CHECK = "form:checkUnidade"
+DETAILS_TITLE = "Detalhes do Componente Curricular"
 
 _TYPE_VALUES = {
     SubjectType.DISCIPLINA: "2",
@@ -69,6 +78,28 @@ class PublicSubjects:
             await self._session.restart()
             soup = await self._submit(unit, level, type, code, name)
         return _parse_results(soup, level)
+
+    async def get_details(self, subject: PublicSubject) -> SubjectDetails:
+        """Requisitos e carga horária do resumo, mesmo sem oferta no semestre."""
+        try:
+            return await self._open_details(subject)
+        except SessionExpired:
+            await self._session.restart()
+            return await self._open_details(subject)
+
+    async def _open_details(self, subject: PublicSubject) -> SubjectDetails:
+        # O ViewState morre a cada postback: cada resumo parte de uma busca nova.
+        soup = await self._submit(None, subject.level, None, subject.code, None)
+        form = read_form(soup, RESULTS_FORM_ID)
+        for anchor in form.find_all("a", title=DETAILS_TITLE):
+            params = link_params(anchor)
+            if params.get("id") == str(subject.sigaa_id):
+                action, payload = build_postback(form, params, read_viewstate(form))
+                details = await self._session.submit(action, payload)
+                return parse_subject_details(details, subject)
+        raise SigaaParseError(
+            f"Componente {subject.code} ({subject.sigaa_id}) sem link de detalhes na busca."
+        )
 
     async def _submit(
         self,
@@ -177,7 +208,7 @@ def _parse_results(soup: BeautifulSoup, level: SubjectLevel) -> SubjectSearchRes
 
 def _parse_subject(cells: list[Tag], level: SubjectLevel) -> PublicSubject:
     code, name, kind, workload = (clean_text(cell) for cell in cells[:4])
-    anchor = cells[4].find("a", title="Detalhes do Componente Curricular")
+    anchor = cells[4].find("a", title=DETAILS_TITLE)
     sigaa_id = link_params(anchor).get("id", "") if isinstance(anchor, Tag) else ""
     if not sigaa_id.isdigit() or int(sigaa_id) <= 0 or not code or not name:
         raise SigaaParseError(

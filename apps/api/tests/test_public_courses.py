@@ -1,6 +1,13 @@
 import pytest
 
-from api.db.models import Course, Curriculum, CurriculumComponent, Subject, Unit
+from api.db.models import (
+    Classroom,
+    Course,
+    Curriculum,
+    CurriculumComponent,
+    Subject,
+    Unit,
+)
 from api.sigaa import get_sigaa_public_client
 
 URL = "/public/courses/77/curriculum"
@@ -47,6 +54,7 @@ def test_lista_cursos_com_ids_turnos_e_unidades(client, database):
             "name": "ADMINISTRAÇÃO",
             "shift": "DIURNO",
             "unit": {"id": 673, "code": "FCTE", "name": "CAMPUS UNB GAMA"},
+            "level": "Graduação",
         },
         {
             "id": 11,
@@ -54,6 +62,7 @@ def test_lista_cursos_com_ids_turnos_e_unidades(client, database):
             "name": "ADMINISTRAÇÃO",
             "shift": "NOTURNO",
             "unit": {"id": 673, "code": "FCTE", "name": "CAMPUS UNB GAMA"},
+            "level": "Graduação",
         },
         {
             "id": 12,
@@ -61,6 +70,7 @@ def test_lista_cursos_com_ids_turnos_e_unidades(client, database):
             "name": "CRIADO NO SYNC",
             "shift": None,
             "unit": {"id": 999, "code": None, "name": "UNIDADE SEM SIGLA"},
+            "level": None,
         },
         {
             "id": 50,
@@ -68,6 +78,7 @@ def test_lista_cursos_com_ids_turnos_e_unidades(client, database):
             "name": "TURISMO",
             "shift": "INTEGRAL",
             "unit": {"id": 673, "code": "FCTE", "name": "CAMPUS UNB GAMA"},
+            "level": "Graduação",
         },
     ]
 
@@ -240,6 +251,8 @@ def test_curriculo_por_ingresso_traz_materias_agrupadas_e_requisitos(catalog):
         "matrix": "SOFTWARE - ATUAL",
         "valid_from": "2024.2",
         "shift": "D",
+        "degree": None,
+        "modality": None,
         "entry_semester": "2026.1",
         "periods": [
             {
@@ -253,6 +266,9 @@ def test_curriculo_por_ingresso_traz_materias_agrupadas_e_requisitos(catalog):
                         "prerequisites": None,
                         "corequisites": None,
                         "equivalences": None,
+                        "curriculum_prerequisites": None,
+                        "curriculum_corequisites": None,
+                        "offered_equivalences": None,
                     }
                 ],
             },
@@ -264,9 +280,32 @@ def test_curriculo_por_ingresso_traz_materias_agrupadas_e_requisitos(catalog):
                         "name": "INTRODUÇÃO",
                         "hours": 60,
                         "unit": {"id": 673, "code": "FCTE", "name": "CAMPUS UNB GAMA"},
-                        "prerequisites": [["MAT0001", "MAT0002"], ["MAT0003"]],
-                        "corequisites": [["FGA0002"]],
-                        "equivalences": [["CIC0001"]],
+                        "prerequisites": [
+                            [
+                                {"code": "MAT0001", "subject": None},
+                                {"code": "MAT0002", "subject": None},
+                            ],
+                            [{"code": "MAT0003", "subject": None}],
+                        ],
+                        "corequisites": [
+                            [
+                                {
+                                    "code": "FGA0002",
+                                    "subject": {"code": "FGA0002", "name": "OPTATIVA"},
+                                }
+                            ]
+                        ],
+                        "equivalences": [[{"code": "CIC0001", "subject": None}]],
+                        "curriculum_prerequisites": [],
+                        "curriculum_corequisites": [
+                            [
+                                {
+                                    "code": "FGA0002",
+                                    "subject": {"code": "FGA0002", "name": "OPTATIVA"},
+                                }
+                            ]
+                        ],
+                        "offered_equivalences": [],
                     }
                 ],
             },
@@ -281,6 +320,9 @@ def test_curriculo_por_ingresso_traz_materias_agrupadas_e_requisitos(catalog):
                         "prerequisites": None,
                         "corequisites": None,
                         "equivalences": None,
+                        "curriculum_prerequisites": None,
+                        "curriculum_corequisites": None,
+                        "offered_equivalences": None,
                     }
                 ],
             },
@@ -294,9 +336,82 @@ def test_curriculo_por_ingresso_traz_materias_agrupadas_e_requisitos(catalog):
                 "prerequisites": None,
                 "corequisites": None,
                 "equivalences": None,
+                "curriculum_prerequisites": None,
+                "curriculum_corequisites": None,
+                "offered_equivalences": None,
             }
         ],
     }
+
+
+def _displayed(client):
+    subject = _get(client).json()["periods"][1]["subjects"][0]
+    return {
+        field: [[item["code"] for item in group] for group in subject[field]]
+        for field in ("curriculum_prerequisites", "offered_equivalences")
+    }
+
+
+def test_requisitos_exibidos_preferem_a_matriz_e_depois_os_com_turmas(
+    catalog, database
+):
+    codes = ("MAT0001", "MAT0002", "MAT0003", "CIC0001")
+    with database.begin() as session:
+        session.add_all(Subject(code=code, name=code) for code in codes)
+        session.flush()
+        session.add_all(
+            [
+                Classroom(subject_code="MAT0003", number="01", semester="2026.2"),
+                Classroom(subject_code="CIC0001", number="01", semester="2026.2"),
+                # só o semestre mais recente conta como oferta
+                Classroom(subject_code="MAT0001", number="01", semester="2026.1"),
+                Classroom(subject_code="MAT0002", number="01", semester="2026.1"),
+            ]
+        )
+    assert _displayed(catalog) == {
+        "curriculum_prerequisites": [["MAT0003"]],
+        "offered_equivalences": [["CIC0001"]],
+    }
+
+    with database.begin() as session:
+        matrix = session.query(Curriculum).filter_by(sigaa_id=201).one()
+        session.add_all(
+            CurriculumComponent(
+                curriculum_id=matrix.id, subject_code=code, kind="optional", period=0
+            )
+            for code in ("MAT0001", "MAT0002")
+        )
+    assert _displayed(catalog)["curriculum_prerequisites"] == [["MAT0001", "MAT0002"]]
+
+
+@pytest.mark.parametrize(
+    ("matrix", "degree", "modality"),
+    [
+        ("TURISMO/CET - Bacharelado - Presencial - D", "Bacharelado", "Presencial"),
+        (
+            "CONTROLE E AUTOMAÇÃO/FTD - Engenheiro de Controle e Automação - Presencial - D",
+            "Engenheiro de Controle e Automação",
+            "Presencial",
+        ),
+        (
+            "LETRAS - FRANCÊS - Licenciatura - A Distância - N",
+            "Licenciatura",
+            "A Distância",
+        ),
+        ("SOFTWARE - ATUAL", None, None),
+    ],
+)
+def test_grau_e_modalidade_vem_das_partes_da_matriz(
+    catalog, database, matrix, degree, modality
+):
+    with database.begin() as session:
+        session.get(Curriculum, _selected_id(session)).matrix = matrix
+    result = _get(catalog).json()
+    assert (result["degree"], result["modality"]) == (degree, modality)
+
+
+def _selected_id(session):
+    return session.query(Curriculum).filter_by(sigaa_id=201).one().id
 
 
 @pytest.mark.parametrize(

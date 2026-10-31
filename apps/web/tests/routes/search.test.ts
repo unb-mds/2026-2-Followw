@@ -47,6 +47,7 @@ describe('loader da busca de turmas', () => {
         const keys = await loadWith(user, '?q=calculo');
         const subjects = keys.find((key) => key[1] === '/public/subjects');
         expect(subjects?.[2]).toEqual({ params: { query: { q: 'calculo' } } });
+        expect(keys.some((key) => key[1] === '/public/courses')).toBe(true);
     });
 
     test.each(['ab', 'a'.repeat(33)])('query inválida %s pré-carrega a unidade', async (q) => {
@@ -86,4 +87,36 @@ describe('recomendações somente na busca', () => {
     test('visitante não carrega recomendações', async () => {
         expect((await loadWith(null)).map((key) => key[1])).toEqual(['/me']);
     });
+});
+
+describe('loader das categorias da busca', () => {
+    test.each([
+        ['classrooms', ['/me', '/classrooms', '/public/subjects']],
+        ['courses', ['/me', '/public/courses']],
+        ['professors', ['/me', '/public/professors']]
+    ] as const)('categoria %s pré-carrega somente seus resultados', async (category, expected) => {
+        const keys = await loadWith(
+            {
+                registration: '1',
+                unit: { id: 673, code: 'FCTE', name: 'CAMPUS UNB GAMA' },
+                level: 'Graduação'
+            },
+            `?q=Carlos Silva&category=${category}`
+        );
+        expect(keys.map((key) => key[1])).toEqual([...expected]);
+    });
+    test.each(['courses', 'professors'])(
+        'categoria %s sem texto não carrega recomendações nem histórico',
+        async (category) => {
+            const keys = await loadWith(
+                {
+                    registration: '1',
+                    unit: { id: 673, code: 'FCTE', name: 'CAMPUS UNB GAMA' },
+                    level: 'Graduação'
+                },
+                `?category=${category}`
+            );
+            expect(keys.map((key) => key[1])).toEqual(['/me']);
+        }
+    );
 });

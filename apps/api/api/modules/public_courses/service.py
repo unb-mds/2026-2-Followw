@@ -1,16 +1,26 @@
 import re
-from collections.abc import Iterable
+from collections.abc import Container, Iterable
 from typing import Annotated, Literal, Protocol
 
 from fastapi import Depends, HTTPException
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, computed_field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.academic_calendar import parse_semester
 from api.db.main import DatabaseDep
-from api.db.models import Curriculum, Requirements, Subject
+from api.db.models import Course, Curriculum, Subject
 from api.modules.public_courses.repository import PublicCourseRepository
-from api.schemas import UnitRef, unit_ref
+from api.modules.public_subjects.repository import SubjectCatalogRepository
+from api.schemas import (
+    CatalogRequirements,
+    DisplayedRequirements,
+    UnitRef,
+    displayed_requirements,
+    named_requirements,
+    normalize,
+    requirement_codes,
+    unit_ref,
+)
 
 _REVISION_RE = re.compile(r"/(-?\d+)$")
 
@@ -23,6 +33,8 @@ class PublicCourse(BaseModel):
     name: str
     shift: str | None
     unit: UnitRef
+    # O seed só traz cursos de graduação do SIGAA; os criados pelo sync não têm nível.
+    level: Literal["Graduação"] | None
 
 
 class CurriculumOption(BaseModel):
@@ -34,17 +46,28 @@ class CurriculumOption(BaseModel):
     matrix: str
     shift: Literal["D", "N"] | None
 
+    # O SIGAA escreve a matriz como "CURSO[/HABILITAÇÃO] - GRAU - MODALIDADE - TURNO".
+    @computed_field
+    @property
+    def degree(self) -> str | None:
+        return _matrix_part(self.matrix, -3)
 
-class CurriculumSubject(BaseModel):
+    @computed_field
+    @property
+    def modality(self) -> str | None:
+        return _matrix_part(self.matrix, -2)
+
+
+class CurriculumSubject(DisplayedRequirements):
     model_config = ConfigDict(frozen=True)
 
     code: str
     name: str | None = None
     hours: int | None = None
     unit: UnitRef | None = None
-    prerequisites: Requirements | None = None
-    corequisites: Requirements | None = None
-    equivalences: Requirements | None = None
+    prerequisites: CatalogRequirements | None = None
+    corequisites: CatalogRequirements | None = None
+    equivalences: CatalogRequirements | None = None
 
 
 class CurriculumPeriod(BaseModel):
@@ -83,16 +106,18 @@ class PublicCourseService:
 
 async def _list_courses(session: AsyncSession) -> list[PublicCourse]:
     courses = await PublicCourseRepository(session).list_courses()
-    return [
-        PublicCourse(
-            id=course.id,
-            sigaa_id=course.sigaa_id,
-            name=course.name,
-            shift=course.shift,
-            unit=UnitRef.model_validate(course.unit),
-        )
-        for course in courses
-    ]
+    return [_course(course) for course in courses]
+
+
+def _course(course: Course) -> PublicCourse:
+    return PublicCourse(
+        id=course.id,
+        sigaa_id=course.sigaa_id,
+        name=course.name,
+        shift=course.shift,
+        unit=UnitRef.model_validate(course.unit),
+        level="Graduação" if course.sigaa_id is not None else None,
+    )
 
 
 async def _load(
@@ -108,10 +133,18 @@ async def _load(
     if not options:
         raise HTTPException(404, "Curso sem currículos ativos cadastrados.")
     selected = _select(options, curriculum_sigaa_id)
+    components = await repository.list_components(selected.id)
+    catalog = SubjectCatalogRepository(session)
+    codes = requirement_codes(subject for _, subject in components if subject)
+    names = await catalog.subject_names(codes)
+    offered = {
+        normalize(code) for code in await catalog.offered_subject_codes(codes, None)
+    }
+    matrix = {normalize(component.subject_code) for component, _ in components}
     periods: dict[int, list[CurriculumSubject]] = {0: []}
     complementary = []
-    for component, subject in await repository.list_components(selected.id):
-        item = _subject(component.subject_code, subject)
+    for component, subject in components:
+        item = _subject(component.subject_code, subject, names, matrix, offered)
         if component.kind == "complementary":
             complementary.append(item)
         else:
@@ -162,7 +195,18 @@ def revision(item: Versioned) -> tuple[int, int]:
     return (int(match[1]) if match else 0, item.sigaa_id)
 
 
-def _subject(code: str, subject: Subject | None) -> CurriculumSubject:
+def _matrix_part(matrix: str, index: int) -> str | None:
+    parts = [part.strip() for part in matrix.split(" - ")]
+    return parts[index] or None if len(parts) >= 4 else None
+
+
+def _subject(
+    code: str,
+    subject: Subject | None,
+    names: dict[str, str],
+    matrix: Container[str],
+    offered: set[str],
+) -> CurriculumSubject:
     if subject is None:
         return CurriculumSubject(code=code)
     return CurriculumSubject(
@@ -170,9 +214,10 @@ def _subject(code: str, subject: Subject | None) -> CurriculumSubject:
         name=subject.name,
         hours=subject.hours,
         unit=unit_ref(subject.unit),
-        prerequisites=subject.prerequisites,
-        corequisites=subject.corequisites,
-        equivalences=subject.equivalences,
+        prerequisites=named_requirements(subject.prerequisites, names),
+        corequisites=named_requirements(subject.corequisites, names),
+        equivalences=named_requirements(subject.equivalences, names),
+        **displayed_requirements(subject, names, matrix, offered),
     )
 
 
