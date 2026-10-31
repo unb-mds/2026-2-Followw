@@ -5,7 +5,7 @@
 **Product Owner:** Eliabe  
 **Equipe:** [eliabexp, ratatta-na-nite, Mendezalv, diegolxxz, ed9gaspar, gabrielcrzojo e SamukaToned]  
 **Período da Sprint:** [13/10/2026] até [21/10/2026]  
-**Data da Reunião:** [20/10/2026]  
+**Data da Reunião Geral:** [20/10/2026]  
 
 ---
 
@@ -32,6 +32,15 @@
 **Objetivos da Sprint (Sprint Goals):**
 
 ### 📝 Backlog da Equipe
-A decidir
+| ID | História / Tarefa | Prioridade |  | Responsável |
+| --- | --- | --- | --- | --- |
+| #158 | [melhorar instruções de instalação do PWA do iOS] | 🟢 Baixa |  | [gabrielcrzojo] |
+| #159 | [add mkdocs ou variação] | 🟡 Média |  | [SamukaToned] |
+| #161 | [criar scrapper de professores] | 🔴 Alta |  | [diegolxzz] |
+| #163 | [404 - not found] | 🟢 Baixa |  | [ratatta-na-nite] |
+| #165 | [adicionar montagem de grade] | 🔴 Alta |  | [ed9gaspar] |
+| #168 | [tela de perfil de professor] | 🟡 Média |  | [Mendezalv] |
+
+
 ---
 

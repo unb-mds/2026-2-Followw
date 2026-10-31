@@ -5,7 +5,7 @@
 **Product Owner:** Eliabe  
 **Equipe:** [eliabexp, ratatta-na-nite, Mendezalv, diegolxxz, ed9gaspar, gabrielcrzojo e SamukaToned]  
 **Período da Sprint:** [06/10/2026] até [13/10/2026]  
-**Data da Reunião:** [13/10/2026]  
+**Data da Reunião Geral:** [13/10/2026]  
 
 ---
 

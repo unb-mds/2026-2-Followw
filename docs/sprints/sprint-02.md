@@ -1,11 +1,11 @@
-# 🏃‍♂️ Reunião Semanal de Sprint
+# Reunião Semanal de Sprint
 
 **Data:** [10/09/2026]  
 **Scrum Master:** Samuel  
 **Product Owner:** Eliabe  
 **Equipe:** [eliabexp, ratatta-na-nite, Mendezalv, diegolxxz, ed9gaspar, gabrielcrzojo e SamukaToned]  
 **Período da Sprint:** [10/09/2026] até [18/09/2026]  
-**Data da Reunião:** [14/08/2026]  
+**Data da Reunião Geral:** [14/08/2026]  
 
 ---
 
