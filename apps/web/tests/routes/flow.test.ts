@@ -46,7 +46,11 @@ describe('rota de curso (/cursos/$id)', () => {
                 })
             }
         });
-        expect(keys).toContainEqual(['get', '/public/courses']);
+        expect(keys).toContainEqual([
+            'get',
+            '/public/courses/{course_id}',
+            { params: { path: { course_id: 99 } } }
+        ]);
         expect(keys.some((key) => Array.isArray(key) && key[1] === '/classrooms')).toBe(false);
         expect(keys).toContainEqual([
             'get',
@@ -94,7 +98,11 @@ describe('rota de curso (/cursos/$id)', () => {
                     })
                 }
             });
-            expect(keys).toContainEqual(['get', '/public/courses']);
+            expect(keys).toContainEqual([
+                'get',
+                '/public/courses/{course_id}',
+                { params: { path: { course_id: 99 } } }
+            ]);
             expect(keys).toContainEqual([
                 'get',
                 '/public/courses/{course_id}/curriculum',

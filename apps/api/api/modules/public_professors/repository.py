@@ -1,10 +1,9 @@
-from sigaa_client import lookup_key
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import load_only
 
 from api.db.models import Professor
-from api.db.search import lookup_sql
+from api.db.search import all_terms, contains_term
 
 
 class ProfessorRepository:
@@ -23,7 +22,7 @@ class ProfessorRepository:
         conditions = [Professor.siape.is_not(None)]
         if q is not None:
             conditions.append(
-                lookup_sql(Professor.name).contains(lookup_key(q), autoescape=True)
+                all_terms(q, lambda term: contains_term(Professor.name, term))
             )
         if unit_id is not None:
             conditions.append(Professor.unit_id == unit_id)

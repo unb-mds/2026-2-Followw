@@ -174,7 +174,12 @@ def test_semester_escolhe_as_turmas_e_componente_sem_oferta_vem_vazio(catalog):
 @pytest.mark.parametrize(
     "q,expected",
     [
-        ("  calculo   1 ", ["FGA0001"]),
+        ("  calculo   aplicado ", ["FCE0001"]),
+        ("1 calculo", ["FCE0001", "FGA0001"]),
+        ("fga calculo", ["FGA0001"]),
+        ("programas compilação", ["FGA0003"]),
+        ("compilacao fulano", ["FGA0003"]),
+        ("calculo fulano", []),
         ("CÁLCULO", ["FCE0001", "FGA0001"]),
         ("fga0003", ["FGA0003"]),
         ("fga", ["FGA0001", "FGA0003"]),

@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.academic_calendar import parse_semester
 from api.db.main import DatabaseDep
 from api.db.models import Course, Curriculum, Subject
+from api.db.units import find_unit
 from api.modules.public_courses.repository import PublicCourseRepository
 from api.modules.public_subjects.repository import SubjectCatalogRepository
 from api.schemas import (
@@ -88,8 +89,13 @@ class PublicCourseService:
     def __init__(self, db: DatabaseDep) -> None:
         self._db = db
 
-    async def list_courses(self) -> list[PublicCourse]:
-        return await self._db.read(_list_courses)
+    async def list_courses(
+        self, q: str | None = None, unit: int | str | None = None
+    ) -> list[PublicCourse]:
+        return await self._db.read(lambda session: _list_courses(session, q, unit))
+
+    async def get_course(self, course_id: int) -> PublicCourse:
+        return await self._db.read(lambda session: _get_course(session, course_id))
 
     async def get_curriculum(
         self,
@@ -104,9 +110,19 @@ class PublicCourseService:
         )
 
 
-async def _list_courses(session: AsyncSession) -> list[PublicCourse]:
-    courses = await PublicCourseRepository(session).list_courses()
+async def _list_courses(
+    session: AsyncSession, q: str | None, unit: int | str | None
+) -> list[PublicCourse]:
+    unit_id = (await find_unit(session, unit)).id if unit is not None else None
+    courses = await PublicCourseRepository(session).list_courses(q, unit_id)
     return [_course(course) for course in courses]
+
+
+async def _get_course(session: AsyncSession, course_id: int) -> PublicCourse:
+    course = await PublicCourseRepository(session).get_course(course_id)
+    if course is None:
+        raise HTTPException(404, "Curso não encontrado.")
+    return _course(course)
 
 
 def _course(course: Course) -> PublicCourse:

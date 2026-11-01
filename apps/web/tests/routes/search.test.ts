@@ -43,11 +43,12 @@ describe('loader da busca de turmas', () => {
     test.each([
         null,
         { registration: '1', unit: { id: 673, code: 'FCTE', name: 'CAMPUS UNB GAMA' } }
-    ])('uma URL direta pré-carrega a pesquisa, com perfil %p', async (user) => {
+    ])('uma URL direta pré-carrega a busca única, com perfil %p', async (user) => {
         const keys = await loadWith(user, '?q=calculo');
-        const subjects = keys.find((key) => key[1] === '/public/subjects');
-        expect(subjects?.[2]).toEqual({ params: { query: { q: 'calculo' } } });
-        expect(keys.some((key) => key[1] === '/public/courses')).toBe(true);
+        const search = keys.filter((key) => String(key[1]).startsWith('/public/'));
+        expect(search).toEqual([
+            ['get', '/public/search', { params: { query: { q: 'calculo' } } }]
+        ]);
     });
 
     test.each(['ab', 'a'.repeat(33)])('query inválida %s pré-carrega a unidade', async (q) => {
@@ -77,12 +78,9 @@ describe('recomendações somente na busca', () => {
         expect(keys.map((key) => key[1])).toEqual(['/me', '/classrooms', '/public/subjects']);
         expect(keys[2][2]).toEqual({});
     });
-    test('pesquisa mantém a busca padrão', async () => {
-        const subjects = (await loadWith(student, '?q=calculo')).filter(
-            (key) => key[1] === '/public/subjects'
-        );
-        expect(subjects).toHaveLength(1);
-        expect(subjects[0][2]).toHaveProperty('params.query');
+    test('pesquisa usa a busca única em vez das recomendações', async () => {
+        const keys = await loadWith(student, '?q=calculo');
+        expect(keys.map((key) => key[1])).toEqual(['/me', '/classrooms', '/public/search']);
     });
     test('visitante não carrega recomendações', async () => {
         expect((await loadWith(null)).map((key) => key[1])).toEqual(['/me']);
@@ -92,6 +90,7 @@ describe('recomendações somente na busca', () => {
 describe('loader das categorias da busca', () => {
     test.each([
         ['classrooms', ['/me', '/classrooms', '/public/subjects']],
+        ['all', ['/me', '/classrooms', '/public/search']],
         ['courses', ['/me', '/public/courses']],
         ['professors', ['/me', '/public/professors']]
     ] as const)('categoria %s pré-carrega somente seus resultados', async (category, expected) => {

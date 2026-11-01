@@ -3,13 +3,16 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
+import type { SearchCategory } from '#/lib/search-categories';
+
 import { getCurrentSemester } from '#/calendar';
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
 import { SchedulePreview } from '#/components/schedule/SchedulePreview';
-import { CourseSection } from '#/components/search/CourseSection';
+import { CourseResults } from '#/components/search/CourseResults';
 import { ProfessorResults } from '#/components/search/ProfessorResults';
 import { RecommendationsSection } from '#/components/search/RecommendationsSection';
+import { SearchResults } from '#/components/search/SearchResults';
 import { SubjectResults } from '#/components/search/SubjectResults';
 import { TabFilter } from '#/components/TabFilter';
 import { Input } from '#/components/ui/input';
@@ -19,8 +22,9 @@ import { allClassroomsQueryOptions } from '#/queries/classrooms';
 import { coursesQueryOptions } from '#/queries/courses';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
-import { professorSearch, professorsQueryOptions } from '#/queries/professors';
+import { professorsQueryOptions } from '#/queries/professors';
 import { recommendationsQueryOptions, showRecommendations } from '#/queries/recommendations';
+import { searchQueryOptions } from '#/queries/search';
 import {
     takenCodes,
     currentCurriculumPeriod,
@@ -30,6 +34,10 @@ import {
     subjectsQuery,
     subjectsQueryOptions
 } from '#/queries/subjects';
+
+/** Com texto, a aba Todos faz uma só consulta; as demais usam o próprio recurso. */
+const unifiedSearch = (category: SearchCategory, text: string | null) =>
+    category === 'all' ? text : null;
 
 export const Route = createFileRoute('/_app/buscar')({
     head: () => ({ meta: [{ title: 'Buscar | Followw' }] }),
@@ -42,19 +50,23 @@ export const Route = createFileRoute('/_app/buscar')({
         const sections = searchSections(search.category);
         const recommendations = sections.classrooms && showRecommendations(user, search);
         const text = searchText(search.q);
+        const unified = unifiedSearch(search.category, text);
         const query = recommendations ? null : subjectsQuery(text, user?.unit?.code ?? null);
-        const professorName = professorSearch(text);
         await Promise.all([
             sections.classrooms &&
                 user &&
                 loadQuery(queryClient, allClassroomsQueryOptions).catch(noop),
+            unified && loadQuery(queryClient, searchQueryOptions(unified)).catch(noop),
             sections.classrooms &&
+                !unified &&
                 query &&
                 loadQuery(queryClient, subjectsQueryOptions(query)).catch(noop),
-            sections.courses && text && loadQuery(queryClient, coursesQueryOptions).catch(noop),
-            sections.professors &&
-                professorName &&
-                loadQuery(queryClient, professorsQueryOptions(professorName)).catch(noop),
+            search.category === 'courses' &&
+                text &&
+                loadQuery(queryClient, coursesQueryOptions(text)).catch(noop),
+            search.category === 'professors' &&
+                text &&
+                loadQuery(queryClient, professorsQueryOptions(text)).catch(noop),
             recommendations && loadQuery(queryClient, recommendationsQueryOptions).catch(noop)
         ]);
     },
@@ -86,6 +98,7 @@ function BuscarPage() {
         return () => clearTimeout(timer);
     }, [q]);
     const query = subjectsQuery(text, unit);
+    const unified = unifiedSearch(category, text);
     const { data: history } = useQuery({
         ...allClassroomsQueryOptions,
         enabled: sections.classrooms && Boolean(user)
@@ -125,9 +138,7 @@ function BuscarPage() {
                 {!canSearch && (
                     <p className="py-8 text-center text-sm text-muted-foreground">{`Digite de ${SEARCH_MIN_LENGTH} a ${SEARCH_MAX_LENGTH} caracteres do nome, código da matéria, curso ou professor para ver os resultados.`}</p>
                 )}
-                {sections.courses && text && (
-                    <CourseSection key={text} text={text} showEmpty={category === 'courses'} />
-                )}
+                {category === 'courses' && text && <CourseResults text={text} />}
                 {sections.classrooms && !user && query && (
                     <p className="text-sm text-muted-foreground">
                         <Link className="font-bold text-primary hover:underline" to="/login">
@@ -136,10 +147,12 @@ function BuscarPage() {
                         para visualizar seu fluxo.
                     </p>
                 )}
-                {sections.professors && text && (
-                    <ProfessorResults text={text} showEmpty={category === 'professors'} />
+                {category === 'professors' && text && <ProfessorResults text={text} />}
+                {unified && (
+                    <SearchResults text={unified} currentPeriod={currentPeriod} taken={taken} />
                 )}
                 {sections.classrooms &&
+                    !unified &&
                     (recommendations ? (
                         <RecommendationsSection currentPeriod={currentPeriod} taken={taken} />
                     ) : (

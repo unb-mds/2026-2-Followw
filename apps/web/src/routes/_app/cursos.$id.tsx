@@ -13,8 +13,9 @@ import { LoadingText } from '#/components/LoadingText';
 import { validateFlowSearch } from '#/lib/curriculum/navigation';
 import { useWidth } from '#/lib/width';
 import { allClassroomsQueryOptions } from '#/queries/classrooms';
-import { coursesQueryOptions } from '#/queries/courses';
+import { courseQueryOptions } from '#/queries/courses';
 import { curriculumQueryOptions } from '#/queries/curriculum';
+import { ApiError } from '#/queries/errors';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
 import { currentCurriculumPeriod } from '#/queries/subjects';
@@ -49,7 +50,7 @@ export const Route = createFileRoute('/_app/cursos/$id')({
         const user = await loadQuery(queryClient, meQueryOptions);
         const { ownCourse, entrySemester } = flowTarget(user, courseId);
         await Promise.all([
-            !ownCourse && loadQuery(queryClient, coursesQueryOptions).catch(noop),
+            !ownCourse && loadQuery(queryClient, courseQueryOptions(courseId)).catch(noop),
             entrySemester &&
                 loadQuery(queryClient, curriculumQueryOptions(courseId, entrySemester)).catch(noop),
             ownCourse &&
@@ -83,21 +84,22 @@ function FlowPage() {
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const { id: courseId } = Route.useParams();
     const { ownCourse, entrySemester, currentPeriod } = flowTarget(user, courseId);
-    const courses = useQuery({ ...coursesQueryOptions, enabled: !ownCourse });
-    const course = ownCourse ? user?.course : courses.data?.find((item) => item.id === courseId);
+    const catalog = useQuery({ ...courseQueryOptions(courseId), enabled: !ownCourse });
+    const missing = catalog.error instanceof ApiError && catalog.error.isNotFound;
+    const course = ownCourse ? user?.course : catalog.data;
     return (
         <div ref={ref} className="flex min-h-0 flex-1 flex-col">
             <div className="shrink-0 border-b px-4 pb-5 lg:px-6">
                 <FlowHeader legend={Boolean(desktop && ownCourse && course && entrySemester)} />
                 {course && <CourseSummary course={course} entrySemester={entrySemester} />}
             </div>
-            {!ownCourse && courses.isPending ? (
+            {!ownCourse && catalog.isPending ? (
                 <LoadingText className="p-4">Carregando curso...</LoadingText>
-            ) : !ownCourse && courses.isLoadingError ? (
+            ) : !ownCourse && catalog.isLoadingError && !missing ? (
                 <div className="p-4">
                     <ErrorCard
                         message="Não foi possível carregar o curso."
-                        onRetry={() => courses.refetch()}
+                        onRetry={() => catalog.refetch()}
                     />
                 </div>
             ) : !course ? (

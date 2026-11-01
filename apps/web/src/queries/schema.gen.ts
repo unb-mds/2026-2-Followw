@@ -246,10 +246,27 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Listar cursos cadastrados
-         * @description Lista os cursos gravados no Followw, ordenados por nome e ID local, sem autenticação. Inclui cursos sem currículo e os criados pelo sync, cujo sigaa_id pode ser nulo. O campo id é o course_id usado na consulta de currículo; unit traz id, sigla e nome da unidade e shift preserva o turno cadastrado, como no perfil. Banco sem cursos retorna lista vazia.
+         * Buscar cursos cadastrados
+         * @description Lista os cursos gravados no Followw, ordenados por nome e ID local, sem autenticação; os filtros se combinam e, sem eles, vêm todos. Inclui cursos sem currículo e os criados pelo sync, cujo sigaa_id pode ser nulo. O campo id é o course_id usado na consulta de currículo; unit traz id, sigla e nome da unidade e shift preserva o turno cadastrado, como no perfil. Banco sem cursos retorna lista vazia.
          */
         get: operations["list_courses_public_courses_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/courses/{course_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Consultar curso cadastrado */
+        get: operations["get_course_public_courses__course_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -324,6 +341,26 @@ export interface paths {
         };
         /** Consultar o cardápio público do RU */
         get: operations["get_menu_public_restaurant_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Buscar matérias, cursos e docentes
+         * @description Combina, numa só resposta, as buscas de `/public/subjects`, `/public/courses` e `/public/professors` (primeira página), sem ir ao SIGAA. Cada chave vem no formato do seu endpoint e é nula quando o tipo não foi pedido. Com login, as matérias trazem os dados da matriz do aluno.
+         */
+        get: operations["search_public_search_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1054,6 +1091,19 @@ export interface components {
             /** Amount */
             amount: string;
         };
+        /**
+         * SearchResult
+         * @description Cada tipo no formato do seu endpoint; nulo quando não foi pedido.
+         */
+        SearchResult: {
+            /** Subjects */
+            subjects: components["schemas"]["CatalogSubject"][] | null;
+            /** Courses */
+            courses: components["schemas"]["PublicCourse"][] | null;
+            professors: components["schemas"]["ProfessorPage"] | null;
+        };
+        /** @enum {string} */
+        SearchType: "subjects" | "courses" | "professors";
         /** SigaaLoginRequest */
         SigaaLoginRequest: {
             /** Registration */
@@ -1952,7 +2002,12 @@ export interface operations {
     };
     list_courses_public_courses_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Termos do nome, de 3 a 32 caracteres; cada um precisa aparecer, ignorando acentos e maiúsculas. */
+                q?: string | null;
+                /** @description ID ou código exato da unidade, como 673 ou FCTE. */
+                unit?: number | string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -1966,6 +2021,52 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PublicCourse"][];
+                };
+            };
+            /** @description Filtro inválido ou unidade inexistente. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_course_public_courses__course_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ID local do curso no Followw (courses.id). */
+                course_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicCourse"];
+                };
+            };
+            /** @description Curso inexistente. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -2017,7 +2118,7 @@ export interface operations {
     list_professors_public_professors_get: {
         parameters: {
             query?: {
-                /** @description Trecho do nome, com ao menos 3 caracteres; ignora acentos e caixa. */
+                /** @description Termos do nome, de 3 a 32 caracteres; cada um precisa aparecer, ignorando acentos e maiúsculas. */
                 q?: string | null;
                 /** @description ID ou código exato da unidade, como 673 ou FCTE. */
                 unit?: number | string | null;
@@ -2132,6 +2233,43 @@ export interface operations {
             };
         };
     };
+    search_public_search_get: {
+        parameters: {
+            query: {
+                /** @description Termos de 3 a 32 caracteres; cada um precisa aparecer, ignorando acentos e maiúsculas. */
+                q: string;
+                /** @description Tipos buscados, repetindo o parâmetro. Sem ele, todos. */
+                type?: components["schemas"]["SearchType"][] | null;
+                /** @description ID ou código exato da unidade, aplicado a todos os tipos. */
+                unit?: number | string | null;
+            };
+            header?: {
+                /** @description `no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache). */
+                "Cache-Control"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResult"];
+                };
+            };
+            /** @description Texto ou tipo inválido, ou unidade inexistente. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     subject_statistics_public_subjects__code__statistics_get: {
         parameters: {
             query: {
@@ -2169,7 +2307,7 @@ export interface operations {
     search_subjects_public_subjects_get: {
         parameters: {
             query?: {
-                /** @description Trecho do código, nome do componente ou docente, de 3 a 32 caracteres, ignorando acentos, maiúsculas e espaços extras. */
+                /** @description Termos do código, nome do componente ou docente, de 3 a 32 caracteres; cada um precisa aparecer em algum deles, ignorando acentos e maiúsculas. */
                 q?: string | null;
                 /** @description Código completo do componente, como FGA0003. */
                 code?: string | null;

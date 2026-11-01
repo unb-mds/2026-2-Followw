@@ -89,6 +89,63 @@ def test_lista_vazia_quando_nao_ha_cursos(client):
     assert response.json() == []
 
 
+@pytest.fixture
+def courses(database):
+    with database.begin() as session:
+        session.add(Unit(id=518, code="FCE", name="CAMPUS UNB CEILÂNDIA"))
+        session.flush()
+        session.add_all(
+            [
+                Course(id=1, sigaa_id=10, name="ENGENHARIA DE SOFTWARE", unit_id=673),
+                Course(id=2, sigaa_id=20, name="ENGENHARIA ELETRÔNICA", unit_id=673),
+                Course(id=3, sigaa_id=30, name="FARMÁCIA", unit_id=518),
+            ]
+        )
+
+
+@pytest.mark.parametrize(
+    "params,expected",
+    [
+        ({"q": "eng software"}, [1]),
+        ({"q": "  ELETRONICA  "}, [2]),
+        ({"q": "engenharia"}, [1, 2]),
+        ({"q": "farmacia eng"}, []),
+        ({"q": "___"}, []),
+        ({"unit": "fce"}, [3]),
+        ({"unit": "673", "q": "eletrô"}, [2]),
+        ({}, [1, 2, 3]),
+    ],
+)
+def test_q_e_unit_filtram_cursos_por_termos(client, courses, params, expected):
+    response = client.get("/public/courses", params=params)
+    assert response.status_code == 200
+    assert [course["id"] for course in response.json()] == expected
+
+
+@pytest.mark.parametrize(
+    "params", [{"q": "ab"}, {"q": "a" * 33}, {"unit": ""}, {"unit": "XYZ"}]
+)
+def test_filtros_invalidos_de_cursos_retornam_422(client, courses, params):
+    assert client.get("/public/courses", params=params).status_code == 422
+
+
+def test_consulta_curso_pelo_id(client, courses):
+    response = client.get("/public/courses/3")
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    assert response.json() == {
+        "id": 3,
+        "sigaa_id": 30,
+        "name": "FARMÁCIA",
+        "shift": None,
+        "unit": {"id": 518, "code": "FCE", "name": "CAMPUS UNB CEILÂNDIA"},
+        "level": "Graduação",
+    }
+    assert client.get("/public/courses/99").status_code == 404
+    assert client.get("/public/courses/0").status_code == 422
+    assert client.get("/public/courses/2147483648").status_code == 422
+
+
 def test_id_da_listagem_pode_ser_usado_para_consultar_curriculo(catalog):
     response = catalog.get("/public/courses")
     assert response.status_code == 200

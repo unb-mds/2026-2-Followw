@@ -13,6 +13,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } fr
 import { Window } from 'happy-dom';
 import { renderToString } from 'react-dom/server';
 
+import type { PublicCourse } from '#/queries/courses';
 import type { components } from '#/queries/schema.gen';
 
 import { getCurrentSemester } from '#/calendar';
@@ -23,8 +24,9 @@ import { validateFlowSearch } from '#/lib/curriculum/navigation';
 import { parseRouterSearch, stringifyRouterSearch, validateSearch } from '#/lib/search-params';
 import { allClassroomsQueryOptions } from '#/queries/classrooms';
 import { apiClient } from '#/queries/client';
-import { coursesQueryOptions } from '#/queries/courses';
+import { courseQueryOptions } from '#/queries/courses';
 import { curriculumQueryOptions } from '#/queries/curriculum';
+import { toApiError } from '#/queries/errors';
 import { meQueryOptions } from '#/queries/me';
 import { Route } from '#/routes/_app/cursos.$id';
 
@@ -139,10 +141,28 @@ const rawMatrix: RawCurriculum = {
     ]
 };
 const matrix = curriculum(rawMatrix);
+const courses: PublicCourse[] = [
+    {
+        id: 42,
+        name: 'CURSO TESTE',
+        sigaa_id: 100,
+        level: 'Graduação',
+        shift: null,
+        unit: { id: 1, code: 'UNI', name: 'UNIDADE' }
+    },
+    {
+        id: 99,
+        name: 'OUTRO CURSO',
+        sigaa_id: 101,
+        level: 'Graduação',
+        shift: null,
+        unit: { id: 1, code: 'UNI', name: 'UNIDADE' }
+    }
+];
 function SearchFixture() {
     return (
         <>
-            <CourseSection text="curso" />
+            <CourseSection courses={courses} />
             <TurmaSection
                 subjects={[
                     {
@@ -197,24 +217,8 @@ describe('fluxograma integrado', () => {
             defaultOptions: { queries: { staleTime: Infinity, retry: false } }
         });
         client.setQueryData(meQueryOptions.queryKey, user);
-        client.setQueryData(coursesQueryOptions.queryKey, [
-            {
-                id: 42,
-                name: 'CURSO TESTE',
-                sigaa_id: 100,
-                level: 'Graduação',
-                shift: null,
-                unit: { id: 1, code: 'UNI', name: 'UNIDADE' }
-            },
-            {
-                id: 99,
-                name: 'OUTRO CURSO',
-                sigaa_id: 101,
-                level: 'Graduação',
-                shift: null,
-                unit: { id: 1, code: 'UNI', name: 'UNIDADE' }
-            }
-        ]);
+        for (const course of courses)
+            client.setQueryData(courseQueryOptions(course.id).queryKey, course);
         client.setQueryData(curriculumQueryOptions(42, '2026.2').queryKey, matrix);
         client.setQueryData(allClassroomsQueryOptions.queryKey, [
             {
@@ -555,6 +559,18 @@ describe('fluxograma integrado', () => {
             '60 h · 4 créditos'
         );
         expect(page.queryByText(/Histórico indisponível/)).toBeNull();
+    });
+    test('curso fora do catálogo informa que não foi encontrado', async () => {
+        apiClient.eject(middleware);
+        middleware = {
+            onRequest: () => {
+                throw toApiError(404, { detail: 'Curso não encontrado.' });
+            }
+        };
+        apiClient.use(middleware);
+        const page = await renderPage('/cursos/7');
+        await page.findByText('Curso não encontrado no catálogo.');
+        expect(page.queryByText('Não foi possível carregar o curso.')).toBeNull();
     });
     test('visitante consegue voltar de um curso acessado diretamente pelo caminho', async () => {
         client.setQueryData(meQueryOptions.queryKey, null);

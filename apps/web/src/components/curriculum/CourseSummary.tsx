@@ -6,7 +6,7 @@ import type { PublicCourse } from '#/queries/courses';
 
 import { normalizeCurriculum } from '#/lib/curriculum/model';
 import { titleCase, unitLabel } from '#/lib/profile';
-import { coursesQueryOptions } from '#/queries/courses';
+import { courseQueryOptions } from '#/queries/courses';
 import { curriculumQueryOptions, shiftLabels } from '#/queries/curriculum';
 
 export interface CourseSummaryProps {
@@ -16,12 +16,12 @@ export interface CourseSummaryProps {
 
 /** Erros e carregamento ficam com a página; aqui só o que já estiver em cache. */
 export function CourseSummary({ course, entrySemester }: CourseSummaryProps) {
-    const catalog = useQuery(coursesQueryOptions);
+    const catalog = useQuery(courseQueryOptions(course.id));
     const matrix = useQuery({
         ...curriculumQueryOptions(course.id, entrySemester ?? ''),
         enabled: Boolean(entrySemester)
     });
-    const unit = catalog.data?.find((item) => item.id === course.id)?.unit;
+    const unit = catalog.data?.unit;
     const curriculum = matrix.data;
     const shift = course.shift ?? (curriculum?.shift && shiftLabels[curriculum.shift]);
     const flow = useMemo(() => (curriculum ? normalizeCurriculum(curriculum) : null), [curriculum]);

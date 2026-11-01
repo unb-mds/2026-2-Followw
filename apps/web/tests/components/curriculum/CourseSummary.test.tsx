@@ -9,7 +9,7 @@ import type { CourseCurriculum } from '#/queries/curriculum';
 
 import { CourseSummary } from '#/components/curriculum/CourseSummary';
 import { apiClient } from '#/queries/client';
-import { coursesQueryOptions } from '#/queries/courses';
+import { courseQueryOptions } from '#/queries/courses';
 import { curriculumQueryOptions } from '#/queries/curriculum';
 
 import { useDom } from '../../helpers/dom';
@@ -46,7 +46,7 @@ beforeEach(() => {
     client = new QueryClient({
         defaultOptions: { queries: { staleTime: Infinity, retry: false } }
     });
-    client.setQueryData(coursesQueryOptions.queryKey, [course]);
+    client.setQueryData(courseQueryOptions(course.id).queryKey, course);
     client.setQueryData(curriculumQueryOptions(course.id, '2026.2').queryKey, matrix);
     requests = [];
     middleware = {
@@ -84,7 +84,7 @@ test('resume unidade, turno, grau e matriz do curso com os dados já salvos', ()
 
 test('consulta a matriz do curso exibido sem reaproveitar a de outro curso', async () => {
     const other = { ...course, id: 99, name: 'ADMINISTRAÇÃO', shift: 'NOTURNO' };
-    client.setQueryData(coursesQueryOptions.queryKey, [course, other]);
+    client.setQueryData(courseQueryOptions(other.id).queryKey, other);
     const page = renderSummary({ course: other, entrySemester: '2026.2' });
     await dom.testing.waitFor(() =>
         expect(requests).toEqual(['/api/public/courses/99/curriculum'])
@@ -93,13 +93,13 @@ test('consulta a matriz do curso exibido sem reaproveitar a de outro curso', asy
     expect(page.queryByText('Bacharelado')).toBeNull();
 });
 
-test('sem semestre nem catálogo exibe apenas o que está disponível', () => {
-    client.setQueryData(coursesQueryOptions.queryKey, []);
+test('sem semestre nem catálogo exibe apenas o que está disponível', async () => {
+    client.removeQueries({ queryKey: courseQueryOptions(course.id).queryKey });
     const page = renderSummary({ course: { ...course, shift: null } });
     expect(page.getByText('Turno não informado')).toBeDefined();
     expect(page.getByText('Unidade não informada')).toBeDefined();
     expect(page.queryByText(/semestres/)).toBeNull();
-    expect(requests).toEqual([]);
+    await dom.testing.waitFor(() => expect(requests).toEqual(['/api/public/courses/42']));
 });
 
 test('turno da matriz cobre o curso sem turno no catálogo', () => {

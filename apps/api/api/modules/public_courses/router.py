@@ -8,6 +8,7 @@ from api.modules.public_courses.service import (
     PublicCourse,
     PublicCourseServiceDep,
 )
+from api.schemas import SearchText, UnitFilter
 
 router = APIRouter()
 
@@ -15,17 +16,49 @@ router = APIRouter()
 @router.get(
     "",
     response_model=list[PublicCourse],
-    summary="Listar cursos cadastrados",
+    summary="Buscar cursos cadastrados",
     description=(
-        "Lista os cursos gravados no Followw, ordenados por nome e ID local, sem autenticação. "
+        "Lista os cursos gravados no Followw, ordenados por nome e ID local, sem autenticação; os filtros se combinam e, sem eles, vêm todos. "
         "Inclui cursos sem currículo e os criados pelo sync, cujo sigaa_id pode ser nulo. "
         "O campo id é o course_id usado na consulta de currículo; unit traz id, sigla e nome da unidade "
         "e shift preserva o turno cadastrado, como no perfil. Banco sem cursos retorna lista vazia."
     ),
+    responses={422: {"description": "Filtro inválido ou unidade inexistente."}},
     dependencies=[NoStore],
 )
-async def list_courses(service: PublicCourseServiceDep) -> list[PublicCourse]:
-    return await service.list_courses()
+async def list_courses(
+    service: PublicCourseServiceDep,
+    q: Annotated[
+        SearchText | None,
+        Query(
+            description="Termos do nome, de 3 a 32 caracteres; cada um precisa aparecer, ignorando acentos e maiúsculas."
+        ),
+    ] = None,
+    unit: Annotated[
+        UnitFilter | None,
+        Query(description="ID ou código exato da unidade, como 673 ou FCTE."),
+    ] = None,
+) -> list[PublicCourse]:
+    return await service.list_courses(q, unit)
+
+
+@router.get(
+    "/{course_id}",
+    response_model=PublicCourse,
+    summary="Consultar curso cadastrado",
+    responses={404: {"description": "Curso inexistente."}},
+    dependencies=[NoStore],
+)
+async def get_course(
+    service: PublicCourseServiceDep,
+    course_id: Annotated[
+        int,
+        Path(
+            gt=0, le=2**31 - 1, description="ID local do curso no Followw (courses.id)."
+        ),
+    ],
+) -> PublicCourse:
+    return await service.get_course(course_id)
 
 
 @router.get(

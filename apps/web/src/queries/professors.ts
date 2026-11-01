@@ -21,8 +21,3 @@ export const professorsQueryOptions = (q: string) =>
             query: { q }
         }
     });
-
-// nomes de docentes não têm dígitos: buscar por código de matéria não consulta docentes
-export function professorSearch(q: string | null | undefined): string | null {
-    return q && !/\d/.test(q) ? q : null;
-}
