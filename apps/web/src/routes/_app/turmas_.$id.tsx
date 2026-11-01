@@ -5,6 +5,7 @@ import { useQueryStates } from 'nuqs';
 import type { components } from '#/queries/schema.gen';
 
 import { ClassroomPosts } from '#/components/classroom/ClassroomPosts';
+import { ClassroomStatistics } from '#/components/classroom/ClassroomStatistics';
 import { ClassroomSummary } from '#/components/classroom/ClassroomSummary';
 import { FrequencyContent } from '#/components/classroom/FrequencyContent';
 import {
@@ -21,7 +22,7 @@ import { Card, CardContent } from '#/components/ui/card';
 import { PersonPhoto } from '#/components/ui/person-photo';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
 import {
-    CLASSROOM_TABS,
+    classroomTab,
     type ClassroomTab,
     classroomSearchParsers,
     loadClassroomSearch,
@@ -32,6 +33,7 @@ import { titleCase } from '#/lib/profile';
 import {
     allClassroomsQueryOptions,
     classroomFrequencyQueryOptions,
+    classroomStatisticsQueryOptions,
     classroomMembersQueryOptions,
     classroomPostsQueryOptions,
     useMarkLessons
@@ -43,6 +45,7 @@ type Member = components['schemas']['ClassroomMember'];
 type Professor = components['schemas']['ProfessorRef'];
 
 const TAB_LABELS: Record<ClassroomTab, string> = {
+    statistics: 'Estatísticas',
     frequency: 'Frequência',
     posts: 'Postagens',
     members: 'Participantes'
@@ -50,6 +53,7 @@ const TAB_LABELS: Record<ClassroomTab, string> = {
 
 // a aba aberta é pré-carregada; as outras buscam ao serem abertas
 const PRELOAD_TAB: Record<ClassroomTab, (client: QueryClient, id: string) => Promise<unknown>> = {
+    statistics: (client, id) => loadQuery(client, classroomStatisticsQueryOptions(id)),
     frequency: (client, id) => loadQuery(client, classroomFrequencyQueryOptions(id)),
     posts: (client, id) => loadQuery(client, classroomPostsQueryOptions(id)),
     members: (client, id) => loadQuery(client, classroomMembersQueryOptions(id))
@@ -67,7 +71,10 @@ export const Route = createFileRoute('/_app/turmas_/$id')({
         const classroom = classrooms?.find(({ id }) => id === params.id);
         if (classroom) {
             const { tab } = loadClassroomSearch(location.searchStr);
-            await PRELOAD_TAB[tab](queryClient, classroom.id).catch(noop);
+            await PRELOAD_TAB[classroomTab(tab, classroom.current)](
+                queryClient,
+                classroom.id
+            ).catch(noop);
         }
         return { subjectName: classroom?.subject.name };
     },
@@ -107,7 +114,7 @@ function ClassroomPage() {
                 <>
                     <ClassroomSummary classroom={classroom} />
                     <Tabs
-                        value={tab}
+                        value={classroomTab(tab, classroom.current)}
                         onValueChange={(value: ClassroomTab) => void setSearch({ tab: value })}
                         className="mt-5 gap-4"
                     >
@@ -116,7 +123,13 @@ function ClassroomPage() {
                             className="grid w-full grid-cols-3 border-b border-border group-data-horizontal/tabs:h-auto"
                             aria-label="Detalhes da turma"
                         >
-                            {CLASSROOM_TABS.map((item) => (
+                            {(
+                                [
+                                    classroom.current ? 'frequency' : 'statistics',
+                                    'posts',
+                                    'members'
+                                ] as const
+                            ).map((item) => (
                                 <TabsTrigger
                                     key={item}
                                     value={item}
@@ -129,9 +142,15 @@ function ClassroomPage() {
                         <TabsContent value="posts">
                             <ClassroomPosts key={id} id={id} />
                         </TabsContent>
-                        <TabsContent value="frequency">
-                            <FrequencyTab id={id} />
-                        </TabsContent>
+                        {classroom.current ? (
+                            <TabsContent value="frequency">
+                                <FrequencyTab id={id} />
+                            </TabsContent>
+                        ) : (
+                            <TabsContent value="statistics">
+                                <ClassroomStatistics id={id} />
+                            </TabsContent>
+                        )}
                         <TabsContent value="members">
                             <MembersTab id={id} />
                         </TabsContent>

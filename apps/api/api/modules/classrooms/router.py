@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Path, Query
 from pydantic import AfterValidator, BaseModel, Field
-from sigaa_client import ClassroomPost, PostType
+from sigaa_client import ClassroomPost, PostType, StatisticsShare
 
 from api.cache import NoStore
 from api.db.enums import LessonStatus
@@ -173,3 +173,17 @@ async def get_classroom_members(
     classroom_id: ClassroomId,
 ) -> ClassroomMembers:
     return await service.list_members(classroom_id)
+
+
+@router.get(
+    "/{classroom_id}/statistics",
+    response_model=list[StatisticsShare],
+    summary="Consultar os resultados da própria turma",
+    description="Percentuais por situação da turma encerrada, sem agregação com outras turmas. Lista vazia quando não há resultados disponíveis.",
+    responses={**CLASSROOM_ERRORS, 503: {"description": "Cache em atualização."}},
+)
+async def get_classroom_statistics(
+    service: ClassroomServiceDep,
+    classroom_id: ClassroomId,
+) -> list[StatisticsShare]:
+    return await service.get_statistics(classroom_id)
