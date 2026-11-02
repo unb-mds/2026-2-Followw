@@ -127,13 +127,18 @@ describe('cache da página da turma', () => {
     });
 });
 
+const statisticsTab = [
+    '/classrooms/{classroom_id}/statistics',
+    '/classrooms/{classroom_id}/frequency'
+];
+
 test.each([
-    ['', '/classrooms/{classroom_id}/statistics'],
-    ['?tab=frequency', '/classrooms/{classroom_id}/statistics'],
-    ['?tab=statistics', '/classrooms/{classroom_id}/statistics'],
-    ['?tab=posts', '/classrooms/{classroom_id}/posts'],
-    ['?tab=members', '/classrooms/{classroom_id}/members']
-])('turma antiga pré-carrega a aba correta em %p', async (searchStr, path) => {
+    ['', statisticsTab],
+    ['?tab=frequency', statisticsTab],
+    ['?tab=statistics', statisticsTab],
+    ['?tab=posts', ['/classrooms/{classroom_id}/posts']],
+    ['?tab=members', ['/classrooms/{classroom_id}/members']]
+])('turma antiga pré-carrega a aba correta em %p', async (searchStr, tabPaths) => {
     const paths: unknown[] = [];
     const client = fakeQueryClient((key) => {
         paths.push(key[1]);
@@ -142,5 +147,5 @@ test.each([
         return [];
     });
     await load(client, searchStr);
-    expect(paths).toEqual(['/me', '/classrooms', path]);
+    expect(paths).toEqual(['/me', '/classrooms', ...tabPaths]);
 });

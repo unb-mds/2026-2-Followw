@@ -55,7 +55,11 @@ const TAB_LABELS: Record<ClassroomTab, string> = {
 // a aba aberta é pré-carregada; as outras buscam ao serem abertas
 const PRELOAD_TAB: Record<ClassroomTab, (client: QueryClient, id: string) => Promise<unknown>> = {
     frequency: (client, id) => loadQuery(client, classroomFrequencyQueryOptions(id)),
-    statistics: (client, id) => loadQuery(client, classroomStatisticsQueryOptions(id)),
+    statistics: (client, id) =>
+        Promise.all([
+            loadQuery(client, classroomStatisticsQueryOptions(id)),
+            loadQuery(client, classroomFrequencyQueryOptions(id))
+        ]),
     posts: (client, id) => loadQuery(client, classroomPostsQueryOptions(id)),
     members: (client, id) => loadQuery(client, classroomMembersQueryOptions(id))
 };

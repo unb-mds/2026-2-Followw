@@ -1,21 +1,33 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, expect, test } from 'bun:test';
 
+import type { ClassroomFrequency } from '#/queries/classrooms';
 import type { components } from '#/queries/schema.gen';
 
 import { ClassroomStatistics } from '#/components/classroom/ClassroomStatistics';
-import { classroomStatisticsQueryOptions } from '#/queries/classrooms';
+import {
+    classroomFrequencyQueryOptions,
+    classroomStatisticsQueryOptions
+} from '#/queries/classrooms';
 
 import { useDom } from '../../helpers/dom';
 
 const dom = useDom();
 afterEach(() => dom.testing.cleanup());
 
+const frequency: ClassroomFrequency = {
+    progress: { taught: 48, total: 72, percentage: 67 },
+    frequency_status: 'registrada',
+    lessons: [],
+    totals: { presences: 42, absences: 4, percentage: 91.7, max_absences: 15, estimated: false }
+};
+
 function render(shares: components['schemas']['StatisticsShare'][]) {
     const client = new QueryClient({
         defaultOptions: { queries: { staleTime: Infinity, retry: false } }
     });
     client.setQueryData(classroomStatisticsQueryOptions('antiga').queryKey, shares);
+    client.setQueryData(classroomFrequencyQueryOptions('antiga').queryKey, frequency);
     client.setQueryData(classroomStatisticsQueryOptions('outra').queryKey, [
         { situation: 'aprovado', percentage: 100 }
     ]);
@@ -49,3 +61,17 @@ test.each([{ shares: [] }, { shares: [{ situation: 'aprovado' as const, percenta
         expect(page.queryByLabelText('Situação dos discentes desta turma')).toBeNull();
     }
 );
+
+test('exibe a frequência abaixo do gráfico, cada um com seu título', () => {
+    const page = render([{ situation: 'aprovado', percentage: 100 }]);
+    const headings = page.getAllByRole('heading').map((heading) => heading.textContent);
+    expect(headings.slice(0, 2)).toEqual(['Resultados da turma', 'Sua frequência']);
+    const chart = page.getByLabelText('Situação dos discentes desta turma');
+    const presences = page.getByText('Presenças');
+    expect(
+        chart.compareDocumentPosition(presences) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(page.getByText('42')).toBeTruthy();
+    expect(page.getByText('91,7%')).toBeTruthy();
+    expect(page.getByText('48 / 72')).toBeTruthy();
+});

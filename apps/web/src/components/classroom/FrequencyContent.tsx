@@ -81,42 +81,7 @@ export function FrequencyContent({
 
     return (
         <div className="flex flex-col gap-2">
-            {totals ? (
-                <Card size="sm" className="gap-0 divide-y divide-border py-0">
-                    <dl className="grid grid-cols-3 divide-x divide-border">
-                        <Stat label="Presenças" value={totals.presences} />
-                        <Stat
-                            label="Faltas"
-                            value={
-                                <>
-                                    {totals.absences}
-                                    {totals.max_absences !== null && (
-                                        <small className="text-sm font-medium text-foreground">
-                                            {' '}
-                                            / {totals.max_absences}
-                                        </small>
-                                    )}
-                                </>
-                            }
-                            className={totals.absences > 0 ? 'text-destructive' : undefined}
-                        />
-                        <Stat
-                            label="Frequência"
-                            value={`${totals.percentage.toLocaleString('pt-BR')}%`}
-                            className={FREQUENCY_TONE[frequencyTone(totals.percentage)]}
-                        />
-                    </dl>
-                    <LessonsProgress data={data} />
-                </Card>
-            ) : (
-                <ListCard>
-                    <Meter
-                        label="Andamento das aulas"
-                        value={data.progress.percentage}
-                        detail={`${data.progress.taught} / ${data.progress.total}`}
-                    />
-                </ListCard>
-            )}
+            <FrequencySummary data={data} />
             {totals?.estimated && (
                 <p className="px-1 text-xs text-muted-foreground">
                     Frequência estimada com as aulas marcadas por você.
@@ -190,6 +155,48 @@ export function FrequencyContent({
                 </SelectionBar>
             )}
         </div>
+    );
+}
+
+/** Totais de presença com o andamento das aulas; só o andamento enquanto não há totais. */
+export function FrequencySummary({ data }: { data: ClassroomFrequency }) {
+    const { totals } = data;
+
+    return totals ? (
+        <Card size="sm" className="gap-0 divide-y divide-border py-0">
+            <dl className="grid grid-cols-3 divide-x divide-border">
+                <Stat label="Presenças" value={totals.presences} />
+                <Stat
+                    label="Faltas"
+                    value={
+                        <>
+                            {totals.absences}
+                            {totals.max_absences !== null && (
+                                <small className="text-sm font-medium text-foreground">
+                                    {' '}
+                                    / {totals.max_absences}
+                                </small>
+                            )}
+                        </>
+                    }
+                    className={totals.absences > 0 ? 'text-destructive' : undefined}
+                />
+                <Stat
+                    label="Frequência"
+                    value={`${totals.percentage.toLocaleString('pt-BR')}%`}
+                    className={FREQUENCY_TONE[frequencyTone(totals.percentage)]}
+                />
+            </dl>
+            <LessonsProgress data={data} />
+        </Card>
+    ) : (
+        <ListCard>
+            <Meter
+                label="Andamento das aulas"
+                value={data.progress.percentage}
+                detail={`${data.progress.taught} / ${data.progress.total}`}
+            />
+        </ListCard>
     );
 }
 
