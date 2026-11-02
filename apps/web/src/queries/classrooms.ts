@@ -60,3 +60,8 @@ export const classroomMembersQueryOptions = (id: string) =>
     api.queryOptions('get', '/classrooms/{classroom_id}/members', {
         params: { path: { classroom_id: id } }
     });
+
+export const classroomStatisticsQueryOptions = (id: string) =>
+    api.queryOptions('get', '/classrooms/{classroom_id}/statistics', {
+        params: { path: { classroom_id: id } }
+    });

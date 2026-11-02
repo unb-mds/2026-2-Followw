@@ -6,7 +6,7 @@ import sigaa_client
 from sigaa_client import AttendanceStatus
 from sqlalchemy import ColumnElement, delete, exists, func, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import contains_eager, joinedload
+from sqlalchemy.orm import contains_eager, joinedload, undefer
 
 from api import academic_calendar
 from api.academic_calendar import parse_semester
@@ -103,6 +103,11 @@ class ClassroomRepository:
 
     async def get(self, classroom_id: UUID) -> Classroom | None:
         return await self._session.get(Classroom, classroom_id)
+
+    async def get_statistics(self, classroom_id: UUID) -> Classroom | None:
+        return await self._session.get(
+            Classroom, classroom_id, options=[undefer(Classroom.statistics)]
+        )
 
     async def get_by_front_end_id(
         self, user_id: UUID, front_end_id: str

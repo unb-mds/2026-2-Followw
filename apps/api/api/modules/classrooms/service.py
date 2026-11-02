@@ -8,6 +8,7 @@ from sigaa_client import (
     Classroom,
     ClassroomNotFound,
     Grade,
+    StatisticsShare,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -209,6 +210,28 @@ class ClassroomService:
             )
 
         return await self._sync.resolve(sync_members, link, load)
+
+    async def get_statistics(self, classroom_id: str) -> list[StatisticsShare]:
+        link = await self.get_link(classroom_id)
+        if link.row.current:
+            return []
+
+        async def load(session: AsyncSession) -> Cached[list[StatisticsShare]] | None:
+            classroom = await ClassroomRepository(session).get_statistics(
+                link.row.classroom_id
+            )
+            if classroom is None or classroom.statistics_synced_at is None:
+                return None
+            return Cached(
+                [
+                    StatisticsShare.model_validate(share)
+                    for share in classroom.statistics or []
+                ],
+                classroom.statistics_synced_at,
+                statistics_freshness(classroom.statistics_synced_at),
+            )
+
+        return await self._sync.resolve(sync_statistics, link, load)
 
     async def get_link(self, classroom_id: str) -> OwnLink:
         """O vínculo pelo `Classroom.id` ou pelo `sigaa_id` da turma."""

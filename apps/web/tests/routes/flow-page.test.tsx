@@ -464,7 +464,8 @@ describe('fluxograma integrado', () => {
         expect(edges()).toHaveLength(3);
         testing.fireEvent.pointerLeave(card, { pointerType: 'mouse' });
         expect(edges()).toHaveLength(4);
-        const other = page.getByRole('button', { name: /X, Isolada/ });
+        // o clique abre os detalhes em modal, que deixa o resto inerte
+        const other = page.getByRole('button', { name: /X, Isolada/, hidden: true });
         testing.fireEvent.pointerEnter(other, { pointerType: 'mouse' });
         expect(edges()).toHaveLength(1);
         expect(edges()[0]).toContain(':Y:');

@@ -126,3 +126,26 @@ describe('cache da página da turma', () => {
         }
     });
 });
+
+const statisticsTab = [
+    '/classrooms/{classroom_id}/statistics',
+    '/classrooms/{classroom_id}/frequency'
+];
+
+test.each([
+    ['', statisticsTab],
+    ['?tab=frequency', statisticsTab],
+    ['?tab=statistics', statisticsTab],
+    ['?tab=posts', ['/classrooms/{classroom_id}/posts']],
+    ['?tab=members', ['/classrooms/{classroom_id}/members']]
+])('turma antiga pré-carrega a aba correta em %p', async (searchStr, tabPaths) => {
+    const paths: unknown[] = [];
+    const client = fakeQueryClient((key) => {
+        paths.push(key[1]);
+        if (key[1] === '/me') return { registration: '123' };
+        if (key[1] === '/classrooms') return [{ ...classroom, current: false }];
+        return [];
+    });
+    await load(client, searchStr);
+    expect(paths).toEqual(['/me', '/classrooms', ...tabPaths]);
+});

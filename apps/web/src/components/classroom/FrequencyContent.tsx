@@ -1,3 +1,4 @@
+import { Progress as ProgressPrimitive } from '@base-ui/react/progress';
 import { CircleCheck, CircleDashed, CircleSlash, CircleX } from 'lucide-react';
 import { useRef, useState } from 'react';
 
@@ -80,40 +81,7 @@ export function FrequencyContent({
 
     return (
         <div className="flex flex-col gap-2">
-            <ListCard>
-                <Meter
-                    label="Andamento das aulas"
-                    value={data.progress.percentage}
-                    detail={`${data.progress.taught} / ${data.progress.total}`}
-                />
-            </ListCard>
-            {totals && (
-                <Card size="sm" className="gap-0 py-0">
-                    <dl className="grid grid-cols-3 divide-x divide-border">
-                        <Stat label="Presenças" value={totals.presences} />
-                        <Stat
-                            label="Faltas"
-                            value={
-                                <>
-                                    {totals.absences}
-                                    {totals.max_absences !== null && (
-                                        <small className="text-sm font-medium text-foreground">
-                                            {' '}
-                                            / {totals.max_absences}
-                                        </small>
-                                    )}
-                                </>
-                            }
-                            className={totals.absences > 0 ? 'text-destructive' : undefined}
-                        />
-                        <Stat
-                            label="Frequência"
-                            value={`${totals.percentage.toLocaleString('pt-BR')}%`}
-                            className={FREQUENCY_TONE[frequencyTone(totals.percentage)]}
-                        />
-                    </dl>
-                </Card>
-            )}
+            <FrequencySummary data={data} />
             {totals?.estimated && (
                 <p className="px-1 text-xs text-muted-foreground">
                     Frequência estimada com as aulas marcadas por você.
@@ -186,6 +154,107 @@ export function FrequencyContent({
                     })}
                 </SelectionBar>
             )}
+        </div>
+    );
+}
+
+/** Totais de presença com o andamento das aulas; só o andamento enquanto não há totais. */
+export function FrequencySummary({ data }: { data: ClassroomFrequency }) {
+    const { totals } = data;
+
+    return totals ? (
+        <Card size="sm" className="gap-0 divide-y divide-border py-0">
+            <dl className="grid grid-cols-3 divide-x divide-border">
+                <Stat label="Presenças" value={totals.presences} />
+                <Stat
+                    label="Faltas"
+                    value={
+                        <>
+                            {totals.absences}
+                            {totals.max_absences !== null && (
+                                <small className="text-sm font-medium text-foreground">
+                                    {' '}
+                                    / {totals.max_absences}
+                                </small>
+                            )}
+                        </>
+                    }
+                    className={totals.absences > 0 ? 'text-destructive' : undefined}
+                />
+                <Stat
+                    label="Frequência"
+                    value={`${totals.percentage.toLocaleString('pt-BR')}%`}
+                    className={FREQUENCY_TONE[frequencyTone(totals.percentage)]}
+                />
+            </dl>
+            <LessonsProgress data={data} />
+        </Card>
+    ) : (
+        <ListCard>
+            <Meter
+                label="Andamento das aulas"
+                value={data.progress.percentage}
+                detail={`${data.progress.taught} / ${data.progress.total}`}
+            />
+        </ListCard>
+    );
+}
+
+const RUN_COLOR = {
+    presente: 'bg-primary',
+    falta: 'bg-destructive',
+    nao_registrada: 'bg-muted-foreground/40'
+} as const;
+
+type Run = { id: string; status: keyof typeof RUN_COLOR; count: number };
+
+/** Aulas em ordem cronológica, agrupadas em sequências de mesma situação. */
+export function lessonRuns(lessons: Lesson[]): Run[] {
+    const runs: Run[] = [];
+    for (const lesson of lessons.toReversed()) {
+        if (lesson.status === 'cancelada') continue;
+        const last = runs.at(-1);
+        if (last?.status === lesson.status) last.count++;
+        else runs.push({ id: lesson.id, status: lesson.status, count: 1 });
+    }
+    return runs;
+}
+
+/** Andamento das aulas com as dadas divididas em sequências de presenças e faltas. */
+function LessonsProgress({ data }: { data: ClassroomFrequency }) {
+    const { percentage, taught, total } = data.progress;
+    const filled = Math.min(100, Math.max(0, percentage));
+    const runs = lessonRuns(data.lessons);
+
+    return (
+        <div className="px-3 py-3">
+            <div className="flex items-baseline justify-between gap-2">
+                <h3 className="text-sm font-medium">Andamento das aulas</h3>
+                <span className="text-sm font-semibold text-primary tabular-nums">
+                    {percentage.toLocaleString('pt-BR')}%
+                </span>
+            </div>
+            <ProgressPrimitive.Root
+                value={filled}
+                aria-label="Andamento das aulas"
+                className="mt-2 flex h-1.5 gap-1"
+            >
+                {filled > 0 && runs.length > 0 && (
+                    <div className="flex gap-1" style={{ width: `${filled}%` }}>
+                        {runs.map((run) => (
+                            <span
+                                key={run.id}
+                                className={cn('min-w-1 rounded-full', RUN_COLOR[run.status])}
+                                style={{ flexGrow: run.count }}
+                            />
+                        ))}
+                    </div>
+                )}
+                {filled < 100 && <span className="flex-1 rounded-full bg-muted" />}
+            </ProgressPrimitive.Root>
+            <p className="mt-1.5 text-xs text-muted-foreground">
+                {taught} / {total}
+            </p>
         </div>
     );
 }

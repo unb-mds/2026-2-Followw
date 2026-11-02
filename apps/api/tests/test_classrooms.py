@@ -532,13 +532,13 @@ def test_detalhes_com_sigaa_fora_retornam_502(client, turmas, cookies):
     assert client.get("/classrooms/AAA/members").status_code == 502
 
 
-def test_openapi_documenta_participantes_sem_estatisticas(client):
+def test_openapi_documenta_participantes_e_estatisticas(client):
     paths = client.get("/openapi.json").json()["paths"]
 
     route = paths["/classrooms/{classroom_id}/members"]["get"]
     assert {"401", "404", "502"} <= route["responses"].keys()
     assert any(p["name"] == "Cache-Control" for p in route["parameters"])
-    assert "/classrooms/{classroom_id}/statistics" not in paths
+    assert "/classrooms/{classroom_id}/statistics" in paths
 
 
 def test_refresh_atualiza_turmas_antigas(client, sigaa, turmas):
@@ -1423,3 +1423,46 @@ async def test_estatisticas_substituem_as_anteriores(async_database, usuarios):
             ClassroomModel, classroom_id, options=[undefer(ClassroomModel.statistics)]
         )
         assert classroom.statistics == []
+
+
+def test_estatisticas_da_turma_saem_do_cache_do_login(client, sigaa, turmas):
+    client.post(
+        "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
+    )
+    chamadas = turmas.classrooms.get_classroom_statistics.await_count
+    response = client.get("/classrooms/BBB/statistics")
+    assert response.status_code == 200
+    assert response.json() == [
+        {"situation": "matriculado", "percentage": 10},
+        {"situation": "aprovado", "percentage": 90},
+    ]
+    assert turmas.classrooms.get_classroom_statistics.await_count == chamadas
+
+
+def test_estatisticas_sem_cache_buscam_apenas_a_turma_pedida(client, turmas, cookies):
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+    response = client.get("/classrooms/BBB/statistics")
+    assert response.status_code == 200
+    assert len(response.json()) == 2
+    turmas.classrooms.get_classroom_statistics.assert_awaited_once_with("BBB")
+
+
+def test_estatisticas_de_turma_alheia_retornam_404(client, turmas, cookies):
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+    assert client.get("/classrooms/ALHEIA/statistics").status_code == 404
+    turmas.classrooms.get_classroom_statistics.assert_not_awaited()
+
+
+@pytest.mark.parametrize("classroom_id", ["AAA", "BBB"])
+def test_estatisticas_indisponiveis_retornam_lista_vazia(
+    client, turmas, cookies, classroom_id
+):
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+    turmas.classrooms.get_classroom_statistics.return_value = []
+    response = client.get(f"/classrooms/{classroom_id}/statistics")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_estatisticas_exigem_autenticacao(client):
+    assert client.get("/classrooms/BBB/statistics").status_code == 401
