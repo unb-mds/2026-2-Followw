@@ -34,3 +34,7 @@ async def find_unit(session: AsyncSession, wanted: int | str) -> Unit:
     if unit is None:
         raise UnitNotFound(wanted)
     return unit
+
+
+async def find_unit_id(session: AsyncSession, wanted: int | str | None) -> int | None:
+    return (await find_unit(session, wanted)).id if wanted is not None else None

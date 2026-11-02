@@ -89,21 +89,27 @@ describe('recomendações somente na busca', () => {
 
 describe('loader das categorias da busca', () => {
     test.each([
-        ['classrooms', ['/me', '/classrooms', '/public/subjects']],
-        ['all', ['/me', '/classrooms', '/public/search']],
-        ['courses', ['/me', '/public/courses']],
-        ['professors', ['/me', '/public/professors']]
-    ] as const)('categoria %s pré-carrega somente seus resultados', async (category, expected) => {
-        const keys = await loadWith(
-            {
-                registration: '1',
-                unit: { id: 673, code: 'FCTE', name: 'CAMPUS UNB GAMA' },
-                level: 'Graduação'
-            },
-            `?q=Carlos Silva&category=${category}`
-        );
-        expect(keys.map((key) => key[1])).toEqual([...expected]);
-    });
+        ['classrooms', ['/me', '/classrooms', '/public/search'], ['subjects']],
+        ['all', ['/me', '/classrooms', '/public/search'], undefined],
+        ['courses', ['/me', '/public/search'], ['courses']],
+        ['professors', ['/me', '/public/search'], ['professors']]
+    ] as const)(
+        'categoria %s pré-carrega somente seus resultados',
+        async (category, expected, type) => {
+            const keys = await loadWith(
+                {
+                    registration: '1',
+                    unit: { id: 673, code: 'FCTE', name: 'CAMPUS UNB GAMA' },
+                    level: 'Graduação'
+                },
+                `?q=Carlos Silva&category=${category}`
+            );
+            expect(keys.map((key) => key[1])).toEqual([...expected]);
+            expect(keys.at(-1)?.[2]).toStrictEqual({
+                params: { query: { q: 'Carlos Silva', type } }
+            });
+        }
+    );
     test.each(['courses', 'professors'])(
         'categoria %s sem texto não carrega recomendações nem histórico',
         async (category) => {

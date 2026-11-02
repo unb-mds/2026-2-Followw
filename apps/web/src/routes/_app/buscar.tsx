@@ -4,25 +4,28 @@ import { Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import type { SearchCategory } from '#/lib/search-categories';
+import type { UserProfile } from '#/queries/me';
 
 import { getCurrentSemester } from '#/calendar';
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
 import { SchedulePreview } from '#/components/schedule/SchedulePreview';
-import { CourseResults } from '#/components/search/CourseResults';
-import { ProfessorResults } from '#/components/search/ProfessorResults';
 import { RecommendationsSection } from '#/components/search/RecommendationsSection';
 import { SearchResults } from '#/components/search/SearchResults';
 import { SubjectResults } from '#/components/search/SubjectResults';
 import { TabFilter } from '#/components/TabFilter';
 import { Input } from '#/components/ui/input';
-import { SEARCH_CATEGORIES, searchCategoryLabels, searchSections } from '#/lib/search-categories';
+import {
+    SEARCH_CATEGORIES,
+    searchCategoryLabels,
+    searchEmptyMessages,
+    searchTypes,
+    showsSubjects
+} from '#/lib/search-categories';
 import { loadSearchParams, useSearchState, validateSearch } from '#/lib/search-params';
 import { allClassroomsQueryOptions } from '#/queries/classrooms';
-import { coursesQueryOptions } from '#/queries/courses';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
-import { professorsQueryOptions } from '#/queries/professors';
 import { recommendationsQueryOptions, showRecommendations } from '#/queries/recommendations';
 import { searchQueryOptions } from '#/queries/search';
 import {
@@ -31,13 +34,27 @@ import {
     SEARCH_MAX_LENGTH,
     SEARCH_MIN_LENGTH,
     searchText,
-    subjectsQuery,
     subjectsQueryOptions
 } from '#/queries/subjects';
 
-/** Com texto, a aba Todos faz uma só consulta; as demais usam o próprio recurso. */
-const unifiedSearch = (category: SearchCategory, text: string | null) =>
-    category === 'all' ? text : null;
+type SearchView =
+    | { kind: 'recommendations' }
+    | { kind: 'search'; text: string }
+    | { kind: 'unit'; unit: string };
+
+/** Sem texto, as abas com matérias mostram as recomendações ou a unidade do aluno. */
+function searchView(
+    category: SearchCategory,
+    q: string,
+    text: string | null,
+    user: UserProfile | null
+): SearchView | null {
+    const subjects = showsSubjects(category);
+    if (subjects && showRecommendations(user, { q })) return { kind: 'recommendations' };
+    if (text) return { kind: 'search', text };
+    const unit = user?.unit?.code;
+    return subjects && unit ? { kind: 'unit', unit } : null;
+}
 
 export const Route = createFileRoute('/_app/buscar')({
     head: () => ({ meta: [{ title: 'Buscar | Followw' }] }),
@@ -46,28 +63,20 @@ export const Route = createFileRoute('/_app/buscar')({
     shouldReload: ({ cause }) => cause !== 'stay',
     loader: async ({ context: { queryClient }, location }) => {
         const user = await loadQuery(queryClient, meQueryOptions);
-        const search = loadSearchParams(location.searchStr);
-        const sections = searchSections(search.category);
-        const recommendations = sections.classrooms && showRecommendations(user, search);
-        const text = searchText(search.q);
-        const unified = unifiedSearch(search.category, text);
-        const query = recommendations ? null : subjectsQuery(text, user?.unit?.code ?? null);
+        const { q, category } = loadSearchParams(location.searchStr);
+        const view = searchView(category, q, searchText(q), user);
         await Promise.all([
-            sections.classrooms &&
+            showsSubjects(category) &&
                 user &&
                 loadQuery(queryClient, allClassroomsQueryOptions).catch(noop),
-            unified && loadQuery(queryClient, searchQueryOptions(unified)).catch(noop),
-            sections.classrooms &&
-                !unified &&
-                query &&
-                loadQuery(queryClient, subjectsQueryOptions(query)).catch(noop),
-            search.category === 'courses' &&
-                text &&
-                loadQuery(queryClient, coursesQueryOptions(text)).catch(noop),
-            search.category === 'professors' &&
-                text &&
-                loadQuery(queryClient, professorsQueryOptions(text)).catch(noop),
-            recommendations && loadQuery(queryClient, recommendationsQueryOptions).catch(noop)
+            view?.kind === 'recommendations' &&
+                loadQuery(queryClient, recommendationsQueryOptions).catch(noop),
+            view?.kind === 'search' &&
+                loadQuery(queryClient, searchQueryOptions(view.text, searchTypes[category])).catch(
+                    noop
+                ),
+            view?.kind === 'unit' &&
+                loadQuery(queryClient, subjectsQueryOptions({ unit: view.unit })).catch(noop)
         ]);
     },
     staticData: {
@@ -84,9 +93,7 @@ export const Route = createFileRoute('/_app/buscar')({
 function BuscarPage() {
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const [{ q, category }, setSearch] = useSearchState();
-    const sections = searchSections(category);
-    const recommendations = sections.classrooms && showRecommendations(user, { q });
-    const unit = user?.unit?.code ?? null;
+    const subjects = showsSubjects(category);
     const currentPeriod = currentCurriculumPeriod(
         user?.entry_semester,
         getCurrentSemester()?.semester
@@ -97,14 +104,12 @@ function BuscarPage() {
         const timer = setTimeout(() => setText((previous) => searchText(q, previous)), 300);
         return () => clearTimeout(timer);
     }, [q]);
-    const query = subjectsQuery(text, unit);
-    const unified = unifiedSearch(category, text);
+    const view = searchView(category, q, text, user);
     const { data: history } = useQuery({
         ...allClassroomsQueryOptions,
-        enabled: sections.classrooms && Boolean(user)
+        enabled: subjects && Boolean(user)
     });
     const taken = useMemo(() => (history ? takenCodes(history) : null), [history]);
-    const canSearch = recommendations || (sections.classrooms && query != null) || Boolean(text);
     return (
         <div className="flex flex-col gap-5">
             <div className="relative">
@@ -135,11 +140,10 @@ function BuscarPage() {
             />
             <SchedulePreview />
             <div aria-live="polite" className="flex flex-col gap-5 pb-8">
-                {!canSearch && (
+                {!view && (
                     <p className="py-8 text-center text-sm text-muted-foreground">{`Digite de ${SEARCH_MIN_LENGTH} a ${SEARCH_MAX_LENGTH} caracteres do nome, código da matéria, curso ou professor para ver os resultados.`}</p>
                 )}
-                {category === 'courses' && text && <CourseResults text={text} />}
-                {sections.classrooms && !user && query && (
+                {subjects && !user && text && (
                     <p className="text-sm text-muted-foreground">
                         <Link className="font-bold text-primary hover:underline" to="/login">
                             Entre na sua conta
@@ -147,23 +151,22 @@ function BuscarPage() {
                         para visualizar seu fluxo.
                     </p>
                 )}
-                {category === 'professors' && text && <ProfessorResults text={text} />}
-                {unified && (
-                    <SearchResults text={unified} currentPeriod={currentPeriod} taken={taken} />
+                {view?.kind === 'recommendations' && (
+                    <RecommendationsSection currentPeriod={currentPeriod} taken={taken} />
                 )}
-                {sections.classrooms &&
-                    !unified &&
-                    (recommendations ? (
-                        <RecommendationsSection currentPeriod={currentPeriod} taken={taken} />
-                    ) : (
-                        query && (
-                            <SubjectResults
-                                query={query}
-                                currentPeriod={currentPeriod}
-                                taken={taken}
-                            />
-                        )
-                    ))}
+                {view?.kind === 'search' && (
+                    <SearchResults
+                        key={category}
+                        text={view.text}
+                        types={searchTypes[category]}
+                        empty={searchEmptyMessages[category]}
+                        currentPeriod={currentPeriod}
+                        taken={taken}
+                    />
+                )}
+                {view?.kind === 'unit' && (
+                    <SubjectResults unit={view.unit} currentPeriod={currentPeriod} taken={taken} />
+                )}
             </div>
         </div>
     );

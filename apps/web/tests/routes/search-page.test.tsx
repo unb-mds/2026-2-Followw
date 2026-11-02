@@ -199,11 +199,18 @@ describe('página de busca com estado na URL', () => {
                 if (url.pathname.endsWith('/statistics')) return Response.json(noStatistics);
                 requests.push(url);
                 const q = url.searchParams.get('q');
-                if (url.pathname.endsWith('/public/search'))
-                    return Response.json({ subjects, courses, professors: professorPage(q) });
-                if (url.pathname.includes('/public/professors'))
-                    return Response.json(professorPage(q));
-                if (url.pathname.endsWith('/public/courses')) return Response.json(courses);
+                if (url.pathname.endsWith('/public/search')) {
+                    const result = { subjects, courses, professors: professorPage(q) };
+                    const types = url.searchParams.getAll('type');
+                    return Response.json(
+                        Object.fromEntries(
+                            Object.entries(result).map(([type, value]) => [
+                                type,
+                                types.length && !types.includes(type) ? null : value
+                            ])
+                        )
+                    );
+                }
                 if (url.pathname.endsWith('/public/subjects') && !url.search)
                     return Response.json(recommended);
                 return Response.json(subjects);
@@ -529,26 +536,24 @@ describe('página de busca com estado na URL', () => {
     });
 
     test.each([
-        ['classrooms', '/public/subjects'],
-        ['courses', '/public/courses'],
-        ['professors', '/public/professors']
-    ] as const)(
-        'URL direta da categoria %s consulta somente o recurso correspondente',
-        async (category, resource) => {
-            const page = renderPage(`?q=Carlos Silva&category=${category}`);
-            await testing.waitFor(() => expect(requests.length).toBe(1));
-            expect(requests[0].pathname.endsWith(resource)).toBe(true);
-            expect(
-                page
-                    .getByRole('button', {
-                        name: { classrooms: 'Matérias', courses: 'Cursos', professors: 'Docentes' }[
-                            category
-                        ]
-                    })
-                    .getAttribute('aria-pressed')
-            ).toBe('true');
-        }
-    );
+        ['classrooms', 'subjects'],
+        ['courses', 'courses'],
+        ['professors', 'professors']
+    ] as const)('URL direta da categoria %s busca somente o tipo %s', async (category, type) => {
+        const page = renderPage(`?q=Carlos Silva&category=${category}`);
+        await testing.waitFor(() => expect(requests.length).toBe(1));
+        expect(requests[0].pathname).toBe('/api/public/search');
+        expect(requests[0].searchParams.getAll('type')).toEqual([type]);
+        expect(
+            page
+                .getByRole('button', {
+                    name: { classrooms: 'Matérias', courses: 'Cursos', professors: 'Docentes' }[
+                        category
+                    ]
+                })
+                .getAttribute('aria-pressed')
+        ).toBe('true');
+    });
 
     test.each([
         ['courses', 'Nenhum curso encontrado. Tente mudar a busca.'],
@@ -558,9 +563,19 @@ describe('página de busca com estado na URL', () => {
         async (category, message) => {
             const page = renderPage(`?q=calculo&category=${category}`);
             await page.findByText(message);
-            expect(requests.some((url) => url.pathname.endsWith('/public/subjects'))).toBe(false);
+            expect(page.queryByText('Cálculo 1')).toBeNull();
         }
     );
+
+    test('aba Matérias sem resultados informa ausência de matérias', async () => {
+        client.setQueryData(searchQueryOptions('nada', ['subjects']).queryKey, {
+            subjects: [],
+            courses: null,
+            professors: null
+        });
+        const page = renderPage('?q=nada&category=classrooms');
+        expect(page.getByText('Nenhuma matéria encontrada. Tente mudar a busca.')).toBeDefined();
+    });
 
     test('recomendações continuam em Todos e Turmas e não aparecem nas outras categorias', async () => {
         const user: components['schemas']['UserProfile'] = {

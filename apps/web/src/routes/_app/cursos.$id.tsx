@@ -10,7 +10,7 @@ import { Legend } from '#/components/curriculum/Legend';
 import { ErrorCard, ErrorState } from '#/components/ErrorState';
 import { BackHeader } from '#/components/HeaderBar';
 import { LoadingText } from '#/components/LoadingText';
-import { validateFlowSearch } from '#/lib/curriculum/navigation';
+import { useFlowSearch, validateFlowSearch } from '#/lib/curriculum/navigation';
 import { useWidth } from '#/lib/width';
 import { allClassroomsQueryOptions } from '#/queries/classrooms';
 import { courseQueryOptions } from '#/queries/courses';
@@ -80,26 +80,26 @@ function FlowHeader({ legend = false }: { legend?: boolean }) {
 function FlowPage() {
     const { ref, width } = useWidth<HTMLDivElement>();
     const desktop = width ? width >= DESKTOP_MIN_WIDTH : null;
-    const search = Route.useSearch();
+    const [{ subject }] = useFlowSearch();
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const { id: courseId } = Route.useParams();
     const { ownCourse, entrySemester, currentPeriod } = flowTarget(user, courseId);
-    const catalog = useQuery({ ...courseQueryOptions(courseId), enabled: !ownCourse });
-    const missing = catalog.error instanceof ApiError && catalog.error.isNotFound;
-    const course = ownCourse ? user?.course : catalog.data;
+    const listed = useQuery({ ...courseQueryOptions(courseId), enabled: !ownCourse });
+    const unlisted = listed.error instanceof ApiError && listed.error.isNotFound;
+    const course = ownCourse ? user?.course : listed.data;
     return (
         <div ref={ref} className="flex min-h-0 flex-1 flex-col">
             <div className="shrink-0 border-b px-4 pb-5 lg:px-6">
                 <FlowHeader legend={Boolean(desktop && ownCourse && course && entrySemester)} />
                 {course && <CourseSummary course={course} entrySemester={entrySemester} />}
             </div>
-            {!ownCourse && catalog.isPending ? (
+            {!ownCourse && listed.isPending ? (
                 <LoadingText className="p-4">Carregando curso...</LoadingText>
-            ) : !ownCourse && catalog.isLoadingError && !missing ? (
+            ) : !ownCourse && listed.isLoadingError && !unlisted ? (
                 <div className="p-4">
                     <ErrorCard
                         message="Não foi possível carregar o curso."
-                        onRetry={() => catalog.refetch()}
+                        onRetry={() => listed.refetch()}
                     />
                 </div>
             ) : !course ? (
@@ -115,7 +115,7 @@ function FlowPage() {
                     courseId={course.id}
                     entrySemester={entrySemester}
                     currentPeriod={currentPeriod}
-                    selected={search.materia}
+                    selected={subject ?? undefined}
                     ownCourse={ownCourse}
                     desktop={desktop}
                 />

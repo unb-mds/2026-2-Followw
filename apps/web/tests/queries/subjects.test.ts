@@ -14,7 +14,6 @@ import {
     seats,
     subjectRequirementLabel,
     searchText,
-    subjectsQuery,
     subjectsQueryOptions
 } from '#/queries/subjects';
 
@@ -65,25 +64,23 @@ describe('busca de matérias', () => {
     });
 
     test.each([
-        ['FGA0003', 'FCTE', { q: 'FGA0003' }],
-        [' fga0003 ', null, { q: 'fga0003' }],
-        [' cálculo 1 ', 'FCTE', { q: 'cálculo 1' }],
-        ['Carlos Silva', null, { q: 'Carlos Silva' }],
-        ['ab', 'FCTE', { unit: 'FCTE' }],
-        ['ab', null, null],
-        ['abc', null, { q: 'abc' }],
-        ['a'.repeat(32), null, { q: 'a'.repeat(32) }],
-        ['a'.repeat(33), 'FCTE', { unit: 'FCTE' }],
-        ['  ', 'FCTE', { unit: 'FCTE' }],
-        ['', null, null]
-    ])('"%s" com unidade %s busca %p', (q, unit, expected) => {
-        expect(subjectsQuery(searchText(q), unit)).toEqual(expected);
+        ['FGA0003', 'FGA0003'],
+        [' fga0003 ', 'fga0003'],
+        [' cálculo 1 ', 'cálculo 1'],
+        ['ab', null],
+        ['abc', 'abc'],
+        ['a'.repeat(32), 'a'.repeat(32)],
+        ['a'.repeat(33), null],
+        ['  ', null],
+        ['', null]
+    ])('"%s" vira o texto de busca %p', (q, expected) => {
+        expect(searchText(q)).toBe(expected);
     });
 
-    test('texto fora dos limites mantém o anterior', () => {
+    test('texto fora dos limites mantém o anterior e vazio limpa', () => {
         expect(searchText('ab', 'calculo')).toBe('calculo');
-        expect(searchText('a'.repeat(33))).toBeNull();
-        expect(subjectsQuery(searchText('', 'calculo'), 'FCTE')).toEqual({ unit: 'FCTE' });
+        expect(searchText('a'.repeat(33), 'calculo')).toBe('calculo');
+        expect(searchText('', 'calculo')).toBeNull();
     });
 });
 

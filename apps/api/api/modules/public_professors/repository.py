@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import load_only
 
 from api.db.models import Professor
-from api.db.search import all_terms, contains_term
+from api.db.search import contains_all_terms
 
 
 class ProfessorRepository:
@@ -21,9 +21,7 @@ class ProfessorRepository:
         # Os vistos só nas turmas, sem siape, não têm perfil público.
         conditions = [Professor.siape.is_not(None)]
         if q is not None:
-            conditions.append(
-                all_terms(q, lambda term: contains_term(Professor.name, term))
-            )
+            conditions.append(contains_all_terms(Professor.name, q))
         if unit_id is not None:
             conditions.append(Professor.unit_id == unit_id)
         if semester is not None:

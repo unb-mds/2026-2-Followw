@@ -4,6 +4,7 @@ from fastapi import APIRouter, Path, Query
 
 from api.cache import NoStore
 from api.modules.public_professors.service import (
+    PROFESSORS_PAGE_SIZE,
     ProfessorDetails,
     ProfessorPage,
     ProfessorServiceDep,
@@ -41,7 +42,7 @@ async def list_professors(
         ),
     ] = None,
     page: Annotated[int, Query(ge=1)] = 1,
-    page_size: Annotated[int, Query(ge=1, le=100)] = 50,
+    page_size: Annotated[int, Query(ge=1, le=100)] = PROFESSORS_PAGE_SIZE,
 ) -> ProfessorPage:
     return await service.list(q, unit, semester, page, page_size)
 

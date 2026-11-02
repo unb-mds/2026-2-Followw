@@ -18,18 +18,17 @@ bun generate-api           # gera src/queries/schema.gen.ts a partir de localhos
 
 - Imports internos sempre absolutos via `#/` (`src/`), nunca relativos. Use `import type` para
   tipos.
-- Tipos `React` são globais: use `React.FC`, `React.ReactNode` etc. sem importar.
-- Páginas do app ficam em `src/routes/_app/`, cujo layout (`_app.tsx`) já renderiza o `AppLayout`
-  com header e navbar. Cada rota passa o header em `staticData: { header }`; estado dividido entre
-  header e página vai para `usePageState`. Páginas fora do app (como `/login`) ficam na raiz de
-  `routes/`.
-- Use sempre **nuqs** (`useQueryState`/`useQueryStates`) para ler e atualizar parâmetros da URL;
-  compartilhe os parsers com `validateSearch` via `createStandardSchemaV1`, sem `Route.useSearch()`.
+- Nas URLs, os paths são em português (`/turmas`), já os parâmetros (chaves e valores) são sempre em
+  inglês (`?meal=lunch`).
+- Páginas do app ficam em `src/routes/_app/`, cujo layout (`_app.tsx`) já renderiza o `AppLayout`.
+  Cada rota passa o header em `staticData: { header }`; estado dividido entre header e página vai
+  para `usePageState`. Páginas fora do app (como `/login`) ficam na raiz de `routes/`.
+- Verifique se abstrações em libs são utilizadas no projeto para repetir o padrão. Exemplo: **nuqs**
+  (`useQueryState`/`useQueryStates`) ao invés de `Route.useSearch()`, `cn` ao invés de concatenar
+  string do className.
 - Cores só pelo `@theme` de `src/styles.css`, nunca hex solto. Sem valores arbitrários
   (`text-[13px]`): use a escala do Tailwind, preferencialmente valores pares.
-- Prefira flex + gap a space- do tailwind.
-- Combine classes sempre com `cn` (`#/lib/shadcn`), nunca template literal ou `+` (regra
-  `followw/no-classname-concat`).
+- Prefira flex + gap ao space- do tailwind.
 - Testes em `tests/` espelhando `src/`.
 - Arquivos `*.gen.ts` são gerados: nunca edite à mão.
 
@@ -41,8 +40,7 @@ travar; tratando `ApiError.isUnauthorized`) e o componente consome com `useSuspe
 persistido para uso offline (veja `docs/offline.md`): tela de erro por falta de dado usa
 `isLoadingError`; `isError` só onde há dado salvo para exibir junto do aviso de falha.
 
-A API fica em `/api` da mesma origem (proxy do Vite no dev, `vercel.json` em produção). No SSR, a
-origem e os cookies vêm do contexto da requisição, nunca de variável de módulo (vazaria sessão entre
-usuários).
+A API fica em `/api` da mesma origem. No SSR, a origem e os cookies vêm do contexto da requisição,
+nunca de variável de módulo (vazaria sessão entre usuários).
 
 Para pedir dado novo à API, use `refreshQuery(queryClient, options)`.

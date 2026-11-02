@@ -8,16 +8,17 @@ import { callRoute, fakeQueryClient, runLoader } from '../helpers/route';
 
 describe('rota de curso (/cursos/$id)', () => {
     test('valida a busca aceitando só a matéria selecionada', () => {
+        const { validate } = validateFlowSearch['~standard'];
         expect(
-            validateFlowSearch({
-                materia: 'FGA0146',
+            validate({
+                subject: 'FGA0146',
                 q: 'dados',
                 curso: 99,
                 returnTo: 'https://externo.test'
             })
-        ).toEqual({ materia: 'FGA0146' });
-        expect(validateFlowSearch({ materia: ['FGA0146'] })).toEqual({ materia: undefined });
-        expect(validateFlowSearch({ materia: '../login' }).materia).toBeUndefined();
+        ).toEqual({ value: { subject: 'FGA0146' } });
+        expect(validate({})).toEqual({ value: {} });
+        expect(validate({ subject: '../login' })).toHaveProperty('issues');
     });
     test('converte o ID do caminho para número e o serializa para navegação', () => {
         expect(callRoute(Route.options.params?.parse, { id: '152' })).toEqual({ id: 152 });

@@ -47,10 +47,6 @@ export function searchText(q: string, previous: string | null = null): string | 
     return text.length < SEARCH_MIN_LENGTH || text.length > SEARCH_MAX_LENGTH ? previous : text;
 }
 
-/** Com texto busca por ele; sem texto, lista a unidade. */
-export const subjectsQuery = (text: string | null, unit: string | null): SubjectsQuery | null =>
-    text ? { q: text } : unit ? { unit } : null;
-
 export const subjectsQueryOptions = (query: SubjectsQuery) =>
     api.queryOptions('get', '/public/subjects', { params: { query } });
 

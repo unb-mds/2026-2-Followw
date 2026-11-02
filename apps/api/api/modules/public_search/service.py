@@ -1,18 +1,20 @@
 import asyncio
-from collections.abc import Collection
-from typing import Annotated, Literal
+from collections.abc import Awaitable, Callable, Collection
+from typing import Annotated, Any, Literal
 
 from fastapi import Depends
 from pydantic import BaseModel
 
 from api.modules.public_courses.service import PublicCourse, PublicCourseServiceDep
-from api.modules.public_professors.service import ProfessorPage, ProfessorServiceDep
+from api.modules.public_professors.service import (
+    PROFESSORS_PAGE_SIZE,
+    ProfessorPage,
+    ProfessorServiceDep,
+)
 from api.modules.public_subjects.service import CatalogSubject, PublicSubjectServiceDep
 from api.sync import Sync
 
 type SearchType = Literal["subjects", "courses", "professors"]
-
-PROFESSORS_PAGE_SIZE = 50
 
 
 class SearchResult(BaseModel):
@@ -37,30 +39,28 @@ class SearchService:
     async def search(
         self,
         q: str,
-        types: Collection[SearchType],
+        types: Collection[SearchType] | None,
         unit: int | str | None,
         sync: Sync | None,
     ) -> SearchResult:
+        searches: dict[SearchType, Callable[[], Awaitable[Any]]] = {
+            "subjects": lambda: self._subjects.search(q, unit=unit, sync=sync),
+            "courses": lambda: self._courses.list_courses(q, unit),
+            "professors": lambda: self._professors.list(
+                q, unit, None, 1, PROFESSORS_PAGE_SIZE
+            ),
+        }
+        wanted = [name for name in searches if not types or name in types]
         # Espera todas as buscas antes de propagar a primeira falha.
         results = await asyncio.gather(
-            self._subjects.search(q, unit=unit, sync=sync)
-            if "subjects" in types
-            else _skip(),
-            self._courses.list_courses(q, unit) if "courses" in types else _skip(),
-            self._professors.list(q, unit, None, 1, PROFESSORS_PAGE_SIZE)
-            if "professors" in types
-            else _skip(),
-            return_exceptions=True,
+            *(searches[name]() for name in wanted), return_exceptions=True
         )
         for result in results:
             if isinstance(result, BaseException):
                 raise result
-        subjects, courses, professors = results
-        return SearchResult(subjects=subjects, courses=courses, professors=professors)
-
-
-async def _skip() -> None:
-    return None
+        return SearchResult.model_validate(
+            dict.fromkeys(searches) | dict(zip(wanted, results, strict=True))
+        )
 
 
 SearchServiceDep = Annotated[SearchService, Depends()]

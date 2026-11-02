@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.academic_calendar import parse_semester
 from api.db.main import DatabaseDep
 from api.db.models import Course, Curriculum, Subject
-from api.db.units import find_unit
+from api.db.units import find_unit_id
 from api.modules.public_courses.repository import PublicCourseRepository
 from api.modules.public_subjects.repository import SubjectCatalogRepository
 from api.schemas import (
@@ -113,7 +113,7 @@ class PublicCourseService:
 async def _list_courses(
     session: AsyncSession, q: str | None, unit: int | str | None
 ) -> list[PublicCourse]:
-    unit_id = (await find_unit(session, unit)).id if unit is not None else None
+    unit_id = await find_unit_id(session, unit)
     courses = await PublicCourseRepository(session).list_courses(q, unit_id)
     return [_course(course) for course in courses]
 

@@ -11,6 +11,7 @@ import {
 } from '@tanstack/react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 import { Window } from 'happy-dom';
+import { NuqsAdapter } from 'nuqs/adapters/tanstack-router';
 import { renderToString } from 'react-dom/server';
 
 import type { PublicCourse } from '#/queries/courses';
@@ -176,7 +177,13 @@ function SearchFixture() {
     );
 }
 function makeRouter(url: string, isServer = false) {
-    const root = createRootRoute({ component: Outlet });
+    const root = createRootRoute({
+        component: () => (
+            <NuqsAdapter>
+                <Outlet />
+            </NuqsAdapter>
+        )
+    });
     const app = createRoute({
         getParentRoute: () => root,
         id: '_app',
@@ -239,7 +246,7 @@ describe('fluxograma integrado', () => {
         client.clear();
         apiClient.eject(middleware);
     });
-    async function renderPage(url = '/cursos/42?materia=A') {
+    async function renderPage(url = '/cursos/42?subject=A') {
         const router = makeRouter(url);
         await router.load();
         const page = testing.render(
@@ -273,7 +280,7 @@ describe('fluxograma integrado', () => {
         });
     });
     test('hidrata sem divergência e só monta o diagrama após conhecer a largura', async () => {
-        const server = makeRouter('/cursos/42?materia=A', true);
+        const server = makeRouter('/cursos/42?subject=A', true);
         server.ssr = { manifest: undefined };
         await server.load();
         const container = document.createElement('div');
@@ -285,7 +292,7 @@ describe('fluxograma integrado', () => {
         document.body.append(container);
         expect(container.textContent).toContain('Preparando fluxo');
         expect(container.querySelector('svg[role="img"]')).toBeNull();
-        const router = makeRouter('/cursos/42?materia=A');
+        const router = makeRouter('/cursos/42?subject=A');
         router.ssr = { manifest: undefined };
         await router.load();
         const errors: string[] = [];
@@ -360,7 +367,7 @@ describe('fluxograma integrado', () => {
         ).toBe(true);
     });
     test('mobile abre no semestre da matéria selecionada', async () => {
-        const page = await renderPage('/cursos/42?materia=B');
+        const page = await renderPage('/cursos/42?subject=B');
         await page.findByRole('heading', { name: '2º semestre' });
     });
     test('cliques rápidos no seletor avançam um semestre por clique', async () => {
@@ -401,7 +408,7 @@ describe('fluxograma integrado', () => {
     });
     test('desktop mantém legenda no cabeçalho ao selecionar matéria que não está em curso', async () => {
         width = 1440;
-        const page = await renderPage('/cursos/42?materia=B');
+        const page = await renderPage('/cursos/42?subject=B');
         const diagram = await page.findByRole('region', { name: /Fluxo acadêmico por semestres/ });
         const legend = page.getByRole('list', { name: 'Legenda dos estados acadêmicos' });
         expect(
@@ -492,7 +499,7 @@ describe('fluxograma integrado', () => {
         expect(edges()).toHaveLength(4);
     });
     test('matéria ausente não modifica a matriz nem exibe legenda no mobile', async () => {
-        const page = await renderPage('/cursos/42?materia=OPT');
+        const page = await renderPage('/cursos/42?subject=OPT');
         await page.findByText(/não pertence aos períodos exibidos/);
         expect(page.queryByRole('list', { name: 'Legenda dos estados acadêmicos' })).toBeNull();
         expect(page.queryByRole('button', { name: /OPT,/ })).toBeNull();

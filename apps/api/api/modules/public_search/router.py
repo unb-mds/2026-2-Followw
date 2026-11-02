@@ -40,8 +40,6 @@ async def search(
         Query(description="ID ou código exato da unidade, aplicado a todos os tipos."),
     ] = None,
 ) -> SearchResult:
-    result = await service.search(
-        q, type or ("subjects", "courses", "professors"), unit, sync
-    )
+    result = await service.search(q, type, unit, sync)
     no_store(response)
     return result

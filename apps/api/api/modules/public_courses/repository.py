@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.models import Course, Curriculum, CurriculumComponent, Subject
-from api.db.search import all_terms, contains_term
+from api.db.search import contains_all_terms
 
 
 class PublicCourseRepository:
@@ -16,9 +16,7 @@ class PublicCourseRepository:
     ) -> list[Course]:
         query = select(Course).order_by(Course.name, Course.id)
         if q is not None:
-            query = query.where(
-                all_terms(q, lambda term: contains_term(Course.name, term))
-            )
+            query = query.where(contains_all_terms(Course.name, q))
         if unit_id is not None:
             query = query.where(Course.unit_id == unit_id)
         return list(await self._session.scalars(query))

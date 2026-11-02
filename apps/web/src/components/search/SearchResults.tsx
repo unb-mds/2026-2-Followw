@@ -1,6 +1,8 @@
 import { keepPreviousData, noop, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Fragment } from 'react';
 
+import type { SearchType } from '#/queries/search';
+
 import { QueryState } from '#/components/QueryState';
 import { CourseSection } from '#/components/search/CourseSection';
 import { ProfessorSection } from '#/components/search/ProfessorSection';
@@ -9,19 +11,24 @@ import { refreshQuery } from '#/queries/refresh';
 import { searchQueryOptions } from '#/queries/search';
 import { withClassrooms } from '#/queries/subjects';
 
-/** Aba Todos: cursos, docentes e matérias numa só consulta. */
+/** Cursos, docentes e matérias pedidos em `types` numa só consulta. */
 export function SearchResults({
     text,
+    types,
+    empty,
     currentPeriod,
     taken
 }: {
     text: string;
+    types: SearchType[] | undefined;
+    empty: string;
     currentPeriod: number | null;
     taken: Set<string> | null;
 }) {
     const client = useQueryClient();
-    const result = useQuery({ ...searchQueryOptions(text), placeholderData: keepPreviousData });
-    const refresh = () => void refreshQuery(client, searchQueryOptions(text)).catch(noop);
+    const options = searchQueryOptions(text, types);
+    const result = useQuery({ ...options, placeholderData: keepPreviousData });
+    const refresh = () => void refreshQuery(client, options).catch(noop);
     return (
         <div aria-busy={result.isFetching} className="flex flex-col gap-5">
             <QueryState
@@ -37,11 +44,13 @@ export function SearchResults({
                     // nova busca volta os limites de cada seção ao início
                     return found ? (
                         <Fragment key={text}>
-                            <CourseSection courses={courses ?? []} />
-                            <ProfessorSection
-                                professors={professors?.items ?? []}
-                                total={professors?.total ?? 0}
-                            />
+                            {courses && <CourseSection courses={courses} />}
+                            {professors && (
+                                <ProfessorSection
+                                    professors={professors.items}
+                                    total={professors.total}
+                                />
+                            )}
                             <TurmaSection
                                 title="Matérias"
                                 subjects={offered}
@@ -51,9 +60,7 @@ export function SearchResults({
                             />
                         </Fragment>
                     ) : (
-                        <p className="py-8 text-center text-sm text-muted-foreground">
-                            Nenhum resultado encontrado. Tente mudar a busca.
-                        </p>
+                        <p className="py-8 text-center text-sm text-muted-foreground">{empty}</p>
                     );
                 }}
             </QueryState>

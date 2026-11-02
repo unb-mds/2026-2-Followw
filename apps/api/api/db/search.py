@@ -7,7 +7,7 @@ from sqlalchemy import ColumnElement, and_, func, literal_column
 def lookup_sql(value: ColumnElement[str]) -> ColumnElement[str]:
     without_accents = func.regexp_replace(
         func.normalize(func.lower(value), literal_column("NFKD")),
-        r"[̀-ͯ]+",
+        r"[\u0300-\u036f]+",
         "",
         "g",
     )
@@ -23,3 +23,7 @@ def all_terms(
 ) -> ColumnElement[bool]:
     """Cada termo de `q`, sem acento nem caixa, precisa casar com `match`."""
     return and_(*(match(term) for term in lookup_key(q).split()))
+
+
+def contains_all_terms(value: ColumnElement[str], q: str) -> ColumnElement[bool]:
+    return all_terms(q, lambda term: contains_term(value, term))

@@ -14,10 +14,3 @@ export const professorQueryOptions = (siape: number) =>
             path: { siape }
         }
     });
-
-export const professorsQueryOptions = (q: string) =>
-    api.queryOptions('get', '/public/professors', {
-        params: {
-            query: { q }
-        }
-    });
