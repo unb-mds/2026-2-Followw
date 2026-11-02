@@ -6,8 +6,8 @@ import { planConnections } from '#/lib/curriculum/routing';
 export interface LayoutMetrics {
     cardWidth: { min: number; max: number };
     cardHeight: (subject: FlowSubject) => number;
-    // folga lateral descontada da largura disponível
-    margin: number;
+    // quanto dos semestres vizinhos aparece em cada lado, só no layout paginado
+    peek: number;
     minGap: number;
     headings: boolean;
     // cada semestre ocupa a tela, com folga nas pontas para centralizá-lo
@@ -18,7 +18,7 @@ export interface LayoutMetrics {
 export const DESKTOP: LayoutMetrics = {
     cardWidth: { min: 176, max: 208 },
     cardHeight: () => 112,
-    margin: 0,
+    peek: 0,
     minGap: 40,
     headings: true,
     paged: false,
@@ -27,7 +27,7 @@ export const DESKTOP: LayoutMetrics = {
 export const MOBILE: LayoutMetrics = {
     cardWidth: { min: 220, max: 432 },
     cardHeight: (subject) => (subject.hours == null ? 120 : 104),
-    margin: 88,
+    peek: 24,
     minGap: 24,
     headings: false,
     paged: true,
@@ -75,8 +75,14 @@ export function layoutCurriculum(
         Math.min(
             max,
             metrics.paged
-                ? availableWidth - metrics.margin
-                : (availableWidth - gapTotal - metrics.margin) / Math.max(1, periods.length)
+                ? availableWidth -
+                      2 *
+                          Math.max(
+                              gapWidths[0],
+                              gapWidths.at(-1)!,
+                              ...gapWidths.slice(1, -1).map((gap) => gap + metrics.peek)
+                          )
+                : (availableWidth - gapTotal) / Math.max(1, periods.length)
         )
     );
     if (metrics.paged) {

@@ -56,8 +56,10 @@ export function SubjectCard({
                 <span
                     title={name}
                     className={cn(
-                        'line-clamp-3 leading-4 font-bold wrap-anywhere',
-                        compact ? 'text-xs' : 'text-sm'
+                        'line-clamp-3 font-bold wrap-anywhere',
+                        compact ? 'text-xs' : 'text-sm',
+                        // depois do tamanho, senão o cn descarta
+                        'leading-4'
                     )}
                 >
                     {name}

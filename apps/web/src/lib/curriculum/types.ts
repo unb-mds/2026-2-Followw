@@ -35,6 +35,8 @@ export interface FlowNode {
 export interface RoutedEdge {
     edge: FlowEdge;
     points: Point[];
+    // índice da paleta, compartilhado por quem chega ao mesmo destino
+    color: number;
 }
 export interface FlowGeometry {
     width: number;

@@ -15,32 +15,18 @@ export function hoursText(hours: number | null | undefined) {
     return hours == null ? 'Carga horária indisponível' : `${numbers.format(hours)} h`;
 }
 
-/** "(A e B) ou C"; grupos com alguma matéria sem nome no catálogo ficam de fora. */
-export function requirementsText(requirements: Requirements | null | undefined): string | null {
-    const groups = (requirements ?? []).flatMap((group) => {
+/** Alternativas (OU) de matérias (E); grupos com alguma matéria sem nome no catálogo ficam de fora. */
+export function requirementGroups(requirements: Requirements | null | undefined) {
+    const groups = new Map<string, string[]>();
+    for (const group of requirements ?? []) {
         const names = [
             ...new Map(group.map(({ code, subject }) => [code, subject?.name.trim()])).values()
         ];
-        if (!names.length || names.some((name) => !name)) return [];
-        return [names.map((name) => titleCase(name!))];
-    });
-    if (!groups.length) return null;
-    return [
-        ...new Set(
-            groups.map((group) => {
-                const text = group.join(' e ');
-                return groups.length > 1 && group.length > 1 ? `(${text})` : text;
-            })
-        )
-    ].join(' ou ');
-}
-
-const subjectList = new Intl.ListFormat('pt-BR', { type: 'conjunction' });
-
-export function subjectsText(subjects: FlowSubject[] | undefined): string | null {
-    return subjects?.length
-        ? subjectList.format(subjects.map((subject) => titleCase(subject.name)))
-        : null;
+        if (!names.length || names.some((name) => !name)) continue;
+        const titles = names.map((name) => titleCase(name!));
+        groups.set(titles.join('|'), titles);
+    }
+    return groups.size ? [...groups.values()] : null;
 }
 
 export function edgeLabel(edge: FlowEdge, byCode: ReadonlyMap<string, FlowSubject>) {

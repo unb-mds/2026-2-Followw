@@ -3,7 +3,7 @@ import { describe, expect, test } from 'bun:test';
 import type { FlowEdge } from '#/lib/curriculum/types';
 import type { Requirements } from '#/queries/subjects';
 
-import { creditText, edgeLabel, requirementsText } from '#/lib/curriculum/format';
+import { creditText, edgeLabel, requirementGroups } from '#/lib/curriculum/format';
 import { normalizeCurriculum } from '#/lib/curriculum/model';
 
 import { curriculum } from '../../helpers/curriculum';
@@ -27,9 +27,9 @@ describe('textos do fluxo', () => {
         expect(creditText(0, 'short')).toBe('0 cr');
         expect(creditText(null, 'short')).toBe('Créditos indisponíveis');
     });
-    test('preserva E e OU e descarta grupos com matéria sem nome no catálogo', () => {
+    test('separa as alternativas em grupos e descarta grupos com matéria sem nome no catálogo', () => {
         expect(
-            requirementsText(
+            requirementGroups(
                 requirements([
                     [
                         ['A', 'BASE'],
@@ -38,11 +38,11 @@ describe('textos do fluxo', () => {
                     [['C', 'ALTERNATIVA']]
                 ])
             )
-        ).toBe('(Base e Fundamentos) ou Alternativa');
-        expect(requirementsText(null)).toBeNull();
-        expect(requirementsText(requirements([[], [['DESCONHECIDA', null]]]))).toBeNull();
+        ).toEqual([['Base', 'Fundamentos'], ['Alternativa']]);
+        expect(requirementGroups(null)).toBeNull();
+        expect(requirementGroups(requirements([[], [['DESCONHECIDA', null]]]))).toBeNull();
         expect(
-            requirementsText(
+            requirementGroups(
                 requirements([
                     [
                         ['A', 'BASE'],
@@ -51,7 +51,7 @@ describe('textos do fluxo', () => {
                     [['C', 'ALTERNATIVA']]
                 ])
             )
-        ).toBe('Alternativa');
+        ).toEqual([['Alternativa']]);
     });
     test('descreve a relação com os semestres e o grupo alternativo', () => {
         const { byCode } = normalizeCurriculum(

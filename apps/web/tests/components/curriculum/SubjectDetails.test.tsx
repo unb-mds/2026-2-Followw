@@ -81,9 +81,13 @@ async function renderDetails(item = subject, state?: AcademicState, unlocks?: Fl
     return { ...page, router };
 }
 
-test('exibe título sem código e relações apenas pelos nomes do catálogo', async () => {
+test('lista as relações por alternativa, sem código e apenas pelos nomes do catálogo', async () => {
     const page = await renderDetails(subject, 'enrolled');
-    await page.findByText('(Cálculo 1 e Álgebra Linear) ou Programação');
+    await page.findByText('Alternativa 1');
+    const [prerequisites] = page.getAllByRole('definition');
+    const items = [...prerequisites.querySelectorAll('li li')].map((item) => item.textContent);
+    expect(items).toEqual(['Cálculo 1', 'Álgebra Linear', 'Programação']);
+    expect(page.getByText('Alternativa 2')).toBeDefined();
     expect(page.getByRole('heading', { name: 'Estruturas de Dados 1' })).toBeDefined();
     expect(page.getByText('Equivalências')).toBeDefined();
     expect(page.queryByText('Correquisitos')).toBeNull();
@@ -94,13 +98,16 @@ test('exibe título sem código e relações apenas pelos nomes do catálogo', a
     expect(page.getByRole('button', { name: 'Fechar detalhes da matéria' })).toBeDefined();
 });
 
-test('exibe as matérias que ela desbloqueia', async () => {
+test('lista as matérias que ela desbloqueia', async () => {
     const page = await renderDetails(flowSubject({ code: 'A', name: 'CÁLCULO 1' }), undefined, [
         subject,
         flowSubject({ code: 'D', name: 'CÁLCULO 2' })
     ]);
     expect(page.getByText('Desbloqueia')).toBeDefined();
-    expect(page.getByText('Estruturas de Dados 1 e Cálculo 2')).toBeDefined();
+    expect(page.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+        'Estruturas de Dados 1',
+        'Cálculo 2'
+    ]);
 });
 
 test('oculta seções sem relações ou sem nomes disponíveis no catálogo', async () => {

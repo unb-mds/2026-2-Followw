@@ -3,6 +3,7 @@ import { describe, expect, test } from 'bun:test';
 import type { FlowGeometry } from '#/lib/curriculum/types';
 
 import { DESKTOP, layoutCurriculum, MOBILE } from '#/lib/curriculum/geometry';
+import { groupBy } from '#/lib/curriculum/graph';
 import { normalizeCurriculum } from '#/lib/curriculum/model';
 import { connectionSegments } from '#/lib/curriculum/segments';
 
@@ -42,6 +43,22 @@ const DESKTOP_CARD_HEIGHT = 112;
 const DESKTOP_CARD_MAX_WIDTH = DESKTOP.cardWidth.max;
 const mobile = (curriculum: Parameters<typeof layoutCurriculum>[0], width: number) =>
     layoutCurriculum(curriculum, width, MOBILE);
+function expectNoOverlap(segments: ReturnType<typeof connectionSegments>['segments']) {
+    for (let index = 0; index < segments.length; index++) {
+        const [a, b] = segments[index].points;
+        for (const {
+            points: [c, d]
+        } of segments.slice(index + 1)) {
+            const overlaps =
+                a.y === b.y && c.y === d.y && a.y === c.y
+                    ? Math.min(b.x, d.x) > Math.max(a.x, c.x)
+                    : a.x === b.x && c.x === d.x && a.x === c.x
+                      ? Math.min(b.y, d.y) > Math.max(a.y, c.y)
+                      : false;
+            expect(overlaps).toBe(false);
+        }
+    }
+}
 function assertRoutes(geometry: FlowGeometry) {
     for (const { points } of geometry.edges) {
         for (let i = 1; i < points.length; i++) {
@@ -130,6 +147,38 @@ describe('geometria do fluxo', () => {
         expect(geometry.edges[0].points).toHaveLength(2);
         assertRoutes(geometry);
     });
+    test('saída de um cartão não se sobrepõe à chegada no cartão ao lado', () => {
+        const geometry = layoutCurriculum(
+            normalizeCurriculum(
+                named({
+                    ...matrix,
+                    periods: [
+                        {
+                            period: 1,
+                            subjects: [
+                                { code: 'L', name: 'Vizinha' },
+                                { code: 'S', name: 'Origem' }
+                            ]
+                        },
+                        {
+                            period: 2,
+                            subjects: [
+                                { code: 'T', name: 'Destino', prerequisites: [['S']] },
+                                { code: 'M', name: 'Meio' }
+                            ]
+                        },
+                        {
+                            period: 3,
+                            subjects: [{ code: 'X', name: 'Longe', prerequisites: [['L']] }]
+                        }
+                    ]
+                })
+            ),
+            1440
+        );
+        expectNoOverlap(connectionSegments(geometry.edges).segments);
+        assertRoutes(geometry);
+    });
     test('mantém o desvio necessário quando uma matéria bloqueia a linha direta', () => {
         const geometry = layoutCurriculum(
             normalizeCurriculum(
@@ -165,42 +214,80 @@ describe('geometria do fluxo', () => {
         assertRoutes(wide);
         expect(layoutCurriculum(model, 1440)).toEqual(normal);
     });
-    test('relações com o mesmo destino compartilham a chegada sem aumentar o cartão', () => {
+    test('cada pré-requisito chega com sua própria seta, e só destinos lotados juntam as setas', () => {
         const geometry = layoutCurriculum(model, 1440);
-        for (const subject of model.subjects) {
-            const ports = geometry.edges
-                .filter((edge) => edge.edge.target === subject.code)
-                .map((edge) => edge.points.at(-1)!.y);
-            expect(new Set(ports).size).toBeLessThanOrEqual(1);
+        let expected = 0;
+        for (const node of geometry.nodes) {
+            const routes = geometry.edges.filter(
+                ({ edge }) => edge.target === node.subject.code && edge.kind === 'prerequisite'
+            );
+            const sources = new Set(routes.map(({ edge }) => edge.source)).size;
+            const separate = sources <= 6;
+            const ports = routes.map(({ edge, points }) => [edge.source, points.at(-1)!] as const);
+            // origem repetida em grupos alternativos usa a mesma seta
+            expect(new Set(ports.map(([, { y }]) => y)).size).toBe(separate ? sources : 1);
+            for (const [source, { y }] of ports)
+                expect(
+                    ports.filter(([other]) => other === source).every(([, p]) => p.y === y)
+                ).toBe(true);
+            expected += separate ? sources : 1;
+            for (const [, { x, y }] of ports) {
+                expect(x).toBe(node.x);
+                expect(y).toBeGreaterThan(node.y);
+                expect(y).toBeLessThan(node.y + node.height);
+            }
         }
+        const prerequisites = geometry.edges.filter(({ edge }) => edge.kind === 'prerequisite');
+        // o modelo tem destinos lotados e setas separadas
+        expect(expected).toBeGreaterThan(geometry.nodes.length);
+        expect(expected).toBeLessThan(prerequisites.length);
+        expect(connectionSegments(prerequisites).arrows).toHaveLength(expected);
         expect(geometry.nodes.every((node) => node.height === DESKTOP_CARD_HEIGHT)).toBe(true);
     });
-    test('trechos compartilhados são desenhados uma única vez sem sobreposição de segmentos colineares', () => {
+    test('origem repetida em alternativas chega ao destino numa única seta', () => {
+        const repeated = normalizeCurriculum(
+            named({
+                ...matrix,
+                periods: [
+                    {
+                        period: 1,
+                        subjects: ['A', 'B', 'C'].map((code) => ({ code, name: 'Disciplina' }))
+                    },
+                    {
+                        period: 2,
+                        subjects: [
+                            {
+                                code: 'D',
+                                name: 'Destino',
+                                prerequisites: [
+                                    ['A', 'B'],
+                                    ['A', 'C']
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            })
+        );
+        const geometry = layoutCurriculum(repeated, 1440);
+        expect(geometry.edges).toHaveLength(4);
+        const { arrows } = connectionSegments(geometry.edges);
+        expect(arrows).toHaveLength(3);
+        expect(new Set(geometry.edges.map(({ points }) => points.at(-1)!.y)).size).toBe(3);
+        assertRoutes(geometry);
+    });
+    test('trechos compartilhados são desenhados uma única vez e redes diferentes nunca se sobrepõem', () => {
         const geometry = layoutCurriculum(model, 1440);
         const { segments } = connectionSegments(geometry.edges);
         const rawCount = geometry.edges.reduce((count, edge) => count + edge.points.length - 1, 0);
         expect(segments.length).toBeLessThan(rawCount);
-        for (let index = 0; index < segments.length; index++) {
-            const first = segments[index];
-            for (const second of segments.slice(index + 1)) {
-                if (first.kind !== second.kind || first.alternative !== second.alternative)
-                    continue;
-                const [a, b] = first.points;
-                const [c, d] = second.points;
-                const overlaps =
-                    a.y === b.y && c.y === d.y && a.y === c.y
-                        ? Math.min(b.x, d.x) > Math.max(a.x, c.x)
-                        : a.x === b.x && c.x === d.x && a.x === c.x
-                          ? Math.min(b.y, d.y) > Math.max(a.y, c.y)
-                          : false;
-                expect(overlaps).toBe(false);
-            }
-        }
+        expectNoOverlap(segments);
     });
     test('mobile põe todos os semestres lado a lado, cada um centralizável na tela', () => {
         const width = 390;
         const geometry = mobile(model, width);
-        expect(geometry.nodes.every((n) => n.width === width - MOBILE.margin)).toBe(true);
+        const [card] = geometry.nodes;
+        expect(geometry.nodes.every((n) => n.width === card.width)).toBe(true);
         expect(geometry.columns.map((c) => c.period)).toEqual(model.periods);
         for (const { x } of geometry.columns) {
             expect(x - width / 2).toBeGreaterThanOrEqual(0);
@@ -211,6 +298,45 @@ describe('geometria do fluxo', () => {
         for (const { points } of geometry.edges) {
             expect(points[0].x).toBeGreaterThan(0);
             expect(points.at(-1)!.x).toBeLessThan(geometry.width);
+        }
+    });
+    test('mobile deixa à mostra um pedaço dos semestres vizinhos', () => {
+        // corredores largos do modelo de teste exigem tela larga para não chegar à largura mínima
+        const width = 1000;
+        const geometry = mobile(model, width);
+        for (const [column, { x }] of geometry.columns.entries()) {
+            const left = x - width / 2;
+            const neighbors = geometry.nodes.filter((n) => Math.abs(n.column - column) === 1);
+            expect(neighbors.length).toBeGreaterThan(0);
+            for (const node of neighbors) {
+                const visible =
+                    node.column < column ? node.x + node.width - left : left + width - node.x;
+                expect(visible).toBeGreaterThanOrEqual(MOBILE.peek);
+            }
+        }
+    });
+    test('linhas que saem da mesma matéria compartilham a cor, e origens vizinhas não', () => {
+        const geometry = layoutCurriculum(model, 1440);
+        const incoming = groupBy(
+            geometry.edges.map((route) => [route.edge.target, route] as const)
+        );
+        const bySource = new Map<string, Set<number>>();
+        for (const { edge, color } of geometry.edges) {
+            expect(color).toBeGreaterThanOrEqual(0);
+            expect(color).toBeLessThan(5);
+            // destinos lotados ficam com a cor deles
+            if (incoming.get(edge.target)!.length > 6) continue;
+            bySource.set(edge.source, (bySource.get(edge.source) ?? new Set()).add(color));
+        }
+        expect(bySource.size).toBeGreaterThan(0);
+        expect([...bySource.values()].every((colors) => colors.size === 1)).toBe(true);
+        const colorOf = (code: string) => [...bySource.get(code)!][0];
+        for (const node of geometry.nodes) {
+            const below = geometry.nodes.find(
+                (n) => n.column === node.column && n.row === node.row + 1
+            );
+            if (bySource.has(node.subject.code) && below && bySource.has(below.subject.code))
+                expect(colorOf(node.subject.code)).not.toBe(colorOf(below.subject.code));
         }
     });
     test('mobile acomoda quatro matérias em uma área compacta e mantém os correquisitos alinhados', () => {
@@ -236,8 +362,8 @@ describe('geometria do fluxo', () => {
             expect(geometry.height).toBeLessThanOrEqual(592);
             expect(geometry.width).toBeLessThanOrEqual(width);
             for (const node of geometry.nodes) {
-                expect(node.x).toBeGreaterThanOrEqual(44);
-                expect(node.x + node.width).toBeLessThanOrEqual(width - 44);
+                expect(node.x).toBeGreaterThan(0);
+                expect(node.x + node.width).toBeLessThan(width);
             }
             expect(geometry.edges).toHaveLength(1);
             assertRoutes(geometry);
@@ -270,6 +396,28 @@ describe('geometria do fluxo', () => {
             expect(points[0].x).toBe(points.at(-1)!.x);
             expect(Math.abs(points[0].y - points.at(-1)!.y)).toBeGreaterThan(0);
             expect(geometry.edges[0].edge.kind).toBe('corequisite');
+            assertRoutes(geometry);
+        }
+    });
+    test('correquisitos empilhados que dividem um cartão não se sobrepõem', () => {
+        const stacked = normalizeCurriculum(
+            named({
+                ...matrix,
+                periods: [
+                    {
+                        period: 1,
+                        subjects: [
+                            { code: 'A', name: 'Primeira', corequisites: [['B'], ['C']] },
+                            { code: 'B', name: 'Segunda' },
+                            { code: 'C', name: 'Terceira' }
+                        ]
+                    }
+                ]
+            })
+        );
+        for (const geometry of [layoutCurriculum(stacked, 1440), mobile(stacked, 390)]) {
+            expect(geometry.edges.length).toBeGreaterThan(1);
+            expectNoOverlap(connectionSegments(geometry.edges).segments);
             assertRoutes(geometry);
         }
     });
