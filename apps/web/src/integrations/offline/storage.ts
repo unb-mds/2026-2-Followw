@@ -29,9 +29,12 @@ export function shouldPersistQuery(query: Query, now = Date.now()) {
     );
 }
 
-/** Restaura o cache salvo no IndexedDB e salva cada mudança; devolve a função que para de salvar. */
-export function persistQueryCache(queryClient: QueryClient) {
-    if (!persister) return noop;
+/** Restaura o cache salvo no IndexedDB (avisando em `onRestored`) e salva cada mudança; devolve a função que para de salvar. */
+export function persistQueryCache(queryClient: QueryClient, onRestored: () => void = noop) {
+    if (!persister) {
+        onRestored();
+        return noop;
+    }
     const [unsubscribe, restoring] = persistQueryClient({
         queryClient,
         persister,
@@ -40,7 +43,7 @@ export function persistQueryCache(queryClient: QueryClient) {
         dehydrateOptions: { shouldDehydrateQuery: (query) => shouldPersistQuery(query) }
     });
     // falha ao restaurar já descarta o cache salvo
-    restoring.catch(noop);
+    restoring.catch(noop).finally(onRestored);
     return unsubscribe;
 }
 

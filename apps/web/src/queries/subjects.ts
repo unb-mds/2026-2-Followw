@@ -47,10 +47,6 @@ export function searchText(q: string, previous: string | null = null): string | 
     return text.length < SEARCH_MIN_LENGTH || text.length > SEARCH_MAX_LENGTH ? previous : text;
 }
 
-/** Com texto busca por ele; sem texto, lista a unidade. */
-export const subjectsQuery = (text: string | null, unit: string | null): SubjectsQuery | null =>
-    text ? { q: text } : unit ? { unit } : null;
-
 export const subjectsQueryOptions = (query: SubjectsQuery) =>
     api.queryOptions('get', '/public/subjects', { params: { query } });
 
@@ -60,10 +56,23 @@ export function approvedCodes(history: Classroom[]): Set<string> {
     );
 }
 
-export function takenCodes(history: Classroom[]): Set<string> {
-    const taken = approvedCodes(history);
+export function takenCodes(history: Classroom[], approved = approvedCodes(history)): Set<string> {
+    const taken = new Set(approved);
     for (const c of history) if (c.status === 'cursando') taken.add(c.subject.code);
     return taken;
+}
+
+/** Feita pela própria matéria ou por um grupo inteiro de equivalências (grupo vazio não vale). */
+export function covered(
+    codes: Set<string> | null | undefined,
+    { code, equivalences }: Pick<CatalogSubject, 'code' | 'equivalences'>
+): boolean {
+    if (!codes) return false;
+    return (
+        codes.has(code) ||
+        (equivalences?.some((group) => group.length > 0 && group.every((r) => codes.has(r.code))) ??
+            false)
+    );
 }
 
 export const subjectRequirementLabel = ({ code, subject }: Requirements[number][number]) =>

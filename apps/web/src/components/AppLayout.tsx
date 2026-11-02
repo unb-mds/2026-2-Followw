@@ -29,9 +29,10 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     });
     if (fullscreen)
         return (
-            <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
+            // no mobile a página rola; no desktop, só o conteúdo
+            <div className="flex min-h-dvh flex-col bg-background text-foreground lg:h-dvh lg:overflow-hidden">
                 <OfflineBanner />
-                <main className="flex min-h-0 flex-1 flex-col">{children}</main>
+                <main className="flex flex-1 flex-col lg:min-h-0">{children}</main>
                 <Toaster />
             </div>
         );

@@ -11,8 +11,10 @@ import {
 } from '@tanstack/react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 import { Window } from 'happy-dom';
+import { NuqsAdapter } from 'nuqs/adapters/tanstack-router';
 import { renderToString } from 'react-dom/server';
 
+import type { PublicCourse } from '#/queries/courses';
 import type { components } from '#/queries/schema.gen';
 
 import { getCurrentSemester } from '#/calendar';
@@ -23,8 +25,9 @@ import { validateFlowSearch } from '#/lib/curriculum/navigation';
 import { parseRouterSearch, stringifyRouterSearch, validateSearch } from '#/lib/search-params';
 import { allClassroomsQueryOptions } from '#/queries/classrooms';
 import { apiClient } from '#/queries/client';
-import { coursesQueryOptions } from '#/queries/courses';
+import { courseQueryOptions } from '#/queries/courses';
 import { curriculumQueryOptions } from '#/queries/curriculum';
+import { toApiError } from '#/queries/errors';
 import { meQueryOptions } from '#/queries/me';
 import { Route } from '#/routes/_app/cursos.$id';
 
@@ -139,10 +142,31 @@ const rawMatrix: RawCurriculum = {
     ]
 };
 const matrix = curriculum(rawMatrix);
+const courses: PublicCourse[] = [
+    {
+        id: 42,
+        name: 'CURSO TESTE',
+        sigaa_id: 100,
+        level: 'Graduação',
+        shift: null,
+        unit: { id: 1, code: 'UNI', name: 'UNIDADE' }
+    },
+    {
+        id: 99,
+        name: 'OUTRO CURSO',
+        sigaa_id: 101,
+        level: 'Graduação',
+        shift: null,
+        unit: { id: 1, code: 'UNI', name: 'UNIDADE' }
+    }
+];
 function SearchFixture() {
     return (
         <>
-            <CourseSection text="curso" />
+            <CourseSection
+                page={{ items: courses, total: courses.length, page: 1, page_size: 25 }}
+                q={null}
+            />
             <TurmaSection
                 subjects={[
                     {
@@ -156,7 +180,13 @@ function SearchFixture() {
     );
 }
 function makeRouter(url: string, isServer = false) {
-    const root = createRootRoute({ component: Outlet });
+    const root = createRootRoute({
+        component: () => (
+            <NuqsAdapter>
+                <Outlet />
+            </NuqsAdapter>
+        )
+    });
     const app = createRoute({
         getParentRoute: () => root,
         id: '_app',
@@ -197,24 +227,8 @@ describe('fluxograma integrado', () => {
             defaultOptions: { queries: { staleTime: Infinity, retry: false } }
         });
         client.setQueryData(meQueryOptions.queryKey, user);
-        client.setQueryData(coursesQueryOptions.queryKey, [
-            {
-                id: 42,
-                name: 'CURSO TESTE',
-                sigaa_id: 100,
-                level: 'Graduação',
-                shift: null,
-                unit: { id: 1, code: 'UNI', name: 'UNIDADE' }
-            },
-            {
-                id: 99,
-                name: 'OUTRO CURSO',
-                sigaa_id: 101,
-                level: 'Graduação',
-                shift: null,
-                unit: { id: 1, code: 'UNI', name: 'UNIDADE' }
-            }
-        ]);
+        for (const course of courses)
+            client.setQueryData(courseQueryOptions(course.id).queryKey, course);
         client.setQueryData(curriculumQueryOptions(42, '2026.2').queryKey, matrix);
         client.setQueryData(allClassroomsQueryOptions.queryKey, [
             {
@@ -235,7 +249,7 @@ describe('fluxograma integrado', () => {
         client.clear();
         apiClient.eject(middleware);
     });
-    async function renderPage(url = '/cursos/42?materia=A') {
+    async function renderPage(url = '/cursos/42?subject=A') {
         const router = makeRouter(url);
         await router.load();
         const page = testing.render(
@@ -269,7 +283,7 @@ describe('fluxograma integrado', () => {
         });
     });
     test('hidrata sem divergência e só monta o diagrama após conhecer a largura', async () => {
-        const server = makeRouter('/cursos/42?materia=A', true);
+        const server = makeRouter('/cursos/42?subject=A', true);
         server.ssr = { manifest: undefined };
         await server.load();
         const container = document.createElement('div');
@@ -281,7 +295,7 @@ describe('fluxograma integrado', () => {
         document.body.append(container);
         expect(container.textContent).toContain('Preparando fluxo');
         expect(container.querySelector('svg[role="img"]')).toBeNull();
-        const router = makeRouter('/cursos/42?materia=A');
+        const router = makeRouter('/cursos/42?subject=A');
         router.ssr = { manifest: undefined };
         await router.load();
         const errors: string[] = [];
@@ -356,8 +370,23 @@ describe('fluxograma integrado', () => {
         ).toBe(true);
     });
     test('mobile abre no semestre da matéria selecionada', async () => {
-        const page = await renderPage('/cursos/42?materia=B');
+        const page = await renderPage('/cursos/42?subject=B');
         await page.findByRole('heading', { name: '2º semestre' });
+    });
+    test('mobile rola a página, e não o diagrama, até a matéria selecionada', async () => {
+        const original = browser.scrollTo.bind(browser);
+        const calls: ScrollToOptions[] = [];
+        browser.scrollTo = (options?: ScrollToOptions | number) => {
+            if (typeof options === 'object') calls.push(options);
+        };
+        try {
+            const page = await renderPage('/cursos/42?subject=B');
+            const region = await page.findByRole('region', { name: /um semestre por vez/ });
+            await testing.waitFor(() => expect(calls).toEqual([{ top: expect.any(Number) }]));
+            expect(region.className).toContain('overflow-y-hidden');
+        } finally {
+            browser.scrollTo = original;
+        }
     });
     test('cliques rápidos no seletor avançam um semestre por clique', async () => {
         client.setQueryData(
@@ -385,6 +414,37 @@ describe('fluxograma integrado', () => {
         });
         await page.findByRole('heading', { name: '1º semestre' });
     });
+    test('animação após cliques rápidos não volta o seletor ao semestre intermediário', async () => {
+        client.setQueryData(
+            curriculumQueryOptions(42, '2026.2').queryKey,
+            curriculum({
+                ...rawMatrix,
+                periods: [
+                    ...rawMatrix.periods,
+                    { period: 3, subjects: [{ code: 'C', name: 'Final', hours: 30 }] }
+                ]
+            })
+        );
+        const page = await renderPage();
+        const region = await page.findByRole('region', { name: /um semestre por vez/ });
+        const next = page.getByRole('button', { name: 'Próximo semestre' });
+        testing.act(() => {
+            next.click();
+            next.click();
+        });
+        await page.findByRole('heading', { name: '3º semestre' });
+        const columns = region.querySelectorAll<HTMLElement>('.snap-center');
+        const centerOn = (column: number) => {
+            region.scrollLeft = Number.parseFloat(columns[column].style.left) - width / 2;
+            testing.fireEvent.scroll(region);
+        };
+        centerOn(1);
+        expect(page.getByRole('heading', { name: '3º semestre' })).toBeDefined();
+        centerOn(2);
+        testing.fireEvent.pointerDown(region);
+        centerOn(1);
+        await page.findByRole('heading', { name: '2º semestre' });
+    });
     test('mobile abre o curso do aluno no semestre atual sem depender da matéria selecionada', async () => {
         const student: components['schemas']['UserProfile'] = { ...user, entry_semester: '2026.1' };
         client.setQueryData(meQueryOptions.queryKey, student);
@@ -397,7 +457,7 @@ describe('fluxograma integrado', () => {
     });
     test('desktop mantém legenda no cabeçalho ao selecionar matéria que não está em curso', async () => {
         width = 1440;
-        const page = await renderPage('/cursos/42?materia=B');
+        const page = await renderPage('/cursos/42?subject=B');
         const diagram = await page.findByRole('region', { name: /Fluxo acadêmico por semestres/ });
         const legend = page.getByRole('list', { name: 'Legenda dos estados acadêmicos' });
         expect(
@@ -488,7 +548,7 @@ describe('fluxograma integrado', () => {
         expect(edges()).toHaveLength(4);
     });
     test('matéria ausente não modifica a matriz nem exibe legenda no mobile', async () => {
-        const page = await renderPage('/cursos/42?materia=OPT');
+        const page = await renderPage('/cursos/42?subject=OPT');
         await page.findByText(/não pertence aos períodos exibidos/);
         expect(page.queryByRole('list', { name: 'Legenda dos estados acadêmicos' })).toBeNull();
         expect(page.queryByRole('button', { name: /OPT,/ })).toBeNull();
@@ -530,21 +590,31 @@ describe('fluxograma integrado', () => {
         expect(page.queryByRole('list', { name: 'Legenda dos estados acadêmicos' })).toBeNull();
         expect(page.queryByText(/Período atual indisponível/)).toBeNull();
     });
-    test('desktop omite legenda e estados nos cards de outro curso', async () => {
-        width = 1024;
-        const semester = getCurrentSemester()!.semester;
-        client.setQueryData(curriculumQueryOptions(99, semester).queryKey, {
-            ...matrix,
-            course_id: 99
+    describe('outro curso com aluno logado', () => {
+        beforeEach(() => {
+            width = 1024;
+            client.setQueryData(
+                curriculumQueryOptions(99, getCurrentSemester()!.semester).queryKey,
+                {
+                    ...matrix,
+                    course_id: 99
+                }
+            );
         });
-        const page = await renderPage('/cursos/99');
-        await page.findByRole('button', { name: 'A, Base. Ver requisitos' });
-        expect(page.queryByRole('list', { name: 'Legenda dos estados acadêmicos' })).toBeNull();
-        expect(
-            page.queryByRole('button', {
-                name: /Concluída|Em curso|Pendente|Atrasada|Histórico indisponível/
-            })
-        ).toBeNull();
+        test('mostra a legenda dos estados no desktop', async () => {
+            const page = await renderPage('/cursos/99');
+            await page.findByRole('button', { name: /A, Base/ });
+            expect(page.getByRole('list', { name: 'Legenda dos estados acadêmicos' })).toBeTruthy();
+        });
+        test('aplica o histórico do aluno aos cards', async () => {
+            const page = await renderPage('/cursos/99');
+            await page.findByRole('button', { name: /A, Base, Em curso/ });
+        });
+        test('não calcula atraso', async () => {
+            const page = await renderPage('/cursos/99');
+            await page.findByRole('button', { name: /A, Base, Em curso/ });
+            expect(page.queryByRole('button', { name: /Atrasada/ })).toBeNull();
+        });
     });
     test('visitante abre o curso do catálogo sem exigir login', async () => {
         client.setQueryData(meQueryOptions.queryKey, null);
@@ -555,6 +625,18 @@ describe('fluxograma integrado', () => {
             '60 h · 4 créditos'
         );
         expect(page.queryByText(/Histórico indisponível/)).toBeNull();
+    });
+    test('curso fora do catálogo informa que não foi encontrado', async () => {
+        apiClient.eject(middleware);
+        middleware = {
+            onRequest: () => {
+                throw toApiError(404, { detail: 'Curso não encontrado.' });
+            }
+        };
+        apiClient.use(middleware);
+        const page = await renderPage('/cursos/7');
+        await page.findByText('Curso não encontrado no catálogo.');
+        expect(page.queryByText('Não foi possível carregar o curso.')).toBeNull();
     });
     test('visitante consegue voltar de um curso acessado diretamente pelo caminho', async () => {
         client.setQueryData(meQueryOptions.queryKey, null);

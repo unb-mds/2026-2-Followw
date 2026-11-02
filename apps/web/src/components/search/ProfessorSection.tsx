@@ -1,50 +1,32 @@
-import { useState } from 'react';
-
-import type { ProfessorItem } from '#/queries/professors';
-
+import { PagedSection } from '#/components/search/PagedSection';
 import { ProfessorCard } from '#/components/search/ProfessorCard';
-import { Button } from '#/components/ui/button';
-
-const INITIAL_LIMIT = 5;
+import { type ProfessorPage, professorsQueryOptions } from '#/queries/professors';
 
 export function ProfessorSection({
-    professors,
-    total
+    page,
+    q,
+    onShowAll
 }: {
-    professors: ProfessorItem[];
-    total: number;
+    page: ProfessorPage;
+    q: string | null;
+    onShowAll?: () => void;
 }) {
-    const [limit, setLimit] = useState(INITIAL_LIMIT);
-
-    if (professors.length === 0) return null;
-
-    const visibleProfessors = professors.slice(0, limit);
-    const hasMore = professors.length > limit;
-
     return (
-        <section className="flex flex-col gap-3">
-            <div className="flex items-baseline justify-between gap-3">
-                <h2 className="text-base font-bold text-foreground">Docentes</h2>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                    {`${total} ${total === 1 ? 'docente encontrado' : 'docentes encontrados'}`}
-                </span>
-            </div>
-            <div className="flex flex-col gap-2">
-                {visibleProfessors.map((professor) => (
-                    <ProfessorCard key={professor.siape} professor={professor} />
-                ))}
-            </div>
-            {hasMore && (
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setLimit((prev) => prev + INITIAL_LIMIT)}
-                    className="mt-1 self-center text-xs"
-                >
-                    {`Ver mais docentes (${professors.length - limit} restantes)`}
-                </Button>
+        <PagedSection
+            title="Docentes"
+            count={`${page.total} ${page.total === 1 ? 'docente encontrado' : 'docentes encontrados'}`}
+            noun="docentes"
+            first={page}
+            pageOptions={(number) => professorsQueryOptions(q, number)}
+            onShowAll={onShowAll}
+        >
+            {(professors) => (
+                <div className="flex flex-col gap-2">
+                    {professors.map((professor) => (
+                        <ProfessorCard key={professor.siape} professor={professor} />
+                    ))}
+                </div>
             )}
-        </section>
+        </PagedSection>
     );
 }

@@ -41,6 +41,7 @@ function Canvas({
         () => layoutCurriculum(model, width, metrics),
         [model, width, metrics]
     );
+    const paged = page !== undefined;
     const revealed = useRef<string | undefined>(undefined);
     useEffect(() => {
         if (!width || !selected || revealed.current === selected) return;
@@ -50,10 +51,21 @@ function Canvas({
             left: Math.max(0, node.x - (width - node.width) / 2),
             top: Math.max(0, node.y - (ref.current.clientHeight - node.height) / 2)
         });
+        // no layout paginado a rolagem vertical é da página
+        if (paged)
+            window.scrollTo({
+                top:
+                    ref.current.getBoundingClientRect().top +
+                    window.scrollY +
+                    node.y -
+                    (window.innerHeight - node.height) / 2
+            });
         revealed.current = selected;
-    }, [geometry, ref, selected, width]);
+    }, [geometry, paged, ref, selected, width]);
     // após a posição inicial, só a rolagem atualiza, para a animação não voltar ao semestre anterior
     const centered = useRef<number | null>(null);
+    // semestre da animação em curso; os intermediários não alteram o seletor
+    const target = useRef<number | null>(null);
     useEffect(() => {
         const column = page && geometry.columns[page.index];
         if (!width || !column || !ref.current || centered.current === page.index) return;
@@ -63,12 +75,20 @@ function Canvas({
             behavior: initial ? 'instant' : 'smooth'
         });
         if (initial) centered.current = page.index;
+        else target.current = page.index;
     }, [geometry, page, ref, width]);
+    const release = () => {
+        target.current = null;
+    };
     const onScroll = (event: React.UIEvent<HTMLElement>) => {
         if (!page) return;
         const center = event.currentTarget.scrollLeft + width / 2;
         const distances = geometry.columns.map(({ x }) => Math.abs(x - center));
         const index = distances.indexOf(Math.min(...distances));
+        if (target.current !== null) {
+            if (index !== target.current) return;
+            target.current = null;
+        }
         if (centered.current === index) return;
         centered.current = index;
         page.onChange(index);
@@ -80,9 +100,15 @@ function Canvas({
             tabIndex={0}
             aria-label={label}
             onScroll={onScroll}
+            // rolagem do usuário interrompe a animação
+            onPointerDown={release}
+            onWheel={release}
+            onKeyDown={release}
             className={cn(
-                'min-h-0 flex-1 overflow-auto overscroll-contain focus-visible:outline-2 focus-visible:outline-primary',
-                page && 'snap-x snap-mandatory'
+                'focus-visible:outline-2 focus-visible:outline-primary',
+                page
+                    ? 'snap-x snap-mandatory overflow-x-auto overflow-y-hidden overscroll-x-contain'
+                    : 'min-h-0 flex-1 overflow-auto overscroll-contain'
             )}
         >
             {width > 0 && (
@@ -151,30 +177,34 @@ export function MobileDiagram({
     const period = periods[index];
     return (
         <div className="flex min-h-0 flex-1 flex-col">
-            <div className="mx-4 mb-2 flex shrink-0 items-center justify-between gap-4 rounded-xl bg-muted/60 p-1">
-                <Button
-                    variant="outline"
-                    size="icon"
-                    className="size-9"
-                    aria-label="Semestre anterior"
-                    disabled={index === 0}
-                    onClick={() => setIndex((current) => Math.max(0, current - 1))}
-                >
-                    <ChevronLeft />
-                </Button>
-                <h2 className="text-base font-semibold" aria-live="polite">
-                    {period}º semestre
-                </h2>
-                <Button
-                    variant="outline"
-                    size="icon"
-                    className="size-9"
-                    aria-label="Próximo semestre"
-                    disabled={index === periods.length - 1}
-                    onClick={() => setIndex((current) => Math.min(periods.length - 1, current + 1))}
-                >
-                    <ChevronRight />
-                </Button>
+            <div className="sticky top-0 z-10 shrink-0 bg-background px-4 pt-2 pb-2">
+                <div className="flex items-center justify-between gap-4 rounded-xl bg-muted/60 p-1">
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        className="size-9"
+                        aria-label="Semestre anterior"
+                        disabled={index === 0}
+                        onClick={() => setIndex((current) => Math.max(0, current - 1))}
+                    >
+                        <ChevronLeft />
+                    </Button>
+                    <h2 className="text-base font-semibold" aria-live="polite">
+                        {period}º semestre
+                    </h2>
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        className="size-9"
+                        aria-label="Próximo semestre"
+                        disabled={index === periods.length - 1}
+                        onClick={() =>
+                            setIndex((current) => Math.min(periods.length - 1, current + 1))
+                        }
+                    >
+                        <ChevronRight />
+                    </Button>
+                </div>
             </div>
             <Canvas
                 {...props}

@@ -1,13 +1,13 @@
 import type { CurriculumModel, FlowGeometry, FlowSubject, Point } from '#/lib/curriculum/types';
 
-import { groupCorequisites } from '#/lib/curriculum/relations';
+import { orderColumns } from '#/lib/curriculum/ordering';
 import { planConnections } from '#/lib/curriculum/routing';
 
 export interface LayoutMetrics {
     cardWidth: { min: number; max: number };
     cardHeight: (subject: FlowSubject) => number;
-    // folga lateral descontada da largura disponível
-    margin: number;
+    // quanto dos semestres vizinhos aparece em cada lado, só no layout paginado
+    peek: number;
     minGap: number;
     headings: boolean;
     // cada semestre ocupa a tela, com folga nas pontas para centralizá-lo
@@ -18,7 +18,7 @@ export interface LayoutMetrics {
 export const DESKTOP: LayoutMetrics = {
     cardWidth: { min: 176, max: 208 },
     cardHeight: () => 112,
-    margin: 0,
+    peek: 0,
     minGap: 40,
     headings: true,
     paged: false,
@@ -27,7 +27,7 @@ export const DESKTOP: LayoutMetrics = {
 export const MOBILE: LayoutMetrics = {
     cardWidth: { min: 220, max: 432 },
     cardHeight: (subject) => (subject.hours == null ? 120 : 104),
-    margin: 88,
+    peek: 24,
     minGap: 24,
     headings: false,
     paged: true,
@@ -36,36 +36,13 @@ export const MOBILE: LayoutMetrics = {
 const PAD = 24;
 const HEADING_HEIGHT = 40;
 
-function orderedColumns(model: CurriculumModel) {
-    const positions = new Map<string, number>();
-    return model.periods.map((period) => {
-        const score = (subject: FlowSubject) => {
-            const rows = model.edges
-                .filter((e) => e.kind === 'prerequisite' && e.target === subject.code)
-                .flatMap((e) => {
-                    const row = positions.get(e.source);
-                    return row === undefined ? [] : [row];
-                });
-            return rows.length ? rows.reduce((a, b) => a + b, 0) / rows.length : Infinity;
-        };
-        const subjects = groupCorequisites(
-            model.subjects
-                .filter((s) => s.period === period)
-                .toSorted((a, b) => score(a) - score(b) || a.code.localeCompare(b.code)),
-            model.edges
-        );
-        subjects.forEach((subject, row) => positions.set(subject.code, row));
-        return subjects;
-    });
-}
-
 export function layoutCurriculum(
     model: CurriculumModel,
     availableWidth: number,
     metrics: LayoutMetrics = DESKTOP
 ): FlowGeometry {
     const { periods } = model;
-    const columns = orderedColumns(model);
+    const columns = orderColumns(model);
     const plan = planConnections(columns, model.edges, metrics.minGap);
     const gapWidths = [...plan.gapWidths];
     const gapTotal = gapWidths.reduce((a, b) => a + b, 0);
@@ -75,8 +52,14 @@ export function layoutCurriculum(
         Math.min(
             max,
             metrics.paged
-                ? availableWidth - metrics.margin
-                : (availableWidth - gapTotal - metrics.margin) / Math.max(1, periods.length)
+                ? availableWidth -
+                      2 *
+                          Math.max(
+                              gapWidths[0],
+                              gapWidths.at(-1)!,
+                              ...gapWidths.slice(1, -1).map((gap) => gap + metrics.peek)
+                          )
+                : (availableWidth - gapTotal) / Math.max(1, periods.length)
         )
     );
     if (metrics.paged) {

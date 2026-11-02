@@ -69,9 +69,7 @@ export const menuQueryOptions = ({
     };
 };
 
-export async function prefetchWeekMenus(queryClient: QueryClient, campus: Campus, today: string) {
-    const options = menuQueryOptions({ campus, date: today });
-    // não busca de novo se já há cardápio salvo da semana
-    if (queryClient.getQueryData(options.queryKey) !== undefined) return;
-    await queryClient.query(options);
+export function prefetchWeekMenus(queryClient: QueryClient, campus: Campus, today: string) {
+    // 'static' reaproveita o cardápio salvo da semana, sem buscar de novo
+    return queryClient.query({ ...menuQueryOptions({ campus, date: today }), staleTime: 'static' });
 }

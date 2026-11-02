@@ -8,10 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.main import DatabaseDep
 from api.db.models import Professor
-from api.db.units import find_unit
+from api.db.units import find_unit_id
 from api.modules.public_professors.repository import ProfessorRepository
 from api.modules.public_subjects.repository import SubjectCatalogRepository
 from api.schemas import UnitRef
+
+PROFESSORS_PAGE_SIZE = 25
 
 
 class ProfessorItem(BaseModel):
@@ -84,7 +86,7 @@ class ProfessorService:
         page_size: int,
     ) -> ProfessorPage:
         async def load(session: AsyncSession) -> tuple[list[Professor], int]:
-            unit_id = (await find_unit(session, unit)).id if unit is not None else None
+            unit_id = await find_unit_id(session, unit)
             return await ProfessorRepository(session).list(
                 q, unit_id, semester, page, page_size
             )

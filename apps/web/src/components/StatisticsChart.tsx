@@ -70,8 +70,12 @@ export function StatisticsChart({
                         data={shares}
                         dataKey="percentage"
                         nameKey="situation"
-                        innerRadius="45%"
-                        outerRadius="85%"
+                        innerRadius="76%"
+                        outerRadius="86%"
+                        cornerRadius={8}
+                        paddingAngle={shares.length > 1 ? 4 : 0}
+                        minAngle={4}
+                        stroke="none"
                         isAnimationActive={false}
                     />
                 </PieChart>

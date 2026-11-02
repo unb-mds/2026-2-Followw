@@ -1,24 +1,24 @@
 import { keepPreviousData, noop, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import type { SubjectsQuery } from '#/queries/subjects';
-
 import { QueryState } from '#/components/QueryState';
 import { TurmaSection } from '#/components/search/TurmaSection';
 import { refreshQuery } from '#/queries/refresh';
 import { subjectsQueryOptions, withClassrooms } from '#/queries/subjects';
 
+/** Matérias da unidade, listadas sem texto de busca. */
 export function SubjectResults({
-    query,
+    unit,
     currentPeriod,
     taken
 }: {
-    query: SubjectsQuery;
+    unit: string;
     currentPeriod: number | null;
     taken: Set<string> | null;
 }) {
     const client = useQueryClient();
-    const result = useQuery({ ...subjectsQueryOptions(query), placeholderData: keepPreviousData });
-    const refresh = () => void refreshQuery(client, subjectsQueryOptions(query)).catch(noop);
+    const options = subjectsQueryOptions({ unit });
+    const result = useQuery({ ...options, placeholderData: keepPreviousData });
+    const refresh = () => void refreshQuery(client, options).catch(noop);
     return (
         <div aria-busy={result.isFetching} className="flex flex-col gap-5">
             <QueryState
@@ -33,8 +33,8 @@ export function SubjectResults({
                     return (
                         <>
                             <TurmaSection
-                                key={JSON.stringify(query)}
-                                title={query.unit ? `Matérias da ${query.unit}` : 'Matérias'}
+                                key={unit}
+                                title={`Matérias da ${unit}`}
                                 subjects={subjects}
                                 currentPeriod={currentPeriod}
                                 taken={taken}

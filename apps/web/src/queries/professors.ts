@@ -15,14 +15,7 @@ export const professorQueryOptions = (siape: number) =>
         }
     });
 
-export const professorsQueryOptions = (q: string) =>
+export const professorsQueryOptions = (q: string | null, page = 1) =>
     api.queryOptions('get', '/public/professors', {
-        params: {
-            query: { q }
-        }
+        params: { query: { q: q ?? undefined, page } }
     });
-
-// nomes de docentes não têm dígitos: buscar por código de matéria não consulta docentes
-export function professorSearch(q: string | null | undefined): string | null {
-    return q && !/\d/.test(q) ? q : null;
-}

@@ -1,15 +1,15 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Path, Query
-from pydantic import StringConstraints
 
 from api.cache import NoStore
 from api.modules.public_professors.service import (
+    PROFESSORS_PAGE_SIZE,
     ProfessorDetails,
     ProfessorPage,
     ProfessorServiceDep,
 )
-from api.schemas import UnitFilter
+from api.schemas import SearchText, UnitFilter
 
 router = APIRouter()
 
@@ -25,14 +25,10 @@ router = APIRouter()
 async def list_professors(
     service: ProfessorServiceDep,
     q: Annotated[
-        str | None,
+        SearchText | None,
         Query(
-            min_length=3,
-            max_length=100,
-            pattern=r"^[^\x00-\x1f\x7f]+$",
-            description="Trecho do nome, com ao menos 3 caracteres; ignora acentos e caixa.",
+            description="Termos do nome, de 3 a 32 caracteres; cada um precisa aparecer, ignorando acentos e maiúsculas.",
         ),
-        StringConstraints(strip_whitespace=True),
     ] = None,
     unit: Annotated[
         UnitFilter | None,
@@ -46,7 +42,7 @@ async def list_professors(
         ),
     ] = None,
     page: Annotated[int, Query(ge=1)] = 1,
-    page_size: Annotated[int, Query(ge=1, le=100)] = 50,
+    page_size: Annotated[int, Query(ge=1, le=100)] = PROFESSORS_PAGE_SIZE,
 ) -> ProfessorPage:
     return await service.list(q, unit, semester, page, page_size)
 

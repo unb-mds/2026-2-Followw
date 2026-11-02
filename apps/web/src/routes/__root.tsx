@@ -1,5 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 
+import { IsRestoringProvider } from '@tanstack/react-query';
 import {
     HeadContent,
     Outlet,
@@ -59,12 +60,14 @@ function RootComponent() {
     useSessionRefresh();
     useEffect(() => reloadOnPreloadError(), []);
     useEffect(() => initializeInstallSupport(), []);
-    useOfflineSupport();
+    const restoring = useOfflineSupport();
 
     return (
-        <NuqsAdapter>
-            <Outlet />
-        </NuqsAdapter>
+        <IsRestoringProvider value={restoring}>
+            <NuqsAdapter>
+                <Outlet />
+            </NuqsAdapter>
+        </IsRestoringProvider>
     );
 }
 

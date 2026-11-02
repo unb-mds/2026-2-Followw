@@ -12,6 +12,16 @@ UnitFilter = Annotated[
     Field(union_mode="left_to_right"),
 ]
 
+SearchText = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True,
+        min_length=3,
+        max_length=32,
+        pattern=r"^[^\x00-\x1f\x7f]+$",
+    ),
+]
+
 
 class UnitRef(BaseModel):
     """Unidade acadêmica: `id` do SIGAA, `code` a sigla (ex.: FCTE)."""

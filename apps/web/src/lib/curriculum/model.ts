@@ -1,9 +1,9 @@
-import type { AcademicState, CurriculumModel, FlowSubject } from '#/lib/curriculum/types';
+import type { AcademicState, CurriculumModel, FlowEdge, FlowSubject } from '#/lib/curriculum/types';
 import type { Classroom } from '#/queries/classrooms';
 import type { CourseCurriculum } from '#/queries/curriculum';
 
 import { curriculumEdges, unlockedSubjects } from '#/lib/curriculum/relations';
-import { approvedCodes } from '#/queries/subjects';
+import { approvedCodes, covered, takenCodes } from '#/queries/subjects';
 
 export const stateLabels: Record<AcademicState, string> = {
     completed: 'Concluída',
@@ -28,24 +28,30 @@ export function normalizeCurriculum(curriculum: CourseCurriculum): CurriculumMod
     }
     const subjects = [...byCode.values()];
     const edges = curriculumEdges(subjects, byCode);
+    // alternativa no mesmo semestre ou depois faria a linha voltar; segue só no modal
+    const backwards = ({ kind, alternative, source, target }: FlowEdge) =>
+        kind === 'prerequisite' &&
+        alternative &&
+        byCode.get(source)!.period >= byCode.get(target)!.period;
     return {
         periods: [...new Set(blocks.map((block) => block.period))],
         subjects,
         byCode,
-        edges,
+        edges: edges.filter((edge) => !backwards(edge)),
         unlocks: unlockedSubjects(edges, byCode)
     };
 }
 
-export function academicState(history: Classroom[] | undefined, currentPeriod: number | null) {
-    const approved = history ? approvedCodes(history) : null;
-    const enrolled = new Set(
-        history?.filter((c) => c.status === 'cursando').map((c) => c.subject.code)
-    );
-    return (subject: FlowSubject): AcademicState => {
-        if (!approved) return 'unknown';
-        if (approved.has(subject.code)) return 'completed';
-        if (enrolled.has(subject.code)) return 'enrolled';
+export function academicState(
+    history: Classroom[] | undefined,
+    currentPeriod: number | null
+): (subject: FlowSubject) => AcademicState {
+    if (!history) return () => 'unknown';
+    const approved = approvedCodes(history);
+    const taken = takenCodes(history, approved);
+    return (subject) => {
+        if (covered(approved, subject)) return 'completed';
+        if (covered(taken, subject)) return 'enrolled';
         if (currentPeriod !== null && subject.period <= currentPeriod) return 'overdue';
         return 'pending';
     };

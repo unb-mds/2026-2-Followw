@@ -36,6 +36,11 @@
                         "name": "react",
                         "importNames": ["default"],
                         "message": "O namespace React é global; use React.* sem importar."
+                    },
+                    {
+                        "name": "@tanstack/react-router",
+                        "importNames": ["useSearch"],
+                        "message": "Leia a URL com nuqs (useQueryStates)."
                     }
                 ]
             }

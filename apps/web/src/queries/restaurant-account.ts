@@ -4,6 +4,8 @@ import { queryOptions } from '@tanstack/react-query';
 
 import type { components } from '#/queries/schema.gen';
 
+import { cardIsExpired } from '#/lib/restaurant';
+import { nowInBrasilia } from '#/lib/schedule';
 import { api } from '#/queries/api';
 
 export type RestaurantStatement = components['schemas']['RestaurantStatement'];
@@ -27,15 +29,23 @@ function accountQuery<T, TKey extends ApiKey>(
             const queryKey = context.queryKey.slice(0, 3) as unknown as TKey;
             return options.queryFn({ ...context, queryKey });
         },
-        staleTime: 90 * 60_000
+        staleTime: STATEMENT_STALE_TIME
     });
 }
+
+const STATEMENT_STALE_TIME = 90 * 60_000;
 
 export const statementQueryOptions = (registration: string) =>
     accountQuery(api.queryOptions('get', '/me/ru-statement'), registration);
 
-// A carteirinha salva nunca é refeita sozinha: só pelo botão de atualizar.
-export const credentialsQueryOptions = (registration: string) => ({
-    ...accountQuery(api.queryOptions('get', '/me/ru-token'), registration),
-    staleTime: Infinity
-});
+// Dentro da validade, a carteirinha salva só é refeita pelo botão de atualizar.
+export const credentialsQueryOptions = (registration: string) => {
+    const options = accountQuery(api.queryOptions('get', '/me/ru-token'), registration);
+    return queryOptions({
+        ...options,
+        staleTime: ({ state: { data } }) =>
+            data && !cardIsExpired(data.valid_until, nowInBrasilia().date)
+                ? Infinity
+                : STATEMENT_STALE_TIME
+    });
+};

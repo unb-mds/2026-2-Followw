@@ -8,16 +8,17 @@ import { callRoute, fakeQueryClient, runLoader } from '../helpers/route';
 
 describe('rota de curso (/cursos/$id)', () => {
     test('valida a busca aceitando só a matéria selecionada', () => {
+        const { validate } = validateFlowSearch['~standard'];
         expect(
-            validateFlowSearch({
-                materia: 'FGA0146',
+            validate({
+                subject: 'FGA0146',
                 q: 'dados',
                 curso: 99,
                 returnTo: 'https://externo.test'
             })
-        ).toEqual({ materia: 'FGA0146' });
-        expect(validateFlowSearch({ materia: ['FGA0146'] })).toEqual({ materia: undefined });
-        expect(validateFlowSearch({ materia: '../login' }).materia).toBeUndefined();
+        ).toEqual({ value: { subject: 'FGA0146' } });
+        expect(validate({})).toEqual({ value: {} });
+        expect(validate({ subject: '../login' })).toHaveProperty('issues');
     });
     test('converte o ID do caminho para número e o serializa para navegação', () => {
         expect(callRoute(Route.options.params?.parse, { id: '152' })).toEqual({ id: 152 });
@@ -35,7 +36,7 @@ describe('rota de curso (/cursos/$id)', () => {
             expect(error).toMatchObject({ isNotFound: true, routeId: '__root__' });
         }
     );
-    test('loader usa o curso do caminho em vez do curso do aluno', async () => {
+    test('loader usa o curso do caminho e o histórico do aluno', async () => {
         const keys: unknown[] = [];
         await runLoader(Route, {
             params: { id: 99 },
@@ -46,8 +47,12 @@ describe('rota de curso (/cursos/$id)', () => {
                 })
             }
         });
-        expect(keys).toContainEqual(['get', '/public/courses']);
-        expect(keys.some((key) => Array.isArray(key) && key[1] === '/classrooms')).toBe(false);
+        expect(keys).toContainEqual([
+            'get',
+            '/public/courses/{course_id}',
+            { params: { path: { course_id: 99 } } }
+        ]);
+        expect(keys.some((key) => Array.isArray(key) && key[1] === '/classrooms')).toBe(true);
         expect(keys).toContainEqual([
             'get',
             '/public/courses/{course_id}/curriculum',
@@ -94,7 +99,11 @@ describe('rota de curso (/cursos/$id)', () => {
                     })
                 }
             });
-            expect(keys).toContainEqual(['get', '/public/courses']);
+            expect(keys).toContainEqual([
+                'get',
+                '/public/courses/{course_id}',
+                { params: { path: { course_id: 99 } } }
+            ]);
             expect(keys).toContainEqual([
                 'get',
                 '/public/courses/{course_id}/curriculum',

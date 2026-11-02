@@ -69,6 +69,8 @@ def test_lista_paginada_filtra_nome_unidade_e_semestre(client, catalog):
     assert page["total"] == 2
     assert len(page["items"]) == 1
     assert client.get("/public/professors?q=____").json()["total"] == 0
+    termos = client.get("/public/professors", params={"q": "silva joao"}).json()
+    assert [item["siape"] for item in termos["items"]] == [456]
     beyond = client.get("/public/professors?page=9223372036854775808").json()
     assert beyond["total"] == 2
     assert beyond["items"] == []
@@ -126,6 +128,7 @@ def test_nome_curto_e_paginacao_invalida_retornam_422(client, catalog):
         "/public/professors?q=ma%20%20",
         "/public/professors?q=%20%20%20%20",
         "/public/professors?q=abcd%00",
+        f"/public/professors?q={'a' * 33}",
         "/public/professors?unit=2147483648",
         "/public/professors?unit=0",
         "/public/professors?unit=XYZ",

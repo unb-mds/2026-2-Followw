@@ -15,7 +15,8 @@ export function shortestChannelPath(
     from: Point,
     to: Point,
     channels: { departure: number; arrival: number },
-    corridors: number[],
+    // faixa reservada à rede no corredor acima do destino
+    reserved: number,
     nodes: FlowNode[]
 ): Point[] {
     const { departure, arrival } = channels;
@@ -27,8 +28,6 @@ export function shortestChannelPath(
         { x: arrival, y: to.y },
         to
     ];
-    const distance = (y: number) => Math.abs(from.y - y) + Math.abs(to.y - y);
-    const bends = (y: number) => Number(y !== from.y) + Number(y !== to.y);
     const obstacles = nodes.map((node) => ({
         left: node.x - CLEARANCE,
         right: node.x + node.width + CLEARANCE,
@@ -55,14 +54,6 @@ export function shortestChannelPath(
                           Math.min(a.y, b.y) >= box.bottom;
             });
         });
-    let best = corridors[0];
-    for (const y of new Set([from.y, to.y, ...corridors])) {
-        if (
-            distance(y) > distance(best) ||
-            (distance(y) === distance(best) && bends(y) >= bends(best))
-        )
-            continue;
-        if (isClear(path(y))) best = y;
-    }
-    return path(best);
+    // atalho só em linha reta: qualquer outra altura sairia das faixas reservadas e sobreporia outras redes
+    return from.y === to.y && isClear(path(from.y)) ? path(from.y) : path(reserved);
 }

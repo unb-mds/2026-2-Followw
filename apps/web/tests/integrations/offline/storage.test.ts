@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { pagesCacheName } from '#/integrations/offline/pages-cache';
 import {
     clearOfflineData,
+    persistQueryCache,
     PERSIST_MAX_AGE,
     shouldPersistQuery,
     warmPages
@@ -144,5 +145,13 @@ describe('shouldPersistQuery', () => {
         client.getQueryCache().build(client, { queryKey: ['vazia'] });
         const query = client.getQueryCache().find({ queryKey: ['vazia'] })!;
         expect(shouldPersistQuery(query, now)).toBe(false);
+    });
+});
+
+describe('restauração do cache', () => {
+    test('avisa quando termina de restaurar', () => {
+        let restored = 0;
+        persistQueryCache(new QueryClient(), () => restored++);
+        expect(restored).toBe(1);
     });
 });

@@ -3,7 +3,7 @@ from sqlalchemy import select
 
 from api.db.models import Unit
 from api.db.seed.units import UNITS_CSV, read_units, seed_units
-from api.db.units import unit_ids
+from api.db.units import UnitNotFound, find_unit_id, unit_ids
 
 
 def _csv(tmp_path, *lines):
@@ -56,3 +56,12 @@ async def test_ids_pelo_codigo_ignoram_o_que_nao_esta_na_tabela(async_database):
         ids = await unit_ids(session, ["FCTE", "XYZ", None, ""])
 
     assert ids == {"FCTE": 673}
+
+
+async def test_id_da_unidade_pelo_filtro_opcional(async_database):
+    async with async_database() as session:
+        assert await find_unit_id(session, None) is None
+        assert await find_unit_id(session, "fcte") == 673
+        assert await find_unit_id(session, 673) == 673
+        with pytest.raises(UnitNotFound):
+            await find_unit_id(session, "XYZ")

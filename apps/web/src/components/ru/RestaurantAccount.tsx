@@ -100,6 +100,18 @@ export function RestaurantAccount({
         />
     );
 
+    // o carregamento ocupa o lugar do rótulo do saldo
+    const loadingStatement = statement.isPending && !statement.data;
+    const statementStatus = (
+        <AccountStatus
+            query={statement}
+            hasData={Boolean(statement.data)}
+            label="saldo e extrato"
+            onRetry={() => refresh('statement')}
+            retryDisabled={refreshDisabled}
+        />
+    );
+
     return (
         <section className="mt-4 flex flex-col gap-3" aria-label="Minha conta">
             <div className="flex items-center justify-between px-1">
@@ -122,22 +134,25 @@ export function RestaurantAccount({
 
             <Card>
                 <CardContent>
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                            Saldo disponível
-                        </div>
+                    <div
+                        className={cn(
+                            'flex items-center justify-between gap-2',
+                            !loadingStatement && 'mb-2'
+                        )}
+                    >
+                        {loadingStatement ? (
+                            statementStatus
+                        ) : (
+                            <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                                Saldo disponível
+                            </div>
+                        )}
                         {!statement.data && cardDrawer}
                     </div>
                     {statement.data && (
                         <StatementDetails statement={statement.data} action={cardDrawer} />
                     )}
-                    <AccountStatus
-                        query={statement}
-                        hasData={Boolean(statement.data)}
-                        label="saldo e extrato"
-                        onRetry={() => refresh('statement')}
-                        retryDisabled={refreshDisabled}
-                    />
+                    {!loadingStatement && statementStatus}
                 </CardContent>
             </Card>
         </section>
@@ -209,28 +224,24 @@ export function StatementDetails({
     action?: React.ReactNode;
     now?: Day & { time: string };
 }) {
-    const warning = insufficientMealBalance(statement.balance, statement.group, now);
+    const insufficient = insufficientMealBalance(statement.balance, statement.group, now);
     const [first, ...rest] = statement.entries;
     const entries = first && /^saldo\b/i.test(first.description.trim()) ? rest : statement.entries;
     return (
         <>
             <div className="flex items-center justify-between gap-3">
-                <p className="ph-no-capture text-4xl font-extrabold text-primary tabular-nums">
+                <p
+                    className={cn(
+                        'ph-no-capture text-4xl font-extrabold text-primary tabular-nums',
+                        insufficient && 'text-destructive'
+                    )}
+                >
                     {statement.balance == null
                         ? 'Saldo não informado'
                         : currency.format(Number(statement.balance))}
                 </p>
                 {action}
             </div>
-            {warning && (
-                <p
-                    aria-live="polite"
-                    className="mt-3 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm font-semibold text-foreground"
-                >
-                    Saldo insuficiente para o {warning.meal.label.toLocaleLowerCase('pt-BR')}{' '}
-                    (faltam {currency.format(warning.shortfall)}).
-                </p>
-            )}
             <Accordion className="mt-4 border-t border-border pt-3">
                 <AccordionItem value="statement">
                     <AccordionTrigger className="mb-2 py-0 text-primary">

@@ -1,10 +1,10 @@
-from sigaa_client import lookup_key
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import load_only
 
 from api.db.models import Professor
-from api.db.search import lookup_sql
+from api.db.pagination import paginate
+from api.db.search import contains_all_terms
 
 
 class ProfessorRepository:
@@ -22,36 +22,27 @@ class ProfessorRepository:
         # Os vistos só nas turmas, sem siape, não têm perfil público.
         conditions = [Professor.siape.is_not(None)]
         if q is not None:
-            conditions.append(
-                lookup_sql(Professor.name).contains(lookup_key(q), autoescape=True)
-            )
+            conditions.append(contains_all_terms(Professor.name, q))
         if unit_id is not None:
             conditions.append(Professor.unit_id == unit_id)
         if semester is not None:
             conditions.append(Professor.disciplines.contains([{"semester": semester}]))
-        total = await self._session.scalar(
-            select(func.count()).select_from(Professor).where(*conditions)
-        )
-        if (page - 1) * page_size >= (total or 0):
-            return [], total or 0
-        professors = list(
-            await self._session.scalars(
-                select(Professor)
-                .options(
-                    load_only(
-                        Professor.siape,
-                        Professor.name,
-                        Professor.unit_id,
-                        Professor.photo,
-                    )
+        return await paginate(
+            self._session,
+            select(Professor)
+            .options(
+                load_only(
+                    Professor.siape,
+                    Professor.name,
+                    Professor.unit_id,
+                    Professor.photo,
                 )
-                .where(*conditions)
-                .order_by(Professor.name, Professor.siape)
-                .offset((page - 1) * page_size)
-                .limit(page_size)
             )
+            .where(*conditions)
+            .order_by(Professor.name, Professor.siape),
+            page,
+            page_size,
         )
-        return professors, total or 0
 
     async def get(self, siape: int) -> Professor | None:
         return await self._session.scalar(

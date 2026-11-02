@@ -1,7 +1,6 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Query, Response
-from pydantic import StringConstraints
 
 from api.cache import no_store
 from api.modules.public_classrooms.code import ClassroomCode
@@ -10,7 +9,7 @@ from api.modules.public_subjects.statistics import (
     SubjectStatistics,
     SubjectStatisticsServiceDep,
 )
-from api.schemas import UnitFilter
+from api.schemas import SearchText, UnitFilter
 from api.sync import OptionalSyncDep
 
 router = APIRouter()
@@ -57,14 +56,10 @@ async def search_subjects(
     sync: OptionalSyncDep,
     response: Response,
     q: Annotated[
-        str | None,
+        SearchText | None,
         Query(
-            min_length=3,
-            max_length=32,
-            pattern=r"\S",
-            description="Trecho do código, nome do componente ou docente, de 3 a 32 caracteres, ignorando acentos, maiúsculas e espaços extras.",
+            description="Termos do código, nome do componente ou docente, de 3 a 32 caracteres; cada um precisa aparecer em algum deles, ignorando acentos e maiúsculas.",
         ),
-        StringConstraints(strip_whitespace=True),
     ] = None,
     code: Annotated[
         ClassroomCode | None,

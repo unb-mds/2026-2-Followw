@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 
 import { Route as FallbackRoute } from '#/routes/$';
 import { Route as RootRoute } from '#/routes/__root';
+import { Route as FlowRoute } from '#/routes/_app/cursos.$id';
 import { Route as HomeRoute } from '#/routes/_app/index';
 import { Route as ProfileRoute } from '#/routes/_app/perfil';
 import { Route as RestaurantRoute } from '#/routes/_app/ru';
@@ -55,7 +56,7 @@ describe('indexação das páginas', () => {
         });
     });
 
-    test.each([LoginRoute, ProfileRoute, ClassroomsRoute, ClassroomRoute])(
+    test.each([LoginRoute, ProfileRoute, ClassroomsRoute, ClassroomRoute, FlowRoute])(
         'telas não públicas herdam noindex sem canonical público',
         async (route) => {
             const rootHead = await callRoute(RootRoute.options.head);
@@ -74,7 +75,8 @@ describe('indexação das páginas', () => {
         [LoginRoute, 'Entrar | Followw'],
         [ProfileRoute, 'Perfil | Followw'],
         [ClassroomsRoute, 'Minhas Turmas | Followw'],
-        [ClassroomRoute, 'Turma | Followw']
+        [ClassroomRoute, 'Turma | Followw'],
+        [FlowRoute, 'Fluxograma | Followw']
     ] as const)('telas não públicas têm título próprio', async (route, title) => {
         const head = await callRoute(route.options.head);
         expect(head?.meta).toContainEqual({ title });
@@ -85,6 +87,15 @@ describe('indexação das páginas', () => {
             loaderData: { subjectName: 'Cálculo 1' }
         });
         expect(head?.meta).toContainEqual({ title: 'Cálculo 1 | Followw' });
+    });
+
+    test('o fluxograma usa o nome do curso no título quando conhecido', async () => {
+        const head = await callRoute(FlowRoute.options.head, {
+            loaderData: { courseName: 'Ciência da Computação' }
+        });
+        expect(head?.meta).toContainEqual({
+            title: 'Fluxograma de Ciência da Computação | Followw'
+        });
     });
 
     test('URLs inexistentes exibem a página 404 sem redirecionar', () => {

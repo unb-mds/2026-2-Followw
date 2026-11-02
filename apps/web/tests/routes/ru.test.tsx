@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, environmentManager } from '@tanstack/react-query';
 import {
     Outlet,
     RouterProvider,
@@ -71,9 +71,18 @@ describe('loader do RU', () => {
         expect(['breakfast', 'lunch', 'dinner']).toContain(data.defaultMeal);
     });
 
+    test('no SSR não consulta a conta, que fica para o cache do navegador', async () => {
+        const context = contextWith({ registration: '251000000' });
+        await runLoader(Route, context);
+        expect(context.paths).toEqual(['/me', '/public/restaurant']);
+    });
+
     test('carrega a conta autenticada sem bloquear o cardápio quando a carteirinha falha', async () => {
         const context = contextWith({ registration: '251000000' }, '/me/ru-token');
-        const data = await runLoader(Route, context);
+        environmentManager.setIsServer(() => false);
+        const data = await runLoader(Route, context).finally(() =>
+            environmentManager.setIsServer(() => true)
+        );
         expect(context.paths).toEqual([
             '/me',
             '/public/restaurant',

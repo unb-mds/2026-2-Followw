@@ -1,35 +1,36 @@
 from uuid import UUID
 
-from sigaa_client import lookup_key
 from sqlalchemy import ColumnElement, exists, func, literal_column, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload, undefer
 
 from api.db.models import Classroom, ClassroomProfessor, Professor, Subject
-from api.db.search import lookup_sql
+from api.db.search import all_terms, contains_term
 
 
 def _matches_query(q: str, semester: str | None) -> ColumnElement[bool]:
-    needle = lookup_key(q)
-    conditions: list[ColumnElement[bool]] = [
-        Subject.code.contains(needle.upper(), autoescape=True),
-        lookup_sql(Subject.name).contains(needle, autoescape=True),
-    ]
-    if semester is not None:
-        conditions.append(
-            exists(
-                select(1)
-                .select_from(Classroom)
-                .join(ClassroomProfessor)
-                .join(Professor)
-                .where(
-                    Classroom.subject_code == Subject.code,
-                    Classroom.semester == semester,
-                    lookup_sql(Professor.name).contains(needle, autoescape=True),
+    def match(term: str) -> ColumnElement[bool]:
+        conditions: list[ColumnElement[bool]] = [
+            Subject.code.contains(term.upper(), autoescape=True),
+            contains_term(Subject.name, term),
+        ]
+        if semester is not None:
+            conditions.append(
+                exists(
+                    select(1)
+                    .select_from(Classroom)
+                    .join(ClassroomProfessor)
+                    .join(Professor)
+                    .where(
+                        Classroom.subject_code == Subject.code,
+                        Classroom.semester == semester,
+                        contains_term(Professor.name, term),
+                    )
                 )
             )
-        )
-    return or_(*conditions)
+        return or_(*conditions)
+
+    return all_terms(q, match)
 
 
 class SubjectCatalogRepository:

@@ -1,6 +1,6 @@
-import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import { environmentManager, noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Link, useLocation, useNavigate } from '@tanstack/react-router';
-import { Coffee, Egg, Leaf, Soup, UtensilsCrossed } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Coffee, Egg, Leaf, Soup, UtensilsCrossed } from 'lucide-react';
 import { useQueryStates } from 'nuqs';
 import { useEffect, useSyncExternalStore } from 'react';
 
@@ -26,7 +26,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
 import { WeekDayPicker } from '#/components/WeekDayPicker';
 import { useFailureMessage } from '#/lib/online';
-import { currentOrNextMeal, highlightMenu, MEAL_TIMES } from '#/lib/restaurant';
+import { currentOrNextMeal, formatMenuDay, highlightMenu, MEAL_TIMES } from '#/lib/restaurant';
 import {
     loadRestaurantSearch,
     restaurantPageHead,
@@ -80,6 +80,8 @@ export const Route = createFileRoute('/_app/ru')({
         const search = loadRestaurantSearch(location.searchStr);
         const opening = currentOrNextMeal(now);
         const user = await loadQuery(queryClient, meQueryOptions);
+        // no SSR a conta fica para o navegador, que pode ter o cache salvo
+        const account = environmentManager.isServer() ? null : user;
         await Promise.all([
             loadQuery(
                 queryClient,
@@ -89,8 +91,10 @@ export const Route = createFileRoute('/_app/ru')({
                     user
                 })
             ).catch(noop),
-            user && loadQuery(queryClient, statementQueryOptions(user.registration)).catch(noop),
-            user && loadQuery(queryClient, credentialsQueryOptions(user.registration)).catch(noop)
+            account &&
+                loadQuery(queryClient, statementQueryOptions(account.registration)).catch(noop),
+            account &&
+                loadQuery(queryClient, credentialsQueryOptions(account.registration)).catch(noop)
         ]);
         // Só os padrões: a URL guarda apenas o que difere deles.
         return {
@@ -196,8 +200,10 @@ function RUPage() {
     const sections = menu?.[selectedMeal] ?? [];
     // Só esta semana e a próxima; trocar de semana mantém o dia da semana.
     const days = weekDays(selectedDate, 7);
-    const isNextWeek = days[0].date > weekDays(today, 7)[0].date;
+    const firstDay = weekDays(today, 7)[0].date;
+    const isNextWeek = days[0].date > firstDay;
     const shiftWeek = (weeks: number) => () => select({ date: addDays(selectedDate, 7 * weeks) });
+    const shiftDay = (offset: number) => () => select({ date: addDays(selectedDate, offset) });
 
     return (
         <>
@@ -271,9 +277,30 @@ function RUPage() {
                 </TabsList>
 
                 <TabsContent value={selectedMeal} className="mt-4">
-                    <p className="mb-4 px-1 text-xs font-bold text-muted-foreground">
-                        {meal.start}–{meal.end} · {selectedDate.split('-').toReversed().join('/')}
-                    </p>
+                    <div className="mb-4 flex items-center justify-between gap-2">
+                        <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={shiftDay(-1)}
+                            disabled={selectedDate <= firstDay}
+                            aria-label="Dia anterior"
+                        >
+                            <ChevronLeft />
+                        </Button>
+                        <p className="text-xs font-bold text-muted-foreground" aria-live="polite">
+                            {formatMenuDay(selectedDate, today)} · {meal.start}–{meal.end}
+                        </p>
+                        <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={shiftDay(1)}
+                            // só esta semana e a próxima
+                            disabled={selectedDate >= addDays(firstDay, 13)}
+                            aria-label="Próximo dia"
+                        >
+                            <ChevronRight />
+                        </Button>
+                    </div>
                     {sections.length > 0 ? (
                         <MealDetails sections={sections} />
                     ) : (

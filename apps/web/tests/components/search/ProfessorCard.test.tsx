@@ -1,6 +1,7 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, test } from 'bun:test';
 
-import type { ProfessorItem } from '#/queries/professors';
+import type { ProfessorItem, ProfessorPage } from '#/queries/professors';
 
 import { ProfessorCard } from '#/components/search/ProfessorCard';
 import { ProfessorSection } from '#/components/search/ProfessorSection';
@@ -37,18 +38,29 @@ describe('ProfessorCard', () => {
     });
 });
 
+const page = (items: ProfessorItem[], total = items.length): ProfessorPage => ({
+    items,
+    total,
+    page: 1,
+    page_size: 25
+});
+
+const renderSection = (first: ProfessorPage, onShowAll?: () => void) =>
+    renderWithRouter(
+        <QueryClientProvider client={new QueryClient()}>
+            <ProfessorSection page={first} q={null} onShowAll={onShowAll} />
+        </QueryClientProvider>
+    );
+
 describe('ProfessorSection', () => {
     test('retorna nulo se lista de professores estiver vazia', () => {
-        const html = renderWithRouter(<ProfessorSection professors={[]} total={0} />);
+        const html = renderSection(page([]));
         expect(html).toBe('');
     });
 
     test('renderiza título Docentes, contagem e cards', () => {
-        const html = renderWithRouter(
-            <ProfessorSection
-                professors={[professor, { ...professor, siape: 2, name: 'CARLOS SILVA' }]}
-                total={2}
-            />
+        const html = renderSection(
+            page([professor, { ...professor, siape: 2, name: 'CARLOS SILVA' }])
         );
 
         expect(html).toContain('Docentes');
@@ -57,21 +69,29 @@ describe('ProfessorSection', () => {
         expect(html).toContain('Carlos Silva');
     });
 
-    test('exibe botão de ver mais quando há mais de 5 docentes', () => {
-        const list: ProfessorItem[] = Array.from({ length: 7 }, (_, i) => ({
-            ...professor,
-            siape: 1000 + i,
-            name: `PROFESSOR ${i + 1}`
-        }));
+    const list: ProfessorItem[] = Array.from({ length: 7 }, (_, i) => ({
+        ...professor,
+        siape: 1000 + i,
+        name: `PROFESSOR ${i + 1}`
+    }));
 
-        const html = renderWithRouter(<ProfessorSection professors={list} total={list.length} />);
-        expect(html).toContain('Docentes');
-        expect(html).toContain('7 docentes encontrados');
-        expect(html).toContain('Ver mais docentes (2 restantes)');
+    test('mostra a página inteira e oferece a próxima quando o total é maior', () => {
+        const html = renderSection(page(list, 30));
+        expect(html).toContain('30 docentes encontrados');
+        expect(html).toContain('Professor 7');
+        expect(html).toContain('Ver mais docentes (23 restantes)');
+    });
+
+    test('prévia mostra cinco docentes e leva à aba de docentes', () => {
+        const html = renderSection(page(list, 30), () => {});
+        expect(html).toContain('Professor 5');
+        expect(html).not.toContain('Professor 6');
+        expect(html).toContain('Ver todos os docentes (30)');
+        expect(html).not.toContain('Ver mais docentes');
     });
 
     test('conta pelo total da API, não pela página carregada', () => {
-        const html = renderWithRouter(<ProfessorSection professors={[professor]} total={42} />);
+        const html = renderSection(page([professor], 42));
         expect(html).toContain('42 docentes encontrados');
     });
 });

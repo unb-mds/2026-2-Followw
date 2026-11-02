@@ -31,29 +31,37 @@ describe('RestaurantAccount', () => {
         expect(markup).not.toContain('QR code da carteirinha estudantil');
         expect(markup).not.toContain('carteirinha-token');
     });
+
+    test('esconde o rótulo do saldo enquanto o extrato carrega', () => {
+        const markup = renderToStaticMarkup(
+            <QueryClientProvider client={new QueryClient()}>
+                <RestaurantAccount registration="202600001" />
+            </QueryClientProvider>
+        );
+        expect(markup).toContain('Carregando saldo e extrato');
+        expect(markup).not.toContain('Saldo disponível');
+    });
 });
 
 describe('StatementDetails', () => {
-    test('avisa sobre o valor faltante para a refeição atual ou próxima', () => {
+    test('deixa o saldo em vermelho quando não paga a refeição atual ou próxima', () => {
         const markup = renderToStaticMarkup(
             <StatementDetails
                 now={{ date: '2026-10-05', weekday: 1, time: '09:30' }}
                 statement={{ balance: '4.49', group: 2, entries: [] }}
             />
         );
-        expect(markup).toContain('Saldo insuficiente para o almoço');
-        expect(markup).toMatch(/faltam R\$\s0,01/);
+        expect(markup).toContain('text-destructive');
     });
 
-    test('usa os preços do Grupo 4 no aviso', () => {
+    test('usa os preços do Grupo 4 para o saldo insuficiente', () => {
         const markup = renderToStaticMarkup(
             <StatementDetails
                 now={{ date: '2026-10-05', weekday: 1, time: '08:00' }}
                 statement={{ balance: '1.00', group: 4, entries: [] }}
             />
         );
-        expect(markup).toContain('Saldo insuficiente para o café da manhã');
-        expect(markup).toMatch(/faltam R\$\s0,50/);
+        expect(markup).toContain('text-destructive');
     });
 
     test.each([
@@ -62,15 +70,18 @@ describe('StatementDetails', () => {
         { balance: '2.50', group: 4 },
         { balance: null, group: 2 },
         { balance: '0.00', group: null }
-    ] as const)('não avisa com isenção, saldo suficiente ou dados ausentes: %j', (account) => {
-        const markup = renderToStaticMarkup(
-            <StatementDetails
-                now={{ date: '2026-10-05', weekday: 1, time: '12:00' }}
-                statement={{ ...account, entries: [] }}
-            />
-        );
-        expect(markup).not.toContain('Saldo insuficiente');
-    });
+    ] as const)(
+        'não destaca o saldo com isenção, saldo suficiente ou dados ausentes: %j',
+        (account) => {
+            const markup = renderToStaticMarkup(
+                <StatementDetails
+                    now={{ date: '2026-10-05', weekday: 1, time: '12:00' }}
+                    statement={{ ...account, entries: [] }}
+                />
+            );
+            expect(markup).not.toContain('text-destructive');
+        }
+    );
 
     test.each([
         ['Grupo 1 Almoço', 'Almoço'],

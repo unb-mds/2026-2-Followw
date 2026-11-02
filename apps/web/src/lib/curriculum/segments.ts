@@ -1,10 +1,9 @@
-import type { FlowEdge, Point, RoutedEdge } from '#/lib/curriculum/types';
+import type { Point, RoutedEdge } from '#/lib/curriculum/types';
 
 interface Segment {
     points: [Point, Point];
     edgeIds: string[];
-    kind: FlowEdge['kind'];
-    alternative: boolean;
+    color: number;
     startArrow?: boolean;
     endArrow?: boolean;
 }
@@ -12,7 +11,7 @@ interface Segment {
 export function connectionSegments(routes: RoutedEdge[]) {
     const bodies = new Map<string, Segment[]>();
     const arrows = new Map<string, Segment>();
-    for (const { edge, points: rawPoints } of routes) {
+    for (const { edge, points: rawPoints, color } of routes) {
         const points = rawPoints.filter(
             (point, index) =>
                 index === 0 ||
@@ -25,13 +24,12 @@ export function connectionSegments(routes: RoutedEdge[]) {
             const horizontal = a.y === b.y;
             const axis = horizontal ? 'x' : 'y';
             const pair: [Point, Point] = a[axis] <= b[axis] ? [a, b] : [b, a];
-            const key = `${edge.kind}:${edge.alternative}:${horizontal ? 'h' : 'v'}:${horizontal ? a.y : a.x}`;
+            const key = `${color}:${horizontal ? 'h' : 'v'}:${horizontal ? a.y : a.x}`;
             const list = bodies.get(key) ?? [];
             list.push({
                 points: pair,
                 edgeIds: [edge.id],
-                kind: edge.kind,
-                alternative: edge.alternative
+                color
             });
             bodies.set(key, list);
             for (const start of [true, false]) {
@@ -46,15 +44,14 @@ export function connectionSegments(routes: RoutedEdge[]) {
                     x: tip.x + ((other.x - tip.x) * Math.min(4, distance)) / distance,
                     y: tip.y + ((other.y - tip.y) * Math.min(4, distance)) / distance
                 };
-                const arrowKey = `${edge.kind}:${edge.alternative}:${tip.x}:${tip.y}:${Math.sign(other.x - tip.x)}:${Math.sign(other.y - tip.y)}`;
+                const arrowKey = `${color}:${tip.x}:${tip.y}:${Math.sign(other.x - tip.x)}:${Math.sign(other.y - tip.y)}`;
                 const existing = arrows.get(arrowKey);
                 if (existing) existing.edgeIds.push(edge.id);
                 else
                     arrows.set(arrowKey, {
                         points: start ? [tip, nearby] : [nearby, tip],
                         edgeIds: [edge.id],
-                        kind: edge.kind,
-                        alternative: edge.alternative,
+                        color,
                         startArrow: start,
                         endArrow: !start
                     });
@@ -77,20 +74,20 @@ export function connectionSegments(routes: RoutedEdge[]) {
             }
         }
     }
-    const candidates = new Map<string, { point: Point; ids: Set<string> }>();
-    for (const { edge, points } of routes) {
+    const candidates = new Map<string, { point: Point; color: number; ids: Set<string> }>();
+    for (const { edge, points, color } of routes) {
         for (const point of points.slice(1, -1)) {
-            const key = `${point.x}:${point.y}`;
-            const entry = candidates.get(key) ?? { point, ids: new Set<string>() };
+            const key = `${color}:${point.x}:${point.y}`;
+            const entry = candidates.get(key) ?? { point, color, ids: new Set<string>() };
             entry.ids.add(edge.id);
             candidates.set(key, entry);
         }
     }
-    const junctions: Point[] = [];
-    for (const { point, ids } of candidates.values()) {
+    const junctions: (Point & { color: number })[] = [];
+    for (const { point, color, ids } of candidates.values()) {
         const directions = new Set<string>();
         for (const segment of segments) {
-            if (!segment.edgeIds.some((id) => ids.has(id))) continue;
+            if (segment.color !== color || !segment.edgeIds.some((id) => ids.has(id))) continue;
             const [a, b] = segment.points;
             if (a.x === b.x && point.x === a.x && point.y >= a.y && point.y <= b.y) {
                 if (point.y > a.y) directions.add('up');
@@ -100,7 +97,7 @@ export function connectionSegments(routes: RoutedEdge[]) {
                 if (point.x < b.x) directions.add('right');
             }
         }
-        if (directions.size >= 3) junctions.push(point);
+        if (directions.size >= 3) junctions.push({ ...point, color });
     }
     return { segments, arrows: [...arrows.values()], junctions };
 }

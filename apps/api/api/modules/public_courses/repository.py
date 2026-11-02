@@ -4,15 +4,27 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.models import Course, Curriculum, CurriculumComponent, Subject
+from api.db.pagination import paginate
+from api.db.search import contains_all_terms
 
 
 class PublicCourseRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def list_courses(self) -> list[Course]:
-        return list(
-            await self._session.scalars(select(Course).order_by(Course.name, Course.id))
+    async def list_courses(
+        self, q: str | None, unit_id: int | None, page: int, page_size: int
+    ) -> tuple[list[Course], int]:
+        conditions = []
+        if q is not None:
+            conditions.append(contains_all_terms(Course.name, q))
+        if unit_id is not None:
+            conditions.append(Course.unit_id == unit_id)
+        return await paginate(
+            self._session,
+            select(Course).where(*conditions).order_by(Course.name, Course.id),
+            page,
+            page_size,
         )
 
     async def get_course(self, course_id: int) -> Course | None:

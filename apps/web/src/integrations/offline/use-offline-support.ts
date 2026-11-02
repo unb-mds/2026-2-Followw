@@ -1,5 +1,5 @@
 import { noop, onlineManager, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 import { persistQueryCache, warmPages } from '#/integrations/offline/storage';
 import { useOnline } from '#/lib/online';
@@ -13,11 +13,12 @@ const WARMUP_DELAY = 2_000;
 // o SW só é gerado no build de produção
 const serviceWorkerEnabled = () => import.meta.env.PROD && 'serviceWorker' in navigator;
 
-/** Liga o modo offline: cache persistido, service worker e pré-carga. */
+/** Liga o modo offline: cache persistido, service worker e pré-carga. Devolve se o cache ainda está sendo restaurado. */
 export function useOfflineSupport() {
     const queryClient = useQueryClient();
     const online = useOnline();
     const { data: user, isSuccess } = useQuery(meQueryOptions);
+    const [restoring, setRestoring] = useState(true);
     const loggedIn = Boolean(user);
     const campus = campusOf(user?.unit?.code);
 
@@ -25,7 +26,7 @@ export function useOfflineSupport() {
     useEffect(() => {
         onlineManager.setOnline(navigator.onLine);
         if (serviceWorkerEnabled()) navigator.serviceWorker.register('/sw.js').catch(noop);
-        return persistQueryCache(queryClient);
+        return persistQueryCache(queryClient, () => setRestoring(false));
     }, [queryClient]);
 
     // com o app aberto e online, deixa páginas e cardápio da semana prontos para o modo offline
@@ -37,4 +38,6 @@ export function useOfflineSupport() {
         }, WARMUP_DELAY);
         return () => clearTimeout(timeout);
     }, [queryClient, online, isSuccess, loggedIn, campus]);
+
+    return restoring;
 }

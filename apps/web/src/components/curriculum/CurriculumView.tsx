@@ -15,6 +15,7 @@ export function CurriculumView({
     currentPeriod,
     selected,
     ownCourse,
+    loggedIn,
     desktop
 }: {
     courseId: number;
@@ -22,14 +23,15 @@ export function CurriculumView({
     currentPeriod: number | null;
     selected?: string;
     ownCourse: boolean;
+    loggedIn: boolean;
     // nulo até medir a tela, para o SSR não escolher um diagrama
     desktop: boolean | null;
 }) {
     const matrix = useQuery(curriculumQueryOptions(courseId, entrySemester));
-    const history = useQuery({ ...allClassroomsQueryOptions, enabled: ownCourse });
+    const history = useQuery({ ...allClassroomsQueryOptions, enabled: loggedIn });
     const state = useMemo(
-        () => (ownCourse ? academicState(history.data, currentPeriod) : undefined),
-        [history.data, currentPeriod, ownCourse]
+        () => (loggedIn ? academicState(history.data, currentPeriod) : undefined),
+        [history.data, currentPeriod, loggedIn]
     );
     const model = useMemo(
         () => (matrix.data ? normalizeCurriculum(matrix.data) : null),
@@ -51,7 +53,7 @@ export function CurriculumView({
                     }
                     stale="Não foi possível atualizar a matriz. Exibindo os dados salvos."
                 />
-                {model && ownCourse && (
+                {model && loggedIn && (
                     <QueryState
                         query={history}
                         loading="Carregando histórico; estados acadêmicos ainda indisponíveis..."

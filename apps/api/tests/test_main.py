@@ -48,6 +48,7 @@ def test_openapi_agrupa_recursos_publicos_sem_ocultar_rotas_privadas(client):
         "Public Courses",
         "Public Professors",
         "Public Restaurant",
+        "Public Search",
         "Public Subjects",
     ]
     tags = {tag["name"]: tag for tag in schema["tags"]}
@@ -58,6 +59,7 @@ def test_openapi_agrupa_recursos_publicos_sem_ocultar_rotas_privadas(client):
     assert tags["Public Courses"]["x-displayName"] == "Courses"
     assert tags["Public Professors"]["x-displayName"] == "Professors"
     assert tags["Public Restaurant"]["x-displayName"] == "Restaurant"
+    assert tags["Public Search"]["x-displayName"] == "Search"
     assert tags["Public Subjects"]["x-displayName"] == "Subjects"
     grouped_tags = {tag for group in groups.values() for tag in group}
     for path, methods in schema["paths"].items():

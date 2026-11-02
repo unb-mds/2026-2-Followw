@@ -4,14 +4,26 @@ import { groupBy } from '#/lib/curriculum/graph';
 import { portLanes, type PortSpan } from '#/lib/curriculum/lanes';
 import { shortestChannelPath } from '#/lib/curriculum/shortcuts';
 
-const SPACING = 8;
+const SPACING = 12;
 const INSET = 16;
+const COLORS = 7;
+// acima disso, as setas de um destino se juntam numa chegada só para caber no cartão
+const SEPARATE_ARRIVALS = 6;
+
+// donos de rede vizinhos na coluna e entre colunas ficam com cores diferentes
+const color = ({ row, column }: FlowNode) => (row + 2 * column) % COLORS;
+
+// corredor do lado do destino voltado para a origem, para a linha não passar do destino
+const gutterRow = (source: number, target: number) => (source > target ? target + 1 : target);
+
+const slotY = (card: FlowNode, slots: string[], slot: string) =>
+    card.y + card.height / 2 + (slots.indexOf(slot) - (slots.length - 1) / 2) * SPACING;
 
 type Connection =
     // correquisito no mesmo semestre, desenhado na vertical
     | { kind: 'stacked'; edge: FlowEdge }
-    // pelos corredores entre semestres, compartilhado por destino
-    | { kind: 'channel'; edge: FlowEdge; net: string };
+    // pelos corredores entre semestres; a rede é da origem, ou do destino se ele lotar
+    | { kind: 'channel'; edge: FlowEdge; net: string; owner: string; arrival: string };
 
 function simplify(points: Point[]) {
     const result: Point[] = [];
@@ -37,12 +49,26 @@ export function planConnections(columns: FlowSubject[][], edges: FlowEdge[], min
             subjects.map((subject, row) => [subject.code, { col, row }] as const)
         )
     );
+    const stacked = (edge: FlowEdge) =>
+        edge.kind === 'corequisite' &&
+        locations.get(edge.source)!.col === locations.get(edge.target)!.col;
+    // a mesma origem aparece em vários grupos alternativos, mas chega numa seta só
+    const incoming = groupBy(
+        edges.flatMap((edge) =>
+            stacked(edge) ? [] : [[edge.target, `${edge.kind}:${edge.source}`] as const]
+        )
+    );
     const connections = edges.map((edge): Connection => {
-        const source = locations.get(edge.source)!;
-        const target = locations.get(edge.target)!;
-        if (edge.kind === 'corequisite' && source.col === target.col)
-            return { kind: 'stacked', edge };
-        return { kind: 'channel', edge, net: `${edge.kind}:${edge.target}:${edge.alternative}` };
+        if (stacked(edge)) return { kind: 'stacked', edge };
+        const crowded = new Set(incoming.get(edge.target)).size > SEPARATE_ARRIVALS;
+        const owner = crowded ? edge.target : edge.source;
+        return {
+            kind: 'channel',
+            edge,
+            net: `${crowded ? 'to' : 'from'}:${owner}:${edge.kind}`,
+            owner,
+            arrival: crowded ? edge.kind : `${edge.kind}:${edge.source}`
+        };
     });
 
     const rows = Math.max(0, ...columns.map((column) => column.length));
@@ -57,20 +83,22 @@ export function planConnections(columns: FlowSubject[][], edges: FlowEdge[], min
         rowSpans[upper + 1].push({ id: edge.id, start: source.col, end: source.col + 1 });
         rowSpans[lower].push({ id: edge.id, start: source.col, end: source.col + 1 });
     }
-    const nets = groupBy(
-        connections.flatMap((c) => (c.kind === 'channel' ? [[c.net, c.edge] as const] : []))
-    );
-    for (const [id, group] of nets) {
-        const target = locations.get(group[0].target)!;
-        const sources = group.map((edge) => locations.get(edge.source)!);
-        const gaps = new Set([target.col, ...sources.map((source) => source.col + 1)]);
-        const usesGutter = gaps.size > 1;
+    for (const connection of connections) {
+        if (connection.kind !== 'channel') continue;
+        const { edge, net: id } = connection;
+        const source = locations.get(edge.source)!;
+        const target = locations.get(edge.target)!;
+        const usesGutter = target.col !== source.col + 1;
+        const row = gutterRow(source.row, target.row);
         if (usesGutter)
-            rowSpans[target.row].push({ id, start: Math.min(...gaps), end: Math.max(...gaps) });
-        const arrival = usesGutter ? target.row : target.row + 0.5;
+            rowSpans[row].push({
+                id,
+                start: Math.min(target.col, source.col + 1),
+                end: Math.max(target.col, source.col + 1)
+            });
+        const arrival = usesGutter ? row : target.row + 0.5;
         gapSpans[target.col].push({ id, start: arrival, end: target.row + 0.5 });
-        for (const source of sources)
-            gapSpans[source.col + 1].push({ id, start: source.row + 0.5, end: arrival });
+        gapSpans[source.col + 1].push({ id, start: source.row + 0.5, end: arrival });
     }
     const gaps = gapSpans.map((spans) => portLanes(spans, 0));
     const gutters = rowSpans.map((spans) => portLanes(spans, 0));
@@ -81,45 +109,80 @@ export function planConnections(columns: FlowSubject[][], edges: FlowEdge[], min
         route(nodes: FlowNode[], gapStarts: number[], rowTops: number[]) {
             const byCode = new Map(nodes.map((node) => [node.subject.code, node]));
             const node = (code: string) => byCode.get(code)!;
-            const portStyles = groupBy(
-                edges.flatMap((edge) =>
-                    (['source', 'target'] as const).map(
-                        (direction) =>
-                            [
-                                `${direction}:${edge[direction]}`,
-                                `${edge.kind}:${edge.alternative}`
-                            ] as const
-                    )
-                )
+            type Channel = Extract<Connection, { kind: 'channel' }>;
+            const channels = connections.flatMap((c) => (c.kind === 'channel' ? [c] : []));
+            // uma saída por rede, para redes diferentes não dividirem o mesmo trecho
+            const departures = groupBy(channels.map((c) => [c.edge.source, c.net] as const));
+            // cada origem chega numa altura própria, na ordem vertical das origens
+            const arrivals = groupBy(
+                channels
+                    .toSorted((a, b) => {
+                        const [first, second] = [node(a.edge.source), node(b.edge.source)];
+                        return first.row - second.row || second.column - first.column;
+                    })
+                    .map((c) => [c.edge.target, c.arrival] as const)
             );
-            const port = (code: string, edge: FlowEdge, direction: 'source' | 'target') => {
-                const card = node(code);
-                const styles = [...new Set(portStyles.get(`${direction}:${code}`))];
-                const slot = styles.indexOf(`${edge.kind}:${edge.alternative}`);
+            const departureY = (card: FlowNode, net: string) =>
+                slotY(card, [...new Set(departures.get(card.subject.code))], net);
+            // chegada na altura de uma saída do cartão à esquerda desce meio passo, sem sobrepor
+            const arrivalY = (card: FlowNode, arrival: string) => {
+                const slots = [...new Set(arrivals.get(card.subject.code))];
+                const left = nodes.find(
+                    (item) => item.column === card.column - 1 && item.row === card.row
+                );
+                // altura de saída do vizinho → rede que a usa
+                const taken = new Map(
+                    [...new Set(left ? departures.get(left.subject.code) : [])].map(
+                        (net) => [departureY(left!, net), net] as const
+                    )
+                );
+                const incomingNets = new Map(
+                    channels
+                        .filter(({ edge }) => edge.target === card.subject.code)
+                        .map((c) => [c.arrival, c.net] as const)
+                );
+                const shift = slots.some((slot) => {
+                    const net = taken.get(slotY(card, slots, slot));
+                    return net !== undefined && net !== incomingNets.get(slot);
+                });
+                return slotY(card, slots, arrival) + (shift ? SPACING / 2 : 0);
+            };
+            const ports = ({ edge, net, arrival }: Channel) => {
+                const source = node(edge.source);
+                const target = node(edge.target);
                 return {
-                    x: direction === 'source' ? card.x + card.width : card.x,
-                    y: card.y + card.height / 2 + (slot - (styles.length - 1) / 2) * SPACING
+                    from: { x: source.x + source.width, y: departureY(source, net) },
+                    to: { x: target.x, y: arrivalY(target, arrival) }
                 };
             };
             const laneX = (gap: number, id: string) =>
                 gapStarts[gap] + INSET + gaps[gap].lanes.get(id)! * SPACING;
             const laneY = (row: number, id: string) =>
                 rowTops[row] - INSET - gutters[row].lanes.get(id)! * SPACING;
-            const corridors = [
-                ...rowTops.map((top) => top - INSET),
-                Math.max(...nodes.map((item) => item.y + item.height)) + INSET
-            ];
+
+            const ends = (edge: FlowEdge) =>
+                [node(edge.source), node(edge.target)].toSorted((a, b) => a.row - b.row);
+            // correquisito de longe chega ao lado do centro, que fica para o cartão logo acima
+            const distant = groupBy(
+                connections.flatMap((c) => {
+                    if (c.kind !== 'stacked') return [];
+                    const [upper, lower] = ends(c.edge);
+                    return lower.row === upper.row + 1
+                        ? []
+                        : [[lower.subject.code, c.edge.id] as const];
+                })
+            );
 
             function path(connection: Connection): Point[] {
                 const { edge } = connection;
                 if (connection.kind === 'stacked') {
                     const source = node(edge.source);
-                    const [upper, lower] = [source, node(edge.target)].toSorted(
-                        (a, b) => a.row - b.row
-                    );
+                    const [upper, lower] = ends(edge);
                     const x = upper.x + upper.width / 2;
+                    const slot = distant.get(lower.subject.code)?.indexOf(edge.id) ?? -1;
+                    const toX = lower.x + lower.width / 2 + (slot + 1) * SPACING;
                     const from = { x, y: upper.y + upper.height };
-                    const to = { x, y: lower.y };
+                    const to = { x: toX, y: lower.y };
                     const departure = laneY(upper.row + 1, edge.id);
                     const arrival = laneY(lower.row, edge.id);
                     const lane = laneX(source.column + 1, edge.id);
@@ -131,14 +194,13 @@ export function planConnections(columns: FlowSubject[][], edges: FlowEdge[], min
                                   { x, y: departure },
                                   { x: lane, y: departure },
                                   { x: lane, y: arrival },
-                                  { x, y: arrival },
+                                  { x: toX, y: arrival },
                                   to
                               ];
                     return upper === source ? points : points.toReversed();
                 }
                 const { net } = connection;
-                const from = port(edge.source, edge, 'source');
-                const to = port(edge.target, edge, 'target');
+                const { from, to } = ports(connection);
                 const departure = laneX(node(edge.source).column + 1, net);
                 const arrival = laneX(node(edge.target).column, net);
                 if (departure === arrival)
@@ -147,13 +209,18 @@ export function planConnections(columns: FlowSubject[][], edges: FlowEdge[], min
                     from,
                     to,
                     { departure, arrival },
-                    [laneY(node(edge.target).row, net), ...corridors],
+                    laneY(gutterRow(node(edge.source).row, node(edge.target).row), net),
                     nodes
                 );
             }
             return connections.map((connection): RoutedEdge => ({
                 edge: connection.edge,
-                points: simplify(path(connection))
+                points: simplify(path(connection)),
+                color: color(
+                    connection.kind === 'channel'
+                        ? node(connection.owner)
+                        : ends(connection.edge)[0]
+                )
             }));
         }
     };

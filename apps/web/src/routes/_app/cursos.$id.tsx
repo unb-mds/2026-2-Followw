@@ -10,11 +10,13 @@ import { Legend } from '#/components/curriculum/Legend';
 import { ErrorCard, ErrorState } from '#/components/ErrorState';
 import { BackHeader } from '#/components/HeaderBar';
 import { LoadingText } from '#/components/LoadingText';
-import { validateFlowSearch } from '#/lib/curriculum/navigation';
+import { useFlowSearch, validateFlowSearch } from '#/lib/curriculum/navigation';
+import { titleCase } from '#/lib/profile';
 import { useWidth } from '#/lib/width';
 import { allClassroomsQueryOptions } from '#/queries/classrooms';
-import { coursesQueryOptions } from '#/queries/courses';
+import { courseQueryOptions } from '#/queries/courses';
 import { curriculumQueryOptions } from '#/queries/curriculum';
+import { ApiError } from '#/queries/errors';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
 import { currentCurriculumPeriod } from '#/queries/subjects';
@@ -27,13 +29,13 @@ function flowTarget(user: UserProfile | null | undefined, courseId: number) {
     const ownCourse = courseId === user?.course?.id;
     return {
         ownCourse,
+        loggedIn: Boolean(user),
         entrySemester: ownCourse ? user?.entry_semester : semester,
         currentPeriod: ownCourse ? currentCurriculumPeriod(user?.entry_semester, semester) : null
     };
 }
 
 export const Route = createFileRoute('/_app/cursos/$id')({
-    head: () => ({ meta: [{ title: 'Fluxo acadêmico | Followw' }] }),
     validateSearch: validateFlowSearch,
     staticData: { presentation: 'fullscreen' },
     params: {
@@ -47,16 +49,28 @@ export const Route = createFileRoute('/_app/cursos/$id')({
     },
     loader: async ({ context: { queryClient }, params: { id: courseId } }) => {
         const user = await loadQuery(queryClient, meQueryOptions);
-        const { ownCourse, entrySemester } = flowTarget(user, courseId);
-        await Promise.all([
-            !ownCourse && loadQuery(queryClient, coursesQueryOptions).catch(noop),
+        const { ownCourse, loggedIn, entrySemester } = flowTarget(user, courseId);
+        const [course] = await Promise.all([
+            ownCourse
+                ? user?.course
+                : loadQuery(queryClient, courseQueryOptions(courseId)).catch(noop),
             entrySemester &&
                 loadQuery(queryClient, curriculumQueryOptions(courseId, entrySemester)).catch(noop),
-            ownCourse &&
+            loggedIn &&
                 entrySemester &&
                 loadQuery(queryClient, allClassroomsQueryOptions).catch(noop)
         ]);
+        return { courseName: course?.name };
     },
+    head: ({ loaderData }) => ({
+        meta: [
+            {
+                title: loaderData?.courseName
+                    ? `Fluxograma de ${titleCase(loaderData.courseName)} | Followw`
+                    : 'Fluxograma | Followw'
+            }
+        ]
+    }),
     pendingComponent: () => (
         <div className="flex flex-col gap-4 px-4 lg:px-6">
             <FlowHeader />
@@ -79,25 +93,26 @@ function FlowHeader({ legend = false }: { legend?: boolean }) {
 function FlowPage() {
     const { ref, width } = useWidth<HTMLDivElement>();
     const desktop = width ? width >= DESKTOP_MIN_WIDTH : null;
-    const search = Route.useSearch();
+    const [{ subject }] = useFlowSearch();
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const { id: courseId } = Route.useParams();
-    const { ownCourse, entrySemester, currentPeriod } = flowTarget(user, courseId);
-    const courses = useQuery({ ...coursesQueryOptions, enabled: !ownCourse });
-    const course = ownCourse ? user?.course : courses.data?.find((item) => item.id === courseId);
+    const { ownCourse, loggedIn, entrySemester, currentPeriod } = flowTarget(user, courseId);
+    const listed = useQuery({ ...courseQueryOptions(courseId), enabled: !ownCourse });
+    const unlisted = listed.error instanceof ApiError && listed.error.isNotFound;
+    const course = ownCourse ? user?.course : listed.data;
     return (
         <div ref={ref} className="flex min-h-0 flex-1 flex-col">
-            <div className="shrink-0 border-b px-4 pb-5 lg:px-6">
-                <FlowHeader legend={Boolean(desktop && ownCourse && course && entrySemester)} />
+            <div className="shrink-0 px-4 pb-5 lg:px-6">
+                <FlowHeader legend={Boolean(desktop && loggedIn && course && entrySemester)} />
                 {course && <CourseSummary course={course} entrySemester={entrySemester} />}
             </div>
-            {!ownCourse && courses.isPending ? (
+            {!ownCourse && listed.isPending ? (
                 <LoadingText className="p-4">Carregando curso...</LoadingText>
-            ) : !ownCourse && courses.isLoadingError ? (
+            ) : !ownCourse && listed.isLoadingError && !unlisted ? (
                 <div className="p-4">
                     <ErrorCard
                         message="Não foi possível carregar o curso."
-                        onRetry={() => courses.refetch()}
+                        onRetry={() => listed.refetch()}
                     />
                 </div>
             ) : !course ? (
@@ -113,8 +128,9 @@ function FlowPage() {
                     courseId={course.id}
                     entrySemester={entrySemester}
                     currentPeriod={currentPeriod}
-                    selected={search.materia}
+                    selected={subject ?? undefined}
                     ownCourse={ownCourse}
+                    loggedIn={loggedIn}
                     desktop={desktop}
                 />
             )}

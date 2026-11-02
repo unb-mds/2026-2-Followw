@@ -9,12 +9,12 @@ import type { CatalogSubject, Requirements, SubjectClassroom } from '#/queries/s
 import { apiClient } from '#/queries/client';
 import {
     approvedCodes,
+    covered,
     currentCurriculumPeriod,
     withClassrooms,
     seats,
     subjectRequirementLabel,
     searchText,
-    subjectsQuery,
     subjectsQueryOptions
 } from '#/queries/subjects';
 
@@ -65,25 +65,23 @@ describe('busca de matérias', () => {
     });
 
     test.each([
-        ['FGA0003', 'FCTE', { q: 'FGA0003' }],
-        [' fga0003 ', null, { q: 'fga0003' }],
-        [' cálculo 1 ', 'FCTE', { q: 'cálculo 1' }],
-        ['Carlos Silva', null, { q: 'Carlos Silva' }],
-        ['ab', 'FCTE', { unit: 'FCTE' }],
-        ['ab', null, null],
-        ['abc', null, { q: 'abc' }],
-        ['a'.repeat(32), null, { q: 'a'.repeat(32) }],
-        ['a'.repeat(33), 'FCTE', { unit: 'FCTE' }],
-        ['  ', 'FCTE', { unit: 'FCTE' }],
-        ['', null, null]
-    ])('"%s" com unidade %s busca %p', (q, unit, expected) => {
-        expect(subjectsQuery(searchText(q), unit)).toEqual(expected);
+        ['FGA0003', 'FGA0003'],
+        [' fga0003 ', 'fga0003'],
+        [' cálculo 1 ', 'cálculo 1'],
+        ['ab', null],
+        ['abc', 'abc'],
+        ['a'.repeat(32), 'a'.repeat(32)],
+        ['a'.repeat(33), null],
+        ['  ', null],
+        ['', null]
+    ])('"%s" vira o texto de busca %p', (q, expected) => {
+        expect(searchText(q)).toBe(expected);
     });
 
-    test('texto fora dos limites mantém o anterior', () => {
+    test('texto fora dos limites mantém o anterior e vazio limpa', () => {
         expect(searchText('ab', 'calculo')).toBe('calculo');
-        expect(searchText('a'.repeat(33))).toBeNull();
-        expect(subjectsQuery(searchText('', 'calculo'), 'FCTE')).toEqual({ unit: 'FCTE' });
+        expect(searchText('a'.repeat(33), 'calculo')).toBe('calculo');
+        expect(searchText('', 'calculo')).toBeNull();
     });
 });
 
@@ -96,6 +94,18 @@ const history = (code: string, grade: Classroom['grade'], current = false): Clas
 });
 
 describe('pré-requisitos', () => {
+    test('feita pela própria matéria ou por um grupo inteiro de equivalências', () => {
+        const equivalences = [['E', 'F'], ['G']].map((group) =>
+            group.map((code) => ({ code, subject: null }))
+        );
+        const done = (...codes: string[]) => covered(new Set(codes), { code: 'B', equivalences });
+        expect(done('B')).toBe(true);
+        expect(done('E')).toBe(false);
+        expect(done('E', 'F')).toBe(true);
+        expect(done('G')).toBe(true);
+        expect(covered(new Set(['B']), { code: 'A', equivalences: [[]] })).toBe(false);
+        expect(covered(null, { code: 'B', equivalences })).toBe(false);
+    });
     test('aprovado só com SS, MS ou MM em turma encerrada', () => {
         const approved = approvedCodes([
             history('A', 'SS'),

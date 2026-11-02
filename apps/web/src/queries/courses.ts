@@ -4,21 +4,14 @@ import { api } from '#/queries/api';
 
 export type PublicCourse = components['schemas']['PublicCourse'];
 
-export const coursesQueryOptions = api.queryOptions('get', '/public/courses');
-
-const normalize = (text: string) =>
-    text
-        .normalize('NFKD')
-        .replace(/\p{M}/gu, '')
-        .toLocaleLowerCase('pt-BR')
-        .trim()
-        .replace(/\s+/g, ' ');
-
-export function filterCourses(courses: PublicCourse[], text: string): PublicCourse[] {
-    const terms = normalize(text).split(' ').filter(Boolean);
-    if (!terms.length) return [];
-    return courses.filter((course) => {
-        const name = normalize(course.name);
-        return terms.every((term) => name.includes(term));
+export const courseQueryOptions = (courseId: number) =>
+    api.queryOptions('get', '/public/courses/{course_id}', {
+        params: { path: { course_id: courseId } }
     });
-}
+
+export type CoursePage = components['schemas']['CoursePage'];
+
+export const coursesQueryOptions = (q: string | null, page = 1) =>
+    api.queryOptions('get', '/public/courses', {
+        params: { query: { q: q ?? undefined, page } }
+    });

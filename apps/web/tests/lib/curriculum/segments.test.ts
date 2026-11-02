@@ -4,12 +4,13 @@ import type { RoutedEdge } from '#/lib/curriculum/types';
 
 import { connectionSegments } from '#/lib/curriculum/segments';
 
-const route = (id: string, start: number, alternative = false): RoutedEdge => ({
-    edge: { id, source: id, target: 'DESTINO', kind: 'prerequisite', group: 1, alternative },
+const route = (id: string, start: number, color = 0): RoutedEdge => ({
+    edge: { id, source: id, target: 'DESTINO', kind: 'prerequisite', group: 1, alternative: false },
     points: [
         { x: start, y: 20 },
         { x: 100, y: 20 }
-    ]
+    ],
+    color
 });
 
 test('une trechos parcialmente sobrepostos e desenha uma única ponta para o mesmo destino', () => {
@@ -24,13 +25,14 @@ test('une trechos parcialmente sobrepostos e desenha uma única ponta para o mes
     expect(arrows[0].endArrow).toBe(true);
 });
 
-test('filtrar uma relação reconstrói somente seu trajeto e preserva estilos de alternativas', () => {
-    const all = [route('A', 0), route('B', 40, true)];
+test('filtrar uma relação reconstrói somente seu trajeto e preserva sua cor', () => {
+    const all = [route('A', 0), route('B', 40, 3)];
     expect(connectionSegments(all).segments).toHaveLength(2);
     const filtered = connectionSegments(all.filter(({ edge }) => edge.id === 'B'));
     expect(filtered.segments).toHaveLength(1);
     expect(filtered.segments[0].points[0].x).toBe(40);
-    expect(filtered.segments[0].alternative).toBe(true);
+    expect(filtered.segments[0].color).toBe(3);
+    expect(filtered.arrows[0].color).toBe(3);
     expect(filtered.segments[0].edgeIds).toEqual(['B']);
 });
 
@@ -59,7 +61,11 @@ test('marca bifurcações reais sem transformar cruzamentos independentes em jun
         { x: 10, y: 30 },
         { x: 50, y: 30 }
     ];
-    expect(connectionSegments([first, second]).junctions).toContainEqual({ x: 10, y: 20 });
+    expect(connectionSegments([first, second]).junctions).toContainEqual({
+        x: 10,
+        y: 20,
+        color: 0
+    });
     const crossing = route('C', 0);
     crossing.points = [
         { x: 5, y: -10 },

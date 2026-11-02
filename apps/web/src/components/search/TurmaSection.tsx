@@ -11,8 +11,9 @@ import {
     AccordionTrigger
 } from '#/components/ui/accordion';
 import { Button } from '#/components/ui/button';
+import { covered } from '#/queries/subjects';
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 25;
 
 export function TurmaSection({
     title,
@@ -53,7 +54,7 @@ export function TurmaSection({
                             <SubjectSummary
                                 subject={subject}
                                 currentPeriod={currentPeriod}
-                                done={taken?.has(subject.code) ?? false}
+                                done={covered(taken, subject)}
                             />
                             <span className="shrink-0 text-xs text-muted-foreground">
                                 {`${subject.classrooms.length} ${subject.classrooms.length === 1 ? 'turma' : 'turmas'}`}

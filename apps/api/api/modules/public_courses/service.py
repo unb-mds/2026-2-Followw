@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.academic_calendar import parse_semester
 from api.db.main import DatabaseDep
 from api.db.models import Course, Curriculum, Subject
+from api.db.units import find_unit_id
 from api.modules.public_courses.repository import PublicCourseRepository
 from api.modules.public_subjects.repository import SubjectCatalogRepository
 from api.schemas import (
@@ -24,6 +25,8 @@ from api.schemas import (
 
 _REVISION_RE = re.compile(r"/(-?\d+)$")
 
+COURSES_PAGE_SIZE = 25
+
 
 class PublicCourse(BaseModel):
     model_config = ConfigDict(frozen=True)
@@ -35,6 +38,13 @@ class PublicCourse(BaseModel):
     unit: UnitRef
     # O seed só traz cursos de graduação do SIGAA; os criados pelo sync não têm nível.
     level: Literal["Graduação"] | None
+
+
+class CoursePage(BaseModel):
+    items: list[PublicCourse]
+    total: int
+    page: int
+    page_size: int
 
 
 class CurriculumOption(BaseModel):
@@ -88,8 +98,19 @@ class PublicCourseService:
     def __init__(self, db: DatabaseDep) -> None:
         self._db = db
 
-    async def list_courses(self) -> list[PublicCourse]:
-        return await self._db.read(_list_courses)
+    async def list_courses(
+        self,
+        q: str | None,
+        unit: int | str | None,
+        page: int,
+        page_size: int,
+    ) -> CoursePage:
+        return await self._db.read(
+            lambda session: _list_courses(session, q, unit, page, page_size)
+        )
+
+    async def get_course(self, course_id: int) -> PublicCourse:
+        return await self._db.read(lambda session: _get_course(session, course_id))
 
     async def get_curriculum(
         self,
@@ -104,9 +125,30 @@ class PublicCourseService:
         )
 
 
-async def _list_courses(session: AsyncSession) -> list[PublicCourse]:
-    courses = await PublicCourseRepository(session).list_courses()
-    return [_course(course) for course in courses]
+async def _list_courses(
+    session: AsyncSession,
+    q: str | None,
+    unit: int | str | None,
+    page: int,
+    page_size: int,
+) -> CoursePage:
+    unit_id = await find_unit_id(session, unit)
+    courses, total = await PublicCourseRepository(session).list_courses(
+        q, unit_id, page, page_size
+    )
+    return CoursePage(
+        items=[_course(course) for course in courses],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
+async def _get_course(session: AsyncSession, course_id: int) -> PublicCourse:
+    course = await PublicCourseRepository(session).get_course(course_id)
+    if course is None:
+        raise HTTPException(404, "Curso não encontrado.")
+    return _course(course)
 
 
 def _course(course: Course) -> PublicCourse:
