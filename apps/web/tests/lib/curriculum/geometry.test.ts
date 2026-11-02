@@ -323,7 +323,7 @@ describe('geometria do fluxo', () => {
         const bySource = new Map<string, Set<number>>();
         for (const { edge, color } of geometry.edges) {
             expect(color).toBeGreaterThanOrEqual(0);
-            expect(color).toBeLessThan(5);
+            expect(color).toBeLessThan(7);
             // destinos lotados ficam com a cor deles
             if (incoming.get(edge.target)!.length > 6) continue;
             bySource.set(edge.source, (bySource.get(edge.source) ?? new Set()).add(color));

@@ -6,7 +6,7 @@ import { shortestChannelPath } from '#/lib/curriculum/shortcuts';
 
 const SPACING = 8;
 const INSET = 16;
-const COLORS = 5;
+const COLORS = 7;
 // acima disso, as setas de um destino se juntam numa chegada só para caber no cartão
 const SEPARATE_ARRIVALS = 6;
 

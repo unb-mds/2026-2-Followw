@@ -20,6 +20,8 @@
     --color-flow-3: var(--flow-3);
     --color-flow-4: var(--flow-4);
     --color-flow-5: var(--flow-5);
+    --color-flow-6: var(--flow-6);
+    --color-flow-7: var(--flow-7);
     --color-chart-5: var(--chart-5);
     --color-chart-4: var(--chart-4);
     --color-chart-3: var(--chart-3);
@@ -81,6 +83,8 @@
     --flow-3: oklch(0.55 0.15 300);
     --flow-4: oklch(0.58 0.15 0);
     --flow-5: oklch(0.62 0.13 75);
+    --flow-6: oklch(0.58 0.15 135);
+    --flow-7: oklch(0.6 0.15 40);
     --border: oklch(0.922 0 0);
     --input: oklch(0.922 0 0);
     --ring: oklch(0.708 0 0);
@@ -112,6 +116,8 @@
     --flow-3: oklch(0.72 0.13 300);
     --flow-4: oklch(0.72 0.14 0);
     --flow-5: oklch(0.8 0.13 80);
+    --flow-6: oklch(0.78 0.16 135);
+    --flow-7: oklch(0.74 0.14 40);
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
     --ring: oklch(0.556 0 0);

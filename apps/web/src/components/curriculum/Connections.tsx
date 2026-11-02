@@ -7,7 +7,15 @@ import { pathData } from '#/lib/curriculum/geometry';
 import { connectionSegments } from '#/lib/curriculum/segments';
 
 // uma classe por índice de RoutedEdge.color
-const palette = ['text-flow-1', 'text-flow-2', 'text-flow-3', 'text-flow-4', 'text-flow-5'];
+const palette = [
+    'text-flow-1',
+    'text-flow-2',
+    'text-flow-3',
+    'text-flow-4',
+    'text-flow-5',
+    'text-flow-6',
+    'text-flow-7'
+];
 
 export function Connections({
     model,
