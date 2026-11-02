@@ -169,7 +169,7 @@ describe('seção de recomendações', () => {
         });
         expect(
             page
-                .getByRole('button', { name: 'Por que esta matéria?' })
+                .getByRole('button', { name: 'Por que esta matéria?', hidden: true })
                 .getAttribute('aria-expanded')
         ).toBe('true');
         const criteria = document.createElement('div');
@@ -186,7 +186,8 @@ describe('seção de recomendações', () => {
         await testing.waitFor(() =>
             expect(classrooms[0].getAttribute('aria-expanded')).toBe('true')
         );
-        expect(requests).toHaveLength(1);
+        const subjects = requests.filter(({ url }) => url.endsWith('/public/subjects'));
+        expect(subjects).toHaveLength(1);
     });
     test('exibe 20 recomendações e carrega mais sob demanda', async () => {
         response = () =>

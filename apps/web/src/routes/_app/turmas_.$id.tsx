@@ -22,6 +22,7 @@ import { Card, CardContent } from '#/components/ui/card';
 import { PersonPhoto } from '#/components/ui/person-photo';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
 import {
+    CLASSROOM_TABS,
     classroomTab,
     type ClassroomTab,
     classroomSearchParsers,
@@ -33,9 +34,9 @@ import { titleCase } from '#/lib/profile';
 import {
     allClassroomsQueryOptions,
     classroomFrequencyQueryOptions,
-    classroomStatisticsQueryOptions,
     classroomMembersQueryOptions,
     classroomPostsQueryOptions,
+    classroomStatisticsQueryOptions,
     useMarkLessons
 } from '#/queries/classrooms';
 import { loadQuery } from '#/queries/load';
@@ -45,16 +46,16 @@ type Member = components['schemas']['ClassroomMember'];
 type Professor = components['schemas']['ProfessorRef'];
 
 const TAB_LABELS: Record<ClassroomTab, string> = {
-    statistics: 'Estatísticas',
     frequency: 'Frequência',
+    statistics: 'Estatísticas',
     posts: 'Postagens',
     members: 'Participantes'
 };
 
 // a aba aberta é pré-carregada; as outras buscam ao serem abertas
 const PRELOAD_TAB: Record<ClassroomTab, (client: QueryClient, id: string) => Promise<unknown>> = {
-    statistics: (client, id) => loadQuery(client, classroomStatisticsQueryOptions(id)),
     frequency: (client, id) => loadQuery(client, classroomFrequencyQueryOptions(id)),
+    statistics: (client, id) => loadQuery(client, classroomStatisticsQueryOptions(id)),
     posts: (client, id) => loadQuery(client, classroomPostsQueryOptions(id)),
     members: (client, id) => loadQuery(client, classroomMembersQueryOptions(id))
 };
@@ -123,12 +124,8 @@ function ClassroomPage() {
                             className="grid w-full grid-cols-3 border-b border-border group-data-horizontal/tabs:h-auto"
                             aria-label="Detalhes da turma"
                         >
-                            {(
-                                [
-                                    classroom.current ? 'frequency' : 'statistics',
-                                    'posts',
-                                    'members'
-                                ] as const
+                            {CLASSROOM_TABS.filter(
+                                (item) => classroomTab(item, classroom.current) === item
                             ).map((item) => (
                                 <TabsTrigger
                                     key={item}

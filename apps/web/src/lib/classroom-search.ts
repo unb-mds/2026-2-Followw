@@ -12,10 +12,8 @@ export const validateClassroomSearch = createStandardSchemaV1(classroomSearchPar
 });
 export const loadClassroomSearch = createLoader(classroomSearchParsers);
 
+// turma em andamento tem frequência; encerrada, estatísticas
 export function classroomTab(tab: ClassroomTab, current: boolean): ClassroomTab {
-    return tab === 'frequency' || tab === 'statistics'
-        ? current
-            ? 'frequency'
-            : 'statistics'
-        : tab;
+    if (tab !== 'frequency' && tab !== 'statistics') return tab;
+    return current ? 'frequency' : 'statistics';
 }

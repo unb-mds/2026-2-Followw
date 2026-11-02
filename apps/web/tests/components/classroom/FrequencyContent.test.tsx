@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { MarkLessons } from '#/components/classroom/FrequencyContent';
 import type { ClassroomFrequency, Lesson } from '#/queries/classrooms';
 
-import { FrequencyContent } from '#/components/classroom/FrequencyContent';
+import { FrequencyContent, lessonRuns } from '#/components/classroom/FrequencyContent';
 import { nowInBrasilia } from '#/lib/schedule';
 
 import { useDom } from '../../helpers/dom';
@@ -251,5 +251,38 @@ describe('marcação das aulas', () => {
         );
 
         expect(page.getByRole('toolbar').textContent).toContain('1 aula');
+    });
+
+    test('agrupa as aulas em sequências cronológicas, sem as canceladas', () => {
+        expect(
+            lessonRuns([
+                lesson('2026-10-09', { status: 'presente' }),
+                lesson('2026-10-08', { status: 'falta' }),
+                lesson('2026-10-07', { status: 'cancelada' }),
+                lesson('2026-10-06', { status: 'falta' }),
+                lesson('2026-10-05', { status: 'presente' }),
+                lesson('2026-10-04', { status: 'presente' })
+            ])
+        ).toMatchObject([
+            { status: 'presente', count: 2 },
+            { status: 'falta', count: 2 },
+            { status: 'presente', count: 1 }
+        ]);
+    });
+
+    test('mostra o andamento das aulas segmentado junto dos totais', () => {
+        const markup = render(registered);
+        expect(markup).toMatch(/Frequência<\/dt>[\s\S]*Andamento das aulas/);
+        expect(markup).toContain('role="progressbar"');
+        expect(markup).toMatch(
+            /bg-primary"[^>]*flex-grow:1[\s\S]*bg-muted-foreground\/40[\s\S]*bg-destructive/
+        );
+    });
+
+    test('sem totais mostra apenas o andamento contínuo', () => {
+        const markup = render(notRegistered);
+        expect(markup).toContain('Andamento das aulas');
+        expect(markup).toContain('data-slot="progress-indicator"');
+        expect(markup).not.toContain('min-w-1 rounded-full');
     });
 });
