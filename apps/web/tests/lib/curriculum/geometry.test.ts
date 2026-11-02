@@ -104,14 +104,16 @@ describe('geometria do fluxo', () => {
                     },
                     {
                         period: 3,
-                        subjects: [{ code: 'Z', name: 'Destino', prerequisites: [['A1']] }]
+                        // A0 fica alinhada ao destino, então A1 chega de baixo
+                        subjects: [{ code: 'Z', name: 'Destino', prerequisites: [['A0'], ['A1']] }]
                     }
                 ]
             })
         );
         for (const width of [1024, 1440, 2560]) {
             const geometry = layoutCurriculum(curriculum, width);
-            const { points } = geometry.edges[0];
+            const { points } = geometry.edges.find(({ edge }) => edge.source === 'A1')!;
+            expect(points[0].y).toBeGreaterThan(points.at(-1)!.y);
             const from = points[0];
             const to = points.at(-1)!;
             const length = points

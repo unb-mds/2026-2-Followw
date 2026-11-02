@@ -138,6 +138,41 @@ describe('matriz e estados acadêmicos', () => {
         expect(initialMobilePeriod(model.periods, true, null)).toBe(1);
         expect(initialMobilePeriod([], true, 2)).toBeNull();
     });
+    test('oculta a linha da alternativa no mesmo semestre ou depois, mas mantém o desbloqueio', () => {
+        const flow = normalizeCurriculum(
+            curriculum({
+                ...raw,
+                periods: [
+                    {
+                        period: 1,
+                        subjects: [
+                            { code: 'T', name: 'Teoria' },
+                            { code: 'P', name: 'Prática' }
+                        ]
+                    },
+                    {
+                        period: 2,
+                        subjects: [
+                            { code: 'S', name: 'Mesmo semestre' },
+                            {
+                                code: 'L',
+                                name: 'Laboratório',
+                                prerequisites: [['S'], ['T', 'P'], ['F']]
+                            },
+                            { code: 'O', name: 'Obrigatória adiantada', prerequisites: [['F']] }
+                        ]
+                    },
+                    { period: 3, subjects: [{ code: 'F', name: 'Futura' }] }
+                ]
+            })
+        );
+        expect(flow.edges.map((e) => [e.source, e.target])).toEqual([
+            ['T', 'L'],
+            ['P', 'L'],
+            ['F', 'O']
+        ]);
+        expect(flow.unlocks.get('S')?.map(({ code }) => code)).toEqual(['L']);
+    });
     test('distingue correquisitos e excluindo equivalências das conexões', () => {
         expect(
             model.edges

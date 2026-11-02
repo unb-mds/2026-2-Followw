@@ -1,6 +1,6 @@
 import type { CurriculumModel, FlowGeometry, FlowSubject, Point } from '#/lib/curriculum/types';
 
-import { groupCorequisites } from '#/lib/curriculum/relations';
+import { orderColumns } from '#/lib/curriculum/ordering';
 import { planConnections } from '#/lib/curriculum/routing';
 
 export interface LayoutMetrics {
@@ -36,36 +36,13 @@ export const MOBILE: LayoutMetrics = {
 const PAD = 24;
 const HEADING_HEIGHT = 40;
 
-function orderedColumns(model: CurriculumModel) {
-    const positions = new Map<string, number>();
-    return model.periods.map((period) => {
-        const score = (subject: FlowSubject) => {
-            const rows = model.edges
-                .filter((e) => e.kind === 'prerequisite' && e.target === subject.code)
-                .flatMap((e) => {
-                    const row = positions.get(e.source);
-                    return row === undefined ? [] : [row];
-                });
-            return rows.length ? rows.reduce((a, b) => a + b, 0) / rows.length : Infinity;
-        };
-        const subjects = groupCorequisites(
-            model.subjects
-                .filter((s) => s.period === period)
-                .toSorted((a, b) => score(a) - score(b) || a.code.localeCompare(b.code)),
-            model.edges
-        );
-        subjects.forEach((subject, row) => positions.set(subject.code, row));
-        return subjects;
-    });
-}
-
 export function layoutCurriculum(
     model: CurriculumModel,
     availableWidth: number,
     metrics: LayoutMetrics = DESKTOP
 ): FlowGeometry {
     const { periods } = model;
-    const columns = orderedColumns(model);
+    const columns = orderColumns(model);
     const plan = planConnections(columns, model.edges, metrics.minGap);
     const gapWidths = [...plan.gapWidths];
     const gapTotal = gapWidths.reduce((a, b) => a + b, 0);

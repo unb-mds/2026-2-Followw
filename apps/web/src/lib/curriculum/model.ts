@@ -1,4 +1,4 @@
-import type { AcademicState, CurriculumModel, FlowSubject } from '#/lib/curriculum/types';
+import type { AcademicState, CurriculumModel, FlowEdge, FlowSubject } from '#/lib/curriculum/types';
 import type { Classroom } from '#/queries/classrooms';
 import type { CourseCurriculum } from '#/queries/curriculum';
 
@@ -28,11 +28,16 @@ export function normalizeCurriculum(curriculum: CourseCurriculum): CurriculumMod
     }
     const subjects = [...byCode.values()];
     const edges = curriculumEdges(subjects, byCode);
+    // alternativa no mesmo semestre ou depois faria a linha voltar; segue só no modal
+    const backwards = ({ kind, alternative, source, target }: FlowEdge) =>
+        kind === 'prerequisite' &&
+        alternative &&
+        byCode.get(source)!.period >= byCode.get(target)!.period;
     return {
         periods: [...new Set(blocks.map((block) => block.period))],
         subjects,
         byCode,
-        edges,
+        edges: edges.filter((edge) => !backwards(edge)),
         unlocks: unlockedSubjects(edges, byCode)
     };
 }
