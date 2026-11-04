@@ -1,15 +1,16 @@
 # Followw UnB
 
-O Followw reúne o SIGAA e outros serviços da UnB em um aplicativo web para a rotina de estudantes.
-O cardápio do RU, a busca e os fluxos de cursos são públicos. Para acompanhar seus dados acadêmicos,
-você entra com a mesma matrícula e senha do SIGAA. A UnB valida o login; suas credenciais ficam
-criptografadas no navegador. [Saiba mais](docs/segurança.md).
+O Followw reúne o SIGAA e outros serviços da UnB em um aplicativo web para a rotina de estudantes. O
+cardápio do RU, a busca e os fluxos de cursos são públicos. Para acompanhar seus dados acadêmicos,
+você entra com a mesma matrícula e senha do SIGAA. Suas credenciais são criptografadas e ficam
+salvas apenas no seu navegador. [Saiba mais](docs/segurança.md).
 
-> Projeto independente, sem vínculo oficial com a UnB ou com o SIGAA.
+> O Followw é independente e não possui vínculo oficial com a UnB ou com o SIGAA.
 
-[Abrir o Followw](https://followw.app/) · [Documentação](https://docs.followw.app/) · [Requisitos no Figma](https://www.figma.com/board/JqtNZhLBFlsVIbthMYOdzB/Requisitos-Followw)
+[Acessar o Followw](https://followw.app/) · [Documentação](https://docs.followw.app/) ·
+[Requisitos no Figma](https://www.figma.com/board/JqtNZhLBFlsVIbthMYOdzB/Requisitos-Followw)
 
-## O que você pode fazer
+## Funcionalidades
 
 ### Sem entrar na conta
 
@@ -29,26 +30,11 @@ criptografadas no navegador. [Saiba mais](docs/segurança.md).
 
 ## Telas
 
-| Aulas do dia | Frequência | Perfil |
-| --- | --- | --- |
-| <img src="docs/assets/screenshots/inicio-logado.webp" alt="Início após login, com aulas do dia" width="260"> | <img src="docs/assets/screenshots/frequencia.webp" alt="Frequência de uma turma com dados ilustrativos" width="260"> | <img src="docs/assets/screenshots/perfil.webp" alt="Perfil com dados ilustrativos" width="260"> |
-| Cardápio do RU | Postagens | Aprovações da turma |
-| <img src="docs/assets/screenshots/ru.webp" alt="Cardápio do RU com opções vegetarianas" width="260"> | <img src="docs/assets/screenshots/postagens.webp" alt="Postagens de uma turma" width="260"> | <img src="docs/assets/screenshots/estatisticas.webp" alt="Gráfico de aprovações, reprovações e trancamentos de uma turma concluída" width="260"> |
-
-Nome, foto, matrícula e indicadores individuais nas capturas são ilustrativos.
-[Ver todas as capturas](docs/assets/screenshots/).
-
-## Como o projeto funciona
-
-O front-end usa TanStack Start e consulta a API FastAPI em `/api`. A API usa o `sigaa-client` para
-dados do SIGAA e o `unb-browser` para fontes públicas da UnB. PostgreSQL guarda o cache de dados;
-QStash entrega os trabalhos de sincronização, e Redis ajuda a limitar requisições. Os dados já
-consultados também ficam em cache no navegador para acesso offline.
-
-O Followw não cria conta própria. O CAS da UnB valida o login, e a sessão fica em cookies cifrados no
-navegador. A API não mantém uma sessão persistida no servidor nem grava a senha no banco. O
-tratamento das credenciais está detalhado em [segurança](docs/segurança.md); o funcionamento offline,
-em [modo offline](docs/offline.md).
+| Aulas do dia                                                                                                 | Frequência                                                                                                           | Perfil                                                                                                                                           |
+| ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| <img src="docs/assets/screenshots/inicio-logado.webp" alt="Início após login, com aulas do dia" width="260"> | <img src="docs/assets/screenshots/frequencia.webp" alt="Frequência de uma turma com dados ilustrativos" width="260"> | <img src="docs/assets/screenshots/perfil.webp" alt="Perfil com dados ilustrativos" width="260">                                                  |
+| Cardápio do RU                                                                                               | Postagens                                                                                                            | Aprovações da turma                                                                                                                              |
+| <img src="docs/assets/screenshots/ru.webp" alt="Cardápio do RU com opções vegetarianas" width="260">         | <img src="docs/assets/screenshots/postagens.webp" alt="Postagens de uma turma" width="260">                          | <img src="docs/assets/screenshots/estatisticas.webp" alt="Gráfico de aprovações, reprovações e trancamentos de uma turma concluída" width="260"> |
 
 ## Estrutura do projeto
 
@@ -65,60 +51,42 @@ docs/                 documentação e notas de sprint
 ## Executar localmente
 
 Instale [Python 3.14+](https://www.python.org/), [uv](https://docs.astral.sh/uv/),
-[Bun](https://bun.sh/) e [Docker com Compose](https://docs.docker.com/compose/).
-Execute os comandos na raiz do repositório, salvo quando indicado.
+[Bun](https://bun.sh/) e [Docker com Compose](https://docs.docker.com/compose/). Execute os comandos
+na raiz do repositório, salvo quando indicado.
 
 1. Instale as dependências e crie a configuração:
 
-   ```sh
-   uv sync
-   cp .env.example .env
-   ```
+    ```sh
+    uv sync
+    cp .env.example .env
+    ```
 
-   No PowerShell, use `Copy-Item .env.example .env`. No `.env`, defina `JWT_SECRET_KEY` com uma
-   chave de pelo menos 32 caracteres. Para gerar uma chave:
-
-   ```sh
-   python -c "import secrets; print(secrets.token_urlsafe(32))"
-   ```
+    ```sh
+    python -c "import secrets; print(secrets.token_urlsafe(32))"
+    ```
 
 2. Inicie os serviços, prepare o banco e execute a API:
 
-   ```sh
-   docker compose up -d
-   uv run db-init
-   uv run api
-   ```
+    ```sh
+    docker compose up -d
+    uv run db-init
+    uv run api
+    ```
 
-   A API fica em <http://localhost:8000> e sua documentação em <http://localhost:8000/docs>.
-   O `db-init` cria as tabelas e carrega os dados públicos iniciais.
+    A API fica em <http://localhost:8000> e sua documentação em <http://localhost:8000/docs>. O
+    `db-init` cria as tabelas e carrega os dados públicos iniciais.
 
 3. Em outro terminal, inicie a aplicação web:
 
-   ```sh
-   cd apps/web
-   bun install
-   bun dev
-   ```
+    ```sh
+    cd apps/web
+    bun install
+    bun dev
+    ```
 
-   Abra <http://localhost:3000>. Para acessar seus dados acadêmicos, entre com sua conta do SIGAA.
+    Abra <http://localhost:3000>. Para acessar seus dados acadêmicos, entre com sua conta do SIGAA.
 
-### Variáveis de ambiente
-
-A API lê o `.env` da raiz. O [`.env.example`](.env.example) já traz os valores locais para banco,
-QStash e Redis: para começar, preencha `JWT_SECRET_KEY`.
-
-| Variável | Para que serve |
-| --- | --- |
-| `JWT_SECRET_KEY` | Obrigatória. Cifra os cookies de sessão e as credenciais dos jobs. |
-| `DATABASE_URL` | Conexão com o PostgreSQL. |
-| `PUBLIC_URL` e `QSTASH_*` | Entrega dos jobs de sincronização à API. |
-| `UPSTASH_REDIS_REST_*` | Conexão com o Redis usado no limite de requisições. |
-| `RATE_LIMIT_SECRET_KEY` | Opcional. Se usada, configure o mesmo valor na API e no processo `bun dev`. |
-| `VITE_POSTHOG_KEY` | Opcional. Configure em `apps/web/.env` para habilitar analytics. |
-| `TEST_REGISTRATION` e `TEST_PASSWORD` | Opcionais. Credenciais para testes manuais com o SIGAA. |
-
-### Verificação
+### Testes
 
 Na raiz do repositório, execute os testes e as verificações Python:
 
@@ -139,9 +107,9 @@ bun run build
 
 ## Contribuir
 
-Durante o semestre de Métodos de Desenvolvimento de Software (MDS), recebemos contribuições por
-[issues](https://github.com/unb-mds/2026-2-Followw/issues). Use esse espaço para relatar problemas
-ou sugerir melhorias. Nesse período, não aceitamos pull requests externos.
+No momento, por conta das regras da matéria, não estamos aceitando PRs de contribuidores externos,
+mas sinta-se à vontade para relatar problemas ou sugestões
+[abrindo uma issue](https://github.com/unb-mds/2026-2-Followw/issues)
 
 ## Criadores
 
