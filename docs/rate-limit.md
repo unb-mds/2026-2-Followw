@@ -15,7 +15,9 @@ padrões ficam em `api/core/config.py` e `.env.example`:
   não é agendado, mas ninguém é deslogado.
 - `RATE_LIMIT_WINDOW_SECONDS=60`: janela fixa das cotas acima.
 - `RATE_LIMIT_REGISTRATION_REQUESTS=10` e `RATE_LIMIT_REGISTRATION_WINDOW_SECONDS=600`: tentativas
-  de login por matrícula, de qualquer IP.
+  de login por matrícula, de qualquer IP. A desvantagem é a possibilidade de impedir um login
+  legítimo de uma matrícula por 10 minutos. Veja a
+  [ADR 0001](adr/0001-limite-de-login-por-matricula.md).
 - `RATE_LIMIT_SECRET_KEY`: assina o IP encaminhado pelo SSR.
 - `REDIS_TIMEOUT_SECONDS=1`: espera máxima pelo Redis, sem retentativa.
 
