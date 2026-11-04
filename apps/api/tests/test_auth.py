@@ -97,6 +97,13 @@ def _payload(response, nome: str) -> dict:
         pytest.param(
             {"registration": "25100000000", "password": "senha123"}, id="matricula-11"
         ),
+        pytest.param(
+            {"registration": "25100000 ", "password": "senha123"}, id="matricula-espaco"
+        ),
+        pytest.param(
+            {"registration": "２５１００００００", "password": "senha123"},
+            id="matricula-digitos-unicode",
+        ),
         pytest.param({"registration": "251000000", "password": "a" * 5}, id="senha-5"),
         pytest.param(
             {"registration": "251000000", "password": "a" * 65}, id="senha-65"

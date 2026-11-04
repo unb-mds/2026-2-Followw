@@ -231,6 +231,31 @@ async def test_form_do_cas_fora_do_esperado():
             await client.authenticate()
 
 
+@pytest.mark.parametrize(
+    "action",
+    [
+        "https://outro-dominio.com/login",
+        "//outro-dominio.com/login",
+        "http://autenticacao.unb.br/sso-server/login",
+    ],
+)
+async def test_form_do_cas_com_action_fora_do_cas_nao_envia_a_senha(action):
+    sigaa = FakeSigaa(
+        form=LOGIN_FORM.replace('action="/sso-server', f'action="{action}')
+    )
+    posts: list[httpx.Request] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            posts.append(request)
+        return sigaa(request)
+
+    async with SigaaClient(CREDENTIALS, transport=httpx.MockTransport(handle)) as c:
+        with pytest.raises(SigaaParseError, match="para fora"):
+            await c.authenticate()
+    assert posts == []
+
+
 async def test_logout_descarta_o_token():
     sigaa = FakeSigaa()
     async with SigaaClient(CREDENTIALS, transport=sigaa.transport) as client:

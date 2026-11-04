@@ -33,6 +33,11 @@ class Settings(BaseSettings):
     rate_limit_requests: int = Field(default=600, gt=0)
     rate_limit_login_requests: int = Field(default=30, gt=0)
     rate_limit_window_seconds: int = Field(default=60, gt=0)
+    # Refresh abre o app e pode vir de muitos alunos atrás do mesmo NAT.
+    rate_limit_refresh_requests: int = Field(default=120, gt=0)
+    # Tentativas de login por matrícula, de qualquer IP.
+    rate_limit_registration_requests: int = Field(default=10, gt=0)
+    rate_limit_registration_window_seconds: int = Field(default=600, gt=0)
     # Assina o IP original que o SSR encaminha; sem ele, o encaminhamento é ignorado.
     rate_limit_secret_key: str | None = Field(default=None, min_length=32)
 
