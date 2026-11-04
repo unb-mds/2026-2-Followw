@@ -22,6 +22,10 @@ export class ApiError extends Error {
         return this.status === 404;
     }
 
+    get isTooManyRequests(): boolean {
+        return this.status === 429;
+    }
+
     get isServerError(): boolean {
         return this.status >= 500;
     }

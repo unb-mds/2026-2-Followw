@@ -121,6 +121,10 @@ describe('página de login', () => {
 
     test.each([
         [new ApiError(401, 'Invalid credentials'), 'Matrícula ou senha incorretas.'],
+        [
+            new ApiError(429, 'Too many requests'),
+            'Muitas tentativas de login. Aguarde alguns minutos e tente novamente.'
+        ],
         [new ApiError(502, 'SIGAA is unavailable'), 'Não foi possível conectar ao SIGAA.'],
         [new TypeError('Failed to fetch'), 'Não foi possível conectar ao SIGAA.']
     ])('falha %p mostra a mensagem certa e continua no login', async (error, message) => {

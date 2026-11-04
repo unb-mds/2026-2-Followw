@@ -21,7 +21,6 @@ class SigaaLoginRequest(BaseModel):
 
 @router.post("/sigaa")
 async def sigaa_login(
-    request: Request,
     body: SigaaLoginRequest,
     response: Response,
     db: DatabaseDep,

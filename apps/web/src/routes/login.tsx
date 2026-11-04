@@ -51,6 +51,8 @@ function LoginPage() {
     if (!online) error = OFFLINE_MESSAGE;
     else if (login.error instanceof ApiError && login.error.isUnauthorized)
         error = 'Matrícula ou senha incorretas.';
+    else if (login.error instanceof ApiError && login.error.isTooManyRequests)
+        error = 'Muitas tentativas de login. Aguarde alguns minutos e tente novamente.';
     else if (login.error instanceof SessionNotStoredError)
         error =
             'Seu navegador bloqueou o login. Permita cookies para o Followw ou abra no navegador.';
