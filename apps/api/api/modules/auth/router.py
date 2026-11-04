@@ -7,6 +7,7 @@ from api.cookies import clear_cookies, read_access_cookie, read_refresh_cookie
 from api.db.main import DatabaseDep
 from api.errors import SIGAA_ERRORS
 from api.modules.auth.account import start_account
+from api.rate_limit import limit_registration
 from api.sigaa import SigaaConnection, SigaaConnectionDep
 from api.sync.queue import JobQueueDep
 
@@ -14,7 +15,7 @@ router = APIRouter()
 
 
 class SigaaLoginRequest(BaseModel):
-    registration: str = Field(min_length=9, max_length=9)
+    registration: str = Field(pattern=r"^[0-9]{9}$")
     password: str = Field(min_length=6, max_length=64)
 
 
@@ -25,6 +26,7 @@ async def sigaa_login(
     db: DatabaseDep,
     queue: JobQueueDep,
 ):
+    await limit_registration(body.registration)
     credentials = Credentials(registration=body.registration, password=body.password)
     connection = SigaaConnection(credentials, response=response)
     try:

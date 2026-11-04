@@ -39,7 +39,10 @@ def redis(monkeypatch):
     monkeypatch.setattr(settings, "upstash_redis_rest_token", "redis-secret")
     monkeypatch.setattr(settings, "rate_limit_requests", 2)
     monkeypatch.setattr(settings, "rate_limit_login_requests", 1)
+    monkeypatch.setattr(settings, "rate_limit_refresh_requests", 1)
     monkeypatch.setattr(settings, "rate_limit_window_seconds", 60)
+    monkeypatch.setattr(settings, "rate_limit_registration_requests", 2)
+    monkeypatch.setattr(settings, "rate_limit_registration_window_seconds", 600)
     monkeypatch.setattr(settings, "rate_limit_secret_key", SECRET)
     monkeypatch.setattr("upstash_ratelimit.limiter.now_ms", lambda: 120_000)
     monkeypatch.setattr("api.rate_limit.time", lambda: 120)
@@ -48,11 +51,16 @@ def redis(monkeypatch):
 
     def respond(request):
         command = json.loads(request.content)
+        assert request.headers["authorization"] == "Bearer redis-secret"
         assert command[0] == "EVAL"
         assert command[2] == 1
-        assert command[4:] == [60_000, 1]
-        assert request.headers["authorization"] == "Bearer redis-secret"
         key = command[3]
+        window = (
+            settings.rate_limit_registration_window_seconds
+            if key.split(":")[3] == "registration"
+            else settings.rate_limit_window_seconds
+        )
+        assert command[4:] == [window * 1000, 1]
         counts[key] += 1
         return httpx.Response(200, json={"result": counts[key]})
 
@@ -94,6 +102,37 @@ def test_login_tem_cota_propria_e_conta_tentativas_invalidas(redis, path):
     assert client.post(path, json={}).status_code == 429
     assert client.get("/docs").status_code == 200
     assert client.delete("/auth/sigaa").status_code == 200
+
+
+@pytest.mark.parametrize("path", ["/auth/sigaa/refresh", "/api/auth/sigaa/refresh"])
+def test_refresh_tem_cota_propria(redis, sigaa, path):
+    client = TestClient(app)
+    assert client.post(path).status_code == 401
+    assert client.post(path).status_code == 429
+    assert client.get("/docs").status_code == 200
+    body = {"registration": "251000000", "password": "errada123"}
+    assert client.post("/auth/sigaa", json=body).status_code == 401
+
+
+def test_login_limita_tentativas_por_matricula_de_qualquer_ip(
+    redis, sigaa, monkeypatch
+):
+    monkeypatch.setattr(settings, "rate_limit_login_requests", 10)
+    body = {"registration": "251000000", "password": "errada123"}
+    first = TestClient(app, client=("203.0.113.1", 50000))
+    second = TestClient(app, client=("203.0.113.2", 50000))
+
+    assert first.post("/auth/sigaa", json=body).status_code == 401
+    assert second.post("/auth/sigaa", json=body).status_code == 401
+    response = first.post("/auth/sigaa", json=body)
+    assert response.status_code == 429
+    assert response.json() == {"detail": "Too many requests"}
+    assert response.headers["retry-after"] == "480"
+    assert second.post("/auth/sigaa", json=body).status_code == 429
+
+    other = {**body, "registration": "251000001"}
+    assert second.post("/auth/sigaa", json=other).status_code == 401
+    assert "251000000" not in str([call.request.content for call in redis.calls])
 
 
 def test_cors_funciona_quando_a_cota_esgota_e_preflight_nao_consulta_redis(redis):

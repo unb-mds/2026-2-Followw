@@ -6,6 +6,7 @@ from ipaddress import ip_address, ip_network
 from math import ceil
 from time import time
 
+from fastapi import HTTPException
 from starlette._utils import get_route_path
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -34,8 +35,13 @@ class RateLimitMiddleware:
             await self.app(scope, receive, send)
             return
 
-        login = method == "POST" and path == "/auth/sigaa"
-        result = await _limit(Request(scope), login=login)
+        group, limit = _quota(method, path)
+        result = await _limit(
+            group,
+            _bucket(_client_host(Request(scope))),
+            limit,
+            settings.rate_limit_window_seconds,
+        )
         if result is not None and not result.allowed:
             # Sair sempre apaga os cookies; só a chamada ao SIGAA fica de fora.
             if method == "DELETE" and path == "/auth/sigaa":
@@ -44,10 +50,7 @@ class RateLimitMiddleware:
                 response = JSONResponse(
                     status_code=429,
                     content={"detail": "Too many requests"},
-                    headers={
-                        "Retry-After": str(max(1, ceil(result.reset - time()))),
-                        "Cache-Control": "no-store",
-                    },
+                    headers=_retry_headers(result),
                 )
                 await response(scope, receive, send)
                 return
@@ -55,28 +58,52 @@ class RateLimitMiddleware:
         await self.app(scope, receive, send)
 
 
-async def _limit(request: Request, *, login: bool) -> Response | None:
+def _quota(method: str, path: str) -> tuple[str, int]:
+    return {
+        ("POST", "/auth/sigaa"): ("login", settings.rate_limit_login_requests),
+        ("POST", "/auth/sigaa/refresh"): (
+            "refresh",
+            settings.rate_limit_refresh_requests,
+        ),
+    }.get((method, path), ("api", settings.rate_limit_requests))
+
+
+async def limit_registration(registration: str) -> None:
+    """Cota de tentativas por matrícula, de qualquer IP, além da cota de login do IP."""
+    result = await _limit(
+        "registration",
+        registration,
+        settings.rate_limit_registration_requests,
+        settings.rate_limit_registration_window_seconds,
+    )
+    if result is not None and not result.allowed:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many requests",
+            headers=_retry_headers(result),
+        )
+
+
+def _retry_headers(result: Response) -> dict[str, str]:
+    return {
+        "Retry-After": str(max(1, ceil(result.reset - time()))),
+        "Cache-Control": "no-store",
+    }
+
+
+async def _limit(group: str, key: str, limit: int, window: int) -> Response | None:
     redis = redis_client()
     if redis is None:
         return None
 
     identifier = hmac.digest(
-        derive_key("followw:rate-limit"),
-        _bucket(_client_host(request)).encode(),
-        "sha256",
+        derive_key("followw:rate-limit"), key.encode(), "sha256"
     ).hex()
-    group = "login" if login else "api"
-    limit = (
-        settings.rate_limit_login_requests if login else settings.rate_limit_requests
-    )
-
     try:
         async with asyncio.timeout(settings.redis_timeout_seconds):
             return await Ratelimit(
                 redis=redis,
-                limiter=FixedWindow(
-                    max_requests=limit, window=settings.rate_limit_window_seconds
-                ),
+                limiter=FixedWindow(max_requests=limit, window=window),
                 prefix=f"followw:{settings.environment}:rate-limit:{group}",
             ).limit(identifier)
     except Exception as error:  # noqa: BLE001 — Redis é opcional.

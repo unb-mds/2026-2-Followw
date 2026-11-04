@@ -239,4 +239,7 @@ def _build_login_payload(
             "— layout provavelmente mudou."
         )
 
-    return urljoin(base_url, form.get("action") or base_url), payload
+    action = urljoin(base_url, form.get("action") or base_url)
+    if not action.startswith(f"{CAS_BASE_URL}/"):
+        raise SigaaParseError(f"Form do CAS envia as credenciais para fora: {action}.")
+    return action, payload
