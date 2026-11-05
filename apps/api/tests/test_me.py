@@ -692,6 +692,22 @@ def test_configuracoes_aceitam_display_name_no_limite(client, cookies):
     assert client.get("/me/settings").json() == response.json()
 
 
+def test_configuracoes_de_outra_conta_nao_sao_lidas_nem_alteradas(client, cookies):
+    outra = Credentials(registration="251000001", password=SecretStr("senha123"))
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+    assert client.patch("/me/settings", json={"displayName": "Ana"}).status_code == 200
+
+    client.cookies.clear()
+    client.cookies.update(cookies(refresh=outra))
+    assert client.get("/me/settings").json() == {"displayName": None}
+    assert client.patch("/me/settings", json={"displayName": "Bia"}).status_code == 200
+    assert client.get("/me/settings").json() == {"displayName": "Bia"}
+
+    client.cookies.clear()
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+    assert client.get("/me/settings").json() == {"displayName": "Ana"}
+
+
 def test_patch_sem_campos_preserva_as_configuracoes(client, cookies):
     client.cookies.update(cookies(refresh=CREDENCIAIS))
     client.patch("/me/settings", json={"displayName": "Ana"})

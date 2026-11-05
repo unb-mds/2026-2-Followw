@@ -1244,6 +1244,22 @@ def test_complete_professores_rejeita_email_nao_institucional():
     assert professor_sub.email == "docente@mat.unb.br"
 
 
+def test_complete_preserva_email_pessoal_vindo_do_catalogo_publico():
+    professor = Professor(siape=1, name="DOCENTE", email="docente@gmail.com")
+
+    _complete(professor, SeenProfessor(name="DOCENTE", email="docente@unb.br"))
+
+    assert professor.email == "docente@gmail.com"
+
+
+def test_complete_nao_troca_person_id_de_docente_fora_do_catalogo():
+    professor = Professor(name="DOCENTE", person_id=10)
+
+    _complete(professor, SeenProfessor(name="DOCENTE", person_id=20))
+
+    assert professor.person_id == 10
+
+
 async def test_docente_repetido_na_listagem_vira_um_so(async_database, usuarios):
     await _salvar_turmas(async_database, usuarios[0], [_turma("AAA")])
     classroom_id = (await _vinculos(async_database, usuarios[0]))[0].classroom_id

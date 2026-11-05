@@ -84,7 +84,7 @@ async def save_professors(
 def _complete(professor: Professor, seen: SeenProfessor) -> None:
     # O catálogo é mais confiável: a turma só completa o que falta nele.
     catalog = professor.siape is not None
-    if seen.person_id is not None and (not catalog or professor.person_id is None):
+    if professor.person_id is None:
         professor.person_id = seen.person_id
     for field in ("photo", "email", "unit_id"):
         value = getattr(seen, field)
