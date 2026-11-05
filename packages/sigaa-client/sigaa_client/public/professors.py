@@ -23,7 +23,7 @@ from ..models import (
     Unit,
 )
 from ..utils.jsf import build_submit, read_form
-from ..utils.parsing import clean_text, lookup_key, photo_url
+from ..utils.parsing import clean_text, institutional_email, lookup_key, photo_url
 from .session import PublicSession
 from .units import parse_units, resolve_unit
 
@@ -298,15 +298,11 @@ def _parse_profile(page: BeautifulSoup, professor: Professor) -> ProfessorProfil
     )
     if lattes is not None and urlparse(lattes).scheme not in ("http", "https"):
         lattes = None
-    email = (
+    email = institutional_email(
         _optional_text(_field(contact, "endereco eletronico"))
         if isinstance(contact, Tag)
         else None
     )
-    if email is not None:
-        domain = email.rsplit("@", 1)[-1].lower()
-        if "@" not in email or (domain != "unb.br" and not domain.endswith(".unb.br")):
-            email = None
     return ProfessorProfile(
         **professor.model_dump(),
         description=_optional_text(_field(profile, "descricao pessoal")),

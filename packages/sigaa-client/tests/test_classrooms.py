@@ -198,6 +198,17 @@ def test_participantes_separam_docente_de_discente():
     assert discente.photo is None  # no_picture.png não é foto
 
 
+def test_participante_docente_com_email_nao_institucional_fica_nulo():
+    soup = BeautifulSoup(
+        PARTICIPANTS.replace("docente@unb.br", "docente@gmail.com"), "lxml"
+    )
+    docente = _parse_members(soup, "Docentes", ClassroomRole.PROFESSOR)[0]
+    assert docente.email is None
+
+    discente = _parse_members(soup, "Discentes", ClassroomRole.ALUNO)[0]
+    assert discente.email == "discente@example.com"
+
+
 def test_lista_ausente_e_barulhenta():
     soup = BeautifulSoup("<html><body></body></html>", "lxml")
 

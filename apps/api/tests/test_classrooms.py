@@ -38,6 +38,7 @@ from api.db.models import (
     User,
 )
 from api.db.models import Subject as SubjectModel
+from api.db.professors import SeenProfessor, _complete, save_professors
 from api.modules.classrooms.repository import ClassroomRepository
 from api.modules.me.repository import UserRepository
 
@@ -1197,6 +1198,50 @@ async def test_docente_casa_com_o_catalogo_pelo_nome_sem_acento_nem_caixa(
 
     (achado,) = await _docentes(async_database, classroom_id)
     assert (achado.siape, achado.email) == (1, "j@unb.br")
+
+
+async def test_docente_nao_completa_email_pessoal_da_turma(async_database, usuarios):
+    async with async_database() as session:
+        session.add(Professor(siape=1, name="José Araújo", unit_id=673))
+        await session.commit()
+    await _salvar_turmas(async_database, usuarios[0], [_turma("AAA")])
+    classroom_id = (await _vinculos(async_database, usuarios[0]))[0].classroom_id
+
+    await _salvar_membros(
+        async_database,
+        classroom_id,
+        [_membro("JOSE ARAUJO", role=ClassroomRole.PROFESSOR, email="j@gmail.com")],
+    )
+
+    (achado,) = await _docentes(async_database, classroom_id)
+    assert achado.email is None
+
+    async with async_database() as session:
+        (completado,) = await save_professors(
+            session, [SeenProfessor(name="JOSE ARAUJO", email="j@hotmail.com")]
+        )
+        assert completado.email is None
+
+        (institucional,) = await save_professors(
+            session, [SeenProfessor(name="JOSE ARAUJO", email="j@unb.br")]
+        )
+        assert institucional.email == "j@unb.br"
+
+
+def test_complete_professores_rejeita_email_nao_institucional():
+    professor = Professor(siape=1, name="DOCENTE")
+    seen_pessoal = SeenProfessor(name="DOCENTE", email="docente@gmail.com")
+    _complete(professor, seen_pessoal)
+    assert professor.email is None
+
+    seen_institucional = SeenProfessor(name="DOCENTE", email="docente@unb.br")
+    _complete(professor, seen_institucional)
+    assert professor.email == "docente@unb.br"
+
+    seen_subdominio = SeenProfessor(name="DOCENTE", email="docente@mat.unb.br")
+    professor_sub = Professor(siape=2, name="DOCENTE 2")
+    _complete(professor_sub, seen_subdominio)
+    assert professor_sub.email == "docente@mat.unb.br"
 
 
 async def test_docente_repetido_na_listagem_vira_um_so(async_database, usuarios):

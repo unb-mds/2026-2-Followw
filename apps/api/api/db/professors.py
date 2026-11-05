@@ -2,7 +2,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from uuid import UUID
 
-from sigaa_client import lookup_key
+from sigaa_client import institutional_email, lookup_key
 from sqlalchemy import delete, func, insert, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -39,8 +39,9 @@ class _Index:
     def find(self, seen: SeenProfessor) -> Professor | None:
         if seen.person_id is not None and seen.person_id in self._person_ids:
             return self._person_ids[seen.person_id]
-        if seen.email and seen.email.lower() in self._emails:
-            return self._emails[seen.email.lower()]
+        email = institutional_email(seen.email)
+        if email and email.lower() in self._emails:
+            return self._emails[email.lower()]
         return self._names.get(lookup_key(seen.name))
 
 
@@ -52,7 +53,7 @@ async def save_professors(
     if not wanted:
         return []
     person_ids = {item.person_id for item in wanted if item.person_id is not None}
-    emails = {item.email.lower() for item in wanted if item.email}
+    emails = {e.lower() for item in wanted if (e := institutional_email(item.email))}
     conditions = [lookup_sql(Professor.name).in_({lookup_key(i.name) for i in wanted})]
     if person_ids:
         conditions.append(Professor.person_id.in_(person_ids))
@@ -83,10 +84,12 @@ async def save_professors(
 def _complete(professor: Professor, seen: SeenProfessor) -> None:
     # O catálogo é mais confiável: a turma só completa o que falta nele.
     catalog = professor.siape is not None
-    if professor.person_id is None:
+    if seen.person_id is not None and (not catalog or professor.person_id is None):
         professor.person_id = seen.person_id
     for field in ("photo", "email", "unit_id"):
         value = getattr(seen, field)
+        if field == "email":
+            value = institutional_email(value)
         if value is not None and (not catalog or getattr(professor, field) is None):
             setattr(professor, field, value)
 
