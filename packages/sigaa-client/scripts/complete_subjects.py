@@ -3,13 +3,14 @@
 import argparse
 import asyncio
 import csv
+import json
 import re
 from collections.abc import Iterable
 from pathlib import Path
 
 from _by_unit import DATA_DIR, TIMEOUT, write_csv
 
-from sigaa_client import PublicSubject, SigaaPublicClient
+from sigaa_client import PublicSubject, SigaaPublicClient, SigaaSearchError
 
 OUTPUT = DATA_DIR / "subjects.csv"
 CURRICULUM_COMPONENTS = DATA_DIR / "curriculum_components.csv"
@@ -26,7 +27,6 @@ def read_curriculum_codes(path: Path = CURRICULUM_COMPONENTS) -> set[str]:
         return {
             code.strip().upper()
             for row in reader
-            if row["kind"] == "required"
             for code in row["subject_codes"].split()
         }
 
@@ -40,15 +40,25 @@ def _referenced(rows: Iterable[dict[str, object]]) -> set[str]:
     }
 
 
+def read_reference_codes(paths: Iterable[Path]) -> set[str]:
+    codes: set[str] = set()
+    for path in paths:
+        with path.open(encoding="utf-8", newline="") as file:
+            for row in csv.DictReader(file):
+                for field in ("subject_code", "subject_codes", *REQUIREMENTS):
+                    codes.update(_CODE_RE.findall((row.get(field) or "").upper()))
+                for disciplines in json.loads(row.get("disciplines") or "{}").values():
+                    codes.update(code.strip().upper() for code in disciplines)
+    return codes
+
+
 async def complete_subjects(
-    rows: list[dict[str, object]], curriculum_codes: Iterable[str] = ()
+    rows: list[dict[str, object]], referenced_codes: Iterable[str] = ()
 ) -> list[dict[str, object]]:
-    # Sem unidade é linha completada antes: refaz para trazer os requisitos atuais.
-    offered = [row for row in rows if row["unit_id"] not in (None, "")]
-    known = {str(row["code"]) for row in offered}
-    missing = (_referenced(offered) | set(curriculum_codes)) - known
+    known = {str(row["code"]) for row in rows}
+    missing = (_referenced(rows) | set(referenced_codes)) - known
     if not missing:
-        return offered
+        return rows
 
     added: list[dict[str, object]] = []
     attempted: set[str] = set()
@@ -56,10 +66,7 @@ async def complete_subjects(
         # Os requisitos dos acrescentados podem citar outros componentes de fora.
         while missing:
             attempted |= missing
-            found = [
-                await _details_row(client, subject)
-                for subject in await _search(client, missing)
-            ]
+            found = await _details_rows(await _search(client, missing))
             added.extend(found)
             missing = _referenced(found) - known - attempted
 
@@ -69,7 +76,7 @@ async def complete_subjects(
     )
     if unresolved:
         print("Sem resultado no SIGAA: " + ", ".join(unresolved))
-    return sorted([*offered, *added], key=lambda row: str(row["code"]))
+    return sorted([*rows, *added], key=lambda row: str(row["code"]))
 
 
 async def _search(client: SigaaPublicClient, missing: set[str]) -> list[PublicSubject]:
@@ -112,6 +119,75 @@ async def _details_row(
     }
 
 
+async def _details_rows(subjects: list[PublicSubject]) -> list[dict[str, object]]:
+    pending = iter(subjects)
+    rows: list[dict[str, object]] = []
+
+    async def worker() -> None:
+        async with SigaaPublicClient(timeout=TIMEOUT) as client:
+            for subject in pending:
+                rows.append(await _details_row(client, subject))
+                if len(rows) % 50 == 0 or len(rows) == len(subjects):
+                    print(f"Detalhes: {len(rows)} de {len(subjects)}.", flush=True)
+
+    async with asyncio.TaskGroup() as tasks:
+        for _ in range(2):
+            tasks.create_task(worker())
+    return rows
+
+
+async def complete_from_curricula(
+    rows: list[dict[str, object]], path: Path = CURRICULUM_COMPONENTS
+) -> list[dict[str, object]]:
+    known = {str(row["code"]) for row in rows}
+    sources: dict[str, list[tuple[int, int]]] = {}
+    with path.open(encoding="utf-8", newline="") as file:
+        for row in csv.DictReader(file):
+            for code in row["subject_codes"].split():
+                if code not in known:
+                    source = (
+                        int(row["course_sigaa_id"]),
+                        int(row["curriculum_sigaa_id"]),
+                    )
+                    if source not in sources.setdefault(code, []):
+                        sources[code].append(source)
+    pending = iter(sorted(sources))
+    added: list[dict[str, object]] = []
+
+    async def worker() -> None:
+        async with SigaaPublicClient(timeout=TIMEOUT) as client:
+            for code in pending:
+                for source in sources[code]:
+                    try:
+                        details = await client.curricula.get_subject_details(
+                            *source, code
+                        )
+                        break
+                    except SigaaSearchError:
+                        continue
+                else:
+                    print(f"Sem detalhes nos currículos atuais: {code}.", flush=True)
+                    continue
+                added.append(
+                    {
+                        "code": details.code,
+                        "name": details.name,
+                        "hours": details.hours,
+                        "unit_id": None,
+                        **{field: getattr(details, field) for field in REQUIREMENTS},
+                    }
+                )
+                if len(added) % 50 == 0 or len(added) == len(sources):
+                    print(f"Currículos: {len(added)} de {len(sources)}.", flush=True)
+                await asyncio.sleep(SEARCH_DELAY)
+
+    if sources:
+        async with asyncio.TaskGroup() as tasks:
+            for _ in range(2):
+                tasks.create_task(worker())
+    return sorted([*rows, *added], key=lambda row: str(row["code"]))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path, default=OUTPUT)
@@ -126,13 +202,18 @@ def main():
         rows = list(reader)
     if columns is None:
         raise ValueError("CSV de componentes sem cabeçalho.")
-    write_csv(
-        asyncio.run(
-            complete_subjects(rows, read_curriculum_codes(args.curriculum_components))
-        ),
-        columns,
-        args.output,
+    completed = asyncio.run(
+        complete_subjects(
+            rows,
+            read_curriculum_codes(args.curriculum_components)
+            | read_reference_codes(args.input.parent.glob("*.csv")),
+        )
     )
+    completed = asyncio.run(
+        complete_from_curricula(completed, args.curriculum_components)
+    )
+    completed = asyncio.run(complete_subjects(completed))
+    write_csv(completed, columns, args.output)
 
 
 if __name__ == "__main__":

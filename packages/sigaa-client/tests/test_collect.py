@@ -12,6 +12,7 @@ from sigaa_client import (
     PublicClassroom,
     PublicSubject,
     SigaaError,
+    SigaaSearchError,
     Subject,
     SubjectDetails,
     SubjectSearchResult,
@@ -572,12 +573,19 @@ async def test_falha_da_origem_nao_devolve_catalogo_parcial(
     assert [row["code"] for row in rows] == ["FGA0001"]
 
 
-def test_le_codigos_obrigatorios_das_matrizes_sem_duplicar(completion_script, tmp_path):
+def test_le_codigos_de_todos_os_tipos_das_matrizes_sem_duplicar(
+    completion_script, tmp_path
+):
     path = tmp_path / "components.csv"
     path.write_text(
         "kind,subject_codes\nrequired,FGA0001 FGA0002\nrequired,FGA0002\noptional,OPT0001\ncomplementary,EXT0001\nrequired,\n"
     )
-    assert completion_script.read_curriculum_codes(path) == {"FGA0001", "FGA0002"}
+    assert completion_script.read_curriculum_codes(path) == {
+        "FGA0001",
+        "FGA0002",
+        "OPT0001",
+        "EXT0001",
+    }
     path.write_text("code\nFGA0001\n")
     with pytest.raises(ValueError, match="kind e subject_codes"):
         completion_script.read_curriculum_codes(path)
@@ -642,7 +650,7 @@ async def test_acrescentadas_trazem_requisitos_e_buscam_os_componentes_citados(
     assert by_code["FEF0497"]["unit_id"] is None
 
 
-async def test_linhas_completadas_antes_sao_refeitas_com_os_requisitos(
+async def test_linhas_sem_unidade_sao_preservadas_sem_nova_consulta(
     completion_script, monkeypatch
 ):
     columns = ("code", "name", "hours", "unit_id", *completion_script.REQUIREMENTS)
@@ -652,7 +660,7 @@ async def test_linhas_completadas_antes_sao_refeitas_com_os_requisitos(
     ]
 
     async def search(*, code):
-        return SubjectSearchResult(items=(_catalog_subject("FEF0500", "ESTÁGIO 3"),))
+        pytest.fail("Matéria já cadastrada não deve ser consultada novamente")
 
     monkeypatch.setattr(
         FakeClient,
@@ -662,6 +670,61 @@ async def test_linhas_completadas_antes_sao_refeitas_com_os_requisitos(
     )
     completed = await completion_script.complete_subjects(rows, {"FEF0500"})
 
-    assert [row["code"] for row in completed] == ["FEF0500", "FGA0001"]
-    assert completed[0]["prerequisites"] == "( ( FGA0001 ) )"
-    assert completed[1] is rows[0]
+    assert completed == rows
+
+
+def test_le_referencias_de_turmas_docentes_e_requisitos(completion_script, tmp_path):
+    path = tmp_path / "references.csv"
+    with path.open("w", encoding="utf-8", newline="") as file:
+        writer = csv.DictWriter(
+            file,
+            ["subject_code", "subject_codes", "disciplines", "equivalences", "name"],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "subject_code": "MAT0025",
+                "subject_codes": "OPT0001 EXT0001",
+                "disciplines": '{"2026.2": {"mat0024": 2}, "2026.1": {"MAT0025": 1}}',
+                "equivalences": "( MAT0025 E MAT0137 )",
+                "name": "IGNORADO0001",
+            }
+        )
+    assert completion_script.read_reference_codes([path]) == {
+        "MAT0024",
+        "MAT0025",
+        "MAT0137",
+        "OPT0001",
+        "EXT0001",
+    }
+
+
+async def test_completa_antigas_pelas_matrizes_sem_reconsultar_existentes(
+    completion_script, monkeypatch, tmp_path
+):
+    path = tmp_path / "components.csv"
+    path.write_text(
+        "course_sigaa_id,curriculum_sigaa_id,subject_codes\n1,2,MAT0024\n414321,184,MAT0024 MAT0025\n414321,184,MAT0024\n"
+    )
+    calls = []
+
+    async def get_subject_details(course, curriculum, code):
+        calls.append((course, curriculum, code))
+        if course == 1:
+            raise SigaaSearchError("Componente retirado desta matriz")
+        return SubjectDetails(
+            code=code, name="CALCULO 1", hours=90, equivalences="MAT0025"
+        )
+
+    monkeypatch.setattr(
+        FakeClient,
+        "curricula",
+        SimpleNamespace(get_subject_details=get_subject_details),
+        raising=False,
+    )
+    existing = {"code": "MAT0025", "name": "PRESERVADA"}
+    result = await completion_script.complete_from_curricula([existing], path)
+    assert calls == [(1, 2, "MAT0024"), (414321, 184, "MAT0024")]
+    assert result[0]["hours"] == 90
+    assert result[0]["equivalences"] == "MAT0025"
+    assert result[1] is existing
