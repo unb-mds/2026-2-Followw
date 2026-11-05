@@ -22,8 +22,9 @@ padrões ficam em `api/core/config.py` e `.env.example`:
 - `REDIS_TIMEOUT_SECONDS=1`: espera máxima pelo Redis, sem retentativa.
 
 As cotas são compartilhadas entre instâncias e separadas por ambiente. As chaves são um HMAC do IP
-(ou da matrícula) derivado de `JWT_SECRET_KEY`. Os padrões consideram redes da UnB atrás de NAT e
-evitam que os IPs de saída do Followw sejam bloqueados pela universidade.
+(ou da matrícula) derivado de `JWT_SECRET_KEY`. Endereços IPv6 são agrupados por prefixo `/64`.
+Nenhum dado pessoal, cookie ou credencial é gravado no Redis. Os padrões consideram redes da UnB
+atrás de NAT e evitam que os IPs de saída do Followw sejam bloqueados pela universidade.
 
 O excesso retorna `429` com `Cache-Control: no-store` e `Retry-After`. `OPTIONS` e `POST /jobs`
 (assinado pelo QStash) não consomem cota. Com a cota esgotada, `DELETE /auth/sigaa` ainda apaga os
