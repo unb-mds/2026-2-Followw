@@ -303,10 +303,6 @@ def _parse_profile(page: BeautifulSoup, professor: Professor) -> ProfessorProfil
         if isinstance(contact, Tag)
         else None
     )
-    if email is not None:
-        domain = email.rsplit("@", 1)[-1].lower()
-        if "@" not in email or (domain != "unb.br" and not domain.endswith(".unb.br")):
-            email = None
     return ProfessorProfile(
         **professor.model_dump(),
         description=_optional_text(_field(profile, "descricao pessoal")),

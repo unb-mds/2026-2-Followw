@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 from sigaa_client.config import SIGAA_BASE_URL
 from sigaa_client.exceptions import SigaaParseError
 from sigaa_client.utils.parsing import (
+    institutional_email,
     lookup_key,
     parse_datetime,
     parse_hours,
@@ -35,6 +36,27 @@ def test_lookup_key_ignora_acento_caixa_e_espacos(value, expected):
 )
 def test_parse_hours_le_a_carga_horaria(value, expected):
     assert parse_hours(value) == expected
+
+
+@pytest.mark.parametrize(
+    "email,expected",
+    [
+        ("docente@unb.br", "docente@unb.br"),
+        ("docente@mat.unb.br", "docente@mat.unb.br"),
+        ("DOCENTE@CIC.UNB.BR", "DOCENTE@CIC.UNB.BR"),
+        ("  docente@unb.br  ", "docente@unb.br"),
+        ("docente@gmail.com", None),
+        ("docente@hotmail.com", None),
+        ("docente@fakeunb.br", None),
+        ("docente@unb.br.com", None),
+        ("@unb.br", None),
+        ("unb.br", None),
+        ("", None),
+        (None, None),
+    ],
+)
+def test_institutional_email_filtra_enderecos_fora_da_unb(email, expected):
+    assert institutional_email(email) == expected
 
 
 def _markdown(html: str) -> str | None:

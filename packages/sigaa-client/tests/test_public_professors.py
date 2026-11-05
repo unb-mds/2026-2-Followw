@@ -157,12 +157,12 @@ async def test_perfil_de_outro_docente_falha():
             await client.professors.get_profile(professor)
 
 
-async def test_email_nao_institucional_fica_nulo():
+async def test_email_do_perfil_publico_aceita_dominio_nao_institucional():
     fake = FakeSigaa(profile=PROFILE.replace("maria@unb.br", "maria@example.com"))
     async with SigaaPublicClient(transport=httpx.MockTransport(fake)) as client:
         professor = (await client.professors.search(508))[0]
         profile = await client.professors.get_profile(professor)
-    assert profile.email is None
+    assert profile.email == "maria@example.com"
 
 
 async def test_perfil_sem_contato_continua_disponivel():
