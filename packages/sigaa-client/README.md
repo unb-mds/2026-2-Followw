@@ -106,14 +106,11 @@ ofertados por uma unidade e entrega cada um como `SubjectDetails`: o `Subject` c
 `corequisites` e `equivalences` (só a expressão ativa), como o SIGAA as escreve, ou `None` quando
 não há.
 
-`collect_subjects.py` também completa os componentes de todos os tipos das matrizes e os citados
-nos CSVs de turmas, docentes e requisitos pelo catálogo público de graduação, mesmo sem oferta no
-semestre, incluindo os requisitos dos novos componentes. Códigos não encontrados são listados na
-saída. Para completar um CSV existente preservando suas linhas, inclusive as sem unidade, rode da
-raiz do monorepo:
+`collect_subjects.py` também completa os componentes obrigatórios das matrizes e os citados nos
+requisitos pelo catálogo público, mesmo sem oferta no semestre, já com os requisitos de cada um (e
+os componentes que estes citarem). Linhas sem unidade são completadas de novo a cada execução. Para
+completar um CSV existente, rode da raiz do monorepo:
 `uv run python packages/sigaa-client/scripts/complete_subjects.py`.
-Os componentes antigos ausentes do catálogo ativo são recuperados pelos links das matrizes.
-`client.curricula.get_subject_details(course_sigaa_id, sigaa_id, code)` também expõe essa consulta.
 Depois execute `uv run db-init` em `apps/api/` para carregar o catálogo no banco local.
 
 ### Posts da turma
