@@ -58,7 +58,7 @@ async def search_subjects(
     q: Annotated[
         SearchText | None,
         Query(
-            description="Termos do código, nome do componente ou docente, de 3 a 32 caracteres; cada um precisa aparecer em algum deles, ignorando acentos e maiúsculas.",
+            description="Termos do código, nome do componente ou docente, de 3 a 32 caracteres; cada um precisa corresponder, ignorando acentos e maiúsculas. Um código completo também encontra equivalências diretas nos dois sentidos, incluindo integrantes de conjuntos.",
         ),
     ] = None,
     code: Annotated[

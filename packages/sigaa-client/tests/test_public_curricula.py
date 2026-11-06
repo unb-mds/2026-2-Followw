@@ -134,6 +134,49 @@ async def test_lista_e_detalhes_preservam_vigencia_e_separam_componentes():
     ]
 
 
+async def test_recupera_componente_antigo_pelo_curriculo_com_viewstate_novo():
+    fake = FakeSigaa(
+        detail=DETAIL.replace(
+            '<form id="formulario">',
+            '<form id="formulario" action="/sigaa/public/curso/resumo_curriculo.jsf">'
+            '<input name="javax.faces.ViewState" value="matrix">',
+        ).replace(
+            "<td>Obrigatória</td><td></td>",
+            '<td>Obrigatória</td><td><a title="Visualizar Detalhes do Componente" '
+            "onclick=\"jsfcljs(x,{'id':'177890','publico':'public'},'');\"></a></td>",
+        )
+    )
+    posts = []
+
+    def transport(request):
+        if request.url.path.endswith("/resumo_curriculo.jsf"):
+            payload = dict(httpx.QueryParams(request.content.decode()))
+            posts.append(payload)
+            assert payload["javax.faces.ViewState"] == "matrix"
+            assert payload["id"] == "177890"
+            return httpx.Response(
+                200,
+                text="""<table class="visualizacao">
+                <tr><th>Código:</th><td>ADM0023</td></tr>
+                <tr><th>Pré-Requisitos:</th><td>-</td></tr>
+                <tr><th>Co-Requisitos:</th><td>-</td></tr>
+                <tr><th>Equivalências:</th><td>( ADM0001 )</td></tr></table>""",
+            )
+        return fake(request)
+
+    async with SigaaPublicClient(transport=httpx.MockTransport(transport)) as client:
+        for _ in range(2):
+            subject = await client.curricula.get_subject_details(414112, 456, "ADM0023")
+        with pytest.raises(SigaaSearchError, match="sem detalhes"):
+            await client.curricula.get_subject_details(414112, 456, "AUSENTE")
+    assert subject.code == "ADM0023"
+    assert subject.name == "INTRODUÇÃO À ADMINISTRAÇÃO"
+    assert subject.hours == 60
+    assert subject.equivalences == "( ADM0001 )"
+    assert len(posts) == 2
+    assert fake.views == 3
+
+
 async def test_sessao_expirada_reabre_listagem_e_viewstate():
     fake = FakeSigaa(expire=True)
     async with SigaaPublicClient(transport=httpx.MockTransport(fake)) as client:

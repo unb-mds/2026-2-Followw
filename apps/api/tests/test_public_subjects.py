@@ -67,6 +67,55 @@ def _search(client, **params):
     return response.json()
 
 
+@pytest.mark.parametrize("endpoint", ["/public/subjects", "/public/search"])
+@pytest.mark.parametrize(
+    "q,expected",
+    [
+        (" mat0024 ", ["FCE0001", "MAT0024", "MAT0025", "MAT0137"]),
+        ("MAT0025", ["MAT0024", "MAT0025", "MAT0099"]),
+        ("MAT002", ["MAT0024", "MAT0025"]),
+        ("MAT0024 calculo", ["FCE0001", "MAT0024", "MAT0025"]),
+    ],
+)
+def test_busca_codigo_inclui_equivalencias_diretas_nos_dois_sentidos(
+    catalog, database, endpoint, q, expected
+):
+    with database.begin() as session:
+        session.add_all(
+            [
+                Subject(
+                    code="MAT0024",
+                    name="CÁLCULO ANTIGO",
+                    equivalences=[["MAT0025", "FCE0001"]],
+                ),
+                Subject(code="MAT0025", name="CÁLCULO 1", equivalences=[["MAT0099"]]),
+                Subject(code="MAT0099", name="INDIRETA"),
+                Subject(code="MAT0137", name="REVERSA", equivalences=[["MAT0024"]]),
+            ]
+        )
+        session.flush()
+        session.add(Classroom(subject_code="MAT0025", number="01", semester="2026.2"))
+    params = {"q": q}
+    if endpoint == "/public/search":
+        params["type"] = "subjects"
+    response = catalog.get(endpoint, params=params)
+    assert response.status_code == 200, response.text
+    result = response.json()
+    if endpoint == "/public/search":
+        result = result["subjects"]
+    assert [item["code"] for item in result] == expected
+    offered = next(item for item in result if item["code"] == "MAT0025")
+    assert [item["number"] for item in offered["classrooms"]] == ["01"]
+
+
+def test_busca_equivalente_sem_cadastro_respeita_unidade_e_semestre(catalog):
+    result = _search(catalog, q="cic0004", unit="673", semester="2026.1")
+    assert [item["code"] for item in result] == ["FGA0003"]
+    assert [item["semester"] for item in result[0]["classrooms"]] == ["2026.1"]
+    assert _search(catalog, q="cic0004", unit="518") == []
+    assert _search(catalog, q="cic0004 inexistente") == []
+
+
 @pytest.mark.parametrize("semester", [None, "2026.1", "2026.2"])
 def test_equivalencias_exibem_apenas_alternativas_completas_com_turmas(
     catalog, database, semester

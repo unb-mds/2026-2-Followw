@@ -4,16 +4,23 @@ from bs4 import BeautifulSoup, Tag
 
 from ..config import PUBLIC_CURRICULA_PATH
 from ..exceptions import SessionExpired, SigaaParseError, SigaaSearchError
-from ..models import Curriculum, CurriculumPeriod, CurriculumSummary
+from ..models import (
+    Curriculum,
+    CurriculumPeriod,
+    CurriculumSummary,
+    Subject,
+    SubjectDetails,
+)
 from ..utils.jsf import build_postback, link_params, read_form, read_viewstate
 from ..utils.parsing import clean_text, lookup_key
 from .session import PublicSession
+from .subject_details import parse_subject_details
 
 FORM_ID = "formCurriculosCurso"
 DETAIL_TITLE = "Visualizar Estrutura Curricular"
 _SUMMARY_RE = re.compile(r"Detalhes da Estrutura Curricular (.+), Criado em (\d{4})")
 _PERIOD_RE = re.compile(r"semestre(\d+)$")
-_SUBJECT_RE = re.compile(r"(\S+) - .+ - \d+h$")
+_SUBJECT_RE = re.compile(r"(\S+) - (.+) - (\d+)h$")
 _SEMESTER_RE = re.compile(r"\d{4}\.\d")
 _COUNT_RE = re.compile(r"(\d+) estruturas curriculares disponiveis")
 _SHIFT_SEPARATOR_RE = re.compile(r"\s*(?:,|\be\b)\s*")
@@ -55,6 +62,44 @@ class PublicCurricula:
         ]
 
     async def get_curriculum(self, course_sigaa_id: int, sigaa_id: int) -> Curriculum:
+        soup, summary = await self._details(course_sigaa_id, sigaa_id)
+        return _parse_details(soup, summary)
+
+    async def get_subject_details(
+        self, course_sigaa_id: int, sigaa_id: int, code: str
+    ) -> SubjectDetails:
+        """Abre componentes antigos pelo currículo, mesmo ausentes do catálogo ativo."""
+        for attempt in range(2):
+            try:
+                soup, _ = await self._details(course_sigaa_id, sigaa_id)
+                form = read_form(soup, "formulario")
+                for anchor in form.find_all(
+                    "a", title="Visualizar Detalhes do Componente"
+                ):
+                    row = anchor.find_parent("tr")
+                    cell = row.find("td") if row else None
+                    match = _SUBJECT_RE.fullmatch(clean_text(cell)) if cell else None
+                    if match and match[1] == code:
+                        params = link_params(anchor)
+                        subject = Subject(code=code, name=match[2], hours=int(match[3]))
+                        action, payload = build_postback(
+                            form, params, read_viewstate(form)
+                        )
+                        return parse_subject_details(
+                            await self._session.submit(action, payload), subject
+                        )
+                raise SigaaSearchError(
+                    f"Componente {code} sem detalhes no currículo {sigaa_id}."
+                )
+            except SessionExpired:
+                if attempt:
+                    raise
+                await self._session.restart()
+        raise AssertionError("Retentativa de componente esgotada")
+
+    async def _details(
+        self, course_sigaa_id: int, sigaa_id: int
+    ) -> tuple[BeautifulSoup, CurriculumSummary]:
         for attempt in range(2):
             try:
                 soup = await self._open(course_sigaa_id)
@@ -65,9 +110,7 @@ class PublicCurricula:
                         action, payload = build_postback(
                             form, link_params(anchor), read_viewstate(form)
                         )
-                        return _parse_details(
-                            await self._session.submit(action, payload), summary
-                        )
+                        return await self._session.submit(action, payload), summary
                 raise SigaaSearchError(
                     f"Currículo {sigaa_id} não encontrado no curso {course_sigaa_id}."
                 )
