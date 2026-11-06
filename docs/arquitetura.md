@@ -98,7 +98,7 @@ suas interações com as bibliotecas do monorepo e dados.
     - `access_token` (40 min): Sessão JSF ativa do SIGAA.
     - `refresh_token` (14 dias): Matrícula e senha encriptadas para renovação automática de sessão
       sem atrito para o usuário.
-- Para detalhes sobre ciclo de vida dos tokens, rotação de chaves e garantias criptográficas, consulte [`docs/segurança.md`](segurança.md).
+- Para detalhes sobre ciclo de vida dos tokens, rotação de chaves e garantias criptográficas, disponível em [`docs/segurança.md`](segurança.md).
 
 ### Proteção contra Abuso e Rate Limiting (Redis)
 
@@ -108,7 +108,7 @@ suas interações com as bibliotecas do monorepo e dados.
 - **Privacidade e Tolerância a Falhas**: Chaves de limitação usam hashes criptográficos anonimizados do IP
   (sem dados pessoais ou cookies gravados no Redis) e operam em modelo tolerante a falhas (*fail-open*),
   garantindo que indisponibilidades do Redis não interrompam o acesso dos alunos.
-- Para cotas de requisição, encaminhamento seguro de IP no SSR e configurações operacionais, consulte [`docs/rate-limit.md`](rate-limit.md).
+- Para cotas de requisição, encaminhamento seguro de IP no SSR e configurações operacionais, disponível em [`docs/rate-limit.md`](rate-limit.md).
 
 ### Estratégia de Cache: Stale-While-Revalidate (SWR)
 
@@ -117,7 +117,7 @@ suas interações com as bibliotecas do monorepo e dados.
   enquanto uma revalidação assíncrona é enfileirada no QStash; e requisições sem cache consultam o SIGAA
   diretamente com a sessão ativa.
 - Para a matriz completa de TTLs, diretivas `Cache-Control` do cliente e regras de sincronização,
-  consulte [`docs/cache-e-sincronizacao.md`](cache-e-sincronizacao.md).
+  disponível em [`docs/cache-e-sincronizacao.md`](cache-e-sincronizacao.md).
 
 ### Isolamento dos Scrapers em Pacotes Monorepo
 
@@ -134,16 +134,16 @@ suas interações com as bibliotecas do monorepo e dados.
 - **Sessões Efêmeras e Desacoplamento**: Operações lentas de sincronização rodam em segundo plano via
   Upstash QStash. Cada job transporta a credencial cifrada em Fernet, autentica em sessão própria e
   efêmera no SIGAA, executa as tarefas agendadas e encerra a sessão, sem interferir na navegação do usuário.
-- Para detalhes de controle de fluxo (`parallelism`), retentativas e agendamento por turma, consulte
+- Para detalhes de controle de fluxo (`parallelism`), retentativas e agendamento por turma, disponível em
   [`docs/cache-e-sincronizacao.md`](cache-e-sincronizacao.md).
 
 ### Arquitetura Offline-First e PWA (Frontend)
 
-- O frontend opera de maneira resiliente sem internet combinando duas camadas (`apps/web/src/integrations/offline/`):
+- O frontend opera sem internet combinando duas camadas (`apps/web/src/integrations/offline/`):
   o **Service Worker** (`vite-plugin-pwa` / Workbox) para precache de assets estáticos e navegação SSR (*network-first*),
   e a persistência do **TanStack Query** no IndexedDB (`idb-keyval`) para manter dados acadêmicos salvos localmente
   com invalidação automática quando o contrato da API muda.
-- Para ciclo de vida do Service Worker, estratégias de fallback de rotas e testes offline, consulte
+- Para ciclo de vida do Service Worker, estratégias de fallback de rotas e testes offline, disponível em
   [`docs/offline.md`](offline.md).
 
 ### Seed Estático de Dados Públicos e Regras do Calendário Acadêmico
@@ -164,7 +164,8 @@ suas interações com as bibliotecas do monorepo e dados.
   de tempo (`duration_ms`).
 - **Privacidade por Construção**: Uma allowlist estrita aceita exclusivamente metadados operacionais pré-definidos,
   impedindo que credenciais, cookies, parâmetros de URL ou tracebacks com dados pessoais sejam logados.
-- Para o catálogo de eventos operacionais e especificações de monitoramento, consulte [`docs/observability.md`](observability.md).
+- Para o catálogo de eventos operacionais e especificações de monitoramento, disponível em 
+  [`docs/observability.md`](observability.md).
 
 ---
 
