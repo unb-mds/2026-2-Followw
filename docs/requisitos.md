@@ -551,18 +551,11 @@ conformidade de arquitetura e segurança da informação.
       preservando o anonimato de dados sensíveis.
 
 - **RNF12 — Controle de Taxa de Requisições e Proteção contra Abuso (Rate Limiting via Redis):**
-    - A API deve implementar limitação de taxa em memória por janela fixa de 60 segundos com persistência
-      volátil no Redis (`Upstash Redis` em produção e `redis:8` local), aplicando cotas globais de 600
-      requisições por IP a cada 60 s e cota estrita de 30 requisições por IP a cada 60 s para o endpoint de
-      autenticação (`POST /auth/sigaa`).
-    - Requisições que excederem o limite da janela devem receber HTTP 429 Too Many Requests com cabeçalho
-      `Retry-After` indicando os segundos restantes para a renovação da cota e `Cache-Control: no-store`.
-    - O middleware deve operar em modo tolerante a falhas (*fail-open*), liberando a requisição caso o
-      serviço de Redis fique indisponível ou sofra timeout (> 1 s).
-    - Os endereços IP devem ser anonimizados por HMAC derivado de `JWT_SECRET_KEY` antes de serem indexados,
-      agrupando blocos IPv6 pelo prefixo `/64`.
-    - Chamadas originadas pelo servidor SSR devem encaminhar o IP real do cliente assinado criptograficamente
-      com HMAC-SHA256 e expiração de 60 s (`RATE_LIMIT_SECRET_KEY`), prevenindo falsificações.
+    - A API deve implementar controle de taxa distribuído em memória por janela fixa com Redis para conter
+      abusos e mitigar ataques de força bruta contra os sistemas institucionais da UnB.
+    - O middleware deve operar em modelo tolerante a falhas (*fail-open*) e garantir privacidade por
+      design via hashes criptográficos anonimizados de IP, conforme detalhado em
+      [`docs/rate-limit.md`](rate-limit.md).
 
 ---
 
@@ -656,13 +649,13 @@ O desenvolvimento do Followw UnB é conduzido de forma incremental através de s
   [unb-mds/2026-2-Followw](https://github.com/unb-mds/2026-2-Followw)
 - **Quadro de Requisitos e Storymap (FigJam / Figma):**
   [Quadro MDS Followw](https://www.figma.com/board/JqtNZhLBFlsVIbthMYOdzB/Template-MDS--c%C3%B3pia-limpa-?node-id=0-1&p=f&t=PFwLBexPkq3KOM8L-0)
-- **Documentação de Arquitetura C4-PlantUML:** [`docs/arquitetura.md`](./arquitetura.md)
+- **Documentação de Arquitetura C4-PlantUML:** [`docs/arquitetura.md`](arquitetura.md)
 - **Documentação de Cache e Sincronização:**
-  [`docs/cache-e-sincronizacao.md`](./cache-e-sincronizacao.md)
-- **Documentação de Redis e Rate Limit:** [`docs/rate-limit.md`](./rate-limit.md)
-- **Documentação de Uso Offline:** [`docs/offline.md`](./offline.md)
-- **Documentação de Segurança:** [`docs/segurança.md`](./segurança.md)
-- **Documentação de Recomendação de Matérias:** [`docs/recommendations.md`](./recommendations.md)
-- **Documentação de Observabilidade e Logs:** [`docs/observability.md`](./observability.md)
-- **Registro de Uso de IA:** [`docs/AI-USAGE.md`](./AI-USAGE.md)
-- **Atas de Sprints:** Diretório [`docs/sprints/`](./sprints/) (Sprints 01 a 07)
+  [`docs/cache-e-sincronizacao.md`](cache-e-sincronizacao.md)
+- **Documentação de Redis e Rate Limit:** [`docs/rate-limit.md`](rate-limit.md)
+- **Documentação de Uso Offline:** [`docs/offline.md`](offline.md)
+- **Documentação de Segurança:** [`docs/segurança.md`](segurança.md)
+- **Documentação de Recomendação de Matérias:** [`docs/recommendations.md`](recommendations.md)
+- **Documentação de Observabilidade e Logs:** [`docs/observability.md`](observability.md)
+- **Registro de Uso de IA:** [`docs/AI-USAGE.md`](AI-USAGE.md)
+- **Atas de Sprints:** Diretório [`docs/sprints/`](sprints/) (Sprints 01 a 07)
