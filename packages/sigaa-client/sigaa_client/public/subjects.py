@@ -3,7 +3,7 @@ from typing import get_args
 from bs4 import BeautifulSoup, Tag
 
 from ..config import PUBLIC_SUBJECTS_PATH
-from ..exceptions import SessionExpired, SigaaParseError, SigaaSearchError
+from ..exceptions import SigaaParseError, SigaaSearchError
 from ..models import (
     PublicSubject,
     SubjectDetails,
@@ -72,20 +72,15 @@ class PublicSubjects:
         for label, value in (("Código", code), ("Nome", name), ("Unidade", unit)):
             if isinstance(value, str) and not value.strip():
                 raise SigaaSearchError(f"{label}: filtro não pode ser vazio.")
-        try:
-            soup = await self._submit(unit, level, type, code, name)
-        except SessionExpired:
-            await self._session.restart()
-            soup = await self._submit(unit, level, type, code, name)
+        soup = await self._session.retry(
+            lambda: self._submit(unit, level, type, code, name)
+        )
         return _parse_results(soup, level)
 
     async def get_details(self, subject: PublicSubject) -> SubjectDetails:
-        """Requisitos e carga horária do resumo, mesmo sem oferta no semestre."""
-        try:
-            return await self._open_details(subject)
-        except SessionExpired:
-            await self._session.restart()
-            return await self._open_details(subject)
+        """Requisitos, carga horária e unidade do resumo, mesmo sem oferta no semestre."""
+        details = await self._session.retry(lambda: self._open_details(subject))
+        return details.model_copy(update={"sigaa_id": subject.sigaa_id})
 
     async def _open_details(self, subject: PublicSubject) -> SubjectDetails:
         # O ViewState morre a cada postback: cada resumo parte de uma busca nova.
@@ -96,7 +91,7 @@ class PublicSubjects:
             if params.get("id") == str(subject.sigaa_id):
                 action, payload = build_postback(form, params, read_viewstate(form))
                 details = await self._session.submit(action, payload)
-                return parse_subject_details(details, subject)
+                return parse_subject_details(details, subject.code, subject.hours)
         raise SigaaParseError(
             f"Componente {subject.code} ({subject.sigaa_id}) sem link de detalhes na busca."
         )

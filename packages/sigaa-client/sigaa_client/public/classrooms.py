@@ -1,24 +1,11 @@
 import re
-from collections.abc import AsyncIterator, Collection
 
 from bs4 import BeautifulSoup, Tag
 
 from ..config import PUBLIC_CLASSROOMS_PATH
-from ..exceptions import SessionExpired, SigaaParseError, SigaaSearchError
-from ..models import (
-    PublicClassroom,
-    Subject,
-    SubjectDetails,
-    TeachingLevel,
-    Unit,
-)
-from ..utils.jsf import (
-    build_postback,
-    build_submit,
-    link_params,
-    read_form,
-    read_viewstate,
-)
+from ..exceptions import SigaaParseError, SigaaSearchError
+from ..models import PublicClassroom, Subject, TeachingLevel, Unit
+from ..utils.jsf import build_submit, link_params, read_form
 from ..utils.parsing import (
     clean_text,
     lookup_key,
@@ -27,7 +14,6 @@ from ..utils.parsing import (
     visible_text,
 )
 from .session import PublicSession
-from .subject_details import parse_subject_details
 from .units import parse_units, resolve_unit
 
 FORM_ID = "formTurma"
@@ -78,56 +64,10 @@ class PublicClassrooms:
         resolvido contra a própria página da busca. `level` é opcional; sem
         `year`/`period` vale o semestre que o form já vem preenchido.
         """
-        soup = await self._search(unit, level, year, period)
+        soup = await self._session.retry(
+            lambda: self._submit(unit, level, year, period)
+        )
         return [] if _no_results(soup) else _parse_results(soup)
-
-    async def iter_subjects(
-        self,
-        unit: Unit | int | str,
-        *,
-        level: TeachingLevel = TeachingLevel.GRADUACAO,
-        year: int | None = None,
-        period: int | None = None,
-        skip: Collection[str] = (),
-    ) -> AsyncIterator[SubjectDetails]:
-        """Os componentes ofertados, com requisitos; `skip` são códigos já coletados."""
-        page = await self._search(unit, level, year, period)
-        listed = {} if _no_results(page) else _listed_subjects(page)
-
-        for sigaa_id, subject in listed.items():
-            if subject.code is None or subject.code in skip:
-                continue
-            try:
-                details = await self._open_details(page, sigaa_id)
-            except SessionExpired:
-                await self._session.restart()
-                page = await self._search(unit, level, year, period)
-                details = await self._open_details(page, sigaa_id)
-            yield parse_subject_details(details, subject)
-
-    async def _open_details(self, page: BeautifulSoup, sigaa_id: int) -> BeautifulSoup:
-        form = read_form(page, FORM_ID)
-        for anchor in form.select("tr.agrupador a"):
-            params = link_params(anchor)
-            if params.get("id") == str(sigaa_id):
-                action, payload = build_postback(form, params, read_viewstate(form))
-                return await self._session.submit(action, payload)
-        raise SigaaParseError(f"Componente {sigaa_id} não tem link na busca.")
-
-    async def _search(
-        self,
-        unit: Unit | int | str,
-        level: TeachingLevel | None,
-        year: int | None,
-        period: int | None,
-    ) -> BeautifulSoup:
-        try:
-            return await self._submit(unit, level, year, period)
-        except SessionExpired:
-            # A sessão morreu entre abrir o form e enviá-lo: o `ViewState` da
-            # mão não serve mais, então refaz o caminho inteiro uma vez.
-            await self._session.restart()
-            return await self._submit(unit, level, year, period)
 
     async def _submit(
         self,
@@ -192,19 +132,6 @@ def _subject(row: Tag) -> Subject:
         sigaa_id=int(sigaa_id) if sigaa_id.isdigit() else None,
         name=name.strip() or code.strip(),
     )
-
-
-def _listed_subjects(soup: BeautifulSoup) -> dict[int, Subject]:
-    """Os componentes da busca por `sigaa_id`, com a unidade da primeira turma que a traz."""
-    subjects: dict[int, Subject] = {}
-    for classroom in _parse_results(soup):
-        subject = classroom.subject
-        if subject.sigaa_id is None:
-            raise SigaaParseError(f"Componente {subject.code} sem id no link.")
-        known = subjects.get(subject.sigaa_id)
-        if known is None or (known.unit is None and subject.unit is not None):
-            subjects[subject.sigaa_id] = subject
-    return subjects
 
 
 def _classroom(row: Tag, subject: Subject) -> PublicClassroom:

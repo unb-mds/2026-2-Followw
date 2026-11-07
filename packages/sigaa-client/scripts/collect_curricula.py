@@ -6,11 +6,10 @@ import csv
 from datetime import date
 from pathlib import Path
 
-import httpx
+from _collect import DATA_DIR, NETWORK_ERRORS, run_pool, with_retries, write_csv
 
-from sigaa_client import Curriculum, CurriculumSummary, SigaaError, SigaaPublicClient
+from sigaa_client import Curriculum, CurriculumSummary, SigaaPublicClient
 
-DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 MATRIX_COLUMNS = (
     "sigaa_id",
     "course_sigaa_id",
@@ -39,7 +38,6 @@ COMPONENT_COLUMNS = (
     "subject_codes",
 )
 DELAY = 0.3
-RETRY_DELAY = 2
 
 
 def select_curricula(
@@ -77,6 +75,7 @@ async def collect_curricula(
     year: int | None = None,
     latest_only: bool = False,
     only: list[int] | None = None,
+    workers: int = 2,
 ) -> list[Curriculum]:
     year = year if year is not None else date.today().year
     with courses_path.open(encoding="utf-8", newline="") as file:
@@ -86,41 +85,42 @@ async def collect_curricula(
         if unknown:
             raise ValueError(f"Cursos ausentes no CSV: {sorted(unknown)}")
         courses = {key: value for key, value in courses.items() if key in only}
-    results = []
-    for course_id, name in sorted(courses.items()):
-        for attempt in range(3):
-            try:
-                async with SigaaPublicClient(timeout=45) as client:
-                    summaries = select_curricula(
-                        await client.curricula.list_curricula(course_id),
-                        year,
-                        latest_only,
-                    )
-                    collected = []
-                    for summary in summaries:
-                        collected.append(
-                            await client.curricula.get_curriculum(
-                                course_id, summary.sigaa_id
-                            )
-                        )
-                        await asyncio.sleep(DELAY)
-                results.extend(collected)
-                print(f"{course_id} ({name}): {len(collected)} currículos", flush=True)
-                break
-            except (SigaaError, httpx.HTTPError) as error:
-                if attempt == 2:
-                    raise RuntimeError(
-                        f"Falha no curso {course_id}; dataset não foi substituído: {error}"
-                    ) from error
-                print(f"Nova tentativa {course_id}: {error}", flush=True)
-                await asyncio.sleep(RETRY_DELAY)
+
+    async def collect_course(
+        client: SigaaPublicClient, course_id: int
+    ) -> list[Curriculum]:
+        async def step() -> list[Curriculum]:
+            summaries = select_curricula(
+                await client.curricula.list_curricula(course_id), year, latest_only
+            )
+            collected = []
+            for summary in summaries:
+                collected.append(
+                    await client.curricula.get_curriculum(course_id, summary.sigaa_id)
+                )
+                await asyncio.sleep(DELAY)
+            return collected
+
+        try:
+            collected = await with_retries(step, course_id)
+        except NETWORK_ERRORS as error:
+            raise RuntimeError(
+                f"Falha no curso {course_id}; dataset não foi substituído: {error}"
+            ) from error
+        print(
+            f"{course_id} ({courses[course_id]}): {len(collected)} currículos",
+            flush=True,
+        )
+        return collected
+
+    found = await run_pool(sorted(courses), collect_course, workers)
+    results = [item for collected in found for item in collected]
     if not results:
         raise RuntimeError("Nenhum currículo encontrado; dataset não foi substituído.")
     return results
 
 
 def write_csvs(curricula: list[Curriculum], directory: Path) -> None:
-    directory.mkdir(parents=True, exist_ok=True)
     matrices = []
     components = []
     for item in curricula:
@@ -145,27 +145,10 @@ def write_csvs(curricula: list[Curriculum], directory: Path) -> None:
                     "subject_codes": " ".join(codes),
                 }
             )
-    outputs = [
-        ("curricula.csv", MATRIX_COLUMNS, matrices),
-        ("curriculum_components.csv", COMPONENT_COLUMNS, components),
-    ]
-    temporary = []
-    try:
-        for name, columns, rows in outputs:
-            path = directory / name
-            stage = path.with_suffix(".tmp")
-            temporary.append((stage, path))
-            with stage.open("w", encoding="utf-8", newline="") as file:
-                writer = csv.DictWriter(
-                    file, columns, extrasaction="ignore", lineterminator="\n"
-                )
-                writer.writeheader()
-                writer.writerows(rows)
-        for stage, path in temporary:
-            stage.replace(path)
-    finally:
-        for stage, _ in temporary:
-            stage.unlink(missing_ok=True)
+    write_csv(
+        (directory / "curricula.csv", MATRIX_COLUMNS, matrices),
+        (directory / "curriculum_components.csv", COMPONENT_COLUMNS, components),
+    )
 
 
 def main() -> None:
@@ -175,6 +158,7 @@ def main() -> None:
     parser.add_argument("--year", type=int, default=date.today().year)
     parser.add_argument("--latest-only", action="store_true")
     parser.add_argument("--course", type=int, action="append")
+    parser.add_argument("--workers", type=int, default=2)
     args = parser.parse_args()
     if args.course and args.output_dir.resolve() == DATA_DIR.resolve():
         parser.error(
@@ -182,7 +166,11 @@ def main() -> None:
         )
     curricula = asyncio.run(
         collect_curricula(
-            args.courses, year=args.year, latest_only=args.latest_only, only=args.course
+            args.courses,
+            year=args.year,
+            latest_only=args.latest_only,
+            only=args.course,
+            workers=args.workers,
         )
     )
     write_csvs(curricula, args.output_dir)

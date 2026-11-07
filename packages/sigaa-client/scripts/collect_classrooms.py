@@ -3,7 +3,7 @@
 import asyncio
 from collections.abc import Iterable, Sequence
 
-from _by_unit import (
+from _collect import (
     DATA_DIR,
     collect_by_unit,
     load_units,
@@ -86,7 +86,7 @@ def classroom_rows(
 def main():
     args = parse_args(__doc__, OUTPUT)
     rows = asyncio.run(collect_classrooms(args.semester, args.unit, args.workers))
-    write_csv(rows, COLUMNS, args.output)
+    write_csv((args.output, COLUMNS, rows))
     print(f"Salvo em {args.output}: {len(rows)} turmas.")
 
 

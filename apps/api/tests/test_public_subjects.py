@@ -2,6 +2,7 @@ import pytest
 
 from api.db.models import Classroom, ClassroomProfessor, Professor, Subject, Unit
 from api.db.seed.subjects import read_subjects
+from api.db.seed.units import read_units
 from api.sigaa import get_sigaa_public_client
 
 
@@ -67,7 +68,6 @@ def _search(client, **params):
     return response.json()
 
 
-@pytest.mark.parametrize("endpoint", ["/public/subjects", "/public/search"])
 @pytest.mark.parametrize(
     "q,expected",
     [
@@ -78,7 +78,7 @@ def _search(client, **params):
     ],
 )
 def test_busca_codigo_inclui_equivalencias_diretas_nos_dois_sentidos(
-    catalog, database, endpoint, q, expected
+    catalog, database, q, expected
 ):
     with database.begin() as session:
         session.add_all(
@@ -95,14 +95,7 @@ def test_busca_codigo_inclui_equivalencias_diretas_nos_dois_sentidos(
         )
         session.flush()
         session.add(Classroom(subject_code="MAT0025", number="01", semester="2026.2"))
-    params = {"q": q}
-    if endpoint == "/public/search":
-        params["type"] = "subjects"
-    response = catalog.get(endpoint, params=params)
-    assert response.status_code == 200, response.text
-    result = response.json()
-    if endpoint == "/public/search":
-        result = result["subjects"]
+    result = _search(catalog, q=q)
     assert [item["code"] for item in result] == expected
     offered = next(item for item in result if item["code"] == "MAT0025")
     assert [item["number"] for item in offered["classrooms"]] == ["01"]
@@ -353,7 +346,9 @@ def test_referencia_sem_oferta_resolve_nome_acrescentado_pela_coleta(
     catalog, database, field, code, name
 ):
     referenced = next(subject for subject in read_subjects() if subject.code == code)
+    unit = next(unit for unit in read_units() if unit.id == referenced.unit_id)
     with database.begin() as session:
+        session.merge(unit)
         session.add(referenced)
         setattr(session.get(Subject, "FGA0003"), field, [[code]])
 

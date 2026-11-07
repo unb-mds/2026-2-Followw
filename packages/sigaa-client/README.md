@@ -80,8 +80,13 @@ de limite de 2000 resultados preserva a lista parcial e marca `truncated=True`; 
 para obter resultados completos. Busca vazia retorna `items=()` e a mensagem da origem; filtros
 recusados levantam `SigaaSearchError`.
 
-`client.subjects.get_details(subject)` abre o resumo de um `PublicSubject` da busca e devolve o
-mesmo `SubjectDetails` de `iter_subjects`, com requisitos e carga horária, mesmo sem oferta no
+`client.subjects.get_details(subject)` abre o resumo de um `PublicSubject` da busca e devolve um
+`SubjectDetails`: nome, carga horária total (a da busca, quando o resumo traz 0h), unidade
+responsável (o nome, como em `units.csv`, sem o código hierárquico) e `prerequisites`,
+`corequisites` e `equivalences` (só a expressão ativa), como o SIGAA as escreve, ou `None` quando
+não há. A busca pública não lista componentes inativos; eles só abrem pelo link da matriz, com
+`client.curricula.get_subject_details(course_sigaa_id, curriculum_sigaa_id, code)`, que devolve o
+mesmo modelo (com a carga do rótulo da matriz como reserva). Os dois servem mesmo sem oferta no
 semestre.
 
 Na página do SIGAA, o aviso aparece acima do formulário, abaixo do cabeçalho, no painel
@@ -101,16 +106,16 @@ code e a validade, sem persistir o arquivo. `client.documents.get_transcript_pdf
 original do histórico acadêmico. Quando o SIGAA recusa emitir o documento (ex.: perfil sem foto), os
 três levantam `DocumentUnavailable` com o motivo informado por ele (`MissingProfilePhoto` quando falta foto).
 
-`SigaaPublicClient().classrooms.iter_subjects(unidade)` percorre os componentes de graduação
-ofertados por uma unidade e entrega cada um como `SubjectDetails`: o `Subject` com `prerequisites`,
-`corequisites` e `equivalences` (só a expressão ativa), como o SIGAA as escreve, ou `None` quando
-não há.
-
-`collect_subjects.py` também completa os componentes obrigatórios das matrizes e os citados nos
-requisitos pelo catálogo público, mesmo sem oferta no semestre, já com os requisitos de cada um (e
-os componentes que estes citarem). Linhas sem unidade são completadas de novo a cada execução. Para
-completar um CSV existente, rode da raiz do monorepo:
-`uv run python packages/sigaa-client/scripts/complete_subjects.py`.
+`collect_subjects.py` monta `data/subjects.csv` com os componentes citados nos outros CSVs de
+`data/` (turmas, matrizes, docentes e requisitos). Cada código vem do catálogo público ou, se
+inativo, da primeira matriz que ainda tem o link dele; os requisitos dos acrescentados são seguidos
+até não aparecer código novo. `unit_id` é a unidade responsável, achada pelo nome em `units.csv`.
+Por padrão, as linhas já gravadas são mantidas e só os códigos que os outros CSVs citam e ainda não
+têm linha são buscados; `--refresh` coleta tudo de novo, segue os requisitos de todos e mantém a
+linha antiga de quem o SIGAA não devolver. A falha de um componente não derruba a coleta: ele fica
+de fora (ou com a linha antiga) e é listado no fim. Como os códigos vêm dos outros CSVs, rode antes
+`collect_classrooms.py`, `collect_curricula.py` e `collect_professors.py`. Da raiz do monorepo:
+`uv run python packages/sigaa-client/scripts/collect_subjects.py`.
 Depois execute `uv run db-init` em `apps/api/` para carregar o catálogo no banco local.
 
 ### Posts da turma
