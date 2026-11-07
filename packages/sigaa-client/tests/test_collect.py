@@ -523,6 +523,21 @@ async def test_inativo_vem_da_primeira_matriz_com_o_link(subjects_script, subjec
     assert fake.searches == ["EPR", "MAT", "MAT"]
 
 
+async def test_matriz_ilegivel_nao_impede_tentar_a_proxima(subjects_script, subjects):
+    class FakeMatrix(FakeSubjects):
+        async def get_subject_details(self, course, curriculum, code):
+            if curriculum == 2:
+                raise SigaaParseError("Resumo ilegível nesta matriz")
+            return await super().get_subject_details(course, curriculum, code)
+
+    subjects(FakeMatrix(matrices={"MAT0024": [(414321, 184)]}))
+    sources = {"MAT0024": [(1, 2), (414321, 184)]}
+
+    rows = await subjects_script.resolve([], {"MAT0024"}, sources, {})
+
+    assert [row["code"] for row in rows] == ["MAT0024"]
+
+
 async def test_codigo_sem_origem_nao_ganha_linha_inventada(subjects_script, subjects):
     subjects(FakeSubjects())
     rows = [{"code": "FGA0001", "name": "BASE"}]
@@ -530,16 +545,29 @@ async def test_codigo_sem_origem_nao_ganha_linha_inventada(subjects_script, subj
     assert await subjects_script.resolve(rows, {"IQD0051"}, {}, {}) == rows
 
 
-async def test_linhas_gravadas_nao_abrem_sessao_nem_seguem_seus_requisitos(
+async def test_catalogo_sem_referencias_pendentes_nao_abre_sessao(
     subjects_script, helpers, monkeypatch
 ):
     def forbidden(**_):
-        pytest.fail("Sem --refresh, só o que os outros CSVs pedem é buscado")
+        pytest.fail("Catálogo sem pendências não deve abrir sessão")
 
     monkeypatch.setattr(helpers, "SigaaPublicClient", forbidden)
-    rows = [{"code": "FGA0001", "name": "BASE", "prerequisites": "( IQD0051 )"}]
+    rows = [{"code": "FGA0001", "name": "BASE"}]
 
     assert await subjects_script.resolve(rows, {"FGA0001"}, {}, {}) == rows
+
+
+async def test_coleta_padrao_busca_referencias_pendentes_das_linhas_gravadas(
+    subjects_script, subjects
+):
+    fake = subjects(FakeSubjects(catalog=["FGA0001", "IQD0051"]))
+    old = {"code": "FGA0001", "name": "BASE", "prerequisites": "( IQD0051 )"}
+
+    rows = await subjects_script.resolve([old], {"FGA0001"}, {}, {})
+
+    assert [row["code"] for row in rows] == ["FGA0001", "IQD0051"]
+    assert rows[0] is old
+    assert fake.searches == ["IQD"]
 
 
 async def test_refresh_coleta_de_novo_e_mantem_a_linha_de_quem_sumiu(
@@ -547,22 +575,33 @@ async def test_refresh_coleta_de_novo_e_mantem_a_linha_de_quem_sumiu(
 ):
     fake = subjects(
         FakeSubjects(
-            catalog=["FGA0001", "IQD0051"],
+            catalog=["FGA0001", "IQD0051", "MAT0025", "CIC0004"],
             requirements={"FGA0001": {"prerequisites": "( IQD0051 )"}},
         )
     )
-    old = {"code": "FGA0001", "name": "ANTIGO"}
-    gone = {"code": "OLD0001", "name": "SUMIU DO SIGAA"}
+    old = {
+        "code": "FGA0001",
+        "name": "ANTIGO",
+        "unit_id": "673",
+        "prerequisites": "( CIC0004 )",
+    }
+    gone = {
+        "code": "OLD0001",
+        "name": "SUMIU DO SIGAA",
+        "prerequisites": "( MAT0025 )",
+    }
 
     rows = await subjects_script.resolve([old, gone], (), {}, {}, refresh=True)
 
     assert [row["name"] for row in rows] == [
         "NOME FGA0001",
         "NOME IQD0051",
+        "NOME MAT0025",
         gone["name"],
     ]
-    assert rows[2] is gone
-    assert fake.searches == ["FGA", "OLD", "IQD"]
+    assert rows[3] is gone
+    assert rows[0]["unit_id"] == "673"
+    assert fake.searches == ["FGA", "OLD", "IQD", "MAT"]
 
 
 async def test_falha_de_um_componente_nao_derruba_a_coleta(

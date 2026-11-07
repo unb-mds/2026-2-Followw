@@ -108,12 +108,13 @@ três levantam `DocumentUnavailable` com o motivo informado por ele (`MissingPro
 
 `collect_subjects.py` monta `data/subjects.csv` com os componentes citados nos outros CSVs de
 `data/` (turmas, matrizes, docentes e requisitos). Cada código vem do catálogo público ou, se
-inativo, da primeira matriz que ainda tem o link dele; os requisitos dos acrescentados são seguidos
+inativo, da primeira matriz com detalhes legíveis; os requisitos dos acrescentados são seguidos
 até não aparecer código novo. `unit_id` é a unidade responsável, achada pelo nome em `units.csv`.
-Por padrão, as linhas já gravadas são mantidas e só os códigos que os outros CSVs citam e ainda não
-têm linha são buscados; `--refresh` coleta tudo de novo, segue os requisitos de todos e mantém a
-linha antiga de quem o SIGAA não devolver. A falha de um componente não derruba a coleta: ele fica
-de fora (ou com a linha antiga) e é listado no fim. Como os códigos vêm dos outros CSVs, rode antes
+Por padrão, as linhas já gravadas são mantidas e a coleta busca as referências pendentes dos
+outros CSVs e dos requisitos já registrados. `--refresh` coleta tudo de novo, segue os requisitos
+de todos e mantém a linha antiga de quem o SIGAA não devolver. Se o resumo não trouxer uma unidade
+reconhecida, a unidade já registrada é mantida. A falha de um componente não derruba a coleta:
+ele fica de fora (ou com a linha antiga) e é listado no fim. Como a coleta lê os outros CSVs, rode antes
 `collect_classrooms.py`, `collect_curricula.py` e `collect_professors.py`. Da raiz do monorepo:
 `uv run python packages/sigaa-client/scripts/collect_subjects.py`.
 Depois execute `uv run db-init` em `apps/api/` para carregar o catálogo no banco local.

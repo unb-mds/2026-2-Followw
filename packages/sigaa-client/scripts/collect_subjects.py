@@ -25,6 +25,7 @@ from _collect import DATA_DIR, NETWORK_ERRORS, run_pool, with_retries, write_csv
 
 from sigaa_client import (
     PublicSubject,
+    SigaaParseError,
     SigaaPublicClient,
     SigaaSearchError,
     SubjectDetails,
@@ -107,7 +108,7 @@ async def from_matrices(
     failed: set[str],
     workers: int = 2,
 ) -> list[SubjectDetails]:
-    """Os inativos pela primeira matriz que ainda tem o link do componente."""
+    """Os inativos pela primeira matriz com detalhes legíveis do componente."""
 
     async def details(client: SigaaPublicClient, code: str) -> SubjectDetails | None:
         for course, curriculum in sources[code]:
@@ -121,8 +122,9 @@ async def from_matrices(
             except SigaaSearchError:
                 continue
             except NETWORK_ERRORS as error:
-                _fail(failed, [code], code, error)
-                return None
+                _fail(failed, [code], f"{code} na matriz {curriculum}", error)
+                if not isinstance(error, SigaaParseError):
+                    return None
             finally:
                 await asyncio.sleep(DELAY)
         return None
@@ -141,7 +143,7 @@ async def resolve(
 ) -> list[Row]:
     """Ponto fixo: catálogo, depois matrizes, até os requisitos não citarem código novo.
 
-    Sem `refresh`, só busca o que `wanted` pede e ainda não tem linha. Com ele, coleta tudo de
+    Sem `refresh`, busca apenas referências ainda sem linha. Com ele, coleta tudo de
     novo e fica com a linha antiga de quem o SIGAA não devolver.
     """
     previous = {str(row["code"]): row for row in rows}
@@ -149,7 +151,7 @@ async def resolve(
         found, missing = {}, set(wanted) | previous.keys()
     else:
         found = dict(previous)
-        missing = set(wanted) - found.keys()
+        missing = (set(wanted) | referenced_codes(found.values())) - found.keys()
     attempted: set[str] = set()
     unmatched: set[str] = set()
     failed: set[str] = set()
@@ -165,8 +167,15 @@ async def resolve(
             if item.unit and lookup_key(item.unit) not in unit_ids
         }
         added = [subject_row(item, unit_ids) for item in details]
-        found |= {str(row["code"]): row for row in added}
-        missing = referenced_codes(added) - found.keys() - attempted
+        for row in added:
+            code = str(row["code"])
+            if row["unit_id"] is None:
+                row["unit_id"] = previous.get(code, {}).get("unit_id") or None
+            found[code] = row
+        retained = [
+            previous[code] for code in (missing & previous.keys()) - found.keys()
+        ]
+        missing = referenced_codes([*added, *retained]) - found.keys() - attempted
 
     unresolved = attempted - found.keys()
     kept = unresolved & previous.keys()
