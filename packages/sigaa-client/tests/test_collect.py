@@ -1,3 +1,4 @@
+import asyncio
 import csv
 import importlib
 from pathlib import Path
@@ -12,6 +13,8 @@ from sigaa_client import (
     PublicClassroom,
     PublicSubject,
     SigaaError,
+    SigaaParseError,
+    SigaaSearchError,
     Subject,
     SubjectDetails,
     SubjectSearchResult,
@@ -41,11 +44,9 @@ def test_csv_de_docentes_usa_unidade_e_omite_url(monkeypatch):
 
 
 @pytest.fixture
-def curricula_script(monkeypatch):
-    monkeypatch.syspath_prepend(str(SCRIPTS))
+def curricula_script(helpers, monkeypatch):
     module = importlib.import_module("collect_curricula")
     monkeypatch.setattr(module, "DELAY", 0)
-    monkeypatch.setattr(module, "RETRY_DELAY", 0)
     return module
 
 
@@ -91,10 +92,7 @@ def test_falha_na_coleta_de_curriculos_nao_substitui_dataset(
         async def list_curricula(self, course_id):
             raise SigaaError("indisponível")
 
-    class Client(FakeClient):
-        curricula = BrokenCurricula()
-
-    monkeypatch.setattr(curricula_script, "SigaaPublicClient", Client)
+    monkeypatch.setattr(FakeClient, "curricula", BrokenCurricula(), raising=False)
     courses = tmp_path / "courses.csv"
     courses.write_text("id,name\n1,Curso\n", encoding="utf-8")
     output = tmp_path / "curricula.csv"
@@ -188,9 +186,9 @@ class FakeClient:
 
 
 @pytest.fixture
-def by_unit(monkeypatch):
+def helpers(monkeypatch):
     monkeypatch.syspath_prepend(str(SCRIPTS))
-    module = importlib.import_module("_by_unit")
+    module = importlib.import_module("_collect")
     monkeypatch.setattr(module, "SigaaPublicClient", FakeClient)
     monkeypatch.setattr(module, "RETRY_DELAY", 0)
     monkeypatch.setattr(module, "UNIT_DELAY", 0)
@@ -198,7 +196,7 @@ def by_unit(monkeypatch):
 
 
 async def test_docentes_filtram_os_departamentos_da_busca_de_docentes(
-    by_unit, monkeypatch
+    helpers, monkeypatch
 ):
     script = importlib.import_module("collect_professors")
     searched = []
@@ -225,22 +223,14 @@ async def test_docentes_filtram_os_departamentos_da_busca_de_docentes(
 
 
 @pytest.fixture
-def classrooms_script(by_unit):
+def classrooms_script(helpers):
     return importlib.import_module("collect_classrooms")
 
 
 @pytest.fixture
-def subjects_script(by_unit, monkeypatch):
+def subjects_script(helpers, monkeypatch):
     module = importlib.import_module("collect_subjects")
-    monkeypatch.setattr(module, "DETAIL_DELAY", 0)
-    return module
-
-
-@pytest.fixture
-def completion_script(by_unit, monkeypatch):
-    module = importlib.import_module("complete_subjects")
-    monkeypatch.setattr(module, "SigaaPublicClient", FakeClient)
-    monkeypatch.setattr(module, "SEARCH_DELAY", 0)
+    monkeypatch.setattr(module, "DELAY", 0)
     return module
 
 
@@ -253,22 +243,22 @@ def _classroom(code: str | None, number: str, **fields) -> PublicClassroom:
     )
 
 
-async def test_unidade_com_erro_de_rede_e_tentada_de_novo(by_unit):
+async def test_unidade_com_erro_de_rede_e_tentada_de_novo(helpers):
     calls = []
 
     async def collect(client, unit):
         calls.append(unit.id)
-        if calls.count(unit.id) < by_unit.ATTEMPTS:
+        if calls.count(unit.id) < helpers.ATTEMPTS:
             raise SigaaError("instável")
         return [unit.id]
 
-    found = await by_unit.collect_by_unit([GAMA], collect, str, workers=1)
+    found = await helpers.collect_by_unit([GAMA], collect, str, workers=1)
 
     assert found == {673: [673]}
-    assert calls == [673] * by_unit.ATTEMPTS
+    assert calls == [673] * helpers.ATTEMPTS
 
 
-async def test_unidade_que_sempre_falha_impede_salvar_as_outras(by_unit):
+async def test_unidade_que_sempre_falha_impede_salvar_as_outras(helpers):
     calls = []
 
     async def collect(client, unit):
@@ -278,12 +268,12 @@ async def test_unidade_que_sempre_falha_impede_salvar_as_outras(by_unit):
         return []
 
     with pytest.raises(RuntimeError, match=r"\[673\]; nada foi salvo"):
-        await by_unit.collect_by_unit([GAMA, CEILANDIA], collect, str, workers=2)
-    assert calls.count(GAMA.id) == by_unit.ATTEMPTS
+        await helpers.collect_by_unit([GAMA, CEILANDIA], collect, str, workers=2)
+    assert calls.count(GAMA.id) == helpers.ATTEMPTS
     assert calls.count(CEILANDIA.id) == 1
 
 
-async def test_erro_que_nao_e_de_rede_nao_e_tentado_de_novo(by_unit):
+async def test_erro_que_nao_e_de_rede_nao_e_tentado_de_novo(helpers):
     calls = []
 
     async def collect(client, unit):
@@ -291,15 +281,15 @@ async def test_erro_que_nao_e_de_rede_nao_e_tentado_de_novo(by_unit):
         raise ValueError("bug")
 
     with pytest.raises(ValueError):
-        await by_unit.collect_by_unit([GAMA], collect, str, workers=1)
+        await helpers.collect_by_unit([GAMA], collect, str, workers=1)
     assert calls == [673]
 
 
-def test_semestre_invalido_e_barulhento(by_unit):
-    assert by_unit.parse_semester("2026.2") == (2026, 2)
-    assert by_unit.parse_semester(None) == (None, None)
+def test_semestre_invalido_e_barulhento(helpers):
+    assert helpers.parse_semester("2026.2") == (2026, 2)
+    assert helpers.parse_semester(None) == (None, None)
     with pytest.raises(ValueError, match="AAAA.P"):
-        by_unit.parse_semester("2026-2")
+        helpers.parse_semester("2026-2")
 
 
 def test_uma_turma_por_linha_ainda_que_apareca_em_mais_de_uma_unidade(
@@ -350,7 +340,7 @@ def test_csv_de_turmas_escreve_as_colunas_na_ordem_e_vazio_para_nulo(
 ):
     path = tmp_path / "classrooms.csv"
     rows = classrooms_script.classroom_rows([[_classroom("FGA0030", "01", room="S3")]])
-    classrooms_script.write_csv(rows, classrooms_script.COLUMNS, path)
+    classrooms_script.write_csv((path, classrooms_script.COLUMNS, rows))
 
     assert path.read_text(encoding="utf-8").splitlines() == [
         ",".join(classrooms_script.COLUMNS),
@@ -358,310 +348,289 @@ def test_csv_de_turmas_escreve_as_colunas_na_ordem_e_vazio_para_nulo(
     ]
 
 
-async def test_nova_tentativa_de_componentes_continua_de_onde_parou(
-    subjects_script, monkeypatch
+async def test_pool_devolve_na_ordem_dos_itens_com_uma_sessao_por_worker(
+    helpers, monkeypatch
 ):
-    skips = []
+    sessions = []
 
-    async def iter_subjects(unit, *, skip, **_):
-        skips.append(set(skip))
-        for code in ("FGA0001", "FGA0002"):
-            if code in skip:
-                continue
-            yield SubjectDetails(code=code, name=code)
-            if len(skips) == 1:
-                raise SigaaError("caiu no meio")
+    class Client(FakeClient):
+        def __init__(self, **_):
+            sessions.append(self)
 
-    async def load_units(only):
-        return [GAMA]
+    monkeypatch.setattr(helpers, "SigaaPublicClient", Client)
 
-    monkeypatch.setattr(subjects_script, "load_units", load_units)
-    monkeypatch.setattr(
-        FakeClient, "classrooms", SimpleNamespace(iter_subjects=iter_subjects)
-    )
+    async def work(client, item):
+        await asyncio.sleep(0.01 if item == 1 else 0)
+        return (item, client)
 
-    subjects = await subjects_script.collect_subjects(workers=1)
+    found = await helpers.run_pool([1, 2, 3], work, workers=2)
 
-    assert skips == [set(), {"FGA0001"}]
-    assert [(unit_id, s.code) for unit_id, s in subjects] == [
-        (673, "FGA0001"),
-        (673, "FGA0002"),
-    ]
+    assert [item for item, _ in found] == [1, 2, 3]
+    assert {client for _, client in found} == set(sessions)
+    assert len(sessions) == 2
+    assert await helpers.run_pool([], work) == []
 
 
-def test_csv_de_componentes_tem_a_unidade_e_os_requisitos(subjects_script, tmp_path):
-    path = tmp_path / "subjects.csv"
-    subject = SubjectDetails(
-        code="FGA0002", name="B", hours=60, unit="GAMA", prerequisites="FGA0001"
-    )
-    subjects_script.write_csv(
-        subjects_script.subject_rows([(673, subject)]), subjects_script.COLUMNS, path
-    )
+async def test_recusa_da_busca_nao_e_tentada_de_novo(helpers):
+    calls = []
 
-    assert path.read_text(encoding="utf-8").splitlines() == [
-        ",".join(subjects_script.COLUMNS),
-        "FGA0002,B,60,673,FGA0001,,",
-    ]
+    async def step():
+        calls.append(1)
+        raise SigaaSearchError("sem detalhes")
+
+    with pytest.raises(SigaaSearchError):
+        await helpers.with_retries(step, "X")
+    assert len(calls) == 1
 
 
-def _catalog_subject(code, name):
+def test_csvs_so_sao_trocados_quando_todos_foram_escritos(helpers, tmp_path):
+    first, second = tmp_path / "a.csv", tmp_path / "b.csv"
+    first.write_text("antigo a", encoding="utf-8")
+    second.write_text("antigo b", encoding="utf-8")
+
+    with pytest.raises(KeyError):
+        helpers.write_csv((first, ("x",), [{"x": 1}]), (second, ("y",), [{"outra": 2}]))
+    assert first.read_text(encoding="utf-8") == "antigo a"
+    assert second.read_text(encoding="utf-8") == "antigo b"
+    assert sorted(path.name for path in tmp_path.iterdir()) == ["a.csv", "b.csv"]
+
+    helpers.write_csv((first, ("x",), [{"x": 1, "extra": 0}]))
+    assert first.read_text(encoding="utf-8").splitlines() == ["x", "1"]
+
+
+def _catalog_subject(code, name="X"):
     return PublicSubject(
         code=code,
         name=name,
-        sigaa_id=1,
-        hours=90,
+        sigaa_id=int(code[-4:]) + 1,
         level=TeachingLevel.GRADUACAO,
         type=SubjectType.DISCIPLINA,
     )
 
 
-def _catalog(search, requirements=None):
-    """Catálogo de mentira: a busca do teste e o resumo com `requirements` por código."""
+class FakeSubjects:
+    """Catálogo e matrizes de mentira: `catalog` sai na busca, `matrices` só pelo link."""
 
-    async def get_details(subject):
+    def __init__(self, catalog=(), matrices=None, requirements=None, truncated=()):
+        self.catalog = {code: _catalog_subject(code) for code in catalog}
+        self.matrices = matrices or {}
+        self.requirements = requirements or {}
+        self.truncated = set(truncated)
+        self.searches = []
+        self.matrix_calls = []
+
+    def _details(self, code):
         return SubjectDetails(
-            code=subject.code,
-            name=subject.name,
-            hours=subject.hours,
-            **(requirements or {}).get(subject.code, {}),
+            code=code,
+            name=f"NOME {code}",
+            hours=60,
+            unit="DEPTO CIÊNCIAS DA COMPUTAÇÃO - BRASÍLIA",
+            **self.requirements.get(code, {}),
         )
 
-    return SimpleNamespace(search=search, get_details=get_details)
+    async def search(self, *, code):
+        self.searches.append(code)
+        items = tuple(s for c, s in self.catalog.items() if c.startswith(code))
+        if code in self.truncated:
+            return SubjectSearchResult(items=items[:1], truncated=True)
+        return SubjectSearchResult(items=items)
+
+    async def get_details(self, subject):
+        return self._details(subject.code)
+
+    async def get_subject_details(self, course, curriculum, code):
+        self.matrix_calls.append((course, curriculum, code))
+        if (course, curriculum) not in self.matrices.get(code, ()):
+            raise SigaaSearchError("Componente sem link nesta matriz")
+        return self._details(code)
 
 
-async def test_completa_referencias_dos_tres_campos_por_prefixo(
-    completion_script, subjects_script, monkeypatch
+@pytest.fixture
+def subjects(monkeypatch):
+    def install(fake):
+        monkeypatch.setattr(FakeClient, "subjects", fake, raising=False)
+        monkeypatch.setattr(FakeClient, "curricula", fake, raising=False)
+        return fake
+
+    return install
+
+
+UNIT_IDS = {"depto ciencias da computacao - brasilia": 508}
+
+
+async def test_resolve_pelo_catalogo_e_segue_os_requisitos_dos_acrescentados(
+    subjects_script, subjects
 ):
-    rows = subjects_script.subject_rows(
-        [
-            (
-                673,
-                SubjectDetails(
-                    code="FGA0001",
-                    name="OFERTADA",
-                    hours=60,
-                    prerequisites="( IQD0051 OU IQD0125 )",
-                    corequisites="IQD0051",
-                    equivalences="IQD0099",
-                ),
-            ),
-            (610, SubjectDetails(code="IQD0125", name="NOME PRESERVADO", hours=60)),
-        ]
-    )
-    calls = []
-
-    async def search(*, code):
-        calls.append(code)
-        return SubjectSearchResult(
-            items=(
-                _catalog_subject("IQD0051", "QUÍMICA GERAL"),
-                _catalog_subject("IQD0099", "EQUIVALENTE"),
-                _catalog_subject("IQD0125", "OUTRO NOME"),
-                _catalog_subject("IQD9999", "NÃO REFERENCIADA"),
-            )
+    fake = subjects(
+        FakeSubjects(
+            catalog=["CIC0004", "CIC0005", "MAT0025", "MAT0026"],
+            requirements={
+                "CIC0004": {"prerequisites": "( MAT0025 )"},
+                "MAT0025": {"equivalences": "( CIC0005 )"},
+            },
         )
+    )
+    kept = {"code": "FGA0001", "name": "BASE", "unit_id": "673"}
 
-    monkeypatch.setattr(FakeClient, "subjects", _catalog(search), raising=False)
-    completed = await completion_script.complete_subjects(rows)
-    by_code = {row["code"]: row for row in completed}
+    rows = await subjects_script.resolve([kept], {"CIC0004"}, {}, UNIT_IDS)
 
-    assert calls == ["IQD"]
-    assert set(by_code) == {"FGA0001", "IQD0051", "IQD0099", "IQD0125"}
-    assert by_code["IQD0051"] == {
-        "code": "IQD0051",
-        "name": "QUÍMICA GERAL",
-        "hours": 90,
-        "unit_id": None,
-        "prerequisites": None,
+    assert [row["code"] for row in rows] == ["CIC0004", "CIC0005", "FGA0001", "MAT0025"]
+    assert fake.searches == ["CIC", "MAT", "CIC"]
+    assert rows[0] == {
+        "code": "CIC0004",
+        "name": "NOME CIC0004",
+        "hours": 60,
+        "unit_id": 508,
+        "prerequisites": "( MAT0025 )",
         "corequisites": None,
         "equivalences": None,
     }
-    assert all(by_code[row["code"]] == row for row in rows)
+    assert rows[2] is kept
 
 
-async def test_catalogo_truncado_busca_codigos_que_faltam_exatamente(
-    completion_script, subjects_script, monkeypatch
+async def test_catalogo_truncado_busca_os_codigos_que_faltam_exatamente(
+    subjects_script, subjects
 ):
-    rows = subjects_script.subject_rows(
-        [
-            (
-                673,
-                SubjectDetails(
-                    code="FGA0001",
-                    name="OFERTADA",
-                    prerequisites="IQD0051 OU IQD0052",
-                ),
-            )
-        ]
-    )
-    calls = []
+    fake = subjects(FakeSubjects(catalog=["IQD0051", "IQD0052"], truncated={"IQD"}))
 
-    async def search(*, code):
-        calls.append(code)
-        if code == "IQD":
-            return SubjectSearchResult(
-                items=(_catalog_subject("IQD0051", "QUÍMICA GERAL"),),
-                truncated=True,
-            )
-        return SubjectSearchResult(items=(_catalog_subject("IQD0052", "OUTRA"),))
+    rows = await subjects_script.resolve([], {"IQD0051", "IQD0052"}, {}, {})
 
-    monkeypatch.setattr(FakeClient, "subjects", _catalog(search), raising=False)
-    completed = await completion_script.complete_subjects(rows)
-
-    assert calls == ["IQD", "IQD0052"]
-    assert {row["code"] for row in completed} == {"FGA0001", "IQD0051", "IQD0052"}
-
-
-async def test_referencia_ausente_na_origem_nao_ganha_nome_inventado(
-    completion_script, subjects_script, monkeypatch
-):
-    rows = subjects_script.subject_rows(
-        [
-            (
-                673,
-                SubjectDetails(
-                    code="FGA0001",
-                    name="OFERTADA",
-                    prerequisites="IQD0051",
-                ),
-            )
-        ]
-    )
-
-    async def search(**_):
-        return SubjectSearchResult()
-
-    monkeypatch.setattr(FakeClient, "subjects", _catalog(search), raising=False)
-    assert await completion_script.complete_subjects(rows) == rows
-
-
-async def test_catalogo_completo_nao_abre_sessao(completion_script, monkeypatch):
-    def forbidden(**_):
-        pytest.fail("O catálogo já está completo")
-
-    monkeypatch.setattr(completion_script, "SigaaPublicClient", forbidden)
-    assert await completion_script.complete_subjects([]) == []
-
-
-async def test_falha_da_origem_nao_devolve_catalogo_parcial(
-    completion_script, subjects_script, monkeypatch
-):
-    rows = subjects_script.subject_rows(
-        [
-            (
-                673,
-                SubjectDetails(
-                    code="FGA0001",
-                    name="OFERTADA",
-                    prerequisites="IQD0051 E MAT0024",
-                ),
-            ),
-        ]
-    )
-
-    async def search(*, code):
-        if code == "IQD":
-            return SubjectSearchResult(
-                items=(_catalog_subject("IQD0051", "QUÍMICA GERAL"),)
-            )
-        raise SigaaError("indisponível")
-
-    monkeypatch.setattr(FakeClient, "subjects", _catalog(search), raising=False)
-    with pytest.raises(SigaaError, match="indisponível"):
-        await completion_script.complete_subjects(rows)
-    assert [row["code"] for row in rows] == ["FGA0001"]
-
-
-def test_le_codigos_obrigatorios_das_matrizes_sem_duplicar(completion_script, tmp_path):
-    path = tmp_path / "components.csv"
-    path.write_text(
-        "kind,subject_codes\nrequired,FGA0001 FGA0002\nrequired,FGA0002\noptional,OPT0001\ncomplementary,EXT0001\nrequired,\n"
-    )
-    assert completion_script.read_curriculum_codes(path) == {"FGA0001", "FGA0002"}
-    path.write_text("code\nFGA0001\n")
-    with pytest.raises(ValueError, match="kind e subject_codes"):
-        completion_script.read_curriculum_codes(path)
-
-
-async def test_completa_materia_presente_so_na_matriz_sem_apagar_as_existentes(
-    completion_script, subjects_script, monkeypatch
-):
-    rows = subjects_script.subject_rows(
-        [(673, SubjectDetails(code="FGA0001", name="BASE"))]
-    )
-    calls = []
-
-    async def search(*, code):
-        calls.append(code)
-        return SubjectSearchResult(
-            items=(_catalog_subject("FGA0250", "PROJETO INTEGRADOR DE ENGENHARIA 2"),)
-        )
-
-    monkeypatch.setattr(FakeClient, "subjects", _catalog(search), raising=False)
-    result = await completion_script.complete_subjects(rows, {"FGA0001", "FGA0250"})
-    assert calls == ["FGA"]
-    assert result[0] == rows[0]
-    assert result[1]["code"] == "FGA0250"
-    assert result[1]["name"] == "PROJETO INTEGRADOR DE ENGENHARIA 2"
-    assert result[1]["hours"] == 90
-    assert len(rows) == 1
-
-
-async def test_acrescentadas_trazem_requisitos_e_buscam_os_componentes_citados(
-    completion_script, subjects_script, monkeypatch
-):
-    rows = subjects_script.subject_rows(
-        [(673, SubjectDetails(code="FGA0001", name="BASE"))]
-    )
-    calls = []
-
-    async def search(*, code):
-        calls.append(code)
-        return SubjectSearchResult(
-            items=(
-                _catalog_subject("FEF0500", "ESTÁGIO 3"),
-                _catalog_subject("FEF0497", "ESTÁGIO 2"),
-                _catalog_subject("MAT0025", "CÁLCULO 1"),
-            )
-        )
-
-    requirements = {
-        "FEF0500": {"prerequisites": "( ( FEF0497 ) )", "corequisites": "( MAT0025 )"},
-        "FEF0497": {"prerequisites": "( ( FGA0001 ) )"},
-    }
-    monkeypatch.setattr(
-        FakeClient, "subjects", _catalog(search, requirements), raising=False
-    )
-    completed = await completion_script.complete_subjects(rows, {"FEF0500"})
-    by_code = {row["code"]: row for row in completed}
-
-    assert calls == ["FEF", "FEF", "MAT"]
-    assert set(by_code) == {"FGA0001", "FEF0497", "FEF0500", "MAT0025"}
-    assert by_code["FEF0500"]["prerequisites"] == "( ( FEF0497 ) )"
-    assert by_code["FEF0500"]["corequisites"] == "( MAT0025 )"
-    assert by_code["FEF0497"]["unit_id"] is None
-
-
-async def test_linhas_completadas_antes_sao_refeitas_com_os_requisitos(
-    completion_script, monkeypatch
-):
-    columns = ("code", "name", "hours", "unit_id", *completion_script.REQUIREMENTS)
-    rows = [
-        dict(zip(columns, ("FGA0001", "BASE", "60", "673", "", "", ""))),
-        dict(zip(columns, ("FEF0500", "ESTÁGIO 3", "150", "", "", "", ""))),
+    assert fake.searches == ["IQD", "IQD0052"]
+    assert [(row["code"], row["unit_id"]) for row in rows] == [
+        ("IQD0051", None),
+        ("IQD0052", None),
     ]
 
-    async def search(*, code):
-        return SubjectSearchResult(items=(_catalog_subject("FEF0500", "ESTÁGIO 3"),))
 
-    monkeypatch.setattr(
-        FakeClient,
-        "subjects",
-        _catalog(search, {"FEF0500": {"prerequisites": "( ( FGA0001 ) )"}}),
-        raising=False,
+async def test_inativo_vem_da_primeira_matriz_com_o_link(subjects_script, subjects):
+    fake = subjects(
+        FakeSubjects(
+            matrices={"MAT0024": [(414321, 184)]},
+            requirements={"MAT0024": {"equivalences": "( MAT0025 )"}},
+        )
     )
-    completed = await completion_script.complete_subjects(rows, {"FEF0500"})
+    sources = {"MAT0024": [(1, 2), (414321, 184)], "EPR0141": [(3, 4)]}
 
-    assert [row["code"] for row in completed] == ["FEF0500", "FGA0001"]
-    assert completed[0]["prerequisites"] == "( ( FGA0001 ) )"
-    assert completed[1] is rows[0]
+    rows = await subjects_script.resolve([], {"MAT0024", "EPR0141"}, sources, {})
+
+    assert [row["code"] for row in rows] == ["MAT0024"]
+    assert fake.matrix_calls == [
+        (3, 4, "EPR0141"),
+        (1, 2, "MAT0024"),
+        (414321, 184, "MAT0024"),
+    ]
+    # A equivalência citada pelo inativo também é procurada, na segunda volta.
+    assert fake.searches == ["EPR", "MAT", "MAT"]
+
+
+async def test_matriz_ilegivel_nao_impede_tentar_a_proxima(subjects_script, subjects):
+    class FakeMatrix(FakeSubjects):
+        async def get_subject_details(self, course, curriculum, code):
+            if curriculum == 2:
+                raise SigaaParseError("Resumo ilegível nesta matriz")
+            return await super().get_subject_details(course, curriculum, code)
+
+    subjects(FakeMatrix(matrices={"MAT0024": [(414321, 184)]}))
+    sources = {"MAT0024": [(1, 2), (414321, 184)]}
+
+    rows = await subjects_script.resolve([], {"MAT0024"}, sources, {})
+
+    assert [row["code"] for row in rows] == ["MAT0024"]
+
+
+async def test_codigo_sem_origem_nao_ganha_linha_inventada(subjects_script, subjects):
+    subjects(FakeSubjects())
+    rows = [{"code": "FGA0001", "name": "BASE"}]
+
+    assert await subjects_script.resolve(rows, {"IQD0051"}, {}, {}) == rows
+
+
+async def test_catalogo_sem_referencias_pendentes_nao_abre_sessao(
+    subjects_script, helpers, monkeypatch
+):
+    def forbidden(**_):
+        pytest.fail("Catálogo sem pendências não deve abrir sessão")
+
+    monkeypatch.setattr(helpers, "SigaaPublicClient", forbidden)
+    rows = [{"code": "FGA0001", "name": "BASE"}]
+
+    assert await subjects_script.resolve(rows, {"FGA0001"}, {}, {}) == rows
+
+
+async def test_coleta_padrao_busca_referencias_pendentes_das_linhas_gravadas(
+    subjects_script, subjects
+):
+    fake = subjects(FakeSubjects(catalog=["FGA0001", "IQD0051"]))
+    old = {"code": "FGA0001", "name": "BASE", "prerequisites": "( IQD0051 )"}
+
+    rows = await subjects_script.resolve([old], {"FGA0001"}, {}, {})
+
+    assert [row["code"] for row in rows] == ["FGA0001", "IQD0051"]
+    assert rows[0] is old
+    assert fake.searches == ["IQD"]
+
+
+async def test_refresh_coleta_de_novo_e_mantem_a_linha_de_quem_sumiu(
+    subjects_script, subjects
+):
+    fake = subjects(
+        FakeSubjects(
+            catalog=["FGA0001", "IQD0051", "MAT0025", "CIC0004"],
+            requirements={"FGA0001": {"prerequisites": "( IQD0051 )"}},
+        )
+    )
+    old = {
+        "code": "FGA0001",
+        "name": "ANTIGO",
+        "unit_id": "673",
+        "prerequisites": "( CIC0004 )",
+    }
+    gone = {
+        "code": "OLD0001",
+        "name": "SUMIU DO SIGAA",
+        "prerequisites": "( MAT0025 )",
+    }
+
+    rows = await subjects_script.resolve([old, gone], (), {}, {}, refresh=True)
+
+    assert [row["name"] for row in rows] == [
+        "NOME FGA0001",
+        "NOME IQD0051",
+        "NOME MAT0025",
+        gone["name"],
+    ]
+    assert rows[3] is gone
+    assert rows[0]["unit_id"] == "673"
+    assert fake.searches == ["FGA", "OLD", "IQD", "MAT"]
+
+
+async def test_falha_de_um_componente_nao_derruba_a_coleta(
+    subjects_script, subjects, capsys
+):
+    fake = subjects(FakeSubjects(catalog=["CIC0004", "IQD0051", "IQD0052"]))
+    search, get_details = fake.search, fake.get_details
+
+    async def flaky_search(*, code):
+        if code == "MAT":
+            raise SigaaError("indisponível")
+        return await search(code=code)
+
+    async def flaky_details(subject):
+        if subject.code == "IQD0052":
+            raise SigaaParseError("tela estranha")
+        return await get_details(subject)
+
+    fake.search, fake.get_details = flaky_search, flaky_details
+    old = {"code": "MAT0024", "name": "ANTIGA"}
+    wanted = {"CIC0004", "IQD0051", "IQD0052", "MAT0024"}
+
+    rows = await subjects_script.resolve([old], wanted, {}, {}, refresh=True)
+
+    assert [row["code"] for row in rows] == ["CIC0004", "IQD0051", "MAT0024"]
+    assert rows[2] is old
+    assert "Falhas (2), tente de novo: IQD0052, MAT0024" in capsys.readouterr().out
+
+
+def test_lista_longa_de_codigos_e_resumida(subjects_script):
+    codes = [f"X{index:04}" for index in range(subjects_script.SAMPLE + 5)]
+    assert subjects_script._sample(codes).endswith("X0019 e mais 5")

@@ -2,17 +2,26 @@ from uuid import UUID
 
 from sqlalchemy import ColumnElement, exists, func, literal_column, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload, undefer
+from sqlalchemy.orm import aliased, selectinload, undefer
 
 from api.db.models import Classroom, ClassroomProfessor, Professor, Subject
 from api.db.search import all_terms, contains_term
 
 
 def _matches_query(q: str, semester: str | None) -> ColumnElement[bool]:
+    source = aliased(Subject)
+
     def match(term: str) -> ColumnElement[bool]:
         conditions: list[ColumnElement[bool]] = [
             Subject.code.contains(term.upper(), autoescape=True),
             contains_term(Subject.name, term),
+            # Equivalência direta nos dois sentidos: quem cita o termo e quem ele cita.
+            Subject.equivalent_codes.has_key(term.upper()),
+            Subject.code.in_(
+                select(func.jsonb_array_elements_text(source.equivalent_codes)).where(
+                    source.code == term.upper()
+                )
+            ),
         ]
         if semester is not None:
             conditions.append(

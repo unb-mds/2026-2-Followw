@@ -14,7 +14,7 @@ from ..config import (
     PUBLIC_PROFESSORS_PATH,
     SIGAA_BASE_URL,
 )
-from ..exceptions import SessionExpired, SigaaParseError, SigaaSearchError
+from ..exceptions import SigaaParseError, SigaaSearchError
 from ..models import (
     Professor,
     ProfessorDegree,
@@ -153,11 +153,9 @@ class PublicProfessors:
             raise SigaaSearchError(
                 "O nome do docente precisa ter ao menos 4 caracteres."
             )
-        try:
-            page, units, searched = await self._search(unit, name)
-        except SessionExpired:
-            await self._session.restart()
-            page, units, searched = await self._search(unit, name)
+        page, units, searched = await self._session.retry(
+            lambda: self._search(unit, name)
+        )
         return _parse_results(page, units, searched)
 
     async def get_profile(self, professor: Professor) -> ProfessorProfile:

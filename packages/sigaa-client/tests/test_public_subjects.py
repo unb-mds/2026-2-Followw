@@ -13,6 +13,7 @@ from sigaa_client import (
     Unit,
 )
 from sigaa_client.config import PUBLIC_HOME_PATH, PUBLIC_SUBJECTS_PATH
+from sigaa_client.public.subject_details import parse_subject_details
 
 FORM = """
 <form id="form" action="/sigaa/public/componentes/busca_componentes.jsf">
@@ -280,19 +281,48 @@ DETAILS_RESULTS = (
     + ROW
     + "</table></form>"
 )
-DETAILS = """
-<table class="visualizacao">
-  <tr><th>Código:</th><td>0003</td></tr>
-  <tr><th>Pré-Requisitos:</th><td>
-    ( ( <acronym title="CIC0004 - X">CIC0004</acronym> ) OU ( CIC0088 ) )
-  </td></tr>
-  <tr><th>Co-Requisitos:</th><td>-</td></tr>
-  <tr><th>Equivalências:</th><td>( CIC0099 )</td></tr>
+UNIT = "DEPTO CIÊNCIAS DA COMPUTAÇÃO - BRASÍLIA - 11.01.01.15.01"
+
+
+def acronym(code):
+    return f'<acronym title="{code} - X">{code}</acronym>'
+
+
+def details_page(
+    code="0003", name="COMPILADORES 1", *, unit=UNIT, total="90h", **requirements
+):
+    fields = {
+        "Unidade Responsável:": unit,
+        "Código:": code,
+        "Nome:": name,
+        "Pré-Requisitos:": requirements.get("pre", "-"),
+        "Co-Requisitos:": requirements.get("co", "-"),
+        "Equivalências:": requirements.get("equivalences", "-"),
+    }
+    rows = "".join(
+        f"<tr><th>{label}</th><td>{value}</td></tr>"
+        for label, value in fields.items()
+        if value is not None
+    )
+    return f"""
+<table class="visualizacao">{rows}
   <tr><td colspan="2"><table class="subFormulario">
-    <tr><td>Total de Carga Horária do Componente</td><td><b>90h</b></td></tr>
+    <tr><td class="box">Subtotal de Carga Horária de Aula<div class="popUp">x</div></td>
+      <td><b>30h</b></td></tr>
+    <tr><td class="box">Total de Carga Horária do Componente<div class="popUp">y</div></td>
+      <td><b>{total}</b></td></tr>
   </table></td></tr>
 </table>
-"""
+<table class="subFormulario"><caption>Histórico de Equivalências</caption>
+  <tr><td>( <acronym title="a">OLD0001</acronym> )</td><td> INATIVO</td></tr>
+</table>"""
+
+
+DETAILS = details_page(
+    pre=f"( ( {acronym('CIC0004')} E {acronym('MAT0025')} ) OU ( CIC0088 ) )",
+    co=f"( {acronym('CIC0005')} )",
+    equivalences=f"( {acronym('CIC0099')} )",
+)
 COMPILATION = PublicSubject(
     code="0003",
     sigaa_id=176389,
@@ -308,17 +338,18 @@ async def details(fake):
         return await client.subjects.get_details(COMPILATION)
 
 
-async def test_resumo_traz_requisitos_e_carga_horaria_do_componente_pelo_id():
+async def test_resumo_traz_nome_unidade_requisitos_e_carga_horaria_da_tela():
     fake = FakeSigaa(DETAILS_RESULTS, details=DETAILS)
     subject = await details(fake)
+    # A tela vale mais que a linha da busca; a equivalência INATIVA do histórico não entra.
     assert subject.model_dump() == {
         "code": "0003",
         "sigaa_id": 176389,
-        "name": "COMPILAÇÃO",
+        "name": "COMPILADORES 1",
         "hours": 90,
-        "unit": None,
-        "prerequisites": "( ( CIC0004 ) OU ( CIC0088 ) )",
-        "corequisites": None,
+        "unit": "DEPTO CIÊNCIAS DA COMPUTAÇÃO - BRASÍLIA",
+        "prerequisites": "( ( CIC0004 E MAT0025 ) OU ( CIC0088 ) )",
+        "corequisites": "( CIC0005 )",
         "equivalences": "( CIC0099 )",
     }
     search, postback = fake.payloads
@@ -334,5 +365,53 @@ async def test_componente_sem_link_de_detalhes_e_barulhento():
 
 async def test_sessao_expirada_no_resumo_refaz_a_busca_uma_vez():
     fake = FakeSigaa(DETAILS_RESULTS, details=DETAILS, details_expired=1)
-    assert (await details(fake)).prerequisites == "( ( CIC0004 ) OU ( CIC0088 ) )"
+    assert (await details(fake)).corequisites == "( CIC0005 )"
     assert fake.views == 2
+
+
+async def test_sessao_que_expira_de_novo_chega_ao_chamador():
+    fake = FakeSigaa(DETAILS_RESULTS, details=DETAILS, details_expired=2)
+    with pytest.raises(SessionExpired):
+        await details(fake)
+    assert fake.views == 2
+
+
+@pytest.mark.parametrize(
+    "page,error",
+    [
+        (details_page("OUTRO"), "Detalhes de `OUTRO` onde se esperava `0003`"),
+        (details_page(name=None), "Campo `Nome:` ausente"),
+        (details_page(name=""), "sem nome"),
+        (details_page().replace("Equivalências:", "Outro:"), "`Equivalências:`"),
+        ("<table class='visualizacao'></table>", "Campo `Código:` ausente"),
+        ("<table></table>", "Resumo do componente"),
+    ],
+)
+def test_tela_de_detalhes_inesperada_e_barulhenta(page, error):
+    with pytest.raises(SigaaParseError, match=error):
+        parse_subject_details(BeautifulSoup(page, "lxml"), "0003")
+
+
+@pytest.mark.parametrize(
+    "unit,expected",
+    [
+        (UNIT, "DEPTO CIÊNCIAS DA COMPUTAÇÃO - BRASÍLIA"),
+        ("FACULDADE DE PLANALTINA - BRASÍLIA", "FACULDADE DE PLANALTINA - BRASÍLIA"),
+        ("", None),
+        (None, None),
+    ],
+)
+def test_unidade_responsavel_perde_o_codigo_hierarquico(unit, expected):
+    page = BeautifulSoup(details_page(unit=unit), "lxml")
+    assert parse_subject_details(page, "0003").unit == expected
+
+
+def test_componente_sem_carga_total_fica_sem_horas():
+    page = BeautifulSoup(details_page(total="-"), "lxml")
+    assert parse_subject_details(page, "0003").hours is None
+
+
+@pytest.mark.parametrize("total", ["0h", "-"])
+async def test_resumo_sem_carga_usa_a_da_busca(total):
+    fake = FakeSigaa(DETAILS_RESULTS, details=details_page(total=total))
+    assert (await details(fake)).hours == COMPILATION.hours

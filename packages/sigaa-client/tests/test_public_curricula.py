@@ -10,6 +10,8 @@ from sigaa_client import (
 )
 from sigaa_client.config import PUBLIC_CURRICULA_PATH, PUBLIC_HOME_PATH
 
+from .test_public_subjects import details_page
+
 LIST = """
 <form id="formCurriculosCurso" action="/sigaa/public/curso/curriculo.jsf">
 <input name="javax.faces.ViewState" value="STATE">
@@ -241,3 +243,61 @@ async def test_turno_desconhecido_nao_e_descartado():
     async with SigaaPublicClient(transport=httpx.MockTransport(fake)) as client:
         with pytest.raises(SigaaParseError, match="Turno desconhecido"):
             await client.curricula.list_curricula(414112)
+
+
+SUBJECT_LIST = """
+<form id="formCurriculosCurso" action="/sigaa/public/curso/curriculo.jsf">
+<input name="javax.faces.ViewState" value="list">
+<table id="table_lt">
+<tr><td>Detalhes da Estrutura Curricular 8117/1, Criado em 2020</td><td>Ativa</td>
+<td><a title="Visualizar Estrutura Curricular"
+onclick="jsfcljs(this,{'formCurriculosCurso:detail':'formCurriculosCurso:detail','id':'456'},'')"></a></td></tr>
+<tr class="campos"><td colspan="3">1 Estruturas Curriculares Disponíveis</td></tr>
+</table></form>
+"""
+MATRIX = """
+<form id="formulario" action="/sigaa/public/curso/resumo_curriculo.jsf">
+<input name="javax.faces.ViewState" value="matrix">
+<div id="semestre1"><table>
+<tr><td>MAT0024 - CALCULO 1 - 90h</td><td>Obrigatória</td><td>
+<a title="Visualizar Detalhes do Componente"
+onclick="jsfcljs(x,{'id':'177890','publico':'public'},'');"></a></td></tr>
+</table></div></form>
+"""
+
+
+async def test_componente_inativo_abre_pelo_link_da_matriz():
+    posts = []
+
+    def sigaa(request):
+        if request.url.path == PUBLIC_HOME_PATH:
+            return httpx.Response(200, text="home")
+        if request.method == "GET":
+            assert request.url.path == PUBLIC_CURRICULA_PATH
+            assert request.url.params["id"] == "414321"
+            return httpx.Response(200, text=SUBJECT_LIST)
+        payload = dict(httpx.QueryParams(request.content.decode()))
+        posts.append(payload)
+        if request.url.path == PUBLIC_CURRICULA_PATH:
+            assert payload["javax.faces.ViewState"] == "list"
+            assert payload["id"] == "456"
+            return httpx.Response(200, text=MATRIX)
+        assert payload["javax.faces.ViewState"] == "matrix"
+        assert payload["id"] == "177890"
+        # O resumo sem carga fica com a do rótulo da matriz.
+        page = details_page(
+            "MAT0024", "CALCULO 1", total="0h", equivalences="( MAT0025 )"
+        )
+        return httpx.Response(200, text=page)
+
+    async with SigaaPublicClient(transport=httpx.MockTransport(sigaa)) as client:
+        subject = await client.curricula.get_subject_details(414321, 456, "MAT0024")
+        with pytest.raises(SigaaSearchError, match="MAT0099 sem detalhes"):
+            await client.curricula.get_subject_details(414321, 456, "MAT0099")
+        with pytest.raises(SigaaSearchError, match="Currículo 999 não encontrado"):
+            await client.curricula.get_subject_details(414321, 999, "MAT0024")
+
+    assert (subject.code, subject.name, subject.hours) == ("MAT0024", "CALCULO 1", 90)
+    assert subject.equivalences == "( MAT0025 )"
+    assert subject.sigaa_id is None
+    assert len(posts) == 3

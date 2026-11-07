@@ -5,6 +5,7 @@ from datetime import datetime
 
 from sigaa_client import FrequencyStatus, Grade, PostType
 from sqlalchemy import (
+    ColumnElement,
     DateTime,
     ForeignKey,
     ForeignKeyConstraint,
@@ -12,9 +13,12 @@ from sqlalchemy import (
     SmallInteger,
     Text,
     UniqueConstraint,
+    func,
+    literal_column,
 )
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from api.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -185,6 +189,18 @@ class Subject(Base, TimestampMixin):
 
     unit: Mapped[Unit | None] = relationship(lazy="joined")
     classrooms: Mapped[list[Classroom]] = relationship(back_populates="subject")
+
+    @hybrid_property
+    def equivalent_codes(self) -> list[str]:
+        """Os códigos citados nas equivalências: `[["A", "B"], ["C"]]` -> `A, B, C`."""
+        return [code for term in self.equivalences or [] for code in term]
+
+    @equivalent_codes.inplace.expression
+    @classmethod
+    def _equivalent_codes_expression(cls) -> ColumnElement[list[str]]:
+        return func.jsonb_path_query_array(
+            cls.equivalences, literal_column("'$[*][*]'"), type_=JSONB
+        )
 
 
 class Classroom(Base, UUIDPrimaryKeyMixin, TimestampMixin):

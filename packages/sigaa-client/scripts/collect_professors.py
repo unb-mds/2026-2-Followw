@@ -5,7 +5,7 @@ import asyncio
 import json
 from pathlib import Path
 
-from _by_unit import DATA_DIR, collect_by_unit, load_units, write_csv
+from _collect import DATA_DIR, collect_by_unit, load_units, write_csv
 
 from sigaa_client import ProfessorProfile, SigaaPublicClient, Unit
 
@@ -98,7 +98,7 @@ def main() -> None:
             "--unit requer --output-dir para não substituir o catálogo completo"
         )
     profiles = rows(asyncio.run(collect_professors(args.unit, args.workers)))
-    write_csv(profiles, PROFESSOR_COLUMNS, args.output_dir / "professors.csv")
+    write_csv((args.output_dir / "professors.csv", PROFESSOR_COLUMNS, profiles))
     print(f"Salvos {len(profiles)} docentes em professors.csv.")
 
 

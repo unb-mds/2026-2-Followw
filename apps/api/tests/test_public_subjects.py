@@ -2,6 +2,7 @@ import pytest
 
 from api.db.models import Classroom, ClassroomProfessor, Professor, Subject, Unit
 from api.db.seed.subjects import read_subjects
+from api.db.seed.units import read_units
 from api.sigaa import get_sigaa_public_client
 
 
@@ -65,6 +66,47 @@ def _search(client, **params):
     response = client.get("/public/subjects", params=params)
     assert response.status_code == 200, response.text
     return response.json()
+
+
+@pytest.mark.parametrize(
+    "q,expected",
+    [
+        (" mat0024 ", ["FCE0001", "MAT0024", "MAT0025", "MAT0137"]),
+        ("MAT0025", ["MAT0024", "MAT0025", "MAT0099"]),
+        ("MAT002", ["MAT0024", "MAT0025"]),
+        ("MAT0024 calculo", ["FCE0001", "MAT0024", "MAT0025"]),
+    ],
+)
+def test_busca_codigo_inclui_equivalencias_diretas_nos_dois_sentidos(
+    catalog, database, q, expected
+):
+    with database.begin() as session:
+        session.add_all(
+            [
+                Subject(
+                    code="MAT0024",
+                    name="CÁLCULO ANTIGO",
+                    equivalences=[["MAT0025", "FCE0001"]],
+                ),
+                Subject(code="MAT0025", name="CÁLCULO 1", equivalences=[["MAT0099"]]),
+                Subject(code="MAT0099", name="INDIRETA"),
+                Subject(code="MAT0137", name="REVERSA", equivalences=[["MAT0024"]]),
+            ]
+        )
+        session.flush()
+        session.add(Classroom(subject_code="MAT0025", number="01", semester="2026.2"))
+    result = _search(catalog, q=q)
+    assert [item["code"] for item in result] == expected
+    offered = next(item for item in result if item["code"] == "MAT0025")
+    assert [item["number"] for item in offered["classrooms"]] == ["01"]
+
+
+def test_busca_equivalente_sem_cadastro_respeita_unidade_e_semestre(catalog):
+    result = _search(catalog, q="cic0004", unit="673", semester="2026.1")
+    assert [item["code"] for item in result] == ["FGA0003"]
+    assert [item["semester"] for item in result[0]["classrooms"]] == ["2026.1"]
+    assert _search(catalog, q="cic0004", unit="518") == []
+    assert _search(catalog, q="cic0004 inexistente") == []
 
 
 @pytest.mark.parametrize("semester", [None, "2026.1", "2026.2"])
@@ -304,7 +346,9 @@ def test_referencia_sem_oferta_resolve_nome_acrescentado_pela_coleta(
     catalog, database, field, code, name
 ):
     referenced = next(subject for subject in read_subjects() if subject.code == code)
+    unit = next(unit for unit in read_units() if unit.id == referenced.unit_id)
     with database.begin() as session:
+        session.merge(unit)
         session.add(referenced)
         setattr(session.get(Subject, "FGA0003"), field, [[code]])
 
