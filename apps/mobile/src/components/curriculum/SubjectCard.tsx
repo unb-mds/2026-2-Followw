@@ -57,7 +57,12 @@ export function SubjectCard({
                     </Text>
                     <Text
                         numberOfLines={3}
-                        className={cn('leading-4 font-bold', compact ? 'text-xs' : 'text-sm')}
+                        className={cn(
+                            'font-bold',
+                            compact ? 'text-xs' : 'text-sm',
+                            // depois do tamanho, senão o cn descarta
+                            'leading-4'
+                        )}
                     >
                         {name}
                     </Text>
