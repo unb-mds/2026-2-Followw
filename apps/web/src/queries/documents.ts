@@ -1,26 +1,16 @@
+import {
+    EMPTY_DOCUMENT_MESSAGE,
+    studentDocuments,
+    type StudentDocument
+} from '@followw/core/lib/documents.ts';
 import { apiClient } from '@followw/core/queries/client.ts';
-import { ApiError } from '@followw/core/queries/errors.ts';
 import { useMutation } from '@tanstack/react-query';
 
 import { saveFile } from '#/lib/download';
 
-export const studentDocuments = {
-    'student-card': { label: 'Carteirinha estudantil', filename: 'carteirinha.pdf' },
-    transcript: { label: 'Histórico acadêmico', filename: 'historico.pdf' }
-} as const;
-
-export type StudentDocument = keyof typeof studentDocuments;
-
-/** Mensagem da API quando o SIGAA recusa emitir um documento (ex.: perfil sem foto). */
-export function documentRefusal(error: unknown): string | null {
-    return error instanceof ApiError && error.status === 422 && typeof error.detail === 'string'
-        ? error.detail
-        : null;
-}
-
 export async function getDocumentDownload(document: StudentDocument) {
     const { data } = await apiClient.POST(`/me/${document}`, { parseAs: 'blob' });
-    if (!data || data.size === 0) throw new Error('O documento recebido está vazio.');
+    if (!data || data.size === 0) throw new Error(EMPTY_DOCUMENT_MESSAGE);
     return { blob: data, filename: studentDocuments[document].filename };
 }
 
