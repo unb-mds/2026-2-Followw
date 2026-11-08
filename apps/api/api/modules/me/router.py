@@ -154,12 +154,12 @@ async def update_settings(
     description=(
         "Omita a bio para preservá-la ou envie uma string vazia para limpá-la. "
         "A remoção da foto deve ser feita em uma requisição separada. "
-        "Para substituir, envie um único JPEG ou PNG de até 4 MiB."
+        "Para substituir, envie um único JPEG ou PNG de até 4 MB."
     ),
     dependencies=[NoStore],
     responses={
         **SIGAA_ERRORS,
-        413: {"description": "A foto enviada deve ter até 4 MiB."},
+        413: {"description": "A foto enviada deve ter até 4 MB."},
     },
 )
 async def update_profile(

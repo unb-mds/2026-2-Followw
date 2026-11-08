@@ -47,7 +47,7 @@ class Restaurant:
     async def get_restaurant_statement(
         self,
     ) -> RestaurantStatement:
-        """Saldo, grupo e movimentações do RU; campos ausentes ficam `None`.
+        """Saldo, grupo e movimentações do RU; extrato sem saldo é erro do SIGAA.
 
         Relê o portal a cada chamada. Só faz postback com o `ViewState`
         atual se o extrato ainda não estiver aberto na sessão do SIGAA.
@@ -76,7 +76,7 @@ async def _read_statement(
     form = soup.find("form", id=_STATEMENT_FORM_ID)
     anchor = form.find("a") if isinstance(form, Tag) else None
     if not (isinstance(form, Tag) and isinstance(anchor, Tag)):
-        return RestaurantStatement()
+        raise SigaaParseError("Extrato do RU ausente no portal do discente.")
 
     action, payload = build_postback(form, link_params(anchor), read_viewstate(soup))
     page = await session.post(action, data=payload, allow_renewal=allow_renewal)
@@ -120,6 +120,8 @@ def _statement(page: BeautifulSoup) -> RestaurantStatement | None:
         ),
         None,
     )
+    if balance is None:
+        raise SigaaParseError("Saldo do RU ausente no extrato.")
     group = next(
         (
             int(match.group(1))

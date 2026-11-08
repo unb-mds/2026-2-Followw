@@ -86,14 +86,14 @@ test('bio antiga longa abre limitada sem ser sobrescrita ao salvar', async () =>
     expect(requests[0].url).toEndWith('/settings');
 });
 
-test('recusa foto original acima de 4 MiB antes do recorte', async () => {
+test('recusa foto original acima de 4 MB antes do recorte', async () => {
     const page = await open();
     const file = new File(['foto'], 'foto.jpg', { type: 'image/jpeg' });
     Object.defineProperty(file, 'size', { value: 4 * 1024 * 1024 + 1 });
     dom.testing.fireEvent.change(page.getByLabelText('Foto de perfil'), {
         target: { files: [file] }
     });
-    expect((await page.findByRole('alert')).textContent).toContain('até 4 MiB');
+    expect((await page.findByRole('alert')).textContent).toContain('até 4 MB');
     expect(requests).toHaveLength(0);
 });
 

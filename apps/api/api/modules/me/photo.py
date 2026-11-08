@@ -9,7 +9,7 @@ MAX_PHOTO_PIXELS = 16_000_000
 
 def normalize_photo(content: bytes) -> bytes:
     if len(content) > MAX_PHOTO_BYTES:
-        raise HTTPException(413, "A foto enviada deve ter até 4 MiB.")
+        raise HTTPException(413, "A foto enviada deve ter até 4 MB.")
     try:
         with Image.open(BytesIO(content)) as source:
             if source.format not in {"JPEG", "PNG"}:

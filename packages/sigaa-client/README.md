@@ -94,8 +94,8 @@ Na página do SIGAA, o aviso aparece acima do formulário, abaixo do cabeçalho,
 uma nova busca que exceda o limite faz o aviso reaparecer. O client preserva seu texto em
 `messages`.
 
-`client.restaurant.get_restaurant_statement()` retorna saldo, extrato e grupo (1 a 4), com saldo e
-grupo ausentes representados por `None`.
+`client.restaurant.get_restaurant_statement()` retorna saldo, extrato e grupo (1 a 4), com grupo
+ausente representado por `None`. Extrato sem saldo levanta `SigaaParseError`.
 
 `client.classrooms.list_grades()` retorna todas as menções de "Ensino > Consultar Minhas Notas" num
 único relatório. Cada `ClassroomGrade` traz `subject_code`, `semester` e a menção (`Grade`) do

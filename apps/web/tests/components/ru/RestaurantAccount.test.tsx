@@ -68,7 +68,6 @@ describe('StatementDetails', () => {
         { balance: '-1.00', group: 1 },
         { balance: '4.50', group: 2 },
         { balance: '2.50', group: 4 },
-        { balance: null, group: 2 },
         { balance: '0.00', group: null }
     ] as const)(
         'não destaca o saldo com isenção, saldo suficiente ou dados ausentes: %j',
@@ -138,11 +137,11 @@ describe('StatementDetails', () => {
         expect(markup).toMatch(/text-success[^>]*>R\$\s20,00/);
     });
 
-    test('explicita saldo/grupo ausentes e extrato vazio', () => {
+    test('mostra saldo zerado sem grupo e extrato vazio', () => {
         const markup = renderToStaticMarkup(
-            <StatementDetails statement={{ balance: null, group: null, entries: [] }} />
+            <StatementDetails statement={{ balance: '0.00', group: null, entries: [] }} />
         );
-        expect(markup).toContain('Saldo não informado');
+        expect(markup).toMatch(/R\$\s0,00/);
         expect(markup).toContain('Nenhuma movimentação');
     });
 });

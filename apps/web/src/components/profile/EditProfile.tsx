@@ -23,7 +23,7 @@ import { ApiError } from '#/queries/errors';
 import { useEditProfile } from '#/queries/profile-edit';
 import { useUpdateSettings } from '#/queries/settings';
 
-const MAX_ORIGINAL_PHOTO_MIB = 4;
+const MAX_ORIGINAL_PHOTO_MB = 4;
 const PHOTO_EXTENSIONS = /\.(jpe?g|png)$/i;
 
 type PhotoEdit = { action: 'keep' | 'remove' } | { action: 'replace'; file: File; preview: string };
@@ -222,10 +222,10 @@ export function ProfileForm({
                                                     !['image/jpeg', 'image/png'].includes(
                                                         file.type
                                                     )) ||
-                                                file.size > MAX_ORIGINAL_PHOTO_MIB * 1024 * 1024
+                                                file.size > MAX_ORIGINAL_PHOTO_MB * 1024 * 1024
                                             ) {
                                                 setError(
-                                                    `Escolha JPEG ou PNG de até ${MAX_ORIGINAL_PHOTO_MIB} MiB.`
+                                                    `Escolha JPEG ou PNG de até ${MAX_ORIGINAL_PHOTO_MB} MB.`
                                                 );
                                                 return;
                                             }
@@ -246,7 +246,7 @@ export function ProfileForm({
                                 </div>
                             </div>
                             <p className="text-xs text-muted-foreground">
-                                JPEG ou PNG, até {MAX_ORIGINAL_PHOTO_MIB} MiB.
+                                JPEG ou PNG, até {MAX_ORIGINAL_PHOTO_MB} MB.
                             </p>
                         </div>
                         <div className="flex flex-col gap-2">

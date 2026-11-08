@@ -33,7 +33,7 @@ class ProfileUploadGuard:
             size += len(message.get("body", b""))
             if size > _MAX_BODY:
                 return await JSONResponse(
-                    {"detail": "A foto enviada deve ter até 4 MiB."}, status_code=413
+                    {"detail": "A foto enviada deve ter até 4 MB."}, status_code=413
                 )(scope, receive, send)
             chunks.append(message)
             if not message.get("more_body"):

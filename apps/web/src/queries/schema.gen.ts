@@ -1113,7 +1113,7 @@ export interface components {
         /** RestaurantStatement */
         RestaurantStatement: {
             /** Balance */
-            balance?: string | null;
+            balance: string;
             /** Group */
             group?: (1 | 2 | 3 | 4) | null;
             /**
@@ -2351,7 +2351,7 @@ export interface operations {
     search_subjects_public_subjects_get: {
         parameters: {
             query?: {
-                /** @description Termos do código, nome do componente ou docente, de 3 a 32 caracteres; cada um precisa aparecer em algum deles, ignorando acentos e maiúsculas. */
+                /** @description Termos do código, nome do componente ou docente, de 3 a 32 caracteres; cada um precisa corresponder, ignorando acentos e maiúsculas. Um código completo também encontra equivalências diretas nos dois sentidos, incluindo integrantes de conjuntos. */
                 q?: string | null;
                 /** @description Código completo do componente, como FGA0003. */
                 code?: string | null;
