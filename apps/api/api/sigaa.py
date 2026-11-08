@@ -8,6 +8,7 @@ from fastapi import Depends, HTTPException, Request, Response, status
 from sigaa_client import Credentials, SigaaClient, SigaaError, SigaaPublicClient
 
 from api.cookies import (
+    is_native,
     read_access_cookie,
     read_refresh_cookie,
     set_access_cookie,
@@ -23,7 +24,8 @@ class SigaaConnection:
     """Abre um único `SigaaClient`, e só quando alguém precisa do SIGAA.
 
     Sem `session_token`, abrir o client já loga. Com `response`, é a conexão da
-    requisição: abrir o client renova os cookies. Quem cria a conexão a fecha.
+    requisição: abrir o client renova os cookies (ou os headers, se `native`).
+    Quem cria a conexão a fecha.
     """
 
     def __init__(
@@ -34,6 +36,7 @@ class SigaaConnection:
         response: Response | None = None,
         session_id: str | None = None,
         access: AccessPolicy = FULL_ACCESS,
+        native: bool = False,
     ) -> None:
         self.credentials = credentials
         # Uma conexão sem sessão anterior abre uma nova sessão web.
@@ -41,6 +44,7 @@ class SigaaConnection:
         self.access = access
         self._session_token = session_token
         self._response = response
+        self._native = native
         self._client: SigaaClient | None = None
 
     @property
@@ -85,8 +89,12 @@ class SigaaConnection:
         self._session_token = token
         # Se a chamada ao SIGAA falhar, o handler do erro descarta estes cookies.
         if self._response is not None:
-            set_refresh_cookie(self._response, self.credentials, self.session_id)
-            set_access_cookie(self._response, token, self.registration)
+            set_refresh_cookie(
+                self._response, self.credentials, self.session_id, native=self._native
+            )
+            set_access_cookie(
+                self._response, token, self.registration, native=self._native
+            )
 
 
 def _cookie_connection(request: Request, response: Response) -> SigaaConnection | None:
@@ -98,6 +106,7 @@ def _cookie_connection(request: Request, response: Response) -> SigaaConnection 
         read_access_cookie(request, session.credentials.registration),
         response=response,
         session_id=session.session_id,
+        native=is_native(request),
     )
 
 

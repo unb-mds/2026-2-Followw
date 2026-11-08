@@ -14,11 +14,21 @@ from api.crypto import decrypt_claims, derive_key, encrypt_claims
 ACCESS_COOKIE_NAME = "access_token"
 REFRESH_COOKIE_NAME = "refresh_token"
 
+# Cliente nativo: sem cookies, os mesmos JWE trafegam nestes headers.
+MODE_HEADER = "X-Followw-Auth"
+ACCESS_HEADER = "X-Followw-Access"
+REFRESH_HEADER = "X-Followw-Refresh"
+_HEADERS = {ACCESS_COOKIE_NAME: ACCESS_HEADER, REFRESH_COOKIE_NAME: REFRESH_HEADER}
+
 _CLAIMS = jwt.JWTClaimsRegistry(exp={"essential": True})
 
 
+def is_native(request: Request) -> bool:
+    return request.headers.get(MODE_HEADER) == "header"
+
+
 def set_access_cookie(
-    response: Response, session_token: str, registration: str
+    response: Response, session_token: str, registration: str, *, native: bool = False
 ) -> None:
     """`registration` é o login que abriu a sessão, não a do perfil."""
     _set_cookie(
@@ -26,6 +36,7 @@ def set_access_cookie(
         ACCESS_COOKIE_NAME,
         {"session_token": session_token, "registration": registration},
         settings.access_token_expire_minutes,
+        native,
     )
 
 
@@ -43,7 +54,11 @@ class WebSession(BaseModel):
 
 
 def set_refresh_cookie(
-    response: Response, credentials: Credentials, session_id: str
+    response: Response,
+    credentials: Credentials,
+    session_id: str,
+    *,
+    native: bool = False,
 ) -> None:
     _set_cookie(
         response,
@@ -54,6 +69,7 @@ def set_refresh_cookie(
             "session_id": session_id,
         },
         settings.refresh_token_expire_minutes,
+        native,
     )
 
 
@@ -73,7 +89,10 @@ def read_refresh_cookie(request: Request) -> WebSession | None:
         return None
 
 
-def clear_cookies(response: Response) -> None:
+def clear_cookies(response: Response, *, native: bool = False) -> None:
+    # No modo nativo o servidor não guarda nada: o cliente descarta os tokens.
+    if native:
+        return
     for name in (ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME):
         response.delete_cookie(name)
 
@@ -99,10 +118,17 @@ def _key(name: str) -> OctKey:
 
 
 def _set_cookie(
-    response: Response, name: str, payload: dict, expire_minutes: int
+    response: Response,
+    name: str,
+    payload: dict,
+    expire_minutes: int,
+    native: bool = False,
 ) -> None:
     expires = datetime.now(UTC) + timedelta(minutes=expire_minutes)
     token = encrypt_cookie(name, {**payload, "exp": int(expires.timestamp())})
+    if native:
+        response.headers[_HEADERS[name]] = token
+        return
     # Gravar de novo na mesma resposta substitui o cookie em vez de repeti-lo.
     prefix = f"{name}=".encode("latin-1")
     response.raw_headers[:] = [
@@ -123,5 +149,8 @@ def _set_cookie(
 
 
 def _read_cookie(request: Request, name: str) -> dict | None:
-    token = request.cookies.get(name)
+    if is_native(request):
+        token = request.headers.get(_HEADERS[name])
+    else:
+        token = request.cookies.get(name)
     return decrypt_cookie(name, token) if token is not None else None

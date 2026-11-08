@@ -10,13 +10,14 @@ class FollowwCORS:
     def __init__(self, app: ASGIApp, origins: list[str]):
         self.origins = frozenset(origins)
         exposed = ["Age", "Retry-After", "WWW-Authenticate"]
+        session_exposed = [*exposed, "X-Followw-Access", "X-Followw-Refresh"]
         self.session = CORSMiddleware(
             app,
             allow_origins=origins,
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],
-            expose_headers=exposed,
+            expose_headers=session_exposed,
         )
         self.oauth = CORSMiddleware(
             app,
