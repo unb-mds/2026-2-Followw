@@ -5,7 +5,12 @@ from fastapi import APIRouter, Request, Response, status
 from pydantic import BaseModel, Field
 from sigaa_client import Credentials, SigaaClient, SigaaError
 
-from api.cookies import clear_cookies, read_access_cookie, read_refresh_cookie
+from api.cookies import (
+    clear_cookies,
+    is_native,
+    read_access_cookie,
+    read_refresh_cookie,
+)
 from api.db.main import DatabaseDep
 from api.errors import SIGAA_ERRORS
 from api.modules.auth.account import start_account
@@ -24,6 +29,7 @@ class SigaaLoginRequest(BaseModel):
 
 @router.post("/sigaa", summary="Entrar com a conta do SIGAA")
 async def sigaa_login(
+    request: Request,
     body: SigaaLoginRequest,
     response: Response,
     db: DatabaseDep,
@@ -31,7 +37,9 @@ async def sigaa_login(
 ):
     await limit_registration(body.registration)
     credentials = Credentials(registration=body.registration, password=body.password)
-    connection = SigaaConnection(credentials, response=response)
+    connection = SigaaConnection(
+        credentials, response=response, native=is_native(request)
+    )
     try:
         await start_account(connection, db, queue)
     finally:
@@ -69,6 +77,6 @@ async def sigaa_logout(request: Request, response: Response):
         except SigaaError, httpx.HTTPError, TimeoutError:
             pass
 
-    clear_cookies(response)
+    clear_cookies(response, native=is_native(request))
 
     return {"message": "Logout successful"}

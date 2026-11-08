@@ -37,6 +37,11 @@ Estes cookies recebem as seguintes configurações de segurança:
 - `SameSite=Lax`: restringe o envio dos cookies em requisições entre sites, mas permite, por exemplo,
   navegações de nível superior com métodos seguros; não elimina todos os riscos de CSRF.
 
+Clientes nativos (o app) não usam cookies: enviam `X-Followw-Auth: header` e os mesmos dois tokens
+cifrados trafegam nos headers `X-Followw-Access` e `X-Followw-Refresh`, guardados pelo app no
+armazenamento seguro do aparelho. O formato, a criptografia e a validade são idênticos aos dos
+cookies.
+
 ## Os cookies são criptografados
 
 Guardar a senha no navegador só é aceitável se ela estiver ilegível ali. Cada cookie é um JWE: o

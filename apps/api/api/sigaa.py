@@ -7,6 +7,7 @@ from fastapi import Depends, HTTPException, Request, Response, status
 from sigaa_client import Credentials, SigaaClient, SigaaError, SigaaPublicClient
 
 from api.cookies import (
+    is_native,
     read_access_cookie,
     read_refresh_cookie,
     set_access_cookie,
@@ -19,7 +20,8 @@ class SigaaConnection:
     """Abre um único `SigaaClient`, e só quando alguém precisa do SIGAA.
 
     Sem `session_token`, abrir o client já loga. Com `response`, é a conexão da
-    requisição: abrir o client renova os cookies. Quem cria a conexão a fecha.
+    requisição: abrir o client renova os cookies (ou os headers, se `native`).
+    Quem cria a conexão a fecha.
     """
 
     def __init__(
@@ -28,10 +30,12 @@ class SigaaConnection:
         session_token: str | None = None,
         *,
         response: Response | None = None,
+        native: bool = False,
     ) -> None:
         self.credentials = credentials
         self._session_token = session_token
         self._response = response
+        self._native = native
         self._client: SigaaClient | None = None
 
     @property
@@ -76,8 +80,10 @@ class SigaaConnection:
         self._session_token = token
         # Se a chamada ao SIGAA falhar, o handler do erro descarta estes cookies.
         if self._response is not None:
-            set_refresh_cookie(self._response, self.credentials)
-            set_access_cookie(self._response, token, self.registration)
+            set_refresh_cookie(self._response, self.credentials, native=self._native)
+            set_access_cookie(
+                self._response, token, self.registration, native=self._native
+            )
 
 
 async def get_optional_sigaa_connection(
@@ -92,6 +98,7 @@ async def get_optional_sigaa_connection(
         credentials,
         read_access_cookie(request, credentials.registration),
         response=response,
+        native=is_native(request),
     )
     try:
         yield connection
