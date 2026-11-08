@@ -54,11 +54,7 @@ function DialogOverlay({
           entering={FadeIn.duration(200).reduceMotion(ReduceMotion.System)}
           exiting={FadeOut.duration(150).reduceMotion(ReduceMotion.System)}
           as="Pressable">
-          <NativeOnlyAnimatedView
-            entering={FadeIn.delay(50).reduceMotion(ReduceMotion.System)}
-            exiting={FadeOut.duration(150).reduceMotion(ReduceMotion.System)}>
-            <>{children}</>
-          </NativeOnlyAnimatedView>
+          <>{children}</>
         </NativeOnlyAnimatedView>
       </DialogPrimitive.Overlay>
     </FullWindowOverlay>

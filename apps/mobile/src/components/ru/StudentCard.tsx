@@ -2,7 +2,7 @@ import type { RestaurantCredentials } from '@followw/core/queries/restaurant-acc
 
 import { cardIsExpired } from '@followw/core/lib/restaurant.ts';
 import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
-import { View } from 'react-native';
+import { useWindowDimensions, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 
 import { Text } from '@/components/ui/text';
@@ -15,6 +15,8 @@ const validity = new Intl.DateTimeFormat('pt-BR', {
 
 /** QR da carteirinha: fundo branco fixo para leitura em qualquer tema. */
 export function StudentCard({ credentials }: { credentials: RestaurantCredentials }) {
+    // mesma proporção da tela que o QR ocupa no web
+    const { width } = useWindowDimensions();
     const expired = cardIsExpired(credentials.valid_until, nowInBrasilia().date);
     return (
         <View className="mt-4 items-center">
@@ -26,11 +28,11 @@ export function StudentCard({ credentials }: { credentials: RestaurantCredential
                 <>
                     <View
                         accessibilityLabel="QR code da carteirinha estudantil"
-                        className="rounded-xl bg-white p-3"
+                        className="rounded-xl bg-white p-5"
                     >
                         <QRCode
                             value={credentials.token}
-                            size={248}
+                            size={Math.round(width * 0.41)}
                             ecl="M"
                             color="#000000"
                             backgroundColor="#ffffff"

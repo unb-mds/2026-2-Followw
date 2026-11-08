@@ -52,7 +52,7 @@ function CardTitle({
       ref={ref}
       role="heading"
       aria-level={3}
-      className={cn('font-medium leading-snug', size === 'sm' ? 'text-sm' : 'text-base', className)}
+      className={cn('font-medium', size === 'sm' ? 'text-sm' : 'text-base', 'leading-snug', className)}
       {...props}
     />
   );
