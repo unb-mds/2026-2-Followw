@@ -293,8 +293,8 @@ def test_turma_que_sai_da_lista_vira_trancada(logged, account, database):
         assert link.locked_at is not None
 
 
-def test_openapi_documenta_frequencia_e_marcacao(client):
-    paths = client.get("/openapi.json").json()["paths"]
+def test_openapi_documenta_frequencia_e_marcacao(api):
+    paths = api.get("/openapi.json").json()["paths"]
     for path in ("/classrooms/frequency", "/classrooms/{classroom_id}/frequency"):
         route = paths[path]["get"]
         assert {"401", "404", "502", "503"} <= route["responses"].keys()

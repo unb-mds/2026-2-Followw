@@ -26,22 +26,22 @@ def test_redireciona_https_em_producao(monkeypatch):
         importlib.reload(main_module)
 
 
-def test_mintlify_docs_retorna_html_com_redirecionamento(client):
-    response = client.get("/docs")
+def test_mintlify_docs_retorna_html_com_redirecionamento(api):
+    response = api.get("/docs")
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
     assert "Mintlify" in response.text
     assert settings.docs_url in response.text
 
 
-def test_rotas_respondem_com_e_sem_prefixo_api(client):
+def test_rotas_respondem_com_e_sem_prefixo_api(api):
     for path in ("/openapi.json", "/api/openapi.json", "/api/docs"):
-        assert client.get(path).status_code == 200
-    assert client.get("/api/openapi.json").json()["servers"] == [{"url": "/api"}]
+        assert api.get(path).status_code == 200
+    assert api.get("/api/openapi.json").json()["servers"] == [{"url": "/api"}]
 
 
-def test_openapi_agrupa_recursos_publicos_sem_ocultar_rotas_privadas(client):
-    schema = client.get("/openapi.json").json()
+def test_openapi_agrupa_recursos_publicos_sem_ocultar_rotas_privadas(api):
+    schema = api.get("/openapi.json").json()
     groups = {group["name"]: group["tags"] for group in schema["x-tagGroups"]}
     assert groups["Public"] == [
         "Public Classrooms",
@@ -70,9 +70,9 @@ def test_openapi_agrupa_recursos_publicos_sem_ocultar_rotas_privadas(client):
             )
 
 
-def test_cors_libera_origens_configuradas_com_credenciais(client):
+def test_cors_libera_origens_configuradas_com_credenciais(api):
     for origin in ("https://followw.app",):
-        response = client.options(
+        response = api.options(
             "/me",
             headers={
                 "Origin": origin,
@@ -84,6 +84,6 @@ def test_cors_libera_origens_configuradas_com_credenciais(client):
         assert response.headers["access-control-allow-credentials"] == "true"
 
 
-def test_cors_nao_libera_origem_desconhecida(client):
-    response = client.get("/docs", headers={"Origin": "https://evil.example"})
+def test_cors_nao_libera_origem_desconhecida(api):
+    response = api.get("/docs", headers={"Origin": "https://evil.example"})
     assert "access-control-allow-origin" not in response.headers

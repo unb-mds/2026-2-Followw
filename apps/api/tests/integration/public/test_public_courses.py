@@ -135,9 +135,8 @@ def test_paginas_de_cursos_seguem_a_ordem_por_nome(client, courses):
     assert beyond["items"] == []
 
 
-@pytest.mark.parametrize(
-    "params",
-    [
+def test_filtros_invalidos_de_cursos_retornam_422(client, courses, subtests):
+    for params in [
         {"q": "ab"},
         {"q": "a" * 33},
         {"unit": ""},
@@ -145,10 +144,9 @@ def test_paginas_de_cursos_seguem_a_ordem_por_nome(client, courses):
         {"page": 0},
         {"page_size": 0},
         {"page_size": 101},
-    ],
-)
-def test_filtros_invalidos_de_cursos_retornam_422(client, courses, params):
-    assert client.get("/public/courses", params=params).status_code == 422
+    ]:
+        with subtests.test(params=params):
+            assert client.get("/public/courses", params=params).status_code == 422
 
 
 def test_consulta_curso_pelo_id(client, courses):
@@ -182,8 +180,8 @@ def test_id_da_listagem_pode_ser_usado_para_consultar_curriculo(catalog):
     assert curriculum.json()["course_id"] == selected["id"]
 
 
-def test_openapi_documenta_listagem_publica_de_cursos(client):
-    schema = client.get("/openapi.json").json()
+def test_openapi_documenta_listagem_publica_de_cursos(api):
+    schema = api.get("/openapi.json").json()
     operation = schema["paths"]["/public/courses"]["get"]
     assert operation["tags"] == ["Public Courses"]
     result = operation["responses"]["200"]["content"]["application/json"]["schema"]
@@ -517,8 +515,9 @@ def test_selecao_pela_maior_vigencia_ate_o_ingresso_ou_a_mais_antiga(
 
 def test_todo_semestre_tem_curriculo(catalog, database):
     _add_tie(database, code="HABILITAÇÃO/2")
-    for year in range(2000, 2031):
-        for period in range(10):
+    # Extremos e as vigências da fixture (2022.2, 2024.2, 2025.1 inativa, 2028.1).
+    for year in (2000, 2021, 2022, 2024, 2025, 2027, 2028, 2030):
+        for period in (0, 1, 2, 9):
             assert _get(catalog, f"{year}.{period}").status_code == 200
 
 
@@ -587,31 +586,29 @@ def test_curso_sem_matriz_ou_inexistente_retorna_404(catalog, course):
     )
 
 
-@pytest.mark.parametrize(
-    "params",
-    [
+def test_parametros_invalidos_retorna_422(api, subtests):
+    for params in [
         {},
         {"entry_semester": "2026"},
         {"entry_semester": "2026-1"},
         {"entry_semester": "2026.11"},
         {"entry_semester": "2026.1", "curriculum_sigaa_id": 0},
-    ],
-)
-def test_parametros_invalidos_retorna_422(client, params):
-    assert client.get(URL, params=params).status_code == 422
+    ]:
+        with subtests.test(params=params):
+            assert api.get(URL, params=params).status_code == 422
 
 
-def test_id_local_deve_ser_positivo(client):
+def test_id_local_deve_ser_positivo(api):
     assert (
-        client.get(
+        api.get(
             "/public/courses/0/curriculum", params={"entry_semester": "2026.1"}
         ).status_code
         == 422
     )
 
 
-def test_openapi_documenta_selecao(client):
-    schema = client.get("/openapi.json").json()
+def test_openapi_documenta_selecao(api):
+    schema = api.get("/openapi.json").json()
     path = schema["paths"]["/public/courses/{course_id}/curriculum"]
     assert set(path) == {"get"}
     operation = path["get"]
@@ -623,7 +620,7 @@ def test_openapi_documenta_selecao(client):
     }
 
 
-def test_post_nao_e_permitido(client):
-    response = client.post(URL, params={"entry_semester": "2026.1"})
+def test_post_nao_e_permitido(api):
+    response = api.post(URL, params={"entry_semester": "2026.1"})
     assert response.status_code == 405
     assert response.headers["allow"] == "GET"

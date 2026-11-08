@@ -116,8 +116,8 @@ def test_sem_curriculo_identificado_os_requisitos_completos_continuam_disponivei
         assert item[f"curriculum_{field}"] is None
 
 
-def test_visitante_sem_filtros_e_rejeitado(client):
-    assert client.get(URL).status_code == 422
+def test_visitante_sem_filtros_e_rejeitado(api):
+    assert api.get(URL).status_code == 422
 
 
 def test_filtros_mantem_a_busca_comum(scene, stub_sigaa):

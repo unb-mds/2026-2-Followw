@@ -245,20 +245,18 @@ def test_unit_por_id_ou_codigo_combina_com_q(catalog, unit):
     assert _search(catalog, unit=unit, q="compilação") == []
 
 
-@pytest.mark.parametrize(
-    "params,detail",
-    [
+def test_filtros_invalidos_sao_422(catalog, subtests):
+    for params, detail in [
         ({}, "Informe `q`, `code` ou `unit`."),
         ({"unit": "999"}, "Unidade `999` não encontrada."),
         ({"unit": "ceilandia"}, "Unidade `ceilandia` não encontrada."),
         ({"unit": "FC"}, "Unidade `FC` não encontrada."),
         ({"unit": "²"}, "Unidade `²` não encontrada."),
-    ],
-)
-def test_filtros_invalidos_sao_422(catalog, params, detail):
-    response = catalog.get("/public/subjects", params=params)
-    assert response.status_code == 422
-    assert detail in response.json()["detail"]
+    ]:
+        with subtests.test(params=params):
+            response = catalog.get("/public/subjects", params=params)
+            assert response.status_code == 422
+            assert detail in response.json()["detail"]
 
 
 @pytest.mark.parametrize(
@@ -269,8 +267,7 @@ def test_validacao_de_parametros(catalog, params):
     assert catalog.get("/public/subjects", params=params).status_code == 422
 
 
-@pytest.mark.parametrize("q", ["", "a", "ab", "a" * 33, " a ", "   "])
-def test_q_invalida_nao_consulta_o_catalogo(catalog, monkeypatch, q):
+def test_q_invalida_nao_consulta_o_catalogo(catalog, monkeypatch, subtests):
     from unittest.mock import AsyncMock
 
     search = AsyncMock(side_effect=AssertionError("Query inválida consultou o banco"))
@@ -278,7 +275,9 @@ def test_q_invalida_nao_consulta_o_catalogo(catalog, monkeypatch, q):
         "api.modules.public_subjects.repository.SubjectCatalogRepository.list_subjects",
         search,
     )
-    assert catalog.get("/public/subjects", params={"q": q}).status_code == 422
+    for q in ["", "a", "ab", "a" * 33, " a ", "   "]:
+        with subtests.test(q=q):
+            assert catalog.get("/public/subjects", params={"q": q}).status_code == 422
     search.assert_not_called()
 
 
@@ -363,8 +362,8 @@ def test_sem_turmas_gravadas_os_componentes_vem_sem_turmas(client, database):
     assert _search(client, q="compilacao")[0]["classrooms"] == []
 
 
-def test_openapi_so_tem_os_filtros_do_banco(client):
-    schema = client.get("/openapi.json").json()
+def test_openapi_so_tem_os_filtros_do_banco(api):
+    schema = api.get("/openapi.json").json()
     operation = schema["paths"]["/public/subjects"]["get"]
     assert {item["name"] for item in operation["parameters"]} == {
         "q",

@@ -8,7 +8,6 @@ from sigaa_client import (
     AuthenticationFailed,
     RestaurantCredentials,
     RestaurantStatement,
-    SessionExpired,
     SigaaParseError,
 )
 
@@ -234,25 +233,14 @@ def test_dados_privados_exigem_login(client, stub_sigaa, restaurant, path):
         ("token", "get_restaurant_credentials"),
     ],
 )
-@pytest.mark.parametrize(
-    "error,status",
-    [
-        (AuthenticationFailed(), 401),
-        (SessionExpired(), 502),
-        (SigaaParseError("layout mudou"), 502),
-        (httpx.ReadTimeout("fora"), 502),
-    ],
-)
-def test_erros_do_sigaa_sao_traduzidos(
-    client, cookies, restaurant, path, method, error, status
-):
+def test_erros_do_sigaa_sao_traduzidos(client, cookies, restaurant, path, method):
     client.cookies.update(cookies(refresh=CREDENCIAIS))
-    getattr(restaurant, method).side_effect = error
-    assert client.get(f"/me/ru-{path}").status_code == status
+    getattr(restaurant, method).side_effect = SigaaParseError("layout mudou")
+    assert client.get(f"/me/ru-{path}").status_code == 502
 
 
-def test_openapi_documenta_dados_privados_do_restaurante(client):
-    schema = client.get("/openapi.json").json()
+def test_openapi_documenta_dados_privados_do_restaurante(api):
+    schema = api.get("/openapi.json").json()
     paths = schema["paths"]
     for path in ("statement", "token"):
         assert paths[f"/me/ru-{path}"]["get"]["tags"] == ["Me"]

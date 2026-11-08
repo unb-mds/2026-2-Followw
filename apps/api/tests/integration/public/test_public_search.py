@@ -104,9 +104,8 @@ def test_unit_filtra_todos_os_tipos(client, catalog, unit, expected):
     assert _summary(_search(client, q="matematica", unit=unit)) == expected
 
 
-@pytest.mark.parametrize(
-    "params",
-    [
+def test_parametros_invalidos_retornam_422(client, catalog, subtests):
+    for params in [
         {},
         {"q": "ab"},
         {"q": "   "},
@@ -115,10 +114,9 @@ def test_unit_filtra_todos_os_tipos(client, catalog, unit, expected):
         {"q": "matematica", "type": "classrooms"},
         {"q": "matematica", "unit": ""},
         {"q": "matematica", "unit": "XYZ"},
-    ],
-)
-def test_parametros_invalidos_retornam_422(client, catalog, params):
-    assert client.get(URL, params=params).status_code == 422
+    ]:
+        with subtests.test(params=params):
+            assert client.get(URL, params=params).status_code == 422
 
 
 def test_com_login_materias_trazem_o_tipo_da_matriz(
@@ -171,8 +169,8 @@ def test_com_login_materias_trazem_o_tipo_da_matriz(
     stub_sigaa.profile.get_profile.assert_not_awaited()
 
 
-def test_openapi_documenta_a_busca(client):
-    schema = client.get("/openapi.json").json()
+def test_openapi_documenta_a_busca(api):
+    schema = api.get("/openapi.json").json()
     operation = schema["paths"]["/public/search"]["get"]
     assert operation["tags"] == ["Public Search"]
     params = {param["name"]: param for param in operation["parameters"]}

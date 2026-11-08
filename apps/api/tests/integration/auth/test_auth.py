@@ -89,36 +89,24 @@ def _payload(response, nome: str) -> dict:
     return decrypt_cookie(nome, response.cookies[nome])
 
 
-@pytest.mark.parametrize(
-    "body",
-    [
-        pytest.param({"registration": "251000000"}, id="sem-senha"),
-        pytest.param({"password": "senha123"}, id="sem-matricula"),
-        pytest.param({}, id="vazio"),
-        pytest.param(
-            {"registration": "25100000", "password": "senha123"}, id="matricula-8"
-        ),
-        pytest.param(
-            {"registration": "2510000000", "password": "senha123"}, id="matricula-10"
-        ),
-        pytest.param(
-            {"registration": "25100000000", "password": "senha123"}, id="matricula-11"
-        ),
-        pytest.param(
-            {"registration": "25100000 ", "password": "senha123"}, id="matricula-espaco"
-        ),
-        pytest.param(
-            {"registration": "２５１００００００", "password": "senha123"},
-            id="matricula-digitos-unicode",
-        ),
-        pytest.param({"registration": "251000000", "password": "a" * 5}, id="senha-5"),
-        pytest.param(
-            {"registration": "251000000", "password": "a" * 65}, id="senha-65"
-        ),
-    ],
-)
-def test_login_com_campos_invalidos_e_422(client, body: dict):
-    assert client.post("/auth/sigaa", json=body).status_code == 422
+def test_login_com_campos_invalidos_e_422(api, subtests):
+    for case, body in {
+        "sem-senha": {"registration": "251000000"},
+        "sem-matricula": {"password": "senha123"},
+        "vazio": {},
+        "matricula-8": {"registration": "25100000", "password": "senha123"},
+        "matricula-10": {"registration": "2510000000", "password": "senha123"},
+        "matricula-11": {"registration": "25100000000", "password": "senha123"},
+        "matricula-espaco": {"registration": "25100000 ", "password": "senha123"},
+        "matricula-digitos-unicode": {
+            "registration": "２５１００００００",
+            "password": "senha123",
+        },
+        "senha-5": {"registration": "251000000", "password": "a" * 5},
+        "senha-65": {"registration": "251000000", "password": "a" * 65},
+    }.items():
+        with subtests.test(case):
+            assert api.post("/auth/sigaa", json=body).status_code == 422
 
 
 def test_login_aceita_senha_com_64_caracteres(client, sigaa):

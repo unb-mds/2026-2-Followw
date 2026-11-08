@@ -1,3 +1,4 @@
+import functools
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -23,6 +24,15 @@ FIXTURES = Path(__file__).parent / "fixtures"
 DARCY_PDF = (FIXTURES / "cardapio-darcy.pdf").read_bytes()
 # Café e almoço de 14/9 a 18/9, sem jantar.
 FAZENDA_PDF = (FIXTURES / "cardapio-fazenda.pdf").read_bytes()
+
+# O parse é puro e caro: cada PDF passa pelo pdfplumber uma vez por processo.
+_parse_menu = functools.cache(parse_menu)
+
+
+@pytest.fixture(autouse=True)
+def _parse_em_cache(monkeypatch):
+    monkeypatch.setattr("unb_browser.restaurant.resource.parse_menu", _parse_menu)
+
 
 PDFS = {
     "/wp-content/uploads/2026/09/Darcy-Ribeiro-Semana-04-14-9-a-20-9.pdf": DARCY_PDF,
@@ -221,7 +231,7 @@ async def test_falha_de_rede_no_ru_chega_ao_chamador_como_erro_do_httpx(error):
 
 
 def test_celula_partida_pelos_icones_vira_um_item_so():
-    menu = parse_menu(DARCY_PDF)
+    menu = _parse_menu(DARCY_PDF)
 
     assert menu[0].lunch[3] == MenuSection(
         key=MenuSectionKey.MAIN_DISH,
@@ -231,7 +241,7 @@ def test_celula_partida_pelos_icones_vira_um_item_so():
 
 
 def test_cada_pagina_vira_uma_refeicao_com_as_secoes_na_ordem_da_tabela():
-    menu = parse_menu(DARCY_PDF)
+    menu = _parse_menu(DARCY_PDF)
 
     assert [m.date.day for m in menu] == [14, 15, 16, 17, 18, 19, 20]
     assert [s.key for s in menu[0].breakfast] == [
@@ -275,6 +285,7 @@ def test_categoria_desconhecida_vem_sem_key(monkeypatch):
     sections = {k: v for k, v in pdf._SECTIONS.items() if k != "sopa"}
     monkeypatch.setattr(pdf, "_SECTIONS", sections)
 
+    # Sem cache: as categorias do parser foram trocadas.
     soup = parse_menu(DARCY_PDF)[0].dinner[6]
 
     assert soup.key is None
@@ -282,7 +293,7 @@ def test_categoria_desconhecida_vem_sem_key(monkeypatch):
 
 
 def test_celula_mesclada_vale_para_todos_os_dias_e_cada_linha_e_um_item():
-    menu = parse_menu(DARCY_PDF)
+    menu = _parse_menu(DARCY_PDF)
 
     assert {m.breakfast[0] for m in menu} == {
         MenuSection(
@@ -294,14 +305,14 @@ def test_celula_mesclada_vale_para_todos_os_dias_e_cada_linha_e_um_item():
 
 
 def test_celula_vazia_nao_vira_secao():
-    menu = parse_menu(DARCY_PDF)
+    menu = _parse_menu(DARCY_PDF)
 
     assert menu[0].breakfast[2].items == ("Mingau de aveia",)
     assert "Opção extra" not in [s.name for s in menu[1].breakfast]
 
 
 def test_refeicao_que_o_campus_nao_serve_vem_none():
-    menu = parse_menu(FAZENDA_PDF)
+    menu = _parse_menu(FAZENDA_PDF)
 
     assert [m.date.day for m in menu] == [14, 15, 16, 17, 18]
     assert all(m.dinner is None for m in menu)
@@ -315,7 +326,7 @@ def test_pdf_invalido_e_barulhento():
 
 
 def test_datas_ligeiramente_abaixo_do_cabecalho_sao_reconhecidas():
-    menu = parse_menu((FIXTURES / "cardapio-darcy-28-09.pdf").read_bytes())
+    menu = _parse_menu((FIXTURES / "cardapio-darcy-28-09.pdf").read_bytes())
     assert len(menu) == 7
     assert menu[0].date == date(2026, 9, 28)
     assert menu[-1].date == date(2026, 10, 4)
@@ -325,7 +336,7 @@ def test_datas_ligeiramente_abaixo_do_cabecalho_sao_reconhecidas():
 
 
 def test_datas_em_linha_propria_abaixo_de_composicao_nao_viram_itens():
-    menu = parse_menu((FIXTURES / "cardapio-darcy-12-10.pdf").read_bytes())
+    menu = _parse_menu((FIXTURES / "cardapio-darcy-12-10.pdf").read_bytes())
 
     assert [day.date for day in menu] == [
         date(2026, 10, 12) + timedelta(days=offset) for offset in range(7)
@@ -338,7 +349,7 @@ def test_datas_em_linha_propria_abaixo_de_composicao_nao_viram_itens():
 
 
 def test_gama_reconhece_categorias_com_palavras_quebradas_sem_perder_itens():
-    menu = parse_menu((FIXTURES / "cardapio-gama-28-09.pdf").read_bytes())
+    menu = _parse_menu((FIXTURES / "cardapio-gama-28-09.pdf").read_bytes())
 
     assert [day.date for day in menu] == [
         date(2026, 9, 28),

@@ -206,8 +206,8 @@ def test_logout_impede_nova_consulta(client, classrooms_sigaa):
     assert client.get("/classrooms").status_code == 401
 
 
-def test_openapi_documenta_lista_de_turmas_e_401(client):
-    schema = client.get("/openapi.json").json()
+def test_openapi_documenta_lista_de_turmas_e_401(api):
+    schema = api.get("/openapi.json").json()
     route = schema["paths"]["/classrooms"]["get"]
     assert "401" in route["responses"]
     response_schema = route["responses"]["200"]["content"]["application/json"]["schema"]

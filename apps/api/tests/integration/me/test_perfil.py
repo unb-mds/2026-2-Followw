@@ -242,8 +242,8 @@ def test_me_apos_logout_exige_novo_login(client, sigaa):
     assert client.get("/me").status_code == 401
 
 
-def test_me_documenta_campos_e_erros(client):
-    schema = client.get("/openapi.json").json()
+def test_me_documenta_campos_e_erros(api):
+    schema = api.get("/openapi.json").json()
     route = schema["paths"]["/me"]["get"]
     assert "401" in route["responses"]
     fields = schema["components"]["schemas"]["UserProfile"]["properties"]

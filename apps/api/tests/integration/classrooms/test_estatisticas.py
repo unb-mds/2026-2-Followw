@@ -83,5 +83,5 @@ def test_estatisticas_indisponiveis_retornam_lista_vazia(
     assert response.json() == []
 
 
-def test_estatisticas_exigem_autenticacao(client):
-    assert client.get("/classrooms/BBB/statistics").status_code == 401
+def test_estatisticas_exigem_autenticacao(api):
+    assert api.get("/classrooms/BBB/statistics").status_code == 401

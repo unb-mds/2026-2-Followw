@@ -300,6 +300,21 @@ def client(async_database, qstash):
 
 
 @pytest.fixture
+def api():
+    """A app sem Postgres, para validação e OpenAPI: usar o banco falha o teste."""
+    from api.db.main import get_sessionmaker
+    from api.main import app
+
+    def banco_proibido(*args, **kwargs):
+        pytest.fail("Este teste não deveria usar o banco")
+
+    app.dependency_overrides[get_sessionmaker] = lambda: banco_proibido
+    with TestClient(app) as client:
+        yield client
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
 def probe_app():
     """Monta uma app isolada por teste para exercitar dependências sem rota.
 

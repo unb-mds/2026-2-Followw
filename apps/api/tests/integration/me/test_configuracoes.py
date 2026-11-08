@@ -1,4 +1,3 @@
-import pytest
 from pydantic import SecretStr
 from sigaa_client import (
     Credentials,
@@ -47,24 +46,22 @@ def test_patch_sem_campos_preserva_as_configuracoes(client, cookies):
     assert response.json() == {"displayName": "Ana"}
 
 
-@pytest.mark.parametrize(
-    "body",
-    [
+def test_configuracoes_rejeitam_input_invalido(client, cookies, subtests):
+    for body in [
         {"displayName": "a" * 25},
         {"displayName": ""},
         {"displayName": "   "},
         # A setting saiu: quem ainda a mandar recebe 422.
         {"defaultRuCampus": "Gama"},
         {"theme": "dark"},
-    ],
-)
-def test_configuracoes_rejeitam_input_invalido(client, cookies, body):
-    client.cookies.update(cookies(refresh=CREDENCIAIS))
+    ]:
+        with subtests.test(body=body):
+            client.cookies.update(cookies(refresh=CREDENCIAIS))
 
-    response = client.patch("/me/settings", json=body)
+            response = client.patch("/me/settings", json=body)
 
-    assert response.status_code == 422
-    assert client.get("/me/settings").json() == {"displayName": None}
+            assert response.status_code == 422
+            assert client.get("/me/settings").json() == {"displayName": None}
 
 
 def test_configuracoes_removem_espacos_do_display_name(client, cookies):

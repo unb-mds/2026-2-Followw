@@ -131,9 +131,8 @@ def test_semestre_explicito_sobrescreve_ano_e_periodo(client, public_sigaa, seme
     assert payload["formTurma:inputNivel"] == ""
 
 
-@pytest.mark.parametrize(
-    "params",
-    [
+def test_filtros_invalidos_nao_consultam_sigaa(api, public_sigaa, subtests):
+    for params in [
         {},
         {"unit": ""},
         {"unit": "   "},
@@ -147,11 +146,10 @@ def test_semestre_explicito_sobrescreve_ano_e_periodo(client, public_sigaa, seme
             {"unit": "673", "semester": value}
             for value in ("", "all", "2026", "2026.12", "26.2", "2026-2", "abcd.2")
         ),
-    ],
-)
-def test_filtros_invalidos_nao_consultam_sigaa(client, public_sigaa, params):
-    assert client.get("/public/classrooms", params=params).status_code == 422
-    assert public_sigaa.paths == []
+    ]:
+        with subtests.test(params=params):
+            assert api.get("/public/classrooms", params=params).status_code == 422
+            assert public_sigaa.paths == []
 
 
 @pytest.mark.parametrize("unit", ["gama", "campus", "FCT"])
@@ -218,8 +216,8 @@ def test_classrooms_continua_privado(client, public_sigaa):
     assert public_sigaa.paths == []
 
 
-def test_openapi_publico_documenta_filtros(client):
-    paths = client.get("/openapi.json").json()["paths"]
+def test_openapi_publico_documenta_filtros(api):
+    paths = api.get("/openapi.json").json()["paths"]
     route = paths["/public/classrooms"]["get"]
     params = {p["name"]: p for p in route["parameters"]}
     assert set(params) == {"unit", "semester", "q", "local", "code", "number"}
@@ -445,12 +443,22 @@ def test_code_nao_oculta_falha_em_uma_das_unidades(client, public_sigaa, code_in
     assert client.get("/public/classrooms?code=FGA0030").status_code == 502
 
 
-@pytest.mark.parametrize(
-    "code", ["", " ", "FGA", "0030", "FGA-0030", "FGA 0030", "FGA0030X", "FGA００３０"]
-)
-def test_code_invalido_nao_consulta_sigaa(client, public_sigaa, code):
-    assert client.get("/public/classrooms", params={"code": code}).status_code == 422
-    assert public_sigaa.paths == []
+def test_code_invalido_nao_consulta_sigaa(api, public_sigaa, subtests):
+    for code in [
+        "",
+        " ",
+        "FGA",
+        "0030",
+        "FGA-0030",
+        "FGA 0030",
+        "FGA0030X",
+        "FGA００３０",
+    ]:
+        with subtests.test(code=code):
+            assert (
+                api.get("/public/classrooms", params={"code": code}).status_code == 422
+            )
+            assert public_sigaa.paths == []
 
 
 def test_prefixo_desconhecido_pede_unidade_sem_varrer_sigaa(
@@ -614,13 +622,14 @@ def test_number_com_e_sem_zero_seleciona_a_mesma_turma(
     assert "number" not in public_sigaa.payloads[0]
 
 
-@pytest.mark.parametrize("number", ["A", "1A", "0", "00", "100", "-1", "1.5"])
-def test_number_invalido_nao_consulta_sigaa(client, public_sigaa, number):
-    response = client.get(
-        "/public/classrooms", params={"unit": "673", "number": number}
-    )
-    assert response.status_code == 422
-    assert public_sigaa.paths == []
+def test_number_invalido_nao_consulta_sigaa(api, public_sigaa, subtests):
+    for number in ["A", "1A", "0", "00", "100", "-1", "1.5"]:
+        with subtests.test(number=number):
+            response = api.get(
+                "/public/classrooms", params={"unit": "673", "number": number}
+            )
+            assert response.status_code == 422
+            assert public_sigaa.paths == []
 
 
 @pytest.mark.parametrize("number", ["1", "01"])

@@ -11,8 +11,8 @@ import pytest
         "/public/classrooms/units",
     ],
 )
-def test_rotas_sem_cache_nao_documentam_diretivas(client, path):
-    route = client.get("/openapi.json").json()["paths"][path]["get"]
+def test_rotas_sem_cache_nao_documentam_diretivas(api, path):
+    route = api.get("/openapi.json").json()["paths"][path]["get"]
 
     assert not any(p["name"] == "Cache-Control" for p in route.get("parameters", []))
 
@@ -30,8 +30,8 @@ def test_rotas_sem_cache_nao_documentam_diretivas(client, path):
         "/public/restaurant",
     ],
 )
-def test_rotas_com_cache_documentam_o_header(client, path):
-    route = client.get("/openapi.json").json()["paths"][path]["get"]
+def test_rotas_com_cache_documentam_o_header(api, path):
+    route = api.get("/openapi.json").json()["paths"][path]["get"]
     parametros = {p["name"]: p for p in route["parameters"]}
 
     assert parametros["Cache-Control"]["in"] == "header"

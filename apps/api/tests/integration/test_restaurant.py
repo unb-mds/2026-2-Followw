@@ -1,3 +1,4 @@
+import functools
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -14,6 +15,7 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from unb_browser import Campus, DailyMenu, MenuSection, UnbParseError
 from unb_browser.config import RU_MENU_URL
+from unb_browser.restaurant.pdf import parse_menu
 
 from api.db.models import RestaurantMenu
 from api.modules.public_restaurant.repository import RestaurantRepository
@@ -32,6 +34,16 @@ def _cached_days(session):
         DailyMenu.model_validate(row, from_attributes=True).model_dump(mode="json")
         for row in rows
     ]
+
+
+FIXTURES = Path(__file__).resolve().parents[4] / "packages/unb-browser/tests/fixtures"
+# O parse é puro e caro: cada PDF passa pelo pdfplumber uma vez por processo.
+_parse_menu = functools.cache(parse_menu)
+
+
+@pytest.fixture(autouse=True)
+def _parse_em_cache(monkeypatch):
+    monkeypatch.setattr("unb_browser.restaurant.resource.parse_menu", _parse_menu)
 
 
 @pytest.fixture(autouse=True)
@@ -411,8 +423,8 @@ def test_menu_rejeita_campus_invalido(client, browser):
     browser.restaurant.get_menu.assert_not_awaited()
 
 
-def test_openapi_documenta_restaurante(client):
-    schema = client.get("/openapi.json").json()
+def test_openapi_documenta_restaurante(api):
+    schema = api.get("/openapi.json").json()
     paths = schema["paths"]
     menu = paths["/public/restaurant"]["get"]
     assert "/restaurant/menu" not in paths
@@ -432,16 +444,14 @@ def test_openapi_documenta_restaurante(client):
 
 def test_cardapio_do_pdf_real_chega_ao_endpoint_e_ao_cache(client, today):
     today.value = date(2026, 9, 16)
-    fixture = (
-        Path(__file__).resolve().parents[4]
-        / "packages/unb-browser/tests/fixtures/cardapio-darcy.pdf"
-    )
     pdf_url = "https://ru.unb.br/cardapio-teste.pdf"
     with respx.mock as network:
         page = network.get(RU_MENU_URL).respond(
             200, text=f'<h3>Cardápio Darcy Ribeiro</h3><a href="{pdf_url}">Cardápio</a>'
         )
-        pdf = network.get(pdf_url).respond(200, content=fixture.read_bytes())
+        pdf = network.get(pdf_url).respond(
+            200, content=(FIXTURES / "cardapio-darcy.pdf").read_bytes()
+        )
         response = client.get("/public/restaurant")
         assert response.status_code == 200
         days = response.json()
@@ -465,10 +475,6 @@ def test_fim_de_semana_do_pdf_real_fica_em_cache_por_cinco_dias(
     client, today, database, params
 ):
     today.value = date(2026, 10, 3)
-    fixture = (
-        Path(__file__).resolve().parents[4]
-        / "packages/unb-browser/tests/fixtures/cardapio-gama-28-09.pdf"
-    )
     pdf_url = "https://ru.unb.br/cardapio-teste.pdf"
     with respx.mock as network:
         page = network.get(RU_MENU_URL).respond(
@@ -476,7 +482,9 @@ def test_fim_de_semana_do_pdf_real_fica_em_cache_por_cinco_dias(
             text=f'<h3>Cardápio Gama</h3><a href="{pdf_url}">'
             "ISM – 28/9/2026 A 4/10/2026</a>",
         )
-        pdf = network.get(pdf_url).respond(200, content=fixture.read_bytes())
+        pdf = network.get(pdf_url).respond(
+            200, content=(FIXTURES / "cardapio-gama-28-09.pdf").read_bytes()
+        )
         response = client.get("/public/restaurant", params={"campus": "Gama", **params})
         assert response.status_code == 200
         expected = response.json()
@@ -566,19 +574,17 @@ def test_filtros_de_datas_preservam_cache_completo(
     assert browser.restaurant.get_menu.await_count == (1 if expected else 2)
 
 
-@pytest.mark.parametrize(
-    "params",
-    [
+def test_filtros_de_data_invalidos_retornam_422(api, browser, subtests):
+    for params in [
         {"date": "invalida"},
         {"date": "2026-02-30"},
         {"start_date": "2026-09-26", "end_date": "2026-09-25"},
         {"date": "2026-09-25", "start_date": "2026-09-24"},
         {"date": "2026-09-25", "end_date": "2026-09-26"},
-    ],
-)
-def test_filtros_de_data_invalidos_retornam_422(client, browser, params):
-    assert client.get("/public/restaurant", params=params).status_code == 422
-    browser.restaurant.get_menu.assert_not_awaited()
+    ]:
+        with subtests.test(params=params):
+            assert api.get("/public/restaurant", params=params).status_code == 422
+            browser.restaurant.get_menu.assert_not_awaited()
 
 
 def test_refresh_com_data_atualiza_cache_completo(client, browser):

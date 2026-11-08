@@ -1,11 +1,9 @@
 from datetime import UTC, date, datetime, timedelta
 from unittest.mock import AsyncMock
 
-import httpx
 import pytest
 from pydantic import SecretStr
 from sigaa_client import (
-    AuthenticationFailed,
     Classroom,
     ClassroomNotFound,
     ClassroomPost,
@@ -15,7 +13,6 @@ from sigaa_client import (
     NewsAttachment,
     NewsNotFound,
     PostType,
-    SessionExpired,
     SigaaParseError,
     Subject,
 )
@@ -249,35 +246,30 @@ def test_detalhe_recusa_noticia_ausente_na_turma(client, cookies, posts_sigaa):
     posts_sigaa.classrooms.get_classroom_news.assert_awaited_once_with("AAA", 2)
 
 
-@pytest.mark.parametrize("news_id", ["abc", "0", "-1"])
-def test_detalhe_exige_id_inteiro_positivo(client, cookies, posts_sigaa, news_id):
-    client.cookies.update(cookies(refresh=CREDENTIALS))
-    assert client.get(f"/classrooms/AAA/posts/news:{news_id}").status_code == 422
-    posts_sigaa.classrooms.get_classroom_news.assert_not_awaited()
+def test_detalhe_exige_id_inteiro_positivo(client, cookies, posts_sigaa, subtests):
+    for news_id in ["abc", "0", "-1"]:
+        with subtests.test(news_id=news_id):
+            client.cookies.update(cookies(refresh=CREDENTIALS))
+            assert (
+                client.get(f"/classrooms/AAA/posts/news:{news_id}").status_code == 422
+            )
+            posts_sigaa.classrooms.get_classroom_news.assert_not_awaited()
 
 
+# A tradução de cada erro fica em `test_errors.py`; aqui, só a propagação por rota.
 @pytest.mark.parametrize("path", PATHS)
-@pytest.mark.parametrize(
-    "error,code",
-    [
-        (AuthenticationFailed(), 401),
-        (SessionExpired(), 502),
-        (SigaaParseError("layout mudou"), 502),
-        (httpx.ReadTimeout("SIGAA indisponível"), 502),
-    ],
-)
 def test_erro_do_sigaa_em_noticias_nao_retorna_dados_antigos(
-    client, cookies, posts_sigaa, path, error, code
+    client, cookies, posts_sigaa, path
 ):
     client.cookies.update(cookies(refresh=CREDENTIALS))
     assert client.get(path).status_code == 200
-    _fetch(posts_sigaa, path).side_effect = error
+    _fetch(posts_sigaa, path).side_effect = SigaaParseError("layout mudou")
 
-    assert client.get(path, headers={"Cache-Control": "no-cache"}).status_code == code
+    assert client.get(path, headers={"Cache-Control": "no-cache"}).status_code == 502
 
 
-def test_openapi_documenta_cache_apenas_nas_noticias_de_turma(client):
-    paths = client.get("/openapi.json").json()["paths"]
+def test_openapi_documenta_cache_apenas_nas_noticias_de_turma(api):
+    paths = api.get("/openapi.json").json()["paths"]
     for path in ("/posts", "/classrooms/{classroom_id}/posts"):
         route = paths[path]["get"]
         assert {"401", "502"} <= route["responses"].keys()

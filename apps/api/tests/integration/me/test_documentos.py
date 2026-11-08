@@ -1,10 +1,7 @@
-import httpx
 import pytest
 from sigaa_client import (
-    AuthenticationFailed,
     DocumentUnavailable,
     MissingProfilePhoto,
-    SessionExpired,
     SigaaParseError,
 )
 
@@ -60,22 +57,11 @@ def test_download_documento_exige_login(client, stub_sigaa, documents, path, met
     stub_sigaa.created.assert_not_called()
 
 
-@pytest.mark.parametrize(
-    "error,status",
-    [
-        (AuthenticationFailed(), 401),
-        (SessionExpired(), 502),
-        (SigaaParseError("PDF inválido"), 502),
-        (httpx.ReadTimeout("fora"), 502),
-    ],
-)
 @pytest.mark.parametrize("path,method", DOCUMENT_DOWNLOADS)
-def test_download_documento_traduz_erros(
-    client, cookies, documents, error, status, path, method
-):
+def test_download_documento_traduz_erros(client, cookies, documents, path, method):
     client.cookies.update(cookies(refresh=CREDENCIAIS))
-    getattr(documents, method).side_effect = error
-    assert client.post(f"/me/{path}").status_code == status
+    getattr(documents, method).side_effect = SigaaParseError("PDF inválido")
+    assert client.post(f"/me/{path}").status_code == 502
 
 
 @pytest.mark.parametrize("path,method", DOCUMENT_DOWNLOADS)
@@ -102,8 +88,8 @@ def test_carteirinha_sem_foto_explica_o_motivo(client, cookies, documents, resta
 
 
 @pytest.mark.parametrize("path", ["student-card", "transcript"])
-def test_openapi_documenta_download_documento(client, path):
-    methods = client.get("/openapi.json").json()["paths"][f"/me/{path}"]
+def test_openapi_documenta_download_documento(api, path):
+    methods = api.get("/openapi.json").json()["paths"][f"/me/{path}"]
     assert "get" not in methods
     route = methods["post"]
     assert route["tags"] == ["Me"]

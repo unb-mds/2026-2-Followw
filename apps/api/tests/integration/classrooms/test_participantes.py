@@ -107,8 +107,8 @@ def test_detalhes_com_sigaa_fora_retornam_502(client, turmas, cookies):
     assert client.get("/classrooms/AAA/members").status_code == 502
 
 
-def test_openapi_documenta_participantes_e_estatisticas(client):
-    paths = client.get("/openapi.json").json()["paths"]
+def test_openapi_documenta_participantes_e_estatisticas(api):
+    paths = api.get("/openapi.json").json()["paths"]
 
     route = paths["/classrooms/{classroom_id}/members"]["get"]
     assert {"401", "404", "502"} <= route["responses"].keys()
