@@ -31,7 +31,8 @@ trabalhar nas suas respectivas pastas.
 
 ```fish
 uv sync                 # instala todo o workspace
-uv run pytest           # testes
+uv run pytest -n auto   # testes em paralelo (requer Docker ativo para a api)
+uv run pytest <pasta>   # roda apenas o pacote ou diretório desejado
 uv run ruff format .    # sempre formate ao alterar o código
 ```
 
