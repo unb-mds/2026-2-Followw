@@ -1,8 +1,25 @@
+import type { components } from '@followw/core/queries/schema.gen.ts';
+
+import {
+    CLASSROOM_TABS,
+    type ClassroomTab,
+    classroomTab
+} from '@followw/core/lib/classroom-details.ts';
+import { mailto } from '@followw/core/lib/contact.ts';
+import { titleCase } from '@followw/core/lib/profile.ts';
+import {
+    allClassroomsQueryOptions,
+    classroomFrequencyQueryOptions,
+    classroomMembersQueryOptions,
+    classroomPostsQueryOptions,
+    classroomStatisticsQueryOptions,
+    useMarkLessons
+} from '@followw/core/queries/classrooms.ts';
+import { loadQuery } from '@followw/core/queries/load.ts';
+import { meQueryOptions } from '@followw/core/queries/me.ts';
 import { type QueryClient, noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useQueryStates } from 'nuqs';
-
-import type { components } from '#/queries/schema.gen';
 
 import { ClassroomPosts } from '#/components/classroom/ClassroomPosts';
 import { ClassroomStatistics } from '#/components/classroom/ClassroomStatistics';
@@ -22,25 +39,10 @@ import { Card, CardContent } from '#/components/ui/card';
 import { PersonPhoto } from '#/components/ui/person-photo';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
 import {
-    CLASSROOM_TABS,
-    classroomTab,
-    type ClassroomTab,
     classroomSearchParsers,
     loadClassroomSearch,
     validateClassroomSearch
 } from '#/lib/classroom-search';
-import { mailto } from '#/lib/contact';
-import { titleCase } from '#/lib/profile';
-import {
-    allClassroomsQueryOptions,
-    classroomFrequencyQueryOptions,
-    classroomMembersQueryOptions,
-    classroomPostsQueryOptions,
-    classroomStatisticsQueryOptions,
-    useMarkLessons
-} from '#/queries/classrooms';
-import { loadQuery } from '#/queries/load';
-import { meQueryOptions } from '#/queries/me';
 
 type Member = components['schemas']['ClassroomMember'];
 type Professor = components['schemas']['ProfessorRef'];

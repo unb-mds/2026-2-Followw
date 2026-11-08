@@ -15,7 +15,7 @@ from sigaa_client import (
 )
 from unb_browser import UnbBrowserError
 
-from api.cookies import clear_cookies
+from api.cookies import clear_cookies, is_native
 from api.db.units import UnitNotFound
 from api.logger import error_fields, event
 
@@ -33,10 +33,10 @@ def _error(status_code: int, detail: str | None = None) -> Handler:
     return handle
 
 
-async def _authentication_failed(_: Request, __: Exception) -> JSONResponse:
+async def _authentication_failed(request: Request, __: Exception) -> JSONResponse:
     # A senha não vale mais: a sessão guardada nos cookies também não.
     response = JSONResponse({"detail": "Invalid credentials"}, status_code=401)
-    clear_cookies(response)
+    clear_cookies(response, native=is_native(request))
     return response
 
 

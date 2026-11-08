@@ -1,5 +1,15 @@
+import type { PublicCourse } from '@followw/core/queries/courses.ts';
+import type { components } from '@followw/core/queries/schema.gen.ts';
 import type { Middleware } from 'openapi-fetch';
 
+import { getCurrentSemester } from '@followw/core/calendar.ts';
+import { allClassroomsQueryOptions } from '@followw/core/queries/classrooms.ts';
+import { apiClient } from '@followw/core/queries/client.ts';
+import { courseQueryOptions } from '@followw/core/queries/courses.ts';
+import { curriculumQueryOptions } from '@followw/core/queries/curriculum.ts';
+import { toApiError } from '@followw/core/queries/errors.ts';
+import { meQueryOptions } from '@followw/core/queries/me.ts';
+import { curriculum, type RawCurriculum } from '@followw/core/tests/helpers/curriculum.ts';
 import { QueryClient, QueryClientProvider, environmentManager } from '@tanstack/react-query';
 import {
     createMemoryHistory,
@@ -14,24 +24,12 @@ import { Window } from 'happy-dom';
 import { NuqsAdapter } from 'nuqs/adapters/tanstack-router';
 import { renderToString } from 'react-dom/server';
 
-import type { PublicCourse } from '#/queries/courses';
-import type { components } from '#/queries/schema.gen';
-
-import { getCurrentSemester } from '#/calendar';
 import { AppLayout } from '#/components/AppLayout';
 import { CourseSection } from '#/components/search/CourseSection';
 import { TurmaSection } from '#/components/search/TurmaSection';
 import { validateFlowSearch } from '#/lib/curriculum/navigation';
 import { parseRouterSearch, stringifyRouterSearch, validateSearch } from '#/lib/search-params';
-import { allClassroomsQueryOptions } from '#/queries/classrooms';
-import { apiClient } from '#/queries/client';
-import { courseQueryOptions } from '#/queries/courses';
-import { curriculumQueryOptions } from '#/queries/curriculum';
-import { toApiError } from '#/queries/errors';
-import { meQueryOptions } from '#/queries/me';
 import { Route } from '#/routes/_app/cursos.$id';
-
-import { curriculum, type RawCurriculum } from '../helpers/curriculum';
 
 let testing: typeof import('@testing-library/react/pure');
 let browser: Window;

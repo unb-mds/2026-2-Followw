@@ -31,9 +31,34 @@ jobs:
   web:
     name: Testes e lint (web)
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.4"
+
+      - run: bun install --frozen-lockfile
+
+      - name: Core
+        working-directory: packages/core
+        run: |
+          bun run check
+          bun test
+
+      - name: Web
+        working-directory: apps/web
+        run: |
+          bun run check
+          bun test
+          bun run build
+
+  mobile:
+    name: Testes e lint (mobile)
+    runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: apps/web
+        working-directory: apps/mobile
     steps:
       - uses: actions/checkout@v7
 
@@ -43,5 +68,5 @@ jobs:
 
       - run: bun install --frozen-lockfile
       - run: bun run check
-      - run: bun test
-      - run: bun run build
+      - run: bun run test
+      - run: bunx expo export --platform android --output-dir /tmp/expo-export

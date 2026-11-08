@@ -1,8 +1,9 @@
 import type { QueryKey, UseQueryOptions } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 
+import { type Page, useNextPages } from '@followw/core/queries/pages.ts';
+
 import { Button } from '#/components/ui/button';
-import { type Page, useNextPages } from '#/queries/pages';
 
 const PREVIEW_SIZE = 5;
 

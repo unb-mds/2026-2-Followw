@@ -27,7 +27,7 @@ const EMAIL_PATTERN = /mailto:|[\w.+-]+@[\w-]+\.[a-z]{2,}/i;
 const noHardcodedEmail: Rule = {
     meta: {
         type: 'suggestion',
-        messages: { email: 'Use EMAILS e mailto de #/lib/contact.' }
+        messages: { email: 'Use EMAILS e mailto de @followw/core/lib/contact.ts.' }
     },
     create(context) {
         const check = (node: Node, text: string) => {

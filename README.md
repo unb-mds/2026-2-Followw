@@ -58,8 +58,10 @@ salvas apenas no seu navegador. [Saiba mais](docs/segurança.md)
 ```text
 apps/
 ├── api/              API FastAPI, autenticação e cache
+├── mobile/           app nativo em Expo + React Native
 └── web/              aplicação web em TanStack Start
 packages/
+├── core/             TypeScript compartilhado entre web e mobile
 ├── sigaa-client/     cliente assíncrono do SIGAA
 └── unb-browser/      cliente dos serviços públicos da UnB
 docs/                 documentação e notas de sprint
@@ -99,8 +101,8 @@ na raiz do repositório, salvo quando indicado.
 3. Em outro terminal, inicie a aplicação web:
 
     ```sh
-    cd apps/web
     bun install
+    cd apps/web
     bun dev
     ```
 
@@ -119,10 +121,9 @@ uv run ruff format --check .
 Para verificar a aplicação web:
 
 ```sh
-cd apps/web
-bun check
-bun test
-bun run build
+bun install
+cd packages/core && bun check && bun test
+cd ../../apps/web && bun check && bun test && bun run build
 ```
 
 ## Contribuir

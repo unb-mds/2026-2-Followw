@@ -1,6 +1,11 @@
+import type { components } from '@followw/core/queries/schema.gen.ts';
 import type { UrlUpdateEvent } from 'nuqs/adapters/testing';
 import type { Middleware } from 'openapi-fetch';
 
+import { allClassroomsQueryOptions } from '@followw/core/queries/classrooms.ts';
+import { apiClient } from '@followw/core/queries/client.ts';
+import { meQueryOptions } from '@followw/core/queries/me.ts';
+import { type SearchResult, searchQueryOptions } from '@followw/core/queries/search.ts';
 import { QueryClient, QueryClientProvider, environmentManager } from '@tanstack/react-query';
 import {
     Outlet,
@@ -18,18 +23,12 @@ import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
 import { useLayoutEffect } from 'react';
 import { renderToString } from 'react-dom/server';
 
-import type { components } from '#/queries/schema.gen';
-
 import {
     parseRouterSearch,
     stringifyRouterSearch,
     useSearchState,
     validateSearch
 } from '#/lib/search-params';
-import { allClassroomsQueryOptions } from '#/queries/classrooms';
-import { apiClient } from '#/queries/client';
-import { meQueryOptions } from '#/queries/me';
-import { type SearchResult, searchQueryOptions } from '#/queries/search';
 
 import { professorRef } from '../helpers/professor';
 const paged = <T,>(items: T[], page = 1) => ({

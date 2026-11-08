@@ -1,12 +1,12 @@
+import type { components } from '@followw/core/queries/schema.gen.ts';
+
+import { academicIndexes, creditsLabel, titleCase } from '@followw/core/lib/profile.ts';
 import { Check, IdCard } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-
-import type { components } from '#/queries/schema.gen';
 
 import { ListCard, Meter } from '#/components/ListCard';
 import { Card } from '#/components/ui/card';
 import { PersonPhoto } from '#/components/ui/person-photo';
-import { academicIndexes, creditsLabel, titleCase } from '#/lib/profile';
 import { cn } from '#/lib/shadcn';
 
 type UserProfile = components['schemas']['UserProfile'];

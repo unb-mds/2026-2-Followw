@@ -1,6 +1,6 @@
 {
-    "$schema": "./apps/web/node_modules/oxfmt/configuration_schema.json",
-    "ignorePatterns": ["**.gen.ts", "**/components/ui/**"],
+    "$schema": "./node_modules/oxfmt/configuration_schema.json",
+    "ignorePatterns": ["**.gen.ts", "**/components/ui/**", "**/uniwind-types.d.ts"],
     "printWidth": 100,
     "proseWrap": "always",
     "tabWidth": 4,

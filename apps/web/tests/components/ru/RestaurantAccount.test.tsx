@@ -1,3 +1,4 @@
+import { credentialsQueryOptions } from '@followw/core/queries/restaurant-account.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -7,7 +8,6 @@ import {
     StatementDetails,
     StudentCard
 } from '#/components/ru/RestaurantAccount';
-import { credentialsQueryOptions } from '#/queries/restaurant-account';
 
 describe('RestaurantAccount', () => {
     test('oferece botão para abrir o QR code em um drawer sem exibi-lo na página', () => {

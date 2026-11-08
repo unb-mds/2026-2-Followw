@@ -1,7 +1,7 @@
+import type { CatalogSubject } from '@followw/core/queries/subjects.ts';
+
 import { expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
-
-import type { CatalogSubject } from '#/queries/subjects';
 
 import { SubjectSummary } from '#/components/search/SubjectSummary';
 

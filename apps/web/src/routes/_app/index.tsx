@@ -1,8 +1,13 @@
+import { getNoClassReason } from '@followw/core/calendar.ts';
+import { classesOn, nowInBrasilia, weekDays } from '@followw/core/lib/schedule.ts';
+import { classroomsQueryOptions } from '@followw/core/queries/classrooms.ts';
+import { loadQuery } from '@followw/core/queries/load.ts';
+import { meQueryOptions } from '@followw/core/queries/me.ts';
+import { campusOf, menuQueryOptions } from '@followw/core/queries/restaurant.ts';
 import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 
-import { getNoClassReason } from '#/calendar';
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderToggle } from '#/components/HeaderBar';
 import { LatestNewsSection } from '#/components/home/LatestNewsSection';
@@ -10,12 +15,7 @@ import { PublicInfoSection } from '#/components/home/PublicInfoSection';
 import { TodayClassesSection } from '#/components/home/TodayClassesSection';
 import { usePageState } from '#/components/PageState';
 import { WeekDayPicker } from '#/components/WeekDayPicker';
-import { classesOn, nowInBrasilia, weekDays } from '#/lib/schedule';
 import { publicPageHead } from '#/lib/seo';
-import { classroomsQueryOptions } from '#/queries/classrooms';
-import { loadQuery } from '#/queries/load';
-import { meQueryOptions } from '#/queries/me';
-import { campusOf, menuQueryOptions } from '#/queries/restaurant';
 
 const WEEKDAYS = [
     'Domingo',

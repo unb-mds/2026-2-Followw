@@ -1,8 +1,9 @@
-import type { Requirements } from '#/queries/subjects';
+import type { Requirements } from '@followw/core/queries/subjects.ts';
+
+import { subjectRequirementLabel } from '@followw/core/queries/subjects.ts';
 
 import { SubjectDisclosure } from '#/components/search/SubjectDisclosure';
 import { SubjectSearchLink } from '#/components/search/SubjectSearchLink';
-import { subjectRequirementLabel } from '#/queries/subjects';
 
 export function RequirementList({ requirements }: { requirements: Requirements }) {
     if (!requirements.length)

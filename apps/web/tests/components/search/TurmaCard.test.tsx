@@ -1,12 +1,12 @@
+import type { CatalogSubject, SubjectClassroom } from '@followw/core/queries/subjects.ts';
+
+import { meQueryOptions } from '@followw/core/queries/me.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, test } from 'bun:test';
-
-import type { CatalogSubject, SubjectClassroom } from '#/queries/subjects';
 
 import { TurmaCard } from '#/components/search/TurmaCard';
 import { TurmaDetails } from '#/components/search/TurmaDetails';
 import { TurmaSection } from '#/components/search/TurmaSection';
-import { meQueryOptions } from '#/queries/me';
 
 import { professorRef } from '../../helpers/professor';
 import { renderWithRouter } from '../../helpers/router';

@@ -1,14 +1,14 @@
+import { useOnline } from '@followw/core/lib/online.ts';
+import { api } from '@followw/core/queries/api.ts';
+import { apiClient } from '@followw/core/queries/client.ts';
+import { ApiError } from '@followw/core/queries/errors.ts';
+import { meQueryOptions } from '@followw/core/queries/me.ts';
 import { usePostHog } from '@posthog/react';
 import { type Query, type QueryClient, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
 import { clearOfflineData } from '#/integrations/offline/storage';
 import { clearAccountStorage } from '#/lib/local-storage';
-import { useOnline } from '#/lib/online';
-import { api } from '#/queries/api.ts';
-import { apiClient } from '#/queries/client.ts';
-import { ApiError } from '#/queries/errors.ts';
-import { meQueryOptions } from '#/queries/me.ts';
 
 // todo o cache é apagado no logout; só o /me fica a cargo de quem chama
 const isAccountQuery = ({ queryKey: [, path] }: Query) => path !== '/me';

@@ -1,8 +1,21 @@
+import type {
+    ClassroomFrequency,
+    Lesson,
+    LessonMarkStatus
+} from '@followw/core/queries/classrooms.ts';
+
 import { Progress as ProgressPrimitive } from '@base-ui/react/progress';
+import {
+    formatClassroomDate,
+    daysFrom,
+    formatClassroomWeekday,
+    formatRelativeDay,
+    frequencyTone,
+    lessonRuns
+} from '@followw/core/lib/classroom-details.ts';
+import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { CircleCheck, CircleDashed, CircleSlash, CircleX } from 'lucide-react';
 import { useRef, useState } from 'react';
-
-import type { ClassroomFrequency, Lesson, LessonMarkStatus } from '#/queries/classrooms';
 
 import { ListCard, Meter } from '#/components/ListCard';
 import { SelectionBar } from '#/components/SelectionBar';
@@ -16,14 +29,6 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger
 } from '#/components/ui/dropdown-menu';
-import {
-    formatClassroomDate,
-    daysFrom,
-    formatClassroomWeekday,
-    formatRelativeDay,
-    frequencyTone
-} from '#/lib/classroom-details';
-import { nowInBrasilia } from '#/lib/schedule';
 import { cn } from '#/lib/shadcn';
 
 export type MarkLessons = (lessons: Lesson[], status: LessonMarkStatus | null) => void;
@@ -205,20 +210,6 @@ const RUN_COLOR = {
     falta: 'bg-destructive',
     nao_registrada: 'bg-muted-foreground/40'
 } as const;
-
-type Run = { id: string; status: keyof typeof RUN_COLOR; count: number };
-
-/** Aulas em ordem cronológica, agrupadas em sequências de mesma situação. */
-export function lessonRuns(lessons: Lesson[]): Run[] {
-    const runs: Run[] = [];
-    for (const lesson of lessons.toReversed()) {
-        if (lesson.status === 'cancelada') continue;
-        const last = runs.at(-1);
-        if (last?.status === lesson.status) last.count++;
-        else runs.push({ id: lesson.id, status: lesson.status, count: 1 });
-    }
-    return runs;
-}
 
 /** Andamento das aulas com as dadas divididas em sequências de presenças e faltas. */
 function LessonsProgress({ data }: { data: ClassroomFrequency }) {

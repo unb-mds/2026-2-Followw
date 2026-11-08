@@ -11,7 +11,7 @@ import { pwaPlugins } from '#/integrations/offline/pwa';
 const BUILD_ID = Date.now().toString(36);
 // o cache persistido do TanStack Query só é descartado quando o contrato da API muda
 const QUERY_CACHE_BUSTER = createHash('sha256')
-    .update(readFileSync('src/queries/schema.gen.ts'))
+    .update(readFileSync('../../packages/core/src/queries/schema.gen.ts'))
     .digest('hex')
     .slice(0, 12);
 

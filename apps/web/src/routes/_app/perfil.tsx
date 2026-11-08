@@ -1,3 +1,7 @@
+import { useOnline } from '@followw/core/lib/online.ts';
+import { loadQuery } from '@followw/core/queries/load.ts';
+import { meQueryOptions } from '@followw/core/queries/me.ts';
+import { useUpdateSettings, useUserSettings } from '@followw/core/queries/settings.ts';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { Link, Navigate, createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import { GitFork, LogOut, Pencil } from 'lucide-react';
@@ -38,12 +42,8 @@ import {
 } from '#/components/ui/dialog';
 import { Input } from '#/components/ui/input';
 import { Label } from '#/components/ui/label';
-import { useOnline } from '#/lib/online';
 import { cn } from '#/lib/shadcn';
 import { useLogout } from '#/queries/auth';
-import { loadQuery } from '#/queries/load';
-import { meQueryOptions } from '#/queries/me';
-import { useUpdateSettings, useUserSettings } from '#/queries/settings';
 
 export const Route = createFileRoute('/_app/perfil')({
     head: () => ({ meta: [{ title: 'Perfil | Followw' }] }),

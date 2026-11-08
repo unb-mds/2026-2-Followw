@@ -1,6 +1,11 @@
 {
-    "$schema": "./apps/web/node_modules/oxlint/configuration_schema.json",
-    "ignorePatterns": ["**.gen.ts", "schema.gen.ts", "**/components/ui/**"],
+    "$schema": "./node_modules/oxlint/configuration_schema.json",
+    "ignorePatterns": [
+        "**.gen.ts",
+        "schema.gen.ts",
+        "**/components/ui/**",
+        "**/uniwind-types.d.ts"
+    ],
     "plugins": ["typescript", "react", "import", "unicorn", "oxc", "jsx-a11y", "promise"],
     "categories": {
         "correctness": "error",
@@ -26,7 +31,10 @@
         "followw/no-hardcoded-email": "error",
         "no-restricted-globals": [
             "error",
-            { "name": "fetch", "message": "Use o client de src/queries." }
+            {
+                "name": "fetch",
+                "message": "Use o client de src/queries."
+            }
         ],
         "no-restricted-imports": [
             "error",
@@ -48,15 +56,71 @@
     },
     "overrides": [
         {
-            "files": ["src/queries/**"],
+            "files": ["apps/web/src/queries/**", "packages/core/src/queries/**"],
             "rules": {
                 "no-restricted-globals": "off"
             }
         },
         {
-            "files": ["apps/web/src/lib/contact.ts", "apps/web/tests/**"],
+            "files": ["packages/core/src/lib/contact.ts", "apps/web/tests/**"],
             "rules": {
                 "followw/no-hardcoded-email": "off"
+            }
+        },
+        {
+            "files": ["apps/mobile/**"],
+            "rules": {
+                "jsx-a11y/prefer-tag-over-role": "off",
+                "react/style-prop-object": "off",
+                "import/no-unassigned-import": [
+                    "warn",
+                    {
+                        "allow": ["**/*.css", "./src/polyfills", "expo-router/entry"]
+                    }
+                ]
+            }
+        },
+        {
+            "files": ["apps/mobile/tests/**"],
+            "rules": {
+                "typescript/no-unsafe-type-assertion": "off"
+            }
+        },
+        {
+            "files": ["packages/core/src/**", "apps/mobile/src/**"],
+            "rules": {
+                "no-restricted-properties": [
+                    "error",
+                    {
+                        "object": "Intl",
+                        "property": "RelativeTimeFormat",
+                        "message": "O Hermes (app mobile) não implementa esta API do Intl."
+                    },
+                    {
+                        "object": "Intl",
+                        "property": "ListFormat",
+                        "message": "O Hermes (app mobile) não implementa esta API do Intl."
+                    },
+                    {
+                        "object": "Intl",
+                        "property": "Segmenter",
+                        "message": "O Hermes (app mobile) não implementa esta API do Intl."
+                    },
+                    {
+                        "object": "Intl",
+                        "property": "DisplayNames",
+                        "message": "O Hermes (app mobile) não implementa esta API do Intl."
+                    },
+                    {
+                        "object": "Intl",
+                        "property": "PluralRules",
+                        "message": "O Hermes (app mobile) não implementa esta API do Intl."
+                    },
+                    {
+                        "property": "formatRange",
+                        "message": "O Hermes (app mobile) não implementa formatRange; use formatDayRange do core."
+                    }
+                ]
             }
         }
     ]

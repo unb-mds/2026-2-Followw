@@ -160,7 +160,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["Age", "Retry-After"],
+    expose_headers=["Age", "Retry-After", "X-Followw-Access", "X-Followw-Refresh"],
 )
 
 app.add_middleware(RequestLoggingMiddleware)

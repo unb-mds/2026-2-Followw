@@ -1,11 +1,12 @@
+import type { ClassroomFrequency, Lesson } from '@followw/core/queries/classrooms.ts';
+
+import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { afterEach, describe, expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import type { MarkLessons } from '#/components/classroom/FrequencyContent';
-import type { ClassroomFrequency, Lesson } from '#/queries/classrooms';
 
-import { FrequencyContent, lessonRuns } from '#/components/classroom/FrequencyContent';
-import { nowInBrasilia } from '#/lib/schedule';
+import { FrequencyContent } from '#/components/classroom/FrequencyContent';
 
 import { useDom } from '../../helpers/dom';
 
@@ -251,23 +252,6 @@ describe('marcação das aulas', () => {
         );
 
         expect(page.getByRole('toolbar').textContent).toContain('1 aula');
-    });
-
-    test('agrupa as aulas em sequências cronológicas, sem as canceladas', () => {
-        expect(
-            lessonRuns([
-                lesson('2026-10-09', { status: 'presente' }),
-                lesson('2026-10-08', { status: 'falta' }),
-                lesson('2026-10-07', { status: 'cancelada' }),
-                lesson('2026-10-06', { status: 'falta' }),
-                lesson('2026-10-05', { status: 'presente' }),
-                lesson('2026-10-04', { status: 'presente' })
-            ])
-        ).toMatchObject([
-            { status: 'presente', count: 2 },
-            { status: 'falta', count: 2 },
-            { status: 'presente', count: 1 }
-        ]);
     });
 
     test('mostra o andamento das aulas segmentado junto dos totais', () => {

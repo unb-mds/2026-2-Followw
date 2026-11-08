@@ -1,12 +1,12 @@
 import type { Query, QueryClient } from '@tanstack/react-query';
 
+import { recommendationsQueryOptions } from '@followw/core/queries/recommendations.ts';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { hashKey, noop } from '@tanstack/react-query';
 import { persistQueryClient } from '@tanstack/react-query-persist-client';
 import { del, get, set } from 'idb-keyval';
 
 import { PAGES_CACHE_PREFIX, pagesCacheName } from '#/integrations/offline/pages-cache';
-import { recommendationsQueryOptions } from '#/queries/recommendations';
 
 // também é o gcTime das queries no navegador, senão a query sai do cache antes de vencer no disco
 export const PERSIST_MAX_AGE = 14 * 24 * 60 * 60 * 1000;
