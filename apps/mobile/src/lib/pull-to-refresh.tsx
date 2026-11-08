@@ -10,7 +10,7 @@ import { useColor } from '@/lib/colors';
 export type RefreshFn = (queryClient: QueryClient) => Promise<unknown>;
 
 /** `refreshControl` para ScrollView/FlatList com pull-to-refresh. */
-export function usePullToRefresh(refresh: RefreshFn | undefined) {
+export function usePullToRefresh(refresh: RefreshFn | undefined, offset = 0) {
     const queryClient = useQueryClient();
     const tint = useColor('muted-foreground');
     const [refreshing, setRefreshing] = useState(false);
@@ -28,5 +28,12 @@ export function usePullToRefresh(refresh: RefreshFn | undefined) {
     }, [refresh, queryClient]);
 
     if (!refresh) return undefined;
-    return <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={tint} />;
+    return (
+        <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={tint}
+            progressViewOffset={offset}
+        />
+    );
 }

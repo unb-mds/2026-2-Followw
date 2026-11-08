@@ -12,7 +12,10 @@ import { Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { BottomNavigation } from '@/components/BottomNavigation';
+import { Toaster } from '@/components/ui/toast';
 import { AnalyticsProvider } from '@/lib/analytics';
 import { useNavigationTheme } from '@/lib/colors';
 import {
@@ -44,21 +47,25 @@ export default function RootLayout() {
     }, [ready]);
 
     return (
-        <AnalyticsProvider>
-            <PersistQueryClientProvider
-                client={queryClient}
-                persistOptions={{
-                    persister,
-                    maxAge: PERSIST_MAX_AGE,
-                    buster: PERSIST_BUSTER,
-                    dehydrateOptions: { shouldDehydrateQuery: (query) => shouldPersistQuery(query) }
-                }}
-                onSuccess={() => setRestored(true)}
-                onError={() => setRestored(true)}
-            >
-                {ready && <RootNavigator />}
-            </PersistQueryClientProvider>
-        </AnalyticsProvider>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+            <AnalyticsProvider>
+                <PersistQueryClientProvider
+                    client={queryClient}
+                    persistOptions={{
+                        persister,
+                        maxAge: PERSIST_MAX_AGE,
+                        buster: PERSIST_BUSTER,
+                        dehydrateOptions: {
+                            shouldDehydrateQuery: (query) => shouldPersistQuery(query)
+                        }
+                    }}
+                    onSuccess={() => setRestored(true)}
+                    onError={() => setRestored(true)}
+                >
+                    {ready && <RootNavigator />}
+                </PersistQueryClientProvider>
+            </AnalyticsProvider>
+        </GestureHandlerRootView>
     );
 }
 
@@ -68,17 +75,10 @@ function RootNavigator() {
     return (
         <ThemeProvider value={theme}>
             <StatusBar style="auto" />
-            <Stack screenOptions={{ headerBackButtonDisplayMode: 'minimal' }}>
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                <Stack.Screen
-                    name="login"
-                    options={{ presentation: 'modal', title: 'Entrar com o SIGAA' }}
-                />
-                <Stack.Screen name="privacidade" options={{ title: 'Privacidade' }} />
-                <Stack.Screen name="cursos/[id]" options={{ title: 'Curso' }} />
-                <Stack.Screen name="professores/[siape]" options={{ title: 'Professor' }} />
-            </Stack>
+            <Stack screenOptions={{ headerShown: false }} />
+            <BottomNavigation />
             <PortalHost />
+            <Toaster />
         </ThemeProvider>
     );
 }

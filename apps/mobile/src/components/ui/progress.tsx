@@ -1,3 +1,4 @@
+import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
 import * as ProgressPrimitive from '@rn-primitives/progress';
 import { Platform, View } from 'react-native';
@@ -19,14 +20,22 @@ function Progress({
   }) {
   return (
     <ProgressPrimitive.Root
-      className={cn('bg-primary/20 relative h-2 w-full overflow-hidden rounded-full', className)}
+      className={cn('bg-muted relative h-1 w-full overflow-hidden rounded-full', className)}
       {...props}>
       <Indicator value={value} className={indicatorClassName} />
     </ProgressPrimitive.Root>
   );
 }
 
-export { Progress };
+function ProgressLabel({ className, ...props }: React.ComponentProps<typeof Text>) {
+  return <Text className={cn('text-sm font-medium', className)} {...props} />;
+}
+
+function ProgressValue({ className, ...props }: React.ComponentProps<typeof Text>) {
+  return <Text className={cn('text-muted-foreground ml-auto text-sm', className)} {...props} />;
+}
+
+export { Progress, ProgressLabel, ProgressValue };
 
 const Indicator = Platform.select({
   web: WebIndicator,
