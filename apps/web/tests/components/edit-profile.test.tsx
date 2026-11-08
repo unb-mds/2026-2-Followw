@@ -30,6 +30,7 @@ let middleware: Middleware;
 let requests: Request[];
 let failName: boolean;
 let failBio: boolean;
+let bioError: ApiError;
 beforeEach(() => {
     client = new QueryClient({
         defaultOptions: { queries: { retry: false }, mutations: { retry: false } }
@@ -38,6 +39,7 @@ beforeEach(() => {
     requests = [];
     failName = false;
     failBio = false;
+    bioError = new ApiError(502, 'falha');
     middleware = {
         onRequest: async ({ request }) => {
             requests.push(request.clone());
@@ -46,7 +48,7 @@ beforeEach(() => {
                 return Response.json({ displayName: null });
             }
             const bio = (await request.clone().formData()).get('bio');
-            if (bio !== null && failBio) throw new ApiError(502, 'falha');
+            if (bio !== null && failBio) throw bioError;
             return Response.json({ ...user, bio: bio ?? user.bio, photo: null });
         }
     };
@@ -77,21 +79,21 @@ async function open(profile = user) {
 }
 
 test('bio antiga longa abre limitada sem ser sobrescrita ao salvar', async () => {
-    const page = await open({ ...user, bio: 'a'.repeat(6000) });
-    expect(page.container.querySelector('textarea')?.value).toHaveLength(5000);
+    const page = await open({ ...user, bio: 'a'.repeat(2000) });
+    expect(page.container.querySelector('textarea')?.value).toHaveLength(1024);
     dom.testing.fireEvent.click(page.getByRole('button', { name: 'Salvar alterações' }));
     await dom.testing.waitFor(() => expect(requests).toHaveLength(1));
     expect(requests[0].url).toEndWith('/settings');
 });
 
-test('recusa foto original acima de 16 MiB antes do recorte', async () => {
+test('recusa foto original acima de 4 MiB antes do recorte', async () => {
     const page = await open();
     const file = new File(['foto'], 'foto.jpg', { type: 'image/jpeg' });
-    Object.defineProperty(file, 'size', { value: 16 * 1024 * 1024 + 1 });
+    Object.defineProperty(file, 'size', { value: 4 * 1024 * 1024 + 1 });
     dom.testing.fireEvent.change(page.getByLabelText('Foto de perfil'), {
         target: { files: [file] }
     });
-    expect((await page.findByRole('alert')).textContent).toContain('até 16 MiB');
+    expect((await page.findByRole('alert')).textContent).toContain('até 4 MiB');
     expect(requests).toHaveLength(0);
 });
 
@@ -248,4 +250,22 @@ test('ajuste produz recorte 4 por 5 somente após confirmação', async () => {
         if (previousBitmap) Object.defineProperty(globalThis, 'createImageBitmap', previousBitmap);
         else Reflect.deleteProperty(globalThis, 'createImageBitmap');
     }
+});
+
+test('limite de tentativas após remover a foto explica o motivo', async () => {
+    failBio = true;
+    bioError = new ApiError(429, 'Too many requests');
+    const page = await open();
+    dom.testing.fireEvent.click(page.getByRole('button', { name: 'Remover foto' }));
+    dom.testing.fireEvent.change(page.getByLabelText('Bio'), { target: { value: 'Nova bio' } });
+    dom.testing.fireEvent.click(page.getByRole('button', { name: 'Salvar alterações' }));
+    await page.findByText('Foto removida. Muitas tentativas. Aguarde um pouco e tente novamente.');
+});
+test('validação recusada pela api mostra a mensagem do servidor', async () => {
+    failBio = true;
+    bioError = new ApiError(422, 'A bio deve ter até 1024 caracteres.');
+    const page = await open();
+    dom.testing.fireEvent.change(page.getByLabelText('Bio'), { target: { value: 'Nova bio' } });
+    dom.testing.fireEvent.click(page.getByRole('button', { name: 'Salvar alterações' }));
+    await page.findByText('A bio deve ter até 1024 caracteres.');
 });

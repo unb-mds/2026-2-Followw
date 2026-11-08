@@ -2,7 +2,6 @@ from typing import Annotated, Literal
 
 from fastapi import (
     APIRouter,
-    Depends,
     File,
     Form,
     HTTPException,
@@ -17,13 +16,10 @@ from starlette.datastructures import UploadFile as MultipartFile
 from api.cache import CacheControl, NoStore
 from api.db.main import DatabaseDep
 from api.errors import SIGAA_ERRORS
-from api.modules.me.edit import check_profile_origin, edit_profile
+from api.modules.me.edit import edit_profile
 from api.modules.me.photo import MAX_PHOTO_BYTES, normalize_photo
-from api.modules.me.profile import (
-    MAX_PROFILE_BIO_LENGTH,
-    ProfileServiceDep,
-    UserProfile,
-)
+from api.modules.me.profile import ProfileServiceDep, UserProfile
+from api.modules.me.repository import MAX_PROFILE_BIO_LENGTH
 from api.modules.me.settings import (
     UserSettings,
     UserSettingsPatch,
@@ -160,7 +156,7 @@ async def update_settings(
         "A remoção da foto deve ser feita em uma requisição separada. "
         "Para substituir, envie um único JPEG ou PNG de até 4 MiB."
     ),
-    dependencies=[NoStore, Depends(check_profile_origin)],
+    dependencies=[NoStore],
     responses={
         **SIGAA_ERRORS,
         413: {"description": "A foto enviada deve ter até 4 MiB."},
@@ -171,7 +167,7 @@ async def update_profile(
     photo_action: Annotated[Literal["keep", "replace", "remove"], Form()],
     connection: SigaaConnectionDep,
     db: DatabaseDep,
-    bio: Annotated[str | None, Form(max_length=MAX_PROFILE_BIO_LENGTH)] = None,
+    bio: Annotated[str | None, Form()] = None,
     photo: Annotated[UploadFile | None, File()] = None,
 ) -> UserProfile:
     form = await request.form()
@@ -184,6 +180,13 @@ async def update_profile(
         raise HTTPException(422, "Envie uma foto somente ao selecionar substituição.")
     if "bio" in form and bio is None:
         bio = ""
+    if bio is not None:
+        # multipart converte \n em \r\n; conta como o usuário digitou
+        bio = bio.replace("\r\n", "\n")
+        if len(bio) > MAX_PROFILE_BIO_LENGTH:
+            raise HTTPException(
+                422, f"A bio deve ter até {MAX_PROFILE_BIO_LENGTH} caracteres."
+            )
     if photo_action == "remove" and bio is not None:
         raise HTTPException(
             422, "Remova a foto e edite a bio em requisições separadas."

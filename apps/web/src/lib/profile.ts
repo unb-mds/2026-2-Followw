@@ -2,7 +2,7 @@ import type { components } from '#/queries/schema.gen';
 
 type UserProfile = components['schemas']['UserProfile'];
 
-export const MAX_PROFILE_BIO_LENGTH = 5000;
+export const MAX_PROFILE_BIO_LENGTH = 1024;
 
 export function truncateProfileBio(text: string) {
     if (text.length <= MAX_PROFILE_BIO_LENGTH) return text;

@@ -10,6 +10,8 @@ from api.db.models import ClassroomParticipant, Course, User
 from api.modules.public_courses.repository import PublicCourseRepository
 from api.modules.recommendations.ranking import CurriculumInfo, select_curriculum
 
+MAX_PROFILE_BIO_LENGTH = 1024
+
 
 class UserRepository:
     def __init__(self, session: AsyncSession) -> None:
@@ -79,7 +81,9 @@ class UserRepository:
         if replace_photo or profile.photo is not None:
             user.photo = profile.photo
         user.email = profile.email or user.email
-        user.bio = profile.bio
+        user.bio = (
+            profile.bio and profile.bio.replace("\r\n", "\n")[:MAX_PROFILE_BIO_LENGTH]
+        )
         pair = (profile.course, profile.unit)
         shift = profile.shift.value if profile.shift else None
         course_id = (await course_ids(self._session, [pair], shift)).get(pair)

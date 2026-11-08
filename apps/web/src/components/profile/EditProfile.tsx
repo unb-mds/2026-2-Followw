@@ -19,13 +19,24 @@ import { Label } from '#/components/ui/label';
 import { Textarea } from '#/components/ui/textarea';
 import { useOnline } from '#/lib/online';
 import { MAX_PROFILE_BIO_LENGTH, truncateProfileBio } from '#/lib/profile';
+import { ApiError } from '#/queries/errors';
 import { useEditProfile } from '#/queries/profile-edit';
 import { useUpdateSettings } from '#/queries/settings';
 
-const MAX_ORIGINAL_PHOTO_MIB = 16;
+const MAX_ORIGINAL_PHOTO_MIB = 4;
 const PHOTO_EXTENSIONS = /\.(jpe?g|png)$/i;
 
 type PhotoEdit = { action: 'keep' | 'remove' } | { action: 'replace'; file: File; preview: string };
+
+function errorReason(error: unknown) {
+    if (!(error instanceof ApiError)) return null;
+    if (error.isTooManyRequests) return 'Muitas tentativas. Aguarde um pouco e tente novamente.';
+    if (error.status === 413 || error.status === 422)
+        return typeof error.detail === 'string'
+            ? error.detail
+            : 'Confira os dados e tente novamente.';
+    return null;
+}
 
 export function EditProfile({
     user,
@@ -108,6 +119,7 @@ export function ProfileForm({
         onSavingChange(true);
         setError('');
         let saved = remoteSaved;
+        let done = '';
         let failure =
             'Não foi possível confirmar a alteração no SIGAA. Confira o perfil antes de tentar novamente.';
         try {
@@ -117,7 +129,8 @@ export function ProfileForm({
                 setPhoto({ action: 'keep' });
                 setRemoteSaved(true);
                 saved = true;
-                failure = 'Foto removida. Não foi possível confirmar a alteração da bio no SIGAA.';
+                done = 'Foto removida. ';
+                failure = 'Não foi possível confirmar a alteração da bio no SIGAA.';
             }
             if (editedBio !== undefined || action === 'replace') {
                 await remote.mutateAsync({
@@ -130,13 +143,12 @@ export function ProfileForm({
                 setRemoteSaved(true);
                 saved = true;
             }
-            failure = saved
-                ? 'Alterações salvas no SIGAA. Não foi possível salvar o nome. Tente novamente.'
-                : 'Não foi possível salvar o nome. Tente novamente.';
+            done = saved ? 'Alterações salvas no SIGAA. ' : '';
+            failure = 'Não foi possível salvar o nome. Tente novamente.';
             await settings.mutateAsync({ body: { displayName: name.trim() || null } });
             close();
-        } catch {
-            setError(failure);
+        } catch (failed) {
+            setError(done + (errorReason(failed) ?? failure));
         } finally {
             saving.current = false;
             onSavingChange(false);
@@ -277,10 +289,7 @@ export function ProfileForm({
                         <Button type="button" variant="outline" disabled={pending} onClick={close}>
                             Cancelar
                         </Button>
-                        <Button
-                            type="submit"
-                            disabled={pending || !online || name.trim().length > 24}
-                        >
+                        <Button type="submit" disabled={pending || !online}>
                             {pending ? 'Salvando...' : 'Salvar alterações'}
                         </Button>
                     </DialogFooter>

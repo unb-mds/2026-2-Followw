@@ -13,7 +13,6 @@ from api.schemas import CourseRef, UnitRef, course_ref, unit_ref
 from api.sync import Cached, Context, SyncDep
 
 PROFILE_TTL = timedelta(hours=24)
-MAX_PROFILE_BIO_LENGTH = 5000
 
 
 class UserProfile(BaseModel):
@@ -78,7 +77,7 @@ def _to_profile(user: User) -> UserProfile:
         registration=user.registration,
         photo=user.photo,
         email=user.email,
-        bio=user.bio[:MAX_PROFILE_BIO_LENGTH] if user.bio is not None else None,
+        bio=user.bio,
         unit=unit_ref(user.course.unit) if user.course else None,
         course=course_ref(user.course),
         entry_semester=user.entry_semester,

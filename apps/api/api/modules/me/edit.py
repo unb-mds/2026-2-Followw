@@ -1,18 +1,9 @@
 from datetime import UTC, datetime
 
-from fastapi import HTTPException, Request
-
-from api.core.config import settings
 from api.db.main import Database
 from api.modules.me.profile import UserProfile, _to_profile
 from api.modules.me.repository import UserRepository
 from api.sigaa import SigaaConnection
-
-
-def check_profile_origin(request: Request) -> None:
-    origin = request.headers.get("origin")
-    if origin not in settings.cors_origins:
-        raise HTTPException(403, "Origem não autorizada para editar o perfil.")
 
 
 async def edit_profile(

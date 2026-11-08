@@ -60,7 +60,7 @@ def test_multipart_recusa_origem_invalida_antes_de_autenticar(origin):
     [
         {"bio": "teste", "photo_action": "invalid"},
         {"bio": "teste", "photo_action": "remove"},
-        {"bio": "a" * 5001, "photo_action": "keep"},
+        {"bio": "a" * 1025, "photo_action": "keep"},
     ],
 )
 def test_formulario_valida_acao_e_bio_sem_acessar_sigaa(monkeypatch, data):
@@ -84,6 +84,7 @@ def test_formulario_valida_acao_e_bio_sem_acessar_sigaa(monkeypatch, data):
     [
         ({"photo_action": "remove"}, None),
         ({"photo_action": "keep", "bio": ""}, ""),
+        ({"photo_action": "keep", "bio": "a\r\n" * 512}, "a\n" * 512),
     ],
 )
 def test_distingue_bio_ausente_de_bio_vazia(monkeypatch, data, expected_bio):
@@ -183,11 +184,11 @@ def test_edicao_grava_cache_remove_foto_e_preserva_nome_local(
 
     credentials = Credentials(registration="251000000", password="senha-teste")
     client.cookies.update(cookies(access="tok", refresh=credentials))
-    visible_bio = "a" * 5000
+    visible_bio = "a\n" * 512
     original = stub_sigaa.profile.get_profile.return_value.model_copy(
         update={
             "photo": "https://arquivos.unb.br/antiga.jpg",
-            "bio": visible_bio + "fim",
+            "bio": "a\r\n" * 512 + "fim",
         }
     )
     stub_sigaa.profile.get_profile.return_value = original
