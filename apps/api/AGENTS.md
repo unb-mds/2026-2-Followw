@@ -53,10 +53,9 @@ tests/                  # um arquivo por módulo
 
 ## Testes
 
-Pela interface HTTP. Fixtures em `tests/conftest.py`: `client` (Postgres via testcontainers, limpo
-por teste, entrega os jobs publicados em `POST /jobs` antes de responder), `sigaa` (SIGAA via
-respx), `stub_sigaa` (`SigaaClient` trocado por `AsyncMock`; cada job abre o seu) e `qstash`
-(intercepta a API do QStash; `qstash.jobs()` decifra o que foi publicado).
+Organizados em:
+- `tests/unit/`: regras puras sem banco (calendário, cookies, cache, lessons). Rápido (<1.5s) e sem Docker.
+- `tests/integration/`: testes com Postgres (testcontainers), organizados por domínio (`auth/`, `classrooms/`, `frequency/`, `me/`, `posts/`, `recommendations/`, `sync/`, `rate_limit/`, `public/`, `seed/`). Fixtures em `tests/integration/conftest.py`: `client` (Postgres via testcontainers, limpo por teste, entrega os jobs publicados em `POST /jobs` antes de responder), `sigaa` (SIGAA via respx), `stub_sigaa` (`SigaaClient` trocado por `AsyncMock`; cada job abre o seu) e `qstash` (intercepta a API do QStash; `qstash.jobs()` decifra o que foi publicado).
 
 ## Comandos
 

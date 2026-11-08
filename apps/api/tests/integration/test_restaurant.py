@@ -433,7 +433,7 @@ def test_openapi_documenta_restaurante(client):
 def test_cardapio_do_pdf_real_chega_ao_endpoint_e_ao_cache(client, today):
     today.value = date(2026, 9, 16)
     fixture = (
-        Path(__file__).resolve().parents[3]
+        Path(__file__).resolve().parents[4]
         / "packages/unb-browser/tests/fixtures/cardapio-darcy.pdf"
     )
     pdf_url = "https://ru.unb.br/cardapio-teste.pdf"
@@ -466,7 +466,7 @@ def test_fim_de_semana_do_pdf_real_fica_em_cache_por_cinco_dias(
 ):
     today.value = date(2026, 10, 3)
     fixture = (
-        Path(__file__).resolve().parents[3]
+        Path(__file__).resolve().parents[4]
         / "packages/unb-browser/tests/fixtures/cardapio-gama-28-09.pdf"
     )
     pdf_url = "https://ru.unb.br/cardapio-teste.pdf"

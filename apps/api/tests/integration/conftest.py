@@ -1,0 +1,379 @@
+import base64
+import hashlib
+import json
+import time
+from collections import deque
+from typing import Self
+
+import httpx
+import jwt
+import pytest
+import respx
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from sigaa_client.config import CLASSROOMS_PATH
+
+QSTASH_SIGNING_KEY = "sig_atual_de_teste_com_32_bytes_ou_mais"
+
+PERFIL = """
+<html><body><div id="perfil-docente">
+  <div class="info-docente"><p class="nome">NOME DISCENTE</p></div>
+  <table>
+    <tr><td>Matrícula:</td><td>251000000</td></tr>
+    <tr><td>Curso:</td><td>ENGENHARIA DE SOFTWARE/FCTE - Bacharelado</td></tr>
+    <tr><td>Nível:</td><td>GRADUAÇÃO</td></tr>
+  </table>
+</div></body></html>
+"""
+
+FORM_CAS = """
+<html><body><form action="/sso-server/login;jsessionid=ABC?service=x" method="post">
+  <input type="text" name="username" />
+  <input type="password" name="password" />
+  <input type="hidden" name="lt" value="LT-1" />
+</form></body></html>
+"""
+
+# Recorte da resposta real do CAS a credenciais inválidas.
+FORM_CAS_RECUSADO = FORM_CAS.replace(
+    'method="post">',
+    'method="post"><p id="errors" class="login-error">Credenciais inválidas.</p>',
+)
+
+
+class FakeSigaa:
+    """SIGAA de mentira no nível HTTP: valida a senha e exige o JSESSIONID.
+
+    A app monta o `SigaaClient` por conta própria, sem gancho para injetar um
+    transport, então o dublê vive onde a app não manda: no socket.
+    """
+
+    def __init__(self, password: str = "senha123") -> None:
+        self.password = password
+        self.valid_tokens: set[str] = set()
+        self.logins = 0
+        self.logouts = 0
+        self.unavailable = False
+        self.mode = "normal"
+        self.profile = PERFIL
+        self.grades = "<h3>Relatório de Notas do(a) Aluno(a)</h3>"
+        self.profile_status = 200
+        self.profile_requests = 0
+        self.classrooms = '<html><body><table class="listagem"></table></body></html>'
+        self.classrooms_status = 200
+        self.classrooms_requests = 0
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        if self.unavailable:
+            raise httpx.ConnectError("SIGAA fora do ar", request=request)
+
+        if request.url.host == "autenticacao.unb.br":
+            return self._cas(request)
+        return self._sigaa(request)
+
+    def _cas(self, request: httpx.Request) -> httpx.Response:
+        if request.method == "GET":
+            return httpx.Response(200, text=FORM_CAS)
+
+        payload = dict(httpx.QueryParams(request.content.decode()))
+        if payload.get("password") != self.password:
+            return httpx.Response(200, text=FORM_CAS_RECUSADO)
+
+        return httpx.Response(
+            302,
+            headers={"location": "https://sigaa.unb.br/sigaa/login/cas?ticket=ST-1"},
+        )
+
+    def _sigaa(self, request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+
+        if path == "/sigaa/login/cas":
+            self.logins += 1
+            token = f"app14~TOKEN{self.logins}"
+            headers = {"location": "/sigaa/portais/discente/discente.jsf"}
+            if self.mode != "sem_cookie":
+                self.valid_tokens.add(token)
+                headers["set-cookie"] = f"JSESSIONID={token}; Path=/"
+            return httpx.Response(302, headers=headers)
+
+        if path == "/sigaa/verTelaLogin.do":
+            return httpx.Response(200, text=FORM_CAS)
+
+        if path == "/sigaa/logar.do":
+            self.logouts += 1
+            self.valid_tokens.discard(_cookie(request, "JSESSIONID"))
+            return httpx.Response(200, text="<html>saiu</html>")
+
+        if _cookie(request, "JSESSIONID") not in self.valid_tokens:
+            return httpx.Response(
+                302, headers={"location": "https://sigaa.unb.br/sigaa/verTelaLogin.do"}
+            )
+        if path == CLASSROOMS_PATH:
+            self.classrooms_requests += 1
+            return httpx.Response(self.classrooms_status, text=self.classrooms)
+
+        if path == "/sigaa/portais/discente/discente.jsf" and request.method == "POST":
+            return httpx.Response(200, text=self.grades)
+        self.profile_requests += 1
+
+        page = self.profile.replace(
+            "</body>",
+            """
+<form id="menu:form_menu_discente" action="/sigaa/portais/discente/discente.jsf">
+<input type="hidden" name="javax.faces.ViewState" value="j_id1"/>
+</form></body>""",
+        )
+        return httpx.Response(self.profile_status, text=page)
+
+
+def _cookie(request: httpx.Request, name: str) -> str | None:
+    for part in request.headers.get("cookie", "").split(";"):
+        key, _, value = part.strip().partition("=")
+        if key == name:
+            return value
+
+    return None
+
+
+@pytest.fixture
+def sigaa():
+    """Intercepta só o SIGAA e o CAS — o transport ASGI do TestClient passa reto."""
+    fake = FakeSigaa()
+    with respx.mock:
+        respx.route(host__in=["sigaa.unb.br", "autenticacao.unb.br"]).mock(
+            side_effect=fake
+        )
+        yield fake
+
+
+class FakeQStash:
+    """QStash de mentira: guarda o que a app publica e entrega em `POST /jobs`.
+
+    Entrega cada mensagem uma vez, assinada como o QStash assinaria, sem
+    retentativa nem deduplicação: essas regras ficam na conta do QStash.
+    """
+
+    def __init__(self) -> None:
+        self.published: list[dict] = []
+        self.pending: deque[dict] = deque()
+        self.deliveries: list[httpx.Response] = []
+        self.unavailable = False
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        if self.unavailable:
+            return httpx.Response(500, json={"error": "fora do ar"})
+
+        batch = json.loads(request.content)
+        # O QStash de verdade recusa ':' na deduplicação.
+        if any(":" in m["headers"].get("Upstash-Deduplication-Id", "") for m in batch):
+            return httpx.Response(
+                400, json={"error": "DeduplicationId cannot contain ':'"}
+            )
+        self.published.extend(batch)
+        self.pending.extend(batch)
+        return httpx.Response(
+            200, json=[{"messageId": f"msg_{n}"} for n in range(len(batch))]
+        )
+
+    def jobs(self) -> list:
+        """Os jobs publicados, decifrados como a própria app os leria."""
+        from api.sync.queue import decode_job
+
+        return [decode_job(message["body"].encode()) for message in self.published]
+
+    def deliver(self, client: TestClient) -> None:
+        while self.pending:
+            message = self.pending.popleft()
+            url = message["destination"]
+            response = client.post(
+                httpx.URL(url).path,
+                content=message["body"],
+                headers={"Upstash-Signature": self.sign(url, message["body"])},
+            )
+            self.deliveries.append(response)
+
+    @staticmethod
+    def sign(url: str, body: str, key: str = QSTASH_SIGNING_KEY) -> str:
+        """O `Upstash-Signature` que o QStash mandaria com este corpo."""
+        digest = hashlib.sha256(body.encode()).digest()
+        now = int(time.time())
+        claims = {
+            "iss": "Upstash",
+            "sub": url,
+            "exp": now + 300,
+            "nbf": now,
+            "body": base64.urlsafe_b64encode(digest).decode().rstrip("="),
+        }
+        return jwt.encode(claims, key, algorithm="HS256")
+
+
+@pytest.fixture
+def qstash():
+    """Intercepta só a API do QStash; os outros hosts seguem para o próximo mock."""
+    fake = FakeQStash()
+    with respx.MockRouter(assert_all_called=False) as router:
+        router.post(host="qstash.upstash.io", path="/v2/batch").mock(side_effect=fake)
+        yield fake
+
+
+class JobsClient(TestClient):
+    """Entrega os jobs publicados antes de devolver a resposta, como o QStash faria."""
+
+    def __init__(self, app: FastAPI, qstash: FakeQStash) -> None:
+        super().__init__(app)
+        self.qstash = qstash
+        # O QStash não carrega os cookies do usuário.
+        self._jobs = TestClient(app)
+
+    def __enter__(self) -> Self:
+        super().__enter__()
+        # O pool do banco vale num loop só: os jobs rodam no mesmo do client.
+        self._jobs.portal = self.portal
+        return self
+
+    def request(self, *args, **kwargs) -> httpx.Response:
+        response = super().request(*args, **kwargs)
+        self.qstash.deliver(self._jobs)
+        return response
+
+
+@pytest.fixture(scope="session")
+def postgres():
+    """Banco Postgres em container para a sessão de testes."""
+    from sqlalchemy import create_engine
+    from testcontainers.community.postgres import PostgresContainer
+
+    from api.db.main import create_schema
+
+    with PostgresContainer("postgres:18-alpine", driver="psycopg") as container:
+        engine = create_engine(container.get_connection_url())
+        with engine.begin() as conn:
+            create_schema(conn)
+        yield engine
+        engine.dispose()
+
+
+@pytest.fixture
+def database(postgres):
+    """Sessão síncrona limpa a cada teste; a app usa a versão async."""
+    from sqlalchemy import text
+    from sqlalchemy.orm import sessionmaker
+
+    from api.db.base import Base
+    from api.db.models import Unit
+
+    tables = ", ".join(table.name for table in Base.metadata.sorted_tables)
+    sessions = sessionmaker(postgres, expire_on_commit=False)
+    with sessions.begin() as session:
+        session.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
+        session.add(Unit(id=673, code="FCTE", name="CAMPUS UNB GAMA"))
+    return sessions
+
+
+@pytest.fixture
+def async_database(database):
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+    from sqlalchemy.pool import NullPool
+
+    url = database.kw["bind"].url.set(drivername="postgresql+asyncpg")
+    # Sem pool: o teste pode usar a sessão em mais de um event loop.
+    engine = create_async_engine(url, poolclass=NullPool)
+    yield async_sessionmaker(engine, expire_on_commit=False)
+    engine.sync_engine.dispose()
+
+
+@pytest.fixture
+def client(async_database, qstash):
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from api.db.main import get_sessionmaker
+    from api.main import app
+
+    # A app reaproveita conexões como em produção, no event loop fixo do client.
+    engine = create_async_engine(async_database.kw["bind"].url)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    app.dependency_overrides[get_sessionmaker] = lambda: sessions
+    with JobsClient(app, qstash) as client:
+        yield client
+        client.portal.call(engine.dispose)
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def probe_app():
+    """Monta uma app isolada por teste para exercitar dependências sem rota.
+
+    Um `include_router` na app global vazaria a rota de sonda para os outros
+    testes e deixaria o resultado na mão da ordem de coleta.
+    """
+
+    from api.errors import EXCEPTION_HANDLERS
+
+    def _build(handler) -> TestClient:
+        app = FastAPI(exception_handlers=EXCEPTION_HANDLERS)
+        app.get("/probe")(handler)
+        return TestClient(app)
+
+    return _build
+
+
+@pytest.fixture
+def stub_sigaa(monkeypatch):
+    """Troca o `SigaaClient` por dublês de método, para testar o cache sem HTML.
+
+    Só o client muda: conexão, cookies e tradução de erros continuam os da app.
+    `created` conta quantos clients a app abriu; cada job abre o seu.
+    """
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock, Mock
+
+    from sigaa_client import UserLevel, UserProfile
+
+    client = SimpleNamespace(
+        authenticate=AsyncMock(return_value="app14~STUB"),
+        logout=AsyncMock(),
+        aclose=AsyncMock(),
+        profile=SimpleNamespace(
+            get_profile=AsyncMock(
+                return_value=UserProfile(
+                    name="NOME DISCENTE",
+                    registration="251000000",
+                    photo=None,
+                    bio=None,
+                    unit="FCTE",
+                    course="ENGENHARIA DE SOFTWARE",
+                    shift=None,
+                    entry_semester=None,
+                    integralization=35,
+                    workload=None,
+                    ira=3.5,
+                    mp=4.0,
+                    level=UserLevel.GRADUACAO,
+                )
+            )
+        ),
+        classrooms=SimpleNamespace(
+            list_classrooms=AsyncMock(return_value=[]),
+            list_classroom_members=AsyncMock(return_value=[]),
+            get_classroom_statistics=AsyncMock(return_value=()),
+            list_grades=AsyncMock(return_value=[]),
+        ),
+    )
+
+    client.created = Mock(return_value=client)
+
+    def reset() -> None:
+        """Zera as chamadas registradas, mantendo os retornos configurados."""
+        for mock in (
+            client.created,
+            client.authenticate,
+            client.logout,
+            client.aclose,
+            *vars(client.profile).values(),
+            *vars(client.classrooms).values(),
+        ):
+            mock.reset_mock()
+
+    client.reset = reset
+    monkeypatch.setattr("api.sigaa.SigaaClient", client.created)
+    return client

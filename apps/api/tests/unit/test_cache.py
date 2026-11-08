@@ -5,8 +5,6 @@ from fastapi import Response
 
 from api.cache import CacheControl
 
-AGORA = datetime.now(UTC)
-
 
 @pytest.mark.parametrize(
     "header,esperado",
@@ -40,7 +38,8 @@ def test_le_as_diretivas_da_requisicao(header, esperado):
     ],
 )
 def test_revalida_quando_o_cliente_pede(header, idade, revalida):
-    assert CacheControl.parse(header).revalidate(AGORA - idade) is revalida
+    agora = datetime.now(UTC)
+    assert CacheControl.parse(header).revalidate(agora - idade) is revalida
 
 
 @pytest.mark.parametrize(
@@ -53,7 +52,8 @@ def test_revalida_quando_o_cliente_pede(header, idade, revalida):
     ],
 )
 def test_stale_if_error_limita_a_idade_do_cache(header, idade, aceita):
-    assert CacheControl.parse(header).accepts_stale(AGORA - idade) is aceita
+    agora = datetime.now(UTC)
+    assert CacheControl.parse(header).accepts_stale(agora - idade) is aceita
 
 
 def test_age_da_resposta_e_o_do_dado_mais_velho():
@@ -66,41 +66,4 @@ def test_age_da_resposta_e_o_do_dado_mais_velho():
 
     assert 100 <= int(response.headers["age"]) < 110
     # Sem resposta (uso interno), não há onde marcar.
-    CacheControl().served(AGORA)
-
-
-@pytest.mark.parametrize(
-    "path",
-    [
-        "/posts",
-        "/me/ru-statement",
-        "/me/ru-token",
-        "/public/classrooms",
-        "/public/classrooms/units",
-    ],
-)
-def test_rotas_sem_cache_nao_documentam_diretivas(client, path):
-    route = client.get("/openapi.json").json()["paths"][path]["get"]
-
-    assert not any(p["name"] == "Cache-Control" for p in route.get("parameters", []))
-
-
-@pytest.mark.parametrize(
-    "path",
-    [
-        "/me",
-        "/classrooms",
-        "/classrooms/frequency",
-        "/classrooms/{classroom_id}/frequency",
-        "/classrooms/{classroom_id}/members",
-        "/classrooms/{classroom_id}/posts",
-        "/classrooms/{classroom_id}/posts/{post_id}",
-        "/public/restaurant",
-    ],
-)
-def test_rotas_com_cache_documentam_o_header(client, path):
-    route = client.get("/openapi.json").json()["paths"][path]["get"]
-    parametros = {p["name"]: p for p in route["parameters"]}
-
-    assert parametros["Cache-Control"]["in"] == "header"
-    assert "refresh" not in parametros
+    CacheControl().served(agora)

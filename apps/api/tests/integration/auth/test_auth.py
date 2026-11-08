@@ -1,11 +1,18 @@
+import base64
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from fastapi import Request
 from pydantic import SecretStr
 from sigaa_client import Credentials
 from sqlalchemy import select
 
-from api.cookies import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME, decrypt_cookie
+from api.cookies import (
+    ACCESS_COOKIE_NAME,
+    REFRESH_COOKIE_NAME,
+    decrypt_cookie,
+    read_refresh_cookie,
+)
 from api.db.models import User
 from api.modules.auth.account import sync_account
 from api.sync.engine import Step
@@ -290,3 +297,41 @@ def test_refresh_com_sigaa_fora_do_ar_e_502(client, sigaa, cookies, ler_cookies)
 
     assert response.status_code == 502
     assert "set-cookie" not in response.headers
+
+
+def _request(**cookies: str) -> Request:
+    header = "; ".join(f"{k}={v}" for k, v in cookies.items())
+    return Request(scope={"type": "http", "headers": [(b"cookie", header.encode())]})
+
+
+def _b64decode(parte: str) -> bytes:
+    return base64.urlsafe_b64decode(parte + "=" * (-len(parte) % 4))
+
+
+def _visivel(token: str) -> str:
+    parts = [token] + [_b64decode(p).decode("latin-1") for p in token.split(".")]
+    return "\n".join(parts)
+
+
+def test_login_nao_devolve_nenhum_segredo_legivel(client, sigaa):
+    senha = "S3nh@-Muito-Secreta"
+    sigaa.password = senha
+    segredos = (senha, "251000000", "app14~TOKEN1")
+
+    response = client.post(
+        "/auth/sigaa", json={"registration": "251000000", "password": senha}
+    )
+
+    assert response.status_code == 200
+    brutos = response.headers.get_list("set-cookie")
+    assert {h.split("=", 1)[0] for h in brutos} == {
+        ACCESS_COOKIE_NAME,
+        REFRESH_COOKIE_NAME,
+    }
+    for header in brutos:
+        token = header.split("=", 1)[1].split(";", 1)[0]
+        for segredo in segredos:
+            assert segredo not in _visivel(token)
+    assert read_refresh_cookie(_request(**dict(response.cookies))) == Credentials(
+        registration="251000000", password=SecretStr(senha)
+    )

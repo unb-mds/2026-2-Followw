@@ -393,26 +393,3 @@ def test_refresh_cookie_sem_senha_vira_none():
     )
 
     assert read_refresh_cookie(_request(**{REFRESH_COOKIE_NAME: token})) is None
-
-
-# Ponta a ponta
-
-
-def test_login_nao_devolve_nenhum_segredo_legivel(client, sigaa):
-    sigaa.password = SENHA
-
-    response = client.post(
-        "/auth/sigaa", json={"registration": "251000000", "password": SENHA}
-    )
-
-    assert response.status_code == 200
-    brutos = response.headers.get_list("set-cookie")
-    assert {h.split("=", 1)[0] for h in brutos} == {
-        ACCESS_COOKIE_NAME,
-        REFRESH_COOKIE_NAME,
-    }
-    for header in brutos:
-        token = header.split("=", 1)[1].split(";", 1)[0]
-        for segredo in SEGREDOS:
-            assert segredo not in _visivel(token)
-    assert read_refresh_cookie(_request(**dict(response.cookies))) == CREDENCIAIS
