@@ -66,6 +66,13 @@ describe('formatRelativeDays', () => {
         expect(formatRelativeDays(-20)).toBe('há 20 dias');
         expect(formatRelativeDays(-1)).toBe('ontem');
     });
+
+    test('segue o Intl.RelativeTimeFormat do pt-BR sem depender dele', () => {
+        const intl = new Intl.RelativeTimeFormat('pt-BR', { numeric: 'auto' });
+        for (const days of [-30, -3, -2, -1, 0, 1, 2, 3, 15]) {
+            expect(formatRelativeDays(days)).toBe(intl.format(days, 'day'));
+        }
+    });
 });
 
 describe('formatRelativeDay', () => {
