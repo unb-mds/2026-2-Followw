@@ -6,7 +6,7 @@ import { Platform, Text as RNText, type Role } from 'react-native';
 
 const textVariants = cva(
   cn(
-    'text-foreground font-sans text-base',
+    'text-foreground text-base',
     Platform.select({
       web: 'select-text',
     })
@@ -64,6 +64,13 @@ const ARIA_LEVEL: Partial<Record<TextVariant, string>> = {
 
 const TextClassContext = React.createContext<string | undefined>(undefined);
 
+// no RN cada peso é uma família (font-bold = DMSans_700Bold); font-sans só sem peso explícito
+const FONT_WEIGHT_CLASS = /(^|\s)font-(normal|medium|semibold|bold|extrabold)(\s|$)/;
+
+function withFont(className: string) {
+  return FONT_WEIGHT_CLASS.test(className) ? className : cn('font-sans', className);
+}
+
 function Text({
   className,
   asChild = false,
@@ -78,7 +85,7 @@ function Text({
   const Component = asChild ? Slot : RNText;
   return (
     <Component
-      className={cn(textVariants({ variant }), textClass, className)}
+      className={withFont(cn(textVariants({ variant }), textClass, className))}
       role={variant ? ROLE[variant] : undefined}
       aria-level={variant ? ARIA_LEVEL[variant] : undefined}
       {...props}

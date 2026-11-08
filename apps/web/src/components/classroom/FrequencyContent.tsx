@@ -10,7 +10,8 @@ import {
     daysFrom,
     formatClassroomWeekday,
     formatRelativeDay,
-    frequencyTone
+    frequencyTone,
+    lessonRuns
 } from '@followw/core/lib/classroom-details.ts';
 import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { CircleCheck, CircleDashed, CircleSlash, CircleX } from 'lucide-react';
@@ -209,20 +210,6 @@ const RUN_COLOR = {
     falta: 'bg-destructive',
     nao_registrada: 'bg-muted-foreground/40'
 } as const;
-
-type Run = { id: string; status: keyof typeof RUN_COLOR; count: number };
-
-/** Aulas em ordem cronológica, agrupadas em sequências de mesma situação. */
-export function lessonRuns(lessons: Lesson[]): Run[] {
-    const runs: Run[] = [];
-    for (const lesson of lessons.toReversed()) {
-        if (lesson.status === 'cancelada') continue;
-        const last = runs.at(-1);
-        if (last?.status === lesson.status) last.count++;
-        else runs.push({ id: lesson.id, status: lesson.status, count: 1 });
-    }
-    return runs;
-}
 
 /** Andamento das aulas com as dadas divididas em sequências de presenças e faltas. */
 function LessonsProgress({ data }: { data: ClassroomFrequency }) {

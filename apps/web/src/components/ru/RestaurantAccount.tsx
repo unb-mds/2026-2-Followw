@@ -7,7 +7,12 @@ import type { UseQueryResult } from '@tanstack/react-query';
 
 import { documentRefusal } from '@followw/core/lib/documents.ts';
 import { useFailureMessage, useOnline } from '@followw/core/lib/online.ts';
-import { cardIsExpired, insufficientMealBalance } from '@followw/core/lib/restaurant.ts';
+import {
+    cardIsExpired,
+    entryDescription,
+    insufficientMealBalance,
+    statementEntries
+} from '@followw/core/lib/restaurant.ts';
 import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import {
     credentialsQueryOptions,
@@ -230,8 +235,7 @@ export function StatementDetails({
     now?: Day & { time: string };
 }) {
     const insufficient = insufficientMealBalance(statement.balance, statement.group, now);
-    const [first, ...rest] = statement.entries;
-    const entries = first && /^saldo\b/i.test(first.description.trim()) ? rest : statement.entries;
+    const entries = statementEntries(statement);
     return (
         <>
             <div className="flex items-center justify-between gap-3">
@@ -265,7 +269,7 @@ export function StatementDetails({
                                         className="flex items-baseline gap-2"
                                     >
                                         <p className="min-w-0 truncate text-sm font-semibold text-foreground">
-                                            {entry.description.replace(/^grupo\s*\d+\s+/i, '')}
+                                            {entryDescription(entry.description)}
                                         </p>
                                         <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
                                             {dateTime.format(new Date(entry.occurred_at))}

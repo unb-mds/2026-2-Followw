@@ -1,3 +1,4 @@
+import type { RestaurantSelection } from '@followw/core/lib/restaurant.ts';
 import type { MenuSection } from '@followw/core/queries/restaurant.ts';
 
 import { useFailureMessage } from '@followw/core/lib/online.ts';
@@ -5,7 +6,8 @@ import {
     currentOrNextMeal,
     formatMenuDay,
     highlightMenu,
-    MEAL_TIMES
+    MEAL_TIMES,
+    restaurantSharePath
 } from '@followw/core/lib/restaurant.ts';
 import { addDays, nowInBrasilia, weekDays } from '@followw/core/lib/schedule.ts';
 import { loadQuery } from '@followw/core/queries/load.ts';
@@ -25,8 +27,6 @@ import { createFileRoute, Link, useLocation, useNavigate } from '@tanstack/react
 import { ChevronLeft, ChevronRight, Coffee, Egg, Leaf, Soup, UtensilsCrossed } from 'lucide-react';
 import { useQueryStates } from 'nuqs';
 import { useEffect, useSyncExternalStore } from 'react';
-
-import type { RestaurantSelection } from '#/lib/restaurant-share';
 
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderToggle } from '#/components/HeaderBar';
@@ -51,7 +51,6 @@ import {
     restaurantPageHead,
     restaurantSearchParsers,
     restaurantSelection,
-    restaurantSharePath,
     validateRestaurantSearch
 } from '#/lib/restaurant-share';
 

@@ -1,4 +1,5 @@
-import type { MenuSection } from '../queries/restaurant.ts';
+import type { RestaurantStatement } from '../queries/restaurant-account.ts';
+import type { Campus, MenuSection } from '../queries/restaurant.ts';
 import type { Day } from './schedule.ts';
 
 import { daysFrom, formatRelativeDays } from './classroom-details.ts';
@@ -78,3 +79,28 @@ export function highlightMenu(sections: MenuSection[]) {
     }
     return { main: null, alternatives: [], others: sections };
 }
+
+export interface RestaurantSelection {
+    date: string;
+    meal: MealKey;
+    campus: Campus;
+}
+
+/** Caminho do site (`/ru` ou a imagem `/share/ru.png`) com a seleção completa na query. */
+export function restaurantSharePath(selection: RestaurantSelection, path = '/ru') {
+    const params = new URLSearchParams({
+        date: selection.date,
+        meal: selection.meal,
+        campus: selection.campus
+    });
+    return `${path}?${params.toString()}`;
+}
+
+/** Movimentações do extrato sem a linha de saldo inicial. */
+export function statementEntries(statement: RestaurantStatement) {
+    const [first, ...rest] = statement.entries;
+    return first && /^saldo\b/i.test(first.description.trim()) ? rest : statement.entries;
+}
+
+export const entryDescription = (description: string) =>
+    description.replace(/^grupo\s*\d+\s+/i, '');

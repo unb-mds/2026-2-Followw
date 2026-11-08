@@ -1,5 +1,10 @@
 import type { components } from '@followw/core/queries/schema.gen.ts';
 
+import {
+    CLASSROOM_TABS,
+    type ClassroomTab,
+    classroomTab
+} from '@followw/core/lib/classroom-details.ts';
 import { mailto } from '@followw/core/lib/contact.ts';
 import { titleCase } from '@followw/core/lib/profile.ts';
 import {
@@ -34,9 +39,6 @@ import { Card, CardContent } from '#/components/ui/card';
 import { PersonPhoto } from '#/components/ui/person-photo';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
 import {
-    CLASSROOM_TABS,
-    classroomTab,
-    type ClassroomTab,
     classroomSearchParsers,
     loadClassroomSearch,
     validateClassroomSearch

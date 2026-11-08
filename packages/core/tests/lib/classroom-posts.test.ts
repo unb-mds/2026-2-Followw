@@ -2,7 +2,12 @@ import { describe, expect, test } from 'bun:test';
 
 import type { ClassroomPost } from '../../src/queries/classrooms.ts';
 
-import { postDateLabel, postLink, postTypeLabels } from '../../src/lib/classroom-posts.ts';
+import {
+    postDateLabel,
+    postLink,
+    postPreview,
+    postTypeLabels
+} from '../../src/lib/classroom-posts.ts';
 
 const post: ClassroomPost = { id: 'topic:abc', type: 'topic', title: 'Aula', attachments: [] };
 
@@ -56,5 +61,18 @@ describe('postagens da turma', () => {
         );
         for (const url of [null, undefined, '', '#', 'javascript:alert(1)', 'data:text/html,teste'])
             expect(postLink(url)).toBeNull();
+    });
+});
+
+describe('postPreview', () => {
+    test('remove a marcação do markdown e junta as linhas', () => {
+        expect(postPreview('**Aviso** com [link](https://x.com)\n\n- item')).toBe(
+            'Aviso com link - item'
+        );
+    });
+
+    test('sem conteúdo convida a ler mais', () => {
+        expect(postPreview('  ')).toBe('Toque para ler mais.');
+        expect(postPreview(null)).toBe('Toque para ler mais.');
     });
 });

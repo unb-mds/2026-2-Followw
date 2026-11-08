@@ -4,6 +4,7 @@ export default function Layout() {
     return (
         <Stack screenOptions={{ headerLargeTitle: true, headerBackButtonDisplayMode: 'minimal' }}>
             <Stack.Screen name="index" options={{ title: 'Turmas' }} />
+            <Stack.Screen name="[id]" options={{ title: 'Turma', headerLargeTitle: false }} />
         </Stack>
     );
 }

@@ -1,6 +1,5 @@
+import type { RestaurantSelection } from '@followw/core/lib/restaurant.ts';
 import type { DailyMenu } from '@followw/core/queries/restaurant.ts';
-
-import type { RestaurantSelection } from '#/lib/restaurant-share';
 
 // A prévia é pública: não encaminha cookies nem consulta dados da conta do RU.
 export async function loadSharedMenu(request: Request, selection: RestaurantSelection) {

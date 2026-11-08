@@ -1,10 +1,13 @@
-import type { MealKey } from '@followw/core/lib/restaurant.ts';
-import type { Campus } from '@followw/core/queries/restaurant.ts';
+import type { RestaurantSelection } from '@followw/core/lib/restaurant.ts';
 import type { inferParserType } from 'nuqs/server';
 
-import { currentOrNextMeal, MEAL_TIMES } from '@followw/core/lib/restaurant.ts';
+import {
+    currentOrNextMeal,
+    MEAL_TIMES,
+    restaurantSharePath
+} from '@followw/core/lib/restaurant.ts';
 import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
-import { CAMPUS_LABELS, CAMPUS_OPTIONS } from '@followw/core/queries/restaurant.ts';
+import { CAMPUS_LABELS, CAMPUS_OPTIONS, type Campus } from '@followw/core/queries/restaurant.ts';
 import {
     createLoader,
     createParser,
@@ -37,12 +40,6 @@ export const loadRestaurantSearch = createLoader(restaurantSearchParsers);
 
 export type RestaurantSearch = Partial<inferParserType<typeof restaurantSearchParsers>>;
 
-export interface RestaurantSelection {
-    date: string;
-    meal: MealKey;
-    campus: Campus;
-}
-
 export function restaurantSelection(
     search: RestaurantSearch,
     campus: Campus = 'Darcy'
@@ -53,15 +50,6 @@ export function restaurantSelection(
         meal: search.meal ?? initial.meal.key,
         campus: search.campus ?? campus
     };
-}
-
-export function restaurantSharePath(selection: RestaurantSelection, path = '/ru') {
-    const params = new URLSearchParams({
-        date: selection.date,
-        meal: selection.meal,
-        campus: selection.campus
-    });
-    return `${path}?${params}`;
 }
 
 export function restaurantPageHead(selection: RestaurantSelection, filtered = true) {

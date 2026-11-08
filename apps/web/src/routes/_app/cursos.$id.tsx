@@ -1,6 +1,4 @@
-import type { UserProfile } from '@followw/core/queries/me.ts';
-
-import { getCurrentSemester } from '@followw/core/calendar.ts';
+import { flowTarget } from '@followw/core/lib/curriculum/target.ts';
 import { titleCase } from '@followw/core/lib/profile.ts';
 import { allClassroomsQueryOptions } from '@followw/core/queries/classrooms.ts';
 import { courseQueryOptions } from '@followw/core/queries/courses.ts';
@@ -8,7 +6,6 @@ import { curriculumQueryOptions } from '@followw/core/queries/curriculum.ts';
 import { ApiError } from '@followw/core/queries/errors.ts';
 import { loadQuery } from '@followw/core/queries/load.ts';
 import { meQueryOptions } from '@followw/core/queries/me.ts';
-import { currentCurriculumPeriod } from '@followw/core/queries/subjects.ts';
 import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, notFound, rootRouteId } from '@tanstack/react-router';
 
@@ -22,18 +19,6 @@ import { useFlowSearch, validateFlowSearch } from '#/lib/curriculum/navigation';
 import { useWidth } from '#/lib/width';
 
 const DESKTOP_MIN_WIDTH = 1024;
-
-/** O curso do aluno usa o ingresso dele; outro curso, a matriz vigente no semestre atual. */
-function flowTarget(user: UserProfile | null | undefined, courseId: number) {
-    const semester = getCurrentSemester()?.semester;
-    const ownCourse = courseId === user?.course?.id;
-    return {
-        ownCourse,
-        loggedIn: Boolean(user),
-        entrySemester: ownCourse ? user?.entry_semester : semester,
-        currentPeriod: ownCourse ? currentCurriculumPeriod(user?.entry_semester, semester) : null
-    };
-}
 
 export const Route = createFileRoute('/_app/cursos/$id')({
     validateSearch: validateFlowSearch,

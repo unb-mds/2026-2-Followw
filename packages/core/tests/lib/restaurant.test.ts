@@ -7,7 +7,10 @@ import {
     currentOrNextMeal,
     formatMenuDay,
     highlightMenu,
-    insufficientMealBalance
+    entryDescription,
+    insufficientMealBalance,
+    restaurantSharePath,
+    statementEntries
 } from '../../src/lib/restaurant.ts';
 import { nowInBrasilia } from '../../src/lib/schedule.ts';
 
@@ -128,5 +131,38 @@ describe('formatMenuDay', () => {
         ['2026-10-31', 'sáb., 31/10']
     ])('%s vira %s', (date, label) => {
         expect(formatMenuDay(date, '2026-11-02')).toBe(label);
+    });
+});
+
+describe('restaurantSharePath', () => {
+    test('leva dia, refeição e campus na query', () => {
+        const selection = { date: '2026-10-19', meal: 'lunch', campus: 'Gama' } as const;
+        expect(restaurantSharePath(selection)).toBe('/ru?date=2026-10-19&meal=lunch&campus=Gama');
+        expect(restaurantSharePath(selection, '/share/ru.png')).toStartWith('/share/ru.png?');
+    });
+});
+
+const entry = (description: string) => ({
+    description,
+    amount: '-2.50',
+    occurred_at: '2026-10-19T12:00:00Z'
+});
+
+describe('statementEntries', () => {
+    test('remove a linha de saldo inicial', () => {
+        const statement = { balance: '10', entries: [entry('Saldo anterior'), entry('Almoço')] };
+        expect(statementEntries(statement)).toEqual([entry('Almoço')]);
+    });
+
+    test('mantém as movimentações quando não há linha de saldo', () => {
+        const statement = { balance: '10', entries: [entry('Almoço')] };
+        expect(statementEntries(statement)).toHaveLength(1);
+    });
+});
+
+describe('entryDescription', () => {
+    test('tira o prefixo do grupo', () => {
+        expect(entryDescription('Grupo 2 Almoço')).toBe('Almoço');
+        expect(entryDescription('Crédito')).toBe('Crédito');
     });
 });
