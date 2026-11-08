@@ -77,7 +77,7 @@ export function RecommendationsSection({
             aria-busy={query.isFetching}
         >
             {query.isPending ? (
-                <LoadingText>Buscando recomendações...</LoadingText>
+                <LoadingText className="justify-center">Buscando recomendações...</LoadingText>
             ) : query.isLoadingError ? (
                 <ErrorCard
                     message="Não foi possível carregar suas recomendações."

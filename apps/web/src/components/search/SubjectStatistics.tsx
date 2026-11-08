@@ -3,6 +3,7 @@ import { useState } from 'react';
 
 import type { SubjectClassroom } from '#/queries/subjects';
 
+import { LoadingText } from '#/components/LoadingText';
 import { StatisticsChart } from '#/components/StatisticsChart';
 import { TabFilter } from '#/components/TabFilter';
 import { Button } from '#/components/ui/button';
@@ -30,7 +31,7 @@ export function SubjectStatistics({
         >
             <h3 className="text-sm font-semibold">Estatísticas anteriores</h3>
             {query.isPending ? (
-                <output className="text-sm text-muted-foreground">Carregando estatísticas…</output>
+                <LoadingText className="justify-center">Carregando estatísticas...</LoadingText>
             ) : null}
             {query.isError ? (
                 <div className="flex flex-col items-start gap-2">
