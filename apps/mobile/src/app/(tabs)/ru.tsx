@@ -266,7 +266,7 @@ function HeaderActions({
                     accessibilityRole="button"
                     accessibilityLabel="Ver QR code da carteirinha"
                     hitSlop={8}
-                    onPress={() => router.push('/ru/carteirinha')}
+                    onPress={() => router.setParams({ carteirinha: '1' })}
                     className="size-9 items-center justify-center active:opacity-60"
                 >
                     <Icon as={QrCode} className="size-5 text-primary" />

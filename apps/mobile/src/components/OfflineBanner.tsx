@@ -11,7 +11,7 @@ export function OfflineBanner() {
     return (
         <View
             accessibilityRole="alert"
-            className="flex-row items-center justify-center gap-2 rounded-xl bg-muted px-3 py-2"
+            className="mb-4 flex-row items-center justify-center gap-2 rounded-xl bg-muted px-3 py-2"
         >
             <Icon as={WifiOff} className="size-4 text-muted-foreground" />
             <Text className="text-xs font-semibold text-muted-foreground">Você está offline</Text>
