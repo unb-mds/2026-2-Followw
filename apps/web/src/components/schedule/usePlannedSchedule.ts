@@ -1,11 +1,12 @@
+import type { PlannedClass } from '@followw/core/lib/planned-schedule.ts';
+
+import { addError, classKey } from '@followw/core/lib/planned-schedule.ts';
+import { meQueryOptions } from '@followw/core/queries/me.ts';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { useSyncExternalStore } from 'react';
 
-import type { PlannedClass } from '#/lib/planned-schedule';
-
 import { toast } from '#/components/ui/toast';
-import { addError, classKey, plannedSchedule } from '#/lib/planned-schedule';
-import { meQueryOptions } from '#/queries/me';
+import { plannedSchedule } from '#/lib/planned-schedule';
 
 export function usePlannedSchedule() {
     const items = useSyncExternalStore(

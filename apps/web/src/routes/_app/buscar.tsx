@@ -1,12 +1,35 @@
+import type { SearchCategory } from '@followw/core/lib/search-categories.ts';
+import type { UserProfile } from '@followw/core/queries/me.ts';
+
+import { getCurrentSemester } from '@followw/core/calendar.ts';
+import {
+    SEARCH_CATEGORIES,
+    searchCategoryLabels,
+    searchEmptyMessages,
+    searchTypes,
+    showsSubjects
+} from '@followw/core/lib/search-categories.ts';
+import { allClassroomsQueryOptions } from '@followw/core/queries/classrooms.ts';
+import { loadQuery } from '@followw/core/queries/load.ts';
+import { meQueryOptions } from '@followw/core/queries/me.ts';
+import {
+    recommendationsQueryOptions,
+    showRecommendations
+} from '@followw/core/queries/recommendations.ts';
+import { searchQueryOptions } from '@followw/core/queries/search.ts';
+import {
+    takenCodes,
+    currentCurriculumPeriod,
+    SEARCH_MAX_LENGTH,
+    SEARCH_MIN_LENGTH,
+    searchText,
+    subjectsQueryOptions
+} from '@followw/core/queries/subjects.ts';
 import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
-import type { SearchCategory } from '#/lib/search-categories';
-import type { UserProfile } from '#/queries/me';
-
-import { getCurrentSemester } from '#/calendar';
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
 import { SchedulePreview } from '#/components/schedule/SchedulePreview';
@@ -20,27 +43,7 @@ import { SearchResults } from '#/components/search/SearchResults';
 import { SubjectResults } from '#/components/search/SubjectResults';
 import { TabFilter } from '#/components/TabFilter';
 import { Input } from '#/components/ui/input';
-import {
-    SEARCH_CATEGORIES,
-    searchCategoryLabels,
-    searchEmptyMessages,
-    searchTypes,
-    showsSubjects
-} from '#/lib/search-categories';
 import { loadSearchParams, useSearchState, validateSearch } from '#/lib/search-params';
-import { allClassroomsQueryOptions } from '#/queries/classrooms';
-import { loadQuery } from '#/queries/load';
-import { meQueryOptions } from '#/queries/me';
-import { recommendationsQueryOptions, showRecommendations } from '#/queries/recommendations';
-import { searchQueryOptions } from '#/queries/search';
-import {
-    takenCodes,
-    currentCurriculumPeriod,
-    SEARCH_MAX_LENGTH,
-    SEARCH_MIN_LENGTH,
-    searchText,
-    subjectsQueryOptions
-} from '#/queries/subjects';
 
 type SearchView =
     | { kind: 'recommendations' }

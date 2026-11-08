@@ -1,12 +1,12 @@
+import type { SubjectClassroom } from '@followw/core/queries/subjects.ts';
+
+import { subjectStatisticsQueryOptions } from '@followw/core/queries/subject-statistics.ts';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-
-import type { SubjectClassroom } from '#/queries/subjects';
 
 import { StatisticsChart } from '#/components/StatisticsChart';
 import { TabFilter } from '#/components/TabFilter';
 import { Button } from '#/components/ui/button';
-import { subjectStatisticsQueryOptions } from '#/queries/subject-statistics';
 
 export function SubjectStatistics({
     code,

@@ -1,10 +1,10 @@
+import type { Classroom } from '@followw/core/queries/classrooms.ts';
+
+import { describeSchedule } from '@followw/core/lib/schedule.ts';
+import { finalGrade } from '@followw/core/queries/classrooms.ts';
 import { Award, Clock3, Hourglass, MapPin } from 'lucide-react';
 
-import type { Classroom } from '#/queries/classrooms';
-
 import { GradeText } from '#/components/classroom/GradeText';
-import { describeSchedule } from '#/lib/schedule';
-import { finalGrade } from '#/queries/classrooms';
 
 export function ClassroomSummary({ classroom }: { classroom: Classroom }) {
     const schedule = describeSchedule(classroom.schedule);

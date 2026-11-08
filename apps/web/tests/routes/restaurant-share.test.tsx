@@ -1,9 +1,10 @@
+import type { MenuSection } from '@followw/core/queries/restaurant.ts';
+
 import { afterEach, beforeAll, describe, expect, mock, spyOn, test } from 'bun:test';
 import { createSerializer } from 'nuqs/server';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import type { RestaurantSelection } from '#/lib/restaurant-share';
-import type { MenuSection } from '#/queries/restaurant';
 
 import { RestaurantShareImage } from '#/components/ru/RestaurantShareImage';
 import {

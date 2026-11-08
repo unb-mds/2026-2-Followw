@@ -1,0 +1,110 @@
+import type { CurriculumModel, FlowGeometry, FlowSubject, Point } from './types.ts';
+
+import { orderColumns } from './ordering.ts';
+import { planConnections } from './routing.ts';
+
+export interface LayoutMetrics {
+    cardWidth: { min: number; max: number };
+    cardHeight: (subject: FlowSubject) => number;
+    // quanto dos semestres vizinhos aparece em cada lado, só no layout paginado
+    peek: number;
+    minGap: number;
+    headings: boolean;
+    // cada semestre ocupa a tela, com folga nas pontas para centralizá-lo
+    paged: boolean;
+    // cartões com texto menor e créditos abreviados
+    compact: boolean;
+}
+export const DESKTOP: LayoutMetrics = {
+    cardWidth: { min: 176, max: 208 },
+    cardHeight: () => 112,
+    peek: 0,
+    minGap: 40,
+    headings: true,
+    paged: false,
+    compact: true
+};
+export const MOBILE: LayoutMetrics = {
+    cardWidth: { min: 220, max: 432 },
+    cardHeight: (subject) => (subject.hours == null ? 120 : 104),
+    peek: 24,
+    minGap: 24,
+    headings: false,
+    paged: true,
+    compact: false
+};
+const PAD = 24;
+const HEADING_HEIGHT = 40;
+
+export function layoutCurriculum(
+    model: CurriculumModel,
+    availableWidth: number,
+    metrics: LayoutMetrics = DESKTOP
+): FlowGeometry {
+    const { periods } = model;
+    const columns = orderColumns(model);
+    const plan = planConnections(columns, model.edges, metrics.minGap);
+    const gapWidths = [...plan.gapWidths];
+    const gapTotal = gapWidths.reduce((a, b) => a + b, 0);
+    const { min, max } = metrics.cardWidth;
+    const cardWidth = Math.max(
+        min,
+        Math.min(
+            max,
+            metrics.paged
+                ? availableWidth -
+                      2 *
+                          Math.max(
+                              gapWidths[0],
+                              gapWidths.at(-1)!,
+                              ...gapWidths.slice(1, -1).map((gap) => gap + metrics.peek)
+                          )
+                : (availableWidth - gapTotal) / Math.max(1, periods.length)
+        )
+    );
+    if (metrics.paged) {
+        const side = (availableWidth - cardWidth) / 2;
+        gapWidths[0] = Math.max(gapWidths[0], side);
+        gapWidths[gapWidths.length - 1] = Math.max(gapWidths.at(-1)!, side);
+    }
+    const gapStarts: number[] = [0];
+    const columnXs: number[] = [];
+    let x = 0;
+    columns.forEach((_, column) => {
+        x += gapWidths[column];
+        columnXs.push(x);
+        x += cardWidth;
+        gapStarts.push(x);
+    });
+    const width = x + (gapWidths.at(-1) ?? PAD);
+    const heights = columns.map((column) => column.map(metrics.cardHeight));
+    const rowTops: number[] = [];
+    let y = metrics.headings ? HEADING_HEIGHT : 0;
+    plan.gutterHeights.forEach((gutter, row) => {
+        y += gutter;
+        rowTops.push(y);
+        y += Math.max(0, ...heights.map((column) => column[row] ?? 0));
+    });
+    const nodes = columns.flatMap((column, col) =>
+        column.map((subject, row) => ({
+            subject,
+            x: columnXs[col],
+            y: rowTops[row],
+            width: cardWidth,
+            height: heights[col][row],
+            row,
+            column: col
+        }))
+    );
+    return {
+        width,
+        height: y + PAD,
+        nodes,
+        edges: plan.route(nodes, gapStarts, rowTops),
+        columns: periods.map((period, column) => ({ period, x: columnXs[column] + cardWidth / 2 }))
+    };
+}
+
+export function pathData(points: Point[]) {
+    return points.map((point, index) => `${index ? 'L' : 'M'} ${point.x} ${point.y}`).join(' ');
+}

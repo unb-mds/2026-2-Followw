@@ -1,3 +1,4 @@
+import { meQueryOptions } from '@followw/core/queries/me.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
     RouterProvider,
@@ -10,7 +11,6 @@ import { describe, expect, test } from 'bun:test';
 import { Window } from 'happy-dom';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import { meQueryOptions } from '#/queries/me';
 import { Route as LoginRoute } from '#/routes/login';
 import { Route as PrivacyRoute } from '#/routes/privacidade';
 

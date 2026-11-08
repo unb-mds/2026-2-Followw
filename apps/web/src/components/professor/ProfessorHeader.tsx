@@ -1,10 +1,10 @@
-import { ArrowUpRight, Building2, Mail } from 'lucide-react';
+import type { ProfessorDetails } from '@followw/core/queries/professors.ts';
 
-import type { ProfessorDetails } from '#/queries/professors';
+import { titleCase, unitLabel } from '@followw/core/lib/profile.ts';
+import { ArrowUpRight, Building2, Mail } from 'lucide-react';
 
 import { PersonPhoto } from '#/components/ui/person-photo';
 import { mailto } from '#/lib/contact';
-import { titleCase, unitLabel } from '#/lib/profile';
 import { cn } from '#/lib/shadcn';
 
 export function ProfessorHeader({ professor }: { professor: ProfessorDetails }) {

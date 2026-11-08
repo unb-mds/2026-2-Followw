@@ -1,5 +1,5 @@
 {
-    "$schema": "./apps/web/node_modules/oxlint/configuration_schema.json",
+    "$schema": "./node_modules/oxlint/configuration_schema.json",
     "ignorePatterns": ["**.gen.ts", "schema.gen.ts", "**/components/ui/**"],
     "plugins": ["typescript", "react", "import", "unicorn", "oxc", "jsx-a11y", "promise"],
     "categories": {
@@ -48,7 +48,7 @@
     },
     "overrides": [
         {
-            "files": ["src/queries/**"],
+            "files": ["apps/web/src/queries/**", "packages/core/src/queries/**"],
             "rules": {
                 "no-restricted-globals": "off"
             }

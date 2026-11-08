@@ -1,9 +1,9 @@
+import { subjectsQueryOptions, withClassrooms } from '@followw/core/queries/subjects.ts';
 import { keepPreviousData, noop, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { QueryState } from '#/components/QueryState';
 import { TurmaSection } from '#/components/search/TurmaSection';
-import { refreshQuery } from '#/queries/refresh';
-import { subjectsQueryOptions, withClassrooms } from '#/queries/subjects';
+import { refreshQuery } from '#/queries/refresh.ts';
 
 /** Matérias da unidade, listadas sem texto de busca. */
 export function SubjectResults({

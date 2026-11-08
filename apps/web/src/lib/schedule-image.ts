@@ -1,7 +1,7 @@
-import type { GridSemester, PlannedClass } from '#/lib/planned-schedule';
+import type { GridSemester, PlannedClass } from '@followw/core/lib/planned-schedule.ts';
 
-import { GRID_DAYS } from '#/lib/planned-schedule';
-import { describeSchedule } from '#/lib/schedule';
+import { GRID_DAYS } from '@followw/core/lib/planned-schedule.ts';
+import { describeSchedule } from '@followw/core/lib/schedule.ts';
 
 const WIDTH = 1200;
 const PADDING = 40;

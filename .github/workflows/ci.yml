@@ -31,9 +31,6 @@ jobs:
   web:
     name: Testes e lint (web)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/web
     steps:
       - uses: actions/checkout@v7
 
@@ -42,6 +39,16 @@ jobs:
           bun-version: "1.4.4"
 
       - run: bun install --frozen-lockfile
-      - run: bun run check
-      - run: bun test
-      - run: bun run build
+
+      - name: Core
+        working-directory: packages/core
+        run: |
+          bun run check
+          bun test
+
+      - name: Web
+        working-directory: apps/web
+        run: |
+          bun run check
+          bun test
+          bun run build

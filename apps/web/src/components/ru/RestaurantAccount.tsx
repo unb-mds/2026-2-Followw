@@ -1,12 +1,20 @@
+import type { Day } from '@followw/core/lib/schedule.ts';
+import type {
+    RestaurantCredentials,
+    RestaurantStatement
+} from '@followw/core/queries/restaurant-account.ts';
 import type { UseQueryResult } from '@tanstack/react-query';
 
+import { cardIsExpired, insufficientMealBalance } from '@followw/core/lib/restaurant.ts';
+import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
+import {
+    credentialsQueryOptions,
+    statementQueryOptions
+} from '@followw/core/queries/restaurant-account.ts';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { QrCode, RefreshCw } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useEffect, useRef, useState } from 'react';
-
-import type { Day } from '#/lib/schedule';
-import type { RestaurantCredentials, RestaurantStatement } from '#/queries/restaurant-account';
 
 import { LoadingText } from '#/components/LoadingText';
 import {
@@ -29,12 +37,9 @@ import {
 } from '#/components/ui/drawer';
 import { Spinner } from '#/components/ui/spinner';
 import { useFailureMessage, useOnline } from '#/lib/online';
-import { cardIsExpired, insufficientMealBalance } from '#/lib/restaurant';
-import { nowInBrasilia } from '#/lib/schedule';
 import { cn } from '#/lib/shadcn';
 import { documentRefusal } from '#/queries/documents';
-import { refreshQuery } from '#/queries/refresh';
-import { credentialsQueryOptions, statementQueryOptions } from '#/queries/restaurant-account';
+import { refreshQuery } from '#/queries/refresh.ts';
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const dateTime = new Intl.DateTimeFormat('pt-BR', {

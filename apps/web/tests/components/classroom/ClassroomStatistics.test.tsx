@@ -1,14 +1,14 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { afterEach, expect, test } from 'bun:test';
+import type { ClassroomFrequency } from '@followw/core/queries/classrooms.ts';
+import type { components } from '@followw/core/queries/schema.gen.ts';
 
-import type { ClassroomFrequency } from '#/queries/classrooms';
-import type { components } from '#/queries/schema.gen';
-
-import { ClassroomStatistics } from '#/components/classroom/ClassroomStatistics';
 import {
     classroomFrequencyQueryOptions,
     classroomStatisticsQueryOptions
-} from '#/queries/classrooms';
+} from '@followw/core/queries/classrooms.ts';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { afterEach, expect, test } from 'bun:test';
+
+import { ClassroomStatistics } from '#/components/classroom/ClassroomStatistics';
 
 import { useDom } from '../../helpers/dom';
 

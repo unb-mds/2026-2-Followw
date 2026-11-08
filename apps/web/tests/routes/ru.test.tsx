@@ -1,3 +1,4 @@
+import { meQueryOptions } from '@followw/core/queries/me.ts';
 import { QueryClient, QueryClientProvider, environmentManager } from '@tanstack/react-query';
 import {
     Outlet,
@@ -12,7 +13,6 @@ import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { PageStateProvider } from '#/components/PageState';
-import { meQueryOptions } from '#/queries/me';
 import { Route } from '#/routes/_app/ru';
 
 import { callRoute, fakeQueryClient, runLoader } from '../helpers/route';

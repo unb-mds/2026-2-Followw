@@ -1,3 +1,7 @@
+import type { AcademicState, FlowSubject } from '@followw/core/lib/curriculum/types.ts';
+
+import { normalizeCurriculum } from '@followw/core/lib/curriculum/model.ts';
+import { curriculum, type RawSubject } from '@followw/core/tests/helpers/curriculum.ts';
 import {
     createMemoryHistory,
     createRootRoute,
@@ -8,14 +12,10 @@ import {
 } from '@tanstack/react-router';
 import { afterEach, expect, test } from 'bun:test';
 
-import type { AcademicState, FlowSubject } from '#/lib/curriculum/types';
-
 import { SubjectDetails } from '#/components/curriculum/SubjectDetails';
 import { Dialog } from '#/components/ui/dialog';
-import { normalizeCurriculum } from '#/lib/curriculum/model';
 import { parseRouterSearch, stringifyRouterSearch, validateSearch } from '#/lib/search-params';
 
-import { curriculum, type RawSubject } from '../../helpers/curriculum';
 import { useDom } from '../../helpers/dom';
 
 const dom = useDom();

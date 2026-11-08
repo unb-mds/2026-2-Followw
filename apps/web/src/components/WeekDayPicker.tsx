@@ -1,6 +1,6 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import type { Day } from '@followw/core/lib/schedule.ts';
 
-import type { Day } from '#/lib/schedule';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { Button } from '#/components/ui/button';
 import { cn } from '#/lib/shadcn';

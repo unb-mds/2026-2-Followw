@@ -5,7 +5,10 @@ import { ErrorPage } from '#/components/ErrorPage';
 import { PendingPage } from '#/components/PendingPage';
 import { getContext } from '#/integrations/tanstack-query/root-provider';
 import { parseRouterSearch, stringifyRouterSearch } from '#/lib/search-params';
+import { installSsrClient } from '#/queries/ssr';
 import { routeTree } from '#/routeTree.gen';
+
+installSsrClient();
 
 export function getRouter() {
     const context = getContext();

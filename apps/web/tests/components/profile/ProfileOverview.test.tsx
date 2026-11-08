@@ -1,7 +1,7 @@
+import type { components } from '@followw/core/queries/schema.gen.ts';
+
 import { afterEach, describe, expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
-
-import type { components } from '#/queries/schema.gen';
 
 import {
     AcademicPerformance,

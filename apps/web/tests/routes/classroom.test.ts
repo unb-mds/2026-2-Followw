@@ -1,14 +1,16 @@
+import type { Classroom } from '@followw/core/queries/classrooms.ts';
+import type { components } from '@followw/core/queries/schema.gen.ts';
 import type { Middleware } from 'openapi-fetch';
 
+import {
+    allClassroomsQueryOptions,
+    classroomFrequencyQueryOptions
+} from '@followw/core/queries/classrooms.ts';
+import { apiClient } from '@followw/core/queries/client.ts';
+import { meQueryOptions } from '@followw/core/queries/me.ts';
 import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, test } from 'bun:test';
 
-import type { Classroom } from '#/queries/classrooms';
-import type { components } from '#/queries/schema.gen';
-
-import { allClassroomsQueryOptions, classroomFrequencyQueryOptions } from '#/queries/classrooms';
-import { apiClient } from '#/queries/client';
-import { meQueryOptions } from '#/queries/me';
 import { Route } from '#/routes/_app/turmas_.$id';
 
 import { callRoute, fakeQueryClient, runLoader } from '../helpers/route';

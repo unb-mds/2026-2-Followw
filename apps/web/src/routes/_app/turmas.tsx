@@ -1,3 +1,8 @@
+import { groupBySemester } from '@followw/core/lib/classroom-details.ts';
+import { describeSchedule } from '@followw/core/lib/schedule.ts';
+import { allClassroomsQueryOptions, finalGrade } from '@followw/core/queries/classrooms.ts';
+import { loadQuery } from '@followw/core/queries/load.ts';
+import { meQueryOptions } from '@followw/core/queries/me.ts';
 import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
@@ -9,11 +14,6 @@ import { LoginPromptCard } from '#/components/home/LoginPromptCard';
 import { LoadingText } from '#/components/LoadingText';
 import { TabFilter } from '#/components/TabFilter';
 import { Card, CardContent } from '#/components/ui/card';
-import { groupBySemester } from '#/lib/classroom-details';
-import { describeSchedule } from '#/lib/schedule';
-import { allClassroomsQueryOptions, finalGrade } from '#/queries/classrooms';
-import { loadQuery } from '#/queries/load';
-import { meQueryOptions } from '#/queries/me';
 
 export const Route = createFileRoute('/_app/turmas')({
     head: () => ({ meta: [{ title: 'Minhas Turmas | Followw' }] }),

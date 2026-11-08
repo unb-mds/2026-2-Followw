@@ -1,15 +1,15 @@
+import type { AcademicState, FlowSubject } from '@followw/core/lib/curriculum/types.ts';
+
+import { requirementGroups } from '@followw/core/lib/curriculum/format.ts';
+import { stateLabels } from '@followw/core/lib/curriculum/model.ts';
+import { titleCase } from '@followw/core/lib/profile.ts';
+import { displayedRequirements } from '@followw/core/queries/subjects.ts';
 import { Link } from '@tanstack/react-router';
 import { X } from 'lucide-react';
 
-import type { AcademicState, FlowSubject } from '#/lib/curriculum/types';
-
 import { Button, buttonVariants } from '#/components/ui/button';
 import { DialogClose, DialogDescription, DialogTitle } from '#/components/ui/dialog';
-import { requirementGroups } from '#/lib/curriculum/format';
-import { stateLabels } from '#/lib/curriculum/model';
-import { titleCase } from '#/lib/profile';
 import { cn } from '#/lib/shadcn';
-import { displayedRequirements } from '#/queries/subjects';
 
 function NameList({ names }: { names: string[] }) {
     return (

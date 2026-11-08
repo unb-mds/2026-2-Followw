@@ -1,0 +1,67 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
+import type { components } from './schema.gen.ts';
+
+import { api } from './api.ts';
+import { apiClient } from './client.ts';
+
+export type Classroom = components['schemas']['ParticipantClassroom'];
+export type ClassroomPost = components['schemas']['ClassroomPost'];
+export type PostType = components['schemas']['PostType'];
+
+/** A menção vale nas turmas encerradas; nas atuais, quem ocupa o lugar dela é o local. */
+export const finalGrade = (classroom: Classroom) =>
+    classroom.current ? null : (classroom.grade ?? null);
+
+export const classroomsQueryOptions = api.queryOptions('get', '/classrooms');
+
+export const allClassroomsQueryOptions = api.queryOptions('get', '/classrooms', {
+    params: { query: { semester: 'all' } }
+});
+
+export const classroomPostsQueryOptions = (id: string, type?: PostType) =>
+    api.queryOptions('get', '/classrooms/{classroom_id}/posts', {
+        params: { path: { classroom_id: id }, ...(type ? { query: { type } } : {}) }
+    });
+
+export const classroomPostDetailQueryOptions = (id: string, postId: string) =>
+    api.queryOptions('get', '/classrooms/{classroom_id}/posts/{post_id}', {
+        params: { path: { classroom_id: id, post_id: postId } }
+    });
+
+export const classroomFrequencyQueryOptions = (id: string) =>
+    api.queryOptions('get', '/classrooms/{classroom_id}/frequency', {
+        params: { path: { classroom_id: id } }
+    });
+
+export type ClassroomFrequency = components['schemas']['ClassroomFrequencyView'];
+export type Lesson = components['schemas']['Lesson'];
+export type LessonMark = components['schemas']['LessonMark'];
+export type LessonMarkStatus = NonNullable<LessonMark['status']>;
+
+/** Marca as aulas de uma vez (`null` desmarca) e relê a frequência, que já volta com aulas e totais. */
+export function useMarkLessons(id: string) {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (marks: LessonMark[]) => {
+            const url = '/classrooms/{classroom_id}/frequency/lessons';
+            const path = { classroom_id: id };
+            const { error } = await apiClient.PATCH(url, { params: { path }, body: marks });
+            if (error) throw new Error('Não foi possível salvar a marcação');
+        },
+        onSettled: () =>
+            queryClient.invalidateQueries({
+                queryKey: classroomFrequencyQueryOptions(id).queryKey
+            })
+    });
+}
+
+export const classroomMembersQueryOptions = (id: string) =>
+    api.queryOptions('get', '/classrooms/{classroom_id}/members', {
+        params: { path: { classroom_id: id } }
+    });
+
+export const classroomStatisticsQueryOptions = (id: string) =>
+    api.queryOptions('get', '/classrooms/{classroom_id}/statistics', {
+        params: { path: { classroom_id: id } }
+    });

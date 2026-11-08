@@ -1,6 +1,6 @@
+import { getCurrentSemester } from '@followw/core/calendar.ts';
 import { describe, expect, test } from 'bun:test';
 
-import { getCurrentSemester } from '#/calendar';
 import { validateFlowSearch } from '#/lib/curriculum/navigation';
 import { Route } from '#/routes/_app/cursos.$id';
 

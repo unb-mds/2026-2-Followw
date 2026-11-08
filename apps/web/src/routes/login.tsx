@@ -1,3 +1,6 @@
+import { ApiError } from '@followw/core/queries/errors.ts';
+import { loadQuery } from '@followw/core/queries/load.ts';
+import { meQueryOptions } from '@followw/core/queries/me.ts';
 import { createFileRoute, Link, redirect, useNavigate } from '@tanstack/react-router';
 import { Eye, EyeOff } from 'lucide-react';
 import { useState, useSyncExternalStore } from 'react';
@@ -14,9 +17,6 @@ import { isStorageBlocked } from '#/lib/local-storage';
 import { OFFLINE_MESSAGE, useOnline } from '#/lib/online';
 import { cn } from '#/lib/shadcn';
 import { SessionNotStoredError, useLogin } from '#/queries/auth';
-import { ApiError } from '#/queries/errors';
-import { loadQuery } from '#/queries/load';
-import { meQueryOptions } from '#/queries/me';
 
 export const Route = createFileRoute('/login')({
     head: () => ({ meta: [{ title: 'Entrar | Followw' }] }),

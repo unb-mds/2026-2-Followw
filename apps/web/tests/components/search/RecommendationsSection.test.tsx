@@ -1,5 +1,8 @@
+import type { CatalogSubject } from '@followw/core/queries/subjects.ts';
 import type { Middleware } from 'openapi-fetch';
 
+import { apiClient } from '@followw/core/queries/client.ts';
+import { meQueryOptions } from '@followw/core/queries/me.ts';
 import { QueryClient, QueryClientProvider, environmentManager } from '@tanstack/react-query';
 import {
     RouterProvider,
@@ -11,14 +14,10 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } fr
 import { Window } from 'happy-dom';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import type { CatalogSubject } from '#/queries/subjects';
-
 import {
     RecommendationReasons,
     RecommendationsSection
 } from '#/components/search/RecommendationsSection';
-import { apiClient } from '#/queries/client';
-import { meQueryOptions } from '#/queries/me';
 let testing: typeof import('@testing-library/react/pure');
 let browser: Window;
 const wasServer = environmentManager.isServer();

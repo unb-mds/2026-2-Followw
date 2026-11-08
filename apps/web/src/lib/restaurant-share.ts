@@ -1,5 +1,10 @@
+import type { MealKey } from '@followw/core/lib/restaurant.ts';
+import type { Campus } from '@followw/core/queries/restaurant.ts';
 import type { inferParserType } from 'nuqs/server';
 
+import { currentOrNextMeal, MEAL_TIMES } from '@followw/core/lib/restaurant.ts';
+import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
+import { CAMPUS_LABELS, CAMPUS_OPTIONS } from '@followw/core/queries/restaurant.ts';
 import {
     createLoader,
     createParser,
@@ -7,13 +12,7 @@ import {
     parseAsStringLiteral
 } from 'nuqs/server';
 
-import type { MealKey } from '#/lib/restaurant';
-import type { Campus } from '#/queries/restaurant';
-
-import { currentOrNextMeal, MEAL_TIMES } from '#/lib/restaurant';
-import { nowInBrasilia } from '#/lib/schedule';
 import { publicPageHead } from '#/lib/seo';
-import { CAMPUS_LABELS, CAMPUS_OPTIONS } from '#/queries/restaurant';
 
 const parseAsDay = createParser({
     parse: (value) =>

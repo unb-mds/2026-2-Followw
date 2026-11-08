@@ -1,13 +1,22 @@
+import type {
+    AcademicState,
+    CurriculumModel,
+    FlowSubject
+} from '@followw/core/lib/curriculum/types.ts';
+
+import {
+    DESKTOP,
+    layoutCurriculum,
+    MOBILE,
+    type LayoutMetrics
+} from '@followw/core/lib/curriculum/geometry.ts';
+import { relatedEdgeIds } from '@followw/core/lib/curriculum/relations.ts';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-
-import type { AcademicState, CurriculumModel, FlowSubject } from '#/lib/curriculum/types';
 
 import { Connections } from '#/components/curriculum/Connections';
 import { SubjectCard } from '#/components/curriculum/SubjectCard';
 import { Button } from '#/components/ui/button';
-import { DESKTOP, layoutCurriculum, MOBILE, type LayoutMetrics } from '#/lib/curriculum/geometry';
-import { relatedEdgeIds } from '#/lib/curriculum/relations';
 import { cn } from '#/lib/shadcn';
 import { useWidth } from '#/lib/width';
 

@@ -19,6 +19,7 @@ apps/
   api/              # API pública (FastAPI)
   web/              # Front-end web do Follow
 packages/
+  core/              # TypeScript compartilhado (@followw/core): cliente OpenAPI, queries, lógica pura
   sigaa-client/      # biblioteca async que fala com o SIGAA
   unb-browser/       # biblioteca async dos sites públicos da UnB fora do SIGAA
 docs/                # documentação e notas de sprint
@@ -33,6 +34,7 @@ trabalhar nas suas respectivas pastas.
 uv sync                 # instala todo o workspace
 uv run pytest           # testes
 uv run ruff format .    # sempre formate ao alterar o código
+bun install             # workspace bun na raiz (apps/web, packages/core), um único bun.lock
 ```
 
 ## Instruções

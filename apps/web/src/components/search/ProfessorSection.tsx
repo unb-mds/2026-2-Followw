@@ -1,6 +1,7 @@
+import { type ProfessorPage, professorsQueryOptions } from '@followw/core/queries/professors.ts';
+
 import { PagedSection } from '#/components/search/PagedSection';
 import { ProfessorCard } from '#/components/search/ProfessorCard';
-import { type ProfessorPage, professorsQueryOptions } from '#/queries/professors';
 
 export function ProfessorSection({
     page,
