@@ -1,5 +1,6 @@
 import type { Day } from '@followw/core/lib/schedule.ts';
 
+import { formatDayRange } from '@followw/core/lib/schedule.ts';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { View } from 'react-native';
 
@@ -9,11 +10,6 @@ import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
 
 const WEEKDAYS = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
-const dayMonth = new Intl.DateTimeFormat('pt-BR', {
-    day: 'numeric',
-    month: 'short',
-    timeZone: 'UTC'
-});
 
 // Sem `onPrevious`/`onNext`, a seta correspondente fica desabilitada.
 interface WeekNavigation {
@@ -39,10 +35,7 @@ export function WeekDayPicker({ days, selectedDate, onSelect, week }: WeekDayPic
 }
 
 function WeekHeader({ days, week }: { days: Day[]; week: WeekNavigation }) {
-    const range = dayMonth.formatRange(
-        new Date(`${days[0].date}T00:00:00Z`),
-        new Date(`${days[days.length - 1].date}T00:00:00Z`)
-    );
+    const range = formatDayRange(days[0].date, days[days.length - 1].date);
 
     return (
         <View className="flex-row items-center justify-between gap-2 px-1">

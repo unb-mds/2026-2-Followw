@@ -52,34 +52,6 @@
                     }
                 ]
             }
-        ],
-        "no-restricted-properties": [
-            "error",
-            {
-                "object": "Intl",
-                "property": "RelativeTimeFormat",
-                "message": "O Hermes (app mobile) não implementa esta API do Intl."
-            },
-            {
-                "object": "Intl",
-                "property": "ListFormat",
-                "message": "O Hermes (app mobile) não implementa esta API do Intl."
-            },
-            {
-                "object": "Intl",
-                "property": "Segmenter",
-                "message": "O Hermes (app mobile) não implementa esta API do Intl."
-            },
-            {
-                "object": "Intl",
-                "property": "DisplayNames",
-                "message": "O Hermes (app mobile) não implementa esta API do Intl."
-            },
-            {
-                "object": "Intl",
-                "property": "PluralRules",
-                "message": "O Hermes (app mobile) não implementa esta API do Intl."
-            }
         ]
     },
     "overrides": [
@@ -103,7 +75,7 @@
                 "import/no-unassigned-import": [
                     "warn",
                     {
-                        "allow": ["**/*.css"]
+                        "allow": ["**/*.css", "./src/polyfills", "expo-router/entry"]
                     }
                 ]
             }
@@ -115,9 +87,40 @@
             }
         },
         {
-            "files": ["**/tests/**"],
+            "files": ["packages/core/src/**", "apps/mobile/src/**"],
             "rules": {
-                "no-restricted-properties": "off"
+                "no-restricted-properties": [
+                    "error",
+                    {
+                        "object": "Intl",
+                        "property": "RelativeTimeFormat",
+                        "message": "O Hermes (app mobile) não implementa esta API do Intl."
+                    },
+                    {
+                        "object": "Intl",
+                        "property": "ListFormat",
+                        "message": "O Hermes (app mobile) não implementa esta API do Intl."
+                    },
+                    {
+                        "object": "Intl",
+                        "property": "Segmenter",
+                        "message": "O Hermes (app mobile) não implementa esta API do Intl."
+                    },
+                    {
+                        "object": "Intl",
+                        "property": "DisplayNames",
+                        "message": "O Hermes (app mobile) não implementa esta API do Intl."
+                    },
+                    {
+                        "object": "Intl",
+                        "property": "PluralRules",
+                        "message": "O Hermes (app mobile) não implementa esta API do Intl."
+                    },
+                    {
+                        "property": "formatRange",
+                        "message": "O Hermes (app mobile) não implementa formatRange; use formatDayRange do core."
+                    }
+                ]
             }
         }
     ]

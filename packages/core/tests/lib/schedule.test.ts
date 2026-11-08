@@ -4,6 +4,7 @@ import {
     addDays,
     classesOn,
     describeSchedule,
+    formatDayRange,
     nextDays,
     nowInBrasilia,
     parseSchedule,
@@ -139,5 +140,26 @@ describe('addDays', () => {
     test('soma e subtrai dias atravessando meses', () => {
         expect(addDays('2026-09-28', 7)).toBe('2026-10-05');
         expect(addDays('2026-10-05', -7)).toBe('2026-09-28');
+    });
+});
+
+const utcDate = (value: string) => new Date(`${value}T00:00:00Z`);
+
+describe('formatDayRange', () => {
+    test('escreve o intervalo igual ao Intl.DateTimeFormat.formatRange', () => {
+        const intl = new Intl.DateTimeFormat('pt-BR', {
+            day: 'numeric',
+            month: 'short',
+            timeZone: 'UTC'
+        });
+        const ranges = [
+            ['2026-11-02', '2026-11-08'],
+            ['2026-10-28', '2026-11-03'],
+            ['2026-12-29', '2027-01-04'],
+            ['2026-11-08', '2026-11-08']
+        ];
+        for (const [start, end] of ranges) {
+            expect(formatDayRange(start, end)).toBe(intl.formatRange(utcDate(start), utcDate(end)));
+        }
     });
 });
