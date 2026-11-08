@@ -3,10 +3,11 @@ import { ApiError } from '@followw/core/queries/errors.ts';
 import { professorQueryOptions } from '@followw/core/queries/professors.ts';
 import { refreshQuery } from '@followw/core/queries/refresh.ts';
 import { useQuery } from '@tanstack/react-query';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { SearchX } from 'lucide-react-native';
+import { View } from 'react-native';
 
-import { OfflineBanner } from '@/components/OfflineBanner';
+import { BackHeader } from '@/components/HeaderBar';
 import { PageState } from '@/components/PageState';
 import { ProfessorDetailsSection } from '@/components/professor/ProfessorDetailsSection';
 import { ProfessorHeader } from '@/components/professor/ProfessorHeader';
@@ -33,27 +34,27 @@ export default function ProfessorScreen() {
 
     return (
         <Screen
+            header={
+                <BackHeader
+                    to="/buscar"
+                    title="Docente"
+                    ariaLabel="Voltar para busca"
+                    actions={
+                        professor && (
+                            <ShareButton
+                                title={titleCase(professor.name)}
+                                path={`/professores/${professor.siape}`}
+                            />
+                        )
+                    }
+                />
+            }
             onRefreshData={(queryClient) =>
                 siape === null
                     ? Promise.resolve()
                     : refreshQuery(queryClient, professorQueryOptions(siape))
             }
         >
-            <Stack.Screen
-                options={{
-                    title: professor ? titleCase(professor.name) : 'Docente',
-                    headerRight: professor
-                        ? // oxlint-disable-next-line react/no-unstable-nested-components -- headerRight exige função
-                          () => (
-                              <ShareButton
-                                  title={titleCase(professor.name)}
-                                  path={`/professores/${professor.siape}`}
-                              />
-                          )
-                        : undefined
-                }}
-            />
-            <OfflineBanner />
             {notFound ? (
                 <PageState
                     icon={SearchX}
@@ -68,10 +69,10 @@ export default function ProfessorScreen() {
                     stale="Não foi possível atualizar o docente."
                 >
                     {(data) => (
-                        <>
+                        <View className="gap-5 pb-8">
                             <ProfessorHeader professor={data} />
                             <ProfessorDetailsSection professor={data} />
-                        </>
+                        </View>
                     )}
                 </QueryState>
             )}

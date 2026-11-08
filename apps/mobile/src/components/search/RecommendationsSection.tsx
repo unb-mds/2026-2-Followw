@@ -5,7 +5,6 @@ import { refreshQuery } from '@followw/core/queries/refresh.ts';
 import { withClassrooms } from '@followw/core/queries/subjects.ts';
 import { noop, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, CircleHelp } from 'lucide-react-native';
-import { useState } from 'react';
 import { View } from 'react-native';
 
 import { ErrorCard } from '@/components/ErrorState';
@@ -18,7 +17,8 @@ import {
     DialogContent,
     DialogDescription,
     DialogHeader,
-    DialogTitle
+    DialogTitle,
+    DialogTrigger
 } from '@/components/ui/dialog';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
@@ -45,14 +45,15 @@ export function RecommendationReasons({ subject }: { subject: CatalogSubject }) 
 }
 
 function WhyDialog({ subject }: { subject: CatalogSubject }) {
-    const [open, setOpen] = useState(false);
     return (
-        <View className="border-t border-border p-3">
-            <Button variant="ghost" size="sm" className="self-start" onPress={() => setOpen(true)}>
-                <Icon as={CircleHelp} className="size-4" />
-                <Text>Por que esta matéria?</Text>
-            </Button>
-            <Dialog open={open} onOpenChange={setOpen}>
+        <View className="gap-3 border-t border-border p-3">
+            <Dialog>
+                <DialogTrigger asChild>
+                    <Button variant="ghost" size="sm" className="self-start">
+                        <Icon as={CircleHelp} className="size-4" />
+                        <Text>Por que esta matéria?</Text>
+                    </Button>
+                </DialogTrigger>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle className="text-left">Por que esta matéria?</DialogTitle>

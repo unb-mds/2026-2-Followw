@@ -55,6 +55,7 @@ export function SearchResults({
                 loading="Buscando..."
                 error="Não foi possível buscar."
                 stale="Não foi possível atualizar a busca. Exibindo os dados salvos."
+                className="justify-center"
             >
                 {({ courses, professors, subjects }) => {
                     const offered = withClassrooms(subjects ?? []);

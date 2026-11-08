@@ -15,22 +15,26 @@ export function LoginPromptCard() {
                 <View className="size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
                     <Icon as={Lock} className="size-6 text-primary" />
                 </View>
+
                 <View className="flex-1">
-                    <Text className="text-lg font-bold tracking-tight">
+                    <Text
+                        role="heading"
+                        aria-level={3}
+                        className="text-lg font-bold tracking-tight text-foreground"
+                    >
                         Acesse com sua Matrícula UnB
                     </Text>
                     <Text className="mt-1 text-xs leading-relaxed text-muted-foreground">
                         Conecte-se sua conta do SIGAA para visualizar suas turmas, horários e muito
                         mais.
                     </Text>
-                    <Button
-                        size="lg"
-                        className="mt-4 self-start"
-                        onPress={() => router.push('/login')}
-                    >
-                        <Text>Entrar com SIGAA</Text>
-                        <Icon as={ArrowRight} className="text-primary-foreground" />
-                    </Button>
+
+                    <View className="mt-4 flex-row items-center gap-3">
+                        <Button size="lg" onPress={() => router.push('/login')}>
+                            <Text>Entrar com SIGAA</Text>
+                            <Icon as={ArrowRight} className="size-4 text-primary-foreground" />
+                        </Button>
+                    </View>
                 </View>
             </CardContent>
         </Card>

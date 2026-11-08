@@ -9,10 +9,10 @@ import { useState } from 'react';
 import { View } from 'react-native';
 
 import { ErrorCard, SIGAA_DOWN_MESSAGE } from '@/components/ErrorState';
+import { HeaderBar, HeaderTitle } from '@/components/HeaderBar';
 import { ClassCard } from '@/components/home/ClassCard';
 import { LoginPromptCard } from '@/components/home/LoginPromptCard';
 import { LoadingText } from '@/components/LoadingText';
-import { OfflineBanner } from '@/components/OfflineBanner';
 import { QueryState } from '@/components/QueryState';
 import { Screen } from '@/components/Screen';
 import { TabFilter } from '@/components/TabFilter';
@@ -27,6 +27,11 @@ export default function ClassroomsScreen() {
 
     return (
         <Screen
+            header={
+                <HeaderBar>
+                    <HeaderTitle>Minhas Turmas</HeaderTitle>
+                </HeaderBar>
+            }
             onRefreshData={(queryClient) =>
                 Promise.all([
                     refreshQuery(queryClient, meQueryOptions),
@@ -34,7 +39,6 @@ export default function ClassroomsScreen() {
                 ])
             }
         >
-            <OfflineBanner />
             <QueryState
                 query={me}
                 loading="Carregando turmas..."
@@ -71,9 +75,10 @@ function Classrooms() {
                     value={semester}
                     options={groups.map(([name]) => name)}
                     onChange={setSelected}
+                    className="mb-2"
                 />
             )}
-            <View className="gap-2">
+            <View className="flex-col gap-2">
                 {items?.map((classroom) => (
                     <ClassCard
                         key={classroom.id}
@@ -98,7 +103,7 @@ function Classrooms() {
                 <Card>
                     <CardContent>
                         {isPending ? (
-                            <LoadingText>Carregando turmas...</LoadingText>
+                            <LoadingText className="py-0">Carregando turmas...</LoadingText>
                         ) : (
                             <Text className="text-center text-sm text-muted-foreground">
                                 Nenhuma turma encontrada.

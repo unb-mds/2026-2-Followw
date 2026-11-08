@@ -1,8 +1,8 @@
 import { useFailureMessage } from '@followw/core/lib/online.ts';
 import { ApiError } from '@followw/core/queries/errors.ts';
 import { CloudOff } from 'lucide-react-native';
-import { View } from 'react-native';
 
+import { Screen } from '@/components/Screen';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
@@ -20,13 +20,13 @@ interface ErrorCardProps {
 export function ErrorCard({ message, onRetry }: ErrorCardProps) {
     const failureMessage = useFailureMessage(message);
     return (
-        <Card className="items-center">
-            <CardContent className="items-center gap-2">
+        <Card>
+            <CardContent className="items-center">
                 <Icon as={CloudOff} className="size-8 text-muted-foreground" />
-                <Text role="alert" className="text-center text-sm font-semibold">
+                <Text role="alert" className="mt-2 text-center text-sm font-semibold">
                     {failureMessage}
                 </Text>
-                <Button onPress={onRetry} className="mt-2">
+                <Button onPress={onRetry} className="mt-4">
                     <Text>Tentar novamente</Text>
                 </Button>
             </CardContent>
@@ -50,8 +50,8 @@ export function ErrorState({ error, retry }: { error: Error; retry: () => Promis
             ? SIGAA_DOWN_MESSAGE
             : 'Erro inesperado ao carregar os dados.';
     return (
-        <View className="flex-1 justify-center bg-background p-4">
+        <Screen>
             <ErrorCard message={message} onRetry={() => void retry()} />
-        </View>
+        </Screen>
     );
 }

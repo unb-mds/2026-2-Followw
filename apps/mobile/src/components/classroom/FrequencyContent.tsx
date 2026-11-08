@@ -3,6 +3,7 @@ import type {
     Lesson,
     LessonMarkStatus
 } from '@followw/core/queries/classrooms.ts';
+import type { TriggerRef } from '@rn-primitives/dropdown-menu';
 
 import {
     daysFrom,
@@ -14,22 +15,22 @@ import {
 } from '@followw/core/lib/classroom-details.ts';
 import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { Portal } from '@rn-primitives/portal';
-import { Circle, CircleCheck, CircleDashed, CircleSlash, CircleX } from 'lucide-react-native';
-import { useState } from 'react';
-import { Pressable, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CircleCheck, CircleDashed, CircleSlash, CircleX } from 'lucide-react-native';
+import { useRef, useState } from 'react';
+import { View } from 'react-native';
 
 import { ListCard, Meter } from '@/components/ListCard';
 import { SelectionBar } from '@/components/SelectionBar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle
-} from '@/components/ui/dialog';
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
@@ -72,17 +73,16 @@ export function FrequencyContent({
     const { totals, lessons } = data;
     const notice = FREQUENCY_NOTICE[data.frequency_status];
     const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
-    const [menuLesson, setMenuLesson] = useState<Lesson | null>(null);
     // a aula some da seleção quando deixa de ser selecionável (marcada ou registrada)
     const selected = lessons.filter((lesson) => selectable(lesson) && selectedIds.has(lesson.id));
 
     const marked = lessons.filter((lesson) => lesson.marked);
 
-    const toggle = (lesson: Lesson) =>
+    const toggle = (lesson: Lesson, checked: boolean) =>
         setSelectedIds((ids) => {
             const next = new Set(ids);
-            if (next.has(lesson.id)) next.delete(lesson.id);
-            else next.add(lesson.id);
+            if (checked) next.add(lesson.id);
+            else next.delete(lesson.id);
             return next;
         });
     const markSelected = (status: LessonMarkStatus) => {
@@ -91,7 +91,7 @@ export function FrequencyContent({
     };
 
     return (
-        <View className="gap-2">
+        <View className="flex-col gap-2">
             <FrequencySummary data={data} />
             {totals?.estimated && (
                 <Text className="px-1 text-xs text-muted-foreground">
@@ -111,7 +111,7 @@ export function FrequencyContent({
                             {marked.length > 0 && (
                                 <Button
                                     variant="ghost"
-                                    size="sm"
+                                    size="xs"
                                     disabled={pending}
                                     onPress={() => onMark(marked, null)}
                                 >
@@ -125,14 +125,14 @@ export function FrequencyContent({
                             <LessonRow
                                 key={lesson.id}
                                 lesson={lesson}
+                                onMark={onMark}
                                 pending={pending}
                                 selected={selectedIds.has(lesson.id)}
-                                onToggle={() => toggle(lesson)}
-                                onOpenMenu={() => setMenuLesson(lesson)}
+                                onSelect={(checked) => toggle(lesson, checked)}
                             />
                         ))}
                         {notice && (
-                            <Text className="px-3 py-2.5 text-center text-sm text-muted-foreground">
+                            <Text className="py-2.5 text-center text-sm text-muted-foreground">
                                 {notice}
                             </Text>
                         )}
@@ -147,20 +147,9 @@ export function FrequencyContent({
                     onMark={markSelected}
                 />
             )}
-            <LessonMenu
-                lesson={menuLesson}
-                onClose={() => setMenuLesson(null)}
-                onMark={(lesson, status) => {
-                    setMenuLesson(null);
-                    onMark([lesson], status);
-                }}
-            />
         </View>
     );
 }
-
-// Acima da tab bar, sobre qualquer scroll (o Portal desenha na raiz do app).
-const TAB_BAR_HEIGHT = 56;
 
 function FloatingSelection({
     count,
@@ -173,38 +162,31 @@ function FloatingSelection({
     onClear: () => void;
     onMark: (status: LessonMarkStatus) => void;
 }) {
-    const insets = useSafeAreaInsets();
     return (
         <Portal name="frequency-selection">
-            <View
-                pointerEvents="box-none"
-                className="absolute inset-x-0 top-0"
-                style={{ bottom: insets.bottom + TAB_BAR_HEIGHT }}
+            <SelectionBar
+                label="Marcar aulas selecionadas"
+                count={count}
+                units={['aula', 'aulas']}
+                onClear={onClear}
             >
-                <SelectionBar
-                    label="Marcar aulas selecionadas"
-                    count={count}
-                    units={['aula', 'aulas']}
-                    onClear={onClear}
-                >
-                    {(['presente', 'falta'] as const).map((mark) => {
-                        const option = LESSON_VIEW[mark];
-                        return (
-                            <Button
-                                key={mark}
-                                variant="ghost"
-                                size="sm"
-                                disabled={pending}
-                                className="rounded-full"
-                                onPress={() => onMark(mark)}
-                            >
-                                <Icon as={option.icon} className={cn('size-4', option.color)} />
-                                <Text className={option.color}>{option.name}</Text>
-                            </Button>
-                        );
-                    })}
-                </SelectionBar>
-            </View>
+                {(['presente', 'falta'] as const).map((mark) => {
+                    const option = LESSON_VIEW[mark];
+                    return (
+                        <Button
+                            key={mark}
+                            variant="ghost"
+                            size="sm"
+                            disabled={pending}
+                            className="rounded-full"
+                            onPress={() => onMark(mark)}
+                        >
+                            <Icon as={option.icon} className={cn('size-3.5', option.color)} />
+                            <Text className={option.color}>{option.name}</Text>
+                        </Button>
+                    );
+                })}
+            </SelectionBar>
         </Portal>
     );
 }
@@ -214,13 +196,22 @@ export function FrequencySummary({ data }: { data: ClassroomFrequency }) {
     const { totals } = data;
 
     return totals ? (
-        <Card className="gap-0 overflow-hidden py-0">
+        <Card size="sm" className="gap-0 py-0">
             <View className="flex-row border-b border-border">
-                <Stat label="Presenças" value={String(totals.presences)} />
+                <Stat label="Presenças" value={totals.presences} />
                 <Stat
                     label="Faltas"
-                    value={String(totals.absences)}
-                    suffix={totals.max_absences !== null ? ` / ${totals.max_absences}` : undefined}
+                    value={
+                        <>
+                            {totals.absences}
+                            {totals.max_absences !== null && (
+                                <Text className="text-sm font-medium text-foreground">
+                                    {' '}
+                                    / {totals.max_absences}
+                                </Text>
+                            )}
+                        </>
+                    }
                     className={totals.absences > 0 ? 'text-destructive' : undefined}
                     bordered
                 />
@@ -259,7 +250,9 @@ function LessonsProgress({ data }: { data: ClassroomFrequency }) {
     return (
         <View className="px-3 py-3">
             <View className="flex-row items-baseline justify-between gap-2">
-                <Text className="text-sm font-medium">Andamento das aulas</Text>
+                <Text role="heading" aria-level={3} className="text-sm font-medium">
+                    Andamento das aulas
+                </Text>
                 <Text className="text-sm font-semibold text-primary">
                     {percentage.toLocaleString('pt-BR')}%
                 </Text>
@@ -292,132 +285,146 @@ function LessonsProgress({ data }: { data: ClassroomFrequency }) {
 
 function LessonRow({
     lesson,
+    onMark,
     pending,
     selected,
-    onToggle,
-    onOpenMenu
+    onSelect
 }: {
     lesson: Lesson;
+    onMark: MarkLessons;
     pending: boolean;
     selected: boolean;
-    onToggle: () => void;
-    onOpenMenu: () => void;
+    onSelect: (checked: boolean) => void;
 }) {
     const view = LESSON_VIEW[lesson.status];
-    const isSelectable = selectable(lesson);
-    const interactive = !pending && (isSelectable || lesson.marked);
+    const label = view.name;
 
     // presença e falta tingem a linha toda; os textos secundários só esmaecem
     const tinted = lesson.status === 'presente' || lesson.status === 'falta';
+    const tint = tinted ? view.color : undefined;
     const days = daysFrom(nowInBrasilia().date, lesson.occurred_on);
     const relativeDay = days === 0 || days === -1 ? formatRelativeDay(days) : null;
     const struck = lesson.status === 'cancelada' ? 'line-through' : undefined;
     const secondary = tinted ? 'text-xs opacity-70' : 'text-xs text-muted-foreground';
-    const tint = tinted ? view.color : undefined;
-    const date = formatClassroomDate(lesson.occurred_on);
 
     return (
-        <Pressable
-            disabled={!interactive}
-            onPress={isSelectable ? onToggle : onOpenMenu}
-            onLongPress={onOpenMenu}
-            accessibilityRole={isSelectable ? 'checkbox' : 'button'}
-            accessibilityState={isSelectable ? { checked: selected } : undefined}
-            accessibilityLabel={
-                isSelectable
-                    ? `Selecionar aula de ${date}`
-                    : `Situação de ${date}, aula: ${view.name}`
-            }
-            className={cn(
-                'flex-row items-center gap-2 px-3 py-3',
-                interactive && 'active:bg-accent',
-                selected && 'bg-primary/5'
+        <View className="flex-row flex-wrap items-center gap-2 py-2.5">
+            {selectable(lesson) ? (
+                <SelectableLesson
+                    lesson={lesson}
+                    onMark={onMark}
+                    pending={pending}
+                    selected={selected}
+                    onSelect={onSelect}
+                />
+            ) : lesson.marked ? (
+                <DropdownMenu>
+                    <DropdownMenuTrigger
+                        accessibilityLabel={`Situação de ${formatClassroomDate(lesson.occurred_on)}, aula: ${label}. Alterar situação.`}
+                        disabled={pending}
+                        hitSlop={8}
+                        className={cn(
+                            'size-4 shrink-0 items-center justify-center rounded-full active:opacity-70',
+                            pending && 'opacity-50'
+                        )}
+                    >
+                        <Icon as={view.icon} className={cn('size-4', view.color)} />
+                    </DropdownMenuTrigger>
+                    <LessonMenuContent lesson={lesson} onMark={onMark} />
+                </DropdownMenu>
+            ) : (
+                <Icon as={view.icon} className={cn('size-4 shrink-0', view.color)} />
             )}
-        >
-            <Icon
-                as={isSelectable ? (selected ? CircleCheck : Circle) : view.icon}
-                className={cn('size-5 shrink-0', isSelectable ? 'text-primary' : view.color)}
-            />
             {relativeDay ? (
                 <Text className={cn('text-sm', tint, struck)}>{relativeDay}</Text>
             ) : (
                 <>
-                    <Text className={cn('text-sm', tint, struck)}>{date}</Text>
+                    <Text className={cn('text-sm', tint, struck)}>
+                        {formatClassroomDate(lesson.occurred_on)}
+                    </Text>
                     <Text className={cn(secondary, tint)}>
                         {formatClassroomWeekday(lesson.occurred_on)}
                     </Text>
                 </>
             )}
             {lesson.marked && <Text className={cn(secondary, tint)}>Marcada</Text>}
-            <Text className={cn('ml-auto text-xs font-medium', view.color)}>{view.name}</Text>
-        </Pressable>
+            <Text className={cn('ml-auto text-xs font-medium', view.color)}>{label}</Text>
+        </View>
     );
 }
 
-function LessonMenu({
+/** Checkbox que, ao ser segurado, abre o menu só desta aula. */
+function SelectableLesson({
     lesson,
-    onClose,
-    onMark
+    onMark,
+    pending,
+    selected,
+    onSelect
 }: {
-    lesson: Lesson | null;
-    onClose: () => void;
-    onMark: (lesson: Lesson, status: LessonMarkStatus | null) => void;
+    lesson: Lesson;
+    onMark: MarkLessons;
+    pending: boolean;
+    selected: boolean;
+    onSelect: (checked: boolean) => void;
 }) {
+    const anchor = useRef<TriggerRef>(null);
+
     return (
-        <Dialog open={lesson !== null} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="max-w-sm gap-2 p-4">
-                {lesson && (
-                    <>
-                        <DialogHeader className="pr-6">
-                            <DialogTitle>
-                                Aula de {formatClassroomDate(lesson.occurred_on)}
-                            </DialogTitle>
-                            <DialogDescription>
-                                {formatClassroomWeekday(lesson.occurred_on)}
-                            </DialogDescription>
-                        </DialogHeader>
-                        {MARKS.map((mark) => {
-                            const option = LESSON_VIEW[mark];
-                            return (
-                                <Button
-                                    key={mark}
-                                    variant="ghost"
-                                    className="justify-start"
-                                    disabled={lesson.marked && lesson.status === mark}
-                                    onPress={() => onMark(lesson, mark)}
-                                >
-                                    <Icon as={option.icon} className={cn('size-4', option.color)} />
-                                    <Text className="font-normal">{option.name}</Text>
-                                </Button>
-                            );
-                        })}
-                        {lesson.marked && (
-                            <Button
-                                variant="ghost"
-                                className="justify-start"
-                                onPress={() => onMark(lesson, null)}
-                            >
-                                <Icon as={CircleDashed} className="size-4" />
-                                <Text className="font-normal">Remover marcação</Text>
-                            </Button>
-                        )}
-                    </>
-                )}
-            </DialogContent>
-        </Dialog>
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild ref={anchor}>
+                <View className="shrink-0">
+                    <Checkbox
+                        accessibilityLabel={`Selecionar aula de ${formatClassroomDate(lesson.occurred_on)}`}
+                        checked={selected}
+                        disabled={pending}
+                        onCheckedChange={onSelect}
+                        onLongPress={() => anchor.current?.open()}
+                        className="rounded-full"
+                    />
+                </View>
+            </DropdownMenuTrigger>
+            <LessonMenuContent lesson={lesson} onMark={onMark} />
+        </DropdownMenu>
+    );
+}
+
+function LessonMenuContent({ lesson, onMark }: { lesson: Lesson; onMark: MarkLessons }) {
+    return (
+        <DropdownMenuContent className="w-44">
+            {MARKS.map((mark) => {
+                const option = LESSON_VIEW[mark];
+                return (
+                    <DropdownMenuItem
+                        key={mark}
+                        disabled={lesson.marked && lesson.status === mark}
+                        onPress={() => onMark([lesson], mark)}
+                    >
+                        <Icon as={option.icon} className={cn('size-4', option.color)} />
+                        <Text>{option.name}</Text>
+                    </DropdownMenuItem>
+                );
+            })}
+            {lesson.marked && (
+                <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onPress={() => onMark([lesson], null)}>
+                        <Icon as={CircleDashed} className="size-4 text-popover-foreground" />
+                        <Text>Remover marcação</Text>
+                    </DropdownMenuItem>
+                </>
+            )}
+        </DropdownMenuContent>
     );
 }
 
 function Stat({
     label,
     value,
-    suffix,
     className,
     bordered
 }: {
     label: string;
-    value: string;
-    suffix?: string;
+    value: React.ReactNode;
     className?: string;
     bordered?: boolean;
 }) {
@@ -428,7 +435,6 @@ function Stat({
                 className={cn('mt-1 text-2xl font-semibold tracking-tight text-primary', className)}
             >
                 {value}
-                {suffix && <Text className="text-sm font-medium text-foreground">{suffix}</Text>}
             </Text>
         </View>
     );

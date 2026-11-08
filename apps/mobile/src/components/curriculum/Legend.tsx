@@ -18,10 +18,10 @@ export function Legend() {
     return (
         <View
             accessibilityLabel="Legenda dos estados acadêmicos"
-            className="flex-row flex-wrap gap-2"
+            className="flex-row justify-center gap-2"
         >
             {(['completed', 'enrolled', 'pending', 'overdue'] as const).map((state) => (
-                <Badge key={state} className={cn('border-transparent', legendStyles[state].badge)}>
+                <Badge key={state} className={cn('h-5', legendStyles[state].badge)}>
                     <View
                         className={cn('size-1.5 rounded-full bg-current', legendStyles[state].text)}
                     />
