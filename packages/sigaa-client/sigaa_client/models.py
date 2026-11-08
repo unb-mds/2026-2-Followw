@@ -7,6 +7,65 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, computed_field
 
 
+class InternshipSummary(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    reference: str
+    sigaa_id: int | None = None
+    title: str
+    vacancies: int
+    stipend: Decimal | None
+    published_until: datetime
+
+
+class InternshipTransportAllowance(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    amount: Decimal
+    period: str
+
+
+class InternshipAttachment(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    name: str
+    url: str
+
+
+class InternshipGrantor(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    agreement_type: str
+    cnpj: str
+    name: str
+    responsibles: tuple[str, ...]
+
+
+class InternshipCourse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    name: str
+    unit: str
+    degree: str
+
+
+class Internship(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    sigaa_id: int | None = None
+    title: str
+    vacancies: int
+    stipend: Decimal | None
+    transport_allowance: InternshipTransportAllowance | None
+    published_from: datetime
+    published_until: datetime
+    sigaa_enrollment: bool
+    attachment: InternshipAttachment | None
+    grantor: InternshipGrantor
+    courses: tuple[InternshipCourse, ...]
+    description: str | None
+
+
 class CurriculumSummary(BaseModel):
     model_config = ConfigDict(frozen=True)
 
