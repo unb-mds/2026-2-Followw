@@ -1,6 +1,11 @@
 {
     "$schema": "./node_modules/oxlint/configuration_schema.json",
-    "ignorePatterns": ["**.gen.ts", "schema.gen.ts", "**/components/ui/**"],
+    "ignorePatterns": [
+        "**.gen.ts",
+        "schema.gen.ts",
+        "**/components/ui/**",
+        "**/uniwind-types.d.ts"
+    ],
     "plugins": ["typescript", "react", "import", "unicorn", "oxc", "jsx-a11y", "promise"],
     "categories": {
         "correctness": "error",
@@ -26,7 +31,10 @@
         "followw/no-hardcoded-email": "error",
         "no-restricted-globals": [
             "error",
-            { "name": "fetch", "message": "Use o client de src/queries." }
+            {
+                "name": "fetch",
+                "message": "Use o client de src/queries."
+            }
         ],
         "no-restricted-imports": [
             "error",
@@ -57,6 +65,25 @@
             "files": ["apps/web/src/lib/contact.ts", "apps/web/tests/**"],
             "rules": {
                 "followw/no-hardcoded-email": "off"
+            }
+        },
+        {
+            "files": ["apps/mobile/**"],
+            "rules": {
+                "jsx-a11y/prefer-tag-over-role": "off",
+                "react/style-prop-object": "off",
+                "import/no-unassigned-import": [
+                    "warn",
+                    {
+                        "allow": ["**/*.css"]
+                    }
+                ]
+            }
+        },
+        {
+            "files": ["apps/mobile/tests/**"],
+            "rules": {
+                "typescript/no-unsafe-type-assertion": "off"
             }
         }
     ]

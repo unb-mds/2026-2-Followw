@@ -58,8 +58,10 @@ salvas apenas no seu navegador. [Saiba mais](docs/segurança.md)
 ```text
 apps/
 ├── api/              API FastAPI, autenticação e cache
+├── mobile/           app nativo em Expo + React Native
 └── web/              aplicação web em TanStack Start
 packages/
+├── core/             TypeScript compartilhado entre web e mobile
 ├── sigaa-client/     cliente assíncrono do SIGAA
 └── unb-browser/      cliente dos serviços públicos da UnB
 docs/                 documentação e notas de sprint

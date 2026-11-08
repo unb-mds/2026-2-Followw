@@ -3,6 +3,7 @@
     "private": true,
     "workspaces": [
         "apps/web",
+        "apps/mobile",
         "packages/core"
     ],
     "devDependencies": {

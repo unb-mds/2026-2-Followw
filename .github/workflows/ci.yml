@@ -52,3 +52,21 @@ jobs:
           bun run check
           bun test
           bun run build
+
+  mobile:
+    name: Testes e lint (mobile)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.4"
+
+      - run: bun install --frozen-lockfile
+      - run: bun run check
+      - run: bun run test
+      - run: bunx expo export --platform android --output-dir /tmp/expo-export
