@@ -16,7 +16,9 @@ from sigaa_client.private.restaurant import (
     _statement,
 )
 
-CARTEIRINHA_PDF = (Path(__file__).parent / "fixtures" / "carteirinha.pdf").read_bytes()
+CARTEIRINHA_PDF = (
+    Path(__file__).resolve().parents[1] / "fixtures" / "carteirinha.pdf"
+).read_bytes()
 
 FORM_EXTRATO = """
 <form id="formExibirExtrato" name="formExibirExtrato" method="post"

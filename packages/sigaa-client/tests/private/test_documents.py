@@ -19,7 +19,9 @@ from sigaa_client.private.documents import (
     Documents,
 )
 
-CARTEIRINHA_PDF = (Path(__file__).parent / "fixtures" / "carteirinha.pdf").read_bytes()
+CARTEIRINHA_PDF = (
+    Path(__file__).resolve().parents[1] / "fixtures" / "carteirinha.pdf"
+).read_bytes()
 MENU = """
 <form id="menu:form_menu_discente" name="menu:form_menu_discente"
       action="/sigaa/portais/discente/discente.jsf">

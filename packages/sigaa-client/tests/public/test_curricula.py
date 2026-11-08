@@ -10,7 +10,7 @@ from sigaa_client import (
 )
 from sigaa_client.config import PUBLIC_CURRICULA_PATH, PUBLIC_HOME_PATH
 
-from .test_public_subjects import details_page
+from ..fakes import details_page
 
 LIST = """
 <form id="formCurriculosCurso" action="/sigaa/public/curso/curriculo.jsf">

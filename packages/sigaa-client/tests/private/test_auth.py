@@ -2,11 +2,9 @@ import asyncio
 
 import httpx
 import pytest
-from pydantic import SecretStr
 
 from sigaa_client import (
     AuthenticationFailed,
-    Credentials,
     SessionExpired,
     SessionRenewed,
     SigaaClient,
@@ -14,94 +12,12 @@ from sigaa_client import (
 )
 from sigaa_client.config import CLASSROOMS_PATH, DASHBOARD_PATH
 
-CREDENTIALS = Credentials(registration="251000000", password=SecretStr("senha"))
-
-LOGIN_FORM = """
-<html><body><form action="/sso-server/login;jsessionid=ABC?service=x" method="post">
-  <input type="text" name="username" />
-  <input type="password" name="password" />
-  <input type="hidden" name="lt" value="LT-1" />
-  <input type="submit" name="submit" value="Entrar" />
-</form></body></html>
-"""
-
-# Recorte da resposta real do CAS a credenciais inválidas.
-REJECTED_FORM = LOGIN_FORM.replace(
-    'method="post">',
-    'method="post">\n  <p id="errors" class="login-error">Credenciais inválidas.</p>',
+from ..fakes import (
+    CREDENTIALS,
+    LOGIN_FORM,
+    FakeSigaa,
+    _cookie,
 )
-
-LOGIN_URL = "https://autenticacao.unb.br/sso-server/login"
-
-
-class FakeSigaa:
-    """SIGAA de mentira: valida a senha, emite JSESSIONID e o exige depois."""
-
-    def __init__(self, password: str = "senha", form: str = LOGIN_FORM) -> None:
-        self.password = password
-        self.form = form
-        self.rejection = REJECTED_FORM
-        self.valid_tokens: set[str] = set()
-        self.logins = 0
-        self.payloads: list[dict[str, str]] = []
-
-    @property
-    def transport(self) -> httpx.MockTransport:
-        return httpx.MockTransport(self)
-
-    def __call__(self, request: httpx.Request) -> httpx.Response:
-        host, path = request.url.host, request.url.path
-
-        if host == "autenticacao.unb.br":
-            if request.method == "GET":
-                return httpx.Response(200, text=self.form)
-
-            payload = dict(httpx.QueryParams(request.content.decode()))
-            self.payloads.append(payload)
-            if payload.get("password") != self.password:
-                return httpx.Response(200, text=self.rejection)
-            return httpx.Response(
-                302,
-                headers={
-                    "location": "https://sigaa.unb.br/sigaa/login/cas?ticket=ST-1"
-                },
-            )
-
-        if path == "/sigaa/login/cas":
-            self.logins += 1
-            token = f"app14~TOKEN{self.logins}"
-            self.valid_tokens.add(token)
-            return httpx.Response(
-                302,
-                headers={
-                    "location": DASHBOARD_PATH,
-                    "set-cookie": f"JSESSIONID={token}; Path=/",
-                },
-            )
-
-        if path == "/sigaa/verTelaLogin.do":
-            return httpx.Response(200, text=self.form)
-
-        if path == "/sigaa/logar.do":
-            self.valid_tokens.discard(
-                request.headers.get("cookie", "").removeprefix("JSESSIONID=")
-            )
-            return httpx.Response(200, text="saiu")
-
-        sent = _cookie(request, "JSESSIONID")
-        if sent not in self.valid_tokens:
-            return httpx.Response(
-                302, headers={"location": "https://sigaa.unb.br/sigaa/verTelaLogin.do"}
-            )
-        return httpx.Response(200, text="<html>dashboard</html>")
-
-
-def _cookie(request: httpx.Request, name: str) -> str | None:
-    for part in request.headers.get("cookie", "").split(";"):
-        key, _, value = part.strip().partition("=")
-        if key == name:
-            return value
-    return None
 
 
 async def test_authenticate_devolve_o_jsessionid():

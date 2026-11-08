@@ -23,7 +23,7 @@ from sigaa_client import (
     Unit,
 )
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
+SCRIPTS = Path(__file__).resolve().parents[2] / "scripts"
 GAMA = Unit(id=673, name="GAMA")
 CEILANDIA = Unit(id=518, name="CEILANDIA")
 
