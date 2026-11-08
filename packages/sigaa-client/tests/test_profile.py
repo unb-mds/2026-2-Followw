@@ -157,3 +157,152 @@ async def test_carga_horaria_incompleta_e_barulhenta():
     async with SigaaClient(session_token="tok", transport=sigaa.transport) as client:
         with pytest.raises(SigaaParseError):
             await client.profile.get_profile()
+
+
+EDIT_FORM = """<form name="form:1" action="/sigaa/portais/discente/perfil.jsf">
+<input type="hidden" name="form:1" value="form:1">
+<input type="hidden" name="javax.faces.ViewState" value="state">
+<input type="hidden" name="idFoto" value="">
+<img id="fotoPerfil" src="/sigaa/img/no_picture.png">
+<textarea name="descricaoPessoal">Bio de teste.</textarea>
+<textarea name="areasInteresse">Interesse preservado</textarea>
+<textarea name="form:assinatura">Assinatura preservada</textarea>
+<input name="curriculoLattes" value="https://lattes.cnpq.br/teste">
+<input type="checkbox" checked name="checkBoxReprovacoesNoMesmoComponenteConsideradas">
+<input type="submit" name="form:salvar" value="Gravar perfil">
+</form>"""
+
+
+async def test_edita_bio_preservando_campos_e_sem_resetar_qrcode():
+    page = EDIT_FORM
+    requests = []
+
+    def handle(request):
+        nonlocal page
+        requests.append(request)
+        if request.method == "POST":
+            body = request.content.decode()
+            assert "Interesse preservado" in body
+            assert "Assinatura preservada" in body
+            assert "https://lattes.cnpq.br/teste" in body
+            assert "checkBoxReprovacoesNoMesmoComponenteConsideradas" not in body
+            assert "multipart/form-data" in request.headers["content-type"]
+            page = page.replace("Bio de teste.", "Nova bio")
+        return httpx.Response(
+            200, text=DASHBOARD if request.url.path.endswith("discente.jsf") else page
+        )
+
+    async with SigaaClient(
+        session_token="tok", transport=httpx.MockTransport(handle)
+    ) as client:
+        await client.profile.update_profile(password="segredo-teste", bio="Nova bio")
+    assert len([r for r in requests if r.method == "POST"]) == 1
+
+
+async def test_recusa_action_externo_sem_enviar_senha():
+    fake = FakeDashboard(
+        EDIT_FORM.replace(
+            "/sigaa/portais/discente/perfil.jsf", "https://example.org/roubar"
+        )
+    )
+    async with SigaaClient(session_token="tok", transport=fake.transport) as client:
+        with pytest.raises(SigaaParseError):
+            await client.profile.update_profile(password="segredo", bio="nova")
+    assert all(r.method == "GET" for r in fake.requests)
+
+
+async def test_http_200_sem_alteracao_nao_confirma_sucesso():
+    fake = FakeDashboard(EDIT_FORM)
+    async with SigaaClient(session_token="tok", transport=fake.transport) as client:
+        with pytest.raises(SigaaParseError, match="não confirmou a bio"):
+            await client.profile.update_profile(password="segredo", bio="nova")
+
+
+async def test_timeout_na_escrita_nao_repete_post():
+    posts = 0
+
+    def handle(request):
+        nonlocal posts
+        if request.method == "POST":
+            posts += 1
+            raise httpx.ReadTimeout("timeout")
+        return httpx.Response(200, text=EDIT_FORM)
+
+    async with SigaaClient(
+        session_token="tok", transport=httpx.MockTransport(handle)
+    ) as client:
+        with pytest.raises(httpx.ReadTimeout):
+            await client.profile.update_profile(password="segredo", bio="nova")
+    assert posts == 1
+
+
+async def test_remocao_rele_viewstate_antes_de_salvar_bio():
+    page = EDIT_FORM.replace(
+        "/sigaa/img/no_picture.png", "/arquivos/antiga.jpg"
+    ).replace(
+        "</form>",
+        """<a id="btnExcluirFoto" onclick="jsfcljs(f,{'btnExcluirFoto':'btnExcluirFoto','idFotoRemovida':'123'},'')"></a></form>""",
+    )
+    posts = []
+
+    def handle(request):
+        nonlocal page
+        if request.method == "POST":
+            body = request.content.decode()
+            posts.append(body)
+            if len(posts) == 1:
+                assert "idFotoRemovida" in body
+                assert "form:salvar" not in body
+                page = page.replace(
+                    "/arquivos/antiga.jpg", "/sigaa/img/no_picture.png"
+                ).replace('value="state"', 'value="state2"')
+            else:
+                assert "state2" in body
+                assert "idFotoRemovida" not in body
+                page = page.replace("Bio de teste.", "Nova bio")
+        return httpx.Response(
+            200, text=DASHBOARD if request.url.path.endswith("discente.jsf") else page
+        )
+
+    async with SigaaClient(
+        session_token="tok", transport=httpx.MockTransport(handle)
+    ) as client:
+        await client.profile.update_profile(
+            password="segredo", bio="Nova bio", remove_photo=True
+        )
+    assert len(posts) == 2
+
+
+async def test_redirecionamento_de_gravacao_nao_reenvia_senha():
+    page = EDIT_FORM
+    requests = []
+
+    def handle(request):
+        nonlocal page
+        requests.append(request)
+        if request.method == "POST":
+            page = page.replace("Bio de teste.", "Nova bio")
+            return httpx.Response(
+                302, headers={"location": "/sigaa/portais/discente/discente.jsf"}
+            )
+        return httpx.Response(
+            200, text=DASHBOARD if request.url.path.endswith("discente.jsf") else page
+        )
+
+    async with SigaaClient(
+        session_token="tok", transport=httpx.MockTransport(handle)
+    ) as client:
+        await client.profile.update_profile(password="segredo", bio="Nova bio")
+    assert len([r for r in requests if r.method == "POST"]) == 1
+
+
+async def test_tela_sem_imagem_nao_e_confundida_com_foto_removida():
+    fake = FakeDashboard(
+        EDIT_FORM.replace('<img id="fotoPerfil" src="/sigaa/img/no_picture.png">', "")
+    )
+    async with SigaaClient(session_token="tok", transport=fake.transport) as client:
+        with pytest.raises(SigaaParseError, match="Imagem de perfil ausente"):
+            await client.profile.update_profile(
+                password="segredo", bio="nova", remove_photo=True
+            )
+    assert all(request.method == "GET" for request in fake.requests)

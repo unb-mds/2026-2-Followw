@@ -144,3 +144,11 @@ para texto e anexos.
 "Minhas atividades". A home não traz IDs, então o detalhe fica nos posts da turma
 (`classroom_sigaa_id`); avaliação de disciplina que não casa com uma única turma
 do portal vem sem turma.
+
+### Editar perfil
+
+`client.profile.update_profile(password=..., bio=..., photo=bytes_jpeg, remove_photo=False)`
+substitui a foto e a bio na conta autenticada. Para remover a foto use
+`remove_photo=True`, sem `photo`. O chamador deve validar a imagem antes do envio.
+A operação relê o formulário e confirma os valores; não repete escritas após falhas.
+A remoção e a gravação são operações distintas no SIGAA e podem falhar parcialmente.

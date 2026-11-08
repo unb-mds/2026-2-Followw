@@ -515,6 +515,23 @@ export interface paths {
         patch: operations["update_settings_me_settings_patch"];
         trace?: never;
     };
+    "/me/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Profile */
+        patch: operations["update_profile_me_profile_patch"];
+        trace?: never;
+    };
     "/posts/news": {
         parameters: {
             query?: never;
@@ -559,6 +576,21 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** Body_update_profile_me_profile_patch */
+        Body_update_profile_me_profile_patch: {
+            /**
+             * Photo Action
+             * @enum {string}
+             */
+            photo_action: "keep" | "replace" | "remove";
+            /**
+             * Bio
+             * @default
+             */
+            bio: string;
+            /** Photo */
+            photo?: string | null;
+        };
         CatalogRequirements: components["schemas"]["SubjectRequirement"][][];
         /**
          * CatalogSubject
@@ -2633,6 +2665,53 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserSettings"];
+                };
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description SIGAA indisponível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    update_profile_me_profile_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_update_profile_me_profile_patch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserProfile"];
                 };
             };
             /** @description Credenciais ausentes ou inválidas. */

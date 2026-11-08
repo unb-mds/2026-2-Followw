@@ -45,7 +45,17 @@ class UserRepository:
     ) -> User:
         """Grava o perfil na conta do `login`, assumindo o usuário sombra da matrícula."""
         login = login or profile.registration
-        account = await self.get_by_registration(login)
+        account = await self._session.scalar(
+            select(User)
+            .where(or_(User.registration == login, User.old_registration == login))
+            .with_for_update(of=User)
+        )
+        if (
+            account is not None
+            and account.profile_synced_at
+            and account.profile_synced_at > synced_at
+        ):
+            return account
         user = await self._session.scalar(
             select(User).where(User.registration == profile.registration)
         )

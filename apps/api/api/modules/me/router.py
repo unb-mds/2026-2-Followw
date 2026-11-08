@@ -1,9 +1,14 @@
-from fastapi import APIRouter, Request, Response
+from typing import Annotated, Literal
+
+from fastapi import APIRouter, Depends, File, Form, Request, Response, UploadFile
 from sigaa_client import RestaurantCredentials, RestaurantStatement
+from starlette.concurrency import run_in_threadpool
 
 from api.cache import CacheControl, NoStore
 from api.db.main import DatabaseDep
 from api.errors import SIGAA_ERRORS
+from api.modules.me.edit import ProfileEdit, check_profile_origin, edit_profile
+from api.modules.me.photo import MAX_PHOTO_BYTES, normalize_photo
 from api.modules.me.profile import ProfileServiceDep, UserProfile
 from api.modules.me.settings import (
     UserSettings,
@@ -11,6 +16,7 @@ from api.modules.me.settings import (
     read_settings,
     save_settings,
 )
+from api.rate_limit import limit_profile_edits
 from api.sigaa import SigaaClientDep, SigaaConnection, SigaaConnectionDep
 
 router = APIRouter()
@@ -129,3 +135,29 @@ async def update_settings(
     db: DatabaseDep,
 ) -> UserSettings:
     return await save_settings(db, connection.registration, body)
+
+
+@router.patch(
+    "/profile",
+    response_model=UserProfile,
+    dependencies=[NoStore, Depends(check_profile_origin)],
+    responses=SIGAA_ERRORS,
+)
+async def update_profile(
+    photo_action: Annotated[Literal["keep", "replace", "remove"], Form()],
+    connection: SigaaConnectionDep,
+    db: DatabaseDep,
+    bio: Annotated[str, Form(max_length=5000)] = "",
+    photo: Annotated[UploadFile | None, File()] = None,
+) -> UserProfile:
+    await limit_profile_edits(connection.registration)
+    content = None
+    if photo is not None:
+        try:
+            raw = await photo.read(MAX_PHOTO_BYTES + 1)
+            content = await run_in_threadpool(normalize_photo, raw)
+        finally:
+            await photo.close()
+    return await edit_profile(
+        ProfileEdit(bio=bio, photo_action=photo_action), content, connection, db
+    )

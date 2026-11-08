@@ -12,6 +12,7 @@ from ..utils.parsing import (
     photo_url,
     split_course,
 )
+from .profile_edit import update_profile
 from .session import Session
 
 _INTEGRALIZATION_RE = re.compile(r"(\d+)\s*%\s*Integralizado")
@@ -34,6 +35,23 @@ _LEVELS = {
 class Profile:
     def __init__(self, session: Session) -> None:
         self._session = session
+
+    async def update_profile(
+        self,
+        *,
+        password: str,
+        bio: str,
+        photo: bytes | None = None,
+        remove_photo: bool = False,
+    ) -> UserProfile:
+        await update_profile(
+            self._session,
+            password=password,
+            bio=bio,
+            photo=photo,
+            remove_photo=remove_photo,
+        )
+        return await self.get_profile()
 
     async def get_profile(self) -> UserProfile:
         page = await self._session.get(DASHBOARD_PATH)

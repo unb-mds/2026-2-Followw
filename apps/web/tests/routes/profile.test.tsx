@@ -49,13 +49,13 @@ test.each([42, null])(
                 </QueryClientProvider>
             );
             const account = [...browser.document.querySelectorAll('[data-slot="card"]')].find(
-                (card) => card.textContent.includes('Nome de exibição')
+                (card) => card.textContent.includes('Editar perfil')
             );
             expect(account).toBeDefined();
             expect(account?.className).toContain('divide-y');
             const nameRow = account?.firstElementChild;
             expect(nameRow?.tagName).toBe('DIV');
-            expect(nameRow?.querySelector('button')?.textContent).toContain('Nome de exibição');
+            expect(nameRow?.querySelector('button')?.textContent).toContain('Editar perfil');
             let downloadsRow = nameRow?.nextElementSibling;
             if (courseId !== null) {
                 const flowWrapper = downloadsRow;
