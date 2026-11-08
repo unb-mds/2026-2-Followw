@@ -43,11 +43,15 @@ function ScreenTracker() {
     return null;
 }
 
-export function useAnalytics(): Analytics {
+function usePostHogAnalytics(): Analytics {
     const posthog = usePostHog();
-    if (!POSTHOG_KEY) return noopAnalytics;
     return {
         capture: (event, properties) => posthog.capture(event, properties),
         reset: () => posthog.reset()
     };
 }
+
+// sem chave não há provider: o hook do PostHog nem pode ser chamado (a escolha é fixa no build)
+export const useAnalytics: () => Analytics = POSTHOG_KEY
+    ? usePostHogAnalytics
+    : () => noopAnalytics;

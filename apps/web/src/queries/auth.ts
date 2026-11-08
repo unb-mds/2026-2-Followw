@@ -1,3 +1,4 @@
+import { useOnline } from '@followw/core/lib/online.ts';
 import { api } from '@followw/core/queries/api.ts';
 import { apiClient } from '@followw/core/queries/client.ts';
 import { ApiError } from '@followw/core/queries/errors.ts';
@@ -8,7 +9,6 @@ import { useEffect } from 'react';
 
 import { clearOfflineData } from '#/integrations/offline/storage';
 import { clearAccountStorage } from '#/lib/local-storage';
-import { useOnline } from '#/lib/online';
 
 // todo o cache é apagado no logout; só o /me fica a cargo de quem chama
 const isAccountQuery = ({ queryKey: [, path] }: Query) => path !== '/me';

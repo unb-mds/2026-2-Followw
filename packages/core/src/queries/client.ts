@@ -2,7 +2,7 @@ import createClient, { type Middleware } from 'openapi-fetch';
 
 import type { paths } from './schema.gen.ts';
 
-import { toApiError } from './errors.ts';
+import { parseRetryAfter, toApiError } from './errors.ts';
 
 // fora do navegador `/api` não é uma URL válida: a plataforma informa a origem (ou o servidor, no SSR)
 let origin = '';
@@ -30,7 +30,11 @@ const errorHandlingMiddleware: Middleware = {
                 .clone()
                 .json()
                 .catch(() => null);
-            throw toApiError(response.status, body);
+            throw toApiError(
+                response.status,
+                body,
+                parseRetryAfter(response.headers.get('Retry-After'))
+            );
         }
     }
 };

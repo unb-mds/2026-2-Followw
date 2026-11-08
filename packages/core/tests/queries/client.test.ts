@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 
 import { apiClient, setApiOrigin } from '../../src/queries/client.ts';
-import { ApiError, toApiError } from '../../src/queries/errors.ts';
+import { ApiError, parseRetryAfter, toApiError } from '../../src/queries/errors.ts';
 
 async function getMe(response: () => Response = () => Response.json(null)) {
     const requests: Request[] = [];
@@ -53,5 +53,25 @@ describe('cliente da API', () => {
 
         expect(toApiError(422, { detail }).detail).toEqual(detail);
         expect(toApiError(500, ['sem detail']).detail).toEqual(['sem detail']);
+    });
+});
+
+describe('Retry-After', () => {
+    test('erro 429 carrega o tempo de espera em segundos', async () => {
+        const error = await getMe(
+            () => new Response(null, { status: 429, headers: { 'Retry-After': '120' } })
+        ).catch((e: unknown) => e);
+
+        expect(error).toMatchObject({ status: 429, retryAfter: 120 });
+    });
+
+    test.each([
+        [null, undefined],
+        ['abc', undefined],
+        ['30', 30],
+        ['-5', 0],
+        ['Thu, 01 Jan 2026 00:01:00 GMT', 60]
+    ])('interpreta o header %p como %p', (header, expected) => {
+        expect(parseRetryAfter(header, Date.parse('2026-01-01T00:00:00Z'))).toBe(expected);
     });
 });

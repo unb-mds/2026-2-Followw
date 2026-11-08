@@ -1,3 +1,4 @@
+import { useOnline } from '@followw/core/lib/online.ts';
 import { loadQuery } from '@followw/core/queries/load.ts';
 import { meQueryOptions } from '@followw/core/queries/me.ts';
 import { useUpdateSettings, useUserSettings } from '@followw/core/queries/settings.ts';
@@ -41,7 +42,6 @@ import {
 } from '#/components/ui/dialog';
 import { Input } from '#/components/ui/input';
 import { Label } from '#/components/ui/label';
-import { useOnline } from '#/lib/online';
 import { cn } from '#/lib/shadcn';
 import { useLogout } from '#/queries/auth';
 

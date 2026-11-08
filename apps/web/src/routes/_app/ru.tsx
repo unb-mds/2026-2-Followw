@@ -1,5 +1,6 @@
 import type { MenuSection } from '@followw/core/queries/restaurant.ts';
 
+import { useFailureMessage } from '@followw/core/lib/online.ts';
 import {
     currentOrNextMeal,
     formatMenuDay,
@@ -45,7 +46,6 @@ import {
 } from '#/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
 import { WeekDayPicker } from '#/components/WeekDayPicker';
-import { useFailureMessage } from '#/lib/online';
 import {
     loadRestaurantSearch,
     restaurantPageHead,

@@ -1,5 +1,6 @@
 import type { components } from '@followw/core/queries/schema.gen.ts';
 
+import { mailto } from '@followw/core/lib/contact.ts';
 import { titleCase } from '@followw/core/lib/profile.ts';
 import {
     allClassroomsQueryOptions,
@@ -40,7 +41,6 @@ import {
     loadClassroomSearch,
     validateClassroomSearch
 } from '#/lib/classroom-search';
-import { mailto } from '#/lib/contact';
 
 type Member = components['schemas']['ClassroomMember'];
 type Professor = components['schemas']['ProfessorRef'];

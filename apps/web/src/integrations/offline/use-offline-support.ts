@@ -1,3 +1,4 @@
+import { useOnline } from '@followw/core/lib/online.ts';
 import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { meQueryOptions } from '@followw/core/queries/me.ts';
 import { campusOf, prefetchWeekMenus } from '@followw/core/queries/restaurant.ts';
@@ -5,7 +6,6 @@ import { noop, onlineManager, useQuery, useQueryClient } from '@tanstack/react-q
 import { useEffect, useState } from 'react';
 
 import { persistQueryCache, warmPages } from '#/integrations/offline/storage';
-import { useOnline } from '#/lib/online';
 
 // espera a página assentar antes de ir à rede só para o modo offline
 const WARMUP_DELAY = 2_000;

@@ -1,17 +1,17 @@
+import {
+    documentRefusal,
+    studentDocuments,
+    type StudentDocument
+} from '@followw/core/lib/documents.ts';
+import { useOnline } from '@followw/core/lib/online.ts';
 import { Download, GraduationCap, IdCard } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '#/components/ui/button';
 import { Spinner } from '#/components/ui/spinner';
 import { saveFile } from '#/lib/download';
-import { useOnline } from '#/lib/online';
 import { cn } from '#/lib/shadcn';
-import {
-    documentRefusal,
-    getDocumentDownload,
-    studentDocuments,
-    type StudentDocument
-} from '#/queries/documents';
+import { getDocumentDownload } from '#/queries/documents';
 
 const documents = [
     { document: 'student-card', icon: IdCard },

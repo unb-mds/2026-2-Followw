@@ -62,7 +62,7 @@
             }
         },
         {
-            "files": ["apps/web/src/lib/contact.ts", "apps/web/tests/**"],
+            "files": ["packages/core/src/lib/contact.ts", "apps/web/tests/**"],
             "rules": {
                 "followw/no-hardcoded-email": "off"
             }
