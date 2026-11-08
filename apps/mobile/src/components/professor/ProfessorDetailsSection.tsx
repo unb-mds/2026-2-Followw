@@ -89,25 +89,29 @@ export function ProfessorDetailsSection({ professor }: { professor: ProfessorDet
                     <View className="gap-5">
                         {displayedSemesters.map((group) => (
                             <View key={group.semester} className="gap-2">
-                                <Text className="text-sm font-bold">{group.semester}</Text>
-                                {group.items.map((item) => (
-                                    <Pressable
-                                        key={item.code}
-                                        accessibilityRole="link"
-                                        accessibilityLabel={`Buscar ${item.name ?? `matéria ${item.code}`}`}
-                                        onPress={() => openSearch(router, item.code)}
-                                        className="flex-row items-baseline gap-2 active:opacity-60"
-                                    >
-                                        <Text className="min-w-0 flex-1 text-sm font-normal">
-                                            {item.name ?? 'Matéria desconhecida'}
-                                        </Text>
-                                        {item.occurrences > 1 && (
-                                            <Text className="shrink-0 text-xs font-normal text-muted-foreground">
-                                                {item.occurrences} turmas
+                                <Text className="text-sm font-bold text-foreground">
+                                    {group.semester}
+                                </Text>
+                                <View className="gap-1.5">
+                                    {group.items.map((item) => (
+                                        <Pressable
+                                            key={item.code}
+                                            accessibilityRole="link"
+                                            accessibilityLabel={`Buscar ${item.name ?? `matéria ${item.code}`}`}
+                                            onPress={() => openSearch(router, item.code)}
+                                            className="flex-row items-baseline gap-2 active:opacity-60"
+                                        >
+                                            <Text className="min-w-0 shrink text-sm font-normal text-foreground">
+                                                {item.name ?? 'Matéria desconhecida'}
                                             </Text>
-                                        )}
-                                    </Pressable>
-                                ))}
+                                            {item.occurrences > 1 && (
+                                                <Text className="shrink-0 text-xs font-normal text-muted-foreground">
+                                                    {item.occurrences} turmas
+                                                </Text>
+                                            )}
+                                        </Pressable>
+                                    ))}
+                                </View>
                             </View>
                         ))}
                         {hiddenSemesters > 0 && (
@@ -115,6 +119,7 @@ export function ProfessorDetailsSection({ professor }: { professor: ProfessorDet
                                 variant="outline"
                                 size="sm"
                                 onPress={() => setShowAllSemesters((prev) => !prev)}
+                                className="mt-2 w-full"
                             >
                                 <Text className="text-xs text-muted-foreground">
                                     {showAllSemesters
@@ -144,7 +149,11 @@ function DetailCard({
             <CardHeader>
                 <View className="flex-row items-center gap-2">
                     <Icon as={icon} className="size-4 text-primary" />
-                    <Text role="heading" aria-level={2} className="text-sm font-semibold">
+                    <Text
+                        role="heading"
+                        aria-level={2}
+                        className="text-sm font-semibold text-foreground"
+                    >
                         {title}
                     </Text>
                 </View>
@@ -163,7 +172,9 @@ function DegreeItem({ degree }: { degree: ProfessorDegree }) {
     return (
         <View className="gap-0.5 rounded-lg border border-border/60 bg-muted/30 p-3">
             <View className="flex-row items-center justify-between gap-2">
-                <Text className="flex-1 text-xs font-semibold">{titleCase(degree.level)}</Text>
+                <Text className="flex-1 text-xs font-semibold text-foreground">
+                    {titleCase(degree.level)}
+                </Text>
                 {period && (
                     <View className="flex-row items-center gap-1">
                         <Icon as={Calendar} className="size-3 text-muted-foreground" />
@@ -171,7 +182,9 @@ function DegreeItem({ degree }: { degree: ProfessorDegree }) {
                     </View>
                 )}
             </View>
-            {degree.course && <Text className="text-xs font-medium">{degree.course}</Text>}
+            {degree.course && (
+                <Text className="text-xs font-medium text-foreground/90">{degree.course}</Text>
+            )}
             {degree.institution && (
                 <Text className="text-xs font-normal text-muted-foreground">
                     {titleCase(degree.institution)}

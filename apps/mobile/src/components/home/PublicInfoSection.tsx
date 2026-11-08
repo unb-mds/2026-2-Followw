@@ -34,11 +34,15 @@ export function PublicInfoSection({ campus, menu, isLoading, day }: PublicInfoSe
     ].filter((meal) => meal.dish);
 
     return (
-        <View className="gap-2">
+        <View accessibilityLabel="RU">
             <SectionHeader title="RU" actionLabel="Ver Cardápio" actionHref="/ru" />
             <Link href="/ru" asChild>
-                <Pressable accessibilityRole="link" accessibilityLabel="Ver cardápio do RU">
-                    <Card className="gap-2 px-3 py-3">
+                <Pressable
+                    accessibilityRole="link"
+                    accessibilityLabel="Ver cardápio do RU"
+                    className="active:opacity-70"
+                >
+                    <Card size="sm" className="gap-2 px-3">
                         <View className="flex-row items-baseline gap-2">
                             <Text className="text-xs font-semibold text-primary">
                                 Pratos principais · {day}
@@ -51,7 +55,7 @@ export function PublicInfoSection({ campus, menu, isLoading, day }: PublicInfoSe
                             </Text>
                         </View>
                         {meals.length > 0 ? (
-                            <View className="gap-1.5">
+                            <View className="flex-col gap-1.5">
                                 {meals.map((meal) => (
                                     <View key={meal.label} className="flex-row items-center gap-2">
                                         <Icon

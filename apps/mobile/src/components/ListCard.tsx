@@ -19,7 +19,7 @@ export function ListCard({
 }) {
     const items = Children.toArray(children);
     return (
-        <Card className={cn('gap-0 overflow-hidden py-0', className)}>
+        <Card size="sm" className={cn('gap-0 px-3 py-0', className)}>
             {items.map((child, index) => (
                 <Fragment key={isValidElement(child) ? child.key : null}>
                     {index > 0 && <View className="h-px bg-border" />}
@@ -62,7 +62,7 @@ export function ListRow({
             disabled={disabled || !onPress}
             onPress={onPress}
             className={cn(
-                'h-auto min-h-14 justify-start gap-3 rounded-none px-3 py-2.5',
+                'h-auto min-h-14 justify-start gap-3 rounded-none px-0 py-2.5',
                 !onPress && 'opacity-100'
             )}
         >
@@ -116,9 +116,11 @@ export function Meter({
     className?: string;
 }) {
     return (
-        <View className={cn('px-3 py-3', className)}>
+        <View className={cn('py-3', className)}>
             <View className="flex-row items-baseline justify-between gap-2">
-                <Text className="text-sm font-medium">{label}</Text>
+                <Text role="heading" aria-level={3} className="text-sm font-medium">
+                    {label}
+                </Text>
                 <Text className="text-sm font-semibold text-primary">
                     {value.toLocaleString('pt-BR')}%
                 </Text>

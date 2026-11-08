@@ -6,20 +6,15 @@ import { latestNewsQueryOptions } from '@followw/core/queries/posts.ts';
 import { refreshQuery } from '@followw/core/queries/refresh.ts';
 import { campusOf, menuQueryOptions } from '@followw/core/queries/restaurant.ts';
 import { useQuery } from '@tanstack/react-query';
-import { Stack } from 'expo-router';
-import { CalendarDays } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 
-import { FollowwLogo } from '@/components/FollowwLogo';
+import { HeaderBar, HeaderToggle } from '@/components/HeaderBar';
 import { LatestNewsSection } from '@/components/home/LatestNewsSection';
 import { PublicInfoSection } from '@/components/home/PublicInfoSection';
 import { TodayClassesSection } from '@/components/home/TodayClassesSection';
-import { OfflineBanner } from '@/components/OfflineBanner';
 import { Screen } from '@/components/Screen';
-import { Icon } from '@/components/ui/icon';
 import { WeekDayPicker } from '@/components/WeekDayPicker';
-import { cn } from '@/lib/utils';
 
 export { ErrorState as ErrorBoundary } from '@/components/ErrorState';
 
@@ -68,67 +63,51 @@ export default function HomeScreen() {
           );
 
     return (
-        <>
-            <Stack.Screen
-                options={{
-                    title: label,
-                    // oxlint-disable-next-line react/no-unstable-nested-components -- header do Stack
-                    headerLeft: () => <FollowwLogo size={32} />,
-                    // oxlint-disable-next-line react/no-unstable-nested-components -- header do Stack
-                    headerRight: () => (
-                        <Pressable
-                            accessibilityRole="button"
-                            accessibilityLabel={
-                                weekOpen ? 'Ocultar seletor de dias' : 'Exibir dias da semana'
-                            }
-                            accessibilityState={{ expanded: weekOpen }}
-                            hitSlop={8}
-                            onPress={() => setWeekOpen((open) => !open)}
-                            className={cn(
-                                'size-9 items-center justify-center rounded-full active:opacity-60',
-                                weekOpen && 'bg-primary/10'
-                            )}
-                        >
-                            <Icon as={CalendarDays} className="size-5 text-primary" />
-                        </Pressable>
-                    )
-                }}
-            />
-            <Screen
-                onRefreshData={(queryClient) =>
-                    Promise.all([
-                        refreshQuery(queryClient, meQueryOptions),
-                        refreshQuery(queryClient, menuOptions),
-                        user && refreshQuery(queryClient, classroomsQueryOptions),
-                        user && refreshQuery(queryClient, latestNewsQueryOptions)
-                    ])
-                }
-            >
-                <OfflineBanner />
-                {weekOpen && (
-                    <WeekDayPicker
-                        days={days}
-                        selectedDate={selectedDay.date}
-                        onSelect={(day) => setPicked(day.date === now.date ? null : day.date)}
-                    />
-                )}
-                <View className="gap-6">
-                    <TodayClassesSection
-                        loggedIn={Boolean(user)}
-                        noClassReason={noClassReason}
-                        isLoadingError={classroomsQuery.isLoadingError}
-                        onRetry={() => void classroomsQuery.refetch()}
-                        classes={classes}
-                    />
-                    <PublicInfoSection
-                        campus={campusOf(user?.unit?.code)}
-                        menu={menu.data?.[0]}
-                        isLoading={menu.isPending}
-                        day={label}
-                    />
-                    {user && <LatestNewsSection />}
-                </View>
-            </Screen>
-        </>
+        <Screen
+            header={
+                <HeaderBar>
+                    <HeaderToggle
+                        open={weekOpen}
+                        onToggle={() => setWeekOpen((open) => !open)}
+                        title={weekOpen ? 'Ocultar seletor de dias' : 'Exibir dias da semana'}
+                    >
+                        {label}
+                    </HeaderToggle>
+                </HeaderBar>
+            }
+            onRefreshData={(queryClient) =>
+                Promise.all([
+                    refreshQuery(queryClient, meQueryOptions),
+                    refreshQuery(queryClient, menuOptions),
+                    user && refreshQuery(queryClient, classroomsQueryOptions),
+                    user && refreshQuery(queryClient, latestNewsQueryOptions)
+                ])
+            }
+        >
+            {weekOpen && (
+                <WeekDayPicker
+                    days={days}
+                    selectedDate={selectedDay.date}
+                    onSelect={(day) => setPicked(day.date === now.date ? null : day.date)}
+                />
+            )}
+
+            <View className="flex-col gap-6">
+                <TodayClassesSection
+                    loggedIn={Boolean(user)}
+                    noClassReason={noClassReason}
+                    isLoadingError={classroomsQuery.isLoadingError}
+                    onRetry={() => void classroomsQuery.refetch()}
+                    classes={classes}
+                />
+                <PublicInfoSection
+                    campus={campusOf(user?.unit?.code)}
+                    menu={menu.data?.[0]}
+                    isLoading={menu.isPending}
+                    day={label}
+                />
+                {user && <LatestNewsSection />}
+            </View>
+        </Screen>
     );
 }

@@ -17,7 +17,7 @@ const validity = new Intl.DateTimeFormat('pt-BR', {
 export function StudentCard({ credentials }: { credentials: RestaurantCredentials }) {
     const expired = cardIsExpired(credentials.valid_until, nowInBrasilia().date);
     return (
-        <View className="items-center gap-2">
+        <View className="mt-4 items-center">
             {expired ? (
                 <Text className="text-center text-sm font-semibold text-destructive">
                     Carteirinha vencida. Atualize para consultar uma nova carteirinha no SIGAA.
@@ -30,18 +30,18 @@ export function StudentCard({ credentials }: { credentials: RestaurantCredential
                     >
                         <QRCode
                             value={credentials.token}
-                            size={240}
+                            size={248}
                             ecl="M"
                             color="#000000"
                             backgroundColor="#ffffff"
                         />
                     </View>
-                    <Text className="text-center text-sm text-muted-foreground">
+                    <Text className="mt-2 text-center text-sm text-muted-foreground">
                         Apresente este QR code na entrada do RU.
                     </Text>
                 </>
             )}
-            <Text className="text-xs font-bold text-muted-foreground">
+            <Text className="mt-2 text-center text-xs font-bold text-muted-foreground">
                 Validade: {validity.format(new Date(`${credentials.valid_until}T00:00:00Z`))}
             </Text>
         </View>

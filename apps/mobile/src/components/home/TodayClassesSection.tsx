@@ -8,7 +8,6 @@ import { ErrorCard, SIGAA_DOWN_MESSAGE } from '@/components/ErrorState';
 import { ClassCard } from '@/components/home/ClassCard';
 import { LoginPromptCard } from '@/components/home/LoginPromptCard';
 import { SectionHeader } from '@/components/SectionHeader';
-import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 
 interface TodayClassesSectionProps {
@@ -25,7 +24,7 @@ export function TodayClassesSection(props: TodayClassesSectionProps) {
     if (loggedIn && !noClassReason && !isLoadingError && !classes.length) return null;
 
     return (
-        <View className="gap-2">
+        <View>
             <SectionHeader title="Aulas do dia" />
             <TodayClassesContent {...props} />
         </View>
@@ -44,15 +43,15 @@ function TodayClassesContent({
     if (!loggedIn) return <LoginPromptCard />;
     if (noClassReason)
         return (
-            <Card className="gap-0 p-4">
+            <View className="rounded-2xl bg-card p-4">
                 <Text className="font-semibold">Não há aulas hoje</Text>
                 <Text className="text-sm text-muted-foreground">{noClassReason}</Text>
-            </Card>
+            </View>
         );
     if (isLoadingError) return <ErrorCard message={SIGAA_DOWN_MESSAGE} onRetry={onRetry} />;
 
     return (
-        <View className="gap-2">
+        <View className="flex-col gap-2">
             {classes.map(({ item, start, end, status }) => (
                 <ClassCard
                     key={`${item.id}-${start}`}

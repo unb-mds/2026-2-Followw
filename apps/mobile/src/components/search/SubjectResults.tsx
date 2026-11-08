@@ -28,6 +28,7 @@ export function SubjectResults({
                 loading="Buscando matérias..."
                 error="Não foi possível buscar as matérias."
                 stale="Não foi possível atualizar as matérias. Exibindo os dados salvos."
+                className="justify-center"
             >
                 {(data) => {
                     const subjects = withClassrooms(data);

@@ -4,18 +4,18 @@ import { courseQueryOptions } from '@followw/core/queries/courses.ts';
 import { ApiError } from '@followw/core/queries/errors.ts';
 import { meQueryOptions } from '@followw/core/queries/me.ts';
 import { useQuery } from '@tanstack/react-query';
-import { Stack, useLocalSearchParams } from 'expo-router';
-import { SearchX } from 'lucide-react-native';
+import { useLocalSearchParams } from 'expo-router';
+import { View } from 'react-native';
 
 import { CourseSummary } from '@/components/curriculum/CourseSummary';
 import { CurriculumView } from '@/components/curriculum/CurriculumView';
-import { Legend } from '@/components/curriculum/Legend';
 import { ErrorCard } from '@/components/ErrorState';
+import { BackHeader } from '@/components/HeaderBar';
 import { LoadingText } from '@/components/LoadingText';
-import { OfflineBanner } from '@/components/OfflineBanner';
-import { PageState } from '@/components/PageState';
+import { NotFoundPage } from '@/components/NotFoundPage';
 import { Screen } from '@/components/Screen';
 import { ShareButton } from '@/components/ShareButton';
+import { Text } from '@/components/ui/text';
 
 export { ErrorState as ErrorBoundary } from '@/components/ErrorState';
 
@@ -34,87 +34,65 @@ export default function CourseFlowScreen() {
     const unlisted = listed.error instanceof ApiError && listed.error.isNotFound;
     const course = ownCourse ? user?.course : listed.data;
 
-    const options = (
-        <Stack.Screen
-            options={{
-                title: 'Fluxo acadêmico',
-                headerRight: valid
-                    ? // oxlint-disable-next-line react/no-unstable-nested-components -- headerRight exige função
-                      () => (
-                          <ShareButton
-                              title={
-                                  course ? `Fluxograma de ${titleCase(course.name)}` : 'Fluxograma'
-                              }
-                              path={`/cursos/${courseId}`}
-                          />
-                      )
-                    : undefined
-            }}
-        />
+    if (!valid) return <NotFoundPage />;
+
+    const header = (
+        <>
+            <BackHeader
+                to="/buscar"
+                title="Fluxo acadêmico"
+                actions={
+                    <ShareButton
+                        title={course ? `Fluxograma de ${titleCase(course.name)}` : 'Fluxograma'}
+                        path={`/cursos/${courseId}`}
+                    />
+                }
+            />
+            {course && (
+                <View className="pb-5">
+                    <CourseSummary course={course} entrySemester={entrySemester} />
+                </View>
+            )}
+        </>
     );
 
-    if (
-        !valid ||
-        (!ownCourse && !listed.isPending && !listed.isLoadingError && !course) ||
-        unlisted
-    )
-        return (
-            <Screen>
-                {options}
-                <PageState
-                    icon={SearchX}
-                    title="Curso não encontrado"
-                    message="Esse curso não está no catálogo."
-                />
-            </Screen>
-        );
+    let content: React.ReactNode = null;
     if (me.isPending || (!ownCourse && listed.isPending))
-        return (
-            <Screen>
-                {options}
-                <LoadingText>Carregando curso...</LoadingText>
-            </Screen>
-        );
-    if (!course)
-        return (
-            <Screen>
-                {options}
+        content = <LoadingText className="p-4">Carregando curso...</LoadingText>;
+    else if (!ownCourse && listed.isLoadingError && !unlisted)
+        content = (
+            <View className="p-4">
                 <ErrorCard
                     message="Não foi possível carregar o curso."
                     onRetry={() => void listed.refetch()}
                 />
-            </Screen>
+            </View>
         );
-    if (!entrySemester)
+    else if (!course) content = <Text className="p-4">Curso não encontrado no catálogo.</Text>;
+    else if (!entrySemester)
+        content = (
+            <Text className="p-4">
+                Semestre de referência indisponível. Não foi possível identificar a matriz deste
+                curso.
+            </Text>
+        );
+
+    if (content || !course || !entrySemester)
         return (
-            <Screen>
-                {options}
-                <CourseSummary course={course} entrySemester={entrySemester} />
-                <PageState
-                    title="Semestre de referência indisponível"
-                    message="Não foi possível identificar a matriz deste curso."
-                />
+            <Screen fullscreen header={header}>
+                {content}
             </Screen>
         );
     return (
-        <>
-            {options}
-            <OfflineBanner />
-            <CurriculumView
-                key={course.id}
-                courseId={course.id}
-                entrySemester={entrySemester}
-                currentPeriod={currentPeriod}
-                selected={selected}
-                ownCourse={ownCourse}
-                loggedIn={loggedIn}
-                header={
-                    <>
-                        <CourseSummary course={course} entrySemester={entrySemester} />
-                        {loggedIn && <Legend />}
-                    </>
-                }
-            />
-        </>
+        <CurriculumView
+            key={course.id}
+            courseId={course.id}
+            entrySemester={entrySemester}
+            currentPeriod={currentPeriod}
+            selected={selected}
+            ownCourse={ownCourse}
+            loggedIn={loggedIn}
+            header={header}
+        />
     );
 }

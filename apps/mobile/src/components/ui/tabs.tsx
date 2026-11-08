@@ -45,9 +45,15 @@ function TabsList({
 
 function TabsTrigger({
   className,
+  activeClassName,
+  indicatorClassName,
   children,
   ...props
-}: React.ComponentProps<typeof TabsPrimitive.Trigger>) {
+}: React.ComponentProps<typeof TabsPrimitive.Trigger> & {
+  // equivalentes a data-active:text-* e after:bg-* do web
+  activeClassName?: string;
+  indicatorClassName?: string;
+}) {
   const { value } = TabsPrimitive.useRootContext();
   const variant = React.useContext(TabsListVariantContext);
   const active = props.value === value;
@@ -55,7 +61,7 @@ function TabsTrigger({
     <TextClassContext.Provider
       value={cn(
         'text-foreground/60 dark:text-muted-foreground text-sm font-medium',
-        active && 'text-foreground dark:text-foreground'
+        active && cn('text-foreground dark:text-foreground', activeClassName)
       )}>
       <TabsPrimitive.Trigger
         className={cn(
@@ -72,7 +78,9 @@ function TabsTrigger({
         {...props}>
         <>{children}</>
         {variant === 'line' && active && (
-          <View className="bg-foreground absolute inset-x-0 -bottom-[5px] h-0.5" />
+          <View
+            className={cn('bg-foreground absolute inset-x-0 -bottom-[5px] h-0.5', indicatorClassName)}
+          />
         )}
       </TabsPrimitive.Trigger>
     </TextClassContext.Provider>

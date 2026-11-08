@@ -30,7 +30,7 @@ export function ProfileIdentity({
                     <Text
                         role="heading"
                         aria-level={1}
-                        className="text-2xl leading-tight font-semibold"
+                        className="text-2xl leading-tight font-semibold tracking-tight"
                     >
                         {displayName || titleCase(user.name)}
                     </Text>
@@ -53,7 +53,7 @@ export function AcademicPerformance({ user }: { user: UserProfile }) {
     if (indexes.length === 0) return null;
     return (
         <ProfileSection title="Desempenho">
-            <Card className="flex-row gap-0 py-0">
+            <Card size="sm" className="flex-row gap-0 py-0">
                 {indexes.map((index, position) => (
                     <View
                         key={index.label}
@@ -62,7 +62,7 @@ export function AcademicPerformance({ user }: { user: UserProfile }) {
                         <Text className="text-xs font-medium text-muted-foreground">
                             {index.label}
                         </Text>
-                        <Text className="mt-1 text-2xl font-semibold text-primary">
+                        <Text className="mt-1 text-2xl font-semibold tracking-tight text-primary">
                             {index.value}
                         </Text>
                     </View>
@@ -90,7 +90,7 @@ export function ProgressSection({ user }: { user: UserProfile }) {
                     <Meter label="Integralização" value={integralization} />
                 )}
                 {items && (
-                    <View className="gap-3 px-3 py-3">
+                    <View className="gap-3 py-3">
                         {items.map(({ label, hours }) => (
                             <View
                                 key={label}

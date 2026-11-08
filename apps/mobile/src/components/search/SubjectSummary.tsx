@@ -36,13 +36,13 @@ export function SubjectSummary({
                                       : 'destructive'
                             }
                             className={cn(
-                                done && 'border-transparent bg-info/10',
+                                done && 'border-transparent bg-blue-500/10',
                                 !done && ahead && 'bg-primary/10'
                             )}
                         >
                             <Text
                                 className={cn(
-                                    done && 'text-info',
+                                    done && 'text-blue-500',
                                     !done && ahead && 'text-primary'
                                 )}
                             >

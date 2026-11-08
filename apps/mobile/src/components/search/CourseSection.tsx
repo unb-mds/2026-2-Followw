@@ -40,12 +40,12 @@ export function CourseSection({
                                     params: { id: String(course.id) }
                                 })
                             }
-                            className="flex-row items-center gap-4 rounded-2xl border border-border bg-card p-4 active:bg-primary/5"
+                            className="flex-row items-center gap-4 rounded-2xl border border-border bg-card p-5 active:bg-primary/5"
                         >
-                            <View className="size-14 items-center justify-center rounded-xl bg-primary/10">
+                            <View className="size-14 shrink-0 items-center justify-center rounded-xl bg-primary/10">
                                 <Icon as={GraduationCap} className="size-8 text-primary" />
                             </View>
-                            <View className="min-w-0 flex-1 gap-1.5">
+                            <View className="min-w-0 flex-1 gap-2">
                                 <Text className="text-base leading-snug font-semibold">
                                     {titleCase(course.name)}
                                 </Text>

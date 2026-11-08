@@ -21,18 +21,20 @@ export function ProfessorCard({ professor }: { professor: ProfessorItem }) {
                     params: { siape: String(professor.siape) }
                 })
             }
-            className="flex-row items-center justify-between gap-3 rounded-2xl border border-border bg-card p-3 active:bg-primary/5"
+            className="flex-row items-center justify-between gap-3 rounded-2xl border border-foreground/10 bg-card p-3 shadow-sm shadow-black/5 active:border-primary/40"
         >
-            <PersonPhoto src={professor.photo} size="sm" />
-            <View className="min-w-0 flex-1 gap-0.5">
-                <Text numberOfLines={1} className="text-sm font-semibold">
-                    {titleCase(professor.name)}
-                </Text>
-                <Text numberOfLines={1} className="text-xs text-muted-foreground">
-                    {unitLabel(professor.unit)}
-                </Text>
+            <View className="min-w-0 flex-1 flex-row items-center gap-3">
+                <PersonPhoto src={professor.photo} size="sm" />
+                <View className="min-w-0 flex-1 gap-0.5">
+                    <Text numberOfLines={1} className="text-sm font-semibold text-foreground">
+                        {titleCase(professor.name)}
+                    </Text>
+                    <Text numberOfLines={1} className="text-xs text-muted-foreground">
+                        {unitLabel(professor.unit)}
+                    </Text>
+                </View>
             </View>
-            <Icon as={ChevronRight} className="size-4 text-muted-foreground" />
+            <Icon as={ChevronRight} className="size-4 shrink-0 text-muted-foreground" />
         </Pressable>
     );
 }

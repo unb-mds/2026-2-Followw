@@ -62,6 +62,7 @@ function Catalog<T extends { total: number }>({
             loading={`Carregando ${noun}...`}
             error={`Não foi possível carregar os ${noun}.`}
             stale={`Não foi possível atualizar os ${noun}. Exibindo os dados salvos.`}
+            className="justify-center"
         >
             {(page) =>
                 page.total ? (

@@ -1,18 +1,3 @@
-import { Link, Stack } from 'expo-router';
-import { View } from 'react-native';
+import { NotFoundPage } from '@/components/NotFoundPage';
 
-import { Text } from '@/components/ui/text';
-
-export default function NotFound() {
-    return (
-        <View className="flex-1 items-center justify-center gap-4 bg-background p-6">
-            <Stack.Screen options={{ title: 'Não encontrado' }} />
-            <Text className="text-center text-lg font-semibold text-foreground">
-                Essa página não existe.
-            </Text>
-            <Link href="/" className="font-medium text-primary">
-                Voltar ao início
-            </Link>
-        </View>
-    );
-}
+export default NotFoundPage;

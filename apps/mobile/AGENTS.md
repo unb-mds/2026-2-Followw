@@ -25,8 +25,12 @@ bun doctor                   # expo-doctor
 
 - `ios/` e `android/` são gerados (CNG) e ficam fora do git: configure tudo em `app.config.ts` e
   plugins.
-- Rotas em `src/app/` (só telas e layouts). Cada aba de `(tabs)` tem o próprio `Stack` com header
-  nativo; telas abertas de qualquer aba (curso, professor) ficam no `Stack` raiz.
+- A interface replica a do web 1:1 (estrutura, textos e classes); padrões nativos só para status
+  bar, share sheet, teclado e pull-to-refresh.
+- Rotas em `src/app/` (só telas e layouts), sem headers nativos: cada tela passa o header do web
+  (`HeaderBar`/`BackHeader`) para `Screen`. As abas são tabs headless (`expo-router/ui`) e a barra
+  visível é a `BottomNavigation` do layout raiz; telas abertas de qualquer aba (curso, professor)
+  ficam no `Stack` raiz. O `Select` abre as opções num `Drawer`.
 - Imports internos via `@/` (`src/`). Componentes base em `src/components/ui` (Reusables,
   adicionados com `bunx shadcn add https://reactnativereusables.com/r/uniwind/<nome>.json`); não os
   reescreva sem motivo.

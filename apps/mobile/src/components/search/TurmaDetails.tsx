@@ -35,11 +35,16 @@ export function TurmaDetails({ subject, classroom }: TurmaProps) {
                 </Detail>
                 <Detail label="Docentes" full>
                     {classroom.professors.length > 0 ? (
-                        classroom.professors.map(({ name }) => (
-                            <SubjectSearchLink key={name} query={name}>
-                                {name}
-                            </SubjectSearchLink>
-                        ))
+                        <View className="flex-row flex-wrap">
+                            {classroom.professors.map(({ name }, index) => (
+                                <View key={name} className="flex-row">
+                                    {index > 0 && <Value>, </Value>}
+                                    <SubjectSearchLink query={name} className="font-medium">
+                                        {name}
+                                    </SubjectSearchLink>
+                                </View>
+                            ))}
+                        </View>
                     ) : (
                         <Value>Docentes não informados</Value>
                     )}
@@ -48,16 +53,6 @@ export function TurmaDetails({ subject, classroom }: TurmaProps) {
                     <Value>
                         {subject.hours == null ? 'Não informada' : `${subject.hours} horas`}
                     </Value>
-                </Detail>
-                <Detail label="Vagas">
-                    <Text
-                        className={cn(
-                            'text-sm font-medium',
-                            status && OCCUPANCY_COLOR[status.occupancy]
-                        )}
-                    >
-                        {status ? `${status.occupied}/${status.vacancies}` : 'Não informadas'}
-                    </Text>
                 </Detail>
                 {subject.prerequisites?.length ? (
                     <Detail label="Pré-requisitos" full>
@@ -80,14 +75,26 @@ export function TurmaDetails({ subject, classroom }: TurmaProps) {
                 {subject.unlocks?.length ? (
                     <Detail label="Desbloqueia" full>
                         <SubjectDisclosure count={subject.unlocks.length}>
-                            {subject.unlocks.map((item) => (
-                                <SubjectSearchLink key={item.code} query={item.code}>
-                                    {item.name}
-                                </SubjectSearchLink>
-                            ))}
+                            <View className="min-w-0 gap-1">
+                                {subject.unlocks.map((item) => (
+                                    <SubjectSearchLink key={item.code} query={item.code}>
+                                        {item.name}
+                                    </SubjectSearchLink>
+                                ))}
+                            </View>
                         </SubjectDisclosure>
                     </Detail>
                 ) : null}
+                <Detail label="Vagas">
+                    <Text
+                        className={cn(
+                            'text-sm font-medium',
+                            status && OCCUPANCY_COLOR[status.occupancy]
+                        )}
+                    >
+                        {status ? `${status.occupied}/${status.vacancies}` : 'Não informadas'}
+                    </Text>
+                </Detail>
             </View>
             <SubjectStatistics
                 key={`${subject.code}/${classroom.semester}/${classroom.number}`}

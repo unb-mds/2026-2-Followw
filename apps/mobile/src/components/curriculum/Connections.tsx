@@ -44,7 +44,7 @@ export function Connections({
             width={geometry.width}
             height={geometry.height}
             style={{ position: 'absolute', left: 0, top: 0 }}
-            accessibilityLabel="Pré-requisitos e correquisitos, coloridos por matéria de destino"
+            accessibilityLabel="Pré-requisitos e correquisitos, coloridos por matéria de destino; correquisitos com duas pontas, verticais no mesmo semestre. Alternativas detalhadas nos cartões."
         >
             {segments.map(({ points, color: index }) => (
                 <G key={`${index}:${pathData(points)}`}>

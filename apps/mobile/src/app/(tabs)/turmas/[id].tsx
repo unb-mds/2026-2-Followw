@@ -18,24 +18,24 @@ import {
 import { meQueryOptions } from '@followw/core/queries/me.ts';
 import { refreshQuery } from '@followw/core/queries/refresh.ts';
 import { type QueryClient, useQuery } from '@tanstack/react-query';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { Pressable, View } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { View } from 'react-native';
 
 import { ClassroomPosts } from '@/components/classroom/ClassroomPosts';
 import { ClassroomStatistics } from '@/components/classroom/ClassroomStatistics';
 import { ClassroomSummary } from '@/components/classroom/ClassroomSummary';
 import { FrequencyContent } from '@/components/classroom/FrequencyContent';
 import { ErrorCard, SIGAA_DOWN_MESSAGE, StaleDataNotice } from '@/components/ErrorState';
+import { BackHeader } from '@/components/HeaderBar';
 import { LoginPromptCard } from '@/components/home/LoginPromptCard';
 import { ListCard } from '@/components/ListCard';
 import { LoadingText } from '@/components/LoadingText';
 import { openLink } from '@/components/Markdown';
-import { OfflineBanner } from '@/components/OfflineBanner';
 import { PersonPhoto } from '@/components/PersonPhoto';
 import { Screen } from '@/components/Screen';
 import { ShareButton } from '@/components/ShareButton';
-import { TabFilter } from '@/components/TabFilter';
 import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Text } from '@/components/ui/text';
 
 export { ErrorState as ErrorBoundary } from '@/components/ErrorState';
@@ -65,72 +65,93 @@ export default function ClassroomScreen() {
         : 'frequency';
 
     return (
-        <>
-            <Stack.Screen
-                options={{
-                    title: classroom?.subject.name ?? 'Turma',
-                    headerLargeTitle: false,
-                    // oxlint-disable-next-line react/no-unstable-nested-components -- header do Stack
-                    headerRight: () =>
+        <Screen
+            header={
+                <BackHeader
+                    to="/turmas"
+                    title="Minhas Turmas"
+                    actions={
                         classroom ? (
                             <ShareButton
                                 title={classroom.subject.name}
                                 path={`/turmas/${classroom.id}`}
                             />
                         ) : null
-                }}
-            />
-            <Screen
-                onRefreshData={(queryClient) =>
-                    Promise.all([
-                        refreshQuery(queryClient, meQueryOptions),
-                        user && refreshQuery(queryClient, allClassroomsQueryOptions),
-                        classroom && refreshTab[activeTab](queryClient, classroom.id)
-                    ])
-                }
-            >
-                <OfflineBanner />
-                {!user ? (
-                    me.isPending ? (
-                        <LoadingText>Carregando turma...</LoadingText>
-                    ) : (
-                        <LoginPromptCard />
-                    )
-                ) : classrooms.isLoadingError ? (
-                    <ErrorCard
-                        message={SIGAA_DOWN_MESSAGE}
-                        onRetry={() => void classrooms.refetch()}
-                    />
-                ) : classrooms.isPending ? (
-                    <InformationCard>
-                        <LoadingText>Carregando turma...</LoadingText>
-                    </InformationCard>
-                ) : !classroom ? (
-                    <InformationCard>
-                        <Text className="text-center text-sm text-muted-foreground">
-                            Turma não encontrada.
-                        </Text>
-                    </InformationCard>
+                    }
+                />
+            }
+            onRefreshData={(queryClient) =>
+                Promise.all([
+                    refreshQuery(queryClient, meQueryOptions),
+                    user && refreshQuery(queryClient, allClassroomsQueryOptions),
+                    classroom && refreshTab[activeTab](queryClient, classroom.id)
+                ])
+            }
+        >
+            {!user ? (
+                me.isPending ? (
+                    <LoadingText>Carregando turma...</LoadingText>
                 ) : (
-                    <>
-                        <ClassroomSummary classroom={classroom} />
-                        <TabFilter
-                            label="Detalhes da turma"
-                            value={activeTab}
-                            options={CLASSROOM_TABS.filter(
+                    <LoginPromptCard />
+                )
+            ) : classrooms.isLoadingError ? (
+                <ErrorCard message={SIGAA_DOWN_MESSAGE} onRetry={() => void classrooms.refetch()} />
+            ) : classrooms.isPending ? (
+                <InformationCard>
+                    <LoadingText className="py-0">Carregando turma...</LoadingText>
+                </InformationCard>
+            ) : !classroom ? (
+                <InformationCard>
+                    <Text className="text-center text-sm text-muted-foreground">
+                        Turma não encontrada.
+                    </Text>
+                </InformationCard>
+            ) : (
+                <>
+                    <ClassroomSummary classroom={classroom} />
+                    <Tabs
+                        value={activeTab}
+                        onValueChange={(value) => router.setParams({ tab: value })}
+                        className="mt-5 gap-4"
+                    >
+                        <TabsList
+                            variant="line"
+                            accessibilityLabel="Detalhes da turma"
+                            className="mr-0 h-auto w-full border-b border-border"
+                        >
+                            {CLASSROOM_TABS.filter(
                                 (item) => classroomTab(item, classroom.current) === item
-                            )}
-                            labels={TAB_LABELS}
-                            onChange={(value) => router.setParams({ tab: value })}
-                        />
-                        {activeTab === 'posts' && <ClassroomPosts key={id} id={classroom.id} />}
-                        {activeTab === 'frequency' && <FrequencyTab id={classroom.id} />}
-                        {activeTab === 'statistics' && <ClassroomStatistics id={classroom.id} />}
-                        {activeTab === 'members' && <MembersTab id={classroom.id} />}
-                    </>
-                )}
-            </Screen>
-        </>
+                            ).map((item) => (
+                                <TabsTrigger
+                                    key={item}
+                                    value={item}
+                                    className="h-auto min-w-0 py-2"
+                                    activeClassName="text-primary dark:text-primary"
+                                    indicatorClassName="bg-primary"
+                                >
+                                    <Text numberOfLines={1}>{TAB_LABELS[item]}</Text>
+                                </TabsTrigger>
+                            ))}
+                        </TabsList>
+                        <TabsContent value="posts">
+                            <ClassroomPosts key={id} id={classroom.id} />
+                        </TabsContent>
+                        {classroom.current ? (
+                            <TabsContent value="frequency">
+                                <FrequencyTab id={classroom.id} />
+                            </TabsContent>
+                        ) : (
+                            <TabsContent value="statistics">
+                                <ClassroomStatistics id={classroom.id} />
+                            </TabsContent>
+                        )}
+                        <TabsContent value="members">
+                            <MembersTab id={classroom.id} />
+                        </TabsContent>
+                    </Tabs>
+                </>
+            )}
+        </Screen>
     );
 }
 
@@ -147,7 +168,7 @@ const refreshTab = {
 
 function InformationCard({ children }: { children: React.ReactNode }) {
     return (
-        <Card>
+        <Card size="sm">
             <CardContent>{children}</CardContent>
         </Card>
     );
@@ -156,9 +177,13 @@ function InformationCard({ children }: { children: React.ReactNode }) {
 function TabLoading() {
     return (
         <InformationCard>
-            <LoadingText>Carregando informações...</LoadingText>
+            <LoadingText className="py-0">Carregando informações...</LoadingText>
         </InformationCard>
     );
+}
+
+function TabError({ onRetry }: { onRetry: () => void }) {
+    return <ErrorCard message={SIGAA_DOWN_MESSAGE} onRetry={onRetry} />;
 }
 
 function FrequencyTab({ id }: { id: string }) {
@@ -166,14 +191,13 @@ function FrequencyTab({ id }: { id: string }) {
     const markLessons = useMarkLessons(id);
 
     if (frequency.isPending) return <TabLoading />;
-    if (frequency.isLoadingError)
-        return <ErrorCard message={SIGAA_DOWN_MESSAGE} onRetry={() => void frequency.refetch()} />;
+    if (frequency.isLoadingError) return <TabError onRetry={() => void frequency.refetch()} />;
 
     return (
-        <View className="gap-2">
-            {frequency.isError && <StaleDataNotice subject="a frequência" />}
+        <>
+            {frequency.isError && <StaleDataNotice subject="a frequência" className="mb-2" />}
             {markLessons.isError && (
-                <Text role="alert" className="text-sm text-destructive">
+                <Text role="alert" className="mb-2 text-sm text-destructive">
                     Não foi possível salvar a marcação. Tente novamente.
                 </Text>
             )}
@@ -184,7 +208,15 @@ function FrequencyTab({ id }: { id: string }) {
                     markLessons.mutate(lessons.map((lesson) => ({ lesson_id: lesson.id, status })))
                 }
             />
-        </View>
+        </>
+    );
+}
+
+function GroupTitle({ title, count }: { title: string; count: number }) {
+    return (
+        <Text role="heading" aria-level={3} className="mb-2 px-1 text-sm font-semibold">
+            {title} <Text className="text-sm font-normal text-muted-foreground">{count}</Text>
+        </Text>
     );
 }
 
@@ -192,8 +224,7 @@ function MembersTab({ id }: { id: string }) {
     const members = useQuery(classroomMembersQueryOptions(id));
 
     if (members.isPending) return <TabLoading />;
-    if (members.isLoadingError)
-        return <ErrorCard message={SIGAA_DOWN_MESSAGE} onRetry={() => void members.refetch()} />;
+    if (members.isLoadingError) return <TabError onRetry={() => void members.refetch()} />;
     const { professors, monitors, students } = members.data;
     if (professors.length + monitors.length + students.length === 0)
         return (
@@ -205,7 +236,7 @@ function MembersTab({ id }: { id: string }) {
         );
 
     return (
-        <View className="gap-4">
+        <View className="flex-col gap-4">
             <MemberGroup title="Professores" count={professors.length}>
                 {professors.map((professor) => (
                     <ProfessorRow key={professor.siape ?? professor.name} professor={professor} />
@@ -237,9 +268,7 @@ function MemberGroup({
     if (count === 0) return null;
     return (
         <View>
-            <Text role="heading" aria-level={3} className="mb-2 px-1 text-sm font-semibold">
-                {title} <Text className="text-sm font-normal text-muted-foreground">{count}</Text>
-            </Text>
+            <GroupTitle title={title} count={count} />
             <ListCard>{children}</ListCard>
         </View>
     );
@@ -248,16 +277,26 @@ function MemberGroup({
 function ProfessorRow({ professor }: { professor: Professor }) {
     const router = useRouter();
     const { siape } = professor;
+    const name = titleCase(professor.name);
     return (
         <PersonRow
             photo={professor.photo}
-            name={titleCase(professor.name)}
-            email={professor.email}
-            onPress={
-                siape == null
-                    ? undefined
-                    : () => router.push({ pathname: '/professores/[siape]', params: { siape } })
+            name={
+                siape == null ? (
+                    name
+                ) : (
+                    <Text
+                        accessibilityRole="link"
+                        onPress={() =>
+                            router.push({ pathname: '/professores/[siape]', params: { siape } })
+                        }
+                        className="text-sm font-medium"
+                    >
+                        {name}
+                    </Text>
+                )
             }
+            email={professor.email}
         />
     );
 }
@@ -279,24 +318,18 @@ function PersonRow({
     photo,
     name,
     details,
-    email,
-    onPress
+    email
 }: {
     photo?: string | null;
-    name: string;
+    name: React.ReactNode;
     details?: string;
     email?: string | null;
-    onPress?: () => void;
 }) {
     return (
-        <Pressable
-            disabled={!onPress}
-            onPress={onPress}
-            className="flex-row items-center gap-3 px-3 py-2.5 active:bg-accent"
-        >
+        <View className="flex-row items-center gap-3 py-2.5">
             <PersonPhoto src={photo} />
             <View className="min-w-0 flex-1">
-                <Text numberOfLines={1} className="text-sm font-medium">
+                <Text numberOfLines={1} className="text-sm font-medium text-foreground">
                     {name}
                 </Text>
                 {details && (
@@ -314,6 +347,6 @@ function PersonRow({
                     </Text>
                 )}
             </View>
-        </Pressable>
+        </View>
     );
 }

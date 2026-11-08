@@ -1,4 +1,4 @@
-import { ShieldCheck } from 'lucide-react-native';
+import { ShieldCheck, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { Linking, View } from 'react-native';
 
@@ -15,6 +15,8 @@ import { Text } from '@/components/ui/text';
 
 const REPOSITORY_URL = 'https://github.com/unb-mds/2026-2-Followw';
 
+const PARAGRAPH = 'mt-3 text-sm leading-6 text-muted-foreground';
+
 export function LoginPrivacyInfo() {
     const [open, setOpen] = useState(false);
     return (
@@ -30,24 +32,38 @@ export function LoginPrivacyInfo() {
                     Saiba mais
                 </Text>
             </Text>
-            <DialogContent>
-                <View className="size-11 items-center justify-center rounded-2xl bg-primary/10">
-                    <Icon as={ShieldCheck} className="size-6 text-primary" />
+
+            <DialogContent className="max-w-110 gap-0 p-6 pb-8" showCloseButton={false}>
+                <View className="flex-row items-start justify-between gap-4">
+                    <View className="size-11 items-center justify-center rounded-2xl bg-primary/10">
+                        <Icon as={ShieldCheck} className="size-6 text-primary" />
+                    </View>
+                    <DialogClose asChild>
+                        <Button
+                            variant="ghost"
+                            size="icon-lg"
+                            className="rounded-full"
+                            accessibilityLabel="Fechar informações de privacidade"
+                        >
+                            <Icon as={X} className="size-5" />
+                        </Button>
+                    </DialogClose>
                 </View>
-                <DialogHeader>
-                    <DialogTitle className="text-left text-xl font-bold">
+
+                <DialogHeader className="mt-5">
+                    <DialogTitle className="text-xl font-bold tracking-tight">
                         Seu acesso é protegido
                     </DialogTitle>
                 </DialogHeader>
-                <Text className="text-sm leading-6 text-muted-foreground">
+                <Text className={PARAGRAPH}>
                     Ao conectar com o SIGAA, suas credenciais são usadas apenas para autenticar nos
                     servidores oficiais da UnB e não são armazenadas no banco de dados do Followw.
                 </Text>
-                <Text className="text-sm leading-6 text-muted-foreground">
+                <Text className={PARAGRAPH}>
                     Suas credenciais e sessão ficam cifradas no armazenamento seguro do seu aparelho
                     para que você não precise digitar sua senha toda vez.
                 </Text>
-                <Text className="text-sm leading-6 text-muted-foreground">
+                <Text className={PARAGRAPH}>
                     O Followw é um projeto de código aberto, e você pode conferir todo o
                     código-fonte no{' '}
                     <Text
@@ -60,7 +76,7 @@ export function LoginPrivacyInfo() {
                     .
                 </Text>
                 <DialogClose asChild>
-                    <Button className="mt-2 h-11 rounded-full">
+                    <Button className="mt-6 h-11 w-full rounded-full">
                         <Text className="font-bold">Entendi</Text>
                     </Button>
                 </DialogClose>

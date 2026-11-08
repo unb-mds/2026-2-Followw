@@ -17,14 +17,14 @@ export function ClassroomStatistics({ id }: { id: string }) {
     const frequency = useQuery(classroomFrequencyQueryOptions(id));
 
     return (
-        <View className="gap-4">
+        <View className="flex-col gap-4">
             <StatisticsSection
                 title="Resultados da turma"
                 subject="as estatísticas"
                 query={statistics}
             >
                 {(shares) => (
-                    <Card>
+                    <Card size="sm">
                         <CardContent>
                             {shares.some((share) => share.percentage > 0) ? (
                                 <StatisticsChart
@@ -64,9 +64,9 @@ function StatisticsSection<T>({
                 {title}
             </Text>
             {query.isPending ? (
-                <Card>
+                <Card size="sm">
                     <CardContent>
-                        <LoadingText>{`Carregando ${subject}…`}</LoadingText>
+                        <LoadingText className="justify-start py-0">{`Carregando ${subject}…`}</LoadingText>
                     </CardContent>
                 </Card>
             ) : query.isLoadingError ? (

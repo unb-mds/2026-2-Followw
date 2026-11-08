@@ -15,9 +15,9 @@ export function LoadingText({
     return (
         <View
             accessibilityRole="progressbar"
-            className={cn('flex-row items-center justify-center gap-2 py-4', className)}
+            className={cn('flex-row items-center gap-2', className)}
         >
-            <ActivityIndicator color={color} />
+            <ActivityIndicator color={color} size="small" className="shrink-0" />
             <Text className="text-sm text-muted-foreground">{children}</Text>
         </View>
     );

@@ -20,7 +20,13 @@ export function PersonPhoto({
 
     if (src && failedSrc !== src) {
         return (
-            <View className={cn(className, 'bg-muted')}>
+            <View
+                className={cn(
+                    className,
+                    'bg-muted',
+                    size !== 'sm' && 'border border-foreground/10'
+                )}
+            >
                 <Image
                     source={{ uri: src }}
                     accessibilityIgnoresInvertColors

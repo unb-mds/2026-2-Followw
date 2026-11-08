@@ -6,7 +6,6 @@ import {
     KeyboardAvoidingView,
     Platform,
     Pressable,
-    ScrollView,
     type TextInputInstance,
     View
 } from 'react-native';
@@ -14,12 +13,19 @@ import {
 import { LoginPrivacyInfo } from '@/components/auth/LoginPrivacyInfo';
 import { LoginSubmitButton } from '@/components/auth/LoginSubmitButton';
 import { FollowwLogo } from '@/components/FollowwLogo';
+import { Screen } from '@/components/Screen';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
 import { loginErrorMessage, PASSWORD_MAX, REGISTRATION_LENGTH, validateLogin } from '@/lib/login';
+import { cn } from '@/lib/utils';
 import { useLogin } from '@/queries/auth';
+
+export { ErrorState as ErrorBoundary } from '@/components/ErrorState';
+
+const FIELD = 'h-12 rounded-2xl bg-background px-4 shadow-sm shadow-black/5';
+const FOOTER_LINK = 'text-xs text-muted-foreground underline';
 
 export default function LoginScreen() {
     const router = useRouter();
@@ -40,7 +46,7 @@ export default function LoginScreen() {
         if (problem) return;
         login.mutate(
             { body: { registration, password } },
-            { onSuccess: () => (router.canGoBack() ? router.back() : router.replace('/perfil')) }
+            { onSuccess: () => router.replace('/perfil') }
         );
     };
 
@@ -49,21 +55,24 @@ export default function LoginScreen() {
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             className="flex-1 bg-background"
         >
-            <ScrollView
-                contentInsetAdjustmentBehavior="automatic"
-                keyboardShouldPersistTaps="handled"
+            <Screen
+                fullscreen
                 keyboardDismissMode="on-drag"
-                contentContainerClassName="grow items-center px-10 pt-12 pb-6"
+                contentContainerClassName="grow items-center px-10 pt-42 pb-2"
             >
                 <View className="items-center">
                     <FollowwLogo size={80} />
-                    <Text className="mt-2 text-3xl leading-tight font-extrabold tracking-tight">
+                    <Text
+                        role="heading"
+                        aria-level={1}
+                        className="mt-2 text-3xl leading-tight font-bold tracking-tight"
+                    >
                         Followw
                     </Text>
                     <Text className="text-xs text-muted-foreground">Universidade de Brasília</Text>
                 </View>
 
-                <View className="mt-10 w-full max-w-90 gap-3">
+                <View className="mt-11 w-full max-w-90">
                     <Input
                         value={registration}
                         onChangeText={(text) => setRegistration(text.replace(/\D/g, ''))}
@@ -78,9 +87,9 @@ export default function LoginScreen() {
                         returnKeyType="next"
                         submitBehavior="submit"
                         onSubmitEditing={() => passwordInput.current?.focus()}
-                        className="h-12 rounded-2xl px-4"
+                        className={FIELD}
                     />
-                    <View>
+                    <View className="relative mt-3">
                         <Input
                             ref={passwordInput}
                             value={password}
@@ -95,26 +104,27 @@ export default function LoginScreen() {
                             autoCorrect={false}
                             returnKeyType="go"
                             onSubmitEditing={submit}
-                            className="h-12 rounded-2xl px-4 pr-14"
+                            className={cn(FIELD, 'pr-14')}
                         />
-                        <Pressable
-                            accessibilityRole="button"
-                            accessibilityLabel={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
-                            hitSlop={8}
+                        <Button
+                            variant="ghost"
+                            size="icon-sm"
                             onPress={() => setShowPassword((visible) => !visible)}
-                            className="absolute top-0 right-0 h-12 w-12 items-center justify-center"
+                            accessibilityLabel={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                            accessibilityState={{ selected: showPassword }}
+                            className="absolute top-2.5 right-3"
                         >
                             <Icon
                                 as={showPassword ? EyeOff : Eye}
                                 className="size-5 text-muted-foreground"
                             />
-                        </Pressable>
+                        </Button>
                     </View>
 
                     {error && (
                         <Text
                             role="alert"
-                            className="text-center text-xs font-semibold text-destructive"
+                            className="mt-3 text-center text-xs font-semibold text-destructive"
                         >
                             {error}
                         </Text>
@@ -123,16 +133,15 @@ export default function LoginScreen() {
                     <LoginSubmitButton pending={login.isPending} onPress={submit} />
                 </View>
 
-                <Button variant="link" className="mt-3" onPress={() => router.back()}>
+                <Button variant="link" className="mt-5" onPress={() => router.replace('/')}>
                     <Text className="text-xs font-semibold">Continuar sem entrar</Text>
                 </Button>
 
                 <LoginPrivacyInfo />
 
-                <View className="mt-auto flex-row gap-4 pt-8">
-                    <Button
-                        variant="link"
-                        className="h-auto p-0"
+                <View className="mt-auto max-w-sm flex-row gap-4 px-6 pt-8 pb-6">
+                    <Pressable
+                        accessibilityRole="link"
                         onPress={() =>
                             router.push({
                                 pathname: '/privacidade',
@@ -140,13 +149,10 @@ export default function LoginScreen() {
                             })
                         }
                     >
-                        <Text className="text-xs font-normal text-muted-foreground underline">
-                            Política de privacidade
-                        </Text>
-                    </Button>
-                    <Button
-                        variant="link"
-                        className="h-auto p-0"
+                        <Text className={FOOTER_LINK}>Política de privacidade</Text>
+                    </Pressable>
+                    <Pressable
+                        accessibilityRole="link"
                         onPress={() =>
                             router.push({
                                 pathname: '/privacidade',
@@ -154,12 +160,10 @@ export default function LoginScreen() {
                             })
                         }
                     >
-                        <Text className="text-xs font-normal text-muted-foreground underline">
-                            Termos de serviço
-                        </Text>
-                    </Button>
+                        <Text className={FOOTER_LINK}>Termos de serviço</Text>
+                    </Pressable>
                 </View>
-            </ScrollView>
+            </Screen>
         </KeyboardAvoidingView>
     );
 }

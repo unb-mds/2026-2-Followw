@@ -27,10 +27,10 @@ interface WeekDayPickerProps {
 
 export function WeekDayPicker({ days, selectedDate, onSelect, week }: WeekDayPickerProps) {
     return (
-        <View className="gap-1">
+        <>
             {week && <WeekHeader days={days} week={week} />}
             <DayButtons days={days} selectedDate={selectedDate} onSelect={onSelect} />
-        </View>
+        </>
     );
 }
 
@@ -45,23 +45,21 @@ function WeekHeader({ days, week }: { days: Day[]; week: WeekNavigation }) {
             <View className="flex-row gap-1">
                 <Button
                     variant="ghost"
-                    size="icon"
-                    className="size-8"
+                    size="icon-sm"
                     onPress={week.onPrevious}
                     disabled={!week.onPrevious}
                     aria-label="Semana anterior"
                 >
-                    <Icon as={ChevronLeft} />
+                    <Icon as={ChevronLeft} className="size-4" />
                 </Button>
                 <Button
                     variant="ghost"
-                    size="icon"
-                    className="size-8"
+                    size="icon-sm"
                     onPress={week.onNext}
                     disabled={!week.onNext}
                     aria-label="Próxima semana"
                 >
-                    <Icon as={ChevronRight} />
+                    <Icon as={ChevronRight} className="size-4" />
                 </Button>
             </View>
         </View>
@@ -70,7 +68,7 @@ function WeekHeader({ days, week }: { days: Day[]; week: WeekNavigation }) {
 
 function DayButtons({ days, selectedDate, onSelect }: Omit<WeekDayPickerProps, 'week'>) {
     return (
-        <View className="flex-row items-center gap-1 py-1" accessibilityLabel="Escolher dia">
+        <View className="mb-4 flex-row items-center gap-1 py-1" accessibilityLabel="Escolher dia">
             {days.map((day) => {
                 const isActive = day.date === selectedDate;
                 return (
@@ -79,7 +77,7 @@ function DayButtons({ days, selectedDate, onSelect }: Omit<WeekDayPickerProps, '
                         variant={isActive ? 'default' : 'outline'}
                         onPress={() => onSelect(day)}
                         aria-label={day.date}
-                        aria-selected={isActive}
+                        accessibilityState={{ selected: isActive }}
                         className="h-16 min-w-0 flex-1 flex-col gap-1 px-0"
                     >
                         <Text
@@ -90,14 +88,7 @@ function DayButtons({ days, selectedDate, onSelect }: Omit<WeekDayPickerProps, '
                         >
                             {WEEKDAYS[day.weekday]}
                         </Text>
-                        <Text
-                            className={cn(
-                                'text-lg font-extrabold',
-                                isActive ? 'text-primary-foreground' : 'text-foreground'
-                            )}
-                        >
-                            {Number(day.date.slice(8))}
-                        </Text>
+                        <Text className="text-lg font-extrabold">{Number(day.date.slice(8))}</Text>
                     </Button>
                 );
             })}

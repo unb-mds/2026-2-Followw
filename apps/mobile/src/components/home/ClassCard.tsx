@@ -68,12 +68,15 @@ export function ClassCard({
 }: ClassCardProps) {
     const statusInfo = status === 'normal' ? undefined : STATUS[status];
     const active = status === 'in_progress';
-    const details = [location, professors?.join(', ')].filter(Boolean).join(' · ');
+    const professorNames = professors?.join(', ');
+    const details = [location, professorNames].filter(Boolean).join(' · ');
 
     const body = (
-        <View className={cn('gap-1', compact && 'gap-0.5')}>
+        <View className={cn('flex-col', compact && !action ? 'gap-0.5' : 'gap-1')}>
             <View className="flex-row items-center gap-2">
                 <Text
+                    role="heading"
+                    aria-level={3}
                     numberOfLines={compact ? 1 : 2}
                     className="min-w-0 flex-1 text-sm leading-snug font-semibold"
                 >
@@ -97,12 +100,12 @@ export function ClassCard({
                 {onLocationClick && (
                     <Button
                         variant="ghost"
-                        size="icon"
+                        size="icon-xs"
                         onPress={onLocationClick}
-                        className="ml-auto size-7"
+                        className="ml-auto"
                         aria-label="Ver mapa da sala"
                     >
-                        <Icon as={MapIcon} className="size-4 text-muted-foreground" />
+                        <Icon as={MapIcon} className="size-3 text-muted-foreground" />
                     </Button>
                 )}
             </View>
@@ -118,8 +121,9 @@ export function ClassCard({
             className="active:opacity-70"
         >
             <Card
+                size="sm"
                 className={cn(
-                    'gap-1 px-3 py-3',
+                    'gap-1 px-3',
                     active && 'border-primary/30 bg-primary/5',
                     compact && 'gap-0.5 py-2'
                 )}
@@ -129,7 +133,7 @@ export function ClassCard({
                     {statusInfo && (
                         <Badge
                             variant={statusInfo.variant}
-                            className={cn('py-0', statusInfo.className)}
+                            className={cn('px-1.5 py-0', statusInfo.className)}
                         >
                             {active && <View className="size-1.5 rounded-full bg-primary" />}
                             <Text className={cn('text-xs', statusInfo.textClassName)}>
