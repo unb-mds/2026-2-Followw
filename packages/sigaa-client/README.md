@@ -31,29 +31,16 @@ O login é feito sob demanda. O token retornado por `authenticate()` pode ser re
 
 Todos os erros derivam de `SigaaError`.
 
-`client.internships.list_internships(only_my_course=False)` lê Estágio > Mural de Vagas
-e retorna resumos com `reference`, `sigaa_id`, `title`, `vacancies`, `stipend` e
-`published_until`. Por padrão inclui as duas tabelas do mural; `only_my_course=True`
-restringe às ofertas do curso do aluno. Ofertas não são deduplicadas por título,
-pois vagas diferentes podem ter o mesmo resumo e o SIGAA não expõe um ID estável.
+`client.internships.list_internships()` lista as ofertas do mural, incluindo resumos repetidos.
+Use `only_my_course=True` para ver só as do seu curso e `get_internship(vaga.reference)` para abrir
+o detalhe, com descrição em Markdown. O SIGAA não expõe um ID estável e `sigaa_id` fica `None`.
+A referência depende da posição e do texto da tabela. Se o texto mudar ou houver resumos idênticos
+na mesma tabela, o detalhe levanta `InternshipNotFound`. Uma substituição por outra oferta com
+o mesmo resumo pode passar despercebida.
 
-`client.internships.get_internship(reference)` abre o detalhe com concedente,
-responsáveis, cursos (nome, sigla da unidade e grau), descrição em Markdown,
-anexo e condições da oferta. `sigaa_id` é `None` enquanto não houver ID verificável
-na tela. A referência depende da posição e do conteúdo da tabela: se ela mudar,
-`InternshipNotFound` exige uma nova listagem; não use a referência como ID persistente.
-O detalhe relê o mural e usa o ViewState atual, inclusive após relogin.
-
-Valores monetários usam `Decimal`; bolsa em branco, descrição vazia e arquivo
-ausente ficam `None`. Transporte de valor zero também fica `None`; nos demais
-casos `period` preserva o texto da origem (ex.: `ao dia`). Datas são datetimes sem
-timezone, no calendário da UnB. A URL de um anexo pode exigir sessão SIGAA.
-
-```python
-vagas = await client.internships.list_internships()
-if vagas:
-    vaga = await client.internships.get_internship(vagas[0].reference)
-```
+Valores monetários usam `Decimal` e datas seguem o calendário da UnB, sem fuso no valor retornado.
+Transporte zero, bolsa ou descrição em branco e anexo ausente ficam `None`. O link do anexo pode
+exigir sessão SIGAA.
 
 `client.curricula.list_curricula(course_sigaa_id)` lista as estruturas de um curso, com ID, código,
 ano de criação, turno e status. `get_curriculum(course_sigaa_id, sigaa_id)` retorna o turno em

@@ -161,10 +161,12 @@ async def test_lista_as_duas_tabelas_sem_confundir_titulos_repetidos():
 
 
 async def test_filtra_as_ofertas_do_meu_curso():
-    async with client_for(FakeSigaa()) as client:
+    sigaa = FakeSigaa()
+    sigaa.board = board(MY_ROW, "<tr><td>Oferta inválida</td></tr>")
+    async with client_for(sigaa) as client:
         items = await client.internships.list_internships(only_my_course=True)
     assert len(items) == 1
-    assert items[0].reference.startswith("listagem_meu_curso:")
+    assert items[0].title == "ESTÁGIO EM SOFTWARE"
 
 
 async def test_mural_vazio_retorna_lista_vazia():
@@ -252,9 +254,31 @@ async def test_reordenacao_do_mural_invalida_referencia():
             await client.internships.get_internship(summary.reference)
 
 
+async def test_detalhe_recusa_resumo_repetido_na_mesma_tabela():
+    sigaa = FakeSigaa()
+    sigaa.board = board(MY_ROW + MY_ROW.replace("form:j_id_31", "form:j_id_32"))
+    async with client_for(sigaa) as client:
+        items = await client.internships.list_internships()
+        assert len(items) == 2
+        with pytest.raises(InternshipNotFound, match="ambígua"):
+            await client.internships.get_internship(items[0].reference)
+    assert len(sigaa.requests) == 4
+
+
 async def test_consulta_vaga_de_outro_curso():
-    async with client_for(FakeSigaa()) as client:
+    sigaa = FakeSigaa()
+    async with client_for(sigaa) as client:
         summary = (await client.internships.list_internships())[1]
+        sigaa.board = board("<tr><td>Oferta inválida</td></tr>", OTHER_ROW)
+        detail = await client.internships.get_internship(summary.reference)
+    assert detail.title == summary.title
+
+
+async def test_detalhe_usa_viewstate_do_formulario_do_mural():
+    sigaa = FakeSigaa()
+    sigaa.board = MENU + BOARD
+    async with client_for(sigaa) as client:
+        summary = (await client.internships.list_internships())[0]
         detail = await client.internships.get_internship(summary.reference)
     assert detail.title == summary.title
 

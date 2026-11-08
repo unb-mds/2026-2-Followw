@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 from decimal import Decimal
 from hashlib import sha256
 from urllib.parse import urljoin, urlsplit
@@ -47,18 +48,22 @@ class Internships:
             page = await self._open_board(allow_renewal=True)
         except SessionRenewed:
             page = await self._open_board(allow_renewal=False)
+        table_ids = _TABLE_IDS[:1] if only_my_course else _TABLE_IDS
         return [
             summary
-            for summary, _ in _parse_board(page)
-            if not only_my_course or summary.reference.startswith(_TABLE_IDS[0] + ":")
+            for table_id in table_ids
+            for summary, _ in _parse_table(page, table_id)
         ]
 
     async def get_internship(self, reference: str) -> Internship:
-        """Abre uma referência da listagem; se o mural mudou, liste novamente."""
+        """Abre uma referência cujo resumo é único na tabela."""
+        table_id, _, _ = reference.partition(":")
+        if table_id not in _TABLE_IDS:
+            raise InternshipNotFound("Referência de estágio inválida; liste novamente.")
         try:
-            return await self._read_detail(reference, allow_renewal=True)
+            return await self._read_detail(reference, table_id, allow_renewal=True)
         except SessionRenewed:
-            return await self._read_detail(reference, allow_renewal=False)
+            return await self._read_detail(reference, table_id, allow_renewal=False)
 
     async def _open_board(self, *, allow_renewal: bool) -> BeautifulSoup:
         response = await self._session.get(DASHBOARD_PATH, allow_renewal=allow_renewal)
@@ -69,71 +74,79 @@ class Internships:
         )
         return BeautifulSoup(response.text, "lxml")
 
-    async def _read_detail(self, reference: str, *, allow_renewal: bool) -> Internship:
+    async def _read_detail(
+        self, reference: str, table_id: str, *, allow_renewal: bool
+    ) -> Internship:
         page = await self._open_board(allow_renewal=allow_renewal)
-        match = next(
-            (item for item in _parse_board(page) if item[0].reference == reference),
-            None,
-        )
+        items = _parse_table(page, table_id)
+        match = next((item for item in items if item[0].reference == reference), None)
         if match is None:
             raise InternshipNotFound(
                 "Referência de estágio ausente ou mural alterado; liste novamente."
             )
         summary, anchor = match
+        key = _summary_key(summary)
+        if sum(_summary_key(item) == key for item, _ in items) > 1:
+            raise InternshipNotFound(
+                "Referência de estágio ambígua: há ofertas com o mesmo resumo na tabela."
+            )
+        form = read_form(page, "form")
         action, payload = build_postback(
-            read_form(page, "form"), link_params(anchor), read_viewstate(page)
+            form, link_params(anchor), read_viewstate(form)
         )
         response = await self._session.post(
             action, data=payload, allow_renewal=allow_renewal
         )
         detail = _parse_detail(BeautifulSoup(response.text, "lxml"))
-        if (detail.title, detail.vacancies, detail.stipend, detail.published_until) != (
-            summary.title,
-            summary.vacancies,
-            summary.stipend,
-            summary.published_until,
-        ):
+        if _summary_key(detail) != key:
             raise SigaaParseError(
                 "Detalhe da oferta de estágio diverge do resumo no mural."
             )
         return detail
 
 
-def _parse_board(page: BeautifulSoup) -> list[tuple[InternshipSummary, Tag]]:
+def _summary_key(
+    offer: InternshipSummary | Internship,
+) -> tuple[str, int, Decimal | None, datetime]:
+    return offer.title, offer.vacancies, offer.stipend, offer.published_until
+
+
+def _parse_table(
+    page: BeautifulSoup, table_id: str
+) -> list[tuple[InternshipSummary, Tag]]:
+    table = page.find("table", id=table_id)
+    if not isinstance(table, Tag):
+        raise SigaaParseError(f"Tabela `{table_id}` ausente no mural de estágios.")
+    rows = table.select("tbody > tr")
+    # shortcut: a posição só é verificável pelo texto até o SIGAA expor um ID.
+    fingerprint = sha256(
+        "\n".join(clean_text(row) for row in rows).encode()
+    ).hexdigest()
     items = []
-    for table_id in _TABLE_IDS:
-        table = page.find("table", id=table_id)
-        if not isinstance(table, Tag):
-            raise SigaaParseError(f"Tabela `{table_id}` ausente no mural de estágios.")
-        rows = table.select("tbody > tr")
-        # O JSF só publica índices: a referência expira quando a tabela muda.
-        fingerprint = sha256(
-            "\n".join(clean_text(row) for row in rows).encode()
-        ).hexdigest()
-        for index, row in enumerate(rows):
-            cells = row.find_all("td", recursive=False)
-            anchor = row.find("a", title=_DETAIL_TITLE)
-            if not isinstance(anchor, Tag) or len(cells) < 5 or not link_params(anchor):
-                raise SigaaParseError(f"Oferta sem campos ou ação JSF em `{table_id}`.")
-            title = clean_text(cells[0])
-            if not title:
-                raise SigaaParseError(f"Oferta sem título em `{table_id}`.")
-            items.append(
-                (
-                    InternshipSummary(
-                        reference=f"{table_id}:{index}:{fingerprint}",
-                        title=title,
-                        vacancies=_integer(clean_text(cells[1])),
-                        stipend=_money(clean_text(cells[2])),
-                        published_until=parse_datetime(
-                            clean_text(cells[3]),
-                            "%d/%m/%Y %H:%M",
-                            "do fim das inscrições no mural",
-                        ),
+    for index, row in enumerate(rows):
+        cells = row.find_all("td", recursive=False)
+        anchor = row.find("a", title=_DETAIL_TITLE)
+        if not isinstance(anchor, Tag) or len(cells) < 5 or not link_params(anchor):
+            raise SigaaParseError(f"Oferta sem campos ou ação JSF em `{table_id}`.")
+        title = clean_text(cells[0])
+        if not title:
+            raise SigaaParseError(f"Oferta sem título em `{table_id}`.")
+        items.append(
+            (
+                InternshipSummary(
+                    reference=f"{table_id}:{index}:{fingerprint}",
+                    title=title,
+                    vacancies=_integer(clean_text(cells[1])),
+                    stipend=_money(clean_text(cells[2])),
+                    published_until=parse_datetime(
+                        clean_text(cells[3]),
+                        "%d/%m/%Y %H:%M",
+                        "do fim das inscrições no mural",
                     ),
-                    anchor,
-                )
+                ),
+                anchor,
             )
+        )
     return items
 
 

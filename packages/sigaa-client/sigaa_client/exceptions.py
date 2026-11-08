@@ -27,7 +27,7 @@ class NewsNotFound(SigaaError):
 
 
 class InternshipNotFound(SigaaError):
-    """A referência da oferta não pertence mais à listagem atual do mural."""
+    """A referência da oferta está inválida, expirada ou ambígua no mural."""
 
 
 class SigaaSearchError(SigaaError):
