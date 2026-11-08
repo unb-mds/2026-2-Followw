@@ -269,7 +269,12 @@ export function StatementDetails({
                                     Nenhuma movimentação no extrato.
                                 </Text>
                             ) : (
-                                <ScrollView nestedScrollEnabled className="max-h-64">
+                                <ScrollView
+                                    nestedScrollEnabled
+                                    className="max-h-64"
+                                    // mb-4 de cada linha no web ([&_p:not(:last-child)]:mb-4)
+                                    contentContainerClassName="gap-4 pb-4"
+                                >
                                     {entries.map((entry) => (
                                         <View
                                             key={`${entry.occurred_at}-${entry.description}-${entry.amount}`}
