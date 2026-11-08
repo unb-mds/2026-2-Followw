@@ -36,7 +36,8 @@ import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
 import { useLogout } from '@/queries/auth';
 
-const ROW = 'h-auto min-h-12 w-full justify-start gap-3 rounded-none px-0 py-2.5';
+// border-0 tira a borda transparente do Button; as divisórias usam só border-t
+const ROW = 'h-auto min-h-12 w-full justify-start gap-3 rounded-none border-0 px-0 py-2.5';
 
 export function AccountSection({
     displayName,
