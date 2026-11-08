@@ -33,7 +33,6 @@ import { LoadingText } from '@/components/LoadingText';
 import { openLink } from '@/components/Markdown';
 import { PersonPhoto } from '@/components/PersonPhoto';
 import { Screen } from '@/components/Screen';
-import { ShareButton } from '@/components/ShareButton';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Text } from '@/components/ui/text';
@@ -66,20 +65,7 @@ export default function ClassroomScreen() {
 
     return (
         <Screen
-            header={
-                <BackHeader
-                    to="/turmas"
-                    title="Minhas Turmas"
-                    actions={
-                        classroom ? (
-                            <ShareButton
-                                title={classroom.subject.name}
-                                path={`/turmas/${classroom.id}`}
-                            />
-                        ) : null
-                    }
-                />
-            }
+            header={<BackHeader to="/turmas" title="Minhas Turmas" />}
             onRefreshData={(queryClient) =>
                 Promise.all([
                     refreshQuery(queryClient, meQueryOptions),
