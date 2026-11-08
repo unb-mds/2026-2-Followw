@@ -8,7 +8,8 @@
         "**/.output/**",
         "**/.tanstack/**",
         "**/.nitro/**",
-        "**/dist/**"
+        "**/dist/**",
+        "**/uniwind-types.d.ts"
     ],
     "plugins": ["typescript", "react", "import", "unicorn", "oxc", "jsx-a11y", "promise"],
     "categories": {
@@ -73,6 +74,25 @@
             ],
             "rules": {
                 "followw/no-hardcoded-email": "off"
+            }
+        },
+        {
+            "files": ["apps/mobile/**"],
+            "rules": {
+                "jsx-a11y/prefer-tag-over-role": "off",
+                "react/style-prop-object": "off",
+                "import/no-unassigned-import": [
+                    "warn",
+                    {
+                        "allow": ["**/*.css"]
+                    }
+                ]
+            }
+        },
+        {
+            "files": ["apps/mobile/tests/**"],
+            "rules": {
+                "typescript/no-unsafe-type-assertion": "off"
             }
         }
     ]

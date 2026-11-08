@@ -58,6 +58,7 @@ ficam salvas apenas no seu navegador. [Saiba mais](docs/seguranca.md)
 ```text
 apps/
 ├── api/              API FastAPI, autenticação e cache
+├── mobile/           app nativo em Expo + React Native
 └── web/              aplicação web em TanStack Start
 packages/
 ├── core/             queries, tipos e regras compartilhados em TypeScript

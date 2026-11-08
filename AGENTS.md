@@ -14,6 +14,7 @@ cifrados no cliente; as requisições são stateless e a sessão não é persist
 apps/
   api/              # API pública (FastAPI)
   web/              # Front-end web do Followw
+  mobile/           # App nativo (Expo + React Native)
 packages/
   core/              # queries, tipos e regras TypeScript compartilhados
   sigaa-client/      # biblioteca async que fala com o SIGAA

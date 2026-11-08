@@ -1,0 +1,86 @@
+@import 'tailwindcss';
+@import 'uniwind';
+
+/* mesmos tokens de apps/web/src/styles.css, convertidos de OKLCH para hex */
+@layer theme {
+    :root {
+        @variant light {
+            --color-background: #ffffff;
+            --color-foreground: #000000;
+            --color-card: #ffffff;
+            --color-card-foreground: #0a0a0a;
+            --color-popover: #ffffff;
+            --color-popover-foreground: #0a0a0a;
+            --color-primary: #007c5d;
+            --color-primary-foreground: #f0fdf4;
+            --color-secondary: #f4f4f5;
+            --color-secondary-foreground: #18181b;
+            --color-muted: #f5f5f5;
+            --color-muted-foreground: #737373;
+            --color-accent: #f5f5f5;
+            --color-accent-foreground: #171717;
+            --color-destructive: #e7000b;
+            --color-warning: #c37f00;
+            --color-success: #0e8c41;
+            --color-info: #2563eb;
+            --color-flow-1: #068665;
+            --color-flow-2: #0079b5;
+            --color-flow-3: #8059bb;
+            --color-flow-4: #be4d77;
+            --color-flow-5: #b37903;
+            --color-flow-6: #508d23;
+            --color-flow-7: #c85b32;
+            --color-border: #e5e5e5;
+            --color-input: #e5e5e5;
+            --color-ring: #a1a1a1;
+        }
+
+        @variant dark {
+            --color-background: #0a0a0a;
+            --color-foreground: #fafafa;
+            --color-card: #171717;
+            --color-card-foreground: #fafafa;
+            --color-popover: #171717;
+            --color-popover-foreground: #fafafa;
+            --color-primary: #4cb492;
+            --color-primary-foreground: #0a0a0a;
+            --color-secondary: #27272a;
+            --color-secondary-foreground: #fafafa;
+            --color-muted: #262626;
+            --color-muted-foreground: #a1a1a1;
+            --color-accent: #262626;
+            --color-accent-foreground: #fafafa;
+            --color-destructive: #ff6467;
+            --color-warning: #f3ba25;
+            --color-success: #47cf79;
+            --color-info: #51a2ff;
+            --color-flow-1: #4db491;
+            --color-flow-2: #55aee8;
+            --color-flow-3: #b191ea;
+            --color-flow-4: #ea7ca1;
+            --color-flow-5: #e9b452;
+            --color-flow-6: #89ce5f;
+            --color-flow-7: #f48a64;
+            --color-border: #ffffff1a;
+            --color-input: #ffffff26;
+            --color-ring: #737373;
+        }
+    }
+}
+
+@theme {
+    --font-sans: 'DMSans_400Regular';
+    --font-normal: 'DMSans_400Regular';
+    --font-medium: 'DMSans_500Medium';
+    --font-semibold: 'DMSans_600SemiBold';
+    --font-bold: 'DMSans_700Bold';
+    --font-extrabold: 'DMSans_700Bold';
+
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 10px;
+    --radius-xl: 14px;
+    --radius-2xl: 18px;
+    --radius-3xl: 22px;
+    --radius-4xl: 26px;
+}

@@ -39,9 +39,9 @@
         "openapi-fetch": "^0.17.0",
         "posthog-js": "^1.450.1",
         "qrcode.react": "^4.2.0",
-        "react": "^19.3.1",
+        "react": "19.3.0",
         "react-day-picker": "^10.0.2",
-        "react-dom": "^19.3.1",
+        "react-dom": "19.3.0",
         "react-markdown": "^10.1.0",
         "recharts": "3.11.0",
         "remark-gfm": "^4.0.1"
