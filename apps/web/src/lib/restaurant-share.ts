@@ -1,4 +1,4 @@
-import type { MealKey } from '@followw/core/lib/restaurant.ts';
+import type { RestaurantSelection } from '@followw/core/lib/restaurant.ts';
 import type { Campus, DailyMenu } from '@followw/core/queries/restaurant.ts';
 import type { inferParserType } from 'nuqs/server';
 
@@ -6,7 +6,8 @@ import {
     currentOrNextMeal,
     FIRST_MENU_DAY,
     lastMenuDay,
-    MEAL_TIMES
+    MEAL_TIMES,
+    restaurantSharePath
 } from '@followw/core/lib/restaurant.ts';
 import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { CAMPUS_LABELS, CAMPUS_OPTIONS } from '@followw/core/queries/restaurant.ts';
@@ -50,12 +51,6 @@ export function validateRestaurantSearch(search: Record<string, unknown>): Resta
     return { date: date ?? undefined, meal: meal ?? undefined, campus: campus ?? undefined };
 }
 
-export interface RestaurantSelection {
-    date: string;
-    meal: MealKey;
-    campus: Campus;
-}
-
 export function restaurantDefaults(
     campus: Campus = 'Darcy',
     now = nowInBrasilia()
@@ -73,15 +68,6 @@ export function restaurantSelection(
         meal: search.meal ?? defaults.meal,
         campus: search.campus ?? defaults.campus
     };
-}
-
-export function restaurantSharePath(selection: RestaurantSelection, path = '/ru') {
-    const params = new URLSearchParams({
-        date: selection.date,
-        meal: selection.meal,
-        campus: selection.campus
-    });
-    return `${path}?${params}`;
 }
 
 // Sem o cardápio em mãos (navegação no client), a página continua indexável.

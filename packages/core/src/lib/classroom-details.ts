@@ -1,3 +1,5 @@
+import type { Lesson } from '../queries/classrooms.ts';
+
 export function formatClassroomDate(date: string) {
     const [year, month, day] = date.slice(0, 10).split('-');
     return `${day}/${month}/${year}`;
@@ -40,4 +42,29 @@ export function groupBySemester<T extends { semester: string }>(classrooms: T[])
         groups.set(classroom.semester, [...(groups.get(classroom.semester) ?? []), classroom]);
     }
     return [...groups].toSorted(([a], [b]) => b.localeCompare(a));
+}
+
+export const CLASSROOM_TABS = ['frequency', 'statistics', 'posts', 'members'] as const;
+export type ClassroomTab = (typeof CLASSROOM_TABS)[number];
+
+// turma em andamento tem frequência; encerrada, estatísticas
+export function classroomTab(tab: ClassroomTab, current: boolean): ClassroomTab {
+    if (tab !== 'frequency' && tab !== 'statistics') return tab;
+    return current ? 'frequency' : 'statistics';
+}
+
+const RUN_STATUSES = ['presente', 'falta', 'nao_registrada'] as const;
+
+export type LessonRun = { id: string; status: (typeof RUN_STATUSES)[number]; count: number };
+
+/** Aulas em ordem cronológica, agrupadas em sequências de mesma situação. */
+export function lessonRuns(lessons: Lesson[]): LessonRun[] {
+    const runs: LessonRun[] = [];
+    for (const lesson of lessons.toReversed()) {
+        if (lesson.status === 'cancelada') continue;
+        const last = runs.at(-1);
+        if (last?.status === lesson.status) last.count++;
+        else runs.push({ id: lesson.id, status: lesson.status, count: 1 });
+    }
+    return runs;
 }
