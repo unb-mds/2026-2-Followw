@@ -5,6 +5,7 @@ import type {
 } from '@followw/core/queries/restaurant-account.ts';
 import type { UseQueryResult } from '@tanstack/react-query';
 
+import { documentRefusal } from '@followw/core/lib/documents.ts';
 import { useFailureMessage, useOnline } from '@followw/core/lib/online.ts';
 import { cardIsExpired, insufficientMealBalance } from '@followw/core/lib/restaurant.ts';
 import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
@@ -40,7 +41,6 @@ import {
 import { Skeleton } from '#/components/ui/skeleton';
 import { Spinner } from '#/components/ui/spinner';
 import { cn } from '#/lib/shadcn';
-import { documentRefusal } from '#/queries/documents';
 import { refreshQuery } from '#/queries/refresh';
 import { useStudentCard } from '#/queries/student-card';
 
