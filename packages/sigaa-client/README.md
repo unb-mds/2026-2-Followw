@@ -23,13 +23,24 @@ async with SigaaPublicClient() as client:
 
 | Client              | Login | Módulos                                                |
 | ------------------- | ----- | ------------------------------------------------------ |
-| `SigaaClient`       | sim   | `.profile`, `.classrooms`, `.documents`, `.restaurant` |
+| `SigaaClient`       | sim   | `.profile`, `.classrooms`, `.documents`, `.restaurant`, `.internships` |
 | `SigaaPublicClient` | não   | `.classrooms`, `.subjects`, `.curricula`, `.professors` |
 
 O login é feito sob demanda. O token retornado por `authenticate()` pode ser reutilizado com
 `SigaaClient(session_token=...)`: sem credenciais, uma sessão expirada levanta `SessionExpired`.
 
 Todos os erros derivam de `SigaaError`.
+
+`client.internships.list_internships()` lista as ofertas do mural, incluindo resumos repetidos.
+Use `only_my_course=True` para ver só as do seu curso e `get_internship(vaga.reference)` para abrir
+o detalhe, com descrição em Markdown. O SIGAA não expõe um ID estável e `sigaa_id` fica `None`.
+A referência depende da posição e do texto da tabela. Se o texto mudar ou houver resumos idênticos
+na mesma tabela, o detalhe levanta `InternshipNotFound`. Uma substituição por outra oferta com
+o mesmo resumo pode passar despercebida.
+
+Valores monetários usam `Decimal` e datas seguem o calendário da UnB, sem fuso no valor retornado.
+Transporte zero, bolsa ou descrição em branco e anexo ausente ficam `None`. O link do anexo pode
+exigir sessão SIGAA.
 
 `client.curricula.list_curricula(course_sigaa_id)` lista as estruturas de um curso, com ID, código,
 ano de criação, turno e status. `get_curriculum(course_sigaa_id, sigaa_id)` retorna o turno em

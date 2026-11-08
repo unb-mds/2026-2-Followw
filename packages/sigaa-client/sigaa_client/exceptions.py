@@ -26,6 +26,10 @@ class NewsNotFound(SigaaError):
     """A notícia não está na listagem da turma solicitada."""
 
 
+class InternshipNotFound(SigaaError):
+    """A referência da oferta está inválida, expirada ou ambígua no mural."""
+
+
 class SigaaSearchError(SigaaError):
     """O SIGAA recusou os filtros da busca e disse o porquê."""
 
