@@ -22,11 +22,11 @@ export function ClassroomSummary({ classroom }: { classroom: Classroom }) {
             <Text
                 role="heading"
                 aria-level={1}
-                className="mt-1 text-xl leading-tight font-semibold"
+                className="mt-1 text-xl leading-tight font-semibold tracking-tight"
             >
                 {classroom.subject.name}
             </Text>
-            <View className="mt-3 gap-1">
+            <View className="mt-3 flex-col gap-1">
                 <SummaryItem icon={Clock3}>
                     <Text className="text-sm font-medium text-primary">
                         {schedule ?? 'Horário a definir'}
@@ -63,8 +63,8 @@ export function ClassroomSummary({ classroom }: { classroom: Classroom }) {
 
 function SummaryItem({ icon, children }: { icon: LucideIcon; children: React.ReactNode }) {
     return (
-        <View className="flex-row items-center gap-2">
-            <Icon as={icon} className="size-3.5 shrink-0 text-muted-foreground" />
+        <View className="flex-row items-start gap-2">
+            <Icon as={icon} className="mt-1 size-3.5 shrink-0 text-muted-foreground" />
             <View className="min-w-0 flex-1 flex-row">{children}</View>
         </View>
     );

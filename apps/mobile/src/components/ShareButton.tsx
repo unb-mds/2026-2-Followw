@@ -1,7 +1,10 @@
 import { Share2 } from 'lucide-react-native';
-import { Pressable } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator } from 'react-native';
 
+import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
+import { useColor } from '@/lib/colors';
 import { share } from '@/lib/share';
 
 interface ShareButtonProps {
@@ -9,19 +12,36 @@ interface ShareButtonProps {
     // caminho no site (ex.: `/cursos/12`), vira link público
     path: string;
     text?: string;
+    // compartilhamento próprio (ex.: imagem); o padrão é o link
+    onShare?: () => Promise<void>;
 }
 
-/** Abre o share sheet nativo; use em `headerRight` (`<Stack.Screen options={{ headerRight }} />`). */
-export function ShareButton({ title, path, text }: ShareButtonProps) {
+export function ShareButton({ title, path, text, onShare }: ShareButtonProps) {
+    const [sharing, setSharing] = useState(false);
+    const muted = useColor('muted-foreground');
+
+    const press = async () => {
+        setSharing(true);
+        try {
+            await (onShare ? onShare() : share(title, path, text));
+        } finally {
+            setSharing(false);
+        }
+    };
+
     return (
-        <Pressable
-            accessibilityRole="button"
+        <Button
+            variant="ghost"
+            size="icon-lg"
             accessibilityLabel="Compartilhar"
-            hitSlop={8}
-            onPress={() => void share(title, path, text)}
-            className="size-9 items-center justify-center active:opacity-60"
+            disabled={sharing}
+            onPress={() => void press()}
         >
-            <Icon as={Share2} className="size-5 text-primary" />
-        </Pressable>
+            {sharing ? (
+                <ActivityIndicator color={muted} />
+            ) : (
+                <Icon as={Share2} className="size-5" />
+            )}
+        </Button>
     );
 }

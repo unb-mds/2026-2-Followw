@@ -66,8 +66,8 @@ export function StatisticsChart({
                 <PieChart
                     data={shares.map((share) => ({ value: share.percentage, color: share.color }))}
                     donut
-                    radius={88}
-                    innerRadius={72}
+                    radius={89}
+                    innerRadius={79}
                     innerCircleColor={background}
                     strokeWidth={shares.length > 1 ? 4 : 0}
                     strokeColor={background}
@@ -81,8 +81,10 @@ export function StatisticsChart({
                             className="size-2.5 shrink-0 rounded-full"
                             style={{ backgroundColor: share.color }}
                         />
-                        <Text className="flex-1 text-xs">{situations[share.situation].label}</Text>
-                        <Text className="text-xs font-medium">
+                        <Text className="flex-1 text-xs text-foreground">
+                            {situations[share.situation].label}
+                        </Text>
+                        <Text className="text-xs font-medium text-foreground">
                             {percentage.format(share.percentage)}%
                         </Text>
                     </View>

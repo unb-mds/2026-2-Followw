@@ -20,80 +20,109 @@ import {
     menuQueryOptions
 } from '@followw/core/queries/restaurant.ts';
 import { useQuery } from '@tanstack/react-query';
-import { Stack, useRouter } from 'expo-router';
-import {
-    ChevronLeft,
-    ChevronRight,
-    Coffee,
-    ImageDown,
-    LogIn,
-    QrCode,
-    Soup,
-    UtensilsCrossed
-} from 'lucide-react-native';
-import { useState } from 'react';
-import { ActivityIndicator, Pressable, View } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { ChevronLeft, ChevronRight, Coffee, Soup, UtensilsCrossed } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
+import { View } from 'react-native';
 
+import { HeaderBar, HeaderToggle } from '@/components/HeaderBar';
 import { LoadingText } from '@/components/LoadingText';
-import { OfflineBanner } from '@/components/OfflineBanner';
-import { PageState } from '@/components/PageState';
 import { MealDetails } from '@/components/ru/MealDetails';
 import { RestaurantAccount } from '@/components/ru/RestaurantAccount';
 import { Screen } from '@/components/Screen';
-import { TabFilter } from '@/components/TabFilter';
+import { ShareButton } from '@/components/ShareButton';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
+import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue
+} from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Text } from '@/components/ui/text';
 import { WeekDayPicker } from '@/components/WeekDayPicker';
-import { useColor } from '@/lib/colors';
 import { share } from '@/lib/share';
-import { cn } from '@/lib/utils';
 import { shareMenuImage } from '@/queries/restaurant-share';
 
 export { ErrorState as ErrorBoundary } from '@/components/ErrorState';
 
 const MEAL_ICONS = { breakfast: Coffee, lunch: UtensilsCrossed, dinner: Soup };
+const MEALS = MEAL_TIMES.map(({ key, label, start, end }) => ({
+    key,
+    label,
+    start,
+    end,
+    icon: MEAL_ICONS[key]
+}));
 
-export default function RestaurantScreen() {
+export default function RUPage() {
     const router = useRouter();
-    const me = useQuery(meQueryOptions);
-    const user = me.data;
+    const { carteirinha } = useLocalSearchParams<{ carteirinha?: string }>();
+    const { data: user, isPending: userPending } = useQuery(meQueryOptions);
     const [opening] = useState(() => currentOrNextMeal(nowInBrasilia()));
     const today = nowInBrasilia().date;
     const [chosen, setChosen] = useState<Partial<RestaurantSelection>>({});
+    const [filtersOpen, setFiltersOpen] = useState(false);
     const selection: RestaurantSelection = {
         date: chosen.date ?? opening.date,
         meal: chosen.meal ?? opening.meal.key,
         campus: chosen.campus ?? campusOf(user?.unit?.code)
     };
     const select = (change: Partial<RestaurantSelection>) => setChosen({ ...chosen, ...change });
-    const { date, meal: mealKey, campus } = selection;
-    const [sharing, setSharing] = useState(false);
+    const { date: selectedDate, meal: selectedMeal, campus } = selection;
 
-    const menuOptions = menuQueryOptions({ date, campus });
-    const menu = useQuery(menuOptions);
+    // pedido da barra inferior para abrir a carteirinha; limpa para não reabrir
+    const cardRequested = carteirinha === '1';
+    useEffect(() => {
+        if (cardRequested && !userPending) router.setParams({ carteirinha: undefined });
+    }, [cardRequested, userPending, router]);
+
+    const menuOptions = menuQueryOptions({ date: selectedDate, campus });
+    const { data, isPending, isLoadingError, refetch } = useQuery(menuOptions);
     const failureMessage = useFailureMessage('O site do RU não respondeu.');
-    const meal = MEAL_TIMES.find((item) => item.key === mealKey) ?? MEAL_TIMES[1];
-    const sections = menu.data?.[0]?.[mealKey] ?? [];
-
-    const days = weekDays(date, 7);
+    const menu = data?.[0];
+    const meal = MEALS.find((item) => item.key === selectedMeal) ?? MEALS[1];
+    const sections = menu?.[selectedMeal] ?? [];
+    // Só esta semana e a próxima; trocar de semana mantém o dia da semana.
+    const days = weekDays(selectedDate, 7);
     const firstDay = weekDays(today, 7)[0].date;
     const isNextWeek = days[0].date > firstDay;
-    const shiftWeek = (weeks: number) => () => select({ date: addDays(date, 7 * weeks) });
+    const shiftWeek = (weeks: number) => () => select({ date: addDays(selectedDate, 7 * weeks) });
+    const shiftDay = (offset: number) => () => select({ date: addDays(selectedDate, offset) });
 
-    async function shareMenu() {
-        setSharing(true);
+    const shareMenu = async () => {
         try {
             await shareMenuImage(selection);
         } catch {
             await share('Cardápio do RU', restaurantSharePath(selection));
-        } finally {
-            setSharing(false);
         }
-    }
+    };
 
     return (
         <Screen
+            header={
+                <HeaderBar
+                    actions={
+                        <ShareButton
+                            title="Cardápio do RU"
+                            path={restaurantSharePath(selection)}
+                            onShare={shareMenu}
+                        />
+                    }
+                >
+                    <HeaderToggle
+                        open={filtersOpen}
+                        onToggle={() => setFiltersOpen(!filtersOpen)}
+                        title={filtersOpen ? 'Ocultar dia e campus' : 'Escolher dia e campus'}
+                    >
+                        Cardápio
+                    </HeaderToggle>
+                </HeaderBar>
+            }
             onRefreshData={(queryClient) =>
                 Promise.all([
                     refreshQuery(queryClient, menuOptions),
@@ -102,176 +131,152 @@ export default function RestaurantScreen() {
                 ])
             }
         >
-            <Stack.Screen
-                options={{
-                    // oxlint-disable-next-line react/no-unstable-nested-components -- headerRight exige função
-                    headerRight: () => (
-                        <HeaderActions
-                            sharing={sharing}
-                            canOpenCard={Boolean(user)}
-                            onShare={() => void shareMenu()}
-                        />
-                    )
-                }}
-            />
-            <OfflineBanner />
-            <WeekDayPicker
-                days={days}
-                selectedDate={date}
-                onSelect={(day) => select({ date: day.date })}
-                week={{
-                    label: isNextWeek ? 'Próxima semana' : 'Esta semana',
-                    onPrevious: isNextWeek ? shiftWeek(-1) : undefined,
-                    onNext: isNextWeek ? undefined : shiftWeek(1)
-                }}
-            />
-            <TabFilter
-                label="Campus"
-                value={campus}
-                options={CAMPUS_OPTIONS}
-                labels={CAMPUS_LABELS}
-                onChange={(value) => select({ campus: value })}
-            />
+            {filtersOpen && (
+                <View>
+                    <WeekDayPicker
+                        days={days}
+                        selectedDate={selectedDate}
+                        onSelect={(day) => select({ date: day.date })}
+                        week={{
+                            label: isNextWeek ? 'Próxima semana' : 'Esta semana',
+                            onPrevious: isNextWeek ? shiftWeek(-1) : undefined,
+                            onNext: isNextWeek ? undefined : shiftWeek(1)
+                        }}
+                    />
 
-            <View
-                className="flex-row rounded-lg bg-muted p-1"
-                accessibilityLabel="Escolher refeição"
-            >
-                {MEAL_TIMES.map((item) => {
-                    const active = item.key === mealKey;
-                    return (
-                        <Pressable
-                            key={item.key}
-                            accessibilityRole="tab"
-                            accessibilityState={{ selected: active }}
-                            onPress={() => select({ meal: item.key })}
-                            className={cn(
-                                'flex-1 items-center gap-1 rounded-md py-3',
-                                active && 'bg-background'
-                            )}
+                    <View className="mb-5">
+                        <Label className="mb-2 px-1 text-xs font-normal text-muted-foreground">
+                            Campus
+                        </Label>
+                        <Select
+                            items={CAMPUS_OPTIONS.map((option) => ({
+                                value: option,
+                                label: CAMPUS_LABELS[option]
+                            }))}
+                            value={campus}
+                            onValueChange={(value) => {
+                                const selected = CAMPUS_OPTIONS.find((option) => option === value);
+                                if (selected) select({ campus: selected });
+                            }}
                         >
-                            <Icon
-                                as={MEAL_ICONS[item.key]}
-                                className={cn('size-5', !active && 'text-muted-foreground')}
-                            />
-                            <Text
-                                className={cn(
-                                    'text-xs font-medium',
-                                    !active && 'text-muted-foreground'
-                                )}
-                            >
-                                {item.label}
-                            </Text>
-                        </Pressable>
-                    );
-                })}
-            </View>
-
-            <View className="flex-row items-center justify-between">
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    accessibilityLabel="Dia anterior"
-                    disabled={date <= firstDay}
-                    onPress={() => select({ date: addDays(date, -1) })}
-                >
-                    <Icon as={ChevronLeft} />
-                </Button>
-                <Text className="text-xs font-bold text-muted-foreground">
-                    {formatMenuDay(date, today)} · {meal.start}–{meal.end}
-                </Text>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    accessibilityLabel="Próximo dia"
-                    disabled={date >= addDays(firstDay, 13)}
-                    onPress={() => select({ date: addDays(date, 1) })}
-                >
-                    <Icon as={ChevronRight} />
-                </Button>
-            </View>
-
-            {sections.length > 0 ? (
-                <MealDetails sections={sections} />
-            ) : (
-                <View className="px-1">
-                    {menu.isPending && <LoadingText>Carregando cardápio...</LoadingText>}
-                    {menu.isLoadingError && (
-                        <Text className="text-sm text-muted-foreground">
-                            {failureMessage}{' '}
-                            <Text
-                                className="text-sm font-semibold text-primary"
-                                onPress={() => void menu.refetch()}
-                            >
-                                Tentar novamente
-                            </Text>
-                        </Text>
-                    )}
-                    {!menu.isPending && !menu.isLoadingError && (
-                        <Text className="text-sm text-muted-foreground">
-                            Cardápio não publicado para esta refeição neste dia.
-                        </Text>
-                    )}
+                            <SelectTrigger className="w-full bg-background">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent title="Campus">
+                                {CAMPUS_OPTIONS.map((option) => (
+                                    <SelectItem key={option} value={option}>
+                                        {CAMPUS_LABELS[option]}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </View>
                 </View>
             )}
 
-            {user ? (
-                <RestaurantAccount key={user.registration} registration={user.registration} />
-            ) : (
-                !me.isPending && (
-                    <PageState
-                        icon={LogIn}
-                        title="Entre com o SIGAA"
-                        message="Veja seu saldo, extrato e carteirinha do RU."
-                    >
-                        <Button onPress={() => router.push('/login')}>
-                            <Text>Entrar</Text>
+            <Tabs
+                value={selectedMeal}
+                onValueChange={(value) => {
+                    const selected = MEALS.find((item) => item.key === value);
+                    if (selected) select({ meal: selected.key });
+                }}
+            >
+                <TabsList className="h-auto w-full" accessibilityLabel="Escolher refeição">
+                    {MEALS.map((item) => (
+                        <TabsTrigger
+                            key={item.key}
+                            value={item.key}
+                            className="h-auto flex-col gap-1 py-3"
+                        >
+                            <Icon as={item.icon} className="size-5" />
+                            <Text className="text-xs">{item.label}</Text>
+                        </TabsTrigger>
+                    ))}
+                </TabsList>
+
+                <TabsContent value={selectedMeal} className="mt-4">
+                    <View className="mb-4 flex-row items-center justify-between gap-2">
+                        <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onPress={shiftDay(-1)}
+                            disabled={selectedDate <= firstDay}
+                            accessibilityLabel="Dia anterior"
+                        >
+                            <Icon as={ChevronLeft} className="size-4" />
                         </Button>
-                    </PageState>
+                        <Text
+                            className="text-xs font-bold text-muted-foreground"
+                            accessibilityLiveRegion="polite"
+                        >
+                            {formatMenuDay(selectedDate, today)} · {meal.start}–{meal.end}
+                        </Text>
+                        <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onPress={shiftDay(1)}
+                            // só esta semana e a próxima
+                            disabled={selectedDate >= addDays(firstDay, 13)}
+                            accessibilityLabel="Próximo dia"
+                        >
+                            <Icon as={ChevronRight} className="size-4" />
+                        </Button>
+                    </View>
+                    {sections.length > 0 ? (
+                        <MealDetails sections={sections} />
+                    ) : (
+                        <View className="px-1">
+                            {isPending && (
+                                <LoadingText className="justify-start py-0">
+                                    Carregando cardápio...
+                                </LoadingText>
+                            )}
+                            {isLoadingError && (
+                                <Text className="text-sm text-muted-foreground">
+                                    {failureMessage}{' '}
+                                    <Text
+                                        accessibilityRole="button"
+                                        onPress={() => void refetch()}
+                                        className="text-xs font-medium text-primary"
+                                    >
+                                        Tentar novamente
+                                    </Text>
+                                </Text>
+                            )}
+                            {!isPending && !isLoadingError && (
+                                <Text className="text-sm text-muted-foreground">
+                                    Cardápio não publicado para esta refeição neste dia.
+                                </Text>
+                            )}
+                        </View>
+                    )}
+                </TabsContent>
+            </Tabs>
+
+            {user ? (
+                <RestaurantAccount
+                    key={user.registration}
+                    registration={user.registration}
+                    openCard={cardRequested}
+                />
+            ) : (
+                !userPending && (
+                    <Card className="mt-4">
+                        <CardContent>
+                            <Text className="text-sm text-muted-foreground">
+                                <Text
+                                    accessibilityRole="link"
+                                    onPress={() => router.push('/login')}
+                                    className="text-sm font-bold text-primary"
+                                >
+                                    Entre com o SIGAA
+                                </Text>{' '}
+                                para ver seu saldo, extrato e carteirinha do RU.
+                            </Text>
+                        </CardContent>
+                    </Card>
                 )
             )}
         </Screen>
-    );
-}
-
-function HeaderActions({
-    sharing,
-    canOpenCard,
-    onShare
-}: {
-    sharing: boolean;
-    canOpenCard: boolean;
-    onShare: () => void;
-}) {
-    const router = useRouter();
-    const muted = useColor('muted-foreground');
-    return (
-        <View className="flex-row items-center gap-1">
-            <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Compartilhar cardápio"
-                hitSlop={8}
-                disabled={sharing}
-                onPress={onShare}
-                className="size-9 items-center justify-center active:opacity-60"
-            >
-                {sharing ? (
-                    <ActivityIndicator color={muted} />
-                ) : (
-                    <Icon as={ImageDown} className="size-5 text-primary" />
-                )}
-            </Pressable>
-            {canOpenCard && (
-                <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Ver QR code da carteirinha"
-                    hitSlop={8}
-                    onPress={() => router.setParams({ carteirinha: '1' })}
-                    className="size-9 items-center justify-center active:opacity-60"
-                >
-                    <Icon as={QrCode} className="size-5 text-primary" />
-                </Pressable>
-            )}
-        </View>
     );
 }

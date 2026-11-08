@@ -5,6 +5,7 @@ import { meQueryOptions } from '@followw/core/queries/me.ts';
 import { useQuery } from '@tanstack/react-query';
 import { useSyncExternalStore } from 'react';
 
+import { toast } from '@/components/ui/toast';
 import { STORAGE_KEYS, storedValue } from '@/lib/storage';
 
 const EMPTY: PlannedClass[] = [];
@@ -20,15 +21,20 @@ export function usePlannedSchedule() {
     const maxHours = user?.period_max_workload ?? null;
     const has = (item: PlannedClass) => items.some((entry) => classKey(entry) === classKey(item));
 
-    /** Alterna a turma na grade; devolve o motivo quando ela não pode entrar. */
-    const toggle = (item: PlannedClass): string | null => {
+    const toggle = (item: PlannedClass) => {
         if (has(item)) {
             plannedSchedule.set(items.filter((entry) => classKey(entry) !== classKey(item)));
-            return null;
+            return;
         }
-        const error = addError(items, item, maxHours);
-        if (!error) plannedSchedule.set([...items, item]);
-        return error;
+        const description = addError(items, item, maxHours);
+        if (description) {
+            toast.add({
+                id: 'schedule-conflict',
+                type: 'warning',
+                title: 'Não foi possível adicionar à grade',
+                description
+            });
+        } else plannedSchedule.set([...items, item]);
     };
 
     return { items, maxHours, has, toggle, clear: plannedSchedule.clear };

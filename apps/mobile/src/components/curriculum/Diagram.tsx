@@ -6,19 +6,18 @@ import type {
 
 import { layoutCurriculum, MOBILE } from '@followw/core/lib/curriculum/geometry.ts';
 import { relatedEdgeIds } from '@followw/core/lib/curriculum/relations.ts';
-import { useRouter } from 'expo-router';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Connections } from '@/components/curriculum/Connections';
 import { SubjectCard } from '@/components/curriculum/SubjectCard';
-import { SubjectDetails } from '@/components/curriculum/SubjectDetails';
-import { openSearch } from '@/components/search/SubjectSearchLink';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
+import { cn } from '@/lib/utils';
 
 export interface DiagramProps {
     model: CurriculumModel;
@@ -26,21 +25,23 @@ export interface DiagramProps {
     // ausente fora do curso do aluno
     state?: (subject: FlowSubject) => AcademicState;
     initialPeriod: number;
-    // conteúdo que rola junto, acima do diagrama
+    // header da página e avisos, que rolam acima do seletor de semestre
     header?: React.ReactNode;
+    notices?: React.ReactNode;
     refreshControl?: React.ReactElement<object>;
 }
 
-/** Fluxo paginado por semestre: o seletor fica fixo e o diagrama rola nos dois eixos. */
+/** Fluxo paginado por semestre: a página rola na vertical com o seletor fixo e o diagrama na horizontal. */
 export function Diagram({
     model,
     selected,
     state,
     initialPeriod,
     header,
+    notices,
     refreshControl
 }: DiagramProps) {
-    const router = useRouter();
+    const insets = useSafeAreaInsets();
     const { width, height } = useWindowDimensions();
     const { periods, byCode } = model;
     const geometry = useMemo(() => layoutCurriculum(model, width, MOBILE), [model, width]);
@@ -48,7 +49,6 @@ export function Diagram({
         Math.max(0, periods.indexOf(byCode.get(selected ?? '')?.period ?? initialPeriod))
     );
     const [active, setActive] = useState<string | null>(null);
-    const [details, setDetails] = useState<FlowSubject | null>(null);
     const visibleEdges = useMemo(
         () => (active ? relatedEdgeIds(model.edges, active) : null),
         [model, active]
@@ -88,51 +88,59 @@ export function Diagram({
 
     const period = periods[index];
     return (
-        <View className="flex-1 bg-background">
-            <View className="px-4 pt-2 pb-2">
-                <View className="flex-row items-center justify-between gap-4 rounded-xl bg-muted/60 p-1">
-                    <Button
-                        variant="outline"
-                        size="icon"
-                        className="size-9"
-                        aria-label="Semestre anterior"
-                        disabled={index === 0}
-                        onPress={() => goTo(Math.max(0, index - 1))}
-                    >
-                        <Icon as={ChevronLeft} />
-                    </Button>
-                    <Text
-                        role="heading"
-                        aria-level={2}
-                        aria-live="polite"
-                        className="text-base font-semibold"
-                    >
-                        {period}º semestre
-                    </Text>
-                    <Button
-                        variant="outline"
-                        size="icon"
-                        className="size-9"
-                        aria-label="Próximo semestre"
-                        disabled={index === periods.length - 1}
-                        onPress={() => goTo(Math.min(periods.length - 1, index + 1))}
-                    >
-                        <Icon as={ChevronRight} />
-                    </Button>
-                </View>
-            </View>
+        <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
             <ScrollView
                 ref={vertical}
-                contentInsetAdjustmentBehavior="automatic"
                 refreshControl={refreshControl}
-                contentContainerClassName="gap-4 pb-8"
+                // índice do seletor de semestre
+                stickyHeaderIndices={[2]}
+                contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
             >
-                <View className="gap-3 px-4">{header}</View>
+                <View className="w-full max-w-2xl self-center px-4">
+                    {header}
+                    <OfflineBanner />
+                </View>
+                <View className={cn('w-full max-w-2xl gap-2 self-center px-4', notices && 'pb-3')}>
+                    {notices}
+                </View>
+                <View className="bg-background px-4 pt-2 pb-2">
+                    <View className="w-full max-w-2xl flex-row items-center justify-between gap-4 self-center rounded-xl bg-muted/60 p-1">
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            className="size-9"
+                            accessibilityLabel="Semestre anterior"
+                            disabled={index === 0}
+                            onPress={() => goTo(Math.max(0, index - 1))}
+                        >
+                            <Icon as={ChevronLeft} />
+                        </Button>
+                        <Text
+                            role="heading"
+                            aria-level={2}
+                            aria-live="polite"
+                            className="text-base font-semibold"
+                        >
+                            {period}º semestre
+                        </Text>
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            className="size-9"
+                            accessibilityLabel="Próximo semestre"
+                            disabled={index === periods.length - 1}
+                            onPress={() => goTo(Math.min(periods.length - 1, index + 1))}
+                        >
+                            <Icon as={ChevronRight} />
+                        </Button>
+                    </View>
+                </View>
                 <ScrollView
                     ref={horizontal}
                     horizontal
                     nestedScrollEnabled
                     showsHorizontalScrollIndicator={false}
+                    accessibilityLabel="Fluxo acadêmico, um semestre por vez"
                     snapToOffsets={offsets}
                     decelerationRate="fast"
                     onLayout={(event) => {
@@ -155,41 +163,17 @@ export function Diagram({
                                 key={node.subject.code}
                                 node={node}
                                 state={state?.(node.subject)}
+                                unlocks={model.unlocks.get(node.subject.code)}
                                 selected={
                                     selected === node.subject.code || active === node.subject.code
                                 }
                                 compact={MOBILE.compact}
-                                onPress={() => setDetails(node.subject)}
-                                onLongPress={() =>
-                                    setActive(
-                                        active === node.subject.code ? null : node.subject.code
-                                    )
-                                }
+                                onHighlight={(code) => setActive(active === code ? null : code)}
                             />
                         ))}
                     </View>
                 </ScrollView>
             </ScrollView>
-            <Dialog open={details !== null} onOpenChange={(open) => !open && setDetails(null)}>
-                <DialogContent
-                    className="max-w-lg p-4"
-                    style={{ width: Math.min(width - 16, 512) }}
-                >
-                    {details && (
-                        <ScrollView style={{ maxHeight: height * 0.75 }}>
-                            <SubjectDetails
-                                subject={details}
-                                state={state?.(details)}
-                                unlocks={model.unlocks.get(details.code)}
-                                onShowClassrooms={() => {
-                                    setDetails(null);
-                                    openSearch(router, details.code, 'classrooms');
-                                }}
-                            />
-                        </ScrollView>
-                    )}
-                </DialogContent>
-            </Dialog>
         </View>
     );
 }

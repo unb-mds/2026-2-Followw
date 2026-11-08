@@ -14,10 +14,16 @@ interface SectionHeaderProps {
 
 export function SectionHeader({ title, actionLabel, actionHref, className }: SectionHeaderProps) {
     return (
-        <View className={cn('flex-row items-center justify-between', className)}>
-            <Text role="heading" aria-level={2} className="text-xl font-bold tracking-tight">
-                {title}
-            </Text>
+        <View className={cn('mb-3 flex-row items-center justify-between', className)}>
+            <View className="flex-row items-center gap-2.5">
+                <Text
+                    role="heading"
+                    aria-level={2}
+                    className="text-xl font-bold tracking-tight text-foreground"
+                >
+                    {title}
+                </Text>
+            </View>
             {actionLabel && actionHref && (
                 <Link href={actionHref} asChild>
                     <Button variant="link" size="sm">

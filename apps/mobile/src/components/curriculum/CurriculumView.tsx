@@ -90,8 +90,11 @@ export function CurriculumView({
 
     if (!model || model.subjects.length === 0 || initialPeriod === null)
         return (
-            <Screen onRefreshData={(queryClient) => refreshQuery(queryClient, options)}>
-                {header}
+            <Screen
+                fullscreen
+                header={header}
+                onRefreshData={(queryClient) => refreshQuery(queryClient, options)}
+            >
                 <View className="gap-2">{notices}</View>
             </Screen>
         );
@@ -104,12 +107,8 @@ export function CurriculumView({
             state={state}
             initialPeriod={initialPeriod}
             refreshControl={refreshControl}
-            header={
-                <>
-                    {header}
-                    <View className="gap-2">{notices}</View>
-                </>
-            }
+            header={header}
+            notices={notices}
         />
     );
 }

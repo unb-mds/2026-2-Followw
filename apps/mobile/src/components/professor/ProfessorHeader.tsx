@@ -7,27 +7,28 @@ import { ArrowUpRight, Building2, Mail } from 'lucide-react-native';
 import { Linking, Pressable, View } from 'react-native';
 
 import { PersonPhoto } from '@/components/PersonPhoto';
-import { Card } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 
 export function ProfessorHeader({ professor }: { professor: ProfessorDetails }) {
     return (
-        <Card className="flex-row items-stretch gap-4 p-4">
-            <PersonPhoto src={professor.photo} size="xl" />
+        <View className="flex-row items-stretch gap-4 rounded-2xl border border-foreground/10 bg-card p-4 shadow-sm shadow-black/5">
+            <View className="shrink-0 self-start rounded-xl border border-primary/20 bg-background/60 p-1 shadow-sm shadow-black/5">
+                <PersonPhoto src={professor.photo} size="xl" />
+            </View>
             <View className="min-w-0 flex-1 justify-between gap-3 py-1">
                 <View className="gap-1">
                     <Text
                         role="heading"
                         aria-level={1}
-                        className="text-xl leading-tight font-semibold"
+                        className="text-xl leading-tight font-semibold tracking-tight text-foreground"
                     >
                         {titleCase(professor.name)}
                     </Text>
                     <View className="flex-row items-center gap-1.5">
-                        <Icon as={Building2} className="size-3.5 text-muted-foreground" />
+                        <Icon as={Building2} className="size-3.5 shrink-0 text-muted-foreground" />
                         <Text
-                            numberOfLines={2}
+                            numberOfLines={1}
                             className="min-w-0 flex-1 text-xs text-muted-foreground"
                         >
                             {unitLabel(professor.unit)}
@@ -39,7 +40,7 @@ export function ProfessorHeader({ professor }: { professor: ProfessorDetails }) 
                         <Pressable
                             accessibilityRole="link"
                             onPress={() => void Linking.openURL(mailto(professor.email!))}
-                            className="max-w-full flex-row items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 active:opacity-60"
+                            className="max-w-full flex-row items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 active:bg-primary/20"
                         >
                             <Icon as={Mail} className="size-3.5 text-primary" />
                             <Text
@@ -56,7 +57,7 @@ export function ProfessorHeader({ professor }: { professor: ProfessorDetails }) 
                     <ExternalLink href={professor.url}>SIGAA</ExternalLink>
                 </View>
             </View>
-        </Card>
+        </View>
     );
 }
 

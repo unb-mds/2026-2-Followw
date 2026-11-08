@@ -28,14 +28,15 @@ export function TabFilter<T extends string>({
             showsHorizontalScrollIndicator={false}
             accessibilityLabel={label}
             className={cn('grow-0', className)}
-            contentContainerClassName="items-center gap-1 py-1"
+            contentContainerClassName="flex-row items-center gap-1 py-1"
         >
             {options.map((option) => (
                 <Button
                     key={option}
                     variant={option === value ? 'secondary' : 'ghost'}
-                    aria-selected={option === value}
+                    accessibilityState={{ selected: option === value }}
                     onPress={() => onChange(option)}
+                    className="shrink-0"
                 >
                     <Text>{labels?.[option] ?? option}</Text>
                 </Button>
