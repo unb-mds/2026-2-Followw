@@ -129,6 +129,31 @@ export function nowInBrasilia(now = new Date()): Day & { time: string } {
 }
 
 /** `count` dias seguidos a partir de `start`. */
+const dayMonthFormat = new Intl.DateTimeFormat('pt-BR', {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC'
+});
+const dayMonthYearFormat = new Intl.DateTimeFormat('pt-BR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC'
+});
+
+/** Intervalo `2 – 8 de nov.` entre dois `AAAA-MM-DD`, sem o `formatRange` que o Hermes não tem. */
+export function formatDayRange(start: string, end: string): string {
+    const [from, to] = [new Date(`${start}T00:00:00Z`), new Date(`${end}T00:00:00Z`)];
+    if (start === end) return dayMonthFormat.format(from);
+    if (start.slice(0, 4) !== end.slice(0, 4)) {
+        return `${dayMonthYearFormat.format(from)} – ${dayMonthYearFormat.format(to)}`;
+    }
+    if (start.slice(0, 7) !== end.slice(0, 7)) {
+        return `${dayMonthFormat.format(from)} – ${dayMonthFormat.format(to)}`;
+    }
+    return `${from.getUTCDate()} – ${dayMonthFormat.format(to)}`;
+}
+
 export function nextDays(start: string, count: number): Day[] {
     const base = new Date(`${start}T00:00:00Z`);
     return Array.from({ length: count }, (_, offset) => {
