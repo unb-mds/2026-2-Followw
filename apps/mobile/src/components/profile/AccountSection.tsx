@@ -32,11 +32,11 @@ import {
 import { Icon } from '@/components/ui/icon';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
 import { useLogout } from '@/queries/auth';
 
-// border-0 tira a borda transparente do Button; as divisórias usam só border-t
 const ROW = 'h-auto min-h-12 w-full justify-start gap-3 rounded-none border-0 px-0 py-2.5';
 
 export function AccountSection({
@@ -53,18 +53,22 @@ export function AccountSection({
             <Card size="sm" className="gap-0 overflow-hidden px-3 py-0">
                 <DisplayNameButton displayName={displayName} />
                 {courseId != null && (
-                    <Button
-                        variant="ghost"
-                        className={cn(ROW, 'border-t border-border')}
-                        onPress={() =>
-                            router.push({ pathname: '/cursos/[id]', params: { id: courseId } })
-                        }
-                    >
-                        <RowIcon icon={GitFork} />
-                        <Text className="flex-1 text-left">Visualizar fluxo acadêmico</Text>
-                    </Button>
+                    <>
+                        <Separator />
+                        <Button
+                            variant="ghost"
+                            className={ROW}
+                            onPress={() =>
+                                router.push({ pathname: '/cursos/[id]', params: { id: courseId } })
+                            }
+                        >
+                            <RowIcon icon={GitFork} />
+                            <Text className="flex-1 text-left">Visualizar fluxo acadêmico</Text>
+                        </Button>
+                    </>
                 )}
                 <DocumentDownloads />
+                <Separator />
                 <LogoutButton />
             </Card>
         </ProfileSection>
@@ -196,11 +200,7 @@ function LogoutButton() {
     return (
         <AlertDialog>
             <AlertDialogTrigger asChild>
-                <Button
-                    variant="ghost"
-                    disabled={!online}
-                    className={cn(ROW, 'border-t border-border')}
-                >
+                <Button variant="ghost" disabled={!online} className={ROW}>
                     <RowIcon icon={LogOut} destructive />
                     <Text className="flex-1 text-left text-destructive">Desconectar</Text>
                 </Button>

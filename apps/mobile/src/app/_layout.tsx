@@ -15,6 +15,7 @@ import { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { BottomNavigation } from '@/components/BottomNavigation';
+import { ThemeFade } from '@/components/ThemeFade';
 import { Toaster } from '@/components/ui/toast';
 import { AnalyticsProvider } from '@/lib/analytics';
 import { useNavigationTheme } from '@/lib/colors';
@@ -79,6 +80,7 @@ function RootNavigator() {
             <BottomNavigation />
             <PortalHost />
             <Toaster />
+            <ThemeFade />
         </ThemeProvider>
     );
 }
