@@ -46,3 +46,13 @@ export function groupTopics(posts: ClassroomPost[]) {
     }
     return { topics, materials };
 }
+
+/** Prévia em texto simples: tira a marcação e as quebras do markdown. */
+export function postPreview(content: string | null | undefined) {
+    const text = content
+        ?.replaceAll(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+        .replaceAll(/[*_`>#~]+/g, '')
+        .replaceAll(/\s+/g, ' ')
+        .trim();
+    return text || 'Toque para ler mais.';
+}

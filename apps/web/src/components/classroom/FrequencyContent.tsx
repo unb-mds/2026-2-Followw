@@ -10,7 +10,8 @@ import {
     daysFrom,
     formatClassroomWeekday,
     formatRelativeDay,
-    frequencyTone
+    frequencyTone,
+    lessonRuns
 } from '@followw/core/lib/classroom-details.ts';
 import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { CalendarDays, List } from 'lucide-react';
@@ -18,7 +19,6 @@ import { useRef, useState } from 'react';
 
 import {
     LESSON_VIEW,
-    lessonRuns,
     selectable,
     type MarkLessons
 } from '#/components/classroom/lesson-utils';

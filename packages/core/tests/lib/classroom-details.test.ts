@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 
+import type { Lesson } from '../../src/queries/classrooms.ts';
+
 import {
+    classroomTab,
     daysFrom,
     formatClassroomDate,
     formatClassroomDateTime,
@@ -8,7 +11,8 @@ import {
     formatRelativeDay,
     formatRelativeDays,
     frequencyTone,
-    groupBySemester
+    groupBySemester,
+    lessonRuns
 } from '../../src/lib/classroom-details.ts';
 
 describe('detalhes da turma', () => {
@@ -78,5 +82,61 @@ describe('frequencyTone', () => {
         expect(frequencyTone(80)).toBe('warning');
         expect(frequencyTone(75)).toBe('warning');
         expect(frequencyTone(74.9)).toBe('danger');
+    });
+});
+
+const lesson = (
+    occurred_on: string,
+    status: Lesson['status'],
+    fields: Partial<Lesson> = {}
+): Lesson => ({
+    id: occurred_on,
+    occurred_on,
+    status,
+    start_time: null,
+    end_time: null,
+    absences: 0,
+    marked: false,
+    ...fields
+});
+
+describe('lessonRuns', () => {
+    test('agrupa as aulas em sequências cronológicas, sem as canceladas', () => {
+        expect(
+            lessonRuns([
+                lesson('2026-10-09', 'presente'),
+                lesson('2026-10-08', 'falta'),
+                lesson('2026-10-07', 'cancelada'),
+                lesson('2026-10-06', 'falta'),
+                lesson('2026-10-05', 'presente'),
+                lesson('2026-10-04', 'presente')
+            ])
+        ).toMatchObject([
+            { status: 'presente', count: 2 },
+            { status: 'falta', count: 2 },
+            { status: 'presente', count: 1 }
+        ]);
+    });
+
+    test('conta as aulas duplas como duas horas-aula nas sequências', () => {
+        const dupla = { start_time: '14:00:00', end_time: '15:50:00' };
+        expect(
+            lessonRuns([
+                lesson('2026-10-07', 'falta', { absences: 2, ...dupla }),
+                lesson('2026-10-06', 'presente', dupla),
+                lesson('2026-10-05', 'presente', { start_time: '08:00', end_time: '08:55' })
+            ])
+        ).toMatchObject([
+            { status: 'presente', count: 3 },
+            { status: 'falta', count: 2 }
+        ]);
+    });
+});
+
+describe('classroomTab', () => {
+    test('turma em andamento abre frequência e encerrada abre estatísticas', () => {
+        expect(classroomTab('statistics', true)).toBe('frequency');
+        expect(classroomTab('frequency', false)).toBe('statistics');
+        expect(classroomTab('posts', false)).toBe('posts');
     });
 });

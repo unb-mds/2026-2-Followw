@@ -1,3 +1,7 @@
+import type { Lesson } from '../queries/classrooms.ts';
+
+import { SCHEDULE_SLOTS } from './schedule.ts';
+
 export function formatClassroomDate(date: string) {
     const [year, month, day] = date.slice(0, 10).split('-');
     return `${day}/${month}/${year}`;
@@ -40,4 +44,39 @@ export function groupBySemester<T extends { semester: string }>(classrooms: T[])
         groups.set(classroom.semester, [...(groups.get(classroom.semester) ?? []), classroom]);
     }
     return [...groups].toSorted(([a], [b]) => b.localeCompare(a));
+}
+
+export const CLASSROOM_TABS = ['frequency', 'statistics', 'posts', 'members'] as const;
+export type ClassroomTab = (typeof CLASSROOM_TABS)[number];
+
+// turma em andamento tem frequência; encerrada, estatísticas
+export function classroomTab(tab: ClassroomTab, current: boolean): ClassroomTab {
+    if (tab !== 'frequency' && tab !== 'statistics') return tab;
+    return current ? 'frequency' : 'statistics';
+}
+
+export type LessonRunStatus = 'presente' | 'falta' | 'nao_registrada';
+
+export type LessonRun = { id: string; status: LessonRunStatus; count: number };
+
+/** Horas-aula da aula, como o SIGAA conta: uma sem horário; ao menos as de falta. */
+export function lessonHours({ start_time, end_time, absences }: Lesson) {
+    const start = start_time?.slice(0, 5);
+    const end = end_time?.slice(0, 5);
+    const slots =
+        start && end ? SCHEDULE_SLOTS.filter(([from, to]) => from >= start && to <= end).length : 0;
+    return Math.max(slots || 1, absences);
+}
+
+/** Aulas em ordem cronológica, agrupadas em sequências de mesma situação; `count` em horas-aula. */
+export function lessonRuns(lessons: Lesson[]): LessonRun[] {
+    const runs: LessonRun[] = [];
+    for (const lesson of lessons.toReversed()) {
+        if (lesson.status === 'cancelada') continue;
+        const last = runs.at(-1);
+        const count = lessonHours(lesson);
+        if (last?.status === lesson.status) last.count += count;
+        else runs.push({ id: lesson.id, status: lesson.status, count });
+    }
+    return runs;
 }

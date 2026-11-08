@@ -4,7 +4,7 @@ import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import { lessonRuns, type MarkLessons } from '#/components/classroom/lesson-utils';
+import type { MarkLessons } from '#/components/classroom/lesson-utils';
 
 import { mockBrowserLayoutEffect } from '../../helpers/base-ui';
 import { useDom } from '../../helpers/dom';
@@ -300,37 +300,6 @@ describe('marcação das aulas', () => {
         );
 
         expect(page.getByRole('toolbar').textContent).toContain('1 aula');
-    });
-
-    test('agrupa as aulas em sequências cronológicas, sem as canceladas', () => {
-        expect(
-            lessonRuns([
-                lesson('2026-10-09', { status: 'presente' }),
-                lesson('2026-10-08', { status: 'falta' }),
-                lesson('2026-10-07', { status: 'cancelada' }),
-                lesson('2026-10-06', { status: 'falta' }),
-                lesson('2026-10-05', { status: 'presente' }),
-                lesson('2026-10-04', { status: 'presente' })
-            ])
-        ).toMatchObject([
-            { status: 'presente', count: 2 },
-            { status: 'falta', count: 2 },
-            { status: 'presente', count: 1 }
-        ]);
-    });
-
-    test('conta as aulas duplas como duas horas-aula nas sequências', () => {
-        const dupla = { start_time: '14:00:00', end_time: '15:50:00' };
-        expect(
-            lessonRuns([
-                lesson('2026-10-07', { status: 'falta', absences: 2, ...dupla }),
-                lesson('2026-10-06', { status: 'presente', ...dupla }),
-                lesson('2026-10-05', { status: 'presente', start_time: '08:00', end_time: '08:55' })
-            ])
-        ).toMatchObject([
-            { status: 'presente', count: 3 },
-            { status: 'falta', count: 2 }
-        ]);
     });
 
     test('mostra o andamento das aulas segmentado junto dos totais', () => {

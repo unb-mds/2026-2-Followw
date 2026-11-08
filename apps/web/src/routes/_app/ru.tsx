@@ -1,3 +1,4 @@
+import type { RestaurantSelection } from '@followw/core/lib/restaurant.ts';
 import type { DailyMenu, MenuSection } from '@followw/core/queries/restaurant.ts';
 
 import { useFailureMessage } from '@followw/core/lib/online.ts';
@@ -8,6 +9,7 @@ import {
     MEAL_TIMES,
     groupSalads,
     renameSections,
+    restaurantSharePath,
     type MealKey
 } from '@followw/core/lib/restaurant.ts';
 import { addDays, nowInBrasilia, weekDays } from '@followw/core/lib/schedule.ts';
@@ -42,8 +44,6 @@ import { AnimatePresence, m } from 'motion/react';
 import { useQueryStates } from 'nuqs';
 import { lazy, Suspense, useCallback, useEffect, useSyncExternalStore } from 'react';
 
-import type { RestaurantSelection } from '#/lib/restaurant-share';
-
 import { BackToTodayBar } from '#/components/BackToTodayBar';
 import { useDesktop } from '#/components/DesktopContext';
 import { ErrorState } from '#/components/ErrorState';
@@ -72,7 +72,6 @@ import {
     restaurantPageHead,
     restaurantSearchParsers,
     restaurantSelection,
-    restaurantSharePath,
     validateRestaurantSearch
 } from '#/lib/restaurant-share';
 import { cn } from '#/lib/shadcn';

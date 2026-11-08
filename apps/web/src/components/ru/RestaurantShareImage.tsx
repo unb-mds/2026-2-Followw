@@ -1,3 +1,4 @@
+import type { RestaurantSelection } from '@followw/core/lib/restaurant.ts';
 import type { MenuSection } from '@followw/core/queries/restaurant.ts';
 
 import {
@@ -9,8 +10,6 @@ import {
 import { CAMPUS_LABELS } from '@followw/core/queries/restaurant.ts';
 import { Egg, Leaf } from 'lucide-react';
 import { renderToStaticMarkup } from 'react-dom/server';
-
-import type { RestaurantSelection } from '#/lib/restaurant-share';
 
 import logo from '#/assets/followw.svg?raw';
 
