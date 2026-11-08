@@ -268,7 +268,6 @@ export function ProfileForm({
                             <Textarea
                                 id="profile-bio"
                                 value={bio}
-                                maxLength={MAX_PROFILE_BIO_LENGTH}
                                 rows={4}
                                 placeholder="Escreva um pouco sobre você"
                                 onChange={(e) => setBio(truncateProfileBio(e.target.value))}

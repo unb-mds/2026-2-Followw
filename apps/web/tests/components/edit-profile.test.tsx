@@ -86,6 +86,19 @@ test('bio antiga longa abre limitada sem ser sobrescrita ao salvar', async () =>
     expect(requests[0].url).toEndWith('/settings');
 });
 
+test('permite 1024 emojis na bio e limita o texto enviado por pontos de código', async () => {
+    const page = await open();
+    const input = page.container.querySelector('textarea');
+    if (!input) throw new Error('Campo de bio não encontrado');
+    expect(input.hasAttribute('maxlength')).toBe(false);
+    const bio = '😀'.repeat(1024);
+    dom.testing.fireEvent.change(input, { target: { value: bio + 'fim' } });
+    expect(input.value).toBe(bio);
+    dom.testing.fireEvent.click(page.getByRole('button', { name: 'Salvar alterações' }));
+    await dom.testing.waitFor(() => expect(requests).toHaveLength(2));
+    expect((await requests[0].formData()).get('bio')).toBe(bio);
+});
+
 test('recusa foto original acima de 4 MB antes do recorte', async () => {
     const page = await open();
     const file = new File(['foto'], 'foto.jpg', { type: 'image/jpeg' });

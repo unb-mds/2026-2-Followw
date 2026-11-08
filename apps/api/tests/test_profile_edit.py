@@ -61,6 +61,7 @@ def test_multipart_recusa_origem_invalida_antes_de_autenticar(origin):
         {"bio": "teste", "photo_action": "invalid"},
         {"bio": "teste", "photo_action": "remove"},
         {"bio": "a" * 1025, "photo_action": "keep"},
+        {"bio": "😀" * 1025, "photo_action": "keep"},
     ],
 )
 def test_formulario_valida_acao_e_bio_sem_acessar_sigaa(monkeypatch, data):
@@ -85,6 +86,7 @@ def test_formulario_valida_acao_e_bio_sem_acessar_sigaa(monkeypatch, data):
         ({"photo_action": "remove"}, None),
         ({"photo_action": "keep", "bio": ""}, ""),
         ({"photo_action": "keep", "bio": "a\r\n" * 512}, "a\n" * 512),
+        ({"photo_action": "keep", "bio": "😀" * 1024}, "😀" * 1024),
     ],
 )
 def test_distingue_bio_ausente_de_bio_vazia(monkeypatch, data, expected_bio):

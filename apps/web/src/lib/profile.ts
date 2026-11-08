@@ -6,11 +6,7 @@ export const MAX_PROFILE_BIO_LENGTH = 1024;
 
 export function truncateProfileBio(text: string) {
     if (text.length <= MAX_PROFILE_BIO_LENGTH) return text;
-    const boundary = text.codePointAt(MAX_PROFILE_BIO_LENGTH - 1);
-    return text.slice(
-        0,
-        boundary && boundary > 0xffff ? MAX_PROFILE_BIO_LENGTH - 1 : MAX_PROFILE_BIO_LENGTH
-    );
+    return Array.from(text).slice(0, MAX_PROFILE_BIO_LENGTH).join('');
 }
 
 const indexFormat = new Intl.NumberFormat('pt-BR', {

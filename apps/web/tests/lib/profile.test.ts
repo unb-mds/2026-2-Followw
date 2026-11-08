@@ -1,6 +1,25 @@
 import { describe, expect, test } from 'bun:test';
 
-import { academicIndexes, creditsLabel, titleCase, unitLabel } from '#/lib/profile';
+import {
+    academicIndexes,
+    creditsLabel,
+    titleCase,
+    truncateProfileBio,
+    unitLabel
+} from '#/lib/profile';
+
+describe('truncateProfileBio', () => {
+    test.each(['a', '😀', 'á', '\n'])('preserva 1024 pontos de código com %s', (character) => {
+        const bio = character.repeat(1024);
+        expect(truncateProfileBio(bio)).toBe(bio);
+        expect(truncateProfileBio(bio + 'fim')).toBe(bio);
+    });
+
+    test('preserva o emoji no limite sem cortar seu par substituto', () => {
+        const bio = 'a'.repeat(1023) + '😀';
+        expect(truncateProfileBio(bio + 'fim')).toBe(bio);
+    });
+});
 
 describe('titleCase', () => {
     test.each([
