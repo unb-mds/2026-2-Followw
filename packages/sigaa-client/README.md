@@ -147,8 +147,8 @@ do portal vem sem turma.
 
 ### Editar perfil
 
-`client.profile.update_profile(password=..., bio=..., photo=bytes_jpeg, remove_photo=False)`
-substitui a foto e a bio na conta autenticada. Para remover a foto use
-`remove_photo=True`, sem `photo`. O chamador deve validar a imagem antes do envio.
-A operação relê o formulário e confirma os valores; não repete escritas após falhas.
-A remoção e a gravação são operações distintas no SIGAA e podem falhar parcialmente.
+`client.profile.update_profile(password=..., bio=..., photo=bytes_jpeg)`
+atualiza a conta autenticada. Omita `bio` para preservá-la ou passe `""` para limpá-la.
+Para remover a foto, use `remove_photo=True` sem enviar os outros campos.
+O chamador valida o JPEG antes do envio. O client relê o formulário para confirmar a
+gravação e não repete o POST em caso de falha.

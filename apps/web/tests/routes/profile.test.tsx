@@ -23,7 +23,7 @@ test.each([42, null])(
             name: 'Nome Discente',
             registration: '202600001',
             photo: null,
-            bio: null,
+            bio: 'a'.repeat(5000) + 'Trecho acima do limite',
             unit: null,
             course: courseId === null ? null : { id: courseId, name: 'Curso Teste', shift: null },
             entry_semester: null,
@@ -48,6 +48,8 @@ test.each([42, null])(
                     <RouterProvider router={router} />
                 </QueryClientProvider>
             );
+            expect(browser.document.body.textContent).toContain('a'.repeat(5000));
+            expect(browser.document.body.textContent).not.toContain('Trecho acima do limite');
             const account = [...browser.document.querySelectorAll('[data-slot="card"]')].find(
                 (card) => card.textContent.includes('Editar perfil')
             );

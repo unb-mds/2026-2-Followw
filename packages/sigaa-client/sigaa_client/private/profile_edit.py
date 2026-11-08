@@ -1,9 +1,10 @@
 from urllib.parse import urljoin
 
+import httpx
 from bs4 import BeautifulSoup, Tag
 
 from ..config import DASHBOARD_PATH, PROFILE_EDIT_PATH, SIGAA_BASE_URL
-from ..exceptions import SigaaParseError
+from ..exceptions import SigaaError, SigaaParseError
 from ..utils.jsf import build_submit, link_params, read_viewstate
 from ..utils.parsing import photo_url
 from .session import Session
@@ -33,6 +34,24 @@ def _photo(form: Tag) -> str | None:
     if image is None or not image.get("src"):
         raise SigaaParseError("Imagem de perfil ausente na tela de edição.")
     return photo_url(str(image["src"]))
+
+
+async def _photo_content(session: Session, url: str | None) -> bytes | None:
+    # shortcut: só compara fotos na origem do SIGAA; amplie se houver outro host oficial.
+    if not url or not url.startswith(SIGAA_BASE_URL + "/"):
+        return None
+    try:
+        response = await session.get(
+            url,
+            headers={"Cache-Control": "no-cache"},
+            follow_redirects=False,
+            allow_renewal=False,
+        )
+    except httpx.HTTPError, SigaaError:
+        return None
+    if response.headers.get("content-type", "").startswith("image/"):
+        return response.content or None
+    return None
 
 
 def _payload(form: Tag, password: str, bio: str) -> dict[str, str]:
@@ -73,36 +92,55 @@ async def update_profile(
     session: Session,
     *,
     password: str,
-    bio: str,
+    bio: str | None = None,
     photo: bytes | None = None,
     remove_photo: bool = False,
-) -> None:
-    if photo is not None and remove_photo:
-        raise ValueError("Escolha enviar ou remover a foto.")
+) -> tuple[str | None, str | None]:
+    if remove_photo and (photo is not None or bio is not None):
+        raise ValueError("A remoção da foto deve ser uma operação separada.")
     form = await _read(session)
     previous_photo = _photo(form)
-    if remove_photo and previous_photo:
+    original_bio = form.find("textarea", attrs={"name": _BIO}).get_text()
+    previous_content = (
+        await _photo_content(session, previous_photo) if photo is not None else None
+    )
+    if remove_photo:
+        if previous_photo is None:
+            return None, original_bio or None
         link = form.find("a", id="btnExcluirFoto")
         params = link_params(link) if isinstance(link, Tag) else {}
         if set(params) != {"btnExcluirFoto", "idFotoRemovida"}:
             raise SigaaParseError("Ação de remoção de foto ausente.")
-        original_bio = form.find("textarea", attrs={"name": _BIO}).get_text()
         payload = _payload(form, password, original_bio)
         button = form.find("input", attrs={"type": "submit", "value": "Gravar perfil"})
         payload.pop(str(button["name"]))
         payload.update(params)
         await _send(session, payload, None)
-        form = await _read(session)
-        if _photo(form):
-            raise SigaaParseError("O SIGAA não confirmou a remoção da foto.")
-    await _send(session, _payload(form, password, bio), photo)
+    elif photo is not None or bio is not None:
+        await _send(
+            session,
+            _payload(form, password, original_bio if bio is None else bio),
+            photo,
+        )
+    else:
+        return previous_photo, original_bio or None
+
     current = await _read(session)
+    current_photo = _photo(current)
     saved_bio = current.find("textarea", attrs={"name": _BIO}).get_text()
-    if saved_bio.replace("\r\n", "\n") != bio.replace("\r\n", "\n"):
+    if bio is not None and saved_bio.replace("\r\n", "\n") != bio.replace("\r\n", "\n"):
         raise SigaaParseError(
             "O SIGAA não confirmou a bio; releia o perfil antes de tentar novamente."
         )
-    if photo is not None and (not _photo(current) or _photo(current) == previous_photo):
-        raise SigaaParseError(
-            "O SIGAA não confirmou a nova foto; releia o perfil antes de tentar novamente."
-        )
+    if remove_photo and current_photo is not None:
+        raise SigaaParseError("O SIGAA não confirmou a remoção da foto.")
+    if photo is not None:
+        changed = current_photo is not None and current_photo != previous_photo
+        if current_photo is not None and not changed and previous_content is not None:
+            content = await _photo_content(session, current_photo)
+            changed = content is not None and content != previous_content
+        if not changed:
+            raise SigaaParseError(
+                "O SIGAA não confirmou a nova foto; releia o perfil antes de tentar novamente."
+            )
+    return current_photo, saved_bio or None

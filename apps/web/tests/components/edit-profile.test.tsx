@@ -29,6 +29,7 @@ let client: QueryClient;
 let middleware: Middleware;
 let requests: Request[];
 let failName: boolean;
+let failBio: boolean;
 beforeEach(() => {
     client = new QueryClient({
         defaultOptions: { queries: { retry: false }, mutations: { retry: false } }
@@ -36,14 +37,17 @@ beforeEach(() => {
     client.setQueryData(meQueryOptions.queryKey, user);
     requests = [];
     failName = false;
+    failBio = false;
     middleware = {
-        onRequest: ({ request }) => {
+        onRequest: async ({ request }) => {
             requests.push(request.clone());
             if (request.url.endsWith('/settings')) {
                 if (failName) throw new ApiError(502, 'falha');
                 return Response.json({ displayName: null });
             }
-            return Response.json({ ...user, bio: 'Nova bio', photo: null });
+            const bio = (await request.clone().formData()).get('bio');
+            if (bio !== null && failBio) throw new ApiError(502, 'falha');
+            return Response.json({ ...user, bio: bio ?? user.bio, photo: null });
         }
     };
     apiClient.use(middleware);
@@ -53,14 +57,14 @@ afterEach(() => {
     client.clear();
     apiClient.eject(middleware);
 });
-async function open() {
+async function open(profile = user) {
     const { ProfileForm } = await import('#/components/profile/EditProfile');
     const { Dialog } = await import('#/components/ui/dialog');
     const page = dom.testing.render(
         <QueryClientProvider client={client}>
             <Dialog open>
                 <ProfileForm
-                    user={user}
+                    user={profile}
                     displayName="Ana"
                     close={() => {}}
                     onSavingChange={() => {}}
@@ -71,9 +75,40 @@ async function open() {
     await page.findByLabelText('Nome de exibição');
     return page;
 }
+
+test('bio antiga longa abre limitada sem ser sobrescrita ao salvar', async () => {
+    const page = await open({ ...user, bio: 'a'.repeat(6000) });
+    expect(page.container.querySelector('textarea')?.value).toHaveLength(5000);
+    dom.testing.fireEvent.click(page.getByRole('button', { name: 'Salvar alterações' }));
+    await dom.testing.waitFor(() => expect(requests).toHaveLength(1));
+    expect(requests[0].url).toEndWith('/settings');
+});
+
+test('recusa foto original acima de 16 MiB antes do recorte', async () => {
+    const page = await open();
+    const file = new File(['foto'], 'foto.jpg', { type: 'image/jpeg' });
+    Object.defineProperty(file, 'size', { value: 16 * 1024 * 1024 + 1 });
+    dom.testing.fireEvent.change(page.getByLabelText('Foto de perfil'), {
+        target: { files: [file] }
+    });
+    expect((await page.findByRole('alert')).textContent).toContain('até 16 MiB');
+    expect(requests).toHaveLength(0);
+});
+
+test('filtra o seletor por jpg, jpeg e png e rejeita outra extensão', async () => {
+    const page = await open();
+    const picker = page.getByLabelText('Foto de perfil');
+    expect(picker.getAttribute('accept')).toBe('.jpg,.jpeg,.png');
+    const file = new File(['foto'], 'foto.gif', { type: 'image/jpeg' });
+    dom.testing.fireEvent.change(picker, { target: { files: [file] } });
+    expect((await page.findByRole('alert')).textContent).toContain('Escolha JPEG ou PNG');
+});
 test('nome vazio restaura SIGAA sem gravar foto ou bio', async () => {
     const page = await open();
-    expect(page.queryByText('Visível apenas no Followw')).toBeNull();
+    expect(page.getByText('Este nome só aparecerá no seu Followw.')).toBeDefined();
+    expect(page.getByPlaceholderText('Escreva um pouco sobre você').getAttribute('data-slot')).toBe(
+        'textarea'
+    );
     expect(page.queryByRole('slider')).toBeNull();
     dom.testing.fireEvent.change(page.getByLabelText('Nome de exibição'), {
         target: { value: '  ' }
@@ -90,12 +125,33 @@ test('remover foto só envia ao salvar e cancelar não grava', async () => {
     dom.testing.fireEvent.click(page.getByRole('button', { name: 'Cancelar' }));
     expect(requests).toHaveLength(0);
 });
+
+test('falha da bio após remoção repete somente a bio', async () => {
+    failBio = true;
+    const page = await open();
+    dom.testing.fireEvent.click(page.getByRole('button', { name: 'Remover foto' }));
+    dom.testing.fireEvent.change(page.getByLabelText('Bio'), { target: { value: 'Nova bio' } });
+    dom.testing.fireEvent.click(page.getByRole('button', { name: 'Salvar alterações' }));
+    await page.findByText('Foto removida. Não foi possível confirmar a alteração da bio no SIGAA.');
+    const removal = await requests[0].formData();
+    expect(removal.get('photo_action')).toBe('remove');
+    expect(removal.has('bio')).toBe(false);
+    expect((await requests[1].formData()).get('photo_action')).toBe('keep');
+    failBio = false;
+    dom.testing.fireEvent.click(page.getByRole('button', { name: 'Salvar alterações' }));
+    await dom.testing.waitFor(() => expect(requests).toHaveLength(4));
+    const retry = await requests[2].formData();
+    expect(retry.get('photo_action')).toBe('keep');
+    expect(retry.get('bio')).toBe('Nova bio');
+});
 test('falha do nome após sucesso remoto repete somente o nome', async () => {
     failName = true;
     const page = await open();
     dom.testing.fireEvent.change(page.getByLabelText('Bio'), { target: { value: 'Nova bio' } });
     dom.testing.fireEvent.click(page.getByRole('button', { name: 'Salvar alterações' }));
-    await page.findByText('Foto e bio salvas. Não foi possível salvar o nome. Tente novamente.');
+    await page.findByText(
+        'Alterações salvas no SIGAA. Não foi possível salvar o nome. Tente novamente.'
+    );
     expect(requests).toHaveLength(2);
     const form = await requests[0].formData();
     expect(form.get('bio')).toBe('Nova bio');

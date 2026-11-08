@@ -3,13 +3,13 @@ from io import BytesIO
 from fastapi import HTTPException
 from PIL import Image, ImageOps, UnidentifiedImageError
 
-MAX_PHOTO_BYTES = 5 * 1024 * 1024
+MAX_PHOTO_BYTES = 4 * 1024 * 1024
 MAX_PHOTO_PIXELS = 16_000_000
 
 
 def normalize_photo(content: bytes) -> bytes:
     if len(content) > MAX_PHOTO_BYTES:
-        raise HTTPException(413, "A foto deve ter até 5 MB.")
+        raise HTTPException(413, "A foto enviada deve ter até 4 MiB.")
     try:
         with Image.open(BytesIO(content)) as source:
             if source.format not in {"JPEG", "PNG"}:

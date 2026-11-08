@@ -33,9 +33,13 @@ def test_recusa_arquivo_invalido(content):
     assert error.value.status_code == 422
 
 
-def test_recusa_arquivo_grande():
+def test_limite_da_foto_e_inclusivo():
+    output = BytesIO()
+    Image.new("RGB", (20, 20)).save(output, format="PNG")
+    photo = output.getvalue().ljust(MAX_PHOTO_BYTES, b"\0")
+    assert normalize_photo(photo).startswith(b"\xff\xd8")
     with pytest.raises(HTTPException) as error:
-        normalize_photo(b"x" * (MAX_PHOTO_BYTES + 1))
+        normalize_photo(photo + b"\0")
     assert error.value.status_code == 413
 
 
@@ -51,7 +55,15 @@ def test_multipart_recusa_origem_invalida_antes_de_autenticar(origin):
     assert response.status_code == 403
 
 
-def test_formulario_valida_acao_e_bio_sem_acessar_sigaa(monkeypatch):
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"bio": "teste", "photo_action": "invalid"},
+        {"bio": "teste", "photo_action": "remove"},
+        {"bio": "a" * 5001, "photo_action": "keep"},
+    ],
+)
+def test_formulario_valida_acao_e_bio_sem_acessar_sigaa(monkeypatch, data):
     app = FastAPI()
     app.include_router(router, prefix="/me")
     app.dependency_overrides[get_sigaa_connection] = lambda: object()
@@ -60,14 +72,21 @@ def test_formulario_valida_acao_e_bio_sem_acessar_sigaa(monkeypatch):
     monkeypatch.setattr("api.modules.me.router.edit_profile", edit)
     response = TestClient(app).patch(
         "/me/profile",
-        data={"bio": "teste", "photo_action": "invalid"},
+        data=data,
         headers={"origin": "https://followw.app"},
     )
     assert response.status_code == 422
     edit.assert_not_called()
 
 
-def test_bio_vazia_e_aceita_e_conta_vem_da_sessao(monkeypatch):
+@pytest.mark.parametrize(
+    ("data", "expected_bio"),
+    [
+        ({"photo_action": "remove"}, None),
+        ({"photo_action": "keep", "bio": ""}, ""),
+    ],
+)
+def test_distingue_bio_ausente_de_bio_vazia(monkeypatch, data, expected_bio):
     from types import SimpleNamespace
 
     from api.modules.me.profile import UserProfile
@@ -97,13 +116,41 @@ def test_bio_vazia_e_aceita_e_conta_vem_da_sessao(monkeypatch):
     monkeypatch.setattr("api.modules.me.router.edit_profile", edit)
     response = TestClient(app).patch(
         "/me/profile",
-        data={"bio": "", "photo_action": "remove"},
+        data=data,
         headers={"origin": "https://followw.app"},
     )
     assert response.status_code == 200
-    body, photo, connection, database = edit.await_args.args
-    assert body.bio == "" and body.photo_action == "remove"
-    assert photo is None and connection is account and database is db
+    assert edit.await_args.args == (account, db)
+    assert edit.await_args.kwargs == {
+        "bio": expected_bio,
+        "photo": None,
+        "remove_photo": data["photo_action"] == "remove",
+    }
+
+
+@pytest.mark.parametrize("extra_field", ["photo", "other"])
+def test_recusa_segundo_arquivo_antes_de_editar(monkeypatch, extra_field):
+    from types import SimpleNamespace
+
+    app = FastAPI()
+    app.include_router(router, prefix="/me")
+    app.dependency_overrides[get_sigaa_connection] = lambda: SimpleNamespace(
+        registration="conta-autenticada"
+    )
+    app.dependency_overrides[get_database] = lambda: object()
+    edit = AsyncMock()
+    monkeypatch.setattr("api.modules.me.router.edit_profile", edit)
+    output = BytesIO()
+    Image.new("RGB", (20, 20)).save(output, format="PNG")
+    image = ("foto.png", output.getvalue(), "image/png")
+    response = TestClient(app).patch(
+        "/me/profile",
+        data={"photo_action": "replace"},
+        files=[(extra_field, image), ("photo", image)],
+        headers={"origin": "https://followw.app"},
+    )
+    assert response.status_code == 422
+    edit.assert_not_awaited()
 
 
 def test_upload_excessivo_e_recusado_antes_do_parser():
@@ -112,7 +159,7 @@ def test_upload_excessivo_e_recusado_antes_do_parser():
     app.add_middleware(ProfileUploadGuard)
     response = TestClient(app).patch(
         "/me/profile",
-        content=b"x" * (6 * 1024 * 1024),
+        content=b"x" * (4 * 1024 * 1024 + 64 * 1024 + 1),
         headers={"origin": "https://followw.app"},
     )
     assert response.status_code == 413
@@ -136,8 +183,12 @@ def test_edicao_grava_cache_remove_foto_e_preserva_nome_local(
 
     credentials = Credentials(registration="251000000", password="senha-teste")
     client.cookies.update(cookies(access="tok", refresh=credentials))
+    visible_bio = "a" * 5000
     original = stub_sigaa.profile.get_profile.return_value.model_copy(
-        update={"photo": "https://arquivos.unb.br/antiga.jpg"}
+        update={
+            "photo": "https://arquivos.unb.br/antiga.jpg",
+            "bio": visible_bio + "fim",
+        }
     )
     stub_sigaa.profile.get_profile.return_value = original
     assert client.get("/me").status_code == 200
@@ -145,20 +196,20 @@ def test_edicao_grava_cache_remove_foto_e_preserva_nome_local(
         client.patch("/me/settings", json={"displayName": "Nome local"}).status_code
         == 200
     )
-    updated = original.model_copy(update={"photo": None, "bio": "Bio nova"})
+    updated = original.model_copy(update={"photo": None})
     stub_sigaa.profile.update_profile = AsyncMock(return_value=updated)
     response = client.patch(
         "/me/profile",
-        data={"bio": "Bio nova", "photo_action": "remove"},
+        data={"photo_action": "remove"},
         headers={"origin": "https://followw.app"},
     )
     assert response.status_code == 200, response.text
     assert response.json()["photo"] is None
-    assert response.json()["bio"] == "Bio nova"
+    assert response.json()["bio"] == visible_bio
     stub_sigaa.profile.update_profile.assert_awaited_once_with(
-        password="senha-teste", bio="Bio nova", photo=None, remove_photo=True
+        password="senha-teste", bio=None, photo=None, remove_photo=True
     )
-    assert client.get("/me").json()["bio"] == "Bio nova"
+    assert client.get("/me").json()["bio"] == visible_bio
     assert client.get("/me").json()["photo"] is None
     assert client.get("/me/settings").json()["displayName"] == "Nome local"
     stub_sigaa.logout.assert_awaited()
@@ -173,13 +224,24 @@ async def test_sync_antigo_nao_sobrescreve_edicao_recente(async_database, stub_s
     profile = stub_sigaa.profile.get_profile.return_value
     async with async_database() as session:
         repo = UserRepository(session)
-        await repo.save_profile(profile.model_copy(update={"bio": "Bio editada"}), now)
+        await repo.save_profile(
+            profile.model_copy(
+                update={
+                    "bio": "Bio editada",
+                    "photo": "https://arquivos.unb.br/nova.jpg",
+                }
+            ),
+            now,
+            replace_photo=True,
+        )
         await session.commit()
         await repo.save_profile(
-            profile.model_copy(update={"bio": "Bio antiga"}),
+            profile.model_copy(update={"bio": "Bio antiga", "photo": None}),
             now - timedelta(seconds=10),
+            replace_photo=True,
         )
         await session.commit()
     async with async_database() as session:
         user = await UserRepository(session).get_by_registration(profile.registration)
         assert user.bio == "Bio editada"
+        assert user.photo == "https://arquivos.unb.br/nova.jpg"

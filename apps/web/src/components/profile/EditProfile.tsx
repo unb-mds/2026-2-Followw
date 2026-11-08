@@ -1,4 +1,4 @@
-import { Pencil, UserRound } from 'lucide-react';
+import { ImagePlus, Pencil, Trash2, UserRound } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import type { UserProfile } from '#/queries/me';
@@ -16,9 +16,16 @@ import {
 } from '#/components/ui/dialog';
 import { Input } from '#/components/ui/input';
 import { Label } from '#/components/ui/label';
+import { Textarea } from '#/components/ui/textarea';
 import { useOnline } from '#/lib/online';
+import { MAX_PROFILE_BIO_LENGTH, truncateProfileBio } from '#/lib/profile';
 import { useEditProfile } from '#/queries/profile-edit';
 import { useUpdateSettings } from '#/queries/settings';
+
+const MAX_ORIGINAL_PHOTO_MIB = 16;
+const PHOTO_EXTENSIONS = /\.(jpe?g|png)$/i;
+
+type PhotoEdit = { action: 'keep' | 'remove' } | { action: 'replace'; file: File; preview: string };
 
 export function EditProfile({
     user,
@@ -80,12 +87,12 @@ export function ProfileForm({
     const remote = useEditProfile();
     const settings = useUpdateSettings();
     const [name, setName] = useState(displayName ?? '');
-    const [bio, setBio] = useState(user.bio ?? '');
-    const [savedBio, setSavedBio] = useState(user.bio ?? '');
-    const [photo, setPhoto] = useState<File | null>(null);
+    const [savedBio, setSavedBio] = useState(() => truncateProfileBio(user.bio ?? ''));
+    const [bio, setBio] = useState(savedBio);
+    const [photo, setPhoto] = useState<PhotoEdit>({ action: 'keep' });
     const [crop, setCrop] = useState<File | null>(null);
-    const [preview, setPreview] = useState<string | null>(null);
-    const [action, setAction] = useState<'keep' | 'replace' | 'remove'>('keep');
+    const { action } = photo;
+    const preview = action === 'replace' ? photo.preview : null;
     const [error, setError] = useState('');
     const [remoteSaved, setRemoteSaved] = useState(false);
     const pending = remote.isPending || settings.isPending;
@@ -101,28 +108,35 @@ export function ProfileForm({
         onSavingChange(true);
         setError('');
         let saved = remoteSaved;
-        let savingName = false;
+        let failure =
+            'Não foi possível confirmar a alteração no SIGAA. Confira o perfil antes de tentar novamente.';
         try {
-            if (bio !== savedBio || action !== 'keep') {
-                await remote.mutateAsync({ bio, action, photo });
+            const editedBio = bio === savedBio ? undefined : bio;
+            if (action === 'remove') {
+                await remote.mutateAsync({ action, photo: null });
+                setPhoto({ action: 'keep' });
+                setRemoteSaved(true);
+                saved = true;
+                failure = 'Foto removida. Não foi possível confirmar a alteração da bio no SIGAA.';
+            }
+            if (editedBio !== undefined || action === 'replace') {
+                await remote.mutateAsync({
+                    bio: editedBio,
+                    action: action === 'replace' ? 'replace' : 'keep',
+                    photo: action === 'replace' ? photo.file : null
+                });
                 setSavedBio(bio);
-                setAction('keep');
-                setPhoto(null);
-                setPreview(null);
+                setPhoto({ action: 'keep' });
                 setRemoteSaved(true);
                 saved = true;
             }
-            savingName = true;
+            failure = saved
+                ? 'Alterações salvas no SIGAA. Não foi possível salvar o nome. Tente novamente.'
+                : 'Não foi possível salvar o nome. Tente novamente.';
             await settings.mutateAsync({ body: { displayName: name.trim() || null } });
             close();
         } catch {
-            setError(
-                savingName
-                    ? saved
-                        ? 'Foto e bio salvas. Não foi possível salvar o nome. Tente novamente.'
-                        : 'Não foi possível salvar o nome. Tente novamente.'
-                    : 'Não foi possível confirmar a alteração no SIGAA. Confira o perfil antes de tentar novamente.'
-            );
+            setError(failure);
         } finally {
             saving.current = false;
             onSavingChange(false);
@@ -141,9 +155,7 @@ export function ProfileForm({
                     file={crop}
                     onCancel={() => setCrop(null)}
                     onConfirm={(file) => {
-                        setPhoto(file);
-                        setPreview(URL.createObjectURL(file));
-                        setAction('replace');
+                        setPhoto({ action: 'replace', file, preview: URL.createObjectURL(file) });
                         setCrop(null);
                     }}
                 />
@@ -163,34 +175,46 @@ export function ProfileForm({
                                     <img
                                         src={image}
                                         alt="Foto de perfil"
-                                        className="aspect-4/5 w-20 rounded-lg object-cover"
+                                        className="aspect-4/5 w-24 shrink-0 rounded-lg object-cover"
                                     />
                                 ) : (
-                                    <UserRound className="size-16 text-muted-foreground" />
+                                    <div className="flex aspect-4/5 w-24 shrink-0 items-center justify-center rounded-lg bg-muted">
+                                        <UserRound
+                                            className="size-10 text-muted-foreground"
+                                            aria-hidden="true"
+                                        />
+                                    </div>
                                 )}
-                                <div className="flex flex-col gap-2">
+                                <div className="flex flex-wrap items-center gap-2">
                                     <Button
                                         type="button"
                                         variant="outline"
                                         onClick={() => fileInput.current?.click()}
                                     >
+                                        <ImagePlus data-icon="inline-start" aria-hidden="true" />
                                         Escolher foto
                                     </Button>
                                     <Input
                                         ref={fileInput}
                                         id="profile-photo"
                                         type="file"
-                                        accept="image/jpeg,image/png"
+                                        accept=".jpg,.jpeg,.png"
                                         className="hidden"
                                         onChange={(event) => {
                                             const file = event.target.files?.[0];
                                             event.target.value = '';
                                             if (!file) return;
                                             if (
-                                                !['image/jpeg', 'image/png'].includes(file.type) ||
-                                                file.size > 5 * 1024 * 1024
+                                                !PHOTO_EXTENSIONS.test(file.name) ||
+                                                (file.type !== '' &&
+                                                    !['image/jpeg', 'image/png'].includes(
+                                                        file.type
+                                                    )) ||
+                                                file.size > MAX_ORIGINAL_PHOTO_MIB * 1024 * 1024
                                             ) {
-                                                setError('Escolha JPEG ou PNG de até 5 MB.');
+                                                setError(
+                                                    `Escolha JPEG ou PNG de até ${MAX_ORIGINAL_PHOTO_MIB} MiB.`
+                                                );
                                                 return;
                                             }
                                             setError('');
@@ -201,17 +225,17 @@ export function ProfileForm({
                                         <Button
                                             type="button"
                                             variant="ghost"
-                                            onClick={() => {
-                                                setPhoto(null);
-                                                setAction('remove');
-                                            }}
+                                            onClick={() => setPhoto({ action: 'remove' })}
                                         >
+                                            <Trash2 data-icon="inline-start" aria-hidden="true" />
                                             Remover foto
                                         </Button>
                                     )}
                                 </div>
                             </div>
-                            <p className="text-xs text-muted-foreground">JPEG ou PNG, até 5 MB.</p>
+                            <p className="text-xs text-muted-foreground">
+                                JPEG ou PNG, até {MAX_ORIGINAL_PHOTO_MIB} MiB.
+                            </p>
                         </div>
                         <div className="flex flex-col gap-2">
                             <Label htmlFor="display-name">Nome de exibição</Label>
@@ -224,19 +248,23 @@ export function ProfileForm({
                                 autoComplete="nickname"
                             />
                             <p className="text-xs text-muted-foreground">
-                                Até 24 caracteres. Deixe vazio para usar seu nome do SIGAA.
+                                Este nome só aparecerá no seu Followw.
                             </p>
                         </div>
                         <div className="flex flex-col gap-2">
                             <Label htmlFor="profile-bio">Bio</Label>
-                            <textarea
+                            <Textarea
                                 id="profile-bio"
                                 value={bio}
-                                maxLength={5000}
+                                maxLength={MAX_PROFILE_BIO_LENGTH}
                                 rows={4}
-                                onChange={(e) => setBio(e.target.value)}
-                                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                                placeholder="Escreva um pouco sobre você"
+                                onChange={(e) => setBio(truncateProfileBio(e.target.value))}
+                                className="field-sizing-fixed resize-none"
                             />
+                            <p className="text-xs text-muted-foreground">
+                                Até {MAX_PROFILE_BIO_LENGTH.toLocaleString('pt-BR')} caracteres.
+                            </p>
                         </div>
                     </fieldset>
                     {error && (

@@ -528,7 +528,10 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Update Profile */
+        /**
+         * Atualizar foto ou bio no SIGAA
+         * @description Omita a bio para preservá-la ou envie uma string vazia para limpá-la. A remoção da foto deve ser feita em uma requisição separada. Para substituir, envie um único JPEG ou PNG de até 4 MiB.
+         */
         patch: operations["update_profile_me_profile_patch"];
         trace?: never;
     };
@@ -583,11 +586,8 @@ export interface components {
              * @enum {string}
              */
             photo_action: "keep" | "replace" | "remove";
-            /**
-             * Bio
-             * @default
-             */
-            bio: string;
+            /** Bio */
+            bio?: string | null;
             /** Photo */
             photo?: string | null;
         };
@@ -2716,6 +2716,13 @@ export interface operations {
             };
             /** @description Credenciais ausentes ou inválidas. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A foto enviada deve ter até 4 MiB. */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };

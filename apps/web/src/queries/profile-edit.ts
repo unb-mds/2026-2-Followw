@@ -14,7 +14,7 @@ export function useEditProfile() {
             action,
             photo
         }: {
-            bio: string;
+            bio?: string;
             action: 'keep' | 'replace' | 'remove';
             photo: File | null;
         }) => {
@@ -24,7 +24,7 @@ export function useEditProfile() {
                 body: { bio, photo_action: action },
                 bodySerializer: () => {
                     const form = new FormData();
-                    form.set('bio', bio);
+                    if (bio !== undefined) form.set('bio', bio);
                     form.set('photo_action', action);
                     if (photo) form.set('photo', photo);
                     return form;

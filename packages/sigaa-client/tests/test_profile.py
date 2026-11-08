@@ -162,6 +162,7 @@ async def test_carga_horaria_incompleta_e_barulhenta():
 EDIT_FORM = """<form name="form:1" action="/sigaa/portais/discente/perfil.jsf">
 <input type="hidden" name="form:1" value="form:1">
 <input type="hidden" name="javax.faces.ViewState" value="state">
+<input type="hidden" name="apenasSenha" value="">
 <input type="hidden" name="idFoto" value="">
 <img id="fotoPerfil" src="/sigaa/img/no_picture.png">
 <textarea name="descricaoPessoal">Bio de teste.</textarea>
@@ -187,6 +188,7 @@ async def test_edita_bio_preservando_campos_e_sem_resetar_qrcode():
             assert "https://lattes.cnpq.br/teste" in body
             assert "checkBoxReprovacoesNoMesmoComponenteConsideradas" not in body
             assert "multipart/form-data" in request.headers["content-type"]
+            assert 'name="apenasSenha"\r\n\r\n\r\n' in body
             page = page.replace("Bio de teste.", "Nova bio")
         return httpx.Response(
             200, text=DASHBOARD if request.url.path.endswith("discente.jsf") else page
@@ -236,7 +238,7 @@ async def test_timeout_na_escrita_nao_repete_post():
     assert posts == 1
 
 
-async def test_remocao_rele_viewstate_antes_de_salvar_bio():
+async def test_remocao_confirma_foto_sem_salvar_bio():
     page = EDIT_FORM.replace(
         "/sigaa/img/no_picture.png", "/arquivos/antiga.jpg"
     ).replace(
@@ -250,16 +252,10 @@ async def test_remocao_rele_viewstate_antes_de_salvar_bio():
         if request.method == "POST":
             body = request.content.decode()
             posts.append(body)
-            if len(posts) == 1:
-                assert "idFotoRemovida" in body
-                assert "form:salvar" not in body
-                page = page.replace(
-                    "/arquivos/antiga.jpg", "/sigaa/img/no_picture.png"
-                ).replace('value="state"', 'value="state2"')
-            else:
-                assert "state2" in body
-                assert "idFotoRemovida" not in body
-                page = page.replace("Bio de teste.", "Nova bio")
+            assert "idFotoRemovida" in body
+            assert "form:salvar" not in body
+            assert "Bio de teste." in body
+            page = page.replace("/arquivos/antiga.jpg", "/sigaa/img/no_picture.png")
         return httpx.Response(
             200, text=DASHBOARD if request.url.path.endswith("discente.jsf") else page
         )
@@ -267,10 +263,47 @@ async def test_remocao_rele_viewstate_antes_de_salvar_bio():
     async with SigaaClient(
         session_token="tok", transport=httpx.MockTransport(handle)
     ) as client:
-        await client.profile.update_profile(
-            password="segredo", bio="Nova bio", remove_photo=True
+        await client.profile.update_profile(password="segredo", remove_photo=True)
+    assert len(posts) == 1
+
+
+@pytest.mark.parametrize("alterada", [True, False])
+async def test_foto_na_mesma_url_so_confirma_se_os_bytes_mudarem(alterada):
+    path = "/arquivos/perfil.jpg"
+    page = EDIT_FORM.replace("/sigaa/img/no_picture.png", path)
+    image = b"foto antiga"
+    posts = 0
+
+    def handle(request):
+        nonlocal image, posts
+        if request.url.path == path:
+            return httpx.Response(
+                200, content=image, headers={"Content-Type": "image/jpeg"}
+            )
+        if request.method == "POST":
+            posts += 1
+            assert b'name="alterarFoto"; filename="perfil.jpg"' in request.content
+            assert b"Bio de teste." in request.content
+            if alterada:
+                image = b"foto nova recodificada pelo SIGAA"
+        return httpx.Response(
+            200, text=DASHBOARD if request.url.path.endswith("discente.jsf") else page
         )
-    assert len(posts) == 2
+
+    async with SigaaClient(
+        session_token="tok", transport=httpx.MockTransport(handle)
+    ) as client:
+        if alterada:
+            profile = await client.profile.update_profile(
+                password="segredo", photo=b"foto nova"
+            )
+            assert profile.photo.endswith(path)
+        else:
+            with pytest.raises(SigaaParseError, match="não confirmou a nova foto"):
+                await client.profile.update_profile(
+                    password="segredo", photo=b"foto nova"
+                )
+    assert posts == 1
 
 
 async def test_redirecionamento_de_gravacao_nao_reenvia_senha():
@@ -302,7 +335,5 @@ async def test_tela_sem_imagem_nao_e_confundida_com_foto_removida():
     )
     async with SigaaClient(session_token="tok", transport=fake.transport) as client:
         with pytest.raises(SigaaParseError, match="Imagem de perfil ausente"):
-            await client.profile.update_profile(
-                password="segredo", bio="nova", remove_photo=True
-            )
+            await client.profile.update_profile(password="segredo", remove_photo=True)
     assert all(request.method == "GET" for request in fake.requests)

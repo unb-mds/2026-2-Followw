@@ -41,7 +41,12 @@ class UserRepository:
         await self._session.flush()
 
     async def save_profile(
-        self, profile: UserProfile, synced_at: datetime, login: str | None = None
+        self,
+        profile: UserProfile,
+        synced_at: datetime,
+        login: str | None = None,
+        *,
+        replace_photo: bool = False,
     ) -> User:
         """Grava o perfil na conta do `login`, assumindo o usuário sombra da matrícula."""
         login = login or profile.registration
@@ -71,7 +76,8 @@ class UserRepository:
         if login != profile.registration:
             user.old_registration = login
         user.name = profile.name
-        user.photo = profile.photo or user.photo
+        if replace_photo or profile.photo is not None:
+            user.photo = profile.photo
         user.email = profile.email or user.email
         user.bio = profile.bio
         pair = (profile.course, profile.unit)

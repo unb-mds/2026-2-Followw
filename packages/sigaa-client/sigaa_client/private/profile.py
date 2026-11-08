@@ -40,18 +40,19 @@ class Profile:
         self,
         *,
         password: str,
-        bio: str,
+        bio: str | None = None,
         photo: bytes | None = None,
         remove_photo: bool = False,
     ) -> UserProfile:
-        await update_profile(
+        saved_photo, saved_bio = await update_profile(
             self._session,
             password=password,
             bio=bio,
             photo=photo,
             remove_photo=remove_photo,
         )
-        return await self.get_profile()
+        profile = await self.get_profile()
+        return profile.model_copy(update={"photo": saved_photo, "bio": saved_bio})
 
     async def get_profile(self) -> UserProfile:
         page = await self._session.get(DASHBOARD_PATH)

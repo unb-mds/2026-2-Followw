@@ -2,6 +2,17 @@ import type { components } from '#/queries/schema.gen';
 
 type UserProfile = components['schemas']['UserProfile'];
 
+export const MAX_PROFILE_BIO_LENGTH = 5000;
+
+export function truncateProfileBio(text: string) {
+    if (text.length <= MAX_PROFILE_BIO_LENGTH) return text;
+    const boundary = text.codePointAt(MAX_PROFILE_BIO_LENGTH - 1);
+    return text.slice(
+        0,
+        boundary && boundary > 0xffff ? MAX_PROFILE_BIO_LENGTH - 1 : MAX_PROFILE_BIO_LENGTH
+    );
+}
+
 const indexFormat = new Intl.NumberFormat('pt-BR', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 3

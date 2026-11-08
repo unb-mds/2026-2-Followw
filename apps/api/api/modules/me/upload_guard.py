@@ -2,8 +2,9 @@ from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from api.core.config import settings
+from api.modules.me.photo import MAX_PHOTO_BYTES
 
-_MAX_BODY = 5 * 1024 * 1024 + 64 * 1024
+_MAX_BODY = MAX_PHOTO_BYTES + 64 * 1024
 
 
 class ProfileUploadGuard:
@@ -32,7 +33,7 @@ class ProfileUploadGuard:
             size += len(message.get("body", b""))
             if size > _MAX_BODY:
                 return await JSONResponse(
-                    {"detail": "A foto deve ter até 5 MB."}, status_code=413
+                    {"detail": "A foto enviada deve ter até 4 MiB."}, status_code=413
                 )(scope, receive, send)
             chunks.append(message)
             if not message.get("more_body"):
