@@ -16,7 +16,12 @@ unb-browser = { workspace = true }
 members = ["apps/api", "packages/sigaa-client", "packages/unb-browser"]
 
 [dependency-groups]
-dev = ["pytest>=9.2.0", "pytest-asyncio>=1.4.1.post1", "ruff>=0.17.3"]
+dev = [
+    "pytest>=9.2.0",
+    "pytest-asyncio>=1.4.1.post1",
+    "pytest-xdist>=3.8.0",
+    "ruff>=0.17.4",
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -16,7 +16,7 @@ api/
   cookies.py            # cookies de sessão cifrados
   cache.py              # Cache-Control, age e is_stale
   errors.py             # exceções do SIGAA e do RU → HTTP, num lugar só
-tests/                  # um arquivo por módulo
+tests/                  # unit/ (sem Docker) e integration/<feature>/
 ```
 
 ## Padrões
@@ -53,10 +53,20 @@ tests/                  # um arquivo por módulo
 
 ## Testes
 
-Pela interface HTTP. Fixtures em `tests/conftest.py`: `client` (Postgres via testcontainers, limpo
-por teste, entrega os jobs publicados em `POST /jobs` antes de responder), `sigaa` (SIGAA via
-respx), `stub_sigaa` (`SigaaClient` trocado por `AsyncMock`; cada job abre o seu) e `qstash`
-(intercepta a API do QStash; `qstash.jobs()` decifra o que foi publicado).
+Pela interface HTTP. `tests/unit/` tem as regras puras (sem banco nem `TestClient`) e roda sem
+Docker; `tests/integration/<feature>/` tem o resto, com fixtures da feature no `conftest.py` e
+constantes e funções compartilhadas no `helpers.py` da pasta. Fixtures em
+`tests/integration/conftest.py`:
+
+- `client`: Postgres via testcontainers, limpo por teste; entrega os jobs publicados em `POST /jobs`
+  antes de responder.
+- `api`: a app sem banco (usar o banco falha o teste), para validação e OpenAPI.
+- `sigaa` (SIGAA via respx), `stub_sigaa` (`SigaaClient` trocado por `AsyncMock`; cada job abre o
+  seu), `qstash` (`qstash.jobs()` decifra o que foi publicado) e `probe_app` (app isolada para
+  testar uma dependência).
+
+Casos de validação de um mesmo endpoint vão num teste só, com `subtests`. A tradução dos erros do
+SIGAA é testada uma vez em `test_errors.py`; cada rota testa só um caso de propagação.
 
 ## Comandos
 
