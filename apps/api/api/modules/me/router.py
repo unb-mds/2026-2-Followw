@@ -1,16 +1,32 @@
-from fastapi import APIRouter, Request, Response
+from typing import Annotated, Literal
+
+from fastapi import (
+    APIRouter,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    Response,
+    UploadFile,
+)
 from sigaa_client import RestaurantCredentials, RestaurantStatement
+from starlette.concurrency import run_in_threadpool
+from starlette.datastructures import UploadFile as MultipartFile
 
 from api.cache import CacheControl, NoStore
 from api.db.main import DatabaseDep
 from api.errors import SIGAA_ERRORS
+from api.modules.me.edit import edit_profile
+from api.modules.me.photo import MAX_PHOTO_BYTES, normalize_photo
 from api.modules.me.profile import ProfileServiceDep, UserProfile
+from api.modules.me.repository import MAX_PROFILE_BIO_LENGTH
 from api.modules.me.settings import (
     UserSettings,
     UserSettingsPatch,
     read_settings,
     save_settings,
 )
+from api.rate_limit import limit_profile_edits
 from api.sigaa import SigaaClientDep, SigaaConnection, SigaaConnectionDep
 
 router = APIRouter()
@@ -129,3 +145,59 @@ async def update_settings(
     db: DatabaseDep,
 ) -> UserSettings:
     return await save_settings(db, connection.registration, body)
+
+
+@router.patch(
+    "/profile",
+    response_model=UserProfile,
+    summary="Atualizar foto ou bio no SIGAA",
+    description=(
+        "Omita a bio para preservá-la ou envie uma string vazia para limpá-la. "
+        "A remoção da foto deve ser feita em uma requisição separada. "
+        "Para substituir, envie um único JPEG ou PNG de até 4 MB."
+    ),
+    dependencies=[NoStore],
+    responses={
+        **SIGAA_ERRORS,
+        413: {"description": "A foto enviada deve ter até 4 MB."},
+    },
+)
+async def update_profile(
+    request: Request,
+    photo_action: Annotated[Literal["keep", "replace", "remove"], Form()],
+    connection: SigaaConnectionDep,
+    db: DatabaseDep,
+    bio: Annotated[str | None, Form()] = None,
+    photo: Annotated[UploadFile | None, File()] = None,
+) -> UserProfile:
+    form = await request.form()
+    if len(form.getlist("photo")) > 1 or any(
+        name != "photo" and isinstance(value, MultipartFile)
+        for name, value in form.multi_items()
+    ):
+        raise HTTPException(422, "Envie somente um arquivo no campo photo.")
+    if (photo_action == "replace") != (photo is not None):
+        raise HTTPException(422, "Envie uma foto somente ao selecionar substituição.")
+    if "bio" in form and bio is None:
+        bio = ""
+    if bio is not None:
+        # multipart converte \n em \r\n; conta como o usuário digitou
+        bio = bio.replace("\r\n", "\n")
+        if len(bio) > MAX_PROFILE_BIO_LENGTH:
+            raise HTTPException(
+                422, f"A bio deve ter até {MAX_PROFILE_BIO_LENGTH} caracteres."
+            )
+    if photo_action == "remove" and bio is not None:
+        raise HTTPException(
+            422, "Remova a foto e edite a bio em requisições separadas."
+        )
+    if photo_action == "keep" and bio is None:
+        raise HTTPException(422, "Informe uma alteração no perfil.")
+    await limit_profile_edits(connection.registration)
+    content = None
+    if photo is not None:
+        raw = await photo.read(MAX_PHOTO_BYTES + 1)
+        content = await run_in_threadpool(normalize_photo, raw)
+    return await edit_profile(
+        connection, db, bio=bio, photo=content, remove_photo=photo_action == "remove"
+    )

@@ -132,7 +132,7 @@ class RestaurantStatementEntry(BaseModel):
 class RestaurantStatement(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    balance: Decimal | None = None
+    balance: Decimal
     group: Literal[1, 2, 3, 4] | None = None
     entries: tuple[RestaurantStatementEntry, ...] = ()
 

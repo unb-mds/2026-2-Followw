@@ -105,8 +105,8 @@ Na página do SIGAA, o aviso aparece acima do formulário, abaixo do cabeçalho,
 uma nova busca que exceda o limite faz o aviso reaparecer. O client preserva seu texto em
 `messages`.
 
-`client.restaurant.get_restaurant_statement()` retorna saldo, extrato e grupo (1 a 4), com saldo e
-grupo ausentes representados por `None`.
+`client.restaurant.get_restaurant_statement()` retorna saldo, extrato e grupo (1 a 4), com grupo
+ausente representado por `None`. Extrato sem saldo levanta `SigaaParseError`.
 
 `client.classrooms.list_grades()` retorna todas as menções de "Ensino > Consultar Minhas Notas" num
 único relatório. Cada `ClassroomGrade` traz `subject_code`, `semester` e a menção (`Grade`) do
@@ -155,3 +155,11 @@ para texto e anexos.
 "Minhas atividades". A home não traz IDs, então o detalhe fica nos posts da turma
 (`classroom_sigaa_id`); avaliação de disciplina que não casa com uma única turma
 do portal vem sem turma.
+
+### Editar perfil
+
+`client.profile.update_profile(password=..., bio=..., photo=bytes_jpeg)`
+atualiza a conta autenticada. Omita `bio` para preservá-la ou passe `""` para limpá-la.
+Para remover a foto, use `remove_photo=True` sem enviar os outros campos.
+O chamador valida o JPEG antes do envio. O client relê o formulário para confirmar a
+gravação e não repete o POST em caso de falha.

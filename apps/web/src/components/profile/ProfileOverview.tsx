@@ -6,7 +6,7 @@ import type { components } from '#/queries/schema.gen';
 import { ListCard, Meter } from '#/components/ListCard';
 import { Card } from '#/components/ui/card';
 import { PersonPhoto } from '#/components/ui/person-photo';
-import { academicIndexes, creditsLabel, titleCase } from '#/lib/profile';
+import { academicIndexes, creditsLabel, titleCase, truncateProfileBio } from '#/lib/profile';
 import { cn } from '#/lib/shadcn';
 
 type UserProfile = components['schemas']['UserProfile'];
@@ -141,11 +141,11 @@ function Bio({ text }: { text: string }) {
             <p
                 ref={ref}
                 className={cn(
-                    'text-sm leading-relaxed whitespace-pre-line text-muted-foreground',
+                    'text-sm leading-relaxed wrap-anywhere whitespace-pre-line text-muted-foreground',
                     !expanded && 'line-clamp-3'
                 )}
             >
-                {text}
+                {truncateProfileBio(text)}
             </p>
             {(overflowing || expanded) && (
                 <button

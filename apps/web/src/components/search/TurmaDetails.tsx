@@ -15,7 +15,7 @@ export function TurmaDetails({ subject, classroom }: TurmaProps) {
     const status = seats(classroom);
 
     return (
-        <div className="flex flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-4">
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl bg-muted/40 p-4">
                 <Detail label="Horário" className="col-span-2">
                     <span className="text-primary tabular-nums">

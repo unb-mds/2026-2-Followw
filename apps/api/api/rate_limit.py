@@ -60,6 +60,7 @@ class RateLimitMiddleware:
 
 def _quota(method: str, path: str) -> tuple[str, int]:
     return {
+        ("PATCH", "/me/profile"): ("profile-edit", 10),
         ("POST", "/auth/sigaa"): ("login", settings.rate_limit_login_requests),
         ("POST", "/auth/sigaa/refresh"): (
             "refresh",
@@ -151,3 +152,9 @@ def _client_host(request: Request) -> str:
     except ValueError, OverflowError:
         pass
     return host
+
+
+async def limit_profile_edits(registration: str) -> None:
+    result = await _limit("profile-edit-account", registration, 5, 60)
+    if result is not None and not result.allowed:
+        raise HTTPException(429, "Too many requests", headers=_retry_headers(result))

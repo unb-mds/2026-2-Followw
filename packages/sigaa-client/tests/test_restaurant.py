@@ -6,7 +6,7 @@ import httpx
 import pytest
 from bs4 import BeautifulSoup
 
-from sigaa_client import Credentials, RestaurantStatement, SigaaClient
+from sigaa_client import Credentials, SigaaClient
 from sigaa_client.exceptions import SigaaParseError
 from sigaa_client.private.documents import _STUDENT_CARD_MENU_ACTION
 from sigaa_client.private.restaurant import (
@@ -158,13 +158,13 @@ async def test_extrato_com_debito_antes_do_simbolo_da_moeda():
     assert statement.entries[1].amount == Decimal("-4.50")
 
 
-async def test_get_restaurant_statement_sem_link_devolve_vazio_e_nao_faz_postback():
+async def test_extrato_sem_link_e_erro_e_nao_faz_postback():
     sigaa = FakeDashboard(initial=DASHBOARD_SEM_NADA)
     async with SigaaClient(session_token="tok", transport=sigaa.transport) as client:
-        statement = await client.restaurant.get_restaurant_statement()
+        with pytest.raises(SigaaParseError, match="ausente no portal"):
+            await client.restaurant.get_restaurant_statement()
 
     assert [r.method for r in sigaa.requests] == ["GET"]
-    assert statement == RestaurantStatement()
 
 
 @pytest.mark.parametrize("keep_link", [False, True])
@@ -245,7 +245,7 @@ def test_extrato_sem_movimentos_de_grupo_mantem_saldo():
     assert len(statement.entries) == 2
 
 
-def test_extrato_sem_saldo_ou_grupo_nao_presume_valores():
+def test_extrato_sem_saldo_e_erro():
     page = BeautifulSoup(
         """
         <h4>Extrato no Restaurante Universitário</h4><table>
@@ -254,10 +254,8 @@ def test_extrato_sem_saldo_ou_grupo_nao_presume_valores():
     """,
         "lxml",
     )
-    statement = _statement(page)
-    assert statement.balance is None
-    assert statement.group is None
-    assert len(statement.entries) == 1
+    with pytest.raises(SigaaParseError, match="Saldo do RU ausente"):
+        _statement(page)
 
 
 async def test_get_restaurant_credentials_le_token_e_validade():

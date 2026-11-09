@@ -103,7 +103,7 @@ def test_cache_vencido_responde_na_hora_e_revalida_em_background(
     logado, stub_sigaa, database
 ):
     logado.get("/me")
-    _envelhecer(database, User.profile_synced_at, hours=25)
+    _envelhecer(database, User.profile_synced_at, hours=13)
     perfil = stub_sigaa.profile.get_profile.return_value
     stub_sigaa.profile.get_profile.return_value = perfil.model_copy(update={"ira": 4.5})
 
@@ -114,7 +114,7 @@ def test_cache_vencido_responde_na_hora_e_revalida_em_background(
 
 def test_cache_em_dia_nao_revalida(logado, stub_sigaa, database, monkeypatch):
     logado.get("/me")
-    _envelhecer(database, User.profile_synced_at, hours=23)
+    _envelhecer(database, User.profile_synced_at, hours=11)
 
     def criar_client(*args, **kwargs):
         pytest.fail("Cache em dia não deve construir o cliente do QStash")
@@ -128,7 +128,7 @@ def test_cache_em_dia_nao_revalida(logado, stub_sigaa, database, monkeypatch):
 
 def test_falha_na_revalidacao_nao_afeta_a_resposta(logado, stub_sigaa, database):
     logado.get("/me")
-    _envelhecer(database, User.profile_synced_at, hours=25)
+    _envelhecer(database, User.profile_synced_at, hours=13)
     stub_sigaa.profile.get_profile.side_effect = SigaaError("fora do ar")
 
     response = logado.get("/me")
@@ -177,7 +177,7 @@ def test_max_age_maior_que_o_ttl_nao_impede_a_revalidacao_em_background(
     logado, stub_sigaa, database
 ):
     logado.get("/me")
-    _envelhecer(database, User.profile_synced_at, hours=25)
+    _envelhecer(database, User.profile_synced_at, hours=13)
     perfil = stub_sigaa.profile.get_profile.return_value
     stub_sigaa.profile.get_profile.return_value = perfil.model_copy(update={"ira": 4.5})
 
@@ -241,7 +241,7 @@ def test_only_if_cached_serve_cache_vencido_e_agenda_revalidacao(
     logado, stub_sigaa, database
 ):
     logado.get("/me")
-    _envelhecer(database, User.profile_synced_at, hours=25)
+    _envelhecer(database, User.profile_synced_at, hours=13)
     perfil = stub_sigaa.profile.get_profile.return_value
     stub_sigaa.profile.get_profile.return_value = perfil.model_copy(update={"ira": 4.5})
 
@@ -318,7 +318,7 @@ def test_cache_vencido_sem_access_token_revalida_sem_logar_na_requisicao(
     logado, stub_sigaa, database, qstash
 ):
     logado.get("/me")
-    _envelhecer(database, User.profile_synced_at, hours=25)
+    _envelhecer(database, User.profile_synced_at, hours=13)
     logado.cookies.delete(ACCESS_COOKIE_NAME)
     stub_sigaa.reset()
 
@@ -400,7 +400,7 @@ def test_primeiro_login_sincroniza_tudo(client, conta, database):
 
 def test_novo_login_so_revalida_o_que_venceu(client, conta, database):
     client.post("/auth/sigaa", json=LOGIN)
-    _envelhecer(database, User.profile_synced_at, hours=23)
+    _envelhecer(database, User.profile_synced_at, hours=11)
     _envelhecer(database, User.classrooms_synced_at, hours=73)
     _envelhecer(database, Classroom.members_synced_at, hours=25)
 
@@ -757,7 +757,7 @@ def test_cada_requisicao_fecha_o_proprio_client_do_qstash(
 
     # Cada login publica um job; a entrega sem retentativa não abre outro cliente.
     client.post("/auth/sigaa", json=LOGIN)
-    _envelhecer(database, User.profile_synced_at, hours=25)
+    _envelhecer(database, User.profile_synced_at, hours=13)
     client.post("/auth/sigaa", json=LOGIN)
 
     clients = [queue._client for queue in fechadas if queue._client is not None]

@@ -473,9 +473,11 @@ def test_dados_privados_sem_banco_fila_ou_cache(
         assert response.json()["balance"] == "12.50"
         assert response.json()["group"] == 2
         assert len(response.json()["entries"]) == 2
-        restaurant.get_restaurant_statement.return_value = RestaurantStatement()
+        restaurant.get_restaurant_statement.return_value = RestaurantStatement(
+            balance=Decimal("0.00")
+        )
         assert client.get(f"/me/ru-{path}").json() == {
-            "balance": None,
+            "balance": "0.00",
             "group": None,
             "entries": [],
         }
@@ -511,14 +513,23 @@ def test_extrato_repassa_grupo_saldo_e_movimentos_do_client(
     assert len(response.json()["entries"]) == 4
 
 
-def test_extrato_sem_saldo_ou_grupo_nao_presume_valores(client, cookies, restaurant):
+def test_extrato_sem_grupo_nao_presume_grupo(client, cookies, restaurant):
     client.cookies.update(cookies(refresh=CREDENCIAIS))
     restaurant.get_restaurant_statement.return_value = RestaurantStatement(
+        balance=Decimal("20.00"),
         entries=(_entry("Compra de créditos", "20.00"),),
     )
     response = client.get("/me/ru-statement")
-    assert response.json()["balance"] is None
+    assert response.json()["balance"] == "20.00"
     assert response.json()["group"] is None
+
+
+def test_extrato_sem_saldo_responde_502(client, cookies, restaurant):
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+    restaurant.get_restaurant_statement.side_effect = SigaaParseError(
+        "Saldo do RU ausente no extrato."
+    )
+    assert client.get("/me/ru-statement").status_code == 502
 
 
 def test_refresh_do_extrato_abre_sessao_nova_para_obter_saldo_atual(
