@@ -19,8 +19,8 @@ members = ["apps/api", "packages/sigaa-client", "packages/unb-browser"]
 dev = [
     "pytest>=9.2.0",
     "pytest-asyncio>=1.4.1.post1",
-    "pytest-xdist>=3.6.0",
-    "ruff>=0.17.3",
+    "pytest-xdist>=3.8.0",
+    "ruff>=0.17.4",
 ]
 
 [tool.pytest.ini_options]
