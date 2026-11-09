@@ -24,7 +24,7 @@ TTL (`None`), o dado **nunca vence** sozinho.
 
 | Dado                            | TTL     | Quem tem o `synced_at`  | Observação                                         |
 | :------------------------------ | :------ | :---------------------- | :------------------------------------------------- |
-| Perfil (`/me`)                  | 24 h    | usuário                 |                                                    |
+| Perfil (`/me`)                  | 12 h    | usuário                 |                                                    |
 | Lista de turmas (`/classrooms`) | 72 h    | usuário                 | Vale para todos os semestres                       |
 | Participantes da turma          | 24 h    | turma                   | Turma de semestre passado: sem TTL                 |
 | Estatísticas da turma           | 24 h    | turma                   | Turma de semestre passado: sem TTL                 |

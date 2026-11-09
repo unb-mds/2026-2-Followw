@@ -10,6 +10,7 @@ SESSION_COOKIE_NAME = "JSESSIONID"
 
 PROFILE_EDIT_PATH = "/sigaa/portais/discente/perfil.jsf"
 DASHBOARD_PATH = "/sigaa/portais/discente/discente.jsf"
+PORTAL_PATH = "/sigaa/verPortalDiscente.do"
 CLASSROOMS_PATH = "/sigaa/portais/discente/turmas.jsf"
 PARTICIPANTS_PATH = "/sigaa/ava/participantes.jsf"
 CLASSROOM_HOME_PATH = "/sigaa/ava/index.jsf"

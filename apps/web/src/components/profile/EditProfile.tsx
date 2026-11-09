@@ -1,4 +1,4 @@
-import { ImagePlus, Pencil, Trash2, UserRound } from 'lucide-react';
+import { ImagePlus, Pencil, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import type { UserProfile } from '#/queries/me';
@@ -16,7 +16,9 @@ import {
 } from '#/components/ui/dialog';
 import { Input } from '#/components/ui/input';
 import { Label } from '#/components/ui/label';
+import { PersonPhoto } from '#/components/ui/person-photo';
 import { Textarea } from '#/components/ui/textarea';
+import { toast } from '#/components/ui/toast';
 import { useOnline } from '#/lib/online';
 import { MAX_PROFILE_BIO_LENGTH, truncateProfileBio } from '#/lib/profile';
 import { ApiError } from '#/queries/errors';
@@ -48,13 +50,9 @@ export function EditProfile({
     const [open, setOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     return (
-        <Dialog
-            open={open}
-            onOpenChange={(next) => {
-                if (!saving) setOpen(next);
-            }}
-        >
+        <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger
+                disabled={saving}
                 render={
                     <Button
                         variant="ghost"
@@ -65,7 +63,9 @@ export function EditProfile({
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     <Pencil className="size-4" aria-hidden="true" />
                 </span>
-                <span className="flex-1 text-left">Editar perfil</span>
+                <span className="flex-1 text-left">
+                    {saving ? 'Salvando perfil...' : 'Editar perfil'}
+                </span>
             </DialogTrigger>
             <DialogContent className="max-h-dvh overflow-y-auto sm:max-w-lg">
                 {open && (
@@ -146,9 +146,20 @@ export function ProfileForm({
             done = saved ? 'Alterações salvas no SIGAA. ' : '';
             failure = 'Não foi possível salvar o nome. Tente novamente.';
             await settings.mutateAsync({ body: { displayName: name.trim() || null } });
+            toast.add({
+                type: 'success',
+                title: 'Perfil atualizado',
+                description: saved ? 'As alterações já estão no SIGAA.' : undefined
+            });
             close();
         } catch (failed) {
-            setError(done + (errorReason(failed) ?? failure));
+            const message = done + (errorReason(failed) ?? failure);
+            setError(message);
+            toast.add({
+                type: 'error',
+                title: 'Não foi possível salvar o perfil',
+                description: message
+            });
         } finally {
             saving.current = false;
             onSavingChange(false);
@@ -183,20 +194,7 @@ export function ProfileForm({
                         <div className="flex flex-col gap-2">
                             <Label htmlFor="profile-photo">Foto de perfil</Label>
                             <div className="flex items-center gap-4">
-                                {image ? (
-                                    <img
-                                        src={image}
-                                        alt="Foto de perfil"
-                                        className="aspect-4/5 w-24 shrink-0 rounded-lg object-cover"
-                                    />
-                                ) : (
-                                    <div className="flex aspect-4/5 w-24 shrink-0 items-center justify-center rounded-lg bg-muted">
-                                        <UserRound
-                                            className="size-10 text-muted-foreground"
-                                            aria-hidden="true"
-                                        />
-                                    </div>
-                                )}
+                                <PersonPhoto src={image} size="lg" />
                                 <div className="flex flex-wrap items-center gap-2">
                                     <Button
                                         type="button"
@@ -272,10 +270,8 @@ export function ProfileForm({
                                 placeholder="Escreva um pouco sobre você"
                                 onChange={(e) => setBio(truncateProfileBio(e.target.value))}
                                 className="field-sizing-fixed resize-none"
+                                maxLength={MAX_PROFILE_BIO_LENGTH}
                             />
-                            <p className="text-xs text-muted-foreground">
-                                Até {MAX_PROFILE_BIO_LENGTH.toLocaleString('pt-BR')} caracteres.
-                            </p>
                         </div>
                     </fieldset>
                     {error && (

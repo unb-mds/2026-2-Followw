@@ -3,8 +3,8 @@ from urllib.parse import urljoin
 import httpx
 from bs4 import BeautifulSoup, Tag
 
-from ..config import DASHBOARD_PATH, PROFILE_EDIT_PATH, SIGAA_BASE_URL
-from ..exceptions import SigaaError, SigaaParseError
+from ..config import DASHBOARD_PATH, PORTAL_PATH, PROFILE_EDIT_PATH, SIGAA_BASE_URL
+from ..exceptions import SigaaParseError
 from ..utils.jsf import build_submit, link_params, read_viewstate
 from ..utils.parsing import photo_url
 from .session import Session
@@ -12,12 +12,19 @@ from .session import Session
 _BIO = "descricaoPessoal"
 _PASSWORD = "senha"
 _PHOTO = "alterarFoto"
+_CONFIRMATION = "inputHiddenOpcaoExibir"
+_PASSWORD_ONLY = "2"
 _RESET = "checkBoxReprovacoesNoMesmoComponenteConsideradas"
+_SUCCESS = "Perfil atualizado com sucesso!"
 
 
 async def _read(session: Session) -> Tag:
     page = await session.get(PROFILE_EDIT_PATH)
-    soup = BeautifulSoup(page.text, "lxml")
+    return _form(page.text)
+
+
+def _form(html: str) -> Tag:
+    soup = BeautifulSoup(html, "lxml")
     field = soup.find("textarea", attrs={"name": _BIO})
     form = field.find_parent("form") if field else None
     if not isinstance(form, Tag):
@@ -36,56 +43,74 @@ def _photo(form: Tag) -> str | None:
     return photo_url(str(image["src"]))
 
 
-async def _photo_content(session: Session, url: str | None) -> bytes | None:
-    # shortcut: só compara fotos na origem do SIGAA; amplie se houver outro host oficial.
-    if not url or not url.startswith(SIGAA_BASE_URL + "/"):
-        return None
-    try:
-        response = await session.get(
-            url,
-            headers={"Cache-Control": "no-cache"},
-            follow_redirects=False,
-            allow_renewal=False,
-        )
-    except httpx.HTTPError, SigaaError:
-        return None
-    if response.headers.get("content-type", "").startswith("image/"):
-        return response.content or None
-    return None
-
-
 def _payload(form: Tag, password: str, bio: str) -> dict[str, str]:
     _, payload = build_submit(form, {_PASSWORD: password, _BIO: bio}, "Gravar perfil")
     for field in form.find_all("textarea"):
         if field.get("name") and field.get("name") != _BIO:
             payload[str(field["name"])] = field.get_text()
+    payload[_CONFIRMATION] = _PASSWORD_ONLY
     payload.pop(_RESET, None)
     payload.pop(_PHOTO, None)
     payload["tipoenviofoto"] = "on"
     return payload
 
 
-async def _send(session: Session, payload: dict[str, str], photo: bytes | None) -> None:
+def _confirmed(html: str) -> bool:
+    soup = BeautifulSoup(html, "lxml")
+    notices = soup.select("#painel-erros ul.info li")
+    return any(item.get_text(strip=True) == _SUCCESS for item in notices)
+
+
+async def _post(
+    session: Session, payload: dict[str, str], photo: bytes | None
+) -> httpx.Response:
     files = [(name, (None, value)) for name, value in payload.items()]
     if photo is not None:
         files.append((_PHOTO, ("perfil.jpg", photo, "image/jpeg")))
-    response = await session.post(
+    return await session.post(
         PROFILE_EDIT_PATH,
         files=files,
         follow_redirects=False,
         allow_redirect_response=True,
     )
+
+
+async def _confirm(session: Session, response: httpx.Response) -> bool:
     if response.is_redirect:
         target = urljoin(SIGAA_BASE_URL, response.headers.get("location", ""))
-        if target not in {
-            SIGAA_BASE_URL + PROFILE_EDIT_PATH,
-            SIGAA_BASE_URL + DASHBOARD_PATH,
-        }:
+        if target in {SIGAA_BASE_URL + DASHBOARD_PATH, SIGAA_BASE_URL + PORTAL_PATH}:
+            response = await session.get(target.removeprefix(SIGAA_BASE_URL))
+        elif target == SIGAA_BASE_URL + PROFILE_EDIT_PATH:
+            return False
+        else:
             raise SigaaParseError("Redirecionamento inesperado após editar perfil.")
-    else:
-        soup = BeautifulSoup(response.text, "lxml")
-        if soup.select_one(".erros, .erro, .errors"):
-            raise SigaaParseError("O SIGAA recusou a alteração do perfil.")
+    elif BeautifulSoup(response.text, "lxml").select_one(".erros, .erro, .errors"):
+        raise SigaaParseError("O SIGAA recusou a alteração do perfil.")
+    return _confirmed(response.text)
+
+
+async def _remove_photo(session: Session, form: Tag, password: str, bio: str) -> None:
+    link = form.find("a", id="btnExcluirFoto")
+    params = link_params(link) if isinstance(link, Tag) else {}
+    if set(params) != {"btnExcluirFoto", "idFotoRemovida"}:
+        raise SigaaParseError("Ação de remoção de foto ausente.")
+    payload = _payload(form, password, bio)
+    button = form.find("input", attrs={"type": "submit", "value": "Gravar perfil"})
+    payload.pop(str(button["name"]))
+    payload.update(params)
+    response = await _post(session, payload, None)
+    if response.is_redirect:
+        raise SigaaParseError("O SIGAA não abriu a remoção da foto.")
+    # A exclusão fica só na resposta; persiste ao gravar o perfil a partir dela.
+    staged = _form(response.text)
+    if _photo(staged) is not None:
+        raise SigaaParseError("O SIGAA não confirmou a remoção da foto.")
+    saved = await _post(session, _payload(staged, password, bio), None)
+    if not await _confirm(session, saved):
+        raise SigaaParseError(
+            "O SIGAA não confirmou a remoção da foto; "
+            "releia o perfil antes de tentar novamente."
+        )
 
 
 async def update_profile(
@@ -101,46 +126,23 @@ async def update_profile(
     form = await _read(session)
     previous_photo = _photo(form)
     original_bio = form.find("textarea", attrs={"name": _BIO}).get_text()
-    previous_content = (
-        await _photo_content(session, previous_photo) if photo is not None else None
-    )
     if remove_photo:
         if previous_photo is None:
             return None, original_bio or None
-        link = form.find("a", id="btnExcluirFoto")
-        params = link_params(link) if isinstance(link, Tag) else {}
-        if set(params) != {"btnExcluirFoto", "idFotoRemovida"}:
-            raise SigaaParseError("Ação de remoção de foto ausente.")
-        payload = _payload(form, password, original_bio)
-        button = form.find("input", attrs={"type": "submit", "value": "Gravar perfil"})
-        payload.pop(str(button["name"]))
-        payload.update(params)
-        await _send(session, payload, None)
+        await _remove_photo(session, form, password, original_bio)
     elif photo is not None or bio is not None:
-        await _send(
-            session,
-            _payload(form, password, original_bio if bio is None else bio),
-            photo,
-        )
+        payload = _payload(form, password, original_bio if bio is None else bio)
+        if not await _confirm(session, await _post(session, payload, photo)):
+            raise SigaaParseError(
+                "O SIGAA não confirmou a atualização do perfil; "
+                "releia o perfil antes de tentar novamente."
+            )
     else:
         return previous_photo, original_bio or None
 
     current = await _read(session)
     current_photo = _photo(current)
-    saved_bio = current.find("textarea", attrs={"name": _BIO}).get_text()
-    if bio is not None and saved_bio.replace("\r\n", "\n") != bio.replace("\r\n", "\n"):
-        raise SigaaParseError(
-            "O SIGAA não confirmou a bio; releia o perfil antes de tentar novamente."
-        )
     if remove_photo and current_photo is not None:
         raise SigaaParseError("O SIGAA não confirmou a remoção da foto.")
-    if photo is not None:
-        changed = current_photo is not None and current_photo != previous_photo
-        if current_photo is not None and not changed and previous_content is not None:
-            content = await _photo_content(session, current_photo)
-            changed = content is not None and content != previous_content
-        if not changed:
-            raise SigaaParseError(
-                "O SIGAA não confirmou a nova foto; releia o perfil antes de tentar novamente."
-            )
+    saved_bio = current.find("textarea", attrs={"name": _BIO}).get_text()
     return current_photo, saved_bio or None

@@ -55,6 +55,9 @@ CARD_SEM_INDICES = """
 
 DASHBOARD = f"<html><body>{CARD}</body></html>"
 DASHBOARD_SEM_INDICES = f"<html><body>{CARD_SEM_INDICES}</body></html>"
+DASHBOARD_ATUALIZADO = f"""<html><body>
+<div id="painel-erros"><ul class="info"><li>Perfil atualizado com sucesso!</li></ul></div>
+{CARD}</body></html>"""
 
 
 class FakeDashboard:
@@ -163,6 +166,8 @@ EDIT_FORM = """<form name="form:1" action="/sigaa/portais/discente/perfil.jsf">
 <input type="hidden" name="form:1" value="form:1">
 <input type="hidden" name="javax.faces.ViewState" value="state">
 <input type="hidden" name="apenasSenha" value="">
+<input type="hidden" name="inputHiddenOpcaoExibir" value="3">
+<input name="cpf" value="">
 <input type="hidden" name="idFoto" value="">
 <img id="fotoPerfil" src="/sigaa/img/no_picture.png">
 <textarea name="descricaoPessoal">Bio de teste.</textarea>
@@ -189,10 +194,12 @@ async def test_edita_bio_preservando_campos_e_sem_resetar_qrcode():
             assert "checkBoxReprovacoesNoMesmoComponenteConsideradas" not in body
             assert "multipart/form-data" in request.headers["content-type"]
             assert 'name="apenasSenha"\r\n\r\n\r\n' in body
+            assert 'name="inputHiddenOpcaoExibir"\r\n\r\n2\r\n' in body
             page = page.replace("Bio de teste.", "Nova bio")
-        return httpx.Response(
-            200, text=DASHBOARD if request.url.path.endswith("discente.jsf") else page
-        )
+            return httpx.Response(200, text=DASHBOARD_ATUALIZADO)
+        if request.url.path.endswith("discente.jsf"):
+            return httpx.Response(200, text=DASHBOARD)
+        return httpx.Response(200, text=page)
 
     async with SigaaClient(
         session_token="tok", transport=httpx.MockTransport(handle)
@@ -216,7 +223,7 @@ async def test_recusa_action_externo_sem_enviar_senha():
 async def test_http_200_sem_alteracao_nao_confirma_sucesso():
     fake = FakeDashboard(EDIT_FORM)
     async with SigaaClient(session_token="tok", transport=fake.transport) as client:
-        with pytest.raises(SigaaParseError, match="não confirmou a bio"):
+        with pytest.raises(SigaaParseError, match="não confirmou a atualização"):
             await client.profile.update_profile(password="segredo", bio="nova")
 
 
@@ -238,13 +245,18 @@ async def test_timeout_na_escrita_nao_repete_post():
     assert posts == 1
 
 
-async def test_remocao_confirma_foto_sem_salvar_bio():
-    page = EDIT_FORM.replace(
+def _form_com_foto():
+    return EDIT_FORM.replace(
         "/sigaa/img/no_picture.png", "/arquivos/antiga.jpg"
     ).replace(
         "</form>",
         """<a id="btnExcluirFoto" onclick="jsfcljs(f,{'btnExcluirFoto':'btnExcluirFoto','idFotoRemovida':'123'},'')"></a></form>""",
     )
+
+
+async def test_remocao_exclui_e_grava_o_perfil_a_partir_da_resposta():
+    page = _form_com_foto()
+    staged = page.replace("/arquivos/antiga.jpg", "/sigaa/img/no_picture.png")
     posts = []
 
     def handle(request):
@@ -252,57 +264,63 @@ async def test_remocao_confirma_foto_sem_salvar_bio():
         if request.method == "POST":
             body = request.content.decode()
             posts.append(body)
-            assert "idFotoRemovida" in body
-            assert "form:salvar" not in body
+            if "idFotoRemovida" in body:
+                assert "form:salvar" not in body
+                return httpx.Response(200, text=staged)
+            assert "form:salvar" in body
             assert "Bio de teste." in body
-            page = page.replace("/arquivos/antiga.jpg", "/sigaa/img/no_picture.png")
-        return httpx.Response(
-            200, text=DASHBOARD if request.url.path.endswith("discente.jsf") else page
-        )
+            page = staged
+            return httpx.Response(200, text=DASHBOARD_ATUALIZADO)
+        if request.url.path.endswith("discente.jsf"):
+            return httpx.Response(200, text=DASHBOARD)
+        return httpx.Response(200, text=page)
 
     async with SigaaClient(
         session_token="tok", transport=httpx.MockTransport(handle)
     ) as client:
         await client.profile.update_profile(password="segredo", remove_photo=True)
-    assert len(posts) == 1
+    assert len(posts) == 2
 
 
-@pytest.mark.parametrize("alterada", [True, False])
-async def test_foto_na_mesma_url_so_confirma_se_os_bytes_mudarem(alterada):
-    path = "/arquivos/perfil.jpg"
-    page = EDIT_FORM.replace("/sigaa/img/no_picture.png", path)
-    image = b"foto antiga"
-    posts = 0
+async def test_remocao_sem_mensagem_ao_gravar_nao_confirma_sucesso():
+    page = _form_com_foto()
+    staged = page.replace("/arquivos/antiga.jpg", "/sigaa/img/no_picture.png")
 
     def handle(request):
-        nonlocal image, posts
-        if request.url.path == path:
-            return httpx.Response(
-                200, content=image, headers={"Content-Type": "image/jpeg"}
-            )
         if request.method == "POST":
-            posts += 1
-            assert b'name="alterarFoto"; filename="perfil.jpg"' in request.content
-            assert b"Bio de teste." in request.content
-            if alterada:
-                image = b"foto nova recodificada pelo SIGAA"
-        return httpx.Response(
-            200, text=DASHBOARD if request.url.path.endswith("discente.jsf") else page
-        )
+            return httpx.Response(200, text=staged)
+        return httpx.Response(200, text=page)
 
     async with SigaaClient(
         session_token="tok", transport=httpx.MockTransport(handle)
     ) as client:
-        if alterada:
-            profile = await client.profile.update_profile(
-                password="segredo", photo=b"foto nova"
-            )
-            assert profile.photo.endswith(path)
-        else:
-            with pytest.raises(SigaaParseError, match="não confirmou a nova foto"):
-                await client.profile.update_profile(
-                    password="segredo", photo=b"foto nova"
-                )
+        with pytest.raises(SigaaParseError, match="não confirmou a remoção"):
+            await client.profile.update_profile(password="segredo", remove_photo=True)
+
+
+async def test_foto_na_mesma_url_e_confirmada_pela_mensagem():
+    path = "/arquivos/perfil.jpg"
+    page = EDIT_FORM.replace("/sigaa/img/no_picture.png", path)
+    posts = 0
+
+    def handle(request):
+        nonlocal posts
+        if request.method == "POST":
+            posts += 1
+            assert b'name="alterarFoto"; filename="perfil.jpg"' in request.content
+            assert b"Bio de teste." in request.content
+            return httpx.Response(200, text=DASHBOARD_ATUALIZADO)
+        if request.url.path.endswith("discente.jsf"):
+            return httpx.Response(200, text=DASHBOARD)
+        return httpx.Response(200, text=page)
+
+    async with SigaaClient(
+        session_token="tok", transport=httpx.MockTransport(handle)
+    ) as client:
+        profile = await client.profile.update_profile(
+            password="segredo", photo=b"foto nova"
+        )
+    assert profile.photo.endswith(path)
     assert posts == 1
 
 
@@ -318,15 +336,60 @@ async def test_redirecionamento_de_gravacao_nao_reenvia_senha():
             return httpx.Response(
                 302, headers={"location": "/sigaa/portais/discente/discente.jsf"}
             )
-        return httpx.Response(
-            200, text=DASHBOARD if request.url.path.endswith("discente.jsf") else page
-        )
+        if request.url.path.endswith("discente.jsf"):
+            return httpx.Response(200, text=DASHBOARD_ATUALIZADO)
+        return httpx.Response(200, text=page)
 
     async with SigaaClient(
         session_token="tok", transport=httpx.MockTransport(handle)
     ) as client:
         await client.profile.update_profile(password="segredo", bio="Nova bio")
     assert len([r for r in requests if r.method == "POST"]) == 1
+
+
+async def test_redirecionamento_pelo_portal_segue_ate_a_home_com_mensagem():
+    page = EDIT_FORM
+    paths = []
+
+    def handle(request):
+        nonlocal page
+        paths.append(request.url.path)
+        if request.method == "POST":
+            page = page.replace("Bio de teste.", "Nova bio")
+            return httpx.Response(
+                302, headers={"location": "/sigaa/verPortalDiscente.do"}
+            )
+        if request.url.path == "/sigaa/verPortalDiscente.do":
+            return httpx.Response(
+                302, headers={"location": "/sigaa/portais/discente/discente.jsf"}
+            )
+        if request.url.path.endswith("discente.jsf"):
+            return httpx.Response(200, text=DASHBOARD_ATUALIZADO)
+        return httpx.Response(200, text=page)
+
+    async with SigaaClient(
+        session_token="tok", transport=httpx.MockTransport(handle)
+    ) as client:
+        await client.profile.update_profile(password="segredo", bio="Nova bio")
+    assert "/sigaa/verPortalDiscente.do" in paths
+
+
+async def test_redirecionamento_para_home_sem_mensagem_nao_confirma_sucesso():
+    def handle(request):
+        if request.method == "POST":
+            return httpx.Response(
+                302, headers={"location": "/sigaa/portais/discente/discente.jsf"}
+            )
+        return httpx.Response(
+            200,
+            text=DASHBOARD if request.url.path.endswith("discente.jsf") else EDIT_FORM,
+        )
+
+    async with SigaaClient(
+        session_token="tok", transport=httpx.MockTransport(handle)
+    ) as client:
+        with pytest.raises(SigaaParseError, match="não confirmou a atualização"):
+            await client.profile.update_profile(password="segredo", bio="nova")
 
 
 async def test_tela_sem_imagem_nao_e_confundida_com_foto_removida():

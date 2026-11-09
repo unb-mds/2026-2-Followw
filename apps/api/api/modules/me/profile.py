@@ -12,7 +12,7 @@ from api.modules.me.repository import UserRepository
 from api.schemas import CourseRef, UnitRef, course_ref, unit_ref
 from api.sync import Cached, Context, SyncDep
 
-PROFILE_TTL = timedelta(hours=24)
+PROFILE_TTL = timedelta(hours=12)
 
 
 class UserProfile(BaseModel):

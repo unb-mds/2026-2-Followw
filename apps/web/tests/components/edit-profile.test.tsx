@@ -1,7 +1,7 @@
 import type { Middleware } from 'openapi-fetch';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { afterEach, beforeEach, expect, test } from 'bun:test';
+import { afterEach, beforeEach, expect, mock, spyOn, test } from 'bun:test';
 
 import { apiClient } from '#/queries/client';
 import { ApiError } from '#/queries/errors';
@@ -31,7 +31,10 @@ let requests: Request[];
 let failName: boolean;
 let failBio: boolean;
 let bioError: ApiError;
-beforeEach(() => {
+let gate: Promise<void> | null;
+let toasts: ReturnType<typeof spyOn>;
+beforeEach(async () => {
+    const { toast } = await import('#/components/ui/toast');
     client = new QueryClient({
         defaultOptions: { queries: { retry: false }, mutations: { retry: false } }
     });
@@ -40,9 +43,12 @@ beforeEach(() => {
     failName = false;
     failBio = false;
     bioError = new ApiError(502, 'falha');
+    gate = null;
+    toasts = spyOn(toast, 'add');
     middleware = {
         onRequest: async ({ request }) => {
             requests.push(request.clone());
+            await gate;
             if (request.url.endsWith('/settings')) {
                 if (failName) throw new ApiError(502, 'falha');
                 return Response.json({ displayName: null });
@@ -55,6 +61,7 @@ beforeEach(() => {
     apiClient.use(middleware);
 });
 afterEach(() => {
+    toasts.mockRestore();
     dom.testing.cleanup();
     client.clear();
     apiClient.eject(middleware);
@@ -86,12 +93,12 @@ test('bio antiga longa abre limitada sem ser sobrescrita ao salvar', async () =>
     expect(requests[0].url).toEndWith('/settings');
 });
 
-test('permite 1024 emojis na bio e limita o texto enviado por pontos de código', async () => {
+test('limita a bio a 1024 caracteres e envia só o texto dentro do limite', async () => {
     const page = await open();
     const input = page.container.querySelector('textarea');
     if (!input) throw new Error('Campo de bio não encontrado');
-    expect(input.hasAttribute('maxlength')).toBe(false);
-    const bio = '😀'.repeat(1024);
+    expect(input.maxLength).toBe(1024);
+    const bio = 'a'.repeat(1024);
     dom.testing.fireEvent.change(input, { target: { value: bio + 'fim' } });
     expect(input.value).toBe(bio);
     dom.testing.fireEvent.click(page.getByRole('button', { name: 'Salvar alterações' }));
@@ -136,7 +143,7 @@ test('remover foto só envia ao salvar e cancelar não grava', async () => {
     const page = await open();
     dom.testing.fireEvent.click(page.getByRole('button', { name: 'Remover foto' }));
     expect(requests).toHaveLength(0);
-    expect(page.queryByRole('img')).toBeNull();
+    expect(document.querySelector('img')).toBeNull();
     dom.testing.fireEvent.click(page.getByRole('button', { name: 'Cancelar' }));
     expect(requests).toHaveLength(0);
 });
@@ -281,4 +288,63 @@ test('validação recusada pela api mostra a mensagem do servidor', async () => 
     dom.testing.fireEvent.change(page.getByLabelText('Bio'), { target: { value: 'Nova bio' } });
     dom.testing.fireEvent.click(page.getByRole('button', { name: 'Salvar alterações' }));
     await page.findByText('A bio deve ter até 1024 caracteres.');
+});
+test('foto que não carrega mostra o avatar e não o texto alternativo', async () => {
+    await open();
+    const image = document.querySelector('img');
+    if (!image) throw new Error('Foto não encontrada');
+    expect(image.getAttribute('alt')).toBe('');
+    dom.testing.fireEvent.error(image);
+    expect(document.querySelector('img')).toBeNull();
+});
+test('avisa por toast quando salva com sucesso', async () => {
+    const page = await open();
+    dom.testing.fireEvent.change(page.getByLabelText('Bio'), { target: { value: 'Nova bio' } });
+    dom.testing.fireEvent.click(page.getByRole('button', { name: 'Salvar alterações' }));
+    await dom.testing.waitFor(() => expect(toasts).toHaveBeenCalledTimes(1));
+    expect(toasts.mock.calls[0][0]).toMatchObject({
+        type: 'success',
+        title: 'Perfil atualizado'
+    });
+});
+test('avisa por toast quando o salvamento falha', async () => {
+    failBio = true;
+    const page = await open();
+    dom.testing.fireEvent.change(page.getByLabelText('Bio'), { target: { value: 'Nova bio' } });
+    dom.testing.fireEvent.click(page.getByRole('button', { name: 'Salvar alterações' }));
+    await dom.testing.waitFor(() => expect(toasts).toHaveBeenCalledTimes(1));
+    expect(toasts.mock.calls[0][0]).toMatchObject({
+        type: 'error',
+        description:
+            'Não foi possível confirmar a alteração no SIGAA. Confira o perfil antes de tentar novamente.'
+    });
+});
+test('salvamento em andamento mantém Cancelar desativado e conclui com toast', async () => {
+    const release = Promise.withResolvers<void>();
+    gate = release.promise;
+    const close = mock(() => {});
+    const saving = mock((_value: boolean) => {});
+    const { ProfileForm } = await import('#/components/profile/EditProfile');
+    const { Dialog } = await import('#/components/ui/dialog');
+    const page = dom.testing.render(
+        <QueryClientProvider client={client}>
+            <Dialog open>
+                <ProfileForm user={user} displayName="Ana" close={close} onSavingChange={saving} />
+            </Dialog>
+        </QueryClientProvider>
+    );
+    dom.testing.fireEvent.change(await page.findByLabelText('Bio'), {
+        target: { value: 'Nova bio' }
+    });
+    dom.testing.fireEvent.click(page.getByRole('button', { name: 'Salvar alterações' }));
+    await dom.testing.waitFor(() =>
+        expect(page.getByRole('button', { name: 'Cancelar' }).hasAttribute('disabled')).toBe(true)
+    );
+    expect(saving).toHaveBeenLastCalledWith(true);
+    expect(toasts).not.toHaveBeenCalled();
+    release.resolve();
+    await dom.testing.waitFor(() => expect(toasts).toHaveBeenCalledTimes(1));
+    expect(toasts.mock.calls[0][0]).toMatchObject({ type: 'success' });
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(saving).toHaveBeenLastCalledWith(false);
 });
