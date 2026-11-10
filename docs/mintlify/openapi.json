@@ -765,10 +765,10 @@
                   "type": "null"
                 }
               ],
-              "description": "ID ou sigla da unidade. Consulte /public/classrooms/units.",
+              "description": "ID ou sigla da unidade; obrigatório sem `code`. Consulte /public/classrooms/units.",
               "title": "Unit"
             },
-            "description": "ID ou sigla da unidade. Consulte /public/classrooms/units."
+            "description": "ID ou sigla da unidade; obrigatório sem `code`. Consulte /public/classrooms/units."
           },
           {
             "name": "semester",
@@ -839,10 +839,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Código completo da matéria.",
+              "description": "Código completo da matéria; obrigatório sem `unit`.",
               "title": "Code"
             },
-            "description": "Código completo da matéria."
+            "description": "Código completo da matéria; obrigatório sem `unit`."
           },
           {
             "name": "number",

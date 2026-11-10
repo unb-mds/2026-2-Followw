@@ -51,8 +51,9 @@ data/               # CSVs de referência (units, courses, subjects, classrooms)
 
 ## Testes
 
-Sem rede: dublês e fakes compartilhados vivem em `tests/fakes.py` (`FakeSigaa`, `PagesSession`, etc.).
-Testes são organizados por área em `tests/private/` (com `classrooms/` dividido por tela),
+Sem rede: dublês e fakes compartilhados vivem em `tests/fakes.py` (`FakeSigaa`, `PagesSession`,
+etc.). Testes são organizados por área em `tests/private/` (com `classrooms/` dividido por tela),
 `tests/public/` e `tests/scripts/`. Arquivos de teste nunca importam outros arquivos de teste,
 apenas `tests/fakes.py`. Fixtures de HTML são strings no topo do arquivo que as usa ou em
-`tests/fakes.py` se compartilhadas. Fixtures de PDF ficam em `tests/fixtures/`, com dados sintéticos.
+`tests/fakes.py` se compartilhadas. Fixtures de PDF ficam em `tests/fixtures/`, com dados
+sintéticos.

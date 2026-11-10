@@ -33,7 +33,7 @@ _offline_, proteção contra abusos via rate limiting (Redis) e catálogo públi
   dispositivo do usuário mesmo sem conexão ativa à internet por até 14 dias.
 - **Resiliência e Proteção Institucional:** Rate limiting distribuído em memória (Redis) para
   prevenir abusos de força bruta e sobrecarga no CAS/SIGAA, operando em modelo tolerante a falhas
-  (*fail-open*).
+  (_fail-open_).
 - **Usabilidade e Acessibilidade:** Interface moderna construída sobre componentes reutilizáveis,
   suporte a tema escuro/claro, comunicação visual clara e tratamento resiliente de
   indisponibilidades dos sistemas legados da universidade.
@@ -155,9 +155,9 @@ interface.
 - **US45:** Como estudante ou visitante, quero consultar como o Followw trata meus dados, como
   solicitar sua exclusão e quais são as regras de uso do serviço antes de entrar.
 
-- **RF18 — Consulta Pública de Privacidade e Termos (`/privacidade`):** O sistema deve oferecer
-  uma página pública e transparente com política de privacidade e termos de serviço, acessível por
-  link no rodapé do login e navegação, acompanhado do aviso de concordância ao entrar.
+- **RF18 — Consulta Pública de Privacidade e Termos (`/privacidade`):** O sistema deve oferecer uma
+  página pública e transparente com política de privacidade e termos de serviço, acessível por link
+  no rodapé do login e navegação, acompanhado do aviso de concordância ao entrar.
 
 **Critérios de Aceitação:**
 
@@ -383,16 +383,17 @@ analisar concorrência de vagas, pré-requisitos, quadro de professores e recome
 - **US44:** Como estudante, quero visualizar o e-mail institucional e o link para a página pública
   do docente no SIGAA para contato e consulta de orientações e publicações.
 
-- **RF17 — Catálogo Geral e Pesquisa Pública de Docentes (`GET /public/professors`):** O sistema deve
-  oferecer busca pública aberta no quadro docente da UnB, suportando filtros por unidade acadêmica e
-  nome parcial do professor, retornando nome completo, departamento, e-mail institucional e URL do
-  portal público no SIGAA.
+- **RF17 — Catálogo Geral e Pesquisa Pública de Docentes (`GET /public/professors`):** O sistema
+  deve oferecer busca pública aberta no quadro docente da UnB, suportando filtros por unidade
+  acadêmica e nome parcial do professor, retornando nome completo, departamento, e-mail
+  institucional e URL do portal público no SIGAA.
 
 **Critérios de Aceitação:**
 
 - A busca não deve exigir autenticação e deve tolerar variações de acentuação e caixa alta/baixa.
 - A listagem deve vir ordenada alfabeticamente pelo nome do docente.
-- Docentes com dados parciais (sem e-mail ou página pública) devem ser exibidos sem quebra de leiaute.
+- Docentes com dados parciais (sem e-mail ou página pública) devem ser exibidos sem quebra de
+  leiaute.
 
 ---
 
@@ -551,11 +552,11 @@ conformidade de arquitetura e segurança da informação.
       preservando o anonimato de dados sensíveis.
 
 - **RNF12 — Controle de Taxa de Requisições e Proteção contra Abuso (Rate Limiting via Redis):**
-    - A API deve implementar controle de taxa distribuído em memória por janela fixa com Redis para conter
-      abusos e mitigar ataques de força bruta contra os sistemas institucionais da UnB.
-    - O middleware deve operar em modelo tolerante a falhas (*fail-open*) e garantir privacidade por
+    - A API deve implementar controle de taxa distribuído em memória por janela fixa com Redis para
+      conter abusos e mitigar ataques de força bruta contra os sistemas institucionais da UnB.
+    - O middleware deve operar em modelo tolerante a falhas (_fail-open_) e garantir privacidade por
       design via hashes criptográficos anonimizados de IP, conforme detalhado em
-      [`docs/rate-limit.md`](rate-limit.md).
+      [`docs/limite-de-requisicoes.md`](limite-de-requisicoes.md).
 
 ---
 
@@ -575,8 +576,9 @@ ou regras de negócio isoladas para o usuário final:
 4. **Otimização de Índices no Banco de Dados:** Criação de índices estratégicos em tabelas de
    menções, turmas e docentes para garantir alto desempenho durante sincronizações em lote.
 5. **Camada de Rate Limiting e Proteção de Borda via Redis:** Implementação de controle de taxa em
-   memória compatível com arquitetura Serverless (Upstash Redis), protegendo os servidores do SIGAA/CAS
-   da UnB contra ataques de negação de serviço e força bruta sem comprometer a latência da API.
+   memória compatível com arquitetura Serverless (Upstash Redis), protegendo os servidores do
+   SIGAA/CAS da UnB contra ataques de negação de serviço e força bruta sem comprometer a latência da
+   API.
 
 ---
 
@@ -607,13 +609,14 @@ O desenvolvimento do Followw UnB é conduzido de forma incremental através de s
   de aulas contínuas.
 - **Perfil Avançado e Preferências:** Detalhamento de horas pendentes (obrigatórias, optativas,
   complementares) e definição de nome social/exibição.
-- **Catálogo Público de Turmas e Docentes:** Pesquisa por código/nome/docente/local com dataset local,
-  visualização de vagas, análise de pré-requisitos e busca aberta de professores.
+- **Catálogo Público de Turmas e Docentes:** Pesquisa por código/nome/docente/local com dataset
+  local, visualização de vagas, análise de pré-requisitos e busca aberta de professores.
 - **Recomendação de Disciplinas:** Algoritmo ponderado para sugestão de matrícula excluindo matérias
   cursadas e avaliando equivalências.
 - **Proteção contra Abuso e Rate Limiting:** Limitação de taxa distribuída com Redis para mitigar
   ataques de força bruta no login e scraping excessivo.
-- **Transparência e LGPD:** Página pública de termos de uso e política de privacidade (`/privacidade`).
+- **Transparência e LGPD:** Página pública de termos de uso e política de privacidade
+  (`/privacidade`).
 - **PWA e Suporte Offline Total:** Instalação na tela inicial do celular/desktop e navegação
   completa por até 14 dias sem conexão.
 - **Design System e Resiliência:** Padronização com shadcn/ui, suporte a temas e tela dedicada para
@@ -652,10 +655,10 @@ O desenvolvimento do Followw UnB é conduzido de forma incremental através de s
 - **Documentação de Arquitetura C4-PlantUML:** [`docs/arquitetura.md`](arquitetura.md)
 - **Documentação de Cache e Sincronização:**
   [`docs/cache-e-sincronizacao.md`](cache-e-sincronizacao.md)
-- **Documentação de Redis e Rate Limit:** [`docs/rate-limit.md`](rate-limit.md)
+- **Documentação de Redis e Rate Limit:** [`docs/limite-de-requisicoes.md`](limite-de-requisicoes.md)
 - **Documentação de Uso Offline:** [`docs/offline.md`](offline.md)
-- **Documentação de Segurança:** [`docs/segurança.md`](segurança.md)
-- **Documentação de Recomendação de Matérias:** [`docs/recommendations.md`](recommendations.md)
-- **Documentação de Observabilidade e Logs:** [`docs/observability.md`](observability.md)
+- **Documentação de Segurança:** [`docs/seguranca.md`](seguranca.md)
+- **Documentação de Recomendação de Matérias:** [`docs/recomendacoes.md`](recomendacoes.md)
+- **Documentação de Observabilidade e Logs:** [`docs/observabilidade.md`](observabilidade.md)
 - **Registro de Uso de IA:** [`docs/AI-USAGE.md`](AI-USAGE.md)
 - **Atas de Sprints:** Diretório [`docs/sprints/`](sprints/) (Sprints 01 a 07)

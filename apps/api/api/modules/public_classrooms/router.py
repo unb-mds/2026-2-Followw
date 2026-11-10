@@ -15,7 +15,7 @@ router = APIRouter()
 class ClassroomSearch(BaseModel):
     unit: UnitFilter | None = Field(
         None,
-        description="ID ou sigla da unidade. Consulte /public/classrooms/units.",
+        description="ID ou sigla da unidade; obrigatório sem `code`. Consulte /public/classrooms/units.",
     )
     semester: Annotated[
         str | None,
@@ -32,7 +32,9 @@ class ClassroomSearch(BaseModel):
         None,
         description="Trecho do local da turma, incluindo unidade e sala.",
     )
-    code: ClassroomCode | None = Field(None, description="Código completo da matéria.")
+    code: ClassroomCode | None = Field(
+        None, description="Código completo da matéria; obrigatório sem `unit`."
+    )
     number: Annotated[
         int | None,
         Field(

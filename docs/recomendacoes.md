@@ -33,12 +33,11 @@ semestre válido até a oferta entram no histórico. A recomendação é para o 
 aprovadas (SS/MS/MM) ou em andamento (inclusive as encerradas cuja menção ainda não foi consolidada)
 contam como concluídas, saem da lista e satisfazem pré/correquisitos. Reprovações posteriores não
 apagam aprovações. Qualquer tentativa sem menção também impede recomendar a disciplina, mesmo após a
-consolidação; vínculos trancados ou indeferidos não contam como tentativa. Uma menção
-consolidada já gravada não é apagada quando o relatório deixa de trazê-la. Só MI/II/SR confirmados
-permitem repetir, desde que não exista outra aprovação, matrícula em andamento ou tentativa sem
-resultado. Para o ranking, toda tentativa sem menção presume aprovação: satisfaz pré/correquisitos e
-conta como concluída no fluxo, inclusive após a consolidação. Essa inferência não altera a menção
-armazenada.
+consolidação; vínculos trancados ou indeferidos não contam como tentativa. Uma menção consolidada já
+gravada não é apagada quando o relatório deixa de trazê-la. Só MI/II/SR confirmados permitem
+repetir, desde que não exista outra aprovação, matrícula em andamento ou tentativa sem resultado.
+Para o ranking, toda tentativa sem menção presume aprovação: satisfaz pré/correquisitos e conta como
+concluída no fluxo, inclusive após a consolidação. Essa inferência não altera a menção armazenada.
 
 A matriz é inferida só pelo semestre de entrada do perfil (`entry_semester`), com curso e turno do
 perfil armazenado: vale a vigência mais recente até a entrada; se a entrada preceder todas, a mais

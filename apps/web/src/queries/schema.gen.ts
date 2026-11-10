@@ -1935,7 +1935,7 @@ export interface operations {
     search_classrooms_public_classrooms_get: {
         parameters: {
             query?: {
-                /** @description ID ou sigla da unidade. Consulte /public/classrooms/units. */
+                /** @description ID ou sigla da unidade; obrigatório sem `code`. Consulte /public/classrooms/units. */
                 unit?: number | string | null;
                 /** @description Semestre da oferta. */
                 semester?: string | null;
@@ -1943,7 +1943,7 @@ export interface operations {
                 q?: string | null;
                 /** @description Trecho do local da turma, incluindo unidade e sala. */
                 local?: string | null;
-                /** @description Código completo da matéria. */
+                /** @description Código completo da matéria; obrigatório sem `unit`. */
                 code?: string | null;
                 /** @description Número da turma. */
                 number?: number | null;
