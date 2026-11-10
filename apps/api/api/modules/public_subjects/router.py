@@ -18,8 +18,8 @@ router = APIRouter()
 @router.get(
     "/{code}/statistics",
     response_model=SubjectStatistics,
-    summary="Estatísticas anteriores da matéria com os mesmos docentes",
-    description="Média simples por turma com dados, por semestre e geral. Considera apenas semestres anteriores à turma indicada e o mesmo conjunto de docentes. A cobertura depende dos dados já coletados; não consulta o SIGAA.",
+    summary="Consultar estatísticas anteriores da matéria",
+    description="Médias simples por turma de semestres anteriores com o mesmo conjunto de docentes. A cobertura depende dos dados coletados.",
 )
 async def subject_statistics(
     code: ClassroomCode,
@@ -37,18 +37,14 @@ async def subject_statistics(
     "",
     response_model=list[CatalogSubject],
     summary="Buscar matérias com suas turmas",
-    description="Consulta os componentes e turmas gravados no Followw, sem ir ao SIGAA; os filtros se combinam. Cada componente traz as turmas do semestre consultado, vazias se não houver oferta. Sem q, code e unit, um aluno de graduação logado recebe as recomendações para o próximo semestre, ordenadas e com `recommendation`; visitantes precisam informar um filtro.",
+    description="Matérias e ofertas do catálogo do Followw. Sem filtros de busca, retorna recomendações para o aluno autenticado.",
     responses={
         401: {"description": "Sessão inválida ao buscar recomendações."},
         422: {
-            "description": "Visitante sem filtro, usuário fora da graduação ou sem matriz identificada sem filtro, filtro inválido, unidade inexistente ou nome de unidade ambíguo."
+            "description": "Filtros inválidos ou dados insuficientes para recomendar matérias."
         },
-        502: {
-            "description": "Falha no SIGAA ao sincronizar o histórico das recomendações."
-        },
-        503: {
-            "description": "Histórico alterado durante a consulta das recomendações."
-        },
+        502: {"description": "SIGAA indisponível ao consultar o histórico."},
+        503: {"description": "Histórico em atualização."},
     },
 )
 async def search_subjects(
@@ -58,24 +54,22 @@ async def search_subjects(
     q: Annotated[
         SearchText | None,
         Query(
-            description="Termos do código, nome do componente ou docente, de 3 a 32 caracteres; cada um precisa corresponder, ignorando acentos e maiúsculas. Um código completo também encontra equivalências diretas nos dois sentidos, incluindo integrantes de conjuntos.",
+            description="Termos do código, nome da matéria ou docente. Códigos completos também buscam equivalências.",
         ),
     ] = None,
     code: Annotated[
         ClassroomCode | None,
-        Query(description="Código completo do componente, como FGA0003."),
+        Query(description="Código completo da matéria."),
     ] = None,
     unit: Annotated[
         UnitFilter | None,
-        Query(
-            description="ID ou código exato da unidade responsável, como 673 ou FCTE."
-        ),
+        Query(description="ID ou sigla da unidade responsável."),
     ] = None,
     semester: Annotated[
         str | None,
         Query(
             pattern=r"^[0-9]{4}\.[0-9]$",
-            description="Semestre das turmas, no formato AAAA.P. Sem ele, usa o mais recente gravado.",
+            description="Semestre das turmas.",
         ),
     ] = None,
 ) -> list[CatalogSubject]:

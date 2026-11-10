@@ -122,7 +122,7 @@ class ClassroomRole(str, enum.Enum):
 
 
 class Subject(BaseModel):
-    """Componente curricular, nos campos da tabela `subjects`."""
+    """Componente curricular."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -286,11 +286,7 @@ class StudentSituation(str, enum.Enum):
 
 
 class StatisticsShare(BaseModel):
-    """Uma fatia do gráfico de estatísticas: a porcentagem dos discentes da turma.
-
-    O SIGAA arredonda cada fatia em uma casa, então a soma pode fechar em 99.9
-    ou 100.1. O gráfico não expõe a contagem de alunos, só a porcentagem.
-    """
+    """Percentual dos alunos por situação; a soma pode diferir de 100 por arredondamento."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -434,11 +430,7 @@ class SubjectSearchResult(BaseModel):
 
 
 class PublicClassroom(BaseModel):
-    """Turma da busca pública.
-
-    Não tem `id`: a área pública não expõe o `frontEndIdTurma`, então a
-    identidade aqui é a chave natural `(subject.code, number, semester)`.
-    """
+    """Turma pública, identificada por `(subject.code, number, semester)`."""
 
     model_config = ConfigDict(frozen=True)
 

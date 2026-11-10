@@ -15,32 +15,30 @@ router = APIRouter()
 class ClassroomSearch(BaseModel):
     unit: UnitFilter | None = Field(
         None,
-        description="ID ou sigla exata da unidade, como 673 ou FCTE. Obrigatório quando code não for informado. Com code, restringe a busca a esta unidade. Consulte /public/classrooms/units para obter os IDs.",
+        description="ID ou sigla da unidade. Consulte /public/classrooms/units.",
     )
     semester: Annotated[
         str | None,
         Field(
             pattern=r"^[0-9]{4}\.[0-9]$",
-            description="Opcional, no formato AAAA.P: 2026.2, 2027.1 ou 2026.4. Sem filtro, usa os valores do SIGAA.",
+            description="Semestre da oferta.",
         ),
     ] = None
     q: str | None = Field(
         None,
-        description="Trecho do nome ou código da disciplina, ou do nome de qualquer docente. Ignora acentos, maiúsculas e espaços extras. Filtra o resultado da unidade/semestre após consultar o SIGAA; vazio não filtra.",
+        description="Trecho do nome ou código da matéria, ou do nome do docente.",
     )
     local: str | None = Field(
         None,
-        description="Trecho do local da turma, incluindo unidade e sala, como 'S3', 'FCTE - S3' ou 'auditorio'. Ignora acentos, maiúsculas e espaços extras; vazio não filtra. Com q, exige correspondência nos dois filtros.",
+        description="Trecho do local da turma, incluindo unidade e sala.",
     )
-    code: ClassroomCode | None = Field(
-        None, description="Código completo da disciplina, como MAT0031 ou FGA0132."
-    )
+    code: ClassroomCode | None = Field(None, description="Código completo da matéria.")
     number: Annotated[
         int | None,
         Field(
             ge=1,
             le=99,
-            description="Número da turma, de 1 a 99. Aceita com ou sem zero à esquerda: '1' e '01' selecionam a mesma turma. Combina com os demais filtros; use code e semester para identificar a disciplina e o semestre. Sem correspondência, retorna lista vazia.",
+            description="Número da turma.",
         ),
     ] = None
 
@@ -56,15 +54,13 @@ class ClassroomSearch(BaseModel):
 @router.get(
     "",
     response_model=list[PublicClassroom],
-    summary="Buscar turmas públicas do SIGAA, sem login",
-    description="Consulta diretamente o SIGAA, sem filtrar o nível de ensino. Informe unit ou code. Sem unit, o prefixo de letras do código determina as unidades consultadas, pelas matérias conhecidas no banco; o código completo deve corresponder exatamente. Sem semester, preserva o ano/período do formulário do SIGAA. Com code, retorna 404 se não houver oferta nas unidades e no semestre consultados; isso não confirma que a disciplina inexiste. Se apenas number, q ou local excluir as turmas encontradas, retorna uma lista vazia (200).",
+    summary="Buscar turmas no SIGAA",
+    description="Consulta as ofertas diretamente no SIGAA, em todos os níveis de ensino.",
     responses={
         404: {
-            "description": "Nenhuma turma do código completo nas unidades e no semestre consultados. A disciplina pode não existir ou não ter oferta nessas condições."
+            "description": "Nenhuma oferta encontrada nas unidades e no semestre consultados."
         },
-        422: {
-            "description": "Informe unit ou code. Filtro inválido ou unidade inexistente. Prefixo desconhecido pode não existir no SIGAA ou ainda não estar mapeado; informe unit para buscar diretamente."
-        },
+        422: {"description": "Filtros inválidos ou unidade não identificada."},
         502: {"description": "SIGAA indisponível ou resposta ilegível."},
     },
     dependencies=[NoStore],
@@ -86,7 +82,7 @@ async def search_classrooms(
 @router.get(
     "/units",
     response_model=list[UnitRef],
-    summary="Consultar unidades disponíveis na busca pública de turmas",
+    summary="Listar unidades do SIGAA",
     responses={502: {"description": "SIGAA indisponível ou resposta ilegível."}},
     dependencies=[NoStore],
 )
@@ -94,7 +90,7 @@ async def list_units(
     service: PublicClassroomServiceDep,
     q: Annotated[
         str | None,
-        Query(description="Filtra pelo nome, ignorando acentos e maiúsculas."),
+        Query(description="Trecho do nome da unidade."),
     ] = None,
 ) -> list[UnitRef]:
     return await service.list_units(q)

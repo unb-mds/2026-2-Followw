@@ -19,12 +19,7 @@ router = APIRouter()
     "",
     response_model=CoursePage,
     summary="Buscar cursos cadastrados",
-    description=(
-        "Lista os cursos gravados no Followw, ordenados por nome e ID local e paginados, sem autenticação; os filtros se combinam e, sem eles, vêm todos. "
-        "Inclui cursos sem currículo e os criados pelo sync, cujo sigaa_id pode ser nulo. "
-        "O campo id é o course_id usado na consulta de currículo; unit traz id, sigla e nome da unidade "
-        "e shift preserva o turno cadastrado, como no perfil. Página além do total ou banco sem cursos retorna items vazio."
-    ),
+    description="Resultados paginados, em ordem alfabética.",
     responses={422: {"description": "Filtro inválido ou unidade inexistente."}},
     dependencies=[NoStore],
 )
@@ -32,13 +27,11 @@ async def list_courses(
     service: PublicCourseServiceDep,
     q: Annotated[
         SearchText | None,
-        Query(
-            description="Termos do nome, de 3 a 32 caracteres; cada um precisa aparecer, ignorando acentos e maiúsculas."
-        ),
+        Query(description="Termos do nome do curso."),
     ] = None,
     unit: Annotated[
         UnitFilter | None,
-        Query(description="ID ou código exato da unidade, como 673 ou FCTE."),
+        Query(description="ID ou sigla da unidade."),
     ] = None,
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = COURSES_PAGE_SIZE,
@@ -57,9 +50,7 @@ async def get_course(
     service: PublicCourseServiceDep,
     course_id: Annotated[
         int,
-        Path(
-            gt=0, le=2**31 - 1, description="ID local do curso no Followw (courses.id)."
-        ),
+        Path(gt=0, le=2**31 - 1, description="ID do curso no Followw."),
     ],
 ) -> PublicCourse:
     return await service.get_course(course_id)
@@ -69,13 +60,7 @@ async def get_course(
     "/{course_id}/curriculum",
     response_model=CourseCurriculum,
     summary="Consultar currículo do curso pelo ingresso",
-    description=(
-        "Seleciona, entre as matrizes ativas cadastradas, a vigência mais recente anterior ou igual ao ingresso; "
-        "antes da primeira vigência, usa a mais antiga. "
-        "Entre matrizes da mesma vigência, vale a de maior revisão do código, salvo se curriculum_sigaa_id escolher outra. "
-        "As matérias vêm agrupadas por período, com optativas no período 0 e complementares em uma lista própria. "
-        "Nome, carga horária e requisitos vêm do catálogo gravado; dados ausentes ficam nulos. Não consulta o SIGAA."
-    ),
+    description="Matérias agrupadas por período, com optativas no período 0 e complementares em lista própria.",
     responses={
         404: {
             "description": "Curso inexistente, sem currículo ativo ou matriz indisponível para o ingresso."
@@ -89,21 +74,21 @@ async def get_curriculum(
         int,
         Path(
             gt=0,
-            description="ID local do curso no Followw (courses.id), distinto do ID do SIGAA.",
+            description="ID do curso no Followw.",
         ),
     ],
     entry_semester: Annotated[
         str,
         Query(
             pattern=r"^[0-9]{4}\.[0-9]$",
-            description="Semestre de ingresso, no formato AAAA.P.",
+            description="Semestre de ingresso.",
         ),
     ],
     curriculum_sigaa_id: Annotated[
         int | None,
         Query(
             gt=0,
-            description="ID no SIGAA de outra matriz com a mesma vigência selecionada.",
+            description="ID da matriz no SIGAA, entre as de mesma vigência.",
         ),
     ] = None,
 ) -> CourseCurriculum:

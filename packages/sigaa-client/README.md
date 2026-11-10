@@ -1,7 +1,7 @@
 # `sigaa-client`
 
-O SIGAA Client é uma biblioteca python que faz scrapping do SIGAA UnB, tanto dos portais públicos
-quanto autenticados, e retorna-os em modelos Pydantic.
+Biblioteca Python que consulta os portais públicos e autenticados do SIGAA UnB e retorna modelos
+Pydantic.
 
 ## Exemplo de uso
 
@@ -31,63 +31,58 @@ O login é feito sob demanda. O token retornado por `authenticate()` pode ser re
 
 Todos os erros derivam de `SigaaError`.
 
-`client.curricula.list_curricula(course_sigaa_id)` lista as estruturas de um curso, com ID, código,
-ano de criação, turno e status. `get_curriculum(course_sigaa_id, sigaa_id)` retorna o turno em
-letras (`D` para diurno ou `N` para noturno; `None` quando indefinido) e também a matriz,
-`valid_from` (semestre de entrada em vigor), `required_by_period` (array de objetos com `period` e
-array `required` de códigos), `optional` e `complementary` (arrays de códigos). Traz ainda as cargas
-horárias em horas (`total_workload` mínima, `required_workload`, `optional_min_workload`,
-`complementary_min_workload`, `elective_max_workload`, `period_max_workload` e
-`period_min_workload`) e o prazo de conclusão em semestres (`min_semesters`, `avg_semesters` e
-`max_semesters`), `None` quando o SIGAA deixa em branco. O período é o nível
-informado pelo SIGAA, inclusive zero quando presente. Optativas indicadas dentro dos períodos também
-entram em `optional`, sem duplicatas.
+`client.curricula.list_curricula(course_sigaa_id)` lista as estruturas de um curso.
+`get_curriculum(course_sigaa_id, sigaa_id)` retorna a matriz, vigência (`valid_from`), turno
+(`D` ou `N`) e componentes: `required_by_period` agrupa códigos obrigatórios em `required` por
+`period`; `optional` e `complementary` reúnem os demais códigos. Optativas encontradas dentro dos
+períodos também entram em `optional`, sem duplicatas. Os períodos obrigatórios são positivos.
+
+As cargas horárias são expressas em horas: `total_workload` é o mínimo total; `required_workload`
+é a carga obrigatória; os campos `*_min_workload` e `*_max_workload` indicam limites por categoria
+ou período. `min_semesters`, `avg_semesters` e `max_semesters` são prazos de conclusão em semestres.
+Dados ausentes são `None`; os campos completos estão no [modelo Curriculum](sigaa_client/models.py).
 
 ```sh
 uv run python packages/sigaa-client/scripts/collect_curricula.py --year 2026
 uv run python packages/sigaa-client/scripts/collect_curricula.py --latest-only
 ```
 
-A coleta usa os IDs de `data/courses.csv` e gera `data/curricula.csv` (metadados das matrizes) e
-`data/curriculum_components.csv` (uma linha por período de cada matriz) após concluir todos os
-cursos. Cada linha reúne os códigos em `subject_codes`, separados por espaço; períodos vazios têm o
-campo vazio. As optativas têm período `0`, as obrigatórias mantêm seu período e as complementares
-ficam com período vazio. A coluna `kind` distingue `required`, `optional` e `complementary`. Os
-arquivos se relacionam por curso e ID da matriz no SIGAA. Por padrão seleciona estruturas ativas
-criadas no ano de referência e nos três anteriores, mais a última versão anterior à janela, por
-turno, para cobrir ingressos antes da primeira revisão. Sem revisões recentes, fica a mais recente;
-empates são preservados. Se a única estrutura ativa for futura, ela é preservada com sua vigência
-original; consultas por ingresso devem respeitar `valid_from`. Cursos sem estruturas ativas ficam
-fora dos CSVs. `--latest-only` mantém apenas o ano mais recente por turno. O semestre efetivo é
-preservado em `valid_from`; o ano de criação serve apenas para selecionar o conjunto a coletar.
-`--course ID` permite uma coleta parcial, exigindo um `--output-dir` diferente de `data/`.
+A coleta lê `data/courses.csv` e gera `data/curricula.csv` e `data/curriculum_components.csv`.
+O primeiro contém metadados; o segundo tem uma linha por período da matriz, com códigos separados
+por espaço em `subject_codes`. `kind` distingue obrigatórias (`required`, período positivo),
+optativas (`optional`, período `0`) e complementares (`complementary`, período vazio). Os CSVs se
+relacionam pelo curso e ID da matriz no SIGAA; períodos sem matérias têm `subject_codes` vazio.
 
-O `uv run db-init` da API cria as tabelas `curricula` e `curriculum_components` e executa seu seed
-após o de cursos. O seed resolve `course_sigaa_id` para a chave local de `courses`, valida os dois
-CSVs e atualiza as matrizes sem duplicá-las; matrizes ausentes do CSV são removidas. Os componentes
-são substituídos na mesma transação, expandindo os códigos de cada período em vínculos individuais.
-Seus códigos não exigem uma entrada em `subjects`, pois o catálogo de disciplinas ofertadas não
-contém todos os componentes históricos.
+A seleção inclui matrizes ativas criadas no ano de referência e nos três anteriores, mais a última
+anterior por turno. Sem revisões recentes, mantém a mais recente; empates são preservados. Quando
+só há matrizes futuras ativas, mantém as mais recentes, sem antecipar sua vigência. Cursos sem
+matrizes ativas não entram na coleta. O ano de criação seleciona o conjunto coletado; consultas por
+ingresso devem respeitar o semestre de vigência em `valid_from`.
+
+`--latest-only` mantém apenas o ano mais recente por turno; `--course ID` faz coleta parcial e exige
+`--output-dir` diferente de `data/`, para não substituir o dataset completo. Os CSVs só são
+substituídos após concluir a coleta de todos os cursos selecionados.
+
+O `uv run db-init` da API valida e importa os CSVs após o seed de cursos, atualizando matrizes e
+substituindo seus componentes na mesma transação. Matrizes ausentes da coleta ficam inativas,
+preservando componentes e vínculos de usuários. Os códigos podem incluir matérias históricas que
+não estão em `subjects`.
 
 `client.subjects.search(unit=None, level=TeachingLevel.GRADUACAO, type=None, code=None, name=None)`
-consulta o catálogo público com filtros combináveis. `unit` aceita `Unit`, ID ou trecho não ambíguo
-do nome; `code` e `name` aceitam trechos. `SubjectLevel` restringe `TeachingLevel` a F, G, L, R e S;
-`SubjectType` aceita DISCIPLINA, ATIVIDADE, BLOCO e MÓDULO. Identifique os componentes por
-`sigaa_id`, pois códigos podem se repetir entre níveis.
+consulta o catálogo público com filtros combináveis.
+`unit` aceita `Unit`, ID ou trecho não ambíguo do nome; `code` e `name` aceitam trechos.
+`level` usa `SubjectLevel` (F, G, L, R ou S); `type` usa `SubjectType` (DISCIPLINA, ATIVIDADE,
+BLOCO ou MÓDULO).
+Identifique componentes por `sigaa_id`, pois códigos podem se repetir entre níveis.
 
-O retorno `SubjectSearchResult` contém `items`, `returned_count`, `messages` e `truncated`. O aviso
-de limite de 2000 resultados preserva a lista parcial e marca `truncated=True`; refine os filtros
-para obter resultados completos. Busca vazia retorna `items=()` e a mensagem da origem; filtros
-recusados levantam `SigaaSearchError`.
+O retorno `SubjectSearchResult` contém `items`, `returned_count`, `messages` e `truncated`.
+Se o SIGAA sinalizar o limite de 2000 resultados, preserva a lista parcial e marca `truncated=True`;
+refine os filtros para obter resultados completos. Busca vazia retorna `items=()` e a mensagem da origem;
+filtros recusados levantam `SigaaSearchError`.
 
 `client.subjects.get_details(subject)` abre o resumo de um `PublicSubject` da busca e devolve o
 mesmo `SubjectDetails` de `iter_subjects`, com requisitos e carga horária, mesmo sem oferta no
 semestre.
-
-Na página do SIGAA, o aviso aparece acima do formulário, abaixo do cabeçalho, no painel
-`#painel-erros` (`ul.erros`), com texto vermelho e ícone. Fechar o painel apenas o remove da tela;
-uma nova busca que exceda o limite faz o aviso reaparecer. O client preserva seu texto em
-`messages`.
 
 `client.restaurant.get_restaurant_statement()` retorna saldo, extrato e grupo (1 a 4), com saldo e
 grupo ausentes representados por `None`.

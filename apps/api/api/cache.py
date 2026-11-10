@@ -98,9 +98,8 @@ def get_cache_control(
         Header(
             alias="Cache-Control",
             description=(
-                "`no-cache` (ou `max-age=0`) busca na origem antes de responder; "
-                "`max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve "
-                "o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache)."
+                "`no-cache`: revalidar; `max-age=N`: idade máxima em segundos; "
+                "`stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente)."
             ),
         ),
     ] = None,

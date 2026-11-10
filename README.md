@@ -1,12 +1,7 @@
 # Followw UnB
 
-O Followw é um cliente alternativo e open-source para o SIGAA da UnB. Ele reúne numa experiência só
-as informações que hoje ficam espalhadas em sistemas diferentes (SIGAA, RU, calendário, etc.), com
-cache para deixar tudo mais rápido do que no SIGAA.
-
-O objetivo do Followw não é ser um substituto por completo da interface do SIGAA, mas sim reunir as
-principais funcionalidades usadas no cotidiano dos discentes, focado principalmente nos estudantes
-da graduação.
+O Followw é um cliente alternativo e open-source que reúne dados do SIGAA, RU e calendário da UnB,
+com foco no cotidiano dos estudantes de graduação.
 
 Suas credenciais ficam sempre no seu navegador e nunca são guardadas no nosso servidor. Você pode
 ver mais detalhes em [segurança](docs/segurança.md).
@@ -52,7 +47,7 @@ uv run db-init                    # cria as tabelas
 uv run api                        # sobe a API em http://localhost:8000
 ```
 
-A documentação interativa fica disponível em `http://localhost:8000/docs`.
+A rota `http://localhost:8000/docs` redireciona para a [documentação](https://docs.followw.app/).
 
 ### Web
 

@@ -24,7 +24,7 @@ SearchText = Annotated[
 
 
 class UnitRef(BaseModel):
-    """Unidade acadêmica: `id` do SIGAA, `code` a sigla (ex.: FCTE)."""
+    """Unidade acadêmica: `id` do SIGAA e sigla em `code`."""
 
     model_config = ConfigDict(frozen=True, from_attributes=True)
 
@@ -50,7 +50,7 @@ def course_ref(course: Course | None) -> CourseRef | None:
 
 
 class UserSubject(BaseModel):
-    """O componente como o cache guarda, pelo código."""
+    """Matéria identificada pelo código."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -97,7 +97,7 @@ def normalize(code: str) -> str:
 
 
 class DisplayedRequirements(BaseModel):
-    """Requisitos só para exibição; os completos continuam valendo na validação."""
+    """Requisitos filtrados para exibição no currículo e na oferta."""
 
     # Grupos inteiros na matriz ou, sem nenhum, os com turmas; nulo sem matriz.
     curriculum_prerequisites: CatalogRequirements | None = None
@@ -169,7 +169,7 @@ def requirement_codes(subjects: Iterable[Subject]) -> set[str]:
 
 
 class ProfessorRef(BaseModel):
-    """Docente de uma turma; `siape` nulo quando está fora do catálogo."""
+    """Docente da turma; `siape` nulo fora do catálogo."""
 
     model_config = ConfigDict(frozen=True, from_attributes=True)
 
@@ -184,12 +184,14 @@ def professor_refs(professors: list[Professor]) -> tuple[ProfessorRef, ...]:
 
 
 class ClassroomOffer(BaseModel):
-    """Docentes da turma e vagas como o último seed as gravou."""
+    """Docentes e vagas da última coleta."""
 
     professors: tuple[ProfessorRef, ...] = ()
     vacancies: int | None = Field(
-        default=None, description="Vagas na coleta do seed, não em tempo real."
+        default=None,
+        description="Vagas na última coleta, sem atualização em tempo real.",
     )
     occupied: int | None = Field(
-        default=None, description="Ocupação na coleta do seed, não em tempo real."
+        default=None,
+        description="Ocupação na última coleta, sem atualização em tempo real.",
     )

@@ -16,7 +16,7 @@ PROFILE_TTL = timedelta(hours=24)
 
 
 class UserProfile(BaseModel):
-    """O perfil como a API devolve: sem curso na tabela, curso e unidade são nulos."""
+    """Perfil acadêmico do usuário."""
 
     model_config = ConfigDict(frozen=True)
 

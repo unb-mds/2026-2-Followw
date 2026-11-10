@@ -31,7 +31,7 @@ _PDF_RESPONSES = {
 @router.get(
     "",
     response_model=UserProfile,
-    summary="Consultar o perfil do usuário autenticado",
+    summary="Consultar perfil do usuário",
     responses=SIGAA_ERRORS,
 )
 async def get_me(service: ProfileServiceDep) -> UserProfile:
@@ -64,7 +64,7 @@ async def get_statement(
     "/ru-token",
     response_model=RestaurantCredentials,
     summary="Consultar o token da carteirinha estudantil",
-    description="Lê o QR code da carteirinha no SIGAA a cada acesso, sem persistência. Retorna token e valid_until; a validade informa mês/ano e o scraper representa o mês pelo dia 1.",
+    description="Token do QR code da carteirinha. A validade representa mês e ano, com o dia fixado em 1.",
     responses=_DOCUMENT_ERRORS,
     dependencies=[NoStore],
 )
@@ -109,7 +109,7 @@ def _document_download(content: bytes, filename: str, response: Response) -> Res
 @router.get(
     "/settings",
     response_model=UserSettings,
-    summary="Consultar as configurações pessoais do usuário",
+    summary="Consultar configurações do usuário",
     responses=SIGAA_ERRORS,
     dependencies=[NoStore],
 )
@@ -120,7 +120,7 @@ async def get_settings(connection: SigaaConnectionDep, db: DatabaseDep) -> UserS
 @router.patch(
     "/settings",
     response_model=UserSettings,
-    summary="Atualizar as configurações pessoais do usuário",
+    summary="Atualizar configurações do usuário",
     responses=SIGAA_ERRORS,
 )
 async def update_settings(

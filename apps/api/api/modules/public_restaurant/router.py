@@ -20,16 +20,12 @@ _CAMPUSES = {
 
 class MenuQuery(BaseModel):
     campus: Literal[*_CAMPUSES] = Field("Darcy", description="Campus do restaurante.")
-    day: date | None = Field(
-        None, alias="date", description="Dia específico (AAAA-MM-DD)."
-    )
-    start_date: date | None = Field(
-        None, description="Início do intervalo (AAAA-MM-DD)."
-    )
-    end_date: date | None = Field(None, description="Fim do intervalo (AAAA-MM-DD).")
+    day: date | None = Field(None, alias="date", description="Dia do cardápio.")
+    start_date: date | None = Field(None, description="Início do intervalo.")
+    end_date: date | None = Field(None, description="Fim do intervalo.")
     meal: Meal | None = Field(
         None,
-        description="Retorna apenas a refeição escolhida e a data. Se não publicada no dia, a refeição é null. Sem filtro, retorna todas.",
+        description="Refeição desejada; null quando não publicada no dia.",
     )
 
     @model_validator(mode="after")
@@ -51,8 +47,7 @@ class MenuQuery(BaseModel):
     "",
     response_model=tuple[DailyMenu, ...],
     response_model_exclude_unset=True,
-    summary="Consultar o cardápio público do RU",
-    description="",
+    summary="Consultar cardápio do RU",
     responses={502: {"description": "Site do RU indisponível ou cardápio ilegível."}},
 )
 async def get_menu(

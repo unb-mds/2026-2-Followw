@@ -13,9 +13,9 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Sigaa Login */
+        /** Entrar com a conta do SIGAA */
         post: operations["sigaa_login_auth_sigaa_post"];
-        /** Sigaa Logout */
+        /** Sair do SIGAA */
         delete: operations["sigaa_logout_auth_sigaa_delete"];
         options?: never;
         head?: never;
@@ -32,10 +32,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Sigaa Refresh
-         * @description Confere a senha se não houver access_token e agenda o sync do que venceu.
-         *
-         *     O cache sai só com o refresh_token, então o app chama esta rota ao abrir.
+         * Renovar a sessão do SIGAA
+         * @description Renova o acesso e solicita a atualização dos dados do usuário.
          */
         post: operations["sigaa_refresh_auth_sigaa_refresh_post"];
         delete?: never;
@@ -53,7 +51,7 @@ export interface paths {
         };
         /**
          * Consultar posts de uma turma
-         * @description Notícias, tópicos, materiais e agenda de avaliações. Materiais referenciam o tópico por topic_id. Conteúdo de notícias é carregado no detalhe. Cache de 60 minutos nas turmas atuais; posts removidos são preservados.
+         * @description Notícias, tópicos, materiais e avaliações. Materiais se vinculam ao tópico por topic_id; texto e anexos das notícias ficam no detalhe.
          */
         get: operations["get_classroom_posts_classrooms__classroom_id__posts_get"];
         put?: never;
@@ -73,7 +71,7 @@ export interface paths {
         };
         /**
          * Consultar um post da turma
-         * @description Use o id retornado na listagem. Notícias trazem texto em Markdown e anexos, salvos sob demanda; no-cache força revalidação. Avaliações não incluem notas individuais.
+         * @description Notícias incluem texto em Markdown e anexos; avaliações não incluem notas individuais.
          */
         get: operations["get_classroom_post_classrooms__classroom_id__posts__post_id__get"];
         put?: never;
@@ -91,10 +89,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * Consultar as turmas do usuário autenticado
-         * @description Cada turma traz a menção do usuário em grade (null até ser lançada ou sincronizada). A menção é atualizada pelo sync do login e de /auth/sigaa/refresh.
-         */
+        /** Listar turmas do usuário */
         get: operations["get_classrooms_classrooms_get"];
         put?: never;
         post?: never;
@@ -111,10 +106,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * Consultar frequência de todas as turmas atuais
-         * @description Turmas atuais com identificação e a mesma frequência da rota individual. Falha em uma turma retorna erro, sem omiti-la da lista.
-         */
+        /** Consultar frequência das turmas atuais */
         get: operations["get_current_frequencies_classrooms_frequency_get"];
         put?: never;
         post?: never;
@@ -133,7 +125,7 @@ export interface paths {
         };
         /**
          * Consultar frequência e andamento de uma turma
-         * @description Aceita Classroom.id (hash) ou sigaa_id numérico. frequency_status indica nao_registrada, parcialmente_registrada ou registrada nas entradas publicadas. lessons traz as aulas da turma (criadas pelo calendário e horário no sync das turmas, com start_time e end_time) já começadas, as publicadas pelo SIGAA fora delas e as com situação do aluno, mais recentes primeiro; totals soma as marcações aos totais do SIGAA.
+         * @description Aulas em ordem da mais recente para a mais antiga. Os totais incluem as marcações do aluno.
          */
         get: operations["get_classroom_frequency_classrooms__classroom_id__frequency_get"];
         put?: never;
@@ -159,7 +151,7 @@ export interface paths {
         head?: never;
         /**
          * Marcar presença, falta ou aula cancelada
-         * @description Aplica todas as marcações ou nenhuma. Vale enquanto o SIGAA não registra a aula: a chamada publicada substitui a marcação. status null remove a marcação, sem apagar a chamada do SIGAA. Aula repetida ou que ainda não começou retorna 422.
+         * @description Aplica todas as marcações ou nenhuma. A chamada do SIGAA substitui as marcações pessoais; status null remove uma marcação pessoal.
          */
         patch: operations["mark_lessons_classrooms__classroom_id__frequency_lessons_patch"];
         trace?: never;
@@ -171,7 +163,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Consultar docentes e discentes de uma turma do usuário */
+        /** Listar participantes da turma */
         get: operations["get_classroom_members_classrooms__classroom_id__members_get"];
         put?: never;
         post?: never;
@@ -189,8 +181,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Consultar os resultados da própria turma
-         * @description Percentuais por situação da turma encerrada, sem agregação com outras turmas. Lista vazia quando não há resultados disponíveis.
+         * Consultar resultados da turma
+         * @description Percentuais por situação dos alunos da turma encerrada.
          */
         get: operations["get_classroom_statistics_classrooms__classroom_id__statistics_get"];
         put?: never;
@@ -209,8 +201,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Buscar turmas públicas do SIGAA, sem login
-         * @description Consulta diretamente o SIGAA, sem filtrar o nível de ensino. Informe unit ou code. Sem unit, o prefixo de letras do código determina as unidades consultadas, pelas matérias conhecidas no banco; o código completo deve corresponder exatamente. Sem semester, preserva o ano/período do formulário do SIGAA. Com code, retorna 404 se não houver oferta nas unidades e no semestre consultados; isso não confirma que a disciplina inexiste. Se apenas number, q ou local excluir as turmas encontradas, retorna uma lista vazia (200).
+         * Buscar turmas no SIGAA
+         * @description Consulta as ofertas diretamente no SIGAA, em todos os níveis de ensino.
          */
         get: operations["search_classrooms_public_classrooms_get"];
         put?: never;
@@ -228,7 +220,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Consultar unidades disponíveis na busca pública de turmas */
+        /** Listar unidades do SIGAA */
         get: operations["list_units_public_classrooms_units_get"];
         put?: never;
         post?: never;
@@ -247,7 +239,7 @@ export interface paths {
         };
         /**
          * Buscar cursos cadastrados
-         * @description Lista os cursos gravados no Followw, ordenados por nome e ID local e paginados, sem autenticação; os filtros se combinam e, sem eles, vêm todos. Inclui cursos sem currículo e os criados pelo sync, cujo sigaa_id pode ser nulo. O campo id é o course_id usado na consulta de currículo; unit traz id, sigla e nome da unidade e shift preserva o turno cadastrado, como no perfil. Página além do total ou banco sem cursos retorna items vazio.
+         * @description Resultados paginados, em ordem alfabética.
          */
         get: operations["list_courses_public_courses_get"];
         put?: never;
@@ -284,7 +276,7 @@ export interface paths {
         };
         /**
          * Consultar currículo do curso pelo ingresso
-         * @description Seleciona, entre as matrizes ativas cadastradas, a vigência mais recente anterior ou igual ao ingresso; antes da primeira vigência, usa a mais antiga. Entre matrizes da mesma vigência, vale a de maior revisão do código, salvo se curriculum_sigaa_id escolher outra. As matérias vêm agrupadas por período, com optativas no período 0 e complementares em uma lista própria. Nome, carga horária e requisitos vêm do catálogo gravado; dados ausentes ficam nulos. Não consulta o SIGAA.
+         * @description Matérias agrupadas por período, com optativas no período 0 e complementares em lista própria.
          */
         get: operations["get_curriculum_public_courses__course_id__curriculum_get"];
         put?: never;
@@ -302,10 +294,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * Buscar docentes do catálogo público
-         * @description Lista docentes coletados do SIGAA, sem login. Nome, unidade e semestre se combinam. O semestre seleciona docentes que ministraram uma disciplina de graduação naquele período.
-         */
+        /** Buscar docentes */
         get: operations["list_professors_public_professors_get"];
         put?: never;
         post?: never;
@@ -322,7 +311,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Consultar o perfil público de um docente */
+        /** Consultar perfil do docente */
         get: operations["get_professor_public_professors__siape__get"];
         put?: never;
         post?: never;
@@ -339,7 +328,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Consultar o cardápio público do RU */
+        /** Consultar cardápio do RU */
         get: operations["get_menu_public_restaurant_get"];
         put?: never;
         post?: never;
@@ -358,7 +347,7 @@ export interface paths {
         };
         /**
          * Buscar matérias, cursos e docentes
-         * @description Combina, numa só resposta, as buscas de `/public/subjects`, `/public/courses` e `/public/professors` (cursos e docentes na primeira página), sem ir ao SIGAA. Cada chave vem no formato do seu endpoint e é nula quando o tipo não foi pedido. Com login, as matérias trazem os dados da matriz do aluno.
+         * @description Reúne matérias e a primeira página de cursos e docentes. Com login, inclui os dados da matriz do aluno.
          */
         get: operations["search_public_search_get"];
         put?: never;
@@ -377,8 +366,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Estatísticas anteriores da matéria com os mesmos docentes
-         * @description Média simples por turma com dados, por semestre e geral. Considera apenas semestres anteriores à turma indicada e o mesmo conjunto de docentes. A cobertura depende dos dados já coletados; não consulta o SIGAA.
+         * Consultar estatísticas anteriores da matéria
+         * @description Médias simples por turma de semestres anteriores com o mesmo conjunto de docentes. A cobertura depende dos dados coletados.
          */
         get: operations["subject_statistics_public_subjects__code__statistics_get"];
         put?: never;
@@ -398,7 +387,7 @@ export interface paths {
         };
         /**
          * Buscar matérias com suas turmas
-         * @description Consulta os componentes e turmas gravados no Followw, sem ir ao SIGAA; os filtros se combinam. Cada componente traz as turmas do semestre consultado, vazias se não houver oferta. Sem q, code e unit, um aluno de graduação logado recebe as recomendações para o próximo semestre, ordenadas e com `recommendation`; visitantes precisam informar um filtro.
+         * @description Matérias e ofertas do catálogo do Followw. Sem filtros de busca, retorna recomendações para o aluno autenticado.
          */
         get: operations["search_subjects_public_subjects_get"];
         put?: never;
@@ -416,7 +405,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Consultar o perfil do usuário autenticado */
+        /** Consultar perfil do usuário */
         get: operations["get_me_me_get"];
         put?: never;
         post?: never;
@@ -452,7 +441,7 @@ export interface paths {
         };
         /**
          * Consultar o token da carteirinha estudantil
-         * @description Lê o QR code da carteirinha no SIGAA a cada acesso, sem persistência. Retorna token e valid_until; a validade informa mês/ano e o scraper representa o mês pelo dia 1.
+         * @description Token do QR code da carteirinha. A validade representa mês e ano, com o dia fixado em 1.
          */
         get: operations["get_token_me_ru_token_get"];
         put?: never;
@@ -504,14 +493,14 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Consultar as configurações pessoais do usuário */
+        /** Consultar configurações do usuário */
         get: operations["get_settings_me_settings_get"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        /** Atualizar as configurações pessoais do usuário */
+        /** Atualizar configurações do usuário */
         patch: operations["update_settings_me_settings_patch"];
         trace?: never;
     };
@@ -523,8 +512,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Consultar até cinco notícias recentes das turmas atuais
-         * @description Retorna imediatamente as notícias disponíveis no banco, com IDs e o conteúdo já salvo. Listas vencidas são sincronizadas num job por turma, sem bloquear a resposta; o conteúdo de cada notícia segue sob demanda pelo detalhe da postagem. updating indica listas pendentes. A identidade é o par turma e ID do post.
+         * Consultar notícias recentes das turmas atuais
+         * @description Até cinco notícias. updating indica atualização pendente; texto e anexos completos ficam no detalhe do post.
          */
         get: operations["get_latest_news_posts_news_get"];
         put?: never;
@@ -543,8 +532,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Consultar posts recentes das turmas na home do SIGAA
-         * @description Notícias recentes e avaliações agendadas das turmas atuais, sem cache. A home não traz IDs: o detalhe fica em /classrooms/{classroom_sigaa_id}/posts. Avaliação de disciplina não encontrada entre as turmas do portal vem com classroom_sigaa_id null.
+         * Consultar posts da home do SIGAA
+         * @description Notícias e avaliações das turmas atuais. Consulte os detalhes em /classrooms/{classroom_sigaa_id}/posts.
          */
         get: operations["get_posts_posts_get"];
         put?: never;
@@ -869,7 +858,7 @@ export interface components {
             /**
              * Lesson Id
              * Format: uuid
-             * @description Lesson.id de uma aula da turma.
+             * @description ID da aula.
              */
             lesson_id: string;
             /** Status */
@@ -912,12 +901,12 @@ export interface components {
             professors: components["schemas"]["ProfessorRef"][];
             /**
              * Vacancies
-             * @description Vagas na coleta do seed, não em tempo real.
+             * @description Vagas na última coleta, sem atualização em tempo real.
              */
             vacancies?: number | null;
             /**
              * Occupied
-             * @description Ocupação na coleta do seed, não em tempo real.
+             * @description Ocupação na última coleta, sem atualização em tempo real.
              */
             occupied?: number | null;
             /** Id */
@@ -974,7 +963,7 @@ export interface components {
             description: string | null;
             /**
              * Education
-             * @description Titulações do currículo público do SIGAA, com os campos originais de curso, instituição e anos.
+             * @description Titulações do currículo público do SIGAA.
              */
             education: components["schemas"]["ProfessorDegree"][];
             /** Interests */
@@ -1011,7 +1000,7 @@ export interface components {
         };
         /**
          * ProfessorRef
-         * @description Docente de uma turma; `siape` nulo quando está fora do catálogo.
+         * @description Docente da turma; `siape` nulo fora do catálogo.
          */
         ProfessorRef: {
             /** Siape */
@@ -1025,10 +1014,7 @@ export interface components {
         };
         /**
          * PublicClassroom
-         * @description Turma da busca pública.
-         *
-         *     Não tem `id`: a área pública não expõe o `frontEndIdTurma`, então a
-         *     identidade aqui é a chave natural `(subject.code, number, semester)`.
+         * @description Turma pública, identificada por `(subject.code, number, semester)`.
          */
         PublicClassroom: {
             /** Number */
@@ -1132,10 +1118,7 @@ export interface components {
         };
         /**
          * StatisticsShare
-         * @description Uma fatia do gráfico de estatísticas: a porcentagem dos discentes da turma.
-         *
-         *     O SIGAA arredonda cada fatia em uma casa, então a soma pode fechar em 99.9
-         *     ou 100.1. O gráfico não expõe a contagem de alunos, só a porcentagem.
+         * @description Percentual dos alunos por situação; a soma pode diferir de 100 por arredondamento.
          */
         StatisticsShare: {
             situation: components["schemas"]["StudentSituation"];
@@ -1150,7 +1133,7 @@ export interface components {
         StudentSituation: "aprovado" | "reprovado" | "reprovado_por_faltas" | "reprovado_por_media_e_por_faltas" | "aprovado_por_nota" | "reprovado_por_nota" | "reprovado_por_nota_e_faltas" | "trancado" | "matriculado";
         /**
          * Subject
-         * @description Componente curricular, nos campos da tabela `subjects`.
+         * @description Componente curricular.
          */
         Subject: {
             /** Code */
@@ -1173,12 +1156,12 @@ export interface components {
             professors: components["schemas"]["ProfessorRef"][];
             /**
              * Vacancies
-             * @description Vagas na coleta do seed, não em tempo real.
+             * @description Vagas na última coleta, sem atualização em tempo real.
              */
             vacancies?: number | null;
             /**
              * Occupied
-             * @description Ocupação na coleta do seed, não em tempo real.
+             * @description Ocupação na última coleta, sem atualização em tempo real.
              */
             occupied?: number | null;
             /** Sigaa Id */
@@ -1241,7 +1224,7 @@ export interface components {
         };
         /**
          * UnitRef
-         * @description Unidade acadêmica: `id` do SIGAA, `code` a sigla (ex.: FCTE).
+         * @description Unidade acadêmica: `id` do SIGAA e sigla em `code`.
          */
         UnitRef: {
             /** Id */
@@ -1258,7 +1241,7 @@ export interface components {
         UserLevel: "Graduação" | "Pós-graduação" | "Mestrado";
         /**
          * UserProfile
-         * @description O perfil como a API devolve: sem curso na tabela, curso e unidade são nulos.
+         * @description Perfil acadêmico do usuário.
          */
         UserProfile: {
             /** Name */
@@ -1298,7 +1281,7 @@ export interface components {
         };
         /**
          * UserSubject
-         * @description O componente como o cache guarda, pelo código.
+         * @description Matéria identificada pelo código.
          */
         UserSubject: {
             /** Code */
@@ -1419,11 +1402,11 @@ export interface operations {
     get_classroom_posts_classrooms__classroom_id__posts_get: {
         parameters: {
             query?: {
-                /** @description Filtrar por categoria do post. */
+                /** @description Categoria do post. */
                 type?: components["schemas"]["PostType"] | null;
             };
             header?: {
-                /** @description `no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache). */
+                /** @description `no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente). */
                 "Cache-Control"?: string | null;
             };
             path: {
@@ -1493,7 +1476,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description `no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache). */
+                /** @description `no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente). */
                 "Cache-Control"?: string | null;
             };
             path: {
@@ -1564,11 +1547,11 @@ export interface operations {
     get_classrooms_classrooms_get: {
         parameters: {
             query?: {
-                /** @description Sem filtro: turmas atuais. Use 'all' ou um semestre no formato AAAA.P, como 2026.2. */
+                /** @description Semestre das turmas; 'all' inclui todo o histórico. */
                 semester?: string | null;
             };
             header?: {
-                /** @description `no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache). */
+                /** @description `no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente). */
                 "Cache-Control"?: string | null;
             };
             path?: never;
@@ -1614,7 +1597,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description `no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache). */
+                /** @description `no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente). */
                 "Cache-Control"?: string | null;
             };
             path?: never;
@@ -1674,7 +1657,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description `no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache). */
+                /** @description `no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente). */
                 "Cache-Control"?: string | null;
             };
             path: {
@@ -1737,7 +1720,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description `no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache). */
+                /** @description `no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente). */
                 "Cache-Control"?: string | null;
             };
             path: {
@@ -1802,7 +1785,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description `no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache). */
+                /** @description `no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente). */
                 "Cache-Control"?: string | null;
             };
             path: {
@@ -1858,7 +1841,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description `no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache). */
+                /** @description `no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente). */
                 "Cache-Control"?: string | null;
             };
             path: {
@@ -1920,17 +1903,17 @@ export interface operations {
     search_classrooms_public_classrooms_get: {
         parameters: {
             query?: {
-                /** @description ID ou sigla exata da unidade, como 673 ou FCTE. Obrigatório quando code não for informado. Com code, restringe a busca a esta unidade. Consulte /public/classrooms/units para obter os IDs. */
+                /** @description ID ou sigla da unidade. Consulte /public/classrooms/units. */
                 unit?: number | string | null;
-                /** @description Opcional, no formato AAAA.P: 2026.2, 2027.1 ou 2026.4. Sem filtro, usa os valores do SIGAA. */
+                /** @description Semestre da oferta. */
                 semester?: string | null;
-                /** @description Trecho do nome ou código da disciplina, ou do nome de qualquer docente. Ignora acentos, maiúsculas e espaços extras. Filtra o resultado da unidade/semestre após consultar o SIGAA; vazio não filtra. */
+                /** @description Trecho do nome ou código da matéria, ou do nome do docente. */
                 q?: string | null;
-                /** @description Trecho do local da turma, incluindo unidade e sala, como 'S3', 'FCTE - S3' ou 'auditorio'. Ignora acentos, maiúsculas e espaços extras; vazio não filtra. Com q, exige correspondência nos dois filtros. */
+                /** @description Trecho do local da turma, incluindo unidade e sala. */
                 local?: string | null;
-                /** @description Código completo da disciplina, como MAT0031 ou FGA0132. */
+                /** @description Código completo da matéria. */
                 code?: string | null;
-                /** @description Número da turma, de 1 a 99. Aceita com ou sem zero à esquerda: '1' e '01' selecionam a mesma turma. Combina com os demais filtros; use code e semester para identificar a disciplina e o semestre. Sem correspondência, retorna lista vazia. */
+                /** @description Número da turma. */
                 number?: number | null;
             };
             header?: never;
@@ -1948,14 +1931,14 @@ export interface operations {
                     "application/json": components["schemas"]["PublicClassroom"][];
                 };
             };
-            /** @description Nenhuma turma do código completo nas unidades e no semestre consultados. A disciplina pode não existir ou não ter oferta nessas condições. */
+            /** @description Nenhuma oferta encontrada nas unidades e no semestre consultados. */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Informe unit ou code. Filtro inválido ou unidade inexistente. Prefixo desconhecido pode não existir no SIGAA ou ainda não estar mapeado; informe unit para buscar diretamente. */
+            /** @description Filtros inválidos ou unidade não identificada. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -1974,7 +1957,7 @@ export interface operations {
     list_units_public_classrooms_units_get: {
         parameters: {
             query?: {
-                /** @description Filtra pelo nome, ignorando acentos e maiúsculas. */
+                /** @description Trecho do nome da unidade. */
                 q?: string | null;
             };
             header?: never;
@@ -2013,9 +1996,9 @@ export interface operations {
     list_courses_public_courses_get: {
         parameters: {
             query?: {
-                /** @description Termos do nome, de 3 a 32 caracteres; cada um precisa aparecer, ignorando acentos e maiúsculas. */
+                /** @description Termos do nome do curso. */
                 q?: string | null;
-                /** @description ID ou código exato da unidade, como 673 ou FCTE. */
+                /** @description ID ou sigla da unidade. */
                 unit?: number | string | null;
                 page?: number;
                 page_size?: number;
@@ -2049,7 +2032,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description ID local do curso no Followw (courses.id). */
+                /** @description ID do curso no Followw. */
                 course_id: number;
             };
             cookie?: never;
@@ -2086,14 +2069,14 @@ export interface operations {
     get_curriculum_public_courses__course_id__curriculum_get: {
         parameters: {
             query: {
-                /** @description Semestre de ingresso, no formato AAAA.P. */
+                /** @description Semestre de ingresso. */
                 entry_semester: string;
-                /** @description ID no SIGAA de outra matriz com a mesma vigência selecionada. */
+                /** @description ID da matriz no SIGAA, entre as de mesma vigência. */
                 curriculum_sigaa_id?: number | null;
             };
             header?: never;
             path: {
-                /** @description ID local do curso no Followw (courses.id), distinto do ID do SIGAA. */
+                /** @description ID do curso no Followw. */
                 course_id: number;
             };
             cookie?: never;
@@ -2130,11 +2113,11 @@ export interface operations {
     list_professors_public_professors_get: {
         parameters: {
             query?: {
-                /** @description Termos do nome, de 3 a 32 caracteres; cada um precisa aparecer, ignorando acentos e maiúsculas. */
+                /** @description Termos do nome do docente. */
                 q?: string | null;
-                /** @description ID ou código exato da unidade, como 673 ou FCTE. */
+                /** @description ID ou sigla da unidade. */
                 unit?: number | string | null;
-                /** @description Período de graduação, como 2026.2; registros antigos podem vir só com o ano. */
+                /** @description Período em que o docente ministrou aulas de graduação. */
                 semester?: string | null;
                 page?: number;
                 page_size?: number;
@@ -2168,7 +2151,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description SIAPE do link público do SIGAA. */
+                /** @description SIAPE do docente. */
                 siape: number;
             };
             cookie?: never;
@@ -2200,17 +2183,17 @@ export interface operations {
             query?: {
                 /** @description Campus do restaurante. */
                 campus?: "Darcy" | "Gama" | "Ceilandia" | "Planaltina" | "Fazenda";
-                /** @description Dia específico (AAAA-MM-DD). */
+                /** @description Dia do cardápio. */
                 date?: string | null;
-                /** @description Início do intervalo (AAAA-MM-DD). */
+                /** @description Início do intervalo. */
                 start_date?: string | null;
-                /** @description Fim do intervalo (AAAA-MM-DD). */
+                /** @description Fim do intervalo. */
                 end_date?: string | null;
-                /** @description Retorna apenas a refeição escolhida e a data. Se não publicada no dia, a refeição é null. Sem filtro, retorna todas. */
+                /** @description Refeição desejada; null quando não publicada no dia. */
                 meal?: ("breakfast" | "lunch" | "dinner") | null;
             };
             header?: {
-                /** @description `no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache). */
+                /** @description `no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente). */
                 "Cache-Control"?: string | null;
             };
             path?: never;
@@ -2248,15 +2231,15 @@ export interface operations {
     search_public_search_get: {
         parameters: {
             query: {
-                /** @description Termos de 3 a 32 caracteres; cada um precisa aparecer, ignorando acentos e maiúsculas. */
+                /** @description Termos da busca. */
                 q: string;
-                /** @description Tipos buscados, repetindo o parâmetro. Sem ele, todos. */
+                /** @description Tipos buscados; repita o parâmetro para selecionar vários. */
                 type?: components["schemas"]["SearchType"][] | null;
-                /** @description ID ou código exato da unidade, aplicado a todos os tipos. */
+                /** @description ID ou sigla da unidade, para todos os tipos. */
                 unit?: number | string | null;
             };
             header?: {
-                /** @description `no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache). */
+                /** @description `no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente). */
                 "Cache-Control"?: string | null;
             };
             path?: never;
@@ -2319,17 +2302,17 @@ export interface operations {
     search_subjects_public_subjects_get: {
         parameters: {
             query?: {
-                /** @description Termos do código, nome do componente ou docente, de 3 a 32 caracteres; cada um precisa aparecer em algum deles, ignorando acentos e maiúsculas. */
+                /** @description Termos do código, nome da matéria ou docente. Códigos completos também buscam equivalências. */
                 q?: string | null;
-                /** @description Código completo do componente, como FGA0003. */
+                /** @description Código completo da matéria. */
                 code?: string | null;
-                /** @description ID ou código exato da unidade responsável, como 673 ou FCTE. */
+                /** @description ID ou sigla da unidade responsável. */
                 unit?: number | string | null;
-                /** @description Semestre das turmas, no formato AAAA.P. Sem ele, usa o mais recente gravado. */
+                /** @description Semestre das turmas. */
                 semester?: string | null;
             };
             header?: {
-                /** @description `no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache). */
+                /** @description `no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente). */
                 "Cache-Control"?: string | null;
             };
             path?: never;
@@ -2353,21 +2336,21 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Visitante sem filtro, usuário fora da graduação ou sem matriz identificada sem filtro, filtro inválido, unidade inexistente ou nome de unidade ambíguo. */
+            /** @description Filtros inválidos ou dados insuficientes para recomendar matérias. */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Falha no SIGAA ao sincronizar o histórico das recomendações. */
+            /** @description SIGAA indisponível ao consultar o histórico. */
             502: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Histórico alterado durante a consulta das recomendações. */
+            /** @description Histórico em atualização. */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -2380,7 +2363,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description `no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache). */
+                /** @description `no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente). */
                 "Cache-Control"?: string | null;
             };
             path?: never;
@@ -2664,7 +2647,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description `no-cache` (ou `max-age=0`) busca na origem antes de responder; `max-age=N` aceita cache de até N s; `stale-if-error[=N]` devolve o cache se a origem falhar; `only-if-cached` nunca busca (504 sem cache). */
+                /** @description `no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente). */
                 "Cache-Control"?: string | null;
             };
             path?: never;
