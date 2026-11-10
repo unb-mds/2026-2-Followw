@@ -504,6 +504,26 @@ export interface paths {
         patch: operations["update_settings_me_settings_patch"];
         trace?: never;
     };
+    "/me/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Atualizar foto ou bio no SIGAA
+         * @description Omita a bio para preservá-la ou envie uma string vazia para limpá-la. A remoção da foto deve ser feita em uma requisição separada. Para substituir, envie um único JPEG ou PNG de até 4 MB.
+         */
+        patch: operations["update_profile_me_profile_patch"];
+        trace?: never;
+    };
     "/posts/news": {
         parameters: {
             query?: never;
@@ -548,6 +568,18 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** Body_update_profile_me_profile_patch */
+        Body_update_profile_me_profile_patch: {
+            /**
+             * Photo Action
+             * @enum {string}
+             */
+            photo_action: "keep" | "replace" | "remove";
+            /** Bio */
+            bio?: string | null;
+            /** Photo */
+            photo?: string | null;
+        };
         CatalogRequirements: components["schemas"]["SubjectRequirement"][][];
         /**
          * CatalogSubject
@@ -1067,7 +1099,7 @@ export interface components {
         /** RestaurantStatement */
         RestaurantStatement: {
             /** Balance */
-            balance?: string | null;
+            balance: string;
             /** Group */
             group?: (1 | 2 | 3 | 4) | null;
             /**
@@ -2620,6 +2652,60 @@ export interface operations {
             };
             /** @description Credenciais ausentes ou inválidas. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description SIGAA indisponível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    update_profile_me_profile_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_update_profile_me_profile_patch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserProfile"];
+                };
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A foto enviada deve ter até 4 MB. */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };

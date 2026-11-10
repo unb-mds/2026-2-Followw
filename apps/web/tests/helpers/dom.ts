@@ -1,5 +1,5 @@
 import { environmentManager } from '@tanstack/react-query';
-import { afterAll, beforeAll } from 'bun:test';
+import { afterAll, afterEach, beforeAll } from 'bun:test';
 import { Window } from 'happy-dom';
 
 type Testing = typeof import('@testing-library/react/pure');
@@ -43,7 +43,10 @@ export function useDom(url = 'http://localhost/') {
         testing = await import('@testing-library/react/pure');
     });
 
+    afterEach(() => testing?.cleanup());
+
     afterAll(async () => {
+        testing?.cleanup();
         environmentManager.setIsServer(() => wasServer);
         await browser?.happyDOM.abort();
         for (const [key, descriptor] of previousGlobals) {

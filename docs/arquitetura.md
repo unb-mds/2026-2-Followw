@@ -98,36 +98,26 @@ suas interações com as bibliotecas do monorepo e dados.
     - `access_token` (40 min): Sessão JSF ativa do SIGAA.
     - `refresh_token` (14 dias): Matrícula e senha encriptadas para renovação automática de sessão
       sem atrito para o usuário.
+- Para detalhes sobre ciclo de vida dos tokens, rotação de chaves e garantias criptográficas, disponível em [`docs/segurança.md`](segurança.md).
 
 ### Proteção contra Abuso e Rate Limiting (Redis)
 
-- **Controle de Taxa Desacoplado (`api/rate_limit.py`, `api/redis.py`)**: A API aplica limites de
-  requisição em janelas fixas de 60 segundos gerenciadas no Redis (`Upstash Redis` via REST HTTP em
-  produção e `redis:8` localmente), sem onerar o PostgreSQL ou o SIGAA, conforme documentado em
-  [`docs/rate-limit.md`](rate-limit.md).
-- **Cotas Diferenciadas**:
-    - **Rotas Gerais**: Limite global de 600 requisições por IP a cada 60 s, absorvendo navegações e
-      chamadas legítimas de redes universitárias (sob NAT).
-    - **Autenticação (`POST /auth/sigaa`)**: Cota estrita de 30 tentativas por IP a cada 60 s,
-      prevenindo ataques de força bruta contra o CAS institucional.
-- **Privacidade por Design e Anonimização de IP**: Os identificadores de chave no Redis são gerados via
-  HMAC-SHA256 do IP do cliente utilizando chave derivada de `JWT_SECRET_KEY`. Endereços IPv6 são
-  agrupados por prefixo `/64`. Nenhum dado pessoal, cookie ou credencial é gravado no Redis.
-- **Encaminhamento Seguro de IP no SSR**: No renderizador SSR (`apps/web`), o IP original do cliente é
-  repassado à API assinado criptograficamente com HMAC-SHA256 e expiração de 60 s via
-  `RATE_LIMIT_SECRET_KEY`, impedindo falsificação de cabeçalhos ou esgotamento de cotas pelo IP de saída
-  do servidor web.
-- **Tolerância a Falhas (*Fail-Open*)**: Caso o Redis apresente timeout (máximo de 1 s) ou
-  instabilidade de rede, a requisição é liberada automaticamente sem interromper a navegação do
-  estudante, registrando evento operacional no log.
+- **Controle de Taxa Distribuído (`api/rate_limit.py`, `api/redis.py`)**: A API aplica limites de
+  requisição em memória via Upstash Redis (REST HTTP em produção e Redis 8 localmente) para conter abusos
+  e mitigar ataques de força bruta contra o CAS/SIGAA da UnB.
+- **Privacidade e Tolerância a Falhas**: Chaves de limitação usam hashes criptográficos anonimizados do IP
+  (sem dados pessoais ou cookies gravados no Redis) e operam em modelo tolerante a falhas (*fail-open*),
+  garantindo que indisponibilidades do Redis não interrompam o acesso dos alunos.
+- Para cotas de requisição, encaminhamento seguro de IP no SSR e configurações operacionais, disponível em [`docs/rate-limit.md`](rate-limit.md).
 
 ### Estratégia de Cache: Stale-While-Revalidate (SWR)
 
-- Chamadas a dados custosos do SIGAA utilizam o `Sync.resolve(tarefa, alvo, load)` (`api/sync/`).
-- Se o dado em cache estiver válido, ele é servido imediatamente.
-- Se estiver expirado (_stale_), os dados do cache são servidos instantaneamente e a tarefa de
-  sincronização entra num job do **QStash**, publicado antes da resposta.
-- Sem cache, a requisição busca no SIGAA na hora, com a sessão do próprio usuário.
+- Chamadas a dados custosos do SIGAA utilizam o `Sync.resolve(tarefa, alvo, load)` (`api/sync/`):
+  dados válidos são servidos instantaneamente; dados expirados (*stale*) são servidos de imediato
+  enquanto uma revalidação assíncrona é enfileirada no QStash; e requisições sem cache consultam o SIGAA
+  diretamente com a sessão ativa.
+- Para a matriz completa de TTLs, diretivas `Cache-Control` do cliente e regras de sincronização,
+  disponível em [`docs/cache-e-sincronizacao.md`](cache-e-sincronizacao.md).
 
 ### Isolamento dos Scrapers em Pacotes Monorepo
 
@@ -141,28 +131,20 @@ suas interações com as bibliotecas do monorepo e dados.
 
 ### Orquestração de Background Jobs (QStash)
 
-- Operações lentas de sincronização são desacopladas da requisição síncrona do usuário.
-- **Sessão efêmera por job**: o job nunca usa a sessão do usuário. Ele leva a credencial cifrada
-  (Fernet com chave própria derivada via HKDF), faz login numa sessão própria do SIGAA, roda as
-  tarefas e faz logout no fim. Sessões diferentes da mesma conta não interferem entre si.
-- **Um job por turma**: a requisição junta as tarefas vencidas e publica um job por turma (e um da
-  conta, com perfil e lista de turmas). O sync do login abre um job para cada turma com telas
-  vencidas.
-- **Paralelismo**: o _flow control_ por matrícula (`parallelism: 4`) só poupa o CAS de rajadas de
-  login; os jobs não disputam sessão.
-- **Falhas**: uma tarefa que falha na origem não impede as outras e ganha uma única retentativa, com
-  1 min de espera. Senha recusada descarta o job.
+- **Sessões Efêmeras e Desacoplamento**: Operações lentas de sincronização rodam em segundo plano via
+  Upstash QStash. Cada job transporta a credencial cifrada em Fernet, autentica em sessão própria e
+  efêmera no SIGAA, executa as tarefas agendadas e encerra a sessão, sem interferir na navegação do usuário.
+- Para detalhes de controle de fluxo (`parallelism`), retentativas e agendamento por turma, disponível em
+  [`docs/cache-e-sincronizacao.md`](cache-e-sincronizacao.md).
 
 ### Arquitetura Offline-First e PWA (Frontend)
 
-- O cliente web funciona sem conexão à internet combinando duas camadas independentes em
-  `apps/web/src/integrations/offline/` (detalhadas em [`docs/offline.md`](offline.md)):
-    - **Service Worker (`vite-plugin-pwa` / Workbox)**: faz precache dos assets de build e armazena
-      o HTML das navegações SSR em estratégia _network-first_ (com timeout de 3 s) em cache
-      versionado por build (`followw-pages-<build>`).
-    - **Persistência do TanStack Query (`IndexedDB`)**: salva os dados retornados pela API por até
-      **14 dias** (`idb-keyval`), restaurando-os após a hidratação e descartando o cache
-      automaticamente quando o contrato da API muda (via hash SHA-256 de `schema.gen.ts`).
+- O frontend opera sem internet combinando duas camadas (`apps/web/src/integrations/offline/`):
+  o **Service Worker** (`vite-plugin-pwa` / Workbox) para precache de assets estáticos e navegação SSR (*network-first*),
+  e a persistência do **TanStack Query** no IndexedDB (`idb-keyval`) para manter dados acadêmicos salvos localmente
+  com invalidação automática quando o contrato da API muda.
+- Para ciclo de vida do Service Worker, estratégias de fallback de rotas e testes offline, disponível em
+  [`docs/offline.md`](offline.md).
 
 ### Seed Estático de Dados Públicos e Regras do Calendário Acadêmico
 
@@ -177,13 +159,13 @@ suas interações com as bibliotecas do monorepo e dados.
 
 ### Observabilidade Estruturada e Privacidade por Design
 
-- **Logs Estruturados (`api/logger.py`)**: a API emite eventos em formato JSON por linha em
-  `stderr`, correlacionando todas as operações da requisição (`sigaa.connect`, `queue.publish`,
-  `job`, `sync.task`) sob um mesmo `request_id` e registrando o tempo decorrido (`duration_ms`),
-  conforme detalhado em [`docs/observability.md`](observability.md).
-- **Allowlist Estrita de Campos**: o logger aceita apenas metadados operacionais pré-definidos,
-  garantindo por construção que cookies, cabeçalhos, parâmetros de URL, senhas ou tracebacks com
-  dados pessoais jamais sejam gravados nos logs.
+- **Logs Estruturados (`api/logger.py`)**: A API emite eventos em formato JSON por linha em `stderr`,
+  correlacionando todo o ciclo de vida das operações sob um identificador único (`request_id`) com medição
+  de tempo (`duration_ms`).
+- **Privacidade por Construção**: Uma allowlist estrita aceita exclusivamente metadados operacionais pré-definidos,
+  impedindo que credenciais, cookies, parâmetros de URL ou tracebacks com dados pessoais sejam logados.
+- Para o catálogo de eventos operacionais e especificações de monitoramento, disponível em 
+  [`docs/observability.md`](observability.md).
 
 ---
 
@@ -199,14 +181,15 @@ suas interações com as bibliotecas do monorepo e dados.
 │   │   │   ├── modules/            # Uma pasta por feature: auth, classrooms, me, posts, public_*
 │   │   │   ├── sync/               # Motor de cache (SWR), fila do QStash e rota /jobs
 │   │   │   ├── academic_calendar.py# Regras de congelamento de sync e status pelo calendário acadêmico
+│   │   │   ├── cache.py            # Diretivas de Cache-Control
+│   │   │   ├── cookies.py          # Cookies de sessão cifrados (JWE)
+│   │   │   ├── errors.py           # Erros do SIGAA e do RU traduzidos para HTTP
+│   │   │   ├── logger.py           # Logs estruturados JSON e middleware de requisição
+│   │   │   ├── main.py             # Ponto de entrada FastAPI, middlewares e registro de rotas
 │   │   │   ├── rate_limit.py       # Middleware de limitação de taxa por janela fixa
 │   │   │   ├── redis.py            # Cliente Upstash Redis assíncrono
-│   │   │   ├── sigaa.py            # Conexão com o SIGAA da requisição
-│   │   │   ├── cookies.py          # Cookies de sessão cifrados (JWE)
-│   │   │   ├── cache.py            # Diretivas de Cache-Control
-│   │   │   ├── errors.py           # Erros do SIGAA e do RU traduzidos para HTTP
-│   │   │   ├── docs_content.py     # Integração dos documentos markdown ao OpenAPI
-│   │   │   └── logger.py           # Logs estruturados JSON e middleware de requisição
+│   │   │   ├── schemas.py          # Esquemas Pydantic compartilhados
+│   │   │   └── sigaa.py            # Conexão com o SIGAA da requisição
 │   │   └── tests/                  # Testes da API, um arquivo por módulo
 │   │
 │   └── web/                        # Frontend TanStack Start

@@ -12,7 +12,7 @@ from api.modules.me.repository import UserRepository
 from api.schemas import CourseRef, UnitRef, course_ref, unit_ref
 from api.sync import Cached, Context, SyncDep
 
-PROFILE_TTL = timedelta(hours=24)
+PROFILE_TTL = timedelta(hours=12)
 
 
 class UserProfile(BaseModel):
@@ -42,10 +42,11 @@ def profile_freshness(synced_at: datetime | None) -> Freshness:
 
 
 async def sync_profile(ctx: Context[None]) -> None:
+    started_at = datetime.now(UTC)
     profile = await ctx.client.profile.get_profile()
     await ctx.sync.db.write(
         lambda session: UserRepository(session).save_profile(
-            profile, datetime.now(UTC), login=ctx.sync.registration
+            profile, started_at, login=ctx.sync.registration
         )
     )
 

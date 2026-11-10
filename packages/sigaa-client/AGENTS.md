@@ -15,7 +15,7 @@ sigaa_client/
   private/          # resources que exigem login
   public/           # resources anônimos
 tests/
-scripts/            # coletas em lote do SIGAA público (collect_subjects.py, collect_classrooms.py)
+scripts/            # coletas em lote do SIGAA público; `_catalog.py` liga os CSVs, sem rede
 data/               # CSVs de referência (units, courses, subjects, classrooms), lidos pelo seed da api
 ```
 
@@ -27,6 +27,8 @@ data/               # CSVs de referência (units, courses, subjects, classrooms)
 - **Resource.** Uma classe por área do SIGAA, métodos `async` com verbos explícitos
   (`list_classrooms`, `get_profile`). O parse fica em funções privadas de módulo (`_parse_*`).
 - **Modelos** Pydantic `frozen=True`; dado ausente é `None`, nunca string vazia.
+- **Fronteira.** O scraper devolve só o que a tela dele mostra; cruzar dados de telas ou CSVs
+  diferentes fica nos scripts (`_catalog.py`).
 - **Erros.** Seja barulhento quando o SIGAA muda: toda exceção diz o que faltou e onde.
 - **Constantes.** Nenhuma URL literal fora de `config.py`; nomes de campo no topo do resource; regex
   compilada em `_ALGO_RE`.
@@ -49,6 +51,8 @@ data/               # CSVs de referência (units, courses, subjects, classrooms)
 
 ## Testes
 
-Sem rede: um `FakeSigaa` chamável injetado via `transport` (`httpx.MockTransport`), que simula o
-ritual de sessão para cobrir relogin e retry. Fixtures de HTML são strings no topo do teste,
-recortadas da página real. Fixtures de PDF ficam em `tests/fixtures/`, com dados sintéticos.
+Sem rede: dublês e fakes compartilhados vivem em `tests/fakes.py` (`FakeSigaa`, `PagesSession`, etc.).
+Testes são organizados por área em `tests/private/` (com `classrooms/` dividido por tela),
+`tests/public/` e `tests/scripts/`. Arquivos de teste nunca importam outros arquivos de teste,
+apenas `tests/fakes.py`. Fixtures de HTML são strings no topo do arquivo que as usa ou em
+`tests/fakes.py` se compartilhadas. Fixtures de PDF ficam em `tests/fixtures/`, com dados sintéticos.

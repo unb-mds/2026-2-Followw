@@ -3,6 +3,7 @@ from .exceptions import (
     AuthenticationFailed,
     ClassroomNotFound,
     DocumentUnavailable,
+    InternshipNotFound,
     MissingProfilePhoto,
     NewsNotFound,
     SessionExpired,
@@ -32,6 +33,12 @@ from .models import (
     DashboardPost,
     FrequencyStatus,
     Grade,
+    Internship,
+    InternshipAttachment,
+    InternshipCourse,
+    InternshipGrantor,
+    InternshipSummary,
+    InternshipTransportAllowance,
     News,
     NewsAttachment,
     PostType,
@@ -58,7 +65,7 @@ from .models import (
     UserProfile,
 )
 from .public.units import resolve_unit
-from .utils.parsing import lookup_key
+from .utils.parsing import institutional_email, lookup_key
 
 __all__ = [
     "AttendanceEntry",
@@ -84,6 +91,13 @@ __all__ = [
     "DocumentUnavailable",
     "FrequencyStatus",
     "Grade",
+    "Internship",
+    "InternshipAttachment",
+    "InternshipCourse",
+    "InternshipGrantor",
+    "InternshipNotFound",
+    "InternshipSummary",
+    "InternshipTransportAllowance",
     "MissingProfilePhoto",
     "News",
     "NewsAttachment",
@@ -117,6 +131,7 @@ __all__ = [
     "Unit",
     "UserLevel",
     "UserProfile",
+    "institutional_email",
     "lookup_key",
     "resolve_unit",
 ]

@@ -15,21 +15,11 @@ def _matches_query(q: str, semester: str | None) -> ColumnElement[bool]:
         conditions: list[ColumnElement[bool]] = [
             Subject.code.contains(term.upper(), autoescape=True),
             contains_term(Subject.name, term),
-            func.jsonb_exists(
-                func.jsonb_path_query_array(
-                    Subject.equivalences, literal_column("'$[*][*]'")
-                ),
-                term.upper(),
-            ),
-            exists(
-                select(1).where(
-                    source.code == term.upper(),
-                    func.jsonb_exists(
-                        func.jsonb_path_query_array(
-                            source.equivalences, literal_column("'$[*][*]'")
-                        ),
-                        Subject.code,
-                    ),
+            # Equivalência direta nos dois sentidos: quem cita o termo e quem ele cita.
+            Subject.equivalent_codes.has_key(term.upper()),
+            Subject.code.in_(
+                select(func.jsonb_array_elements_text(source.equivalent_codes)).where(
+                    source.code == term.upper()
                 )
             ),
         ]

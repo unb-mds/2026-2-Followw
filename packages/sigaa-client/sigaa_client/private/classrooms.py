@@ -51,6 +51,7 @@ from ..utils.jsf import (
 )
 from ..utils.parsing import (
     clean_text,
+    institutional_email,
     lookup_key,
     parse_datetime,
     photo_url,
@@ -774,6 +775,10 @@ def _member(card: Tag, role: ClassroomRole) -> ClassroomMember | None:
     course, unit = split_course(fields.get("curso", ""))
     person_id = _PERSON_ID_RE.search(str(card))
 
+    email = fields.get("e-mail")
+    if role == ClassroomRole.PROFESSOR:
+        email = institutional_email(email)
+
     return ClassroomMember(
         name=clean_text(name),
         role=role,
@@ -781,7 +786,7 @@ def _member(card: Tag, role: ClassroomRole) -> ClassroomMember | None:
         # este pacote não expõe.
         registration=fields.get("matrícula"),
         photo=_member_photo(card),
-        email=fields.get("e-mail"),
+        email=email,
         course=course or None,
         unit=unit or fields.get("departamento"),
         person_id=int(person_id.group(1)) if person_id else None,

@@ -10,6 +10,8 @@ from api.db.models import ClassroomParticipant, Course, User
 from api.modules.public_courses.repository import PublicCourseRepository
 from api.modules.recommendations.ranking import CurriculumInfo, select_curriculum
 
+MAX_PROFILE_BIO_LENGTH = 1024
+
 
 class UserRepository:
     def __init__(self, session: AsyncSession) -> None:
@@ -41,11 +43,26 @@ class UserRepository:
         await self._session.flush()
 
     async def save_profile(
-        self, profile: UserProfile, synced_at: datetime, login: str | None = None
+        self,
+        profile: UserProfile,
+        synced_at: datetime,
+        login: str | None = None,
+        *,
+        replace_photo: bool = False,
     ) -> User:
         """Grava o perfil na conta do `login`, assumindo o usuário sombra da matrícula."""
         login = login or profile.registration
-        account = await self.get_by_registration(login)
+        account = await self._session.scalar(
+            select(User)
+            .where(or_(User.registration == login, User.old_registration == login))
+            .with_for_update(of=User)
+        )
+        if (
+            account is not None
+            and account.profile_synced_at
+            and account.profile_synced_at > synced_at
+        ):
+            return account
         user = await self._session.scalar(
             select(User).where(User.registration == profile.registration)
         )
@@ -61,9 +78,12 @@ class UserRepository:
         if login != profile.registration:
             user.old_registration = login
         user.name = profile.name
-        user.photo = profile.photo or user.photo
+        if replace_photo or profile.photo is not None:
+            user.photo = profile.photo
         user.email = profile.email or user.email
-        user.bio = profile.bio
+        user.bio = (
+            profile.bio and profile.bio.replace("\r\n", "\n")[:MAX_PROFILE_BIO_LENGTH]
+        )
         pair = (profile.course, profile.unit)
         shift = profile.shift.value if profile.shift else None
         course_id = (await course_ids(self._session, [pair], shift)).get(pair)

@@ -23,7 +23,7 @@ test.each([42, null])(
             name: 'Nome Discente',
             registration: '202600001',
             photo: null,
-            bio: null,
+            bio: 'a'.repeat(1024) + 'Trecho acima do limite',
             unit: null,
             course: courseId === null ? null : { id: courseId, name: 'Curso Teste', shift: null },
             entry_semester: null,
@@ -48,14 +48,16 @@ test.each([42, null])(
                     <RouterProvider router={router} />
                 </QueryClientProvider>
             );
+            expect(browser.document.body.textContent).toContain('a'.repeat(1024));
+            expect(browser.document.body.textContent).not.toContain('Trecho acima do limite');
             const account = [...browser.document.querySelectorAll('[data-slot="card"]')].find(
-                (card) => card.textContent.includes('Nome de exibição')
+                (card) => card.textContent.includes('Editar perfil')
             );
             expect(account).toBeDefined();
             expect(account?.className).toContain('divide-y');
             const nameRow = account?.firstElementChild;
             expect(nameRow?.tagName).toBe('DIV');
-            expect(nameRow?.querySelector('button')?.textContent).toContain('Nome de exibição');
+            expect(nameRow?.querySelector('button')?.textContent).toContain('Editar perfil');
             let downloadsRow = nameRow?.nextElementSibling;
             if (courseId !== null) {
                 const flowWrapper = downloadsRow;

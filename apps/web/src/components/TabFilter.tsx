@@ -21,7 +21,7 @@ export function TabFilter<T extends string>({
     return (
         <fieldset
             className={cn(
-                'flex items-center gap-1 overflow-x-auto py-1 max-md:no-scrollbar',
+                'flex min-w-0 items-center gap-1 overflow-x-auto py-1 max-md:no-scrollbar',
                 className
             )}
             aria-label={label}

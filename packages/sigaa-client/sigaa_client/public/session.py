@@ -1,4 +1,5 @@
 import asyncio
+from collections.abc import Awaitable, Callable
 
 import httpx
 from bs4 import BeautifulSoup
@@ -36,11 +37,17 @@ class PublicSession:
             raise SessionExpired("O SIGAA descartou a view: sessão pública expirada.")
         return BeautifulSoup(response.text, "lxml")
 
-    async def restart(self) -> None:
-        """Joga fora a sessão morta e abre outra — o chamador refaz o submit."""
-        self._ready = False
-        self._http.cookies.clear()
-        await self._warm_up()
+    async def retry[T](self, step: Callable[[], Awaitable[T]]) -> T:
+        """Roda `step`; se a sessão expirar, abre outra e refaz o caminho inteiro uma vez.
+
+        `step` precisa reabrir o form: o `ViewState` da mão morre junto com a sessão.
+        """
+        try:
+            return await step()
+        except SessionExpired:
+            self._ready = False
+            self._http.cookies.clear()
+            return await step()
 
     async def _warm_up(self) -> None:
         if self._ready:

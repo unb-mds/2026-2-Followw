@@ -23,13 +23,24 @@ async with SigaaPublicClient() as client:
 
 | Client              | Login | Módulos                                                |
 | ------------------- | ----- | ------------------------------------------------------ |
-| `SigaaClient`       | sim   | `.profile`, `.classrooms`, `.documents`, `.restaurant` |
+| `SigaaClient`       | sim   | `.profile`, `.classrooms`, `.documents`, `.restaurant`, `.internships` |
 | `SigaaPublicClient` | não   | `.classrooms`, `.subjects`, `.curricula`, `.professors` |
 
 O login é feito sob demanda. O token retornado por `authenticate()` pode ser reutilizado com
 `SigaaClient(session_token=...)`: sem credenciais, uma sessão expirada levanta `SessionExpired`.
 
 Todos os erros derivam de `SigaaError`.
+
+`client.internships.list_internships()` lista as ofertas do mural, incluindo resumos repetidos.
+Use `only_my_course=True` para ver só as do seu curso e `get_internship(vaga.reference)` para abrir
+o detalhe, com descrição em Markdown. O SIGAA não expõe um ID estável e `sigaa_id` fica `None`.
+A referência depende da posição e do texto da tabela. Se o texto mudar ou houver resumos idênticos
+na mesma tabela, o detalhe levanta `InternshipNotFound`. Uma substituição por outra oferta com
+o mesmo resumo pode passar despercebida.
+
+Valores monetários usam `Decimal` e datas seguem o calendário da UnB, sem fuso no valor retornado.
+Transporte zero, bolsa ou descrição em branco e anexo ausente ficam `None`. O link do anexo pode
+exigir sessão SIGAA.
 
 `client.curricula.list_curricula(course_sigaa_id)` lista as estruturas de um curso.
 `get_curriculum(course_sigaa_id, sigaa_id)` retorna a matriz, vigência (`valid_from`), turno
@@ -80,12 +91,17 @@ Se o SIGAA sinalizar o limite de 2000 resultados, preserva a lista parcial e mar
 refine os filtros para obter resultados completos. Busca vazia retorna `items=()` e a mensagem da origem;
 filtros recusados levantam `SigaaSearchError`.
 
-`client.subjects.get_details(subject)` abre o resumo de um `PublicSubject` da busca e devolve o
-mesmo `SubjectDetails` de `iter_subjects`, com requisitos e carga horária, mesmo sem oferta no
+`client.subjects.get_details(subject)` abre o resumo de um `PublicSubject` da busca e devolve um
+`SubjectDetails`: nome, carga horária total (a da busca, quando o resumo traz 0h), unidade
+responsável (o nome, como em `units.csv`, sem o código hierárquico) e `prerequisites`,
+`corequisites` e `equivalences` (só a expressão ativa), como o SIGAA as escreve, ou `None` quando
+não há. A busca pública não lista componentes inativos; eles só abrem pelo link da matriz, com
+`client.curricula.get_subject_details(course_sigaa_id, curriculum_sigaa_id, code)`, que devolve o
+mesmo modelo (com a carga do rótulo da matriz como reserva). Os dois servem mesmo sem oferta no
 semestre.
 
-`client.restaurant.get_restaurant_statement()` retorna saldo, extrato e grupo (1 a 4), com saldo e
-grupo ausentes representados por `None`.
+`client.restaurant.get_restaurant_statement()` retorna saldo, extrato e grupo (1 a 4), com grupo
+ausente representado por `None`. Extrato sem saldo levanta `SigaaParseError`.
 
 `client.classrooms.list_grades()` retorna todas as menções de "Ensino > Consultar Minhas Notas" num
 único relatório. Cada `ClassroomGrade` traz `subject_code`, `semester` e a menção (`Grade`) do
@@ -96,16 +112,17 @@ code e a validade, sem persistir o arquivo. `client.documents.get_transcript_pdf
 original do histórico acadêmico. Quando o SIGAA recusa emitir o documento (ex.: perfil sem foto), os
 três levantam `DocumentUnavailable` com o motivo informado por ele (`MissingProfilePhoto` quando falta foto).
 
-`SigaaPublicClient().classrooms.iter_subjects(unidade)` percorre os componentes de graduação
-ofertados por uma unidade e entrega cada um como `SubjectDetails`: o `Subject` com `prerequisites`,
-`corequisites` e `equivalences` (só a expressão ativa), como o SIGAA as escreve, ou `None` quando
-não há.
-
-`collect_subjects.py` também completa os componentes obrigatórios das matrizes e os citados nos
-requisitos pelo catálogo público, mesmo sem oferta no semestre, já com os requisitos de cada um (e
-os componentes que estes citarem). Linhas sem unidade são completadas de novo a cada execução. Para
-completar um CSV existente, rode da raiz do monorepo:
-`uv run python packages/sigaa-client/scripts/complete_subjects.py`.
+`collect_subjects.py` monta `data/subjects.csv` com os componentes citados nos outros CSVs de
+`data/` (turmas, matrizes, docentes e requisitos). Cada código vem do catálogo público ou, se
+inativo, da primeira matriz com detalhes legíveis; os requisitos dos acrescentados são seguidos
+até não aparecer código novo. `unit_id` é a unidade responsável, achada pelo nome em `units.csv`.
+Por padrão, as linhas já gravadas são mantidas e a coleta busca as referências pendentes dos
+outros CSVs e dos requisitos já registrados. `--refresh` coleta tudo de novo, segue os requisitos
+de todos e mantém a linha antiga de quem o SIGAA não devolver. Se o resumo não trouxer uma unidade
+reconhecida, a unidade já registrada é mantida. A falha de um componente não derruba a coleta:
+ele fica de fora (ou com a linha antiga) e é listado no fim. Como a coleta lê os outros CSVs, rode antes
+`collect_classrooms.py`, `collect_curricula.py` e `collect_professors.py`. Da raiz do monorepo:
+`uv run python packages/sigaa-client/scripts/collect_subjects.py`.
 Depois execute `uv run db-init` em `apps/api/` para carregar o catálogo no banco local.
 
 ### Posts da turma
@@ -133,3 +150,11 @@ para texto e anexos.
 "Minhas atividades". A home não traz IDs, então o detalhe fica nos posts da turma
 (`classroom_sigaa_id`); avaliação de disciplina que não casa com uma única turma
 do portal vem sem turma.
+
+### Editar perfil
+
+`client.profile.update_profile(password=..., bio=..., photo=bytes_jpeg)`
+atualiza a conta autenticada. Omita `bio` para preservá-la ou passe `""` para limpá-la.
+Para remover a foto, use `remove_photo=True` sem enviar os outros campos.
+O chamador valida o JPEG antes do envio. O client relê o formulário para confirmar a
+gravação e não repete o POST em caso de falha.

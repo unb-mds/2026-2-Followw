@@ -27,7 +27,8 @@ trabalhar nas suas respectivas pastas.
 
 ```fish
 uv sync                 # instala todo o workspace
-uv run pytest           # testes
+uv run pytest -n auto   # testes em paralelo (requer Docker ativo para a api)
+uv run pytest <pasta>   # roda apenas o pacote ou diretório desejado
 uv run ruff format .    # sempre formate ao alterar o código
 ```
 
@@ -41,9 +42,10 @@ uv run ruff format .    # sempre formate ao alterar o código
 - O Followw atualmente segue um rolling release. Não precisa manter compatibilidade com versões
   anteriores (migrações de dados, chaves legadas, aliases), a menos que seja solicitado
   explicitamente
-- Crie testes ao implementar novas features/fixes. Se possível, centralize todos os testes
-  pertencentes a um mesmo módulo em um único arquivo. Nomeie os testes em português (ex.:
-  `test_turma_fora_da_lista_retorna_404`, `test('carrega a conta autenticada')`).
+- Crie testes ao implementar novas features/fixes, numa pasta por feature e um arquivo por
+  comportamento ou tela (passou de ~400 linhas, divida). Um arquivo de teste nunca importa outro:
+  o que é compartilhado vai para `conftest.py`, `helpers.py` ou `fakes.py`. Nomeie os testes em
+  português (ex.: `test_turma_fora_da_lista_retorna_404`, `test('carrega a conta autenticada')`).
 - Evite longos blocos de comentários/documentação. Tente usar apenas uma linha e apenas onde for
   necessário/muito útil.
 - Use meios de validar suas alterações, se necessário, você pode utilizar as envs TEST_REGISTRATION

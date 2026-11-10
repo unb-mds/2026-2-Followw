@@ -75,13 +75,15 @@ class Session:
         *,
         retry_on_renewal: bool = True,
         allow_renewal: bool = True,
+        allow_redirect_response: bool = False,
         **kwargs: Any,
     ) -> httpx.Response:
         stale_token = await self.authenticate()
 
         response = await self._http.request(method, url, **kwargs)
         if not _is_unauthenticated(response):
-            response.raise_for_status()
+            if not (allow_redirect_response and response.is_redirect):
+                response.raise_for_status()
             return response
 
         if not allow_renewal:

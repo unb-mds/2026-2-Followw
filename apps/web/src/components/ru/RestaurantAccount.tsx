@@ -236,9 +236,7 @@ export function StatementDetails({
                         insufficient && 'text-destructive'
                     )}
                 >
-                    {statement.balance == null
-                        ? 'Saldo não informado'
-                        : currency.format(Number(statement.balance))}
+                    {currency.format(Number(statement.balance))}
                 </p>
                 {action}
             </div>

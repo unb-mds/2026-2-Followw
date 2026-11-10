@@ -13,6 +13,7 @@ from api.logger import RequestLoggingMiddleware
 from api.modules.auth.router import router as auth_router
 from api.modules.classrooms.router import router as classrooms_router
 from api.modules.me.router import router as me_router
+from api.modules.me.upload_guard import ProfileUploadGuard
 from api.modules.posts.router import router as posts_router
 from api.modules.public_classrooms.router import router as public_classrooms_router
 from api.modules.public_courses.router import router as public_courses_router
@@ -149,6 +150,7 @@ async def mintlify_docs() -> HTMLResponse:
 if settings.environment == "production":
     app.add_middleware(HTTPSRedirectMiddleware)
 
+app.add_middleware(ProfileUploadGuard)
 app.add_middleware(RateLimitMiddleware)
 
 app.add_middleware(

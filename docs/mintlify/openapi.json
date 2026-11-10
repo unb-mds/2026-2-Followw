@@ -2049,6 +2049,57 @@
         }
       }
     },
+    "/me/profile": {
+      "patch": {
+        "tags": [
+          "Me"
+        ],
+        "summary": "Atualizar foto ou bio no SIGAA",
+        "description": "Omita a bio para preservá-la ou envie uma string vazia para limpá-la. A remoção da foto deve ser feita em uma requisição separada. Para substituir, envie um único JPEG ou PNG de até 4 MB.",
+        "operationId": "update_profile_me_profile_patch",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_update_profile_me_profile_patch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciais ausentes ou inválidas."
+          },
+          "502": {
+            "description": "SIGAA indisponível."
+          },
+          "413": {
+            "description": "A foto enviada deve ter até 4 MB."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/posts/news": {
       "get": {
         "tags": [
@@ -2142,6 +2193,47 @@
   },
   "components": {
     "schemas": {
+      "Body_update_profile_me_profile_patch": {
+        "properties": {
+          "photo_action": {
+            "type": "string",
+            "enum": [
+              "keep",
+              "replace",
+              "remove"
+            ],
+            "title": "Photo Action"
+          },
+          "bio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bio"
+          },
+          "photo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "contentMediaType": "application/octet-stream"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "photo_action"
+        ],
+        "title": "Body_update_profile_me_profile_patch"
+      },
       "CatalogRequirements": {
         "items": {
           "items": {
@@ -3937,14 +4029,7 @@
       "RestaurantStatement": {
         "properties": {
           "balance": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Balance"
           },
           "group": {
@@ -3974,6 +4059,9 @@
           }
         },
         "type": "object",
+        "required": [
+          "balance"
+        ],
         "title": "RestaurantStatement"
       },
       "RestaurantStatementEntry": {

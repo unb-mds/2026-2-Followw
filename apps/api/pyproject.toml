@@ -6,17 +6,18 @@ requires-python = ">=3.14"
 dependencies = [
     "asyncpg>=0.32.0",
     "cryptography>=50.0.2",
-    "fastapi[standard]>=0.162.0",
-    "joserfc>=1.7.7",
-    "pydantic>=2.14.2",
+    "fastapi[standard]>=0.162.2",
+    "joserfc>=1.8.0",
+    "pillow>=13.0.0",
+    "pydantic>=2.14.3",
     "pydantic-settings>=2.16.2",
     "qstash>=3.4.0",
     "sigaa-client",
-    "sqlalchemy[asyncio]>=2.1.6",
+    "sqlalchemy[asyncio]>=2.1.8",
     "tzdata>=2026.6",
     "unb-browser",
     "upstash-ratelimit>=1.2.0",
-    "upstash-redis>=1.8.0",
+    "upstash-redis>=1.9.0",
 ]
 
 [tool.uv.sources]
@@ -32,7 +33,7 @@ db-init = "api.db.main:db_init"
 db-seed-professors = "api.db.seed.professors:main"
 
 [build-system]
-requires = ["uv_build>=0.13.6,<0.14.0"]
+requires = ["uv_build>=0.13.7,<0.14.0"]
 build-backend = "uv_build"
 
 [tool.ruff.format]
@@ -43,11 +44,11 @@ module-root = ""
 
 [dependency-groups]
 dev = [
-    "psycopg[binary]>=3.3.6",
+    "psycopg[binary]>=3.3.8",
     "pyjwt>=2.15.1",
     "pytest>=9.2.0",
     "pytest-asyncio>=1.4.1.post1",
     "respx>=0.23.1",
-    "ruff>=0.17.3",
+    "ruff>=0.17.4",
     "testcontainers[postgres]>=4.15.0",
 ]

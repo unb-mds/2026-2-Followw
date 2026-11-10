@@ -99,6 +99,19 @@ def photo_url(source: str | None) -> str | None:
     return None if url == NO_PICTURE_URL else url
 
 
+def institutional_email(email: str | None) -> str | None:
+    """E-mail institucional da UnB (`@unb.br` ou `@*.unb.br`), ou `None`."""
+    if not email:
+        return None
+    local, _, domain = email.strip().rpartition("@")
+    if not local:
+        return None
+    normalized_domain = domain.lower()
+    if normalized_domain == "unb.br" or normalized_domain.endswith(".unb.br"):
+        return email.strip()
+    return None
+
+
 def to_markdown(node: Tag) -> str | None:
     """HTML do editor do SIGAA -> markdown, sem estilos, `&nbsp;` nem parágrafos vazios."""
     copy = BeautifulSoup(str(node), "lxml")
