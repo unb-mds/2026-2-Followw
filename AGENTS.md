@@ -2,22 +2,18 @@
 
 ## Sobre
 
-O Followw UnB é um cliente alternativo open-source que reúne os sistemas da UnB, principalmente o
-SIGAA, em uma única API (independente) e um front-end.
+O Followw UnB reúne dados dos sistemas da UnB, principalmente o SIGAA, em uma API independente e
+um front-end, com cache para agilizar consultas.
 
-O projeto tem destaque para o acesso autenticado ao SIGAA, utilizando de cache e outras técnicas
-para facilitar a vida do estudante.
-
-Não há conta própria do Followw, o login é a própria conta do SIGAA, delegado ao CAS da UnB. A
-sessão nunca é persistida no nosso sistema (vive em cookies cifrados no cliente) e cada requisição é
-stateless.
+O login usa a conta do SIGAA via CAS da UnB, sem conta própria do Followw. A sessão vive em cookies
+cifrados no cliente; as requisições são stateless e a sessão não é persistida no servidor.
 
 ## Estrutura
 
 ```text
 apps/
   api/              # API pública (FastAPI)
-  web/              # Front-end web do Follow
+  web/              # Front-end web do Followw
 packages/
   sigaa-client/      # biblioteca async que fala com o SIGAA
   unb-browser/       # biblioteca async dos sites públicos da UnB fora do SIGAA

@@ -19,7 +19,7 @@ class SigaaLoginRequest(BaseModel):
     password: str = Field(min_length=6, max_length=64)
 
 
-@router.post("/sigaa")
+@router.post("/sigaa", summary="Entrar com a conta do SIGAA")
 async def sigaa_login(
     body: SigaaLoginRequest,
     response: Response,
@@ -38,19 +38,19 @@ async def sigaa_login(
 
 
 @router.post(
-    "/sigaa/refresh", status_code=status.HTTP_204_NO_CONTENT, responses=SIGAA_ERRORS
+    "/sigaa/refresh",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Renovar a sessão do SIGAA",
+    responses=SIGAA_ERRORS,
 )
 async def sigaa_refresh(
     connection: SigaaConnectionDep, db: DatabaseDep, queue: JobQueueDep
 ) -> None:
-    """Confere a senha se não houver access_token e agenda o sync do que venceu.
-
-    O cache sai só com o refresh_token, então o app chama esta rota ao abrir.
-    """
+    """Renova o acesso e solicita a atualização dos dados do usuário."""
     await start_account(connection, db, queue)
 
 
-@router.delete("/sigaa")
+@router.delete("/sigaa", summary="Sair do SIGAA")
 async def sigaa_logout(request: Request, response: Response):
     credentials = read_refresh_cookie(request)
     session_token = credentials and read_access_cookie(

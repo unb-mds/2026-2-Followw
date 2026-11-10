@@ -43,8 +43,9 @@ sincronização assíncrona inteligente.
 ## Diagramas da Arquitetura (Modelo C4)
 
 Os diagramas de arquitetura adotam o padrão de **Diagrams as Code** via **C4-PlantUML**, versionados
-como código em [`docs/diagrams/`](https://github.com/unb-mds/2026-2-Followw/tree/main/docs/diagrams) e renderizados em formato vetorial SVG localmente
-através do script [`scripts/generate_diagrams.py`](https://github.com/unb-mds/2026-2-Followw/blob/main/scripts/generate_diagrams.py).
+como código em [`docs/diagrams/`](https://github.com/unb-mds/2026-2-Followw/tree/main/docs/diagrams)
+e renderizados em formato vetorial SVG localmente através do script
+[`scripts/generate_diagrams.py`](https://github.com/unb-mds/2026-2-Followw/blob/main/scripts/generate_diagrams.py).
 
 ### Diagrama de Contexto do Sistema (Nível 1)
 
@@ -53,7 +54,8 @@ da universidade e serviços externos.
 
 ![Diagrama de Contexto - Followw UnB](assets/context.svg)
 
-> Código-fonte: [`docs/diagrams/context.puml`](https://github.com/unb-mds/2026-2-Followw/blob/main/docs/diagrams/context.puml)
+> Código-fonte:
+> [`docs/diagrams/context.puml`](https://github.com/unb-mds/2026-2-Followw/blob/main/docs/diagrams/context.puml)
 
 ---
 
@@ -64,7 +66,8 @@ componentes e serviços.
 
 ![Diagrama de Containers - Followw UnB](assets/container.svg)
 
-> Código-fonte: [`docs/diagrams/container.puml`](https://github.com/unb-mds/2026-2-Followw/blob/main/docs/diagrams/container.puml)
+> Código-fonte:
+> [`docs/diagrams/container.puml`](https://github.com/unb-mds/2026-2-Followw/blob/main/docs/diagrams/container.puml)
 
 ---
 
@@ -77,13 +80,15 @@ suas interações com as bibliotecas do monorepo e dados.
 
 ![Diagrama de Componentes do Frontend](assets/components_frontend.svg)
 
-> Código-fonte: [`docs/diagrams/components_frontend.puml`](https://github.com/unb-mds/2026-2-Followw/blob/main/docs/diagrams/components_frontend.puml)
+> Código-fonte:
+> [`docs/diagrams/components_frontend.puml`](https://github.com/unb-mds/2026-2-Followw/blob/main/docs/diagrams/components_frontend.puml)
 
 #### Componentes do Backend
 
 ![Diagrama de Componentes do Backend](assets/components_backend.svg)
 
-> Código-fonte: [`docs/diagrams/components_backend.puml`](https://github.com/unb-mds/2026-2-Followw/blob/main/docs/diagrams/components_backend.puml)
+> Código-fonte:
+> [`docs/diagrams/components_backend.puml`](https://github.com/unb-mds/2026-2-Followw/blob/main/docs/diagrams/components_backend.puml)
 
 ---
 
@@ -98,24 +103,26 @@ suas interações com as bibliotecas do monorepo e dados.
     - `access_token` (40 min): Sessão JSF ativa do SIGAA.
     - `refresh_token` (14 dias): Matrícula e senha encriptadas para renovação automática de sessão
       sem atrito para o usuário.
-- Para detalhes sobre ciclo de vida dos tokens, rotação de chaves e garantias criptográficas, disponível em [`docs/segurança.md`](segurança.md).
+- Para detalhes sobre ciclo de vida dos tokens, rotação de chaves e garantias criptográficas,
+  disponível em [`docs/seguranca.md`](seguranca.md).
 
 ### Proteção contra Abuso e Rate Limiting (Redis)
 
 - **Controle de Taxa Distribuído (`api/rate_limit.py`, `api/redis.py`)**: A API aplica limites de
-  requisição em memória via Upstash Redis (REST HTTP em produção e Redis 8 localmente) para conter abusos
-  e mitigar ataques de força bruta contra o CAS/SIGAA da UnB.
-- **Privacidade e Tolerância a Falhas**: Chaves de limitação usam hashes criptográficos anonimizados do IP
-  (sem dados pessoais ou cookies gravados no Redis) e operam em modelo tolerante a falhas (*fail-open*),
-  garantindo que indisponibilidades do Redis não interrompam o acesso dos alunos.
-- Para cotas de requisição, encaminhamento seguro de IP no SSR e configurações operacionais, disponível em [`docs/rate-limit.md`](rate-limit.md).
+  requisição em memória via Upstash Redis (REST HTTP em produção e Redis 8 localmente) para conter
+  abusos e mitigar ataques de força bruta contra o CAS/SIGAA da UnB.
+- **Privacidade e Tolerância a Falhas**: Chaves de limitação usam hashes criptográficos anonimizados
+  do IP (sem dados pessoais ou cookies gravados no Redis) e operam em modelo tolerante a falhas
+  (_fail-open_), garantindo que indisponibilidades do Redis não interrompam o acesso dos alunos.
+- Para cotas de requisição, encaminhamento seguro de IP no SSR e configurações operacionais,
+  disponível em [`docs/limite-de-requisicoes.md`](limite-de-requisicoes.md).
 
 ### Estratégia de Cache: Stale-While-Revalidate (SWR)
 
 - Chamadas a dados custosos do SIGAA utilizam o `Sync.resolve(tarefa, alvo, load)` (`api/sync/`):
-  dados válidos são servidos instantaneamente; dados expirados (*stale*) são servidos de imediato
-  enquanto uma revalidação assíncrona é enfileirada no QStash; e requisições sem cache consultam o SIGAA
-  diretamente com a sessão ativa.
+  dados válidos são servidos instantaneamente; dados expirados (_stale_) são servidos de imediato
+  enquanto uma revalidação assíncrona é enfileirada no QStash; e requisições sem cache consultam o
+  SIGAA diretamente com a sessão ativa.
 - Para a matriz completa de TTLs, diretivas `Cache-Control` do cliente e regras de sincronização,
   disponível em [`docs/cache-e-sincronizacao.md`](cache-e-sincronizacao.md).
 
@@ -131,20 +138,21 @@ suas interações com as bibliotecas do monorepo e dados.
 
 ### Orquestração de Background Jobs (QStash)
 
-- **Sessões Efêmeras e Desacoplamento**: Operações lentas de sincronização rodam em segundo plano via
-  Upstash QStash. Cada job transporta a credencial cifrada em Fernet, autentica em sessão própria e
-  efêmera no SIGAA, executa as tarefas agendadas e encerra a sessão, sem interferir na navegação do usuário.
-- Para detalhes de controle de fluxo (`parallelism`), retentativas e agendamento por turma, disponível em
-  [`docs/cache-e-sincronizacao.md`](cache-e-sincronizacao.md).
+- **Sessões Efêmeras e Desacoplamento**: Operações lentas de sincronização rodam em segundo plano
+  via Upstash QStash. Cada job transporta a credencial cifrada em Fernet, autentica em sessão
+  própria e efêmera no SIGAA, executa as tarefas agendadas e encerra a sessão, sem interferir na
+  navegação do usuário.
+- Para detalhes de controle de fluxo (`parallelism`), retentativas e agendamento por turma,
+  disponível em [`docs/cache-e-sincronizacao.md`](cache-e-sincronizacao.md).
 
 ### Arquitetura Offline-First e PWA (Frontend)
 
-- O frontend opera sem internet combinando duas camadas (`apps/web/src/integrations/offline/`):
-  o **Service Worker** (`vite-plugin-pwa` / Workbox) para precache de assets estáticos e navegação SSR (*network-first*),
-  e a persistência do **TanStack Query** no IndexedDB (`idb-keyval`) para manter dados acadêmicos salvos localmente
-  com invalidação automática quando o contrato da API muda.
-- Para ciclo de vida do Service Worker, estratégias de fallback de rotas e testes offline, disponível em
-  [`docs/offline.md`](offline.md).
+- O frontend opera sem internet combinando duas camadas (`apps/web/src/integrations/offline/`): o
+  **Service Worker** (`vite-plugin-pwa` / Workbox) para precache de assets estáticos e navegação SSR
+  (_network-first_), e a persistência do **TanStack Query** no IndexedDB (`idb-keyval`) para manter
+  dados acadêmicos salvos localmente com invalidação automática quando o contrato da API muda.
+- Para ciclo de vida do Service Worker, estratégias de fallback de rotas e testes offline,
+  disponível em [`docs/offline.md`](offline.md).
 
 ### Seed Estático de Dados Públicos e Regras do Calendário Acadêmico
 
@@ -159,13 +167,14 @@ suas interações com as bibliotecas do monorepo e dados.
 
 ### Observabilidade Estruturada e Privacidade por Design
 
-- **Logs Estruturados (`api/logger.py`)**: A API emite eventos em formato JSON por linha em `stderr`,
-  correlacionando todo o ciclo de vida das operações sob um identificador único (`request_id`) com medição
-  de tempo (`duration_ms`).
-- **Privacidade por Construção**: Uma allowlist estrita aceita exclusivamente metadados operacionais pré-definidos,
-  impedindo que credenciais, cookies, parâmetros de URL ou tracebacks com dados pessoais sejam logados.
-- Para o catálogo de eventos operacionais e especificações de monitoramento, disponível em 
-  [`docs/observability.md`](observability.md).
+- **Logs Estruturados (`api/logger.py`)**: A API emite eventos em formato JSON por linha em
+  `stderr`, correlacionando todo o ciclo de vida das operações sob um identificador único
+  (`request_id`) com medição de tempo (`duration_ms`).
+- **Privacidade por Construção**: Uma allowlist estrita aceita exclusivamente metadados operacionais
+  pré-definidos, impedindo que credenciais, cookies, parâmetros de URL ou tracebacks com dados
+  pessoais sejam logados.
+- Para o catálogo de eventos operacionais e especificações de monitoramento, disponível em
+  [`docs/observabilidade.md`](observabilidade.md).
 
 ---
 

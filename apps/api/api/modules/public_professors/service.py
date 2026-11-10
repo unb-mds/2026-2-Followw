@@ -33,7 +33,7 @@ class TaughtDiscipline(ProfessorDiscipline):
 class ProfessorDetails(ProfessorItem):
     description: str | None
     education: list[ProfessorDegree] = Field(
-        description="Titulações do currículo público do SIGAA, com os campos originais de curso, instituição e anos."
+        description="Titulações do currículo público do SIGAA."
     )
     interests: str | None
     lattes: str | None

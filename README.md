@@ -1,9 +1,9 @@
 # Followw UnB
 
-O Followw reúne o SIGAA e outros serviços da UnB em um aplicativo web para a rotina de estudantes. O
-cardápio do RU, a busca e os fluxos de cursos são públicos. Para acompanhar seus dados acadêmicos,
-você entra com a mesma matrícula e senha do SIGAA. Suas credenciais são criptografadas e ficam
-salvas apenas no seu navegador. [Saiba mais](docs/segurança.md)
+O Followw é open-source e reúne o SIGAA e outros serviços da UnB em um aplicativo web para
+estudantes. O cardápio do RU, a busca e os fluxos de cursos são públicos. Para acompanhar seus dados
+acadêmicos, você entra com a mesma matrícula e senha do SIGAA. Suas credenciais são criptografadas e
+ficam salvas apenas no seu navegador. [Saiba mais](docs/seguranca.md)
 
 > O Followw é independente e não possui vínculo oficial com a UnB ou com o SIGAA.
 
@@ -93,8 +93,10 @@ na raiz do repositório, salvo quando indicado.
     uv run api
     ```
 
-    A API fica em <http://localhost:8000> e sua documentação em <http://localhost:8000/docs>. O
-    `db-init` cria as tabelas e carrega os dados públicos iniciais.
+    A API fica em <http://localhost:8000> e a documentação local, gerada das suas rotas, em
+    <http://localhost:8000/docs> (em produção, redireciona para a
+    [documentação](https://docs.followw.app/)). O `db-init` cria as tabelas e carrega os dados
+    públicos iniciais.
 
 3. Em outro terminal, inicie a aplicação web:
 

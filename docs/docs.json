@@ -30,7 +30,7 @@
             "pages": [
               "arquitetura",
               "requisitos",
-              "segurança"
+              "seguranca"
             ]
           },
           {
@@ -38,9 +38,9 @@
             "pages": [
               "cache-e-sincronizacao",
               "offline",
-              "rate-limit",
-              "recommendations",
-              "observability",
+              "limite-de-requisicoes",
+              "recomendacoes",
+              "observabilidade",
               "AI-USAGE"
             ]
           },

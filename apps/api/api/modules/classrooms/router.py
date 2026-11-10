@@ -30,7 +30,7 @@ ClassroomId = Annotated[str, Path(description="Classroom.id ou Classroom.sigaa_i
 
 
 class LessonMark(BaseModel):
-    lesson_id: UUID = Field(description="Lesson.id de uma aula da turma.")
+    lesson_id: UUID = Field(description="ID da aula.")
     # `None` remove a marcação: a aula sem chamada não é uma marcação.
     status: (
         Literal[LessonStatus.PRESENTE, LessonStatus.FALTA, LessonStatus.CANCELADA]
@@ -48,7 +48,7 @@ def _unique_lessons(marks: list[LessonMark]) -> list[LessonMark]:
     "/{classroom_id}/posts",
     response_model=list[ClassroomPost],
     summary="Consultar posts de uma turma",
-    description="Notícias, tópicos, materiais e agenda de avaliações. Materiais referenciam o tópico por topic_id. Conteúdo de notícias é carregado no detalhe. Cache de 60 minutos nas turmas atuais; posts removidos são preservados.",
+    description="Notícias, tópicos, materiais e avaliações. Materiais se vinculam ao tópico por topic_id; texto e anexos das notícias ficam no detalhe.",
     responses={
         **CLASSROOM_ERRORS,
         503: {"description": "Cache em atualização."},
@@ -60,7 +60,7 @@ async def get_classroom_posts(
     classroom_id: ClassroomId,
     post_type: Annotated[
         PostType | None,
-        Query(alias="type", description="Filtrar por categoria do post."),
+        Query(alias="type", description="Categoria do post."),
     ] = None,
 ) -> list[ClassroomPost]:
     posts = await service.list_posts(classroom_id)
@@ -71,7 +71,7 @@ async def get_classroom_posts(
     "/{classroom_id}/posts/{post_id}",
     response_model=ClassroomPost,
     summary="Consultar um post da turma",
-    description="Use o id retornado na listagem. Notícias trazem texto em Markdown e anexos, salvos sob demanda; no-cache força revalidação. Avaliações não incluem notas individuais.",
+    description="Notícias incluem texto em Markdown e anexos; avaliações não incluem notas individuais.",
     responses={
         **CLASSROOM_ERRORS,
         404: {"description": "Turma ou post não encontrado."},
@@ -96,8 +96,7 @@ async def get_classroom_post(
 @router.get(
     "",
     response_model=list[ParticipantClassroom],
-    summary="Consultar as turmas do usuário autenticado",
-    description="Cada turma traz a menção do usuário em grade (null até ser lançada ou sincronizada). A menção é atualizada pelo sync do login e de /auth/sigaa/refresh.",
+    summary="Listar turmas do usuário",
     responses=SIGAA_ERRORS,
 )
 async def get_classrooms(
@@ -106,7 +105,7 @@ async def get_classrooms(
         str | None,
         Query(
             pattern=r"^(all|[0-9]{4}\.[0-9])$",
-            description="Sem filtro: turmas atuais. Use 'all' ou um semestre no formato AAAA.P, como 2026.2.",
+            description="Semestre das turmas; 'all' inclui todo o histórico.",
         ),
     ] = None,
 ) -> list[ParticipantClassroom]:
@@ -116,8 +115,7 @@ async def get_classrooms(
 @router.get(
     "/frequency",
     response_model=list[ClassroomFrequencyResult],
-    summary="Consultar frequência de todas as turmas atuais",
-    description="Turmas atuais com identificação e a mesma frequência da rota individual. Falha em uma turma retorna erro, sem omiti-la da lista.",
+    summary="Consultar frequência das turmas atuais",
     responses={**CLASSROOM_ERRORS, 503: {"description": "Cache em atualização."}},
 )
 async def get_current_frequencies(
@@ -130,7 +128,7 @@ async def get_current_frequencies(
     "/{classroom_id}/frequency",
     response_model=ClassroomFrequencyView,
     summary="Consultar frequência e andamento de uma turma",
-    description="Aceita Classroom.id (hash) ou sigaa_id numérico. frequency_status indica nao_registrada, parcialmente_registrada ou registrada nas entradas publicadas. lessons traz as aulas da turma (criadas pelo calendário e horário no sync das turmas, com start_time e end_time) já começadas, as publicadas pelo SIGAA fora delas e as com situação do aluno, mais recentes primeiro; totals soma as marcações aos totais do SIGAA.",
+    description="Aulas em ordem da mais recente para a mais antiga. Os totais incluem as marcações do aluno.",
     responses={**CLASSROOM_ERRORS, 503: {"description": "Cache em atualização."}},
 )
 async def get_classroom_frequency(
@@ -144,7 +142,7 @@ async def get_classroom_frequency(
     "/{classroom_id}/frequency/lessons",
     status_code=204,
     summary="Marcar presença, falta ou aula cancelada",
-    description="Aplica todas as marcações ou nenhuma. Vale enquanto o SIGAA não registra a aula: a chamada publicada substitui a marcação. status null remove a marcação, sem apagar a chamada do SIGAA. Aula repetida ou que ainda não começou retorna 422.",
+    description="Aplica todas as marcações ou nenhuma. A chamada do SIGAA substitui as marcações pessoais; status null remove uma marcação pessoal.",
     responses={
         **CLASSROOM_ERRORS,
         404: {"description": "Turma ou aula não encontrada."},
@@ -165,7 +163,7 @@ async def mark_lessons(
 @router.get(
     "/{classroom_id}/members",
     response_model=ClassroomMembers,
-    summary="Consultar docentes e discentes de uma turma do usuário",
+    summary="Listar participantes da turma",
     responses=CLASSROOM_ERRORS,
 )
 async def get_classroom_members(
@@ -178,8 +176,8 @@ async def get_classroom_members(
 @router.get(
     "/{classroom_id}/statistics",
     response_model=list[StatisticsShare],
-    summary="Consultar os resultados da própria turma",
-    description="Percentuais por situação da turma encerrada, sem agregação com outras turmas. Lista vazia quando não há resultados disponíveis.",
+    summary="Consultar resultados da turma",
+    description="Percentuais por situação dos alunos da turma encerrada.",
     responses={**CLASSROOM_ERRORS, 503: {"description": "Cache em atualização."}},
 )
 async def get_classroom_statistics(

@@ -18,7 +18,7 @@ router = APIRouter()
     "",
     response_model=SearchResult,
     summary="Buscar matérias, cursos e docentes",
-    description="Combina, numa só resposta, as buscas de `/public/subjects`, `/public/courses` e `/public/professors` (cursos e docentes na primeira página), sem ir ao SIGAA. Cada chave vem no formato do seu endpoint e é nula quando o tipo não foi pedido. Com login, as matérias trazem os dados da matriz do aluno.",
+    description="Reúne matérias e a primeira página de cursos e docentes. Com login, inclui os dados da matriz do aluno.",
     responses={422: {"description": "Texto ou tipo inválido, ou unidade inexistente."}},
 )
 async def search(
@@ -28,16 +28,16 @@ async def search(
     q: Annotated[
         SearchText,
         Query(
-            description="Termos de 3 a 32 caracteres; cada um precisa aparecer, ignorando acentos e maiúsculas.",
+            description="Termos da busca.",
         ),
     ],
     type: Annotated[
         list[SearchType] | None,
-        Query(description="Tipos buscados, repetindo o parâmetro. Sem ele, todos."),
+        Query(description="Tipos buscados; repita o parâmetro para selecionar vários."),
     ] = None,
     unit: Annotated[
         UnitFilter | None,
-        Query(description="ID ou código exato da unidade, aplicado a todos os tipos."),
+        Query(description="ID ou sigla da unidade, para todos os tipos."),
     ] = None,
 ) -> SearchResult:
     result = await service.search(q, type, unit, sync)

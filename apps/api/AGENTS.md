@@ -44,10 +44,9 @@ tests/                  # unit/ (sem Docker) e integration/<feature>/
 - **Repositories** recebem `AsyncSession` e não fazem commit (`Database.write` faz). Nunca persista
   credenciais; grave em lote (turmas têm milhares de participantes).
 - **Modelos** herdam `Base, UUIDPrimaryKeyMixin, TimestampMixin`, salvo os de chave natural
-  (`subjects`, `units`); enums gravam o `.value`. Sem migrations: `db-init` só cria o que falta
-  (alterar coluna exige recriar o banco) e semeia unidades, cursos, componentes e turmas pelos CSVs
-  de `packages/sigaa-client/data/`. O sync não sobrescreve a unidade semeada; curso com nome
-  repetido fica com o turno do perfil ou, sem ele, com o diurno.
+  (`subjects`, `units`); enums gravam o `.value`. Sem migrations: `db-init` cria tabelas ausentes e
+  semeia os CSVs de `packages/sigaa-client/data/`; alterar colunas exige recriar o banco. O sync
+  preserva a unidade semeada e resolve cursos homônimos pelo turno do perfil (diurno se ausente).
 - **Settings** é instanciado no import: env de teste vai antes do primeiro import de
   `api.core.config`.
 

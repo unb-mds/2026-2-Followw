@@ -12,8 +12,8 @@ router = APIRouter()
 @router.get(
     "/news",
     response_model=LatestNewsFeed,
-    summary="Consultar até cinco notícias recentes das turmas atuais",
-    description="Retorna imediatamente as notícias disponíveis no banco, com IDs e o conteúdo já salvo. Listas vencidas são sincronizadas num job por turma, sem bloquear a resposta; o conteúdo de cada notícia segue sob demanda pelo detalhe da postagem. updating indica listas pendentes. A identidade é o par turma e ID do post.",
+    summary="Consultar notícias recentes das turmas atuais",
+    description="Até cinco notícias. updating indica atualização pendente; texto e anexos completos ficam no detalhe do post.",
     responses=SIGAA_ERRORS,
 )
 async def get_latest_news(service: ClassroomPostsServiceDep) -> LatestNewsFeed:
@@ -23,8 +23,8 @@ async def get_latest_news(service: ClassroomPostsServiceDep) -> LatestNewsFeed:
 @router.get(
     "",
     response_model=list[DashboardPost],
-    summary="Consultar posts recentes das turmas na home do SIGAA",
-    description="Notícias recentes e avaliações agendadas das turmas atuais, sem cache. A home não traz IDs: o detalhe fica em /classrooms/{classroom_sigaa_id}/posts. Avaliação de disciplina não encontrada entre as turmas do portal vem com classroom_sigaa_id null.",
+    summary="Consultar posts da home do SIGAA",
+    description="Notícias e avaliações das turmas atuais. Consulte os detalhes em /classrooms/{classroom_sigaa_id}/posts.",
     responses=SIGAA_ERRORS,
     dependencies=[NoStore],
 )

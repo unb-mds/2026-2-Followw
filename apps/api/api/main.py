@@ -31,60 +31,57 @@ logging.getLogger("httpcore").setLevel(logging.WARNING)
 tags_metadata = [
     {
         "name": "Auth",
-        "description": "Autenticação via SIGAA/CAS da UnB e gerenciamento de sessão stateless por cookies.",
+        "description": "Login no SIGAA e sessão por cookies.",
     },
     {
         "name": "Classrooms",
-        "description": "Turmas do semestre e histórico, participantes, frequência e estatísticas de aprovação.",
+        "description": "Turmas, participantes, frequência e resultados acadêmicos.",
     },
     {
         "name": "Me",
-        "description": "Perfil acadêmico, extrato/saldo do RU e carteirinha do estudante autenticado.",
+        "description": "Perfil, configurações, documentos e acesso ao RU.",
     },
     {
         "name": "Public Classrooms",
         "x-displayName": "Classrooms",
-        "description": "Busca pública de turmas e unidades do SIGAA, sem autenticação.",
+        "description": "Turmas e unidades do SIGAA.",
     },
     {
         "name": "Public Courses",
         "x-displayName": "Courses",
-        "description": "Cursos cadastrados e seus currículos por semestre de ingresso, sem autenticação.",
+        "description": "Cursos e currículos por ingresso.",
     },
     {
         "name": "Public Professors",
         "x-displayName": "Professors",
-        "description": "Catálogo público de docentes do SIGAA, sem autenticação.",
+        "description": "Catálogo de docentes.",
     },
     {
         "name": "Public Restaurant",
         "x-displayName": "Restaurant",
-        "description": "Cardápio público do RU, sem autenticação.",
+        "description": "Cardápio do RU.",
     },
     {
         "name": "Public Search",
         "x-displayName": "Search",
-        "description": "Busca única de matérias, cursos e docentes, sem autenticação.",
+        "description": "Busca de matérias, cursos e docentes.",
     },
     {
         "name": "Public Subjects",
         "x-displayName": "Subjects",
-        "description": "Componentes curriculares de graduação e suas turmas, sem autenticação.",
+        "description": "Matérias de graduação e suas turmas.",
     },
     {
         "name": "Posts",
-        "description": "Notícias e avaliações recentes das turmas, consultadas diretamente na home do SIGAA.",
+        "description": "Notícias e avaliações das turmas.",
     },
 ]
 
 app = FastAPI(
     title="Followw UnB API",
     description=(
-        "Cliente alternativo e open-source para o ecossistema de sistemas da Universidade "
-        "de Brasília (UnB). Agrega em uma experiência unificada e performática dados do "
-        "SIGAA, Restaurante Universitário (RU) e calendário oficial, com autenticação "
-        "stateless delegada ao CAS da UnB, credenciais cifradas em cookies JWE (AES-256-GCM), "
-        "sincronização assíncrona inteligente e cache resiliente via Stale-While-Revalidate."
+        "API independente e open-source para consultar dados do SIGAA e de outros "
+        "sistemas da UnB. O acesso autenticado usa a conta do SIGAA, com sessão por cookies."
     ),
     version="0.1.0",
     root_path="/api",
