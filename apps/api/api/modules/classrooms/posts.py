@@ -1,6 +1,5 @@
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
-from uuid import UUID
 
 from fastapi import Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
@@ -22,7 +21,6 @@ from api.modules.classrooms.service import (
 from api.sync import Cached, Context, Item, SyncDep
 
 POSTS_LIST_TTL = timedelta(minutes=60)
-NEWS_CONTENT_TTL = timedelta(hours=1)
 LATEST_NEWS_LIMIT = 5
 
 
@@ -48,13 +46,24 @@ async def sync_posts(ctx: Context[OwnLink]) -> None:
     posts = await ctx.client.classrooms.list_classroom_posts(link.front_end_id)
     await ctx.sync.db.write(
         lambda session: PostsRepository(session).save_list(
-            link.row.classroom_id, posts, datetime.now(UTC)
+            link.row.classroom_id,
+            posts,
+            datetime.now(UTC),
+            refresh=ctx.sync.refresh_requested,
         )
     )
 
 
 async def sync_news_content(ctx: Context[Item]) -> None:
     link, news_id = ctx.target.link, ctx.target.id
+    if not ctx.sync.refresh_requested:
+        cached = await ctx.sync.db.read(
+            lambda session: PostsRepository(session).get(
+                link.row.classroom_id, f"news:{news_id}"
+            )
+        )
+        if cached is not None and cached.content_synced_at is not None:
+            return
     content = await ctx.client.classrooms.get_classroom_news(link.front_end_id, news_id)
     await ctx.sync.db.write(
         lambda session: PostsRepository(session).save_content(
@@ -77,12 +86,12 @@ class ClassroomPostsService:
             posts = await PostsRepository(session).latest_news(
                 by_id.keys(), LATEST_NEWS_LIMIT
             )
-            versions = (
-                await PostReadingRepository(session).versions(
+            read_ids = (
+                await PostReadingRepository(session).read_ids(
                     links[0].row.user_id, [post.id for post in posts]
                 )
                 if links
-                else {}
+                else set()
             )
             return [
                 ClassroomNews(
@@ -90,7 +99,7 @@ class ClassroomPostsService:
                     post=_to_post(
                         post,
                         by_id[post.classroom_id].row.classroom.sigaa_id,
-                        read_version=versions.get(post.id),
+                        is_read=post.id in read_ids,
                         detail=True,
                     ),
                 )
@@ -121,14 +130,12 @@ class ClassroomPostsService:
             posts = await PostsRepository(session).list_by_classroom(
                 link.row.classroom_id
             )
-            versions = await PostReadingRepository(session).versions(
+            read_ids = await PostReadingRepository(session).read_ids(
                 link.row.user_id, [post.id for post in posts]
             )
             return Cached(
                 [
-                    _to_post(
-                        item, classroom.sigaa_id, read_version=versions.get(item.id)
-                    )
+                    _to_post(item, classroom.sigaa_id, is_read=item.id in read_ids)
                     for item in posts
                 ],
                 classroom.posts_synced_at,
@@ -138,59 +145,54 @@ class ClassroomPostsService:
         return await self._sync.resolve(sync_posts, link, load)
 
     async def get_post(self, classroom_id: str, post_id: str) -> ClassroomPostView:
-        if not post_id.startswith("news:"):
-            posts = await self.list_posts(classroom_id)
-            post = next((post for post in posts if post.id == post_id), None)
-            if post is None:
-                raise HTTPException(404, "Classroom post not found")
-            return post
         link = await self._classrooms.get_link(classroom_id)
-        news_id = int(post_id.removeprefix("news:"))
 
         async def load(session: AsyncSession) -> Cached[ClassroomPostView] | None:
             item = await PostsRepository(session).get(link.row.classroom_id, post_id)
             if item is None or item.content_synced_at is None:
                 return None
-            versions = await PostReadingRepository(session).versions(
+            read_ids = await PostReadingRepository(session).read_ids(
                 link.row.user_id, [item.id]
             )
             return Cached(
                 _to_post(
                     item,
                     link.row.classroom.sigaa_id,
-                    read_version=versions.get(item.id),
+                    is_read=item.id in read_ids,
                     detail=True,
                 ),
                 item.content_synced_at,
-                freshness(
-                    item.content_synced_at,
-                    NEWS_CONTENT_TTL if link.row.current else None,
-                ),
+                Freshness.FRESH,
             )
 
-        return await self._sync.resolve(sync_news_content, Item(link, news_id), load)
+        if post_id.startswith("news:"):
+            news_id = int(post_id.removeprefix("news:"))
+            return await self._sync.resolve(
+                sync_news_content, Item(link, news_id), load, immutable=True
+            )
+        if await self._sync.db.read(load) is None:
+            posts = await self.list_posts(classroom_id)
+            post = next((post for post in posts if post.id == post_id), None)
+            if post is None:
+                raise HTTPException(404, "Classroom post not found")
+            return post
+        return await self._sync.resolve(sync_posts, link, load, immutable=True)
 
-    async def mark_read(
-        self, classroom_id: str, post_id: str, version: UUID | None
-    ) -> None:
+    async def mark_read(self, classroom_id: str, post_id: str, read: bool) -> None:
         link = await self._classrooms.get_link(classroom_id)
 
         async def write(session: AsyncSession) -> None:
-            post = await PostsRepository(session).get(
-                link.row.classroom_id, post_id, for_update=True
-            )
+            post = await PostsRepository(session).get(link.row.classroom_id, post_id)
             if post is None:
                 raise HTTPException(404, "Classroom post not found")
             repository = PostReadingRepository(session)
-            if version is None:
+            if not read:
                 await repository.unmark(link.row.user_id, post.id)
             else:
                 if post.content_synced_at is None:
                     raise HTTPException(
                         409, "Load the complete post before marking it read"
                     )
-                if post.version != version:
-                    raise HTTPException(409, "Post has changed; fetch it again")
                 await repository.mark(link.row.user_id, post)
 
         await self._sync.db.write(write)
@@ -200,13 +202,12 @@ def _to_post(
     item: ClassroomPosts,
     classroom_sigaa_id: int | None,
     *,
-    read_version: UUID | None = None,
+    is_read: bool = False,
     detail: bool = False,
 ) -> ClassroomPostView:
     include_content = detail or item.type != PostType.NEWS
     return ClassroomPostView(
-        version=item.version if item.content_synced_at is not None else None,
-        is_read=read_version is not None and read_version == item.version,
+        is_read=is_read,
         id=item.source_id,
         type=item.type,
         sigaa_id=item.sigaa_id,

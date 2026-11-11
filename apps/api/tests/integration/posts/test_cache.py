@@ -3,8 +3,10 @@ from datetime import UTC, date, datetime, timedelta
 import pytest
 from pydantic import SecretStr
 from sigaa_client import (
+    ClassroomPost,
     Credentials,
     NewsNotFound,
+    PostType,
     SigaaParseError,
 )
 from sqlalchemy import select
@@ -103,14 +105,15 @@ def test_atualizar_lista_preserva_conteudo_e_noticias_removidas(
         assert len(list(session.scalars(select(ClassroomPosts)))) == 1
 
 
+@pytest.mark.parametrize("current", [True, False])
 @pytest.mark.parametrize("content", [None, "", "Texto"])
-def test_conteudo_historico_nao_expira_inclusive_quando_vazio(
-    client, cookies, posts_sigaa, database, qstash, content
+def test_conteudo_nao_expira_inclusive_quando_vazio(
+    client, cookies, posts_sigaa, database, qstash, content, current
 ):
     client.cookies.update(cookies(refresh=CREDENTIALS))
     posts_sigaa.classrooms.list_classrooms.return_value = [
         posts_sigaa.classrooms.list_classrooms.return_value[0].model_copy(
-            update={"current": False}
+            update={"current": current}
         )
     ]
     fetch = posts_sigaa.classrooms.get_classroom_news
@@ -200,19 +203,77 @@ def test_lista_nao_busca_conteudo_ate_primeira_abertura(client, cookies, posts_s
     posts_sigaa.classrooms.get_classroom_news.assert_awaited_once()
 
 
-def test_conteudo_atual_vence_e_atualiza_em_segundo_plano(
-    client, cookies, posts_sigaa, database, qstash
+@pytest.mark.parametrize("headers", [{}, {"Cache-Control": "max-age=0"}])
+def test_conteudo_antigo_nao_e_buscado_novamente(
+    client, cookies, posts_sigaa, database, qstash, headers
 ):
     client.cookies.update(cookies(refresh=CREDENTIALS))
     original = client.get(DETAIL_PATH).json()
     with database() as session:
         item = session.scalar(select(ClassroomPosts))
-        item.content_synced_at = datetime.now(UTC) - timedelta(minutes=61)
+        item.content_synced_at = datetime.now(UTC) - timedelta(days=365)
         session.commit()
-    fetch = posts_sigaa.classrooms.get_classroom_news
-    fetch.return_value = fetch.return_value.model_copy(update={"content": "Novo texto"})
-    assert client.get(DETAIL_PATH).json() == original
-    assert len(qstash.published) == 1
-    assert qstash.deliveries[0].status_code == 204
-    assert client.get(DETAIL_PATH).json()["content"] == "Novo texto"
-    assert fetch.await_count == 2
+    posts_sigaa.created.reset_mock()
+    assert client.get(DETAIL_PATH, headers=headers).json() == original
+    assert qstash.published == []
+    posts_sigaa.classrooms.get_classroom_news.assert_awaited_once()
+    posts_sigaa.created.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("post_type", "post_id"),
+    [
+        (PostType.NEWS, "news:1"),
+        (PostType.TOPIC, "topic:" + "a" * 64),
+        (PostType.MATERIAL, "material:" + "b" * 64),
+        (PostType.ASSESSMENT, "assessment:1"),
+    ],
+)
+def test_lista_vencida_descobre_posts_sem_sobrescrever_conteudo(
+    reading_client, posts_sigaa, database, post_type, post_id
+):
+    client = reading_client
+    fetch = posts_sigaa.classrooms.list_classroom_posts
+    original = ClassroomPost(id=post_id, type=post_type, title="Aviso", content="Texto")
+    fetch.return_value = [original]
+    path = f"/classrooms/AAA/posts/{post_id}"
+    saved = client.get(path).json()
+    with database() as session:
+        classroom = session.scalar(select(DBClassroom))
+        classroom.posts_synced_at = datetime.now(UTC) - timedelta(minutes=61)
+        session.commit()
+    fetch.return_value = [
+        original.model_copy(update={"title": "Editado", "content": "Editado"}),
+        _post(id=2, title="Nova notícia", published_on=date(2026, 9, 25)),
+    ]
+    assert client.get(path).json() == saved
+    count = fetch.await_count
+    client.get("/classrooms/AAA/posts")
+    assert fetch.await_count == count + 1
+    assert client.get(path).json() == saved
+    assert {post["id"] for post in client.get("/classrooms/AAA/posts").json()} == {
+        post_id,
+        "news:2",
+    }
+
+
+def test_job_de_conteudo_ignora_noticia_ja_carregada(
+    reading_client, posts_sigaa, qstash
+):
+    from api.sync.queue import JOBS_URL, encode_job
+
+    client = reading_client
+    assert client.get(DETAIL_PATH).status_code == 200
+    job = Job(
+        credentials=CREDENTIALS,
+        classroom_id="AAA",
+        steps=(Step.of(sync_news_content, 1),),
+    )
+    body = encode_job(job)
+    response = client.post(
+        "/jobs",
+        content=body,
+        headers={"Upstash-Signature": qstash.sign(JOBS_URL, body)},
+    )
+    assert response.status_code == 204
+    posts_sigaa.classrooms.get_classroom_news.assert_awaited_once()

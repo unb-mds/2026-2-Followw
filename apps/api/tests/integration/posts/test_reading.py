@@ -1,5 +1,3 @@
-from uuid import uuid4
-
 import pytest
 from pydantic import SecretStr
 from sigaa_client import ClassroomPost, Credentials, PostType
@@ -14,10 +12,10 @@ def test_consultar_lista_detalhe_e_feed_nao_confirma_leitura(reading_client):
     client = reading_client
     listed = client.get("/classrooms/AAA/posts").json()[0]
     assert listed["is_read"] is False
-    assert listed["version"] is None
+    assert "version" not in listed
     for _ in range(2):
         detail = client.get(DETAIL_PATH).json()
-        assert detail["version"] is not None
+        assert "version" not in detail
         assert detail["is_read"] is False
         assert client.get("/classrooms/AAA/posts").json()[0]["is_read"] is False
         assert client.get("/posts/news").json()["items"][0]["post"]["is_read"] is False
@@ -35,7 +33,6 @@ def test_confirma_e_desfaz_leitura_nas_tres_consultas(reading_client, database):
     feed = client.get("/posts/news").json()["items"][0]["post"]
     for item in (detail, listed, feed):
         assert item["is_read"] is True
-        assert item["version"] == post["version"]
     with database() as session:
         assert len(list(session.scalars(select(ClassroomPostRead)))) == 1
     for _ in range(2):
@@ -89,7 +86,8 @@ def test_mesmo_id_em_outra_turma_tem_leitura_independente(reading_client, posts_
     assert mark_read(client, post).status_code == 204
     other_path = "/classrooms/BBB/posts/news:1"
     assert client.get(other_path).json()["is_read"] is False
-    assert mark_read(client, post, "BBB").status_code == 409
+    assert mark_read(client, post, "BBB").status_code == 204
+    assert client.delete(f"{other_path}/read").status_code == 204
     assert client.get(DETAIL_PATH).json()["is_read"] is True
 
 
@@ -133,9 +131,6 @@ def test_troca_de_curso_preserva_leituras_ao_absorver_usuario_sombra(
                 ClassroomPostRead(
                     user_id=shadow.id,
                     post_id=post.id,
-                    version=post.version
-                    if post.source_id == "assessment:1"
-                    else uuid4(),
                 )
             )
         session.commit()
@@ -162,11 +157,8 @@ def test_noticia_sem_conteudo_carregado_nao_pode_ser_marcada(
     reading_client, posts_sigaa
 ):
     client = reading_client
-    assert client.get("/classrooms/AAA/posts").json()[0]["version"] is None
-    assert (
-        client.put(f"{DETAIL_PATH}/read", json={"version": str(uuid4())}).status_code
-        == 409
-    )
+    assert client.get("/classrooms/AAA/posts").json()[0]["content"] is None
+    assert client.put(f"{DETAIL_PATH}/read").status_code == 409
     posts_sigaa.classrooms.get_classroom_news.assert_not_awaited()
 
 
@@ -184,13 +176,9 @@ def test_noticia_com_conteudo_vazio_carregado_pode_ser_lida(
 @pytest.mark.parametrize("method", ["put", "delete"])
 def test_alterar_leitura_recusa_turma_sem_vinculo(reading_client, method):
     client = reading_client
-    post = client.get(DETAIL_PATH).json()
-    kwargs = {"json": {"version": post["version"]}} if method == "put" else {}
+    client.get(DETAIL_PATH)
     assert (
-        client.request(
-            method, "/classrooms/OUTRA/posts/news:1/read", **kwargs
-        ).status_code
-        == 404
+        client.request(method, "/classrooms/OUTRA/posts/news:1/read").status_code == 404
     )
 
 
@@ -198,10 +186,6 @@ def test_alterar_leitura_recusa_turma_sem_vinculo(reading_client, method):
 def test_alterar_leitura_recusa_post_ausente(reading_client, method):
     client = reading_client
     client.get("/classrooms/AAA/posts")
-    kwargs = {"json": {"version": str(uuid4())}} if method == "put" else {}
     assert (
-        client.request(
-            method, "/classrooms/AAA/posts/news:999/read", **kwargs
-        ).status_code
-        == 404
+        client.request(method, "/classrooms/AAA/posts/news:999/read").status_code == 404
     )

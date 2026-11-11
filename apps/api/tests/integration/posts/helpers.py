@@ -24,5 +24,4 @@ def _post(**kwargs):
 def mark_read(client, post, classroom_id="AAA"):
     return client.put(
         f"/classrooms/{classroom_id}/posts/{post['id']}/read",
-        json={"version": post["version"]},
     )

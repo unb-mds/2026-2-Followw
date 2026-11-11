@@ -153,10 +153,9 @@ def test_posts_unificam_categorias_e_material_referencia_topico(
     for post in (topic, material, assessment):
         detail = client.get(f"/classrooms/AAA/posts/{post.id}")
         assert detail.status_code == 200
-        assert detail.json()["version"] is not None
         assert detail.json()["is_read"] is False
         assert {
-            k: v for k, v in detail.json().items() if k not in {"version", "is_read"}
+            k: v for k, v in detail.json().items() if k != "is_read"
         } == post.model_copy(update={"classroom_sigaa_id": 123}).model_dump(mode="json")
     assert fetch.await_count == 1
     assert (

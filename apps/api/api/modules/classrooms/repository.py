@@ -35,7 +35,6 @@ from api.modules.classrooms.lessons import (
     lesson_order,
     positioned,
 )
-from api.modules.classrooms.post_reading import post_content
 
 # Vínculo com turma e componente, no mesmo join que os filtros usam.
 _OWN = (
@@ -533,6 +532,8 @@ class PostsRepository:
         classroom_id: UUID,
         posts: Sequence[sigaa_client.ClassroomPost],
         synced_at: datetime,
+        *,
+        refresh: bool = False,
     ) -> None:
         existing = {
             item.source_id: item
@@ -550,7 +551,8 @@ class PostsRepository:
                     )
                     self._session.add(cached)
                     existing[item.id] = cached
-                previous = post_content(cached)
+                elif cached.content_synced_at is not None and not refresh:
+                    continue
                 cached.type = item.type
                 cached.sigaa_id = item.sigaa_id
                 cached.topic_id = item.topic_id
@@ -558,8 +560,6 @@ class PostsRepository:
                 cached.published_on = item.published_on
                 if item.type != sigaa_client.PostType.NEWS:
                     self._save_content(cached, item, synced_at)
-                if previous != post_content(cached):
-                    cached.version = uuid4()
             await self._session.flush()
         # A lista pode estar vazia; posts antigos e seus conteúdos são preservados.
         classroom = await self._session.get_one(Classroom, classroom_id)
@@ -574,14 +574,11 @@ class PostsRepository:
         if cached is None:
             cached = ClassroomPosts(classroom_id=classroom_id, source_id=post.id)
             self._session.add(cached)
-        previous = post_content(cached)
         cached.type = post.type
         cached.sigaa_id = post.sigaa_id
         cached.title = post.title
         cached.published_on = post.published_on
         self._save_content(cached, post, synced_at)
-        if previous != post_content(cached):
-            cached.version = uuid4()
         await self._session.flush()
 
     @staticmethod

@@ -11,52 +11,28 @@ from api.db.models import ClassroomPostRead, ClassroomPosts
 
 
 class ClassroomPostView(ClassroomPost):
-    version: UUID | None = Field(
-        description="Versão a confirmar como lida; null enquanto o conteúdo não foi carregado."
-    )
-    is_read: bool = Field(description="O usuário leu a versão atual da postagem.")
-
-
-def post_content(post: ClassroomPosts) -> tuple[object, ...]:
-    """Campos cuja alteração exige nova leitura; sincronização e publicação não contam."""
-    return (
-        post.title,
-        post.content,
-        post.attachments,
-        post.url,
-        post.starts_on,
-        post.ends_on,
-        post.starts_at,
-        post.time_label,
-    )
+    is_read: bool = Field(description="O usuário confirmou a leitura da postagem.")
 
 
 class PostReadingRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def versions(
-        self, user_id: UUID, post_ids: Collection[UUID]
-    ) -> dict[UUID, UUID]:
+    async def read_ids(self, user_id: UUID, post_ids: Collection[UUID]) -> set[UUID]:
         if not post_ids:
-            return {}
-        rows = await self._session.execute(
-            select(ClassroomPostRead.post_id, ClassroomPostRead.version).where(
+            return set()
+        rows = await self._session.scalars(
+            select(ClassroomPostRead.post_id).where(
                 ClassroomPostRead.user_id == user_id,
                 ClassroomPostRead.post_id.in_(post_ids),
             )
         )
-        return {post_id: version for post_id, version in rows}
+        return set(rows)
 
     async def mark(self, user_id: UUID, post: ClassroomPosts) -> None:
-        stmt = insert(ClassroomPostRead).values(
-            user_id=user_id, post_id=post.id, version=post.version
-        )
+        stmt = insert(ClassroomPostRead).values(user_id=user_id, post_id=post.id)
         await self._session.execute(
-            stmt.on_conflict_do_update(
-                constraint="uq_classroom_post_read",
-                set_={"version": stmt.excluded.version},
-            )
+            stmt.on_conflict_do_nothing(constraint="uq_classroom_post_read")
         )
 
     async def unmark(self, user_id: UUID, post_id: UUID) -> None:

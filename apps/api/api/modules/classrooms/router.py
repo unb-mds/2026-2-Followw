@@ -37,10 +37,6 @@ PostId = Annotated[
 ]
 
 
-class PostReadMark(BaseModel):
-    version: UUID = Field(description="Versão recebida ao consultar a postagem.")
-
-
 class LessonMark(BaseModel):
     lesson_id: UUID = Field(description="ID da aula.")
     # `None` remove a marcação: a aula sem chamada não é uma marcação.
@@ -102,13 +98,13 @@ async def get_classroom_post(
 @router.put(
     "/{classroom_id}/posts/{post_id}/read",
     status_code=204,
-    summary="Confirmar a leitura de uma versão da postagem",
-    description="Operação individual e idempotente. Exige conteúdo completo já carregado e a versão atual do cache. Consultar uma postagem não a marca como lida.",
+    summary="Confirmar a leitura de uma postagem",
+    description="Operação individual, idempotente e sem corpo. Exige conteúdo completo já carregado. Consultar ou atualizar uma postagem não altera sua leitura.",
     responses={
         **CLASSROOM_ERRORS,
         404: {"description": "Turma ou post não encontrado."},
         409: {
-            "description": "Conteúdo ainda não carregado ou versão alterada; consulte o detalhe novamente."
+            "description": "Conteúdo ainda não carregado; consulte o detalhe primeiro."
         },
     },
     dependencies=[NoStore],
@@ -118,9 +114,8 @@ async def mark_post_read(
     response: Response,
     classroom_id: ClassroomId,
     post_id: PostId,
-    body: PostReadMark,
 ) -> None:
-    await service.mark_read(classroom_id, post_id, body.version)
+    await service.mark_read(classroom_id, post_id, True)
     no_store(response)
 
 
@@ -141,7 +136,7 @@ async def mark_post_unread(
     classroom_id: ClassroomId,
     post_id: PostId,
 ) -> None:
-    await service.mark_read(classroom_id, post_id, None)
+    await service.mark_read(classroom_id, post_id, False)
     no_store(response)
 
 

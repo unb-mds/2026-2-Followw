@@ -389,7 +389,6 @@ class ClassroomPosts(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     content: Mapped[str | None] = mapped_column(Text)
     attachments: Mapped[list[dict[str, str]]] = mapped_column(JSONB, default=list)
     content_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    version: Mapped[uuid.UUID] = mapped_column(default=uuid.uuid4)
 
 
 class ClassroomPostRead(Base, UUIDPrimaryKeyMixin, TimestampMixin):
@@ -404,7 +403,6 @@ class ClassroomPostRead(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     post_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("classroom_posts.id", ondelete="CASCADE"), index=True
     )
-    version: Mapped[uuid.UUID] = mapped_column()
 
 
 class RestaurantMenu(Base, UUIDPrimaryKeyMixin, TimestampMixin):
