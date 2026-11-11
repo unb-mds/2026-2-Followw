@@ -2,14 +2,15 @@ from datetime import date, timedelta
 from typing import Annotated, Literal, Self
 
 from fastapi import APIRouter, Query
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, PrivateAttr, model_validator
 from unb_browser import Campus, DailyMenu
 
 from api.cache import CacheControlDep
+from api.modules.public_restaurant import service as restaurant
 from api.modules.public_restaurant.service import (
+    FIRST_MENU_DAY,
     Meal,
     RestaurantServiceDep,
-    menu_window,
 )
 
 router = APIRouter()
@@ -32,6 +33,7 @@ class MenuQuery(BaseModel):
         None,
         description="Refeição desejada; null quando não publicada no dia.",
     )
+    _dates: tuple[date, date] = PrivateAttr()
 
     @model_validator(mode="after")
     def _interval(self) -> Self:
@@ -39,16 +41,25 @@ class MenuQuery(BaseModel):
             self.start_date is not None or self.end_date is not None
         ):
             raise ValueError("Use date or start_date/end_date, not both")
-        first, last = menu_window()
-        for value in (self.day, self.start_date, self.end_date):
-            if value is not None and not first <= value <= last:
-                raise ValueError(f"Dates must be between {first} and {last}")
-        if self.start_date is None or self.end_date is None:
-            return self
-        if self.start_date > self.end_date:
+        current = restaurant.today()
+        monday = current - timedelta(days=current.weekday())
+        last = monday + timedelta(days=13)
+        dates = (self.day, self.start_date, self.end_date)
+        if any(day is not None and not FIRST_MENU_DAY <= day <= last for day in dates):
+            raise ValueError(f"Dates must be between {FIRST_MENU_DAY} and {last}")
+        start = (
+            self.day
+            or self.start_date
+            or (self.end_date - timedelta(days=6) if self.end_date else monday)
+        )
+        end = self.day or self.end_date or (start + timedelta(days=6))
+        if not all(FIRST_MENU_DAY <= day <= last for day in (start, end)):
+            raise ValueError(f"Dates must be between {FIRST_MENU_DAY} and {last}")
+        if start > end:
             raise ValueError("start_date must not be after end_date")
-        if self.end_date - self.start_date >= timedelta(days=_MAX_DAYS):
+        if end - start >= timedelta(days=_MAX_DAYS):
             raise ValueError(f"The interval must have at most {_MAX_DAYS} days")
+        self._dates = start, end
         return self
 
 
@@ -64,11 +75,11 @@ async def get_menu(
     cache: CacheControlDep,
     query: Annotated[MenuQuery, Query()],
 ) -> tuple[DailyMenu, ...]:
+    start, end = query._dates
     return await service.get_menu(
         _CAMPUSES[query.campus],
         cache,
-        day=query.day,
-        start_date=query.start_date,
-        end_date=query.end_date,
+        start_date=start,
+        end_date=end,
         meal=query.meal,
     )

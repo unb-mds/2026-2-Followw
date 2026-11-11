@@ -582,6 +582,10 @@ def test_filtros_de_data_invalidos_retornam_422(api, browser, subtests):
         {"date": "2026-10-05"},
         {"start_date": "2026-10-01", "end_date": "2026-10-05"},
         {"end_date": "2026-10-05"},
+        {"start_date": "2026-10-04"},
+        {"end_date": "2026-09-14"},
+        {"start_date": "9999-12-31"},
+        {"end_date": "0001-01-01"},
         {"date": "2026-09-25", "start_date": "2026-09-24"},
         {"date": "2026-09-25", "end_date": "2026-09-26"},
     ]:

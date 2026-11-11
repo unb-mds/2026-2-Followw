@@ -1,4 +1,4 @@
-import logo from '#/../public/favicon.svg?raw';
+import logo from '#/assets/followw.svg?raw';
 import { cn } from '#/lib/shadcn';
 
 const src = `data:image/svg+xml,${encodeURIComponent(logo)}`;

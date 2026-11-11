@@ -1,17 +1,24 @@
 import type { Middleware } from 'openapi-fetch';
 
-import { QueryClientProvider, noop, onlineManager } from '@tanstack/react-query';
+import { QueryClientProvider, noop, onlineManager, useQuery } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
 import { posthog } from 'posthog-js';
 import { createElement, type ReactNode } from 'react';
 
 import type { components } from '#/queries/schema.gen.ts';
 
+import {
+    bindOfflineSession,
+    changeOfflineSession,
+    isCurrentOfflineSession,
+    OFFLINE_SESSION_STORAGE_KEY
+} from '#/integrations/offline/session';
 import { getContext } from '#/integrations/tanstack-query/root-provider.tsx';
 import {
     SessionNotStoredError,
     clearSession,
     startSession,
+    useLogin,
     useLogout,
     useSessionRefresh
 } from '#/queries/auth.ts';
@@ -166,7 +173,7 @@ describe('startSession', () => {
         queryClient.setQueryData(meQueryOptions.queryKey, null);
         respond(() => Response.json(user));
 
-        expect(await startSession(queryClient)).toEqual(user);
+        expect(await startSession(queryClient, user.registration)).toEqual(user);
         expect(queryClient.getQueryData(meQueryOptions.queryKey)).toEqual(user);
     });
 
@@ -197,7 +204,7 @@ describe('startSession', () => {
         const stale = queryClient.query({ ...meQueryOptions, staleTime: 0 }).catch(noop);
         await started;
 
-        expect(await startSession(queryClient)).toEqual(user);
+        expect(await startSession(queryClient, user.registration)).toEqual(user);
         await stale;
         expect(queryClient.getQueryData(meQueryOptions.queryKey)).toEqual(user);
     });
@@ -206,7 +213,9 @@ describe('startSession', () => {
         const { queryClient } = getContext();
         respond(() => new ApiError(401, 'Not authenticated'));
 
-        const error = await startSession(queryClient).catch((reason: unknown) => reason);
+        const error = await startSession(queryClient, user.registration).catch(
+            (reason: unknown) => reason
+        );
         expect(error).toBeInstanceOf(SessionNotStoredError);
     });
 
@@ -214,7 +223,9 @@ describe('startSession', () => {
         const { queryClient } = getContext();
         respond(() => new ApiError(502, 'SIGAA is unavailable'));
 
-        const error = await startSession(queryClient).catch((reason: unknown) => reason);
+        const error = await startSession(queryClient, user.registration).catch(
+            (reason: unknown) => reason
+        );
         expect(error).toMatchObject({ status: 502 });
     });
 });
@@ -242,6 +253,7 @@ describe('hooks de sessão', () => {
     afterEach(() => {
         dom.testing.cleanup();
         apiClient.eject(middleware);
+        localStorage.removeItem(OFFLINE_SESSION_STORAGE_KEY);
         onlineManager.setOnline(true);
     });
 
@@ -255,6 +267,58 @@ describe('hooks de sessão', () => {
     }
 
     const paths = () => requests.map((r) => `${r.method} ${new URL(r.url).pathname}`);
+
+    test('401 do perfil limpa a sessão offline e resolve como visitante', async () => {
+        const session = changeOfflineSession(user.registration);
+        const { queryClient } = getContext();
+        queryClient.setQueryData(meQueryOptions.queryKey, user);
+        queryClient.setQueryData(classroomsQueryOptions.queryKey, []);
+        response = () => new ApiError(401, 'Sessão expirada');
+
+        expect(await queryClient.query({ ...meQueryOptions, staleTime: 0 })).toBeNull();
+        expect(isCurrentOfflineSession(session)).toBe(false);
+        expect(queryClient.getQueryData(classroomsQueryOptions.queryKey)).toBeUndefined();
+    });
+
+    test('401 atrasado do perfil preserva a nova sessão em outra aba', async () => {
+        changeOfflineSession(user.registration);
+        const { queryClient } = getContext();
+        const started = Promise.withResolvers<void>();
+        const pending = Promise.withResolvers<Response>();
+        const delayed: Middleware = {
+            onRequest: () => {
+                started.resolve();
+                return pending.promise;
+            }
+        };
+        apiClient.eject(middleware);
+        apiClient.use(delayed);
+        try {
+            const profile = queryClient.query(meQueryOptions);
+            await started.promise;
+            const next = changeOfflineSession('251000099');
+            pending.reject(new ApiError(401, 'Sessão expirada'));
+
+            expect(await profile).toBeNull();
+            expect(isCurrentOfflineSession(next)).toBe(true);
+        } finally {
+            apiClient.eject(delayed);
+        }
+    });
+
+    test('perfil anônimo do SSR reconfirma a sessão offline no navegador', async () => {
+        const session = changeOfflineSession(user.registration);
+        const { queryClient } = getContext();
+        queryClient.setQueryData(meQueryOptions.queryKey, null);
+        response = () => new ApiError(401, 'Sessão expirada');
+        const wrapper = ({ children }: { children: ReactNode }) =>
+            createElement(QueryClientProvider, { client: queryClient }, children);
+
+        dom.testing.renderHook(() => useSessionRefresh(), { wrapper });
+
+        await dom.testing.waitFor(() => expect(isCurrentOfflineSession(session)).toBe(false));
+        expect(paths()).toEqual(['GET /api/me']);
+    });
 
     test('logout encerra na API, limpa a conta e avisa quem chamou', async () => {
         const reset = spyOn(posthog, 'reset').mockImplementation(noop);
@@ -281,6 +345,71 @@ describe('hooks de sessão', () => {
         expect(queryClient.getQueryData(meQueryOptions.queryKey)).not.toBeNull();
     });
 
+    test('credenciais rejeitadas não invalidam a sessão aberta em outra aba', async () => {
+        const session = changeOfflineSession(user.registration);
+        response = () => new ApiError(401, 'Senha inválida');
+        const { result } = renderHook(() => useLogin());
+
+        await dom.testing.act(() =>
+            result.current
+                .mutateAsync({ body: { registration: user.registration, password: 'errada' } })
+                .catch(noop)
+        );
+        await dom.testing.waitFor(() =>
+            expect(result.current.error).toMatchObject({ status: 401 })
+        );
+        expect(isCurrentOfflineSession(session)).toBe(true);
+    });
+
+    test('entrar novamente com a mesma conta invalida a sessão offline anterior', () => {
+        const oldSession = changeOfflineSession(user.registration);
+        expect(bindOfflineSession(user.registration)).toEqual(oldSession);
+        changeOfflineSession(null);
+        const newSession = changeOfflineSession(user.registration);
+        expect(isCurrentOfflineSession(oldSession)).toBe(false);
+        expect(isCurrentOfflineSession(newSession)).toBe(true);
+    });
+
+    test('logout que falha retoma a leitura privada cancelada', async () => {
+        response = () => new ApiError(503, 'Indisponível');
+        let reads = 0;
+        const { result } = renderHook(() => {
+            const data = useQuery({
+                queryKey: classroomsQueryOptions.queryKey,
+                queryFn: ({ signal }) => {
+                    if (++reads > 1) return Promise.resolve([]);
+                    return new Promise((_, reject) => {
+                        signal.addEventListener('abort', () => reject(signal.reason), {
+                            once: true
+                        });
+                    });
+                }
+            });
+            return { data, logout: useLogout() };
+        });
+        await dom.testing.waitFor(() => expect(reads).toBe(1));
+
+        await dom.testing.act(() => result.current.logout.mutateAsync({}).catch(noop));
+        await dom.testing.waitFor(() => expect(result.current.data.data).toEqual([]));
+        expect(reads).toBe(2);
+    });
+
+    test('troca de sessão em outra aba limpa o perfil e as turmas em memória', () => {
+        const { queryClient } = renderHook(() => useSessionRefresh(), '251000005');
+        queryClient.setQueryData(classroomsQueryOptions.queryKey, []);
+        dom.testing.act(() => {
+            window.dispatchEvent(
+                new window.StorageEvent('storage', {
+                    key: OFFLINE_SESSION_STORAGE_KEY,
+                    oldValue: 'sessão anterior',
+                    newValue: 'sessão nova'
+                })
+            );
+        });
+        expect(queryClient.getQueryData(meQueryOptions.queryKey)).toBeNull();
+        expect(queryClient.getQueryData(classroomsQueryOptions.queryKey)).toBeUndefined();
+    });
+
     // a renovação é lembrada por matrícula no módulo: cada teste usa uma
     test('renova a sessão uma vez por matrícula', async () => {
         const { rerender, unmount } = renderHook(() => useSessionRefresh(), '251000001');
@@ -290,6 +419,19 @@ describe('hooks de sessão', () => {
 
         await dom.testing.waitFor(() => expect(requests).toHaveLength(1));
         expect(paths()).toEqual(['POST /api/auth/sigaa/refresh']);
+    });
+
+    test('renova de novo após sair e entrar com a mesma matrícula', async () => {
+        const registration = '251000006';
+        const { queryClient, unmount } = renderHook(() => useSessionRefresh(), registration);
+        await dom.testing.waitFor(() => expect(requests).toHaveLength(1));
+        unmount();
+        await clearSession(queryClient);
+
+        changeOfflineSession(registration);
+        renderHook(() => useSessionRefresh(), registration);
+
+        await dom.testing.waitFor(() => expect(requests).toHaveLength(2));
     });
 
     test('renovação recusada encerra a sessão local', async () => {

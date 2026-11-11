@@ -1,6 +1,8 @@
 import { noop, onlineManager, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
+import { pagesCacheName } from '#/integrations/offline/pages-cache';
+import { bindOfflineSession } from '#/integrations/offline/session';
 import { persistQueryCache, warmPages } from '#/integrations/offline/storage';
 import { useOnline } from '#/lib/online';
 import { nowInBrasilia } from '#/lib/schedule';
@@ -28,21 +30,29 @@ export function useOfflineSupport() {
     // depois da hidratação, para o cache restaurado não divergir do HTML do SSR
     useEffect(() => {
         if (!registration) return undefined;
-        if (serviceWorkerEnabled()) navigator.serviceWorker.register('/sw.js').catch(noop);
-        return persistQueryCache(queryClient, () => setRestoring(false));
+        const session = bindOfflineSession(registration);
+        if (session && serviceWorkerEnabled()) {
+            const pages = pagesCacheName(import.meta.env.VITE_BUILD_ID ?? 'dev');
+            navigator.serviceWorker
+                .register(`/sw.js?${new URLSearchParams({ pages, session: session.id })}`)
+                .catch(noop);
+        }
+        return persistQueryCache(queryClient, registration, () => setRestoring(false));
     }, [queryClient, registration]);
 
     // com o app aberto e online, deixa páginas e cardápio da semana prontos para o modo offline
     useEffect(() => {
-        if (!online || !loggedIn) return undefined;
+        if (!online || !registration) return undefined;
+        const session = bindOfflineSession(registration);
+        if (!session) return undefined;
         const timeout = setTimeout(() => {
             if (queryClient.getQueryData(meQueryOptions.queryKey)?.registration !== registration)
                 return;
-            if (serviceWorkerEnabled()) warmPages().catch(noop);
+            if (serviceWorkerEnabled()) warmPages(session).catch(noop);
             prefetchWeekMenus(queryClient, campus, nowInBrasilia().date).catch(noop);
         }, WARMUP_DELAY);
         return () => clearTimeout(timeout);
-    }, [queryClient, online, loggedIn, campus, registration]);
+    }, [queryClient, online, campus, registration]);
 
-    return restoring;
+    return loggedIn && restoring;
 }

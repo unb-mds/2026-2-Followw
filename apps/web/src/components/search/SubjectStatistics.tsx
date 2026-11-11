@@ -1,5 +1,5 @@
-import { noop, useQuery } from '@tanstack/react-query';
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { lazy, Suspense, useState } from 'react';
 
 import type { SubjectClassroom } from '#/queries/subjects';
 
@@ -8,9 +8,9 @@ import { TabFilter } from '#/components/TabFilter';
 import { Button } from '#/components/ui/button';
 import { subjectStatisticsQueryOptions } from '#/queries/subject-statistics';
 
-const loadStatisticsChart = () =>
-    import('#/components/StatisticsChart').then((module) => ({ default: module.StatisticsChart }));
-const StatisticsChart = lazy(loadStatisticsChart);
+const StatisticsChart = lazy(() =>
+    import('#/components/StatisticsChart').then((module) => ({ default: module.StatisticsChart }))
+);
 
 export function SubjectStatistics({
     code,
@@ -20,9 +20,6 @@ export function SubjectStatistics({
     classroom: SubjectClassroom;
 }) {
     const query = useQuery(subjectStatisticsQueryOptions(code, classroom));
-    useEffect(() => {
-        loadStatisticsChart().catch(noop);
-    }, []);
     const [selected, setSelected] = useState('overall');
     const data = query.data;
     const period =
