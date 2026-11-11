@@ -90,15 +90,18 @@ export function upcomingMenuMeals(
     date: string,
     now: Day & { time: string }
 ) {
-    return menus
-        .filter((menu) => menu.date >= date)
+    const firstDate = date === now.date ? currentOrNextMeal(now).date : date;
+    const afterDinner = date === now.date && firstDate > date;
+    const selected = menus
+        .filter((menu) => (afterDinner ? menu.date >= firstDate : menu.date === firstDate))
         .toSorted((a, b) => a.date.localeCompare(b.date))
-        .flatMap((menu) =>
-            MEAL_TIMES.flatMap((meal) => {
-                if (date === now.date && menu.date === now.date && meal.end <= now.time) return [];
-                const dish = mainMenuDish(menu[meal.key]);
-                return dish ? [{ ...meal, date: menu.date, dish }] : [];
-            })
-        )
-        .slice(0, 2);
+        .find((menu) => MEAL_TIMES.some((meal) => mainMenuDish(menu[meal.key])));
+    if (!selected) return [];
+    return MEAL_TIMES.flatMap((meal) => {
+        if (selected.date === now.date && date === now.date && meal.end <= now.time) return [];
+        const dish = mainMenuDish(selected[meal.key]);
+        return dish ? [{ ...meal, date: selected.date, dish }] : [];
+    });
 }
+
+export type MenuMeal = ReturnType<typeof upcomingMenuMeals>[number];

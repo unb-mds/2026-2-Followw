@@ -63,34 +63,45 @@ test('perfil com barra final mantém a indicação de página atual e o seletor 
     expect(view.getAllByRole('button', { name: /Alternar tema/ })).toHaveLength(1);
 });
 
-test('perfil desktop mantém documentos, índices atuais, previsão das turmas, fluxo e confirmação de saída', async () => {
-    const view = await render('/perfil');
-    expect(view.container.querySelector('[data-layout="desktop"]')).not.toBeNull();
-    expect(view.getAllByRole('button', { name: /Alternar tema/ })).toHaveLength(1);
-    expect(view.queryByRole('link', { name: 'Entrar' })).toBeNull();
-    expect(view.getByText('3,72')).toBeDefined();
-    expect(view.getByText('3,55')).toBeDefined();
-    const progress = view.getByRole('region', { name: 'Progresso do curso' });
-    expect(dom.testing.within(progress).getByText('Complementares')).toBeDefined();
-    expect(dom.testing.within(progress).getByText('1.140h')).toBeDefined();
-    const documents = view.getByRole('region', { name: 'Documentos' });
-    expect(dom.testing.within(documents).getAllByRole('button')).toHaveLength(2);
-    const account = view.getByRole('region', { name: 'Conta' });
-    expect(dom.testing.within(account).queryByRole('button', { name: /Baixar/ })).toBeNull();
-    expect(view.queryByText('Não exigidas')).toBeNull();
-    expect(dom.testing.within(progress).getByText('Previsto', { exact: true })).toBeDefined();
-    expect(progress.textContent).not.toContain('42%');
-    expect(progress.textContent).not.toContain('120h');
-    expect(view.getByRole('button', { name: 'Baixar histórico acadêmico' })).toBeDefined();
-    expect(
-        view.getByRole('link', { name: 'Visualizar fluxo acadêmico' }).getAttribute('href')
-    ).toBe('/cursos/42');
-    dom.testing.fireEvent.click(view.getByRole('button', { name: 'Editar perfil' }));
-    expect(await view.findByRole('dialog', { name: 'Editar perfil' })).toBeDefined();
-    dom.testing.fireEvent.click(view.getByRole('button', { name: 'Cancelar' }));
-    dom.testing.fireEvent.click(view.getByRole('button', { name: 'Desconectar' }));
-    expect(await view.findByRole('alertdialog', { name: 'Desconectar?' })).toBeDefined();
-});
+test.each([1440, 390])(
+    'perfil em %s px mantém documentos, índices atuais, previsão das turmas, fluxo e confirmação de saída',
+    async (viewportWidth) => {
+        const view = await render('/perfil');
+        await dom.testing.act(async () => {
+            width = viewportWidth;
+            device.resize();
+        });
+        expect(
+            view.container.querySelector(
+                `[data-layout="${viewportWidth >= 1200 ? 'desktop' : 'mobile'}"]`
+            )
+        ).not.toBeNull();
+        expect(view.getAllByRole('button', { name: /Alternar tema/ })).toHaveLength(1);
+        expect(view.queryByRole('link', { name: 'Entrar' })).toBeNull();
+        expect(view.getByText('3,72')).toBeDefined();
+        expect(view.getByText('3,55')).toBeDefined();
+        const progress = view.getByRole('region', { name: 'Progresso do curso' });
+        expect(dom.testing.within(progress).getByText('Complementares')).toBeDefined();
+        expect(dom.testing.within(progress).getByText('1.140h')).toBeDefined();
+        const documents = view.getByRole('region', { name: 'Documentos' });
+        expect(dom.testing.within(documents).getAllByRole('button')).toHaveLength(2);
+        const account = view.getByRole('region', { name: 'Conta' });
+        expect(dom.testing.within(account).queryByRole('button', { name: /Baixar/ })).toBeNull();
+        expect(view.queryByText('Não exigidas')).toBeNull();
+        expect(dom.testing.within(progress).getByText('Previsto', { exact: true })).toBeDefined();
+        expect(progress.textContent).not.toContain('42%');
+        expect(progress.textContent).not.toContain('120h');
+        expect(view.getByRole('button', { name: 'Baixar histórico acadêmico' })).toBeDefined();
+        expect(
+            view.getByRole('link', { name: 'Visualizar fluxo acadêmico' }).getAttribute('href')
+        ).toBe('/cursos/42');
+        dom.testing.fireEvent.click(view.getByRole('button', { name: 'Editar perfil' }));
+        expect(await view.findByRole('dialog', { name: 'Editar perfil' })).toBeDefined();
+        dom.testing.fireEvent.click(view.getByRole('button', { name: 'Cancelar' }));
+        dom.testing.fireEvent.click(view.getByRole('button', { name: 'Desconectar' }));
+        expect(await view.findByRole('alertdialog', { name: 'Desconectar?' })).toBeDefined();
+    }
+);
 
 test('download pendente e erro do documento persistem ao alternar entre desktop e mobile', async () => {
     const view = await render('/perfil');

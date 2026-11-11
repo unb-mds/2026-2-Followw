@@ -20,20 +20,21 @@ const next = (time: string, data = menus) =>
 
 describe('próximas refeições publicadas', () => {
     test.each([
-        ['06:00', ['breakfast', 'lunch']],
-        ['08:00', ['breakfast', 'lunch']],
+        ['06:00', ['breakfast', 'lunch', 'dinner']],
+        ['08:00', ['breakfast', 'lunch', 'dinner']],
         ['09:30', ['lunch', 'dinner']],
-        ['14:30', ['dinner', 'breakfast']],
-        ['19:30', ['breakfast', 'lunch']],
-        ['23:59', ['breakfast', 'lunch']]
-    ] as const)('seleciona as duas próximas refeições às %s', (time, keys) => {
+        ['14:30', ['dinner']],
+        ['19:30', ['breakfast', 'lunch', 'dinner']],
+        ['23:59', ['breakfast', 'lunch', 'dinner']]
+    ] as const)('seleciona as refeições restantes do mesmo dia às %s', (time, keys) => {
         expect(next(time).map((meal) => meal.key)).toEqual([...keys]);
     });
 
     test('após o jantar ignora o cardápio encerrado e usa amanhã mesmo fora de ordem', () => {
         expect(next('22:00', menus.toReversed()).map(({ date: day, key }) => [day, key])).toEqual([
             ['2026-11-11', 'breakfast'],
-            ['2026-11-11', 'lunch']
+            ['2026-11-11', 'lunch'],
+            ['2026-11-11', 'dinner']
         ]);
     });
 
@@ -48,7 +49,7 @@ describe('próximas refeições publicadas', () => {
                     weekday: 0,
                     time: '22:00'
                 }).map((meal) => meal.date)
-            ).toEqual([tomorrow, tomorrow]);
+            ).toEqual([tomorrow, tomorrow, tomorrow]);
         }
     });
 
@@ -69,7 +70,8 @@ describe('próximas refeições publicadas', () => {
         });
         expect(result.map((meal) => [meal.date, meal.key])).toEqual([
             ['2026-11-16', 'breakfast'],
-            ['2026-11-16', 'lunch']
+            ['2026-11-16', 'lunch'],
+            ['2026-11-16', 'dinner']
         ]);
     });
 
@@ -78,6 +80,15 @@ describe('próximas refeições publicadas', () => {
             upcomingMenuMeals(menus, '2026-11-11', { date, weekday: 2, time: '22:00' }).map(
                 (meal) => meal.key
             )
-        ).toEqual(['breakfast', 'lunch']);
+        ).toEqual(['breakfast', 'lunch', 'dinner']);
     });
+});
+
+test('antes do fim do jantar não antecipa amanhã mesmo sem refeições restantes publicadas', () => {
+    expect(next('18:00', [{ ...menu(date), dinner: null }, menu('2026-11-11')])).toEqual([]);
+    expect(next('18:00', [menu('2026-11-11')])).toEqual([]);
+});
+
+test('dia escolhido sem cardápio não usa ofertas de outro dia', () => {
+    expect(upcomingMenuMeals(menus, '2026-11-12', { date, weekday: 2, time: '22:00' })).toEqual([]);
 });

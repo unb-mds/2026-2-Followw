@@ -65,7 +65,6 @@ function ProfileHeader() {
 }
 
 function PerfilPage() {
-    const desktop = useDesktop();
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const settings = useUserSettings();
     const download = useDownloadDocument();
@@ -88,21 +87,18 @@ function PerfilPage() {
                 <div className="profile-progress contents desktop:col-start-1 desktop:row-span-2 desktop:row-start-2 desktop:block">
                     <ProgressSection user={user} />
                 </div>
-                {desktop && (
-                    <div className="desktop:col-start-2 desktop:row-start-2 desktop:border-l desktop:pl-8">
-                        <ProfileSection title="Documentos">
-                            <div className="grid grid-cols-2 gap-4">
-                                <DocumentDownloads download={download} />
-                            </div>
-                        </ProfileSection>
-                    </div>
-                )}
+                <div className="desktop:col-start-2 desktop:row-start-2 desktop:border-l desktop:pl-8">
+                    <ProfileSection title="Documentos">
+                        <div className="grid grid-cols-2 gap-3 desktop:gap-4">
+                            <DocumentDownloads download={download} />
+                        </div>
+                    </ProfileSection>
+                </div>
                 <div className="profile-account desktop:col-start-2 desktop:row-start-3 desktop:border-l desktop:pl-8">
                     <AccountSection
                         user={user}
                         displayName={settings.displayName}
                         courseId={user.course?.id}
-                        download={download}
                     />
                 </div>
             </div>
@@ -113,20 +109,14 @@ function PerfilPage() {
 function AccountSection({
     user,
     displayName,
-    courseId,
-    download
+    courseId
 }: {
     user: UserProfile;
     displayName?: string | null;
     courseId?: number;
-    download: ReturnType<typeof useDownloadDocument>;
 }) {
-    const desktop = useDesktop();
     return (
-        <section aria-label="Conta" className="flex flex-col">
-            <h2 className="mb-2 px-1 text-sm font-semibold desktop:mb-4 desktop:text-xl desktop:font-medium">
-                Conta
-            </h2>
+        <ProfileSection title="Conta">
             <ListCard>
                 <div className="-mx-3">
                     <EditProfile user={user} displayName={displayName} />
@@ -142,29 +132,20 @@ function AccountSection({
                                 'h-auto min-h-12 w-full justify-start gap-3 rounded-none px-3 py-2.5'
                             )}
                         >
-                            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary desktop:rounded-full">
+                            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                                 <GitFork className="size-4" aria-hidden="true" />
                             </span>
-                            <span className="flex-1 text-left">
-                                {desktop ? 'Fluxo acadêmico' : 'Visualizar fluxo acadêmico'}
-                            </span>
-                            {desktop && (
-                                <ChevronRight
-                                    aria-hidden="true"
-                                    className="size-4 text-muted-foreground"
-                                />
-                            )}
+                            <span className="flex-1 text-left">Fluxo acadêmico</span>
+                            <ChevronRight
+                                aria-hidden="true"
+                                className="size-4 text-muted-foreground"
+                            />
                         </Link>
-                    </div>
-                )}
-                {!desktop && (
-                    <div className="contents">
-                        <DocumentDownloads download={download} />
                     </div>
                 )}
                 <LogoutButton />
             </ListCard>
-        </section>
+        </ProfileSection>
     );
 }
 
@@ -184,7 +165,7 @@ function LogoutButton() {
                     />
                 }
             >
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-destructive/10 desktop:rounded-full">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-destructive/10">
                     <LogOut className="size-4" />
                 </span>
                 <span className="flex-1 text-left">Desconectar</span>
