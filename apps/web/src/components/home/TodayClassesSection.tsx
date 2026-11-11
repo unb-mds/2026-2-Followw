@@ -5,9 +5,11 @@ import type { Classroom } from '#/queries/classrooms';
 
 import { ErrorCard, SIGAA_DOWN_MESSAGE } from '#/components/ErrorState';
 import { ClassCard } from '#/components/home/ClassCard';
+import { LoginPromptCard } from '#/components/home/LoginPromptCard';
 import { SectionHeader } from '#/components/SectionHeader';
 
 interface TodayClassesSectionProps {
+    loggedIn: boolean;
     noClassReason?: string;
     isLoadingError: boolean;
     onRetry: () => void;
@@ -15,9 +17,9 @@ interface TodayClassesSectionProps {
 }
 
 export const TodayClassesSection: React.FC<TodayClassesSectionProps> = (props) => {
-    const { noClassReason, isLoadingError, classes } = props;
+    const { loggedIn, noClassReason, isLoadingError, classes } = props;
     // sem aulas no dia, a seção some
-    if (!noClassReason && !isLoadingError && !classes.length) return null;
+    if (loggedIn && !noClassReason && !isLoadingError && !classes.length) return null;
 
     return (
         <section>
@@ -28,6 +30,7 @@ export const TodayClassesSection: React.FC<TodayClassesSectionProps> = (props) =
 };
 
 function TodayClassesContent({
+    loggedIn,
     noClassReason,
     isLoadingError,
     onRetry,
@@ -35,6 +38,7 @@ function TodayClassesContent({
 }: TodayClassesSectionProps) {
     const navigate = useNavigate();
 
+    if (!loggedIn) return <LoginPromptCard />;
     if (noClassReason)
         return (
             <div className="rounded-2xl bg-card p-4">

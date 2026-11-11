@@ -26,7 +26,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
 import { WeekDayPicker } from '#/components/WeekDayPicker';
 import { useFailureMessage } from '#/lib/online';
-import { highlightMenu, MEAL_TIMES, restaurantWeek } from '#/lib/restaurant';
+import { formatMenuDay, highlightMenu, MEAL_TIMES, restaurantWeek } from '#/lib/restaurant';
 import {
     restaurantDefaults,
     restaurantPageHead,
@@ -73,10 +73,11 @@ const subscribe = () => () => {};
 
 export const Route = createFileRoute('/_app/ru')({
     validateSearch: validateRestaurantSearch,
-    loaderDeps: ({ search: { date, meal, campus } }) => ({ date, meal, campus }),
+    // Trocar dia, refeição ou campus só muda a URL: o componente consulta o cardápio.
     shouldReload: ({ cause }) => cause !== 'stay',
-    loader: async ({ context: { queryClient }, deps: search }) => {
+    loader: async ({ context: { queryClient }, location }) => {
         const now = nowInBrasilia();
+        const search = validateRestaurantSearch(location.search);
         const user = await loadQuery(queryClient, meQueryOptions);
         const defaults = restaurantDefaults(campusOf(user?.unit?.code), now);
         const selection = restaurantSelection(search, defaults);
@@ -93,16 +94,24 @@ export const Route = createFileRoute('/_app/ru')({
             today: now.date,
             defaults,
             selection,
-            filtered: Boolean(search.date || search.meal || search.campus),
             published: Boolean(
                 menus?.find(({ date }) => date === selection.date)?.[selection.meal]?.length
             )
         };
     },
-    head: ({ loaderData }) =>
-        loaderData
-            ? restaurantPageHead(loaderData.selection, loaderData.filtered, loaderData.published)
-            : restaurantPageHead(restaurantDefaults(), false),
+    head: ({ loaderData, match }) => {
+        const search = match?.search ?? {};
+        const selection = restaurantSelection(search, loaderData?.defaults);
+        // a indexação vale para o que o SSR carregou, que é o que o buscador lê
+        const loaded =
+            loaderData &&
+            restaurantSharePath(selection) === restaurantSharePath(loaderData.selection);
+        return restaurantPageHead(
+            selection,
+            Boolean(search.date || search.meal || search.campus),
+            loaded ? loaderData.published : true
+        );
+    },
     staticData: { header: RUHeader },
     errorComponent: ErrorState,
     component: RUPage
@@ -269,18 +278,9 @@ function RUPage() {
                         >
                             <ChevronLeft />
                         </Button>
-                        <div className="text-center" aria-live="polite">
-                            <h2 className="text-sm font-bold">
-                                {meal.label} no RU · {CAMPUS_LABELS[campus]}
-                            </h2>
-                            <p className="text-xs text-muted-foreground">
-                                <time dateTime={selectedDate}>
-                                    {selectedDate.split('-').toReversed().join('/')}
-                                </time>
-                                {' · '}
-                                {meal.start}–{meal.end}
-                            </p>
-                        </div>
+                        <p className="text-xs font-bold text-muted-foreground" aria-live="polite">
+                            {formatMenuDay(selectedDate, today)} · {meal.start}–{meal.end}
+                        </p>
                         <Button
                             variant="ghost"
                             size="icon-sm"
@@ -295,7 +295,7 @@ function RUPage() {
                     {sections.length > 0 ? (
                         <MealDetails sections={sections} />
                     ) : (
-                        <p className="px-1 text-sm text-muted-foreground">
+                        <p className="px-1 text-center text-sm text-muted-foreground">
                             {isPending && <LoadingText>Carregando cardápio...</LoadingText>}
                             {isLoadingError && (
                                 <>
@@ -311,8 +311,8 @@ function RUPage() {
                                 </>
                             )}
                             {!isPending && !isLoadingError && (
-                                <>
-                                    Cardápio não publicado para esta refeição neste dia.{' '}
+                                <div className="flex flex-col gap-1">
+                                    Cardápio não publicado para esta refeição neste dia.
                                     <Link
                                         to="/ru"
                                         search={{}}
@@ -320,16 +320,10 @@ function RUPage() {
                                     >
                                         Ver cardápio atual
                                     </Link>
-                                </>
+                                </div>
                             )}
                         </p>
                     )}
-                    <p className="mt-3 px-1 text-xs text-muted-foreground">
-                        Fonte:{' '}
-                        <a href="https://ru.unb.br/cardapio-refeitorio/" className="underline">
-                            Restaurante Universitário da UnB
-                        </a>
-                    </p>
                 </TabsContent>
             </Tabs>
 

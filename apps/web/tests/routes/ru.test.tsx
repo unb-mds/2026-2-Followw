@@ -32,7 +32,7 @@ function contextWith(
     return {
         paths,
         queries,
-        deps: {},
+        location: { search: {} },
         context: {
             queryClient: fakeQueryClient((queryKey) => {
                 const path = queryKey[1];
@@ -66,10 +66,7 @@ describe('loader do RU', () => {
                 meal: undefined,
                 campus: undefined
             });
-            const data = await runLoader(Route, {
-                ...context,
-                deps: validateRestaurantSearch({ date })
-            });
+            const data = await runLoader(Route, { ...context, location: { search: { date } } });
             expect(data.selection.date).toBe(data.defaults.date);
             expect(context.queries[1]).toMatchObject({
                 params: { query: { start_date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) } }
@@ -87,9 +84,9 @@ describe('loader do RU', () => {
             const searchStr = `?${new URLSearchParams(search)}`;
             const loaderData = await runLoader(Route, {
                 ...contextWith(null, undefined, published),
-                deps: search
+                location: { search }
             });
-            const head = await callRoute(Route.options.head, { loaderData });
+            const head = await callRoute(Route.options.head, { loaderData, match: { search } });
             expect(head?.meta).toContainEqual({ name: 'robots', content: robots });
             expect(head?.links).toContainEqual({
                 rel: 'canonical',
@@ -102,10 +99,11 @@ describe('loader do RU', () => {
         }
     );
 
-    test('trocar a refeição atualiza a indexação conforme o cardápio publicado', async () => {
+    test('trocar dia, refeição ou campus só muda a URL, sem rodar o loader de novo', async () => {
+        const context = contextWith(null, undefined, true);
         const router = createRouter({
             routeTree,
-            context: contextWith(null, undefined, true).context,
+            context: context.context,
             history: createMemoryHistory({
                 initialEntries: ['/ru?campus=Gama&meal=dinner&date=2026-10-25&theme=dark']
             }),
@@ -113,22 +111,19 @@ describe('loader do RU', () => {
             isServer: false
         });
         await router.load();
-        const robots = () => router.state.matches.at(-1)?.meta;
-        expect(robots()).toContainEqual({ name: 'robots', content: 'index, follow' });
-        expect(router.state.matches.at(-1)?.links).toContainEqual({
-            rel: 'canonical',
-            href: 'https://followw.app/ru?date=2026-10-25&meal=dinner&campus=Gama'
-        });
-        await router.navigate({
-            to: '/ru',
-            search: { date: '2026-10-25', meal: 'lunch', campus: 'Gama' }
-        });
-        expect(robots()).toContainEqual({ name: 'robots', content: 'index, follow' });
+        const match = () => router.state.matches.at(-1);
+        expect(match()?.meta).toContainEqual({ name: 'robots', content: 'index, follow' });
+        const loaded = context.paths.length;
         await router.navigate({
             to: '/ru',
             search: { date: '2030-01-01', meal: 'lunch', campus: 'Gama' }
         });
-        expect(robots()).toContainEqual({ name: 'robots', content: 'noindex, follow' });
+        expect(context.paths).toHaveLength(loaded);
+        expect(match()?.meta).toContainEqual({ title: 'Almoço do RU · 01/01/2030 | Followw UnB' });
+        expect(match()?.links).toContainEqual({
+            rel: 'canonical',
+            href: 'https://followw.app/ru?date=2030-01-01&meal=lunch&campus=Gama'
+        });
     });
 
     test('carrega o dia e o campus do link e mantém a refeição compartilhada', async () => {
@@ -138,7 +133,7 @@ describe('loader do RU', () => {
         });
         const data = await runLoader(Route, {
             ...context,
-            deps: { date: '2026-10-25', meal: 'dinner', campus: 'Gama' }
+            location: { search: { date: '2026-10-25', meal: 'dinner', campus: 'Gama' } }
         });
         expect(data.defaults.campus).toBe('Ceilandia');
         expect(data.selection).toEqual({ date: '2026-10-25', meal: 'dinner', campus: 'Gama' });

@@ -12,15 +12,15 @@ import { classroomsQueryOptions } from '#/queries/classrooms';
 import { campusOf, menuQueryOptions } from '#/queries/restaurant';
 
 interface TodayDashboardProps {
-    user: UserProfile;
+    user: UserProfile | null;
     day: Day;
     time?: string;
     label: string;
 }
 
 export default function TodayDashboard({ user, day, time, label }: TodayDashboardProps) {
-    const classrooms = useQuery(classroomsQueryOptions);
-    const campus = campusOf(user.unit?.code);
+    const classrooms = useQuery({ ...classroomsQueryOptions, enabled: Boolean(user) });
+    const campus = campusOf(user?.unit?.code);
     const menu = useQuery(menuQueryOptions({ date: day.date, campus }));
     const noClassReason = getNoClassReason(day.date);
     const classes = noClassReason ? [] : classesOn(classrooms.data ?? [], day.weekday, time);
@@ -28,6 +28,7 @@ export default function TodayDashboard({ user, day, time, label }: TodayDashboar
     return (
         <div className="flex flex-col gap-6">
             <TodayClassesSection
+                loggedIn={Boolean(user)}
                 noClassReason={noClassReason}
                 isLoadingError={classrooms.isLoadingError}
                 onRetry={() => void classrooms.refetch()}
@@ -39,7 +40,7 @@ export default function TodayDashboard({ user, day, time, label }: TodayDashboar
                 isLoading={menu.isPending}
                 day={label}
             />
-            <LatestNewsSection />
+            {user && <LatestNewsSection />}
         </div>
     );
 }
