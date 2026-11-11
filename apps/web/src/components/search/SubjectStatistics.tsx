@@ -1,4 +1,4 @@
-import { noop, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { lazy, Suspense, useState } from 'react';
 
 import type { SubjectClassroom } from '#/queries/subjects';
@@ -6,14 +6,11 @@ import type { SubjectClassroom } from '#/queries/subjects';
 import { LoadingText } from '#/components/LoadingText';
 import { TabFilter } from '#/components/TabFilter';
 import { Button } from '#/components/ui/button';
-import { warmStatisticsChart } from '#/integrations/offline/storage';
 import { subjectStatisticsQueryOptions } from '#/queries/subject-statistics';
 
-const StatisticsChart = lazy(async () => {
-    const { StatisticsChart: Chart } = await import('#/components/StatisticsChart');
-    void warmStatisticsChart().catch(noop);
-    return { default: Chart };
-});
+const StatisticsChart = lazy(() =>
+    import('#/components/StatisticsChart').then((module) => ({ default: module.StatisticsChart }))
+);
 
 export function SubjectStatistics({
     code,

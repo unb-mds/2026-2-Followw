@@ -18,7 +18,7 @@ interface TodayDashboardProps {
     label: string;
 }
 
-export default function TodayDashboard({ user, day, time, label }: TodayDashboardProps) {
+export function TodayDashboard({ user, day, time, label }: TodayDashboardProps) {
     const classrooms = useQuery({ ...classroomsQueryOptions, enabled: Boolean(user) });
     const campus = campusOf(user?.unit?.code);
     const menu = useQuery(menuQueryOptions({ date: day.date, campus }));

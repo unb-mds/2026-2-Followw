@@ -2,7 +2,7 @@ import type { QueryClient } from '@tanstack/react-query';
 
 import type { components, operations } from '#/queries/schema.gen.ts';
 
-import { restaurantWeek } from '#/lib/restaurant';
+import { weekDays } from '#/lib/schedule';
 import { api } from '#/queries/api.ts';
 
 type MenuQuery = NonNullable<operations['get_menu_public_restaurant_get']['parameters']['query']>;
@@ -51,14 +51,14 @@ export const menuQueryOptions = ({
     date: string;
     user?: Pick<UserProfile, 'unit'> | null;
 }) => {
-    const week = restaurantWeek(date);
+    const week = weekDays(date, 7);
     return {
         ...api.queryOptions('get', '/public/restaurant', {
             params: {
                 query: {
                     campus: campus ?? campusOf(user?.unit?.code),
                     start_date: week[0].date,
-                    end_date: week[week.length - 1].date
+                    end_date: week[6].date
                 }
             }
         }),

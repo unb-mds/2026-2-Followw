@@ -3,21 +3,22 @@ import type { inferParserType } from 'nuqs/server';
 import { createLoader, createParser, parseAsStringLiteral } from 'nuqs/server';
 
 import type { MealKey } from '#/lib/restaurant';
-import type { Campus } from '#/queries/restaurant';
+import type { Campus, DailyMenu } from '#/queries/restaurant';
 
-import { currentOrNextMeal, MEAL_TIMES } from '#/lib/restaurant';
+import { currentOrNextMeal, FIRST_MENU_DAY, lastMenuDay, MEAL_TIMES } from '#/lib/restaurant';
 import { nowInBrasilia } from '#/lib/schedule';
 import { publicPageHead } from '#/lib/seo';
 import { CAMPUS_LABELS, CAMPUS_OPTIONS } from '#/queries/restaurant';
 
+const isMenuDay = (value: string) =>
+    /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+    value >= FIRST_MENU_DAY &&
+    value <= lastMenuDay(nowInBrasilia().date) &&
+    !Number.isNaN(Date.parse(value)) &&
+    new Date(value).toISOString().slice(0, 10) === value;
+
 const parseAsDay = createParser({
-    parse: (value) =>
-        /^\d{4}-\d{2}-\d{2}$/.test(value) &&
-        !value.startsWith('0000-') &&
-        !Number.isNaN(Date.parse(value)) &&
-        new Date(value).toISOString().slice(0, 10) === value
-            ? value
-            : null,
+    parse: (value) => (isMenuDay(value) ? value : null),
     serialize: (value: string) => value
 });
 
@@ -79,17 +80,20 @@ export function restaurantSharePath(selection: RestaurantSelection, path = '/ru'
     return `${path}?${params}`;
 }
 
+// Sem o cardápio em mãos (navegação no client), a página continua indexável.
+const mealPublished = (menus: DailyMenu[] | undefined, { date, meal }: RestaurantSelection) =>
+    !menus || Boolean(menus.find((menu) => menu.date === date)?.[meal]?.length);
+
 export function restaurantPageHead(
     selection: RestaurantSelection,
-    filtered = true,
-    published = true
+    { filtered = true, menus }: { filtered?: boolean; menus?: DailyMenu[] } = {}
 ) {
     const meal = MEAL_TIMES.find(({ key }) => key === selection.meal)!;
     const date = selection.date.split('-').toReversed().join('/');
     return publicPageHead({
         path: '/ru',
         search: filtered ? restaurantSharePath(selection).split('?')[1] : undefined,
-        index: !filtered || published,
+        index: !filtered || mealPublished(menus, selection),
         title: filtered
             ? `${meal.label} do RU · ${date} | Followw UnB`
             : 'Cardápio do RU UnB | Followw UnB',

@@ -12,8 +12,10 @@ import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { PageStateProvider } from '#/components/PageState';
-import { loadRestaurantSearch, validateRestaurantSearch } from '#/lib/restaurant-share';
+import { restaurantSelection } from '#/lib/restaurant-share';
+import { weekDays } from '#/lib/schedule';
 import { meQueryOptions } from '#/queries/me';
+import { menuQueryOptions } from '#/queries/restaurant';
 import { Route } from '#/routes/_app/ru';
 import { routeTree } from '#/routeTree.gen';
 
@@ -24,8 +26,7 @@ function contextWith(
         registration: string;
         unit?: { id: number; code: string | null; name: string };
     } | null,
-    failingPath?: string,
-    published = false
+    failingPath?: string
 ) {
     const paths: unknown[] = [];
     const queries: unknown[] = [];
@@ -39,54 +40,42 @@ function contextWith(
                 paths.push(path);
                 queries.push(queryKey[2]);
                 if (path === failingPath) throw new Error('SIGAA indisponível');
-                if (path === '/me') return user;
-                return published && path === '/public/restaurant'
-                    ? [
-                          {
-                              date: '2026-10-25',
-                              dinner: [{ items: ['Sopa'] }],
-                              lunch: [{ items: ['Arroz'] }]
-                          }
-                      ]
-                    : [];
+                return path === '/me' ? user : [];
             })
         }
     };
 }
 
 describe('loader do RU', () => {
-    test.each(['2030-02-30', 'abc'])(
-        'ignora a data inválida %s e consulta o cardápio atual',
+    test.each(['2026-02-30', 'abc', '2026-09-27', '2030-01-01'])(
+        'ignora a data inválida ou fora da janela %s e consulta o cardápio atual',
         async (date) => {
             const context = contextWith(null);
-            const location = { searchStr: `?date=${date}` };
-            expect(loadRestaurantSearch(location.searchStr).date).toBeNull();
-            expect(validateRestaurantSearch({ date })).toEqual({
-                date: undefined,
-                meal: undefined,
-                campus: undefined
-            });
             const data = await runLoader(Route, { ...context, location: { search: { date } } });
-            expect(data.selection.date).toBe(data.defaults.date);
             expect(context.queries[1]).toMatchObject({
-                params: { query: { start_date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) } }
+                params: { query: { start_date: weekDays(data.defaults.date, 7)[0].date } }
             });
         }
     );
 
     test.each([
-        ['2030-01-01', false, 'noindex, follow'],
-        ['2026-10-25', true, 'index, follow']
+        ['publicada', [{ date: '2026-10-25', dinner: [{ items: ['Sopa'] }] }], 'index, follow'],
+        [
+            'não publicada',
+            [{ date: '2026-10-25', lunch: [{ items: ['Arroz'] }] }],
+            'noindex, follow'
+        ],
+        ['fora do cache', undefined, 'index, follow']
     ] as const)(
-        'mantém a prévia de %s e decide a indexação pela refeição publicada',
-        async (date, published, robots) => {
-            const search = { date, meal: 'dinner', campus: 'Gama' };
+        'mantém a prévia da refeição %s e decide a indexação pelo cardápio em cache',
+        async (_, menus, robots) => {
+            const search = { date: '2026-10-25', meal: 'dinner', campus: 'Gama' } as const;
             const searchStr = `?${new URLSearchParams(search)}`;
-            const loaderData = await runLoader(Route, {
-                ...contextWith(null, undefined, published),
-                location: { search }
+            const queryClient = new QueryClient();
+            if (menus) queryClient.setQueryData(menuQueryOptions(search).queryKey, menus);
+            const head = await callRoute(Route.options.head, {
+                match: { search, context: { queryClient } }
             });
-            const head = await callRoute(Route.options.head, { loaderData, match: { search } });
             expect(head?.meta).toContainEqual({ name: 'robots', content: robots });
             expect(head?.links).toContainEqual({
                 rel: 'canonical',
@@ -99,8 +88,17 @@ describe('loader do RU', () => {
         }
     );
 
+    test('o cardápio atual é indexável mesmo sem refeição publicada', async () => {
+        const queryClient = new QueryClient();
+        queryClient.setQueryData(menuQueryOptions(restaurantSelection({})).queryKey, []);
+        const head = await callRoute(Route.options.head, {
+            match: { search: {}, context: { queryClient } }
+        });
+        expect(head?.meta).toContainEqual({ name: 'robots', content: 'index, follow' });
+    });
+
     test('trocar dia, refeição ou campus só muda a URL, sem rodar o loader de novo', async () => {
-        const context = contextWith(null, undefined, true);
+        const context = contextWith(null);
         const router = createRouter({
             routeTree,
             context: context.context,
@@ -112,17 +110,16 @@ describe('loader do RU', () => {
         });
         await router.load();
         const match = () => router.state.matches.at(-1);
-        expect(match()?.meta).toContainEqual({ name: 'robots', content: 'index, follow' });
         const loaded = context.paths.length;
         await router.navigate({
             to: '/ru',
-            search: { date: '2030-01-01', meal: 'lunch', campus: 'Gama' }
+            search: { date: '2026-10-26', meal: 'lunch', campus: 'Gama' }
         });
         expect(context.paths).toHaveLength(loaded);
-        expect(match()?.meta).toContainEqual({ title: 'Almoço do RU · 01/01/2030 | Followw UnB' });
+        expect(match()?.meta).toContainEqual({ title: 'Almoço do RU · 26/10/2026 | Followw UnB' });
         expect(match()?.links).toContainEqual({
             rel: 'canonical',
-            href: 'https://followw.app/ru?date=2030-01-01&meal=lunch&campus=Gama'
+            href: 'https://followw.app/ru?date=2026-10-26&meal=lunch&campus=Gama'
         });
     });
 
@@ -136,7 +133,6 @@ describe('loader do RU', () => {
             location: { search: { date: '2026-10-25', meal: 'dinner', campus: 'Gama' } }
         });
         expect(data.defaults.campus).toBe('Ceilandia');
-        expect(data.selection).toEqual({ date: '2026-10-25', meal: 'dinner', campus: 'Gama' });
         expect(context.queries[1]).toMatchObject({
             params: { query: { campus: 'Gama', start_date: '2026-10-19', end_date: '2026-10-25' } }
         });

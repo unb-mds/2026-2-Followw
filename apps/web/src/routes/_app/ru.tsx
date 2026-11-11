@@ -5,7 +5,7 @@ import { useQueryStates } from 'nuqs';
 import { useEffect, useSyncExternalStore } from 'react';
 
 import type { RestaurantSelection } from '#/lib/restaurant-share';
-import type { MenuSection } from '#/queries/restaurant';
+import type { DailyMenu, MenuSection } from '#/queries/restaurant';
 
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderToggle } from '#/components/HeaderBar';
@@ -26,7 +26,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
 import { WeekDayPicker } from '#/components/WeekDayPicker';
 import { useFailureMessage } from '#/lib/online';
-import { formatMenuDay, highlightMenu, MEAL_TIMES, restaurantWeek } from '#/lib/restaurant';
+import { formatMenuDay, highlightMenu, lastMenuDay, MEAL_TIMES } from '#/lib/restaurant';
 import {
     restaurantDefaults,
     restaurantPageHead,
@@ -35,7 +35,7 @@ import {
     restaurantSharePath,
     validateRestaurantSearch
 } from '#/lib/restaurant-share';
-import { addDays, nowInBrasilia } from '#/lib/schedule';
+import { addDays, nowInBrasilia, weekDays } from '#/lib/schedule';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
 import { CAMPUS_LABELS, CAMPUS_OPTIONS, campusOf, menuQueryOptions } from '#/queries/restaurant';
@@ -83,34 +83,26 @@ export const Route = createFileRoute('/_app/ru')({
         const selection = restaurantSelection(search, defaults);
         // no SSR a conta fica para o navegador, que pode ter o cache salvo
         const account = environmentManager.isServer() ? null : user;
-        const [menus] = await Promise.all([
+        await Promise.all([
             loadQuery(queryClient, menuQueryOptions(selection)).catch(noop),
             account &&
                 loadQuery(queryClient, statementQueryOptions(account.registration)).catch(noop),
             account &&
                 loadQuery(queryClient, credentialsQueryOptions(account.registration)).catch(noop)
         ]);
-        return {
-            today: now.date,
-            defaults,
-            selection,
-            published: Boolean(
-                menus?.find(({ date }) => date === selection.date)?.[selection.meal]?.length
-            )
-        };
+        return { today: now.date, defaults };
     },
     head: ({ loaderData, match }) => {
         const search = match?.search ?? {};
         const selection = restaurantSelection(search, loaderData?.defaults);
-        // a indexação vale para o que o SSR carregou, que é o que o buscador lê
-        const loaded =
-            loaderData &&
-            restaurantSharePath(selection) === restaurantSharePath(loaderData.selection);
-        return restaurantPageHead(
-            selection,
-            Boolean(search.date || search.meal || search.campus),
-            loaded ? loaderData.published : true
+        // no SSR, o loader já deixou no cache o cardápio que decide a indexação
+        const menus = match?.context.queryClient.getQueryData<DailyMenu[]>(
+            menuQueryOptions(selection).queryKey
         );
+        return restaurantPageHead(selection, {
+            filtered: Boolean(search.date || search.meal || search.campus),
+            menus
+        });
     },
     staticData: { header: RUHeader },
     errorComponent: ErrorState,
@@ -190,8 +182,8 @@ function RUPage() {
     const meal = MEALS.find((item) => item.key === selectedMeal) ?? MEALS[1];
     const sections = menu?.[selectedMeal] ?? [];
     // Só esta semana e a próxima; trocar de semana mantém o dia da semana.
-    const days = restaurantWeek(selectedDate);
-    const firstDay = restaurantWeek(today)[0].date;
+    const days = weekDays(selectedDate, 7);
+    const firstDay = weekDays(today, 7)[0].date;
     const isNextWeek = days[0].date > firstDay;
     const shiftWeek = (weeks: number) => () => select({ date: addDays(selectedDate, 7 * weeks) });
     const shiftDay = (offset: number) => () => select({ date: addDays(selectedDate, offset) });
@@ -285,8 +277,7 @@ function RUPage() {
                             variant="ghost"
                             size="icon-sm"
                             onClick={shiftDay(1)}
-                            // só esta semana e a próxima
-                            disabled={selectedDate >= addDays(firstDay, 13)}
+                            disabled={selectedDate >= lastMenuDay(today)}
                             aria-label="Próximo dia"
                         >
                             <ChevronRight />
@@ -295,7 +286,7 @@ function RUPage() {
                     {sections.length > 0 ? (
                         <MealDetails sections={sections} />
                     ) : (
-                        <p className="px-1 text-center text-sm text-muted-foreground">
+                        <div className="px-1 text-center text-sm text-muted-foreground">
                             {isPending && <LoadingText>Carregando cardápio...</LoadingText>}
                             {isLoadingError && (
                                 <>
@@ -322,7 +313,7 @@ function RUPage() {
                                     </Link>
                                 </div>
                             )}
-                        </p>
+                        </div>
                     )}
                 </TabsContent>
             </Tabs>

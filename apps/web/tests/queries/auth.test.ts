@@ -44,7 +44,7 @@ describe('clearSession', () => {
         Reflect.deleteProperty(globalThis, 'caches');
     });
 
-    test('a promise só resolve depois de apagar o HTML em cache', async () => {
+    test('a promise só resolve depois de apagar todos os caches do offline', async () => {
         const deleted: string[] = [];
         Object.defineProperty(globalThis, 'caches', {
             configurable: true,
@@ -57,7 +57,7 @@ describe('clearSession', () => {
 
         await clearSession(queryClient);
 
-        expect(deleted).toEqual(['followw-pages-x']);
+        expect(deleted).toEqual(['followw-pages-x', 'outro-cache']);
     });
 
     test('zera o usuário e remove as turmas do cache', async () => {

@@ -1,7 +1,8 @@
 # Modo offline (service worker + cache do TanStack Query)
 
-O site abre e navega sem internet usando duas camadas independentes, ambas em
-`apps/web/src/integrations/offline/`:
+Com login, o site abre e navega sem internet usando duas camadas independentes, ambas em
+`apps/web/src/integrations/offline/`. Visitantes não guardam nada no dispositivo: sem service
+worker, sem cache persistido e sem pré-carga.
 
 | Camada                      | O que guarda                                                         | Onde                                                  | Código                               |
 | :-------------------------- | :------------------------------------------------------------------- | :---------------------------------------------------- | :----------------------------------- |
@@ -9,30 +10,26 @@ O site abre e navega sem internet usando duas camadas independentes, ambas em
 | **Cache do TanStack Query** | Dados da API (perfil, turmas, frequência, notícias, RU, cardápio...) | IndexedDB (`idb-keyval`, chave `followw-query-cache`) | `storage.ts`                         |
 
 O SW **nunca** cacheia respostas da API: os dados vivem só no cache do Query. O `useOfflineSupport`
-(`use-offline-support.ts`, chamado no `__root.tsx`) liga as duas camadas.
+(`use-offline-support.ts`, chamado no `__root.tsx`) liga as duas camadas quando há sessão.
 
 ## Service worker (`/sw.js`)
 
-Gerado no build (`generateSW`), só no ambiente `client`, e registrado só em produção. Atualiza
-sozinho (`autoUpdate`: `skipWaiting` + `clientsClaim`).
+Gerado no build (`generateSW`), só no ambiente `client`, e registrado só em produção e com login.
+Atualiza sozinho (`autoUpdate`: `skipWaiting` + `clientsClaim`).
 
-- **Assets** (`/assets/**`, `favicon.svg`, `manifest.json`): precache, servidos do cache. Os
-  módulos do painel Hoje, das postagens e dos gráficos são guardados no primeiro uso ou no
-  aquecimento de uma sessão autenticada.
+- **Assets** (`/assets/**`, `favicon.svg`, `manifest.json`): precache, servidos do cache.
 - **Navegações** (HTML do SSR): _network-first_ com timeout de 3 s, gravadas por URL no cache
   `followw-pages-<build>` (`pages-cache.ts`). Sem rede e sem cache para a URL, cai na página pai
   (`/turmas/x` → `/turmas`) ou na home, e o router resolve a rota no client.
-- **Pré-carga**: após abrir o app online, `warmPages` baixa `/`, `/ru`, `/turmas` e `/perfil` (ou
-  `/login`, sem login) que ainda faltam. Para sessões autenticadas, também baixa os módulos
-  listados no manifesto de assets acadêmicos gerado pelo build. O cache de páginas e desses
-  módulos é versionado por build, porque o HTML antigo aponta para assets que o SW novo já não
-  tem. Os caches de builds antigos são apagados.
+- **Pré-carga**: após abrir o app online, `warmPages` baixa `/`, `/ru`, `/turmas` e `/perfil` que
+  ainda faltam. O cache de páginas é versionado por build, porque o HTML antigo aponta para assets
+  que o SW novo já não tem; os caches de builds antigos são apagados.
 
 ## Cache dos dados
 
-- `persistQueryCache` restaura o IndexedDB e passa a salvar cada mudança. Roda **depois da
-  hidratação**, para o dado restaurado não divergir do HTML do SSR. Na restauração vence o dado mais
-  novo (SSR ou salvo).
+- `persistQueryCache` restaura o IndexedDB e passa a salvar cada mudança enquanto há sessão. Roda
+  **depois da hidratação**, para o dado restaurado não divergir do HTML do SSR. Na restauração vence
+  o dado mais novo (SSR ou salvo).
 - Validade: **14 dias** (`PERSIST_MAX_AGE`: `maxAge` do persister e `gcTime` das queries no
   navegador). Query sem atualização há mais tempo deixa de ser salva (`shouldPersistQuery`); só o
   `gcTime` não bastaria, já que a restauração reinicia o prazo a cada sessão.
@@ -61,8 +58,8 @@ sozinho (`autoUpdate`: `skipWaiting` + `clientsClaim`).
 ## Logout e sessão expirada
 
 `clearSession` (e o login, que espera a limpeza terminar) remove todas as queries, exceto o `/me`
-(zerado em seguida), e chama `clearOfflineData`, que apaga o IndexedDB e o HTML em cache (que traz
-dados do SSR).
+(zerado em seguida), e chama `clearOfflineData`, que apaga o IndexedDB, remove o service worker e
+apaga todos os caches dele.
 
 ## Testar
 

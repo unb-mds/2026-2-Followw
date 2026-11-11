@@ -1,31 +1,24 @@
 import { queryOptions } from '@tanstack/react-query';
-import { createIsomorphicFn } from '@tanstack/react-start';
 
 import type { components } from '#/queries/schema.gen';
 
 import { api } from '#/queries/api.ts';
 import { ApiError } from '#/queries/errors.ts';
+import { ssrRequest } from '#/queries/ssr.ts';
 
 export type UserProfile = components['schemas']['UserProfile'];
 
 const { queryKey, queryFn } = api.queryOptions('get', '/me');
 
-const hasSessionCookie = createIsomorphicFn()
-    .client(() => true)
-    .server(async () => {
-        const { getCookie } = await import('@tanstack/react-start/server');
-        try {
-            return Boolean(getCookie('refresh_token'));
-        } catch {
-            // Consultas fora de uma requisição SSR (por exemplo, testes) usam a API.
-            return true;
-        }
-    });
+// mesmo nome de api/cookies.py
+const SESSION_COOKIE = 'refresh_token';
 
 export const meQueryOptions = queryOptions({
     queryKey,
     queryFn: async (context) => {
-        if (!(await hasSessionCookie())) return null;
+        // no SSR, sem o cookie da sessão não há conta para consultar
+        const ssr = await ssrRequest();
+        if (ssr && !ssr.getCookie(SESSION_COOKIE)) return null;
         try {
             return (await queryFn(context)) ?? null;
         } catch (error) {

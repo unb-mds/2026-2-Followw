@@ -68,12 +68,6 @@ describe('menuQueryOptions', () => {
         });
     });
 
-    test('limita a última semana ao último dia aceito pela API', () => {
-        expect(paramsOf(menuQueryOptions({ date: '9999-12-31' }))).toEqual({
-            params: { query: { campus: 'Darcy', start_date: '9999-12-27', end_date: '9999-12-31' } }
-        });
-    });
-
     test('seleciona só o cardápio do dia', () => {
         const days = [
             { date: '2026-09-25', lunch: [] },

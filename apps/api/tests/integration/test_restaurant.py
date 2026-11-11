@@ -47,6 +47,14 @@ def _parse_em_cache(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _primeiro_dia_dos_fixtures(monkeypatch):
+    # Os PDFs reais dos testes são de antes do primeiro dia com cardápio no Followw.
+    monkeypatch.setattr(
+        "api.modules.public_restaurant.service.FIRST_MENU_DAY", date(2026, 9, 1)
+    )
+
+
+@pytest.fixture(autouse=True)
 def today(monkeypatch):
     current = SimpleNamespace(value=date(2026, 9, 25))
     monkeypatch.setattr(
@@ -579,12 +587,30 @@ def test_filtros_de_data_invalidos_retornam_422(api, browser, subtests):
         {"date": "invalida"},
         {"date": "2026-02-30"},
         {"start_date": "2026-09-26", "end_date": "2026-09-25"},
+        {"start_date": "2026-09-01", "end_date": "2026-09-15"},
+        {"date": "2026-08-31"},
+        {"date": "2026-10-05"},
+        {"start_date": "2026-10-01", "end_date": "2026-10-05"},
+        {"end_date": "2026-10-05"},
         {"date": "2026-09-25", "start_date": "2026-09-24"},
         {"date": "2026-09-25", "end_date": "2026-09-26"},
     ]:
         with subtests.test(params=params):
             assert api.get("/public/restaurant", params=params).status_code == 422
             browser.restaurant.get_menu.assert_not_awaited()
+
+
+def test_aceita_ate_o_domingo_da_proxima_semana(client, browser):
+    # hoje é sexta, 25/09: a próxima semana termina em 04/10
+    assert client.get("/public/restaurant?date=2026-10-04").status_code == 200
+
+
+def test_intervalo_de_quatorze_dias_e_aceito(client, browser):
+    response = client.get(
+        "/public/restaurant",
+        params={"start_date": "2026-09-14", "end_date": "2026-09-27"},
+    )
+    assert response.status_code == 200
 
 
 def test_refresh_com_data_atualiza_cache_completo(client, browser):

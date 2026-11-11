@@ -5,12 +5,7 @@ import { hashKey, noop } from '@tanstack/react-query';
 import { persistQueryClient } from '@tanstack/react-query-persist-client';
 import { del, get, set } from 'idb-keyval';
 
-import {
-    academicAsset,
-    academicManifestPath,
-    PAGES_CACHE_PREFIX,
-    pagesCacheName
-} from '#/integrations/offline/pages-cache';
+import { PAGES_CACHE_PREFIX, pagesCacheName } from '#/integrations/offline/pages-cache';
 import { recommendationsQueryOptions } from '#/queries/recommendations';
 
 // também é o gcTime das queries no navegador, senão a query sai do cache antes de vencer no disco
@@ -52,60 +47,49 @@ export function persistQueryCache(queryClient: QueryClient, onRestored: () => vo
     return unsubscribe;
 }
 
-async function deletePageCaches(keep?: string) {
+async function deleteOldPageCaches(current: string) {
     const names = await caches.keys();
     await Promise.all(
         names
-            .filter((name) => name.startsWith(PAGES_CACHE_PREFIX) && name !== keep)
+            .filter((name) => name.startsWith(PAGES_CACHE_PREFIX) && name !== current)
             .map((name) => caches.delete(name))
     );
 }
 
-async function cacheResource(cache: Cache, url: string) {
+async function cachePage(cache: Cache, url: string) {
     if (await cache.match(url)) return;
-    // oxlint-disable-next-line no-restricted-globals -- baixa arquivos da própria aplicação, não a API
+    // oxlint-disable-next-line no-restricted-globals -- baixa o HTML da própria página, não a API
     const response = await fetch(url);
     // navegação não aceita resposta redirecionada (ex.: /perfil → /login)
     if (response.ok && !response.redirected) await cache.put(url, response);
 }
 
-async function warmAcademicAssets(cache: Cache, buildId: string, assetPrefix = '/assets/') {
-    const manifestPath = academicManifestPath(buildId);
-    await cacheResource(cache, manifestPath);
-    const urls: unknown = await (await cache.match(manifestPath))?.clone().json();
-    if (!Array.isArray(urls)) return;
-    const assets = urls.filter(
-        (url: unknown): url is string =>
-            typeof url === 'string' && url.startsWith(assetPrefix) && academicAsset.test(url)
-    );
-    await Promise.allSettled(assets.map((url) => cacheResource(cache, url)));
-}
-
-// Guarda o gráfico mesmo se a primeira importação ocorrer antes de o SW assumir a página.
-export async function warmStatisticsChart() {
-    const buildId = import.meta.env.VITE_BUILD_ID;
-    if (!buildId || typeof window === 'undefined' || !('caches' in window) || !navigator.onLine)
-        return;
-    const cache = await caches.open(pagesCacheName(buildId));
-    await warmAcademicAssets(cache, buildId, '/assets/StatisticsChart-');
-}
-
 /** Baixa para o cache do SW as páginas principais que faltam e apaga os caches de builds antigos. */
-export async function warmPages(loggedIn: boolean) {
-    const buildId = import.meta.env.VITE_BUILD_ID ?? 'dev';
-    const current = pagesCacheName(buildId);
-    await deletePageCaches(current);
+export async function warmPages() {
+    const current = pagesCacheName(import.meta.env.VITE_BUILD_ID ?? 'dev');
+    await deleteOldPageCaches(current);
     const cache = await caches.open(current);
-    const urls = ['/', '/ru', '/turmas', loggedIn ? '/perfil' : '/login'];
-    const resources = urls.map((url) => cacheResource(cache, url));
-    if (loggedIn) resources.push(warmAcademicAssets(cache, buildId));
-    await Promise.allSettled(resources);
+    const urls = ['/', '/ru', '/turmas', '/perfil'];
+    await Promise.allSettled(urls.map((url) => cachePage(cache, url)));
 }
 
-/** Apaga do dispositivo os dados da API e o HTML das páginas, que também traz dados do SSR. */
+async function deleteAllCaches() {
+    const names = await caches.keys();
+    await Promise.all(names.map((name) => caches.delete(name)));
+}
+
+async function unregisterServiceWorkers() {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(registrations.map((registration) => registration.unregister()));
+}
+
+/** O offline é só da sessão logada: apaga os dados da API, o service worker e todos os caches dele. */
 export async function clearOfflineData() {
     await Promise.allSettled([
         persister?.removeClient(),
-        typeof caches !== 'undefined' && deletePageCaches()
+        typeof caches !== 'undefined' && deleteAllCaches(),
+        typeof navigator !== 'undefined' &&
+            'serviceWorker' in navigator &&
+            unregisterServiceWorkers()
     ]);
 }

@@ -23,6 +23,16 @@ def today() -> date:
     return datetime.now(BRASILIA).date()
 
 
+# Primeiro dia com cardápio no Followw; o mesmo limite vale no web.
+FIRST_MENU_DAY = date(2026, 9, 28)
+
+
+def menu_window() -> tuple[date, date]:
+    """Do primeiro dia com cardápio até o domingo da próxima semana."""
+    current = today()
+    return FIRST_MENU_DAY, current + timedelta(days=13 - current.weekday())
+
+
 class RestaurantService:
     def __init__(
         self,

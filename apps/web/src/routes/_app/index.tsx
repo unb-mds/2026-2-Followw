@@ -8,11 +8,16 @@ import { usePageState } from '#/components/PageState';
 import { WeekDayPicker } from '#/components/WeekDayPicker';
 import { nowInBrasilia, weekDays } from '#/lib/schedule';
 import { publicPageHead } from '#/lib/seo';
+import { classroomsQueryOptions } from '#/queries/classrooms';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
 import { menuQueryOptions } from '#/queries/restaurant';
 
-const TodayDashboard = lazy(() => import('#/components/home/TodayDashboard'));
+const TodayDashboard = lazy(() =>
+    import('#/components/home/TodayDashboard').then((module) => ({
+        default: module.TodayDashboard
+    }))
+);
 
 const WEEKDAYS = [
     'Domingo',
@@ -50,10 +55,7 @@ export const Route = createFileRoute('/_app/')({
         const user = await loadQuery(queryClient, meQueryOptions);
         await Promise.all([
             loadQuery(queryClient, menuQueryOptions({ date: now.date, user })).catch(noop),
-            user &&
-                import('#/queries/classrooms').then(({ classroomsQueryOptions }) =>
-                    loadQuery(queryClient, classroomsQueryOptions).catch(noop)
-                )
+            user && loadQuery(queryClient, classroomsQueryOptions).catch(noop)
         ]);
         return { now };
     },

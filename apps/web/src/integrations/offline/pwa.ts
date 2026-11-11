@@ -1,14 +1,9 @@
 import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
 import { type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
-import {
-    academicAsset,
-    academicManifestPath,
-    pagesCacheName
-} from '#/integrations/offline/pages-cache.ts';
+import { pagesCacheName } from '#/integrations/offline/pages-cache.ts';
 
 // o vite-plugin-pwa não conhece environments: sem isso também roda no build do SSR
 const clientOnly = (plugins: Plugin[]): Plugin[] =>
@@ -34,29 +29,6 @@ export const pwaPlugins = (buildId: string) =>
             integration: {
                 configureOptions: (viteConfig, options) => {
                     options.outDir = viteConfig.environments.client.build.outDir;
-                    const manifestFile = resolve(
-                        viteConfig.root,
-                        options.outDir,
-                        academicManifestPath(buildId).slice(1)
-                    );
-                    options.workbox = {
-                        ...options.workbox,
-                        manifestTransforms: [
-                            (entries) => {
-                                const deferred = entries.filter(({ url }) =>
-                                    academicAsset.test(`/${url}`)
-                                );
-                                writeFileSync(
-                                    manifestFile,
-                                    JSON.stringify(deferred.map(({ url }) => `/${url}`))
-                                );
-                                return {
-                                    manifest: entries.filter((entry) => !deferred.includes(entry)),
-                                    warnings: []
-                                };
-                            }
-                        ]
-                    };
                 }
             },
             injectRegister: null,
@@ -74,14 +46,6 @@ export const pwaPlugins = (buildId: string) =>
                 navigateFallback: null,
                 cleanupOutdatedCaches: true,
                 runtimeCaching: [
-                    {
-                        urlPattern: academicAsset,
-                        handler: 'CacheFirst',
-                        options: {
-                            cacheName: pagesCacheName(buildId),
-                            cacheableResponse: { statuses: [200] }
-                        }
-                    },
                     {
                         urlPattern: ({ request }) => request.mode === 'navigate',
                         handler: 'NetworkFirst',

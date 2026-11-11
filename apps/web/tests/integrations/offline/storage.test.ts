@@ -30,6 +30,7 @@ function redirected() {
 }
 
 const realFetch = Object.getOwnPropertyDescriptor(globalThis, 'fetch');
+const realNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
 
 describe('cache de páginas offline', () => {
     let stores: Map<string, FakeCache>;
@@ -67,35 +68,12 @@ describe('cache de páginas offline', () => {
         Reflect.deleteProperty(globalThis, 'caches');
     });
 
-    test('guarda as páginas principais conforme o login', async () => {
+    test('guarda as páginas principais da sessão', async () => {
         for (const url of ['/', '/ru', '/turmas', '/perfil', '/login'])
             pages[url] = new Response(url);
 
-        await warmPages(true);
+        await warmPages();
         expect(cached()).toEqual(['/', '/perfil', '/ru', '/turmas']);
-
-        stores.clear();
-        await warmPages(false);
-        expect(cached()).toEqual(['/', '/login', '/ru', '/turmas']);
-    });
-
-    test('aquece módulos adiados apenas para a sessão autenticada', async () => {
-        const manifest = '/offline-academic-dev.json';
-        const dashboard = '/assets/TodayDashboard-build.js';
-        const chart = '/assets/StatisticsChart-build.js';
-        pages[manifest] = Response.json([dashboard, chart]);
-        pages[dashboard] = new Response('dashboard');
-
-        await warmPages(false);
-        expect(cached()).toEqual([]);
-
-        await warmPages(true);
-        expect(cached()).toEqual([dashboard, manifest].toSorted());
-
-        delete pages[manifest];
-        pages[chart] = new Response('chart');
-        await warmPages(true);
-        expect(cached()).toEqual([dashboard, chart, manifest].toSorted());
     });
 
     test('baixa só as páginas que faltam e apaga caches de builds antigos', async () => {
@@ -107,7 +85,7 @@ describe('cache de páginas offline', () => {
         pages['/'] = new Response('nova home');
         pages['/ru'] = new Response('ru');
 
-        await warmPages(true);
+        await warmPages();
 
         expect([...stores.keys()].toSorted()).toEqual([current, 'outro-cache'].toSorted());
         expect(stores.get(current)?.entries.get('/')).toBe(home);
@@ -124,19 +102,30 @@ describe('cache de páginas offline', () => {
         pages['/ru'] = new Response('erro', { status: 500 });
         pages['/turmas'] = new Response('turmas');
 
-        await warmPages(true);
+        await warmPages();
 
         expect(cached()).toEqual(['/turmas']);
     });
 
-    test('clearOfflineData apaga todas as páginas guardadas', async () => {
+    test('clearOfflineData apaga todos os caches e remove o service worker', async () => {
         stores.set(current, new FakeCache());
-        stores.set('outro-cache', new FakeCache());
-        await clearOfflineData();
-        expect([...stores.keys()]).toEqual(['outro-cache']);
+        stores.set('workbox-precache-v2', new FakeCache());
+        let unregistered = 0;
+        const registration = { unregister: async () => Boolean(++unregistered) };
+        Object.defineProperty(globalThis, 'navigator', {
+            configurable: true,
+            value: { serviceWorker: { getRegistrations: async () => [registration] } }
+        });
+        try {
+            await clearOfflineData();
+        } finally {
+            if (realNavigator) Object.defineProperty(globalThis, 'navigator', realNavigator);
+        }
+        expect([...stores.keys()]).toEqual([]);
+        expect(unregistered).toBe(1);
     });
 
-    test('clearOfflineData não quebra sem Cache Storage (SSR)', async () => {
+    test('clearOfflineData não quebra sem Cache Storage nem service worker (SSR)', async () => {
         Reflect.deleteProperty(globalThis, 'caches');
         await clearOfflineData();
     });

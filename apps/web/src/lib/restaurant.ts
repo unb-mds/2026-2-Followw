@@ -2,7 +2,7 @@ import type { Day } from '#/lib/schedule';
 import type { MenuSection } from '#/queries/restaurant';
 
 import { daysFrom, formatRelativeDays } from '#/lib/classroom-details';
-import { currentAndNext, nextDays, weekDays } from '#/lib/schedule';
+import { addDays, currentAndNext, nextDays, weekDays } from '#/lib/schedule';
 
 export const MEAL_TIMES = [
     { key: 'breakfast', label: 'Café da manhã', start: '07:00', end: '09:30' },
@@ -12,10 +12,9 @@ export const MEAL_TIMES = [
 
 export type MealKey = (typeof MEAL_TIMES)[number]['key'];
 
-export function restaurantWeek(date: string) {
-    // A API aceita anos de quatro dígitos.
-    return weekDays(date, 7).filter((day) => !day.date.startsWith('+'));
-}
+// Mesma janela da API: do primeiro dia com cardápio até o fim da próxima semana.
+export const FIRST_MENU_DAY = '2026-09-28';
+export const lastMenuDay = (today: string) => addDays(weekDays(today, 7)[6].date, 7);
 
 export function currentOrNextMeal(now: Day & { time: string }) {
     const { current, next } = currentAndNext([...MEAL_TIMES], now.time);
