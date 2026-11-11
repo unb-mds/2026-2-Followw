@@ -12,8 +12,10 @@ import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { PageStateProvider } from '#/components/PageState';
+import { loadRestaurantSearch, validateRestaurantSearch } from '#/lib/restaurant-share';
 import { meQueryOptions } from '#/queries/me';
 import { Route } from '#/routes/_app/ru';
+import { routeTree } from '#/routeTree.gen';
 
 import { callRoute, fakeQueryClient, runLoader } from '../helpers/route';
 
@@ -22,30 +24,111 @@ function contextWith(
         registration: string;
         unit?: { id: number; code: string | null; name: string };
     } | null,
-    failingPath?: string
+    failingPath?: string,
+    published = false
 ) {
     const paths: unknown[] = [];
     const queries: unknown[] = [];
     return {
         paths,
         queries,
-        location: { searchStr: '' },
+        deps: {},
         context: {
             queryClient: fakeQueryClient((queryKey) => {
                 const path = queryKey[1];
                 paths.push(path);
                 queries.push(queryKey[2]);
                 if (path === failingPath) throw new Error('SIGAA indisponível');
-                return path === '/me' ? user : [];
+                if (path === '/me') return user;
+                return published && path === '/public/restaurant'
+                    ? [
+                          {
+                              date: '2026-10-25',
+                              dinner: [{ items: ['Sopa'] }],
+                              lunch: [{ items: ['Arroz'] }]
+                          }
+                      ]
+                    : [];
             })
         }
     };
 }
 
 describe('loader do RU', () => {
-    test('trocar dia, refeição ou campus na página não roda o loader de novo', () => {
-        expect(callRoute(Route.options.shouldReload, { cause: 'stay' })).toBe(false);
-        expect(callRoute(Route.options.shouldReload, { cause: 'enter' })).toBe(true);
+    test.each(['2030-02-30', 'abc'])(
+        'ignora a data inválida %s e consulta o cardápio atual',
+        async (date) => {
+            const context = contextWith(null);
+            const location = { searchStr: `?date=${date}` };
+            expect(loadRestaurantSearch(location.searchStr).date).toBeNull();
+            expect(validateRestaurantSearch({ date })).toEqual({
+                date: undefined,
+                meal: undefined,
+                campus: undefined
+            });
+            const data = await runLoader(Route, {
+                ...context,
+                deps: validateRestaurantSearch({ date })
+            });
+            expect(data.selection.date).toBe(data.defaults.date);
+            expect(context.queries[1]).toMatchObject({
+                params: { query: { start_date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) } }
+            });
+        }
+    );
+
+    test.each([
+        ['2030-01-01', false, 'noindex, follow'],
+        ['2026-10-25', true, 'index, follow']
+    ] as const)(
+        'mantém a prévia de %s e decide a indexação pela refeição publicada',
+        async (date, published, robots) => {
+            const search = { date, meal: 'dinner', campus: 'Gama' };
+            const searchStr = `?${new URLSearchParams(search)}`;
+            const loaderData = await runLoader(Route, {
+                ...contextWith(null, undefined, published),
+                deps: search
+            });
+            const head = await callRoute(Route.options.head, { loaderData });
+            expect(head?.meta).toContainEqual({ name: 'robots', content: robots });
+            expect(head?.links).toContainEqual({
+                rel: 'canonical',
+                href: `https://followw.app/ru${searchStr}`
+            });
+            expect(head?.meta).toContainEqual({
+                property: 'og:url',
+                content: `https://followw.app/ru${searchStr}`
+            });
+        }
+    );
+
+    test('trocar a refeição atualiza a indexação conforme o cardápio publicado', async () => {
+        const router = createRouter({
+            routeTree,
+            context: contextWith(null, undefined, true).context,
+            history: createMemoryHistory({
+                initialEntries: ['/ru?campus=Gama&meal=dinner&date=2026-10-25&theme=dark']
+            }),
+            origin: 'https://followw.app',
+            isServer: false
+        });
+        await router.load();
+        const robots = () => router.state.matches.at(-1)?.meta;
+        expect(robots()).toContainEqual({ name: 'robots', content: 'index, follow' });
+        expect(router.state.matches.at(-1)?.links).toContainEqual({
+            rel: 'canonical',
+            href: 'https://followw.app/ru?date=2026-10-25&meal=dinner&campus=Gama'
+        });
+        await router.navigate({
+            to: '/ru',
+            search: { date: '2026-10-25', meal: 'lunch', campus: 'Gama' }
+        });
+        expect(robots()).toContainEqual({ name: 'robots', content: 'index, follow' });
+        await router.navigate({
+            to: '/ru',
+            search: { date: '2030-01-01', meal: 'lunch', campus: 'Gama' }
+        });
+        expect(robots()).toContainEqual({ name: 'robots', content: 'noindex, follow' });
     });
 
     test('carrega o dia e o campus do link e mantém a refeição compartilhada', async () => {
@@ -55,10 +138,10 @@ describe('loader do RU', () => {
         });
         const data = await runLoader(Route, {
             ...context,
-            location: { searchStr: '?date=2026-10-25&meal=dinner&campus=Gama' }
+            deps: { date: '2026-10-25', meal: 'dinner', campus: 'Gama' }
         });
-        expect(data.defaultCampus).toBe('Ceilandia');
-        expect(data.defaultDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+        expect(data.defaults.campus).toBe('Ceilandia');
+        expect(data.selection).toEqual({ date: '2026-10-25', meal: 'dinner', campus: 'Gama' });
         expect(context.queries[1]).toMatchObject({
             params: { query: { campus: 'Gama', start_date: '2026-10-19', end_date: '2026-10-25' } }
         });
@@ -67,8 +150,8 @@ describe('loader do RU', () => {
         const context = contextWith(null);
         const data = await runLoader(Route, context);
         expect(context.paths).toEqual(['/me', '/public/restaurant']);
-        expect(data.defaultDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-        expect(['breakfast', 'lunch', 'dinner']).toContain(data.defaultMeal);
+        expect(data.defaults.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+        expect(['breakfast', 'lunch', 'dinner']).toContain(data.defaults.meal);
     });
 
     test('no SSR não consulta a conta, que fica para o cache do navegador', async () => {
@@ -89,7 +172,7 @@ describe('loader do RU', () => {
             '/me/ru-statement',
             '/me/ru-token'
         ]);
-        expect(data).toHaveProperty('defaultMeal');
+        expect(data).toHaveProperty('defaults.meal');
     });
 });
 

@@ -48,6 +48,27 @@ const forwardSsrSetCookie = createIsomorphicFn()
         } catch {}
     });
 
+const timedFetch = createIsomorphicFn()
+    .client((request: Request) => globalThis.fetch(request))
+    .server(async (request: Request) => {
+        const path = new URL(request.url).pathname;
+        const metric =
+            path === '/api/me' ? 'me' : path === '/api/public/restaurant' ? 'menu' : null;
+        if (!metric) return globalThis.fetch(request);
+        const start = performance.now();
+        try {
+            return await globalThis.fetch(request);
+        } finally {
+            const duration = performance.now() - start;
+            const { appendResponseHeader } = await import('@tanstack/react-start/server');
+            try {
+                appendResponseHeader('Server-Timing', `${metric};dur=${duration.toFixed(1)}`);
+            } catch {
+                // Sem resposta SSR fora do contexto de uma requisição.
+            }
+        }
+    });
+
 const ssrMiddleware: Middleware = {
     async onRequest({ request: original }) {
         const request = await toSsrOrigin(original);
@@ -75,7 +96,8 @@ const errorHandlingMiddleware: Middleware = {
 
 export const apiClient = createClient<paths>({
     baseUrl,
-    credentials: 'include'
+    credentials: 'include',
+    fetch: timedFetch
 });
 
 apiClient.use(errorHandlingMiddleware);

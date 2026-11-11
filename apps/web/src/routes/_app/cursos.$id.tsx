@@ -36,6 +36,7 @@ function flowTarget(user: UserProfile | null | undefined, courseId: number) {
 }
 
 export const Route = createFileRoute('/_app/cursos/$id')({
+    codeSplitGroupings: [['loader'], ['component'], ['errorComponent'], ['pendingComponent']],
     validateSearch: validateFlowSearch,
     staticData: { presentation: 'fullscreen' },
     params: {

@@ -1,21 +1,21 @@
 import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { createFileRoute, Link } from '@tanstack/react-router';
+import { lazy, Suspense, useEffect, useState } from 'react';
 
-import { getNoClassReason } from '#/calendar';
+import type { UserProfile } from '#/queries/me';
+
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderToggle } from '#/components/HeaderBar';
-import { LatestNewsSection } from '#/components/home/LatestNewsSection';
-import { PublicInfoSection } from '#/components/home/PublicInfoSection';
-import { TodayClassesSection } from '#/components/home/TodayClassesSection';
 import { usePageState } from '#/components/PageState';
+import { buttonVariants } from '#/components/ui/button';
 import { WeekDayPicker } from '#/components/WeekDayPicker';
-import { classesOn, nowInBrasilia, weekDays } from '#/lib/schedule';
+import { nowInBrasilia, weekDays } from '#/lib/schedule';
 import { publicPageHead } from '#/lib/seo';
-import { classroomsQueryOptions } from '#/queries/classrooms';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
-import { campusOf, menuQueryOptions } from '#/queries/restaurant';
+import { menuQueryOptions } from '#/queries/restaurant';
+
+const TodayDashboard = lazy(() => import('#/components/home/TodayDashboard'));
 
 const WEEKDAYS = [
     'Domingo',
@@ -31,9 +31,9 @@ export const Route = createFileRoute('/_app/')({
     head: () => ({
         ...publicPageHead({
             path: '/',
-            title: 'Followw — SIGAA UnB e cardápio do RU',
+            title: 'Followw UnB — SIGAA, cardápio do RU e busca',
             description:
-                'Acompanhe suas turmas, horários e postagens do SIGAA, consulte o cardápio do RU e muito mais.'
+                'App independente para estudantes da UnB. Consulte o cardápio do RU e busque disciplinas, cursos e docentes. Entre com o SIGAA para ver suas turmas e horários.'
         }),
         scripts: [
             {
@@ -41,8 +41,8 @@ export const Route = createFileRoute('/_app/')({
                 children: JSON.stringify({
                     '@context': 'https://schema.org',
                     '@type': 'WebSite',
-                    name: 'Followw',
-                    alternateName: 'Followw UnB',
+                    name: 'Followw UnB',
+                    alternateName: 'Followw',
                     url: 'https://followw.app/'
                 })
             }
@@ -51,10 +51,14 @@ export const Route = createFileRoute('/_app/')({
     loader: async ({ context: { queryClient } }) => {
         const now = nowInBrasilia();
         const user = await loadQuery(queryClient, meQueryOptions);
-        await Promise.all([
-            loadQuery(queryClient, menuQueryOptions({ date: now.date, user })).catch(noop),
-            user && loadQuery(queryClient, classroomsQueryOptions).catch(noop)
-        ]);
+        if (user) {
+            await Promise.all([
+                loadQuery(queryClient, menuQueryOptions({ date: now.date, user })).catch(noop),
+                import('#/queries/classrooms').then(({ classroomsQueryOptions }) =>
+                    loadQuery(queryClient, classroomsQueryOptions).catch(noop)
+                )
+            ]);
+        }
         return { now };
     },
     staticData: { header: HomeHeader },
@@ -86,6 +90,11 @@ function useSelectedDay() {
 }
 
 function HomeHeader() {
+    const { data: user } = useQuery(meQueryOptions);
+    return user ? <TodayHeader /> : <HeaderBar />;
+}
+
+function TodayHeader() {
     const { label } = useSelectedDay();
     const [weekOpen, setWeekOpen] = useWeekOpen();
 
@@ -103,21 +112,46 @@ function HomeHeader() {
 }
 
 function HomePage() {
+    const { data: user } = useSuspenseQuery(meQueryOptions);
+    return user ? <TodayPage user={user} /> : <VisitorHome />;
+}
+
+function VisitorHome() {
+    return (
+        <section className="flex flex-col items-start gap-5 rounded-2xl border bg-card px-5 py-8 sm:px-8">
+            <div className="flex max-w-lg flex-col gap-3">
+                <h1 className="text-4xl font-bold tracking-tight">Followw UnB</h1>
+                <p className="text-lg font-semibold">Um app independente para estudantes da UnB.</p>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                    Consulte o cardápio do RU e busque disciplinas, cursos e docentes sem entrar.
+                    Entre com a mesma matrícula e senha do SIGAA, sem criar outra conta, para
+                    acompanhar suas turmas, horários e outros dados acadêmicos.
+                </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+                <Link to="/ru" className={buttonVariants({ className: 'min-h-11' })}>
+                    Ver cardápio
+                </Link>
+                <Link
+                    to="/buscar"
+                    className={buttonVariants({ variant: 'secondary', className: 'min-h-11' })}
+                >
+                    Buscar
+                </Link>
+                <Link
+                    to="/login"
+                    className={buttonVariants({ variant: 'secondary', className: 'min-h-11' })}
+                >
+                    Entrar com SIGAA
+                </Link>
+            </div>
+        </section>
+    );
+}
+
+function TodayPage({ user }: { user: UserProfile }) {
     const { now, days, selectedDay, isToday, label, setPicked } = useSelectedDay();
     const [weekOpen] = useWeekOpen();
-
-    const { data: user } = useSuspenseQuery(meQueryOptions);
-    const classroomsQuery = useQuery({
-        ...classroomsQueryOptions,
-        enabled: Boolean(user)
-    });
-    const classrooms = classroomsQuery.data ?? [];
-    const menu = useQuery(menuQueryOptions({ date: selectedDay.date, user }));
-
-    const noClassReason = getNoClassReason(selectedDay.date);
-    const classes = noClassReason
-        ? []
-        : classesOn(classrooms, selectedDay.weekday, isToday ? now.time : undefined);
 
     return (
         <>
@@ -129,22 +163,14 @@ function HomePage() {
                 />
             )}
 
-            <div className="flex flex-col gap-6">
-                <TodayClassesSection
-                    loggedIn={Boolean(user)}
-                    noClassReason={noClassReason}
-                    isLoadingError={classroomsQuery.isLoadingError}
-                    onRetry={() => void classroomsQuery.refetch()}
-                    classes={classes}
+            <Suspense fallback={null}>
+                <TodayDashboard
+                    user={user}
+                    day={selectedDay}
+                    time={isToday ? now.time : undefined}
+                    label={label}
                 />
-                <PublicInfoSection
-                    campus={campusOf(user?.unit?.code)}
-                    menu={menu.data?.[0]}
-                    isLoading={menu.isPending}
-                    day={label}
-                />
-                {user && <LatestNewsSection />}
-            </div>
+            </Suspense>
         </>
     );
 }

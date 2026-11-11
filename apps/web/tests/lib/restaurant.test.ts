@@ -5,7 +5,6 @@ import type { MenuSection } from '#/queries/restaurant';
 import {
     cardIsExpired,
     currentOrNextMeal,
-    formatMenuDay,
     highlightMenu,
     insufficientMealBalance
 } from '#/lib/restaurant';
@@ -116,17 +115,5 @@ describe('highlightMenu', () => {
     test('sem prato principal nem complemento mantém tudo na lista', () => {
         const sections = [section('drink'), section('main_dish_vegan')];
         expect(highlightMenu(sections)).toEqual({ main: null, alternatives: [], others: sections });
-    });
-});
-
-describe('formatMenuDay', () => {
-    test.each([
-        ['2026-11-01', 'ontem'],
-        ['2026-11-02', 'hoje'],
-        ['2026-11-03', 'amanhã'],
-        ['2026-11-04', 'qua., 04/11'],
-        ['2026-10-31', 'sáb., 31/10']
-    ])('%s vira %s', (date, label) => {
-        expect(formatMenuDay(date, '2026-11-02')).toBe(label);
     });
 });

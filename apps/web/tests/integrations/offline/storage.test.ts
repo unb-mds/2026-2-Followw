@@ -79,6 +79,25 @@ describe('cache de páginas offline', () => {
         expect(cached()).toEqual(['/', '/login', '/ru', '/turmas']);
     });
 
+    test('aquece módulos adiados apenas para a sessão autenticada', async () => {
+        const manifest = '/offline-academic-dev.json';
+        const dashboard = '/assets/TodayDashboard-build.js';
+        const chart = '/assets/StatisticsChart-build.js';
+        pages[manifest] = Response.json([dashboard, chart]);
+        pages[dashboard] = new Response('dashboard');
+
+        await warmPages(false);
+        expect(cached()).toEqual([]);
+
+        await warmPages(true);
+        expect(cached()).toEqual([dashboard, manifest].toSorted());
+
+        delete pages[manifest];
+        pages[chart] = new Response('chart');
+        await warmPages(true);
+        expect(cached()).toEqual([dashboard, chart, manifest].toSorted());
+    });
+
     test('baixa só as páginas que faltam e apaga caches de builds antigos', async () => {
         const home = new Response('home');
         stores.set('followw-pages-antigo', new FakeCache());

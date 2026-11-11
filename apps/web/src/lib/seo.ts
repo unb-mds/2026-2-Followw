@@ -3,10 +3,18 @@ interface PublicPage {
     title: string;
     description: string;
     search?: string;
+    index?: boolean;
     image?: { path: string; alt: string };
 }
 
-export function publicPageHead({ path, title, description, search, image }: PublicPage) {
+export function publicPageHead({
+    path,
+    title,
+    description,
+    search,
+    index = true,
+    image
+}: PublicPage) {
     const url = new URL(path, 'https://followw.app').href;
     const pageUrl = search ? `${url}?${search}` : url;
     const imageUrl = image && new URL(image.path, url).href;
@@ -15,8 +23,8 @@ export function publicPageHead({ path, title, description, search, image }: Publ
         meta: [
             { title },
             { name: 'description', content: description },
-            { name: 'robots', content: 'index, follow' },
-            { property: 'og:site_name', content: 'Followw' },
+            { name: 'robots', content: index ? 'index, follow' : 'noindex, follow' },
+            { property: 'og:site_name', content: 'Followw UnB' },
             { property: 'og:locale', content: 'pt_BR' },
             { property: 'og:type', content: 'website' },
             { property: 'og:title', content: title },

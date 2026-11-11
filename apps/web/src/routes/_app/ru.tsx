@@ -26,16 +26,16 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
 import { WeekDayPicker } from '#/components/WeekDayPicker';
 import { useFailureMessage } from '#/lib/online';
-import { currentOrNextMeal, formatMenuDay, highlightMenu, MEAL_TIMES } from '#/lib/restaurant';
+import { highlightMenu, MEAL_TIMES, restaurantWeek } from '#/lib/restaurant';
 import {
-    loadRestaurantSearch,
+    restaurantDefaults,
     restaurantPageHead,
     restaurantSearchParsers,
     restaurantSelection,
     restaurantSharePath,
     validateRestaurantSearch
 } from '#/lib/restaurant-share';
-import { addDays, nowInBrasilia, weekDays } from '#/lib/schedule';
+import { addDays, nowInBrasilia } from '#/lib/schedule';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
 import { CAMPUS_LABELS, CAMPUS_OPTIONS, campusOf, menuQueryOptions } from '#/queries/restaurant';
@@ -73,46 +73,36 @@ const subscribe = () => () => {};
 
 export const Route = createFileRoute('/_app/ru')({
     validateSearch: validateRestaurantSearch,
-    // Trocar dia, refeição ou campus só muda a URL: o componente consulta o cardápio.
+    loaderDeps: ({ search: { date, meal, campus } }) => ({ date, meal, campus }),
     shouldReload: ({ cause }) => cause !== 'stay',
-    loader: async ({ context: { queryClient }, location }) => {
+    loader: async ({ context: { queryClient }, deps: search }) => {
         const now = nowInBrasilia();
-        const search = loadRestaurantSearch(location.searchStr);
-        const opening = currentOrNextMeal(now);
         const user = await loadQuery(queryClient, meQueryOptions);
+        const defaults = restaurantDefaults(campusOf(user?.unit?.code), now);
+        const selection = restaurantSelection(search, defaults);
         // no SSR a conta fica para o navegador, que pode ter o cache salvo
         const account = environmentManager.isServer() ? null : user;
-        await Promise.all([
-            loadQuery(
-                queryClient,
-                menuQueryOptions({
-                    date: search.date ?? opening.date,
-                    campus: search.campus ?? undefined,
-                    user
-                })
-            ).catch(noop),
+        const [menus] = await Promise.all([
+            loadQuery(queryClient, menuQueryOptions(selection)).catch(noop),
             account &&
                 loadQuery(queryClient, statementQueryOptions(account.registration)).catch(noop),
             account &&
                 loadQuery(queryClient, credentialsQueryOptions(account.registration)).catch(noop)
         ]);
-        // Só os padrões: a URL guarda apenas o que difere deles.
         return {
             today: now.date,
-            defaultDate: opening.date,
-            defaultMeal: opening.meal.key,
-            defaultCampus: campusOf(user?.unit?.code)
+            defaults,
+            selection,
+            filtered: Boolean(search.date || search.meal || search.campus),
+            published: Boolean(
+                menus?.find(({ date }) => date === selection.date)?.[selection.meal]?.length
+            )
         };
     },
-    head: ({ loaderData, match }) =>
-        restaurantPageHead(
-            {
-                date: match?.search.date ?? loaderData?.defaultDate ?? restaurantSelection({}).date,
-                meal: match?.search.meal ?? loaderData?.defaultMeal ?? restaurantSelection({}).meal,
-                campus: match?.search.campus ?? loaderData?.defaultCampus ?? 'Darcy'
-            },
-            Boolean(match?.search.date || match?.search.meal || match?.search.campus)
-        ),
+    head: ({ loaderData }) =>
+        loaderData
+            ? restaurantPageHead(loaderData.selection, loaderData.filtered, loaderData.published)
+            : restaurantPageHead(restaurantDefaults(), false),
     staticData: { header: RUHeader },
     errorComponent: ErrorState,
     component: RUPage
@@ -154,17 +144,9 @@ function useMenuSelection() {
         () => true,
         () => false
     );
-    const opening = currentOrNextMeal(nowInBrasilia());
-    const defaultCampus = loaded?.defaultCampus ?? campusOf(user?.unit?.code);
-    const defaults: RestaurantSelection =
-        loaded && !hydrated
-            ? { date: loaded.defaultDate, meal: loaded.defaultMeal, campus: defaultCampus }
-            : { date: opening.date, meal: opening.meal.key, campus: defaultCampus };
-    const selection: RestaurantSelection = {
-        date: search.date ?? defaults.date,
-        meal: search.meal ?? defaults.meal,
-        campus: search.campus ?? defaults.campus
-    };
+    const defaults =
+        loaded && !hydrated ? loaded.defaults : restaurantDefaults(campusOf(user?.unit?.code));
+    const selection = restaurantSelection(search, defaults);
     // O padrão sai da URL; o link de compartilhamento leva a seleção completa.
     const select = (change: Partial<RestaurantSelection>) => {
         const { date, meal, campus } = { ...selection, ...change };
@@ -199,8 +181,8 @@ function RUPage() {
     const meal = MEALS.find((item) => item.key === selectedMeal) ?? MEALS[1];
     const sections = menu?.[selectedMeal] ?? [];
     // Só esta semana e a próxima; trocar de semana mantém o dia da semana.
-    const days = weekDays(selectedDate, 7);
-    const firstDay = weekDays(today, 7)[0].date;
+    const days = restaurantWeek(selectedDate);
+    const firstDay = restaurantWeek(today)[0].date;
     const isNextWeek = days[0].date > firstDay;
     const shiftWeek = (weeks: number) => () => select({ date: addDays(selectedDate, 7 * weeks) });
     const shiftDay = (offset: number) => () => select({ date: addDays(selectedDate, offset) });
@@ -287,9 +269,18 @@ function RUPage() {
                         >
                             <ChevronLeft />
                         </Button>
-                        <p className="text-xs font-bold text-muted-foreground" aria-live="polite">
-                            {formatMenuDay(selectedDate, today)} · {meal.start}–{meal.end}
-                        </p>
+                        <div className="text-center" aria-live="polite">
+                            <h2 className="text-sm font-bold">
+                                {meal.label} no RU · {CAMPUS_LABELS[campus]}
+                            </h2>
+                            <p className="text-xs text-muted-foreground">
+                                <time dateTime={selectedDate}>
+                                    {selectedDate.split('-').toReversed().join('/')}
+                                </time>
+                                {' · '}
+                                {meal.start}–{meal.end}
+                            </p>
+                        </div>
                         <Button
                             variant="ghost"
                             size="icon-sm"
@@ -319,11 +310,26 @@ function RUPage() {
                                     </Button>
                                 </>
                             )}
-                            {!isPending &&
-                                !isLoadingError &&
-                                'Cardápio não publicado para esta refeição neste dia.'}
+                            {!isPending && !isLoadingError && (
+                                <>
+                                    Cardápio não publicado para esta refeição neste dia.{' '}
+                                    <Link
+                                        to="/ru"
+                                        search={{}}
+                                        className="font-semibold text-primary underline"
+                                    >
+                                        Ver cardápio atual
+                                    </Link>
+                                </>
+                            )}
                         </p>
                     )}
+                    <p className="mt-3 px-1 text-xs text-muted-foreground">
+                        Fonte:{' '}
+                        <a href="https://ru.unb.br/cardapio-refeitorio/" className="underline">
+                            Restaurante Universitário da UnB
+                        </a>
+                    </p>
                 </TabsContent>
             </Tabs>
 

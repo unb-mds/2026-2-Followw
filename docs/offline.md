@@ -16,13 +16,17 @@ O SW **nunca** cacheia respostas da API: os dados vivem só no cache do Query. O
 Gerado no build (`generateSW`), só no ambiente `client`, e registrado só em produção. Atualiza
 sozinho (`autoUpdate`: `skipWaiting` + `clientsClaim`).
 
-- **Assets** (`/assets/**`, `favicon.svg`, `manifest.json`): precache, servidos do cache.
+- **Assets** (`/assets/**`, `favicon.svg`, `manifest.json`): precache, servidos do cache. Os
+  módulos do painel Hoje, das postagens e dos gráficos são guardados no primeiro uso ou no
+  aquecimento de uma sessão autenticada.
 - **Navegações** (HTML do SSR): _network-first_ com timeout de 3 s, gravadas por URL no cache
   `followw-pages-<build>` (`pages-cache.ts`). Sem rede e sem cache para a URL, cai na página pai
   (`/turmas/x` → `/turmas`) ou na home, e o router resolve a rota no client.
 - **Pré-carga**: após abrir o app online, `warmPages` baixa `/`, `/ru`, `/turmas` e `/perfil` (ou
-  `/login`, sem login) que ainda faltam. O cache de páginas é versionado por build, porque o HTML
-  antigo aponta para assets que o SW novo já não tem; os caches de builds antigos são apagados.
+  `/login`, sem login) que ainda faltam. Para sessões autenticadas, também baixa os módulos
+  listados no manifesto de assets acadêmicos gerado pelo build. O cache de páginas e desses
+  módulos é versionado por build, porque o HTML antigo aponta para assets que o SW novo já não
+  tem. Os caches de builds antigos são apagados.
 
 ## Cache dos dados
 

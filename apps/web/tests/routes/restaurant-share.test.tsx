@@ -118,7 +118,7 @@ describe('compartilhamento do cardápio', () => {
     });
     test('o Router valida os parâmetros vindos da URL', () => {
         const search = { date: selection.date, meal: 'dinner', campus: 'Gama' } as const;
-        expect(validateRestaurantSearch['~standard'].validate(search)).toEqual({ value: search });
+        expect(validateRestaurantSearch(search)).toEqual(search);
     });
 
     test('o link restaura dia, refeição e campus sem depender dos padrões atuais', () => {
@@ -159,7 +159,7 @@ describe('compartilhamento do cardápio', () => {
             campus: selection.campus
         });
         expect(head.meta).toContainEqual({ name: 'twitter:card', content: 'summary_large_image' });
-        expect(head.meta).toContainEqual({ title: 'Almoço do RU · 19/10/2026 | Followw' });
+        expect(head.meta).toContainEqual({ title: 'Almoço do RU · 19/10/2026 | Followw UnB' });
         expect(head.links[0].href).toBe(`https://followw.app${restaurantSharePath(selection)}`);
     });
 

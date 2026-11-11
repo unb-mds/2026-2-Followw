@@ -1,8 +1,7 @@
 import type { Day } from '#/lib/schedule';
 import type { MenuSection } from '#/queries/restaurant';
 
-import { daysFrom, formatRelativeDays } from '#/lib/classroom-details';
-import { currentAndNext, nextDays } from '#/lib/schedule';
+import { currentAndNext, nextDays, weekDays } from '#/lib/schedule';
 
 export const MEAL_TIMES = [
     { key: 'breakfast', label: 'Café da manhã', start: '07:00', end: '09:30' },
@@ -12,26 +11,17 @@ export const MEAL_TIMES = [
 
 export type MealKey = (typeof MEAL_TIMES)[number]['key'];
 
+export function restaurantWeek(date: string) {
+    // A API aceita anos de quatro dígitos.
+    return weekDays(date, 7).filter((day) => !day.date.startsWith('+'));
+}
+
 export function currentOrNextMeal(now: Day & { time: string }) {
     const { current, next } = currentAndNext([...MEAL_TIMES], now.time);
     return {
         meal: current ?? next ?? MEAL_TIMES[0],
         date: current || next ? now.date : nextDays(now.date, 2)[1].date
     };
-}
-
-const menuDayFormat = new Intl.DateTimeFormat('pt-BR', {
-    weekday: 'short',
-    day: '2-digit',
-    month: '2-digit',
-    timeZone: 'UTC'
-});
-
-/** `hoje`, `ontem` e `amanhã`; os demais dias como `qua., 05/11`. */
-export function formatMenuDay(date: string, today: string) {
-    const days = daysFrom(today, date);
-    if (Math.abs(days) <= 1) return formatRelativeDays(days);
-    return menuDayFormat.format(new Date(`${date}T00:00:00Z`));
 }
 
 const MEAL_PRICES_IN_CENTS = {

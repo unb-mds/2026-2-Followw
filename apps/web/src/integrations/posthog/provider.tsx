@@ -8,6 +8,11 @@ if (typeof window !== 'undefined' && import.meta.env.VITE_POSTHOG_KEY) {
         api_host: import.meta.env.VITE_POSTHOG_HOST || 'https://us.i.posthog.com',
         person_profiles: 'identified_only',
         cross_subdomain_cookie: false,
+        disable_surveys: true,
+        capture_performance: {
+            web_vitals: true,
+            web_vitals_attribution: ['INP', 'LCP']
+        },
         defaults: '2026-08-30'
     });
 }

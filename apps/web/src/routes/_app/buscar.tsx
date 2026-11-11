@@ -64,6 +64,7 @@ function searchView(
 }
 
 export const Route = createFileRoute('/_app/buscar')({
+    codeSplitGroupings: [['loader'], ['component'], ['errorComponent']],
     head: () => ({ meta: [{ title: 'Buscar | Followw' }] }),
     validateSearch,
     // O componente consulta após o debounce; o loader só pré-carrega ao entrar na página.

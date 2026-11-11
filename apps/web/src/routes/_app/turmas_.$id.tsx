@@ -65,6 +65,7 @@ const PRELOAD_TAB: Record<ClassroomTab, (client: QueryClient, id: string) => Pro
 };
 
 export const Route = createFileRoute('/_app/turmas_/$id')({
+    codeSplitGroupings: [['loader'], ['component'], ['errorComponent']],
     validateSearch: validateClassroomSearch,
     // Trocar de aba só muda a URL: o componente consulta a aba.
     shouldReload: ({ cause }) => cause !== 'stay',
