@@ -1,7 +1,9 @@
-import { Link, useLocation, useNavigate } from '@tanstack/react-router';
+import { noop } from '@tanstack/react-query';
+import { Link, useLocation, useNavigate, useRouter } from '@tanstack/react-router';
 import { House, Search, User, type LucideIcon, Utensils, UserRoundGroup } from 'lucide-react';
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
+import { useOnline } from '#/lib/online';
 import { cn } from '#/lib/shadcn';
 
 interface NavItem {
@@ -31,7 +33,22 @@ export const BottomNavigation: React.FC = () => {
         (item) => item.to === pathname || (item.to === '/turmas' && pathname.startsWith('/turmas/'))
     );
     const navigate = useNavigate();
+    const router = useRouter();
+    const online = useOnline();
     const lastRestaurantTap = useRef<number | null>(null);
+    useEffect(() => {
+        if (pathname !== '/' || !online) return undefined;
+        const preload = () => {
+            for (const path of ['/ru', '/buscar'] as const)
+                router.loadRouteChunk(router.routesByPath[path])?.catch(noop);
+        };
+        if (typeof window.requestIdleCallback === 'function') {
+            const idle = window.requestIdleCallback(preload);
+            return () => window.cancelIdleCallback(idle);
+        }
+        const timer = window.setTimeout(preload, 200);
+        return () => window.clearTimeout(timer);
+    }, [online, pathname, router]);
     // dois toques no RU abrem a carteirinha
     const onRestaurantClick = (event: React.MouseEvent) => {
         const now = event.timeStamp;

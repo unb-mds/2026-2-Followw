@@ -870,15 +870,12 @@ describe('página de busca com estado na URL', () => {
 
     test('buscar código depois de um nome esconde os docentes da busca anterior', async () => {
         const page = renderPage('?q=Carlos Silva');
-        await testing.waitFor(() =>
-            expect(page.getByRole('heading', { name: 'Docentes' })).toBeDefined()
-        );
+        await page.findByText('Docentes', { selector: 'h2' });
 
         testing.fireEvent.change(searchbox(page), { target: { value: 'MAT0023' } });
-        await testing.act(() => new Promise((resolve) => setTimeout(resolve, 350)));
-        await testing.waitFor(() =>
-            expect(page.queryByRole('heading', { name: 'Docentes' })).toBeNull()
-        );
-        expect(page.getByText('Cálculo 1')).toBeDefined();
+        await testing.waitFor(() => {
+            expect(Boolean(page.queryByText('Docentes', { selector: 'h2' }))).toBe(false);
+            expect(Boolean(page.queryByText('Cálculo 1'))).toBe(true);
+        });
     });
 });

@@ -24,7 +24,7 @@ def today() -> date:
 
 
 # Primeiro dia com cardápio no Followw; o mesmo limite vale no web.
-FIRST_MENU_DAY = date(2026, 9, 28)
+FIRST_MENU_DAY = date(2026, 9, 14)
 
 
 def menu_window() -> tuple[date, date]:

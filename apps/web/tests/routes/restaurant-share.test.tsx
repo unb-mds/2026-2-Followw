@@ -6,7 +6,7 @@ import type { RestaurantSelection } from '#/lib/restaurant-share';
 import type { MenuSection } from '#/queries/restaurant';
 
 import { RestaurantShareImage } from '#/components/ru/RestaurantShareImage';
-import { FIRST_MENU_DAY, lastMenuDay } from '#/lib/restaurant';
+import { lastMenuDay } from '#/lib/restaurant';
 import {
     loadRestaurantSearch,
     restaurantPageHead,
@@ -139,9 +139,9 @@ describe('compartilhamento do cardápio', () => {
 
     test('aceita do primeiro dia com cardápio até o fim da próxima semana', () => {
         const last = lastMenuDay(nowInBrasilia().date);
-        expect(loadRestaurantSearch({ date: FIRST_MENU_DAY }).date).toBe(FIRST_MENU_DAY);
+        expect(loadRestaurantSearch({ date: '2026-09-14' }).date).toBe('2026-09-14');
         expect(loadRestaurantSearch({ date: last }).date).toBe(last);
-        expect(loadRestaurantSearch({ date: addDays(FIRST_MENU_DAY, -1) }).date).toBeNull();
+        expect(loadRestaurantSearch({ date: '2026-09-13' }).date).toBeNull();
         expect(loadRestaurantSearch({ date: addDays(last, 1) }).date).toBeNull();
     });
 

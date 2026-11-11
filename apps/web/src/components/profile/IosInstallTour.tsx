@@ -49,7 +49,11 @@ function IosInstallTourContent() {
     return (
         <>
             <div className="flex items-start gap-3">
-                <img src="/apple-touch-icon.png" alt="" className="size-10 shrink-0 rounded-xl" />
+                <img
+                    src="/apple-touch-icon.png?v=2"
+                    alt=""
+                    className="size-10 shrink-0 rounded-xl"
+                />
                 <DialogHeader className="min-w-0 flex-1 gap-1">
                     <DialogTitle className="text-lg leading-snug font-bold tracking-tight">
                         Instale o Followw

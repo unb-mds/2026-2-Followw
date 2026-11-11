@@ -1,9 +1,10 @@
 import { noop, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderToggle } from '#/components/HeaderBar';
+import { TodayDashboard } from '#/components/home/TodayDashboard';
 import { usePageState } from '#/components/PageState';
 import { WeekDayPicker } from '#/components/WeekDayPicker';
 import { nowInBrasilia, weekDays } from '#/lib/schedule';
@@ -12,12 +13,6 @@ import { classroomsQueryOptions } from '#/queries/classrooms';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
 import { menuQueryOptions } from '#/queries/restaurant';
-
-const TodayDashboard = lazy(() =>
-    import('#/components/home/TodayDashboard').then((module) => ({
-        default: module.TodayDashboard
-    }))
-);
 
 const WEEKDAYS = [
     'Domingo',
@@ -119,14 +114,12 @@ function HomePage() {
                 />
             )}
 
-            <Suspense fallback={null}>
-                <TodayDashboard
-                    user={user}
-                    day={selectedDay}
-                    time={isToday ? now.time : undefined}
-                    label={label}
-                />
-            </Suspense>
+            <TodayDashboard
+                user={user}
+                day={selectedDay}
+                time={isToday ? now.time : undefined}
+                label={label}
+            />
         </>
     );
 }

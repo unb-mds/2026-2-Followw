@@ -1,8 +1,8 @@
-import { environmentManager, noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Link, useLocation, useNavigate } from '@tanstack/react-router';
 import { ChevronLeft, ChevronRight, Coffee, Egg, Leaf, Soup, UtensilsCrossed } from 'lucide-react';
 import { useQueryStates } from 'nuqs';
-import { useEffect, useSyncExternalStore } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useSyncExternalStore } from 'react';
 
 import type { RestaurantSelection } from '#/lib/restaurant-share';
 import type { DailyMenu, MenuSection } from '#/queries/restaurant';
@@ -11,7 +11,6 @@ import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderToggle } from '#/components/HeaderBar';
 import { LoadingText } from '#/components/LoadingText';
 import { usePageState } from '#/components/PageState';
-import { RestaurantAccount } from '#/components/ru/RestaurantAccount';
 import { ShareButton } from '#/components/ShareButton';
 import { Button } from '#/components/ui/button';
 import { Card, CardContent } from '#/components/ui/card';
@@ -39,7 +38,12 @@ import { addDays, nowInBrasilia, weekDays } from '#/lib/schedule';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
 import { CAMPUS_LABELS, CAMPUS_OPTIONS, campusOf, menuQueryOptions } from '#/queries/restaurant';
-import { credentialsQueryOptions, statementQueryOptions } from '#/queries/restaurant-account';
+
+const RestaurantAccount = lazy(() =>
+    import('#/components/ru/RestaurantAccount').then((module) => ({
+        default: module.RestaurantAccount
+    }))
+);
 
 const MEAL_ICONS = { breakfast: Coffee, lunch: UtensilsCrossed, dinner: Soup };
 const MEALS = MEAL_TIMES.map(({ key, label, start, end }) => ({
@@ -81,15 +85,7 @@ export const Route = createFileRoute('/_app/ru')({
         const user = await loadQuery(queryClient, meQueryOptions);
         const defaults = restaurantDefaults(campusOf(user?.unit?.code), now);
         const selection = restaurantSelection(search, defaults);
-        // no SSR a conta fica para o navegador, que pode ter o cache salvo
-        const account = environmentManager.isServer() ? null : user;
-        await Promise.all([
-            loadQuery(queryClient, menuQueryOptions(selection)).catch(noop),
-            account &&
-                loadQuery(queryClient, statementQueryOptions(account.registration)).catch(noop),
-            account &&
-                loadQuery(queryClient, credentialsQueryOptions(account.registration)).catch(noop)
-        ]);
+        await loadQuery(queryClient, menuQueryOptions(selection)).catch(noop);
         return { today: now.date, defaults };
     },
     head: ({ loaderData, match }) => {
@@ -170,10 +166,17 @@ function RUPage() {
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const cardRequested = useLocation({ select: (location) => location.state.studentCard });
     const navigate = useNavigate();
-    // limpa o pedido para não reabrir ao voltar ou recarregar
+    const consumeCardRequest = useCallback(() => {
+        void navigate({
+            to: '.',
+            search: true,
+            replace: true,
+            state: (previous) => ({ ...previous, studentCard: undefined })
+        });
+    }, [navigate]);
     useEffect(() => {
-        if (cardRequested) void navigate({ to: '.', search: true, replace: true, state: {} });
-    }, [cardRequested, navigate]);
+        if (cardRequested && !user) consumeCardRequest();
+    }, [cardRequested, consumeCardRequest, user]);
     const { data, isPending, isLoadingError, refetch } = useQuery(
         menuQueryOptions({ date: selectedDate, campus })
     );
@@ -319,11 +322,13 @@ function RUPage() {
             </Tabs>
 
             {user ? (
-                <RestaurantAccount
-                    key={user.registration}
-                    registration={user.registration}
-                    openCard={cardRequested}
-                />
+                <Suspense fallback={null}>
+                    <RestaurantAccount
+                        key={user.registration}
+                        registration={user.registration}
+                        consumeCardRequest={cardRequested ? consumeCardRequest : undefined}
+                    />
+                </Suspense>
             ) : (
                 <Card className="mt-4">
                     <CardContent className="text-muted-foreground">

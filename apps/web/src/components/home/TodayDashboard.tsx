@@ -1,15 +1,21 @@
 import { useQuery } from '@tanstack/react-query';
+import { lazy, Suspense } from 'react';
 
 import type { Day } from '#/lib/schedule';
 import type { UserProfile } from '#/queries/me';
 
 import { getNoClassReason } from '#/calendar';
-import { LatestNewsSection } from '#/components/home/LatestNewsSection';
 import { PublicInfoSection } from '#/components/home/PublicInfoSection';
 import { TodayClassesSection } from '#/components/home/TodayClassesSection';
 import { classesOn } from '#/lib/schedule';
 import { classroomsQueryOptions } from '#/queries/classrooms';
 import { campusOf, menuQueryOptions } from '#/queries/restaurant';
+
+const LatestNewsSection = lazy(() =>
+    import('#/components/home/LatestNewsSection').then((module) => ({
+        default: module.LatestNewsSection
+    }))
+);
 
 interface TodayDashboardProps {
     user: UserProfile | null;
@@ -40,7 +46,11 @@ export function TodayDashboard({ user, day, time, label }: TodayDashboardProps) 
                 isLoading={menu.isPending}
                 day={label}
             />
-            {user && <LatestNewsSection />}
+            {user && (
+                <Suspense fallback={null}>
+                    <LatestNewsSection />
+                </Suspense>
+            )}
         </div>
     );
 }

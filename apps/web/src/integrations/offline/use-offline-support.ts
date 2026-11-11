@@ -19,6 +19,7 @@ export function useOfflineSupport() {
     const online = useOnline();
     const { data: user } = useQuery(meQueryOptions);
     const loggedIn = Boolean(user);
+    const registration = user?.registration;
     const [restoring, setRestoring] = useState(loggedIn);
     const campus = campusOf(user?.unit?.code);
 
@@ -26,20 +27,22 @@ export function useOfflineSupport() {
 
     // depois da hidratação, para o cache restaurado não divergir do HTML do SSR
     useEffect(() => {
-        if (!loggedIn) return undefined;
+        if (!registration) return undefined;
         if (serviceWorkerEnabled()) navigator.serviceWorker.register('/sw.js').catch(noop);
         return persistQueryCache(queryClient, () => setRestoring(false));
-    }, [queryClient, loggedIn]);
+    }, [queryClient, registration]);
 
     // com o app aberto e online, deixa páginas e cardápio da semana prontos para o modo offline
     useEffect(() => {
         if (!online || !loggedIn) return undefined;
         const timeout = setTimeout(() => {
-            if (serviceWorkerEnabled()) void warmPages();
+            if (queryClient.getQueryData(meQueryOptions.queryKey)?.registration !== registration)
+                return;
+            if (serviceWorkerEnabled()) warmPages().catch(noop);
             prefetchWeekMenus(queryClient, campus, nowInBrasilia().date).catch(noop);
         }, WARMUP_DELAY);
         return () => clearTimeout(timeout);
-    }, [queryClient, online, loggedIn, campus]);
+    }, [queryClient, online, loggedIn, campus, registration]);
 
     return restoring;
 }

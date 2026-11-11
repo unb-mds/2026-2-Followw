@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, mock, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import {
@@ -7,7 +7,11 @@ import {
     StatementDetails,
     StudentCard
 } from '#/components/ru/RestaurantAccount';
-import { credentialsQueryOptions } from '#/queries/restaurant-account';
+import { credentialsQueryOptions, statementQueryOptions } from '#/queries/restaurant-account';
+
+import { useDom } from '../../helpers/dom';
+
+const dom = useDom();
 
 describe('RestaurantAccount', () => {
     test('oferece botão para abrir o QR code em um drawer sem exibi-lo na página', () => {
@@ -40,6 +44,39 @@ describe('RestaurantAccount', () => {
         );
         expect(markup).toContain('Carregando saldo e extrato');
         expect(markup).not.toContain('Saldo disponível');
+    });
+
+    test('consome o pedido ao montar e mantém a carteirinha aberta quando chega o saldo', async () => {
+        const client = new QueryClient({ defaultOptions: { queries: { enabled: false } } });
+        const registration = '202600001';
+        const consume = mock(() => {});
+        const account = (consumeCardRequest?: () => void) => (
+            <QueryClientProvider client={client}>
+                <RestaurantAccount
+                    registration={registration}
+                    consumeCardRequest={consumeCardRequest}
+                />
+            </QueryClientProvider>
+        );
+        const { render, act, waitFor } = dom.testing;
+        const view = render(account(consume));
+        const cardButton = () => view.getByLabelText('Ver QR code da carteirinha');
+        expect(consume).toHaveBeenCalledTimes(1);
+        expect(cardButton().getAttribute('aria-expanded')).toBe('true');
+
+        view.rerender(account());
+        await act(async () => {
+            client.setQueryData(statementQueryOptions(registration).queryKey, {
+                balance: '12.50',
+                group: 2,
+                entries: []
+            });
+        });
+        await waitFor(() => {
+            expect(view.getByText('Saldo disponível')).toBeDefined();
+            expect(cardButton().getAttribute('aria-expanded')).toBe('true');
+        });
+        expect(consume).toHaveBeenCalledTimes(1);
     });
 });
 

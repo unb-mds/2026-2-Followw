@@ -25,8 +25,7 @@ function contextWith(
     user: {
         registration: string;
         unit?: { id: number; code: string | null; name: string };
-    } | null,
-    failingPath?: string
+    } | null
 ) {
     const paths: unknown[] = [];
     const queries: unknown[] = [];
@@ -39,7 +38,6 @@ function contextWith(
                 const path = queryKey[1];
                 paths.push(path);
                 queries.push(queryKey[2]);
-                if (path === failingPath) throw new Error('SIGAA indisponível');
                 return path === '/me' ? user : [];
             })
         }
@@ -47,7 +45,7 @@ function contextWith(
 }
 
 describe('loader do RU', () => {
-    test.each(['2026-02-30', 'abc', '2026-09-27', '2030-01-01'])(
+    test.each(['2026-02-30', 'abc', '2026-09-13', '2030-01-01'])(
         'ignora a data inválida ou fora da janela %s e consulta o cardápio atual',
         async (date) => {
             const context = contextWith(null);
@@ -151,18 +149,13 @@ describe('loader do RU', () => {
         expect(context.paths).toEqual(['/me', '/public/restaurant']);
     });
 
-    test('carrega a conta autenticada sem bloquear o cardápio quando a carteirinha falha', async () => {
-        const context = contextWith({ registration: '251000000' }, '/me/ru-token');
+    test('na navegação autenticada carrega o menu sem esperar saldo e carteirinha', async () => {
+        const context = contextWith({ registration: '251000000' });
         environmentManager.setIsServer(() => false);
         const data = await runLoader(Route, context).finally(() =>
             environmentManager.setIsServer(() => true)
         );
-        expect(context.paths).toEqual([
-            '/me',
-            '/public/restaurant',
-            '/me/ru-statement',
-            '/me/ru-token'
-        ]);
+        expect(context.paths).toEqual(['/me', '/public/restaurant']);
         expect(data).toHaveProperty('defaults.meal');
     });
 });

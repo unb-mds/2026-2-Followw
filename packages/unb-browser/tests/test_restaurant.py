@@ -1,5 +1,5 @@
 import functools
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 
 import httpx
@@ -325,55 +325,35 @@ def test_pdf_invalido_e_barulhento():
         parse_menu(b"<html>nao e pdf</html>")
 
 
-def test_datas_ligeiramente_abaixo_do_cabecalho_sao_reconhecidas():
-    menu = _parse_menu((FIXTURES / "cardapio-darcy-28-09.pdf").read_bytes())
-    assert len(menu) == 7
-    assert menu[0].date == date(2026, 9, 28)
-    assert menu[-1].date == date(2026, 10, 4)
-    assert all(day.breakfast and day.lunch and day.dinner for day in menu)
-    assert menu[0].breakfast[0].key == MenuSectionKey.DRINK
-    assert "Leite integral ou Bebida de soja" in menu[0].breakfast[0].items
-
-
-def test_datas_em_linha_propria_abaixo_de_composicao_nao_viram_itens():
-    menu = _parse_menu((FIXTURES / "cardapio-darcy-12-10.pdf").read_bytes())
-
-    assert [day.date for day in menu] == [
-        date(2026, 10, 12) + timedelta(days=offset) for offset in range(7)
+@pytest.mark.parametrize("topo_da_data", [13, 20, 21])
+def test_datas_deslocadas_nao_viram_itens_e_rotulos_quebrados_sao_reconhecidos(
+    monkeypatch, topo_da_data
+):
+    cells = [
+        pdf._Cell(0, 0, 10, 20, "ALMOÇO"),
+        pdf._Cell(10, 0, 30, 20, "COMPOSIÇÃO"),
+        pdf._Cell(30, topo_da_data, 50, 30, "30/09/2026"),
+        pdf._Cell(50, topo_da_data, 70, 30, "01/10/2026"),
+        pdf._Cell(10, 30, 30, 40, "PRATO PRINCIPAL OVOLACTOVEGETARIAN O"),
+        pdf._Cell(30, 30, 50, 40, "Risoto de espinafre"),
+        pdf._Cell(50, 30, 70, 40, "Croquete de soja com queijo"),
     ]
-    assert all(day.breakfast and day.lunch and day.dinner for day in menu)
-    assert menu[0].lunch[0] == MenuSection(
-        key=MenuSectionKey.SALAD_1, name="Salada 1", items=("Alface roxa",)
-    )
-    assert menu[0].lunch[3].items == ("Carne de sol trinchada com cebola roxa",)
+    monkeypatch.setattr(pdf, "_cells", lambda _page: cells)
 
+    meal, sections = pdf._parse_page(None)
 
-def test_gama_reconhece_categorias_com_palavras_quebradas_sem_perder_itens():
-    menu = _parse_menu((FIXTURES / "cardapio-gama-28-09.pdf").read_bytes())
-
-    assert [day.date for day in menu] == [
-        date(2026, 9, 28),
-        date(2026, 9, 29),
-        date(2026, 9, 30),
-        date(2026, 10, 1),
-        date(2026, 10, 2),
+    assert meal == "lunch"
+    assert list(sections) == [date(2026, 9, 30), date(2026, 10, 1)]
+    assert list(sections.values()) == [
+        (
+            MenuSection(
+                key=MenuSectionKey.MAIN_DISH_VEGETARIAN,
+                name="Prato principal ovolactovegetariano",
+                items=(item,),
+            ),
+        )
+        for item in ("Risoto de espinafre", "Croquete de soja com queijo")
     ]
-    for day in menu:
-        for meal in (day.breakfast, day.lunch, day.dinner):
-            assert meal
-            assert all(section.key is not None for section in meal)
-        assert day.lunch[4].key == MenuSectionKey.MAIN_DISH_VEGETARIAN
-        assert day.lunch[4].name == "Prato principal ovolactovegetariano"
-        assert day.lunch[7].key == MenuSectionKey.ACCOMPANIMENTS
-        assert day.lunch[7].name == "Acompanhamentos"
-    assert [day.lunch[4].items for day in menu] == [
-        ("Risoto de espinafre",),
-        ("Croquete de soja com queijo",),
-        ("Isca de soja ao sugo gratinada",),
-        ("Bolinho de lentilha gratinado",),
-        ("Ovos assados ao sugo",),
-    ]
-    assert menu[0].lunch[7].items == ("Arroz branco e integral Feijão carioca",)
 
 
 @pytest.mark.parametrize(

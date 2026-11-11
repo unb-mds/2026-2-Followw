@@ -1,7 +1,7 @@
-import { QueryClient } from '@tanstack/react-query';
-import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { dehydrate, hydrate, QueryClient } from '@tanstack/react-query';
+import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
 
-import { pagesCacheName } from '#/integrations/offline/pages-cache';
+import { PAGES_SESSION_MARKER, pagesCacheName } from '#/integrations/offline/pages-cache';
 import {
     clearOfflineData,
     persistQueryCache,
@@ -9,6 +9,7 @@ import {
     shouldPersistQuery,
     warmPages
 } from '#/integrations/offline/storage';
+import { credentialsQueryOptions } from '#/queries/restaurant-account';
 
 // sem o define do vite, o build é 'dev'
 const current = pagesCacheName('dev');
@@ -35,7 +36,10 @@ const realNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
 describe('cache de páginas offline', () => {
     let stores: Map<string, FakeCache>;
     let pages: Record<string, Response | undefined>;
-    const cached = () => [...(stores.get(current)?.entries.keys() ?? [])].toSorted();
+    const cached = () =>
+        [...(stores.get(current)?.entries.keys() ?? [])]
+            .filter((key) => key !== PAGES_SESSION_MARKER)
+            .toSorted();
 
     beforeEach(() => {
         stores = new Map();
@@ -107,7 +111,22 @@ describe('cache de páginas offline', () => {
         expect(cached()).toEqual(['/turmas']);
     });
 
-    test('clearOfflineData apaga todos os caches e remove o service worker', async () => {
+    test('logout impede que uma pré-carga em andamento recrie o cache', async () => {
+        const { promise, resolve } = Promise.withResolvers<string[]>();
+        const keys = spyOn(caches, 'keys').mockReturnValueOnce(promise);
+        pages['/'] = new Response('home');
+        try {
+            const pending = warmPages();
+            await clearOfflineData();
+            resolve([]);
+            await pending;
+            expect(stores.size).toBe(0);
+        } finally {
+            keys.mockRestore();
+        }
+    });
+
+    test('clearOfflineData apaga as páginas, mantém os arquivos públicos e remove o service worker', async () => {
         stores.set(current, new FakeCache());
         stores.set('workbox-precache-v2', new FakeCache());
         let unregistered = 0;
@@ -121,7 +140,7 @@ describe('cache de páginas offline', () => {
         } finally {
             if (realNavigator) Object.defineProperty(globalThis, 'navigator', realNavigator);
         }
-        expect([...stores.keys()]).toEqual([]);
+        expect([...stores.keys()]).toEqual(['workbox-precache-v2']);
         expect(unregistered).toBe(1);
     });
 
@@ -153,6 +172,41 @@ describe('shouldPersistQuery', () => {
         client.getQueryCache().build(client, { queryKey: ['vazia'] });
         const query = client.getQueryCache().find({ queryKey: ['vazia'] })!;
         expect(shouldPersistQuery(query, now)).toBe(false);
+    });
+
+    test('restaura a última carteirinha mesmo depois de uma atualização falhar', async () => {
+        const client = new QueryClient();
+        const { queryKey } = credentialsQueryOptions('251000000');
+        const card = { token: 'qr-local', valid_until: '2099-12-01' };
+        client.setQueryData(queryKey, card);
+        const error = new TypeError('Sem conexão');
+        const failure = await client
+            .query({
+                queryKey,
+                queryFn: () => Promise.reject(error),
+                retry: false
+            })
+            .catch((reason: unknown) => reason);
+        expect(failure).toBe(error);
+        expect(client.getQueryState(queryKey)?.status).toBe('error');
+
+        const restored = new QueryClient();
+        hydrate(restored, dehydrate(client, { shouldDehydrateQuery: shouldPersistQuery }));
+        expect(restored.getQueryData(queryKey)).toEqual(card);
+    });
+
+    test('mantém os dados da página consultada após uma falha de rede', async () => {
+        const client = new QueryClient();
+        const queryKey = ['get', '/classrooms'];
+        const classrooms = [{ id: 'turma-1' }];
+        client.setQueryData(queryKey, classrooms);
+        await client
+            .query({ queryKey, queryFn: () => Promise.reject(new TypeError()), retry: false })
+            .catch(() => null);
+
+        const restored = new QueryClient();
+        hydrate(restored, dehydrate(client, { shouldDehydrateQuery: shouldPersistQuery }));
+        expect(restored.getQueryData(queryKey)).toEqual(classrooms);
     });
 });
 

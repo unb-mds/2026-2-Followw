@@ -7,6 +7,7 @@ import {
     isNotFound
 } from '@tanstack/react-router';
 import { createRequestHandler, renderSsrHtmlResponse } from '@tanstack/react-router/ssr/server';
+import { createServerEntry } from '@tanstack/react-start/server';
 import { describe, expect, test } from 'bun:test';
 import { Window } from 'happy-dom';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -57,6 +58,28 @@ async function requestPage(path: string) {
 }
 
 describe('página não encontrada', () => {
+    test('hidrata a sessão anônima da 404 sem consultar o perfil', async () => {
+        let profile: unknown;
+        const server = createServerEntry({
+            fetch: (request) =>
+                createRequestHandler({ request, createRouter: getRouter })(
+                    ({ router, responseHeaders }) => {
+                        profile = router.options.context.queryClient.getQueryData(
+                            meQueryOptions.queryKey
+                        );
+                        return renderSsrHtmlResponse({
+                            router,
+                            responseHeaders,
+                            render: () => '<!doctype html>'
+                        });
+                    }
+                )
+        });
+        const response = await server.fetch(new Request('http://localhost/nao-existe'));
+        expect(response.status).toBe(404);
+        expect(profile).toBeNull();
+    });
+
     test.each(['/pagina-inexistente', '/nada/aqui?origem=teste', '/assets/arquivo-antigo.js'])(
         '%s retorna HTTP 404 sem redirecionar',
         async (path) => {
@@ -99,7 +122,7 @@ describe('página não encontrada', () => {
             expect(document.querySelector('nav')).toBeNull();
             const logo = document.querySelector('header a');
             expect(logo?.getAttribute('href')).toBe('/');
-            expect(logo?.querySelector('img')?.getAttribute('src')).toBe('/favicon.svg');
+            expect(logo?.querySelector('img')?.getAttribute('alt')).toBe('Logo Followw');
             const returnLink = Array.from(document.querySelectorAll('a')).find((link) =>
                 link.textContent.includes('Voltar ao início')
             );
