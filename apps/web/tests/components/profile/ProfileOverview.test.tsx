@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, describe, expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 
@@ -108,6 +109,19 @@ describe('Bio', () => {
     });
 });
 
+function renderProgress(profile: typeof user) {
+    const client = new QueryClient();
+    try {
+        return renderToStaticMarkup(
+            <QueryClientProvider client={client}>
+                <ProgressSection user={profile} />
+            </QueryClientProvider>
+        );
+    } finally {
+        client.clear();
+    }
+}
+
 describe('ProgressSection', () => {
     const workload = {
         total: 3525,
@@ -117,44 +131,37 @@ describe('ProgressSection', () => {
     };
 
     test('junta a integralização e as horas pendentes em um dl semântico', () => {
-        const markup = renderToStaticMarkup(<ProgressSection user={{ ...user, workload }} />);
+        const markup = renderProgress({ ...user, workload });
         expect(markup).toContain('Progresso');
         expect(markup).not.toContain('Carga Horária');
         expect(markup).toContain('Integralização');
         expect(markup).toContain('62,5%');
         expect(markup).toContain('<dl');
-        expect(markup).toContain('Obrigatória pendente');
-        expect(markup).toContain('2175h');
-        expect(markup).toContain('145 créditos');
-        expect(markup).toContain('Optativa pendente');
+        expect(markup).toContain('Obrigatórias');
+        expect(markup).toContain('2.175h');
+        expect(markup).toContain('Optativas');
         expect(markup).toContain('420h');
-        expect(markup).toContain('28 créditos');
-        expect(markup).toContain('Complementar pendente');
+        expect(markup).toContain('Complementares');
         expect(markup).toContain('0h');
         expect(markup).not.toContain('0 créditos');
-        expect(markup).toContain('Total do currículo');
-        expect(markup).toContain('3525h');
-        expect(markup).toContain('235 créditos');
+        expect(markup).toContain('concluídas');
+        expect(markup).toContain('3.525h');
     });
 
     test('mostra só a integralização sem carga horária', () => {
-        const markup = renderToStaticMarkup(<ProgressSection user={user} />);
+        const markup = renderProgress(user);
         expect(markup).toContain('62,5%');
         expect(markup).not.toContain('<dl');
     });
 
     test('mostra só a carga horária sem integralização', () => {
-        const markup = renderToStaticMarkup(
-            <ProgressSection user={{ ...user, integralization: null, workload }} />
-        );
+        const markup = renderProgress({ ...user, integralization: null, workload });
         expect(markup).not.toContain('Integralização');
-        expect(markup).toContain('3525h');
+        expect(markup).toContain('3.525h');
     });
 
     test('some sem integralização nem carga horária', () => {
-        const markup = renderToStaticMarkup(
-            <ProgressSection user={{ ...user, integralization: null }} />
-        );
+        const markup = renderProgress({ ...user, integralization: null });
         expect(markup).toBe('');
     });
 });

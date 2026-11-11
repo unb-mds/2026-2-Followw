@@ -4,12 +4,10 @@ import { useEffect, useRef, useState } from 'react';
 
 import type { components } from '#/queries/schema.gen';
 
-import { useDesktop } from '#/components/DesktopContext';
-import { ListCard, Meter } from '#/components/ListCard';
 import { CourseProgress } from '#/components/profile/CourseProgress';
 import { Card } from '#/components/ui/card';
 import { PersonPhoto } from '#/components/ui/person-photo';
-import { academicIndexes, creditsLabel, titleCase, truncateProfileBio } from '#/lib/profile';
+import { academicIndexes, titleCase, truncateProfileBio } from '#/lib/profile';
 import { cn } from '#/lib/shadcn';
 import { classroomsQueryOptions } from '#/queries/classrooms';
 
@@ -52,25 +50,20 @@ export function AcademicPerformance({ user }: { user: UserProfile }) {
         <ProfileSection title="Desempenho">
             <Card
                 size="sm"
-                className="gap-0 py-0 desktop:overflow-visible desktop:bg-transparent desktop:shadow-none desktop:ring-0"
+                className="gap-0 overflow-visible bg-transparent py-0 shadow-none ring-0"
             >
-                <dl
-                    className={cn(
-                        'grid divide-x divide-border desktop:gap-4 desktop:divide-x-0',
-                        indexes.length > 1 && 'grid-cols-2'
-                    )}
-                >
+                <dl className={cn('grid gap-3 desktop:gap-4', indexes.length > 1 && 'grid-cols-2')}>
                     {indexes.map((index) => (
                         <div
                             key={index.label}
-                            className="px-3 py-3 desktop:rounded-2xl desktop:border desktop:bg-card desktop:p-5 desktop:shadow-sm"
+                            className="rounded-2xl border bg-card p-4 shadow-sm desktop:p-5"
                         >
                             <dt className="text-xs font-medium text-muted-foreground">
                                 <abbr title={index.description} className="no-underline">
                                     {index.label}
                                 </abbr>
                             </dt>
-                            <dd className="mt-1 text-2xl font-semibold tracking-tight text-primary tabular-nums desktop:mt-2 desktop:text-4xl desktop:font-medium">
+                            <dd className="mt-2 text-3xl font-medium tracking-tight text-primary tabular-nums desktop:text-4xl">
                                 {index.value}
                             </dd>
                         </div>
@@ -82,49 +75,10 @@ export function AcademicPerformance({ user }: { user: UserProfile }) {
 }
 
 export function ProgressSection({ user }: { user: UserProfile }) {
-    const desktop = useDesktop();
-    const { integralization, workload } = user;
-    if (integralization == null && !workload) return null;
-
-    if (desktop)
-        return (
-            <ProfileSection title="Progresso do curso">
-                <CurrentCourseProgress user={user} />
-            </ProfileSection>
-        );
-
-    const items = workload && [
-        { label: 'Obrigatória pendente', hours: workload.pending_mandatory, credits: true },
-        { label: 'Optativa pendente', hours: workload.pending_optional, credits: true },
-        { label: 'Complementar pendente', hours: workload.pending_complementary, credits: true },
-        { label: 'Total do currículo', hours: workload.total, credits: true }
-    ];
-
+    if (user.integralization == null && !user.workload) return null;
     return (
-        <ProfileSection title="Progresso">
-            <ListCard>
-                {integralization != null && (
-                    <Meter label="Integralização" value={integralization} />
-                )}
-                {items && (
-                    <dl className="flex flex-col gap-3 py-3">
-                        {items.map(({ label, hours, credits }) => (
-                            <div key={label} className="flex items-baseline justify-between gap-2">
-                                <dt className="text-sm text-muted-foreground">{label}</dt>
-                                <dd className="text-sm font-medium tabular-nums">
-                                    {hours}h
-                                    {credits && hours > 0 && (
-                                        <span className="text-muted-foreground">
-                                            {' · '}
-                                            {creditsLabel(hours)}
-                                        </span>
-                                    )}
-                                </dd>
-                            </div>
-                        ))}
-                    </dl>
-                )}
-            </ListCard>
+        <ProfileSection title="Progresso do curso">
+            <CurrentCourseProgress user={user} />
         </ProfileSection>
     );
 }
@@ -137,9 +91,7 @@ function CurrentCourseProgress({ user }: { user: UserProfile }) {
 export function ProfileSection({ title, children }: { title: string; children: React.ReactNode }) {
     return (
         <section aria-label={title}>
-            <h2 className="mb-2 px-1 text-sm font-semibold desktop:mb-4 desktop:text-xl desktop:font-medium">
-                {title}
-            </h2>
+            <h2 className="mb-4 px-1 text-lg font-medium desktop:text-xl">{title}</h2>
             {children}
         </section>
     );

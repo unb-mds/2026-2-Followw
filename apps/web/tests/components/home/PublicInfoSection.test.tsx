@@ -13,7 +13,15 @@ import type { DailyMenu } from '#/queries/restaurant';
 import { PublicInfoSection } from '#/components/home/PublicInfoSection';
 
 async function renderSection(props: React.ComponentProps<typeof PublicInfoSection>) {
-    const rootRoute = createRootRoute({ component: () => <PublicInfoSection {...props} /> });
+    const rootRoute = createRootRoute({
+        component: () => (
+            <PublicInfoSection
+                date="2026-10-05"
+                now={{ date: '2026-10-05', weekday: 1, time: '08:00' }}
+                {...props}
+            />
+        )
+    });
     const routeTree = rootRoute.addChildren([
         createRoute({ getParentRoute: () => rootRoute, path: '/ru' })
     ]);
@@ -42,12 +50,12 @@ describe('PublicInfoSection', () => {
         expect(markup).toContain('Frango assado');
         expect(markup).toContain('Lagarto ao molho');
         expect(markup).not.toContain('Alface');
-        expect(markup).toContain('aria-label="Ver cardápio do RU"');
+        expect(markup).toContain('aria-label="Ver cardápio de café da manhã"');
     });
 
     test.each([
         [true, 'Carregando cardápio...'],
-        [false, 'Cardápio de hoje não publicado.']
+        [false, 'Cardápio das próximas refeições não publicado.']
     ])('sem cardápio, carregando=%p exibe "%s"', async (isLoading, message) => {
         const markup = await renderSection({ campus: 'Darcy', isLoading, day: 'Hoje' });
 
@@ -55,9 +63,13 @@ describe('PublicInfoSection', () => {
     });
 
     test('exibe o dia selecionado', async () => {
-        const markup = await renderSection({ campus: 'Darcy', day: 'Quarta-feira' });
+        const markup = await renderSection({
+            campus: 'Darcy',
+            day: 'Quarta-feira',
+            date: '2026-10-07'
+        });
 
-        expect(markup).toContain('Pratos principais · Quarta-feira');
+        expect(markup).toContain('Próximas refeições');
         expect(markup).toContain('Cardápio de quarta-feira não publicado.');
     });
 });

@@ -21,9 +21,7 @@ describe('DocumentDownloads', () => {
         expect(markup).toContain('aria-label="Baixar carteirinha estudantil"');
         expect(markup).toContain('aria-label="Baixar histórico acadêmico"');
         expect(markup).not.toMatch(/compartilhar/i);
-        expect(markup.indexOf('Carteirinha estudantil')).toBeLessThan(
-            markup.indexOf('Histórico acadêmico')
-        );
+        expect(markup.indexOf('>Carteirinha<')).toBeLessThan(markup.indexOf('>Histórico<'));
         queryClient.clear();
     });
 });

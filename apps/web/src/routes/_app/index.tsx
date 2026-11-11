@@ -2,7 +2,6 @@ import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 
 import { getNoClassReason } from '#/calendar';
-import { useDesktop } from '#/components/DesktopContext';
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderToggle } from '#/components/HeaderBar';
 import { DayClock } from '#/components/home/DayClock';
@@ -110,7 +109,6 @@ function HomeHeader() {
 }
 
 function HomePage() {
-    const desktop = useDesktop();
     const { now, days, selectedDay, isToday, label, setPicked } = useSelectedDay();
     const [weekOpen] = useWeekOpen();
 
@@ -124,8 +122,7 @@ function HomePage() {
     const preview = useMenuPreview({
         campus,
         date: selectedDay.date,
-        now,
-        upcoming: desktop
+        now
     });
 
     const noClassReason = getNoClassReason(selectedDay.date);

@@ -41,14 +41,13 @@ export function DocumentDownloads({
                 return (
                     <div
                         key={document}
-                        className="-mx-3 flex min-h-12 items-center gap-3 border-t border-border px-3 py-2.5 desktop:mx-0 desktop:grid desktop:grid-cols-2 desktop:items-start desktop:gap-x-2 desktop:gap-y-1 desktop:rounded-2xl desktop:border desktop:bg-card desktop:p-4 desktop:shadow-sm"
+                        className="grid min-w-0 grid-cols-2 items-start gap-x-2 gap-y-1 rounded-2xl border bg-card p-3 shadow-sm desktop:p-4"
                     >
-                        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary desktop:rounded-full">
+                        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                             <Icon className="size-4" aria-hidden="true" />
                         </span>
-                        <span className="min-w-0 flex-1 desktop:col-span-2 desktop:row-start-2">
-                            <span className="block desktop:hidden">{label}</span>
-                            <span className="hidden desktop:block">{shortLabel}</span>
+                        <span className="col-span-2 row-start-2 min-w-0">
+                            <span className="block">{shortLabel}</span>
                             <span
                                 role={message ? 'alert' : undefined}
                                 className={cn(
@@ -64,7 +63,7 @@ export function DocumentDownloads({
                             type="button"
                             size="icon-sm"
                             variant="ghost"
-                            className="desktop:col-start-2 desktop:row-start-1 desktop:justify-self-end"
+                            className="col-start-2 row-start-1 size-11 justify-self-end desktop:size-7"
                             disabled={!online || pending !== null}
                             aria-label={`Baixar ${label.toLowerCase()}`}
                             aria-busy={isPending}
@@ -80,7 +79,7 @@ export function DocumentDownloads({
                 );
             })}
             {!online && (
-                <output className="block py-2 text-xs text-muted-foreground desktop:col-span-2">
+                <output className="col-span-2 block py-2 text-xs text-muted-foreground">
                     Conecte-se à internet para baixar os documentos.
                 </output>
             )}

@@ -64,15 +64,21 @@ test.each([42, null])(
                 expect(flowWrapper?.tagName).toBe('DIV');
                 const flowRow = flowWrapper?.querySelector('a');
                 expect(flowRow?.tagName).toBe('A');
-                expect(flowRow?.textContent).toContain('Visualizar fluxo acadêmico');
+                expect(flowRow?.textContent).toContain('Fluxo acadêmico');
                 expect(flowRow?.getAttribute('href')).toBe('/cursos/42');
                 expect(flowRow?.querySelector('.lucide-git-fork')).not.toBeNull();
                 downloadsRow = flowWrapper?.nextElementSibling;
             } else {
                 expect(account?.querySelector('a[href^="/cursos/"]')).toBeNull();
             }
-            expect(downloadsRow?.textContent).toContain('Carteirinha estudantil');
-            expect(account?.querySelectorAll('.lucide-chevron-right').length).toBe(0);
+            const documents = browser.document.querySelector('section[aria-label="Documentos"]');
+            expect(documents?.textContent).toContain('Carteirinha');
+            expect(documents?.textContent).toContain('Histórico');
+            expect(documents?.querySelectorAll('button')).toHaveLength(2);
+            expect(account?.querySelector('button[aria-label^="Baixar"]')).toBeNull();
+            expect(account?.querySelectorAll('.lucide-chevron-right').length).toBe(
+                courseId !== null ? 2 : 1
+            );
             expect(account?.querySelector('.lucide-pencil')).not.toBeNull();
             expect(account?.querySelector('.lucide-log-out')).not.toBeNull();
         } finally {

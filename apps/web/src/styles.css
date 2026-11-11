@@ -96,6 +96,73 @@
         }
     }
 
+    .meal-carousel-window {
+        overflow: hidden;
+        margin: -1rem;
+        padding: 1rem;
+    }
+
+    .meal-carousel-stage {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+
+    .meal-carousel-space {
+        grid-area: 2 / 1;
+    }
+
+    .meal-carousel-card {
+        grid-area: 1 / 1;
+        background: var(--card);
+        transform-origin: center top;
+        transition:
+            transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
+            opacity 260ms ease,
+            filter 420ms ease;
+    }
+
+    .meal-carousel-card[data-state='active'] {
+        z-index: 2;
+        border-color: color-mix(in oklab, var(--primary) 30%, transparent);
+        background: color-mix(in oklab, var(--primary) 5%, var(--card));
+        box-shadow: var(--shadow-xl);
+        transform: translateY(0) scale(1);
+    }
+
+    .meal-carousel-card[data-state='next'] {
+        z-index: 1;
+        background: linear-gradient(var(--muted), var(--card));
+        opacity: 0.75;
+        box-shadow: var(--shadow-sm);
+        transform: translateY(calc(100% + 0.75rem)) perspective(40rem) rotateX(-8deg) scale(0.9);
+    }
+
+    .meal-carousel-card[data-state='past'],
+    .meal-carousel-card[data-state='future'] {
+        pointer-events: none;
+        opacity: 0;
+        filter: blur(3px);
+    }
+
+    .meal-carousel-card[data-state='past'] {
+        transform: translateY(calc(-100% - 1rem)) scale(1.02);
+    }
+
+    .meal-carousel-card[data-state='future'] {
+        transform: translateY(calc(200% + 1.5rem)) scale(0.88);
+    }
+
+    .meal-carousel-menu[data-state] {
+        background: none;
+        box-shadow: none;
+    }
+
+    .meal-carousel-menu[data-state='active'] {
+        transform: translateY(calc(50% + 0.375rem));
+    }
+
     .weekly-columns {
         grid-template-columns: 3.25rem repeat(6, minmax(0, 1fr));
     }
@@ -122,6 +189,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+    .meal-carousel-card {
+        transition: none;
+    }
     [data-layout='desktop'] .clock-digit {
         animation: none;
     }
