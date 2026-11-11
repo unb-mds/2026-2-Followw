@@ -1,6 +1,7 @@
 import type { components } from '#/queries/schema.gen';
 
 type UserProfile = components['schemas']['UserProfile'];
+type Classroom = components['schemas']['ParticipantClassroom'];
 
 export const MAX_PROFILE_BIO_LENGTH = 1024;
 
@@ -20,6 +21,46 @@ const creditFormat = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }
 export function creditsLabel(hours: number) {
     const credits = hours / HOURS_PER_CREDIT;
     return `${creditFormat.format(credits)} ${credits === 1 ? 'crédito' : 'créditos'}`;
+}
+
+export function curriculumProgress(workload: UserProfile['workload']) {
+    if (!workload) return null;
+    const { total, pending_mandatory, pending_optional, pending_complementary } = workload;
+    const values = [total, pending_mandatory, pending_optional, pending_complementary];
+    const pending = pending_mandatory + pending_optional + pending_complementary;
+    if (values.some((hours) => !Number.isFinite(hours) || hours < 0) || pending > total)
+        return null;
+    return { total, pending, completed: total - pending };
+}
+
+export function projectedIntegralization(
+    user: Pick<UserProfile, 'integralization' | 'workload'>,
+    classrooms: readonly Classroom[]
+) {
+    const progress = curriculumProgress(user.workload);
+    const completed = user.integralization;
+    if (!progress?.total || completed == null || !Number.isFinite(completed)) return null;
+
+    const subjects = new Set<string>();
+    let hours = 0;
+    for (const classroom of classrooms) {
+        const { code, hours: workload } = classroom.subject;
+        if (
+            !classroom.current ||
+            (classroom.status != null && classroom.status !== 'cursando') ||
+            workload == null ||
+            !Number.isFinite(workload) ||
+            workload <= 0 ||
+            subjects.has(code)
+        )
+            continue;
+        subjects.add(code);
+        hours += workload;
+    }
+    if (hours === 0) return null;
+    const current = Math.max(0, Math.min(100, completed));
+    const projected = Math.min(100, ((progress.completed + hours) / progress.total) * 100);
+    return projected > current ? projected : null;
 }
 
 const LOWERCASE_WORDS = new Set(['a', 'as', 'da', 'das', 'de', 'do', 'dos', 'e', 'em', 'o', 'os']);

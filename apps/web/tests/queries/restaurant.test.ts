@@ -4,7 +4,12 @@ import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, test } from 'bun:test';
 
 import { apiClient } from '#/queries/client.ts';
-import { campusOf, menuQueryOptions, prefetchWeekMenus } from '#/queries/restaurant.ts';
+import {
+    campusOf,
+    menuQueryOptions,
+    prefetchWeekMenus,
+    weeklyMenuQueryOptions
+} from '#/queries/restaurant.ts';
 
 const user = { unit: { id: 673, code: 'FCTE', name: 'CAMPUS UNB GAMA' } };
 const date = '2026-09-26';
@@ -27,6 +32,14 @@ describe('campusOf', () => {
 const week = { start_date: '2026-09-21', end_date: '2026-09-27' };
 
 describe('menuQueryOptions', () => {
+    test('prévia semanal reaproveita a chave do dia e inclui a semana seguinte ao consultar segunda', () => {
+        expect(weeklyMenuQueryOptions({ date: '2026-11-15' }).queryKey).toEqual(
+            menuQueryOptions({ date: '2026-11-15' }).queryKey
+        );
+        expect(weeklyMenuQueryOptions({ date: '2026-11-16' }).queryKey[2]).toEqual({
+            params: { query: { campus: 'Darcy', start_date: '2026-11-16', end_date: '2026-11-22' } }
+        });
+    });
     test('consulta a semana do dia pela rota pública sem usuário', () => {
         expect(menuQueryOptions({ date }).queryKey).toEqual([
             'get',

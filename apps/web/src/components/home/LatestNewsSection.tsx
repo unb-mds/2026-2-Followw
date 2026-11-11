@@ -129,7 +129,7 @@ function NewsCarousel({ news }: { news: ClassroomNews[] }) {
 function NewsContent({ item: { classroom, post } }: { item: ClassroomNews }) {
     const date = postDateLabel(post);
     return (
-        <div className="relative flex h-32 flex-col gap-2 overflow-hidden px-4 py-3">
+        <div className="relative flex h-32 flex-col gap-2 overflow-hidden px-4 py-3 desktop:h-auto desktop:min-h-48 desktop:gap-4 desktop:p-6">
             <Link
                 to="/turmas/$id"
                 params={{ id: classroom.id }}
@@ -143,7 +143,7 @@ function NewsContent({ item: { classroom, post } }: { item: ClassroomNews }) {
                 </span>
                 {date && <span className="shrink-0 tabular-nums">{date}</span>}
             </div>
-            <h3 className="pointer-events-none relative line-clamp-1 text-sm font-semibold wrap-anywhere">
+            <h3 className="pointer-events-none relative line-clamp-1 text-sm font-semibold wrap-anywhere desktop:line-clamp-2 desktop:text-xl desktop:font-medium">
                 {post.title}
             </h3>
             <div className="pointer-events-none relative line-clamp-2 text-sm text-muted-foreground">

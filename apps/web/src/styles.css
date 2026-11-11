@@ -4,6 +4,134 @@
 @import '@fontsource-variable/dm-sans';
 
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+@custom-variant desktop (&:where([data-layout='desktop'], [data-layout='desktop'] *));
+
+@layer components {
+    [data-layout='desktop'] {
+        .home-columns,
+        .ru-columns,
+        .profile-columns {
+            grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
+        }
+
+        .professor-columns,
+        .classroom-detail-columns {
+            grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+        }
+
+        .classroom-columns {
+            grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+        }
+
+        .turmas-semesters {
+            position: absolute;
+            top: -6.5rem;
+            right: 0;
+            max-width: 55%;
+        }
+
+        .search-columns {
+            grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+            grid-template-rows: auto 1fr;
+        }
+
+        .schedule-panel {
+            grid-column: 2;
+            grid-row: 1 / 3;
+        }
+
+        .schedule-content {
+            max-height: calc(100dvh - 11rem);
+        }
+
+        .desktop-search-field {
+            position: fixed;
+            top: 1.75rem;
+            left: 50%;
+            z-index: 50;
+            width: min(45vw, 48rem);
+            transform: translateX(-50%);
+            animation: search-field-enter 180ms ease-out;
+        }
+
+        .desktop-search-control {
+            position: fixed;
+            top: 2rem;
+            left: calc(2.5rem + 2.5rem + 1.25rem + 0.4375rem + 9rem);
+            transition:
+                left 220ms ease,
+                opacity 150ms ease;
+        }
+
+        .desktop-search-control.is-searching {
+            left: calc(50% - min(22.5vw, 24rem));
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .day-track::before,
+        .day-track::after {
+            position: absolute;
+            left: -0.3rem;
+            width: 0.65rem;
+            height: 1px;
+            background: var(--border);
+            content: '';
+        }
+
+        .day-track-started::before,
+        .day-track-complete::after {
+            background: var(--primary);
+        }
+
+        .day-track::before {
+            top: 0;
+        }
+        .day-track::after {
+            bottom: 0;
+        }
+
+        .clock-digit {
+            animation: clock-change 180ms ease-out;
+        }
+    }
+
+    .weekly-columns {
+        grid-template-columns: 3.25rem repeat(6, minmax(0, 1fr));
+    }
+}
+
+@keyframes search-field-enter {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes clock-change {
+    from {
+        opacity: 0.4;
+        transform: translateY(0.15em);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    [data-layout='desktop'] .clock-digit {
+        animation: none;
+    }
+    [data-layout='desktop'] .desktop-search-control {
+        transition: none;
+    }
+    [data-layout='desktop'] .desktop-search-field {
+        animation: none;
+    }
+}
 @theme inline {
     --font-heading: var(--font-sans);
     --font-sans: 'DM Sans Variable', sans-serif;
@@ -42,6 +170,7 @@
     --color-secondary: var(--secondary);
     --color-primary-foreground: var(--primary-foreground);
     --color-primary: var(--primary);
+    --color-primary-forecast: var(--primary-forecast);
     --color-popover-foreground: var(--popover-foreground);
     --color-popover: var(--popover);
     --color-card-foreground: var(--card-foreground);
@@ -67,6 +196,7 @@
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.145 0 0);
     --primary: oklch(0.52 0.10959 168.651);
+    --primary-forecast: color-mix(in oklab, var(--primary) 35%, var(--background));
     --primary-foreground: oklch(0.982 0.018 155.826);
     --secondary: oklch(0.967 0.001 286.375);
     --secondary-foreground: oklch(0.21 0.006 285.885);
@@ -100,6 +230,7 @@
     --popover: oklch(0.205 0 0);
     --popover-foreground: oklch(0.985 0 0);
     --primary: oklch(0.7 0.10959 168.651);
+    --primary-forecast: color-mix(in oklab, var(--primary) 45%, var(--foreground));
     --primary-foreground: oklch(0.145 0 0);
     --secondary: oklch(0.274 0.006 286.033);
     --secondary-foreground: oklch(0.985 0 0);

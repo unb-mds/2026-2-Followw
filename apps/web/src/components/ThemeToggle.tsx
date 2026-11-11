@@ -63,6 +63,7 @@ export const ThemeToggle: React.FC = () => {
             onClick={toggle}
             aria-label={`${label}. Alternar tema`}
             title={label}
+            className="desktop:size-14 desktop:rounded-full desktop:border desktop:bg-muted/40 desktop:shadow-sm"
         >
             <Icon className="size-5" />
         </Button>
