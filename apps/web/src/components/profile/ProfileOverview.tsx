@@ -1,13 +1,15 @@
+import { useQuery } from '@tanstack/react-query';
 import { Check, IdCard } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import type { components } from '#/queries/schema.gen';
 
-import { ListCard, Meter } from '#/components/ListCard';
+import { CourseProgress } from '#/components/profile/CourseProgress';
 import { Card } from '#/components/ui/card';
 import { PersonPhoto } from '#/components/ui/person-photo';
-import { academicIndexes, creditsLabel, titleCase, truncateProfileBio } from '#/lib/profile';
+import { academicIndexes, titleCase, truncateProfileBio } from '#/lib/profile';
 import { cn } from '#/lib/shadcn';
+import { classroomsQueryOptions } from '#/queries/classrooms';
 
 type UserProfile = components['schemas']['UserProfile'];
 
@@ -27,7 +29,7 @@ export function ProfileIdentity({
                         {displayName || titleCase(user.name)}
                     </h1>
                     <RegistrationCopy value={user.registration} />
-                    <p className="mt-2 text-sm text-primary">
+                    <p className="mt-2 text-sm text-primary desktop:text-xl desktop:font-medium">
                         {[user.course && titleCase(user.course.name), user.unit?.code]
                             .filter(Boolean)
                             .join(' · ')}
@@ -46,21 +48,22 @@ export function AcademicPerformance({ user }: { user: UserProfile }) {
 
     return (
         <ProfileSection title="Desempenho">
-            <Card size="sm" className="gap-0 py-0">
-                <dl
-                    className={cn(
-                        'grid divide-x divide-border',
-                        indexes.length > 1 && 'grid-cols-2'
-                    )}
-                >
+            <Card
+                size="sm"
+                className="gap-0 overflow-visible bg-transparent py-0 shadow-none ring-0"
+            >
+                <dl className={cn('grid gap-3 desktop:gap-4', indexes.length > 1 && 'grid-cols-2')}>
                     {indexes.map((index) => (
-                        <div key={index.label} className="px-3 py-3">
+                        <div
+                            key={index.label}
+                            className="rounded-2xl border bg-card p-4 shadow-sm desktop:p-5"
+                        >
                             <dt className="text-xs font-medium text-muted-foreground">
                                 <abbr title={index.description} className="no-underline">
                                     {index.label}
                                 </abbr>
                             </dt>
-                            <dd className="mt-1 text-2xl font-semibold tracking-tight text-primary tabular-nums">
+                            <dd className="mt-2 text-3xl font-medium tracking-tight text-primary tabular-nums desktop:text-4xl">
                                 {index.value}
                             </dd>
                         </div>
@@ -72,49 +75,23 @@ export function AcademicPerformance({ user }: { user: UserProfile }) {
 }
 
 export function ProgressSection({ user }: { user: UserProfile }) {
-    const { integralization, workload } = user;
-    if (integralization == null && !workload) return null;
-
-    const items = workload && [
-        { label: 'Obrigatória pendente', hours: workload.pending_mandatory, credits: true },
-        { label: 'Optativa pendente', hours: workload.pending_optional, credits: true },
-        { label: 'Complementar pendente', hours: workload.pending_complementary, credits: true },
-        { label: 'Total do currículo', hours: workload.total, credits: true }
-    ];
-
+    if (user.integralization == null && !user.workload) return null;
     return (
-        <ProfileSection title="Progresso">
-            <ListCard>
-                {integralization != null && (
-                    <Meter label="Integralização" value={integralization} />
-                )}
-                {items && (
-                    <dl className="flex flex-col gap-3 py-3">
-                        {items.map(({ label, hours, credits }) => (
-                            <div key={label} className="flex items-baseline justify-between gap-2">
-                                <dt className="text-sm text-muted-foreground">{label}</dt>
-                                <dd className="text-sm font-medium tabular-nums">
-                                    {hours}h
-                                    {credits && hours > 0 && (
-                                        <span className="text-muted-foreground">
-                                            {' · '}
-                                            {creditsLabel(hours)}
-                                        </span>
-                                    )}
-                                </dd>
-                            </div>
-                        ))}
-                    </dl>
-                )}
-            </ListCard>
+        <ProfileSection title="Progresso do curso">
+            <CurrentCourseProgress user={user} />
         </ProfileSection>
     );
+}
+
+function CurrentCourseProgress({ user }: { user: UserProfile }) {
+    const { data } = useQuery(classroomsQueryOptions);
+    return <CourseProgress user={user} classrooms={data ?? []} />;
 }
 
 export function ProfileSection({ title, children }: { title: string; children: React.ReactNode }) {
     return (
         <section aria-label={title}>
-            <h2 className="mb-2 px-1 text-sm font-semibold">{title}</h2>
+            <h2 className="mb-4 px-1 text-lg font-medium desktop:text-xl">{title}</h2>
             {children}
         </section>
     );
@@ -184,12 +161,12 @@ function RegistrationCopy({ value }: { value: string }) {
             aria-label={label}
             title={label}
             className={cn(
-                'mt-0.5 flex items-center gap-1 text-sm tabular-nums',
+                'mt-0.5 inline-flex items-center gap-1 text-sm leading-none tabular-nums',
                 copied ? 'text-primary' : 'text-muted-foreground'
             )}
         >
-            <Icon className="size-3" />
-            {value}
+            <Icon aria-hidden="true" className="size-4 shrink-0" />
+            <span>{value}</span>
         </button>
     );
 }

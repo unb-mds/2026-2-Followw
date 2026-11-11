@@ -18,7 +18,9 @@ export function SubjectSummary({
     return (
         <span className="flex min-w-0 flex-1 flex-col gap-1">
             <span className="text-xs font-semibold text-primary">{subject.code}</span>
-            <span className="text-sm leading-snug font-semibold">{subject.name}</span>
+            <span className="text-sm leading-snug font-semibold desktop:text-lg desktop:font-medium">
+                {subject.name}
+            </span>
             {(subject.kind || period != null) && (
                 <span className="-ml-0.5 flex flex-wrap items-center gap-2">
                     <SubjectKindBadge kind={subject.kind} />

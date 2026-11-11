@@ -1,8 +1,10 @@
-import type { QueryClient } from '@tanstack/react-query';
+import { useQuery, type QueryClient } from '@tanstack/react-query';
 
+import type { Day } from '#/lib/schedule';
 import type { components, operations } from '#/queries/schema.gen.ts';
 
-import { nextDays } from '#/lib/schedule';
+import { currentOrNextMeal, upcomingMenuMeals } from '#/lib/restaurant';
+import { addDays, nextDays, weekDays } from '#/lib/schedule';
 import { api } from '#/queries/api.ts';
 
 type MenuQuery = NonNullable<operations['get_menu_public_restaurant_get']['parameters']['query']>;
@@ -41,9 +43,9 @@ export function campusOf(unit?: string | null): Campus {
     }
 }
 
-// Uma query por campus e semana; `date` só seleciona o dia dela.
+// Uma query por campus e semana; a consulta diária só seleciona o dia dela.
 // Sem campus explícito, usa o campus da unidade do usuário logado.
-export const menuQueryOptions = ({
+export const weeklyMenuQueryOptions = ({
     campus,
     date,
     user
@@ -55,19 +57,47 @@ export const menuQueryOptions = ({
     const monday = new Date(`${date}T00:00:00Z`);
     monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7));
     const week = nextDays(monday.toISOString().slice(0, 10), 7);
-    return {
-        ...api.queryOptions('get', '/public/restaurant', {
-            params: {
-                query: {
-                    campus: campus ?? campusOf(user?.unit?.code),
-                    start_date: week[0].date,
-                    end_date: week[6].date
-                }
+    return api.queryOptions('get', '/public/restaurant', {
+        params: {
+            query: {
+                campus: campus ?? campusOf(user?.unit?.code),
+                start_date: week[0].date,
+                end_date: week[6].date
             }
-        }),
-        select: (menus: DailyMenu[]) => menus.filter((menu) => menu.date === date)
-    };
+        }
+    });
 };
+
+export const menuQueryOptions = (options: Parameters<typeof weeklyMenuQueryOptions>[0]) => ({
+    ...weeklyMenuQueryOptions(options),
+    select: (menus: DailyMenu[]) => menus.filter((menu) => menu.date === options.date)
+});
+
+export function useMenuPreview({
+    campus,
+    date,
+    now
+}: {
+    campus: Campus;
+    date: string;
+    now: Day & { time: string };
+}) {
+    const current = useQuery(weeklyMenuQueryOptions({ campus, date }));
+    const needsNextWeek =
+        date === now.date &&
+        currentOrNextMeal(now).date > date &&
+        current.data != null &&
+        upcomingMenuMeals(current.data, date, now).length === 0;
+    const nextMonday = addDays(weekDays(date, 7)[0].date, 7);
+    const next = useQuery({
+        ...weeklyMenuQueryOptions({ campus, date: nextMonday }),
+        enabled: needsNextWeek
+    });
+    return {
+        menus: [...(current.data ?? []), ...(needsNextWeek ? (next.data ?? []) : [])],
+        isLoading: current.isPending || (needsNextWeek && next.isPending)
+    };
+}
 
 export function prefetchWeekMenus(queryClient: QueryClient, campus: Campus, today: string) {
     // 'static' reaproveita o cardápio salvo da semana, sem buscar de novo

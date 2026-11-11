@@ -66,13 +66,13 @@ function searchView(
 export const Route = createFileRoute('/_app/buscar')({
     head: () => ({ meta: [{ title: 'Buscar | Followw' }] }),
     validateSearch,
-    // O componente consulta após o debounce; o loader só pré-carrega ao entrar na página.
+    // Ao entrar, inicia as consultas em paralelo sem bloquear o campo; depois vale o debounce.
     shouldReload: ({ cause }) => cause !== 'stay',
     loader: async ({ context: { queryClient }, location }) => {
         const user = await loadQuery(queryClient, meQueryOptions);
         const { q, category } = loadSearchParams(location.searchStr);
         const view = searchView(category, q, searchText(q), user);
-        await Promise.all([
+        void Promise.all([
             showsSubjects(category) &&
                 user &&
                 loadQuery(queryClient, allClassroomsQueryOptions).catch(noop),
@@ -94,7 +94,12 @@ export const Route = createFileRoute('/_app/buscar')({
     staticData: {
         header: () => (
             <HeaderBar>
-                <HeaderTitle>Buscar</HeaderTitle>
+                <div className="flex flex-col gap-3">
+                    <HeaderTitle>Buscar</HeaderTitle>
+                    <p className="hidden text-sm text-muted-foreground desktop:block">
+                        Encontre turmas e organize seus horários.
+                    </p>
+                </div>
             </HeaderBar>
         )
     },
@@ -123,8 +128,8 @@ function BuscarPage() {
     });
     const taken = useMemo(() => (history ? takenCodes(history) : null), [history]);
     return (
-        <div className="flex flex-col gap-5">
-            <div className="relative">
+        <div className="search-columns flex flex-col gap-5 desktop:grid desktop:items-start desktop:gap-x-10">
+            <div className="desktop-search-field relative desktop:fixed">
                 <Search
                     className="pointer-events-none absolute top-1/2 left-3.5 size-5 -translate-y-1/2 text-muted-foreground"
                     aria-hidden="true"
@@ -139,7 +144,7 @@ function BuscarPage() {
                     maxLength={SEARCH_MAX_LENGTH}
                     placeholder="Busque por matéria, curso ou professor..."
                     aria-label="Busque por matéria, curso ou professor"
-                    className="h-11 bg-card pl-10 text-sm"
+                    className="h-11 bg-card pl-10 text-sm desktop:h-14 desktop:rounded-full desktop:border-primary desktop:bg-background desktop:pl-12"
                 />
             </div>
             <TabFilter
@@ -148,10 +153,13 @@ function BuscarPage() {
                 options={SEARCH_CATEGORIES}
                 labels={searchCategoryLabels}
                 onChange={(value) => void setSearch({ category: value })}
-                className="-my-2"
+                className="search-filters -my-2 desktop:col-start-1 desktop:row-start-1 desktop:my-0 desktop:mb-4 desktop:w-fit"
             />
             <SchedulePreview />
-            <div aria-live="polite" className="flex flex-col gap-5 pb-8">
+            <div
+                aria-live="polite"
+                className="search-results flex min-w-0 flex-col gap-5 pb-8 desktop:col-start-1 desktop:row-start-2"
+            >
                 {!view && (
                     <p className="py-8 text-center text-sm text-muted-foreground">{`Digite de ${SEARCH_MIN_LENGTH} a ${SEARCH_MAX_LENGTH} caracteres do nome, código da matéria, curso ou professor para ver os resultados.`}</p>
                 )}

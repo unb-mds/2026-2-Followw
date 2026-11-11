@@ -180,7 +180,7 @@ function StudentCardDrawer({
                     <Button
                         variant="outline"
                         size="icon-sm"
-                        className="size-10 rounded-xl"
+                        className="size-10 rounded-xl desktop:size-16 desktop:rounded-2xl"
                         aria-label="Ver QR code da carteirinha"
                         title="Ver QR code da carteirinha"
                     />

@@ -50,7 +50,7 @@ export function TurmaSection({
                         value={subject.code}
                         className="overflow-hidden rounded-2xl border bg-card text-card-foreground"
                     >
-                        <AccordionTrigger className="items-center gap-3 rounded-none px-3 py-3 hover:bg-primary/5 hover:no-underline focus-visible:ring-inset">
+                        <AccordionTrigger className="items-center gap-3 rounded-none px-3 py-3 hover:bg-primary/5 hover:no-underline focus-visible:ring-inset desktop:px-5 desktop:py-4">
                             <SubjectSummary
                                 subject={subject}
                                 currentPeriod={currentPeriod}

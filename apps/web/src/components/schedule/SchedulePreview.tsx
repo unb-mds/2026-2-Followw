@@ -1,8 +1,10 @@
 import { CalendarDays, Download, X } from 'lucide-react';
 import { useState } from 'react';
 
+import { useDesktop } from '#/components/DesktopContext';
 import { ClassCard } from '#/components/home/ClassCard';
 import { usePlannedSchedule } from '#/components/schedule/usePlannedSchedule';
+import { WeeklySchedule } from '#/components/schedule/WeeklySchedule';
 import { WeeklyTable } from '#/components/schedule/WeeklyTable';
 import { SelectionBar } from '#/components/SelectionBar';
 import { Button } from '#/components/ui/button';
@@ -14,12 +16,14 @@ import {
     DialogTitle,
     DialogTrigger
 } from '#/components/ui/dialog';
+import { Progress } from '#/components/ui/progress';
 import { saveFile } from '#/lib/download';
 import { classKey, weeklyGrid } from '#/lib/planned-schedule';
 import { describeSchedule } from '#/lib/schedule';
 import { createSchedulePng } from '#/lib/schedule-image';
 
 export function SchedulePreview() {
+    const desktop = useDesktop();
     const { items, maxHours, toggle, clear } = usePlannedSchedule();
     const [exporting, setExporting] = useState(false);
     const [exportError, setExportError] = useState(false);
@@ -35,6 +39,117 @@ export function SchedulePreview() {
             setExporting(false);
         }
     };
+
+    const content = (
+        <>
+            {grid.map((semester) =>
+                desktop ? (
+                    <div key={semester.semester} className="flex flex-col gap-4">
+                        <div className="flex items-center justify-between gap-3 text-sm">
+                            <h3>Planejamento · {semester.semester}</h3>
+                            <span className="text-muted-foreground tabular-nums">
+                                {maxHours == null
+                                    ? `${semester.hours}h`
+                                    : `${semester.hours}h de ${maxHours}h`}
+                            </span>
+                        </div>
+                        {maxHours != null && maxHours > 0 && (
+                            <Progress
+                                aria-label={`Carga horária de ${semester.semester}`}
+                                value={Math.min(100, (semester.hours / maxHours) * 100)}
+                                className="h-1"
+                            />
+                        )}
+                        <WeeklySchedule
+                            label={`Grade semanal ${semester.semester}`}
+                            entries={semester.classes.map((entry) => ({
+                                ...entry,
+                                key: classKey(entry)
+                            }))}
+                        />
+                    </div>
+                ) : (
+                    <WeeklyTable key={semester.semester} grid={semester} maxHours={maxHours} />
+                )
+            )}
+            {items.length === 0 ? (
+                <div className="flex min-h-56 flex-col items-center justify-center gap-3 py-8 text-center">
+                    <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                        <CalendarDays aria-hidden="true" className="size-5" />
+                    </span>
+                    <h3 className="text-sm font-medium">Monte sua grade</h3>
+                    <p className="max-w-56 text-xs leading-relaxed text-muted-foreground">
+                        Abra uma matéria e use o botão + para adicionar uma turma.
+                    </p>
+                </div>
+            ) : (
+                <ul className="flex flex-col gap-2">
+                    {items.map((item) => (
+                        <li key={classKey(item)}>
+                            <ClassCard
+                                compact
+                                title={item.name}
+                                code={item.code}
+                                classNumber={item.number}
+                                time={describeSchedule(item.schedule) ?? 'Horário a definir'}
+                                location={item.room ?? undefined}
+                                professors={item.professors.map(({ name }) => name)}
+                                action={
+                                    <Button
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                        aria-label={`Remover da grade: ${item.code}, turma ${item.number}`}
+                                        onClick={() => toggle(item)}
+                                    >
+                                        <X aria-hidden="true" />
+                                    </Button>
+                                }
+                            />
+                        </li>
+                    ))}
+                </ul>
+            )}
+            {items.length > 0 && (
+                <Button variant="outline" disabled={exporting} onClick={() => void download()}>
+                    <Download aria-hidden="true" />
+                    {exporting ? 'Gerando imagem...' : 'Baixar imagem'}
+                </Button>
+            )}
+            {exportError && items.length > 0 && (
+                <p role="alert" className="text-sm text-destructive">
+                    Não foi possível baixar a grade. Tente novamente.
+                </p>
+            )}
+        </>
+    );
+
+    if (desktop)
+        return (
+            <aside
+                aria-label="Minha grade"
+                className="schedule-panel flex min-w-0 flex-col gap-4 self-start desktop:sticky desktop:top-32 desktop:border-l desktop:pl-8"
+            >
+                <div className="flex items-center justify-between gap-3">
+                    <h2 className="text-xl font-medium">
+                        Minha grade{' '}
+                        {items.length > 0 && (
+                            <span className="ml-2 text-sm text-muted-foreground">
+                                {items.length}
+                            </span>
+                        )}
+                    </h2>
+                    {items.length > 0 && (
+                        <Button variant="ghost" size="sm" onClick={clear}>
+                            Limpar
+                        </Button>
+                    )}
+                </div>
+                <div className="schedule-content flex flex-col gap-5 overflow-y-auto overscroll-contain rounded-2xl border bg-card p-5 shadow-sm">
+                    {content}
+                </div>
+            </aside>
+        );
 
     return (
         <Dialog>
@@ -69,54 +184,7 @@ export function SchedulePreview() {
                         <X aria-hidden="true" />
                     </DialogClose>
                 </DialogHeader>
-                {grid.map((semester) => (
-                    <WeeklyTable key={semester.semester} grid={semester} maxHours={maxHours} />
-                ))}
-                {items.length === 0 ? (
-                    <p className="text-muted-foreground">
-                        Adicione turmas nos resultados da busca para montar sua grade.
-                    </p>
-                ) : (
-                    <ul className="flex flex-col gap-2">
-                        {items.map((item) => (
-                            <li key={classKey(item)}>
-                                <ClassCard
-                                    compact
-                                    title={item.name}
-                                    code={item.code}
-                                    classNumber={item.number}
-                                    time={describeSchedule(item.schedule) ?? 'Horário a definir'}
-                                    location={item.room ?? undefined}
-                                    professors={item.professors.map(({ name }) => name)}
-                                    action={
-                                        <Button
-                                            variant="ghost"
-                                            size="icon-sm"
-                                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                            aria-label={`Remover da grade: ${item.code}, turma ${item.number}`}
-                                            onClick={() => toggle(item)}
-                                        >
-                                            <X aria-hidden="true" />
-                                        </Button>
-                                    }
-                                />
-                            </li>
-                        ))}
-                    </ul>
-                )}
-                <Button
-                    variant="outline"
-                    disabled={items.length === 0 || exporting}
-                    onClick={() => void download()}
-                >
-                    <Download aria-hidden="true" />
-                    {exporting ? 'Gerando imagem...' : 'Baixar imagem'}
-                </Button>
-                {exportError && (
-                    <p role="alert" className="text-sm text-destructive">
-                        Não foi possível baixar a grade. Tente novamente.
-                    </p>
-                )}
+                {content}
             </DialogContent>
         </Dialog>
     );

@@ -1,5 +1,5 @@
 import type { Day } from '#/lib/schedule';
-import type { MenuSection } from '#/queries/restaurant';
+import type { DailyMenu, MenuSection } from '#/queries/restaurant';
 
 import { daysFrom, formatRelativeDays } from '#/lib/classroom-details';
 import { currentAndNext, nextDays } from '#/lib/schedule';
@@ -78,3 +78,30 @@ export function highlightMenu(sections: MenuSection[]) {
     }
     return { main: null, alternatives: [], others: sections };
 }
+
+export function mainMenuDish(sections: MenuSection[] | null | undefined) {
+    if (!sections?.length) return undefined;
+    const section = highlightMenu(sections).main ?? sections[0];
+    return section.items.join(', ') || undefined;
+}
+
+export function upcomingMenuMeals(
+    menus: readonly DailyMenu[],
+    date: string,
+    now: Day & { time: string }
+) {
+    const firstDate = date === now.date ? currentOrNextMeal(now).date : date;
+    const afterDinner = date === now.date && firstDate > date;
+    const selected = menus
+        .filter((menu) => (afterDinner ? menu.date >= firstDate : menu.date === firstDate))
+        .toSorted((a, b) => a.date.localeCompare(b.date))
+        .find((menu) => MEAL_TIMES.some((meal) => mainMenuDish(menu[meal.key])));
+    if (!selected) return [];
+    return MEAL_TIMES.flatMap((meal) => {
+        if (selected.date === now.date && date === now.date && meal.end <= now.time) return [];
+        const dish = mainMenuDish(selected[meal.key]);
+        return dish ? [{ ...meal, date: selected.date, dish }] : [];
+    });
+}
+
+export type MenuMeal = ReturnType<typeof upcomingMenuMeals>[number];

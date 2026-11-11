@@ -32,10 +32,12 @@ import { meQueryOptions } from '#/queries/me';
 import { Route } from '#/routes/_app/cursos.$id';
 
 import { curriculum, type RawCurriculum } from '../helpers/curriculum';
+import { desktopBrowser } from '../helpers/desktop';
 
 let testing: typeof import('@testing-library/react/pure');
 let browser: Window;
 let width = 390;
+let desktopDevice: ReturnType<typeof desktopBrowser>;
 const originalGlobals = new Map<string, PropertyDescriptor | undefined>();
 const wasServer = environmentManager.isServer();
 class ViewportObserver implements ResizeObserver {
@@ -55,6 +57,7 @@ class ViewportObserver implements ResizeObserver {
         this.disconnect();
     }
     emit() {
+        desktopDevice?.resize();
         if (this.target)
             this.callback(
                 [
@@ -98,9 +101,11 @@ beforeAll(async () => {
         originalGlobals.set(key, Object.getOwnPropertyDescriptor(globalThis, key));
         Object.defineProperty(globalThis, key, { value, configurable: true, writable: true });
     }
+    desktopDevice = desktopBrowser(() => width);
     testing = await import('@testing-library/react/pure');
 });
 afterAll(async () => {
+    desktopDevice.restore();
     environmentManager.setIsServer(() => wasServer);
     await browser.happyDOM.abort();
     for (const [key, descriptor] of originalGlobals) {
@@ -329,7 +334,7 @@ describe('fluxograma integrado', () => {
             page.getByRole('button', { name: 'Próximo semestre' }).hasAttribute('disabled')
         ).toBe(true);
         testing.act(() => {
-            width = 1024;
+            width = 1200;
             for (const observer of ViewportObserver.active) observer.emit();
         });
         await page.findByRole('region', { name: /Fluxo acadêmico por semestres/ });
@@ -337,7 +342,7 @@ describe('fluxograma integrado', () => {
         expect(page.queryByRole('button', { name: 'Próximo semestre' })).toBeNull();
         expect(page.getAllByRole('button', { name: /Ver requisitos/ })).toHaveLength(2);
         testing.act(() => {
-            width = 1023;
+            width = 1199;
             for (const observer of ViewportObserver.active) observer.emit();
         });
         await page.findByRole('button', { name: 'Próximo semestre' });
@@ -592,7 +597,7 @@ describe('fluxograma integrado', () => {
     });
     describe('outro curso com aluno logado', () => {
         beforeEach(() => {
-            width = 1024;
+            width = 1200;
             client.setQueryData(
                 curriculumQueryOptions(99, getCurrentSemester()!.semester).queryKey,
                 {

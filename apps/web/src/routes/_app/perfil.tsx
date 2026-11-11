@@ -1,9 +1,10 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { Link, Navigate, createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
-import { GitFork, LogOut } from 'lucide-react';
+import { ChevronRight, GitFork, LogOut } from 'lucide-react';
 
 import type { UserProfile } from '#/queries/me';
 
+import { useDesktop } from '#/components/DesktopContext';
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
 import { ListCard } from '#/components/ListCard';
@@ -32,6 +33,7 @@ import { Button, buttonVariants } from '#/components/ui/button';
 import { useOnline } from '#/lib/online';
 import { cn } from '#/lib/shadcn';
 import { useLogout } from '#/queries/auth';
+import { useDownloadDocument } from '#/queries/documents';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
 import { useUserSettings } from '#/queries/settings';
@@ -43,38 +45,64 @@ export const Route = createFileRoute('/_app/perfil')({
         if (!user) throw redirect({ to: '/login' });
         return user;
     },
-    staticData: {
-        header: () => (
-            <HeaderBar actions={<ThemeToggle />}>
-                <HeaderTitle>Perfil</HeaderTitle>
-            </HeaderBar>
-        )
-    },
+    staticData: { header: ProfileHeader },
     errorComponent: ErrorState,
     component: PerfilPage
 });
 
+function ProfileHeader() {
+    const desktop = useDesktop();
+    return (
+        <HeaderBar actions={!desktop && <ThemeToggle />}>
+            <div className="flex flex-col gap-3">
+                <HeaderTitle>Perfil</HeaderTitle>
+                <p className="hidden text-sm text-muted-foreground desktop:block">
+                    Seu percurso acadêmico e sua conta.
+                </p>
+            </div>
+        </HeaderBar>
+    );
+}
+
 function PerfilPage() {
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const settings = useUserSettings();
+    const download = useDownloadDocument();
 
     // sessão encerrada por um 401 em qualquer query ou mutation
     if (!user) return <Navigate to="/login" replace />;
 
     return (
-        <>
-            <ProfileIdentity user={user} displayName={settings.displayName} />
-            <div className="my-4 flex flex-col gap-4">
-                <InstallPromptCard />
-                <AcademicPerformance user={user} />
-                <ProgressSection user={user} />
-                <AccountSection
-                    user={user}
-                    displayName={settings.displayName}
-                    courseId={user.course?.id}
-                />
+        <div className="profile-columns desktop:grid desktop:items-start desktop:gap-x-10 desktop:gap-y-8">
+            <div className="profile-identity desktop:col-start-1 desktop:row-start-1">
+                <ProfileIdentity user={user} displayName={settings.displayName} />
             </div>
-        </>
+            <div className="my-4 flex flex-col gap-4 desktop:contents">
+                <div className="profile-install contents desktop:col-start-1 desktop:row-start-4 desktop:block">
+                    <InstallPromptCard />
+                </div>
+                <div className="profile-performance contents desktop:col-start-2 desktop:row-start-1 desktop:block desktop:border-l desktop:pl-8">
+                    <AcademicPerformance user={user} />
+                </div>
+                <div className="profile-progress contents desktop:col-start-1 desktop:row-span-2 desktop:row-start-2 desktop:block">
+                    <ProgressSection user={user} />
+                </div>
+                <div className="desktop:col-start-2 desktop:row-start-2 desktop:border-l desktop:pl-8">
+                    <ProfileSection title="Documentos">
+                        <div className="grid grid-cols-2 gap-3 desktop:gap-4">
+                            <DocumentDownloads download={download} />
+                        </div>
+                    </ProfileSection>
+                </div>
+                <div className="profile-account desktop:col-start-2 desktop:row-start-3 desktop:border-l desktop:pl-8">
+                    <AccountSection
+                        user={user}
+                        displayName={settings.displayName}
+                        courseId={user.course?.id}
+                    />
+                </div>
+            </div>
+        </div>
     );
 }
 
@@ -98,19 +126,23 @@ function AccountSection({
                         <Link
                             to="/cursos/$id"
                             params={{ id: courseId }}
+                            aria-label="Visualizar fluxo acadêmico"
                             className={cn(
                                 buttonVariants({ variant: 'ghost' }),
                                 'h-auto min-h-12 w-full justify-start gap-3 rounded-none px-3 py-2.5'
                             )}
                         >
-                            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                                 <GitFork className="size-4" aria-hidden="true" />
                             </span>
-                            <span className="flex-1 text-left">Visualizar fluxo acadêmico</span>
+                            <span className="flex-1 text-left">Fluxo acadêmico</span>
+                            <ChevronRight
+                                aria-hidden="true"
+                                className="size-4 text-muted-foreground"
+                            />
                         </Link>
                     </div>
                 )}
-                <DocumentDownloads />
                 <LogoutButton />
             </ListCard>
         </ProfileSection>
@@ -133,7 +165,7 @@ function LogoutButton() {
                     />
                 }
             >
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-destructive/10">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-destructive/10">
                     <LogOut className="size-4" />
                 </span>
                 <span className="flex-1 text-left">Desconectar</span>

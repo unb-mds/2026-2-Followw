@@ -101,6 +101,23 @@ function setup(alternative: Partial<SubjectClassroom> = {}) {
 const button = (view: ReturnType<typeof setup>, name: string) => view.getByRole('button', { name });
 
 describe('montagem da grade semanal', () => {
+    test('preserva o ícone durante a transformação de adicionar para remover e de volta', () => {
+        const view = setup();
+        const add = button(view, 'Adicionar à grade: FGA0108, turma 01');
+        const icon = add.querySelector('svg');
+        expect(add.getAttribute('aria-pressed')).toBe('false');
+        dom.testing.fireEvent.click(add);
+        const remove = button(view, 'Remover da grade: FGA0108, turma 01');
+        expect(remove).toBe(add);
+        expect(remove.querySelector('svg')).toBe(icon);
+        expect(remove.getAttribute('aria-pressed')).toBe('true');
+        dom.testing.fireEvent.click(remove);
+        expect(button(view, 'Adicionar à grade: FGA0108, turma 01').querySelector('svg')).toBe(
+            icon
+        );
+        expect(add.getAttribute('aria-pressed')).toBe('false');
+    });
+
     test.each(['logout', 'login', 'sessão expirada'])(
         'limpa a grade salva e montada ao mudar a sessão (%s) sem herdar conflitos',
         async (change) => {
@@ -252,11 +269,10 @@ describe('montagem da grade semanal', () => {
             view.getAllByRole('button', { name: 'Remover da grade: FGA0108, turma 01' })[0]
         );
         expect(view.queryByRole('table')).toBeNull();
-        expect(view.getByRole('button', { name: 'Baixar imagem' }).hasAttribute('disabled')).toBe(
-            true
-        );
+        expect(view.queryByRole('button', { name: 'Baixar imagem' })).toBeNull();
+        expect(view.getByRole('heading', { name: 'Monte sua grade' })).toBeTruthy();
         expect(
-            view.getByText('Adicione turmas nos resultados da busca para montar sua grade.')
+            view.getByText('Abra uma matéria e use o botão + para adicionar uma turma.')
         ).toBeTruthy();
     });
 

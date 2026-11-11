@@ -19,7 +19,9 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
     return (
         <div className={cn('mb-3 flex items-center justify-between', className)}>
             <div className="flex items-center gap-2.5">
-                <h2 className="text-xl font-bold tracking-tight text-foreground">{title}</h2>
+                <h2 className="text-xl font-bold tracking-tight text-foreground desktop:font-medium">
+                    {title}
+                </h2>
             </div>
             {actionLabel && actionTo && (
                 <Link to={actionTo} className={buttonVariants({ variant: 'link', size: 'sm' })}>

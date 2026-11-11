@@ -14,9 +14,9 @@ interface HeaderBarProps {
 
 export const HeaderBar: React.FC<HeaderBarProps> = ({ children, actions, showLogo = true }) => {
     return (
-        <header className="mb-2 flex items-center justify-between py-4 pb-2">
+        <header className="page-header mb-2 flex items-center justify-between py-4 pb-2 desktop:mb-8 desktop:min-h-32 desktop:gap-8 desktop:border-b desktop:py-8">
             <div className="flex items-center gap-2">
-                {showLogo && <FollowwLogo className="size-10 shrink-0" />}
+                {showLogo && <FollowwLogo className="size-10 shrink-0 desktop:hidden" />}
                 {children}
             </div>
             {actions && <div className="flex items-center gap-2">{actions}</div>}
@@ -25,7 +25,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({ children, actions, showLog
 };
 
 export const HeaderTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <h1 className="text-xl leading-none font-bold tracking-tight text-foreground">{children}</h1>
+    <h1 className="text-xl leading-none font-bold tracking-tight text-foreground desktop:text-4xl desktop:font-medium">
+        {children}
+    </h1>
 );
 
 interface HeaderToggleProps {

@@ -1,4 +1,4 @@
-import { Plus, X } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 import type { CatalogSubject, SubjectClassroom } from '#/queries/subjects';
 
@@ -27,14 +27,20 @@ export function AddToSchedule({
             variant={selected ? 'destructive' : 'ghost'}
             size="icon"
             className={cn(
-                'rounded-lg',
+                'rounded-lg duration-200 motion-reduce:transition-none',
                 !selected && 'bg-primary/15 text-primary hover:bg-primary/25 hover:text-primary'
             )}
             aria-pressed={selected}
             aria-label={`${selected ? 'Remover da' : 'Adicionar à'} grade: ${subject.code}, turma ${classroom.number}`}
             onClick={() => toggle(item)}
         >
-            {selected ? <X aria-hidden="true" /> : <Plus aria-hidden="true" />}
+            <Plus
+                aria-hidden="true"
+                className={cn(
+                    'transition-transform duration-200 ease-out motion-reduce:transition-none',
+                    selected && 'rotate-45'
+                )}
+            />
         </Button>
     );
 }
