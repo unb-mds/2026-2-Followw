@@ -35,6 +35,7 @@ from api.modules.classrooms.lessons import (
     lesson_order,
     positioned,
 )
+from api.modules.classrooms.post_reading import post_content
 
 # Vínculo com turma e componente, no mesmo join que os filtros usam.
 _OWN = (
@@ -499,26 +500,32 @@ class PostsRepository:
             )
         )
 
-    async def list_by_classroom(self, classroom_id: UUID) -> list[ClassroomPosts]:
-        return list(
-            await self._session.scalars(
-                select(ClassroomPosts)
-                .where(ClassroomPosts.classroom_id == classroom_id)
-                .order_by(
-                    func.coalesce(ClassroomPosts.published_on, ClassroomPosts.starts_on)
-                    .desc()
-                    .nulls_last(),
-                    ClassroomPosts.source_id.desc(),
-                )
+    async def list_by_classroom(
+        self, classroom_id: UUID, *, for_update: bool = False
+    ) -> list[ClassroomPosts]:
+        stmt = (
+            select(ClassroomPosts)
+            .where(ClassroomPosts.classroom_id == classroom_id)
+            .order_by(
+                func.coalesce(ClassroomPosts.published_on, ClassroomPosts.starts_on)
+                .desc()
+                .nulls_last(),
+                ClassroomPosts.source_id.desc(),
             )
         )
+        return list(
+            await self._session.scalars(stmt.with_for_update() if for_update else stmt)
+        )
 
-    async def get(self, classroom_id: UUID, post_id: str) -> ClassroomPosts | None:
+    async def get(
+        self, classroom_id: UUID, post_id: str, *, for_update: bool = False
+    ) -> ClassroomPosts | None:
+        stmt = select(ClassroomPosts).where(
+            ClassroomPosts.classroom_id == classroom_id,
+            ClassroomPosts.source_id == post_id,
+        )
         return await self._session.scalar(
-            select(ClassroomPosts).where(
-                ClassroomPosts.classroom_id == classroom_id,
-                ClassroomPosts.source_id == post_id,
-            )
+            stmt.with_for_update() if for_update else stmt
         )
 
     async def save_list(
@@ -528,7 +535,8 @@ class PostsRepository:
         synced_at: datetime,
     ) -> None:
         existing = {
-            item.source_id: item for item in await self.list_by_classroom(classroom_id)
+            item.source_id: item
+            for item in await self.list_by_classroom(classroom_id, for_update=True)
         }
         # Salva os tópicos antes dos materiais que os referenciam.
         for has_topic in (False, True):
@@ -542,6 +550,7 @@ class PostsRepository:
                     )
                     self._session.add(cached)
                     existing[item.id] = cached
+                previous = post_content(cached)
                 cached.type = item.type
                 cached.sigaa_id = item.sigaa_id
                 cached.topic_id = item.topic_id
@@ -549,6 +558,8 @@ class PostsRepository:
                 cached.published_on = item.published_on
                 if item.type != sigaa_client.PostType.NEWS:
                     self._save_content(cached, item, synced_at)
+                if previous != post_content(cached):
+                    cached.version = uuid4()
             await self._session.flush()
         # A lista pode estar vazia; posts antigos e seus conteúdos são preservados.
         classroom = await self._session.get_one(Classroom, classroom_id)
@@ -559,15 +570,18 @@ class PostsRepository:
         self, classroom_id: UUID, news: sigaa_client.News, synced_at: datetime
     ) -> None:
         post = sigaa_client.ClassroomPost.from_news(news)
-        cached = await self.get(classroom_id, post.id)
+        cached = await self.get(classroom_id, post.id, for_update=True)
         if cached is None:
             cached = ClassroomPosts(classroom_id=classroom_id, source_id=post.id)
             self._session.add(cached)
+        previous = post_content(cached)
         cached.type = post.type
         cached.sigaa_id = post.sigaa_id
         cached.title = post.title
         cached.published_on = post.published_on
         self._save_content(cached, post, synced_at)
+        if previous != post_content(cached):
+            cached.version = uuid4()
         await self._session.flush()
 
     @staticmethod

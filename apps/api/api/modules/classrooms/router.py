@@ -1,11 +1,11 @@
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Path, Query
+from fastapi import APIRouter, Path, Query, Response
 from pydantic import AfterValidator, BaseModel, Field
-from sigaa_client import ClassroomPost, PostType, StatisticsShare
+from sigaa_client import PostType, StatisticsShare
 
-from api.cache import NoStore
+from api.cache import NoStore, no_store
 from api.db.enums import LessonStatus
 from api.errors import SIGAA_ERRORS
 from api.modules.classrooms.frequency import (
@@ -13,6 +13,7 @@ from api.modules.classrooms.frequency import (
     FrequencyServiceDep,
 )
 from api.modules.classrooms.lessons import ClassroomFrequencyView
+from api.modules.classrooms.post_reading import ClassroomPostView
 from api.modules.classrooms.posts import ClassroomPostsServiceDep
 from api.modules.classrooms.service import (
     ClassroomMembers,
@@ -27,6 +28,17 @@ CLASSROOM_ERRORS = {
     404: {"description": "Turma não encontrada entre as turmas do usuário."},
 }
 ClassroomId = Annotated[str, Path(description="Classroom.id ou Classroom.sigaa_id.")]
+PostId = Annotated[
+    str,
+    Path(
+        pattern=r"^(news:[1-9][0-9]*|assessment:[1-9][0-9]*|topic:[a-f0-9]{64}|material:[a-f0-9]{64})$",
+        description="ID do post na listagem da turma.",
+    ),
+]
+
+
+class PostReadMark(BaseModel):
+    version: UUID = Field(description="Versão recebida ao consultar a postagem.")
 
 
 class LessonMark(BaseModel):
@@ -46,7 +58,7 @@ def _unique_lessons(marks: list[LessonMark]) -> list[LessonMark]:
 
 @router.get(
     "/{classroom_id}/posts",
-    response_model=list[ClassroomPost],
+    response_model=list[ClassroomPostView],
     summary="Consultar posts de uma turma",
     description="Notícias, tópicos, materiais e avaliações. Materiais se vinculam ao tópico por topic_id; texto e anexos das notícias ficam no detalhe.",
     responses={
@@ -62,14 +74,14 @@ async def get_classroom_posts(
         PostType | None,
         Query(alias="type", description="Categoria do post."),
     ] = None,
-) -> list[ClassroomPost]:
+) -> list[ClassroomPostView]:
     posts = await service.list_posts(classroom_id)
     return [post for post in posts if post_type is None or post.type == post_type]
 
 
 @router.get(
     "/{classroom_id}/posts/{post_id}",
-    response_model=ClassroomPost,
+    response_model=ClassroomPostView,
     summary="Consultar um post da turma",
     description="Notícias incluem texto em Markdown e anexos; avaliações não incluem notas individuais.",
     responses={
@@ -82,15 +94,55 @@ async def get_classroom_posts(
 async def get_classroom_post(
     service: ClassroomPostsServiceDep,
     classroom_id: ClassroomId,
-    post_id: Annotated[
-        str,
-        Path(
-            pattern=r"^(news:[1-9][0-9]*|assessment:[1-9][0-9]*|topic:[a-f0-9]{64}|material:[a-f0-9]{64})$",
-            description="ID do post na listagem da turma.",
-        ),
-    ],
-) -> ClassroomPost:
+    post_id: PostId,
+) -> ClassroomPostView:
     return await service.get_post(classroom_id, post_id)
+
+
+@router.put(
+    "/{classroom_id}/posts/{post_id}/read",
+    status_code=204,
+    summary="Confirmar a leitura de uma versão da postagem",
+    description="Operação individual e idempotente. Exige conteúdo completo já carregado e a versão atual do cache. Consultar uma postagem não a marca como lida.",
+    responses={
+        **CLASSROOM_ERRORS,
+        404: {"description": "Turma ou post não encontrado."},
+        409: {
+            "description": "Conteúdo ainda não carregado ou versão alterada; consulte o detalhe novamente."
+        },
+    },
+    dependencies=[NoStore],
+)
+async def mark_post_read(
+    service: ClassroomPostsServiceDep,
+    response: Response,
+    classroom_id: ClassroomId,
+    post_id: PostId,
+    body: PostReadMark,
+) -> None:
+    await service.mark_read(classroom_id, post_id, body.version)
+    no_store(response)
+
+
+@router.delete(
+    "/{classroom_id}/posts/{post_id}/read",
+    status_code=204,
+    summary="Marcar uma postagem como não lida",
+    description="Remove somente a leitura do usuário autenticado; repetir a operação não altera o resultado.",
+    responses={
+        **CLASSROOM_ERRORS,
+        404: {"description": "Turma ou post não encontrado."},
+    },
+    dependencies=[NoStore],
+)
+async def mark_post_unread(
+    service: ClassroomPostsServiceDep,
+    response: Response,
+    classroom_id: ClassroomId,
+    post_id: PostId,
+) -> None:
+    await service.mark_read(classroom_id, post_id, None)
+    no_store(response)
 
 
 @router.get(
