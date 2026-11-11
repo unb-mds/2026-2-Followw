@@ -1,5 +1,5 @@
 import type { Day } from '#/lib/schedule';
-import type { MenuSection } from '#/queries/restaurant';
+import type { DailyMenu, MenuSection } from '#/queries/restaurant';
 
 import { daysFrom, formatRelativeDays } from '#/lib/classroom-details';
 import { currentAndNext, nextDays } from '#/lib/schedule';
@@ -77,4 +77,28 @@ export function highlightMenu(sections: MenuSection[]) {
         };
     }
     return { main: null, alternatives: [], others: sections };
+}
+
+export function mainMenuDish(sections: MenuSection[] | null | undefined) {
+    if (!sections?.length) return undefined;
+    const section = highlightMenu(sections).main ?? sections[0];
+    return section.items.join(', ') || undefined;
+}
+
+export function upcomingMenuMeals(
+    menus: readonly DailyMenu[],
+    date: string,
+    now: Day & { time: string }
+) {
+    return menus
+        .filter((menu) => menu.date >= date)
+        .toSorted((a, b) => a.date.localeCompare(b.date))
+        .flatMap((menu) =>
+            MEAL_TIMES.flatMap((meal) => {
+                if (date === now.date && menu.date === now.date && meal.end <= now.time) return [];
+                const dish = mainMenuDish(menu[meal.key]);
+                return dish ? [{ ...meal, date: menu.date, dish }] : [];
+            })
+        )
+        .slice(0, 2);
 }

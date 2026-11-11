@@ -1,13 +1,17 @@
+import { useQuery } from '@tanstack/react-query';
 import { Check, IdCard } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import type { components } from '#/queries/schema.gen';
 
+import { useDesktop } from '#/components/DesktopContext';
 import { ListCard, Meter } from '#/components/ListCard';
+import { CourseProgress } from '#/components/profile/CourseProgress';
 import { Card } from '#/components/ui/card';
 import { PersonPhoto } from '#/components/ui/person-photo';
 import { academicIndexes, creditsLabel, titleCase, truncateProfileBio } from '#/lib/profile';
 import { cn } from '#/lib/shadcn';
+import { classroomsQueryOptions } from '#/queries/classrooms';
 
 type UserProfile = components['schemas']['UserProfile'];
 
@@ -27,7 +31,7 @@ export function ProfileIdentity({
                         {displayName || titleCase(user.name)}
                     </h1>
                     <RegistrationCopy value={user.registration} />
-                    <p className="mt-2 text-sm text-primary">
+                    <p className="mt-2 text-sm text-primary desktop:text-xl desktop:font-medium">
                         {[user.course && titleCase(user.course.name), user.unit?.code]
                             .filter(Boolean)
                             .join(' · ')}
@@ -46,21 +50,27 @@ export function AcademicPerformance({ user }: { user: UserProfile }) {
 
     return (
         <ProfileSection title="Desempenho">
-            <Card size="sm" className="gap-0 py-0">
+            <Card
+                size="sm"
+                className="gap-0 py-0 desktop:overflow-visible desktop:bg-transparent desktop:shadow-none desktop:ring-0"
+            >
                 <dl
                     className={cn(
-                        'grid divide-x divide-border',
+                        'grid divide-x divide-border desktop:gap-4 desktop:divide-x-0',
                         indexes.length > 1 && 'grid-cols-2'
                     )}
                 >
                     {indexes.map((index) => (
-                        <div key={index.label} className="px-3 py-3">
+                        <div
+                            key={index.label}
+                            className="px-3 py-3 desktop:rounded-2xl desktop:border desktop:bg-card desktop:p-5 desktop:shadow-sm"
+                        >
                             <dt className="text-xs font-medium text-muted-foreground">
                                 <abbr title={index.description} className="no-underline">
                                     {index.label}
                                 </abbr>
                             </dt>
-                            <dd className="mt-1 text-2xl font-semibold tracking-tight text-primary tabular-nums">
+                            <dd className="mt-1 text-2xl font-semibold tracking-tight text-primary tabular-nums desktop:mt-2 desktop:text-4xl desktop:font-medium">
                                 {index.value}
                             </dd>
                         </div>
@@ -72,8 +82,16 @@ export function AcademicPerformance({ user }: { user: UserProfile }) {
 }
 
 export function ProgressSection({ user }: { user: UserProfile }) {
+    const desktop = useDesktop();
     const { integralization, workload } = user;
     if (integralization == null && !workload) return null;
+
+    if (desktop)
+        return (
+            <ProfileSection title="Progresso do curso">
+                <CurrentCourseProgress user={user} />
+            </ProfileSection>
+        );
 
     const items = workload && [
         { label: 'Obrigatória pendente', hours: workload.pending_mandatory, credits: true },
@@ -111,10 +129,17 @@ export function ProgressSection({ user }: { user: UserProfile }) {
     );
 }
 
+function CurrentCourseProgress({ user }: { user: UserProfile }) {
+    const { data } = useQuery(classroomsQueryOptions);
+    return <CourseProgress user={user} classrooms={data ?? []} />;
+}
+
 export function ProfileSection({ title, children }: { title: string; children: React.ReactNode }) {
     return (
         <section aria-label={title}>
-            <h2 className="mb-2 px-1 text-sm font-semibold">{title}</h2>
+            <h2 className="mb-2 px-1 text-sm font-semibold desktop:mb-4 desktop:text-xl desktop:font-medium">
+                {title}
+            </h2>
             {children}
         </section>
     );
@@ -184,12 +209,12 @@ function RegistrationCopy({ value }: { value: string }) {
             aria-label={label}
             title={label}
             className={cn(
-                'mt-0.5 flex items-center gap-1 text-sm tabular-nums',
+                'mt-0.5 inline-flex items-center gap-1 text-sm leading-none tabular-nums',
                 copied ? 'text-primary' : 'text-muted-foreground'
             )}
         >
-            <Icon className="size-3" />
-            {value}
+            <Icon aria-hidden="true" className="size-4 shrink-0" />
+            <span>{value}</span>
         </button>
     );
 }

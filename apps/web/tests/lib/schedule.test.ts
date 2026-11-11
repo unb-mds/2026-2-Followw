@@ -11,6 +11,12 @@ import {
 } from '#/lib/schedule.ts';
 
 describe('parseSchedule', () => {
+    test('um bloco sobreposto menor não encurta a duração já identificada', () => {
+        expect(parseSchedule('2M1234 2M2')).toEqual([{ weekday: 1, start: '08:00', end: '11:50' }]);
+        expect(parseSchedule('2M12 2M1234')).toEqual([
+            { weekday: 1, start: '08:00', end: '11:50' }
+        ]);
+    });
     test('expande dias e junta horários seguidos', () => {
         expect(parseSchedule('35T23')).toEqual([
             { weekday: 2, start: '14:00', end: '15:50' },

@@ -35,7 +35,7 @@ const menu: DailyMenu = {
 
 describe('PublicInfoSection', () => {
     test('mostra o prato principal de cada refeição, incluindo o café e o campus', async () => {
-        const markup = await renderSection({ campus: 'Gama', menu, day: 'Hoje' });
+        const markup = await renderSection({ campus: 'Gama', menus: [menu], day: 'Hoje' });
 
         expect(markup).toContain('Campus Gama');
         expect(markup).toContain('Pão com ovos');

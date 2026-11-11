@@ -53,7 +53,7 @@ function ProfessorPage() {
     const { data: professor } = useSuspenseQuery(professorQueryOptions(siape));
 
     return (
-        <div className="flex flex-col gap-5 pb-8">
+        <div className="professor-columns flex flex-col gap-5 pb-8 desktop:grid desktop:items-start desktop:gap-10">
             <ProfessorHeader professor={professor} />
             <ProfessorDetailsSection professor={professor} />
         </div>

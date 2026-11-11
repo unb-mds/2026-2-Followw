@@ -1,8 +1,9 @@
-import { ImagePlus, Pencil, Trash2 } from 'lucide-react';
+import { ChevronRight, ImagePlus, Pencil, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import type { UserProfile } from '#/queries/me';
 
+import { useDesktop } from '#/components/DesktopContext';
 import { PhotoCrop } from '#/components/profile/PhotoCrop';
 import { Button } from '#/components/ui/button';
 import {
@@ -47,6 +48,7 @@ export function EditProfile({
     user: UserProfile;
     displayName?: string | null;
 }) {
+    const desktop = useDesktop();
     const [open, setOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     return (
@@ -60,12 +62,15 @@ export function EditProfile({
                     />
                 }
             >
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary desktop:rounded-full">
                     <Pencil className="size-4" aria-hidden="true" />
                 </span>
                 <span className="flex-1 text-left">
                     {saving ? 'Salvando perfil...' : 'Editar perfil'}
                 </span>
+                {desktop && (
+                    <ChevronRight aria-hidden="true" className="size-4 text-muted-foreground" />
+                )}
             </DialogTrigger>
             <DialogContent className="max-h-dvh overflow-y-auto sm:max-w-lg">
                 {open && (

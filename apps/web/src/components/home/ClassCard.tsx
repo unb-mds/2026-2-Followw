@@ -66,7 +66,7 @@ export const ClassCard: React.FC<ClassCardProps> = ({
             <div className="pointer-events-none relative flex items-center gap-2">
                 <h3
                     className={cn(
-                        'min-w-0 flex-1 text-sm leading-snug font-semibold',
+                        'min-w-0 flex-1 text-sm leading-snug font-semibold desktop:line-clamp-none desktop:text-lg desktop:font-medium',
                         compact ? 'line-clamp-1' : 'line-clamp-2'
                     )}
                 >
@@ -105,7 +105,7 @@ export const ClassCard: React.FC<ClassCardProps> = ({
         <Card
             size="sm"
             className={cn(
-                'relative gap-1 px-3',
+                'relative gap-1 px-3 desktop:gap-3 desktop:px-6 desktop:py-4',
                 active && 'bg-primary/5 ring-primary/30',
                 compact && 'gap-0.5 py-2'
             )}

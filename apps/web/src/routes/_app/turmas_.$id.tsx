@@ -116,12 +116,12 @@ function ClassroomPage() {
             ) : !classroom ? (
                 <InformationCard>Turma não encontrada.</InformationCard>
             ) : (
-                <>
+                <div className="classroom-detail-columns desktop:grid desktop:items-start desktop:gap-10">
                     <ClassroomSummary classroom={classroom} />
                     <Tabs
                         value={classroomTab(tab, classroom.current)}
                         onValueChange={(value: ClassroomTab) => void setSearch({ tab: value })}
-                        className="mt-5 gap-4"
+                        className="mt-5 min-w-0 gap-4 desktop:mt-0 desktop:border-l desktop:pl-8"
                     >
                         <TabsList
                             variant="line"
@@ -156,7 +156,7 @@ function ClassroomPage() {
                             <MembersTab id={id} />
                         </TabsContent>
                     </Tabs>
-                </>
+                </div>
             )}
         </>
     );

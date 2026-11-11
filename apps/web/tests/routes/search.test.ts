@@ -27,6 +27,26 @@ const loadWith = async (user: User | null, searchStr = '') => {
 };
 
 describe('loader da busca de turmas', () => {
+    test('libera a página enquanto o histórico e as recomendações ainda carregam', async () => {
+        const keys: QueryKey[] = [];
+        let release!: () => void;
+        const pending = new Promise<never[]>((resolve) => {
+            release = () => resolve([]);
+        });
+        const queryClient = fakeQueryClient((key) => {
+            keys.push(key);
+            return key[1] === '/me'
+                ? { registration: '1', unit: null, level: 'Graduação' }
+                : pending;
+        });
+        try {
+            await runLoader(Route, { location: { searchStr: '' }, context: { queryClient } });
+            expect(keys.map((key) => key[1])).toEqual(['/me', '/classrooms', '/public/subjects']);
+        } finally {
+            release();
+        }
+    });
+
     test('sem login carrega só o perfil', async () => {
         expect((await loadWith(null)).map((key) => key[1])).toEqual(['/me']);
     });

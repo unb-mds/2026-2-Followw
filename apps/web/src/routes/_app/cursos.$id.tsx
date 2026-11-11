@@ -7,6 +7,7 @@ import { getCurrentSemester } from '#/calendar';
 import { CourseSummary } from '#/components/curriculum/CourseSummary';
 import { CurriculumView } from '#/components/curriculum/CurriculumView';
 import { Legend } from '#/components/curriculum/Legend';
+import { useDesktop } from '#/components/DesktopContext';
 import { ErrorCard, ErrorState } from '#/components/ErrorState';
 import { BackHeader } from '#/components/HeaderBar';
 import { LoadingText } from '#/components/LoadingText';
@@ -20,8 +21,6 @@ import { ApiError } from '#/queries/errors';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
 import { currentCurriculumPeriod } from '#/queries/subjects';
-
-const DESKTOP_MIN_WIDTH = 1024;
 
 /** O curso do aluno usa o ingresso dele; outro curso, a matriz vigente no semestre atual. */
 function flowTarget(user: UserProfile | null | undefined, courseId: number) {
@@ -91,8 +90,9 @@ function FlowHeader({ legend = false }: { legend?: boolean }) {
 }
 
 function FlowPage() {
+    const eligible = useDesktop();
     const { ref, width } = useWidth<HTMLDivElement>();
-    const desktop = width ? width >= DESKTOP_MIN_WIDTH : null;
+    const desktop = width ? eligible : null;
     const [{ subject }] = useFlowSearch();
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const { id: courseId } = Route.useParams();

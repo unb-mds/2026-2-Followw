@@ -2,10 +2,13 @@ import { useLocation, useMatches } from '@tanstack/react-router';
 import { createElement } from 'react';
 
 import { BottomNavigation } from '#/components/BottomNavigation';
+import { DesktopContext } from '#/components/DesktopContext';
+import { DesktopNavigation } from '#/components/DesktopNavigation';
 import { HeaderBar } from '#/components/HeaderBar';
 import { OfflineBanner } from '#/components/OfflineBanner';
 import { PageStateProvider } from '#/components/PageState';
 import { Toaster } from '#/components/ui/toast';
+import { useDesktopEligibility } from '#/lib/desktop';
 
 declare module '@tanstack/react-router' {
     interface StaticDataRouteOption {
@@ -20,6 +23,7 @@ interface AppLayoutProps {
 }
 
 export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
+    const desktop = useDesktopEligibility();
     const header =
         useMatches({ select: (matches) => matches.at(-1)?.staticData.header }) ?? HeaderBar;
     const pathname = useLocation({ select: (location) => location.pathname });
@@ -27,27 +31,41 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     const fullscreen = useMatches({
         select: (matches) => matches.at(-1)?.staticData.presentation === 'fullscreen'
     });
-    if (fullscreen)
-        return (
-            // no mobile a página rola; no desktop, só o conteúdo
-            <div className="flex min-h-dvh flex-col bg-background text-foreground lg:h-dvh lg:overflow-hidden">
-                <OfflineBanner />
-                <main className="flex flex-1 flex-col lg:min-h-0">{children}</main>
-                <Toaster />
-            </div>
-        );
-
     return (
-        <div className="flex min-h-screen flex-col overflow-x-hidden bg-background text-foreground">
-            <div className="mx-auto w-full max-w-2xl px-4">
-                <PageStateProvider page={pathname}>
-                    {createElement(header)}
-                    <OfflineBanner />
-                    <main className="flex-1 pb-24">{children}</main>
-                </PageStateProvider>
-                <BottomNavigation />
-                <Toaster />
+        <DesktopContext value={desktop}>
+            <div
+                data-layout={desktop ? 'desktop' : 'mobile'}
+                className={
+                    fullscreen
+                        ? 'flex min-h-dvh flex-col bg-background text-foreground lg:h-dvh lg:overflow-hidden'
+                        : 'flex min-h-screen flex-col overflow-x-hidden bg-background text-foreground desktop:overflow-x-clip'
+                }
+            >
+                {desktop && <DesktopNavigation />}
+                <div
+                    className={
+                        fullscreen
+                            ? 'flex min-h-0 flex-1 flex-col'
+                            : 'app-content mx-auto w-full max-w-2xl px-4 desktop:max-w-none desktop:px-16 desktop:pb-10'
+                    }
+                >
+                    <PageStateProvider page={pathname}>
+                        {!fullscreen && createElement(header)}
+                        <OfflineBanner />
+                        <main
+                            className={
+                                fullscreen
+                                    ? 'flex min-h-0 flex-1 flex-col'
+                                    : 'flex-1 pb-24 desktop:pb-0'
+                            }
+                        >
+                            {children}
+                        </main>
+                    </PageStateProvider>
+                    {!fullscreen && !desktop && <BottomNavigation />}
+                    <Toaster />
+                </div>
             </div>
-        </div>
+        </DesktopContext>
     );
 };

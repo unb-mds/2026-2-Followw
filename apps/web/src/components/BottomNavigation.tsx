@@ -1,7 +1,7 @@
-import { Link, useLocation, useNavigate } from '@tanstack/react-router';
+import { Link, useLocation } from '@tanstack/react-router';
 import { House, Search, User, type LucideIcon, Utensils, UserRoundGroup } from 'lucide-react';
-import { useRef } from 'react';
 
+import { useRestaurantShortcut } from '#/components/useRestaurantShortcut';
 import { cn } from '#/lib/shadcn';
 
 interface NavItem {
@@ -18,36 +18,13 @@ const navItems: NavItem[] = [
     { to: '/perfil', label: 'Perfil', icon: User }
 ];
 
-const DOUBLE_TAP_MS = 400;
-
-export function isDoubleTap(previous: number | null, now: number) {
-    return previous !== null && now - previous < DOUBLE_TAP_MS;
-}
-
 export const BottomNavigation: React.FC = () => {
     const location = useLocation();
     const pathname = location.pathname.replace(/(.)\/$/, '$1');
     const activeIndex = navItems.findIndex(
         (item) => item.to === pathname || (item.to === '/turmas' && pathname.startsWith('/turmas/'))
     );
-    const navigate = useNavigate();
-    const lastRestaurantTap = useRef<number | null>(null);
-    // dois toques no RU abrem a carteirinha
-    const onRestaurantClick = (event: React.MouseEvent) => {
-        const now = event.timeStamp;
-        if (!isDoubleTap(lastRestaurantTap.current, now)) {
-            lastRestaurantTap.current = now;
-            return;
-        }
-        event.preventDefault();
-        lastRestaurantTap.current = null;
-        void navigate({
-            to: '/ru',
-            search: (prev) => (pathname === '/ru' ? prev : {}),
-            replace: true,
-            state: { studentCard: true }
-        });
-    };
+    const onRestaurantClick = useRestaurantShortcut(pathname);
 
     return (
         <nav

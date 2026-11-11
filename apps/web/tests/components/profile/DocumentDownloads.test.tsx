@@ -3,13 +3,18 @@ import { describe, expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { DocumentDownloads } from '#/components/profile/DocumentDownloads';
+import { useDownloadDocument } from '#/queries/documents';
+
+function Downloads() {
+    return <DocumentDownloads download={useDownloadDocument()} />;
+}
 
 describe('DocumentDownloads', () => {
     test('oferece os dois downloads na ordem solicitada', () => {
         const queryClient = new QueryClient();
         const markup = renderToStaticMarkup(
             <QueryClientProvider client={queryClient}>
-                <DocumentDownloads />
+                <Downloads />
             </QueryClientProvider>
         );
         expect(markup.match(/<button\b/g)).toHaveLength(2);

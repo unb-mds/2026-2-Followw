@@ -7,8 +7,9 @@ import { useEffect, useSyncExternalStore } from 'react';
 import type { RestaurantSelection } from '#/lib/restaurant-share';
 import type { MenuSection } from '#/queries/restaurant';
 
+import { useDesktop } from '#/components/DesktopContext';
 import { ErrorState } from '#/components/ErrorState';
-import { HeaderBar, HeaderToggle } from '#/components/HeaderBar';
+import { HeaderBar, HeaderTitle, HeaderToggle } from '#/components/HeaderBar';
 import { LoadingText } from '#/components/LoadingText';
 import { usePageState } from '#/components/PageState';
 import { RestaurantAccount } from '#/components/ru/RestaurantAccount';
@@ -121,6 +122,7 @@ export const Route = createFileRoute('/_app/ru')({
 const useFiltersOpen = () => usePageState('filters', false);
 
 function RUHeader() {
+    const desktop = useDesktop();
     const [filtersOpen, setFiltersOpen] = useFiltersOpen();
     const { selection } = useMenuSelection();
 
@@ -130,13 +132,27 @@ function RUHeader() {
                 <ShareButton title="Cardápio do RU" url={() => restaurantSharePath(selection)} />
             }
         >
-            <HeaderToggle
-                open={filtersOpen}
-                onToggle={() => setFiltersOpen(!filtersOpen)}
-                title={filtersOpen ? 'Ocultar dia e campus' : 'Escolher dia e campus'}
-            >
-                Cardápio
-            </HeaderToggle>
+            <div className="flex flex-col gap-3">
+                {desktop ? (
+                    <HeaderTitle>Cardápio</HeaderTitle>
+                ) : (
+                    <HeaderToggle
+                        open={filtersOpen}
+                        onToggle={() => setFiltersOpen(!filtersOpen)}
+                        title={filtersOpen ? 'Ocultar dia e campus' : 'Escolher dia e campus'}
+                    >
+                        Cardápio
+                    </HeaderToggle>
+                )}
+                <p className="hidden text-sm text-muted-foreground desktop:block">
+                    {new Intl.DateTimeFormat('pt-BR', {
+                        weekday: 'long',
+                        day: 'numeric',
+                        month: 'long',
+                        timeZone: 'UTC'
+                    }).format(new Date(`${selection.date}T00:00:00Z`))}
+                </p>
+            </div>
         </HeaderBar>
     );
 }
@@ -178,6 +194,7 @@ function useMenuSelection() {
 }
 
 function RUPage() {
+    const desktop = useDesktop();
     const { today } = Route.useLoaderData();
     const {
         selection: { date: selectedDate, meal: selectedMeal, campus },
@@ -206,54 +223,60 @@ function RUPage() {
     const shiftDay = (offset: number) => () => select({ date: addDays(selectedDate, offset) });
 
     return (
-        <>
-            {filtersOpen && (
-                <div>
-                    <WeekDayPicker
-                        days={days}
-                        selectedDate={selectedDate}
-                        onSelect={(day) => select({ date: day.date })}
-                        week={{
-                            label: isNextWeek ? 'Próxima semana' : 'Esta semana',
-                            onPrevious: isNextWeek ? shiftWeek(-1) : undefined,
-                            onNext: isNextWeek ? undefined : shiftWeek(1)
-                        }}
-                    />
-
-                    <div className="mb-5">
-                        <Label
-                            htmlFor="menu-campus"
-                            className="mb-2 px-1 text-xs text-muted-foreground"
-                        >
-                            Campus
-                        </Label>
-                        <Select
-                            items={CAMPUS_OPTIONS.map((option) => ({
-                                value: option,
-                                label: CAMPUS_LABELS[option]
-                            }))}
-                            value={campus}
-                            onValueChange={(value) => {
-                                const selected = CAMPUS_OPTIONS.find((option) => option === value);
-                                if (selected) select({ campus: selected });
+        <div className="ru-columns desktop:grid desktop:items-start desktop:gap-x-10 desktop:gap-y-8">
+            {(filtersOpen || desktop) && (
+                <div className="ru-filters desktop:col-start-2 desktop:row-start-1">
+                    <h2 className="mb-5 hidden text-xl font-medium desktop:block">Data e campus</h2>
+                    <div className="desktop:rounded-2xl desktop:border desktop:p-5 desktop:shadow-sm">
+                        <WeekDayPicker
+                            days={days}
+                            selectedDate={selectedDate}
+                            onSelect={(day) => select({ date: day.date })}
+                            week={{
+                                label: isNextWeek ? 'Próxima semana' : 'Esta semana',
+                                onPrevious: isNextWeek ? shiftWeek(-1) : undefined,
+                                onNext: isNextWeek ? undefined : shiftWeek(1)
                             }}
-                        >
-                            <SelectTrigger id="menu-campus" className="w-full bg-background">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {CAMPUS_OPTIONS.map((option) => (
-                                    <SelectItem key={option} value={option}>
-                                        {CAMPUS_LABELS[option]}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        />
+
+                        <div className="mb-5">
+                            <Label
+                                htmlFor="menu-campus"
+                                className="mb-2 px-1 text-xs text-muted-foreground"
+                            >
+                                Campus
+                            </Label>
+                            <Select
+                                items={CAMPUS_OPTIONS.map((option) => ({
+                                    value: option,
+                                    label: CAMPUS_LABELS[option]
+                                }))}
+                                value={campus}
+                                onValueChange={(value) => {
+                                    const selected = CAMPUS_OPTIONS.find(
+                                        (option) => option === value
+                                    );
+                                    if (selected) select({ campus: selected });
+                                }}
+                            >
+                                <SelectTrigger id="menu-campus" className="w-full bg-background">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {CAMPUS_OPTIONS.map((option) => (
+                                        <SelectItem key={option} value={option}>
+                                            {CAMPUS_LABELS[option]}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                 </div>
             )}
 
             <Tabs
+                className="ru-menu desktop:col-start-1 desktop:row-start-1 desktop:row-end-3"
                 value={selectedMeal}
                 onValueChange={(value) => {
                     const selected = MEALS.find((item) => item.key === value);
@@ -261,14 +284,14 @@ function RUPage() {
                 }}
             >
                 <TabsList
-                    className="w-full group-data-horizontal/tabs:h-auto"
+                    className="w-full group-data-horizontal/tabs:h-auto desktop:rounded-full desktop:border desktop:p-1"
                     aria-label="Escolher refeição"
                 >
                     {MEALS.map((item) => (
                         <TabsTrigger
                             key={item.key}
                             value={item.key}
-                            className="h-auto flex-col gap-1 py-3 text-xs"
+                            className="h-auto flex-col gap-1 py-3 text-xs desktop:flex-row desktop:gap-2 desktop:rounded-full desktop:py-2"
                         >
                             <item.icon className="size-5" aria-hidden="true" />
                             {item.label}
@@ -327,23 +350,25 @@ function RUPage() {
                 </TabsContent>
             </Tabs>
 
-            {user ? (
-                <RestaurantAccount
-                    key={user.registration}
-                    registration={user.registration}
-                    openCard={cardRequested}
-                />
-            ) : (
-                <Card className="mt-4">
-                    <CardContent className="text-muted-foreground">
-                        <Link to="/login" className="font-bold text-primary hover:underline">
-                            Entre com o SIGAA
-                        </Link>{' '}
-                        para ver seu saldo, extrato e carteirinha do RU.
-                    </CardContent>
-                </Card>
-            )}
-        </>
+            <div className="ru-account desktop:col-start-2 desktop:row-start-2">
+                {user ? (
+                    <RestaurantAccount
+                        key={user.registration}
+                        registration={user.registration}
+                        openCard={cardRequested}
+                    />
+                ) : (
+                    <Card className="mt-4">
+                        <CardContent className="text-muted-foreground">
+                            <Link to="/login" className="font-bold text-primary hover:underline">
+                                Entre com o SIGAA
+                            </Link>{' '}
+                            para ver seu saldo, extrato e carteirinha do RU.
+                        </CardContent>
+                    </Card>
+                )}
+            </div>
+        </div>
     );
 }
 
@@ -351,16 +376,16 @@ function MealDetails({ sections }: { sections: MenuSection[] }) {
     const { main, alternatives, others } = highlightMenu(sections);
 
     return (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 desktop:gap-6">
             {main && <MealHighlight main={main} alternatives={alternatives} />}
             {others.length > 0 && (
                 <Card size="sm">
                     <CardContent>
-                        <dl className="divide-y divide-border">
+                        <dl className="divide-y divide-border desktop:grid desktop:grid-cols-2 desktop:gap-x-8">
                             {others.map((section) => (
                                 <div
                                     key={section.name}
-                                    className="flex gap-4 py-3 first:pt-0 last:pb-0"
+                                    className="flex gap-4 py-3 first:pt-0 last:pb-0 desktop:flex-col desktop:gap-2 desktop:py-5 desktop:first:pt-5 desktop:last:pb-5"
                                 >
                                     <dt className="w-28 shrink-0 pt-0.5 text-xs font-medium text-muted-foreground">
                                         {section.name}
@@ -383,14 +408,14 @@ function MealDetails({ sections }: { sections: MenuSection[] }) {
 function MealHighlight({ main, alternatives }: { main: MenuSection; alternatives: MenuSection[] }) {
     return (
         <section aria-label={main.name}>
-            <Card className="bg-primary/5 ring-primary/30">
+            <Card className="bg-primary/5 ring-primary/30 desktop:py-6">
                 <CardContent>
                     <p className="text-xs font-semibold text-primary">{main.name}</p>
                     <div className="mt-1 flex flex-col gap-1">
                         {main.items.map((item) => (
                             <p
                                 key={item}
-                                className="text-xl leading-tight font-bold tracking-tight"
+                                className="text-xl leading-tight font-bold tracking-tight desktop:mt-3 desktop:text-3xl desktop:font-medium"
                             >
                                 {item}
                             </p>
@@ -398,7 +423,7 @@ function MealHighlight({ main, alternatives }: { main: MenuSection; alternatives
                     </div>
 
                     {alternatives.length > 0 && (
-                        <ul className="mt-4 flex flex-col gap-3 border-t border-primary/15 pt-4">
+                        <ul className="mt-4 flex flex-col gap-3 border-t border-primary/15 pt-4 desktop:mt-6 desktop:flex-row desktop:gap-6 desktop:pt-6 desktop:*:flex-1">
                             {alternatives.map((section) => {
                                 const info = section.key ? ALTERNATIVES[section.key] : undefined;
                                 const Icon = info?.icon ?? Leaf;
