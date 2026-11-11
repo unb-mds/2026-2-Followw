@@ -46,7 +46,7 @@ class PostReadingRepository:
                 ClassroomPostRead.post_id.in_(post_ids),
             )
         )
-        return dict(rows.tuples())
+        return {post_id: version for post_id, version in rows}
 
     async def mark(self, user_id: UUID, post: ClassroomPosts) -> None:
         stmt = insert(ClassroomPostRead).values(

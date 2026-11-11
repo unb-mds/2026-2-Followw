@@ -1,11 +1,32 @@
 from unittest.mock import AsyncMock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
+from sqlalchemy.engine.result import ChunkedIteratorResult, SimpleResultMetaData
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.modules.classrooms.post_reading import PostReadingRepository
 from api.modules.classrooms.posts import ClassroomPostsService
 
 from .helpers import DETAIL_PATH
+
+
+@pytest.mark.parametrize("has_readings", [False, True])
+def test_consulta_converte_resultado_sqlalchemy_em_versoes(probe_app, has_readings):
+    post_ids = [uuid4(), uuid4()]
+    versions = [uuid4(), uuid4()]
+    rows = list(zip(post_ids, versions)) if has_readings else []
+    session = AsyncMock(spec=AsyncSession)
+    session.execute.return_value = ChunkedIteratorResult(
+        SimpleResultMetaData(["post_id", "version"]), lambda size: iter([rows])
+    )
+
+    async def consultar() -> dict[UUID, UUID]:
+        return await PostReadingRepository(session).versions(uuid4(), post_ids)
+
+    response = probe_app(consultar).get("/probe")
+    assert response.status_code == 200
+    assert response.json() == {str(post_id): str(version) for post_id, version in rows}
 
 
 @pytest.mark.parametrize("method", ["put", "delete"])
