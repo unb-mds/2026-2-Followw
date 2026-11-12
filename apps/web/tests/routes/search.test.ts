@@ -1,5 +1,4 @@
-import type { QueryKey } from '@tanstack/react-query';
-
+import { environmentManager, type QueryKey } from '@tanstack/react-query';
 import { describe, expect, test } from 'bun:test';
 
 import { Route } from '#/routes/_app/buscar';
@@ -29,21 +28,44 @@ const loadWith = async (user: User | null, searchStr = '') => {
 describe('loader da busca de turmas', () => {
     test('libera a página enquanto o histórico e as recomendações ainda carregam', async () => {
         const keys: QueryKey[] = [];
-        let release!: () => void;
-        const pending = new Promise<never[]>((resolve) => {
-            release = () => resolve([]);
-        });
+        const { promise, resolve } = Promise.withResolvers<never[]>();
         const queryClient = fakeQueryClient((key) => {
             keys.push(key);
             return key[1] === '/me'
                 ? { registration: '1', unit: null, level: 'Graduação' }
-                : pending;
+                : promise;
         });
+        const wasServer = environmentManager.isServer();
+        environmentManager.setIsServer(() => false);
         try {
             await runLoader(Route, { location: { searchStr: '' }, context: { queryClient } });
             expect(keys.map((key) => key[1])).toEqual(['/me', '/classrooms', '/public/subjects']);
         } finally {
-            release();
+            resolve([]);
+            environmentManager.setIsServer(() => wasServer);
+        }
+    });
+
+    test('ao trocar de aba inicia a consulta sem esperar pelos resultados', async () => {
+        const { promise, resolve } = Promise.withResolvers<[]>();
+        let started = false;
+        const wasServer = environmentManager.isServer();
+        environmentManager.setIsServer(() => false);
+        try {
+            await runLoader(Route, {
+                location: { searchStr: '?q=calculo' },
+                context: {
+                    queryClient: fakeQueryClient((key) => {
+                        if (key[1] === '/me') return null;
+                        started = true;
+                        return promise;
+                    })
+                }
+            });
+            expect(started).toBe(true);
+        } finally {
+            resolve([]);
+            environmentManager.setIsServer(() => wasServer);
         }
     });
 

@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 
 import { Route as FallbackRoute } from '#/routes/$';
 import { Route as RootRoute } from '#/routes/__root';
+import { Route as SearchRoute } from '#/routes/_app/buscar';
 import { Route as FlowRoute } from '#/routes/_app/cursos.$id';
 import { Route as HomeRoute } from '#/routes/_app/index';
 import { Route as ProfileRoute } from '#/routes/_app/perfil';
@@ -22,9 +23,13 @@ const publicRoutes = [
     {
         route: HomeRoute,
         url: 'https://followw.app/',
-        title: 'Followw — SIGAA UnB e cardápio do RU'
+        title: 'Followw UnB — SIGAA, cardápio do RU e busca'
     },
-    { route: RestaurantRoute, url: 'https://followw.app/ru', title: 'Cardápio do RU UnB | Followw' }
+    {
+        route: RestaurantRoute,
+        url: 'https://followw.app/ru',
+        title: 'Cardápio do RU UnB | Followw UnB'
+    }
 ];
 
 describe('indexação das páginas', () => {
@@ -34,6 +39,7 @@ describe('indexação das páginas', () => {
             const head = await callRoute(route.options.head);
             expect(head?.links).toEqual([{ rel: 'canonical', href: url }]);
             expect(head?.meta).toContainEqual({ title });
+            expect(head?.meta).toContainEqual({ property: 'og:site_name', content: 'Followw UnB' });
             expect(head?.meta).toContainEqual({ name: 'robots', content: 'index, follow' });
             expect(head?.meta).toContainEqual({ property: 'og:url', content: url });
             const description = String(contentOf(head?.meta, 'description'));
@@ -50,13 +56,13 @@ describe('indexação das páginas', () => {
         expect(JSON.parse(json)).toEqual({
             '@context': 'https://schema.org',
             '@type': 'WebSite',
-            name: 'Followw',
-            alternateName: 'Followw UnB',
+            name: 'Followw UnB',
+            alternateName: 'Followw',
             url: 'https://followw.app/'
         });
     });
 
-    test.each([LoginRoute, ProfileRoute, ClassroomsRoute, ClassroomRoute, FlowRoute])(
+    test.each([LoginRoute, ProfileRoute, ClassroomsRoute, ClassroomRoute, FlowRoute, SearchRoute])(
         'telas não públicas herdam noindex sem canonical público',
         async (route) => {
             const rootHead = await callRoute(RootRoute.options.head);

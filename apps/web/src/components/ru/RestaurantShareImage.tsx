@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { RestaurantSelection } from '#/lib/restaurant-share';
 import type { MenuSection } from '#/queries/restaurant';
 
-import logo from '#/../public/favicon.svg?raw';
+import logo from '#/assets/followw.svg?raw';
 import { highlightMenu, MEAL_TIMES } from '#/lib/restaurant';
 import { CAMPUS_LABELS } from '#/queries/restaurant';
 

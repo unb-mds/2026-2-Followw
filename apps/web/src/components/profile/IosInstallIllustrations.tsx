@@ -105,7 +105,7 @@ function SafariShareSheet() {
     return (
         <div className="w-full max-w-72 rounded-3xl border bg-card p-3 shadow-lg">
             <div className="mb-3 flex items-start gap-2 px-1 pt-1">
-                <img src="/apple-touch-icon.png" alt="" className="size-9 rounded-lg" />
+                <img src="/apple-touch-icon.png?v=2" alt="" className="size-9 rounded-lg" />
                 <div className="min-w-0 flex-1">
                     <p className="text-xs font-semibold">Followw · UnB</p>
                     <p className="mt-1 text-xs text-muted-foreground">followw.app</p>

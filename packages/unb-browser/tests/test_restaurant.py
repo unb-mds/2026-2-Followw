@@ -376,6 +376,37 @@ def test_gama_reconhece_categorias_com_palavras_quebradas_sem_perder_itens():
     assert menu[0].lunch[7].items == ("Arroz branco e integral Feijão carioca",)
 
 
+@pytest.mark.parametrize("topo_da_data", [13, 20, 21])
+def test_datas_deslocadas_nao_viram_itens_e_rotulos_quebrados_sao_reconhecidos(
+    monkeypatch, topo_da_data
+):
+    cells = [
+        pdf._Cell(0, 0, 10, 20, "ALMOÇO"),
+        pdf._Cell(10, 0, 30, 20, "COMPOSIÇÃO"),
+        pdf._Cell(30, topo_da_data, 50, 30, "30/09/2026"),
+        pdf._Cell(50, topo_da_data, 70, 30, "01/10/2026"),
+        pdf._Cell(10, 30, 30, 40, "PRATO PRINCIPAL OVOLACTOVEGETARIAN O"),
+        pdf._Cell(30, 30, 50, 40, "Risoto de espinafre"),
+        pdf._Cell(50, 30, 70, 40, "Croquete de soja com queijo"),
+    ]
+    monkeypatch.setattr(pdf, "_cells", lambda _page: cells)
+
+    meal, sections = pdf._parse_page(None)
+
+    assert meal == "lunch"
+    assert list(sections) == [date(2026, 9, 30), date(2026, 10, 1)]
+    assert list(sections.values()) == [
+        (
+            MenuSection(
+                key=MenuSectionKey.MAIN_DISH_VEGETARIAN,
+                name="Prato principal ovolactovegetariano",
+                items=(item,),
+            ),
+        )
+        for item in ("Risoto de espinafre", "Croquete de soja com queijo")
+    ]
+
+
 @pytest.mark.parametrize(
     "label,key,name",
     [

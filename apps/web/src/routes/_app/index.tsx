@@ -1,22 +1,19 @@
-import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import { noop, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 
-import { getNoClassReason } from '#/calendar';
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderToggle } from '#/components/HeaderBar';
 import { DayClock } from '#/components/home/DayClock';
-import { LatestNewsSection } from '#/components/home/LatestNewsSection';
-import { PublicInfoSection } from '#/components/home/PublicInfoSection';
-import { TodayClassesSection } from '#/components/home/TodayClassesSection';
+import { TodayDashboard } from '#/components/home/TodayDashboard';
 import { usePageState } from '#/components/PageState';
 import { WeekDayPicker } from '#/components/WeekDayPicker';
 import { useBrasiliaClock } from '#/lib/clock';
-import { classesOn, nowInBrasilia, weekDays } from '#/lib/schedule';
+import { nowInBrasilia, weekDays } from '#/lib/schedule';
 import { publicPageHead } from '#/lib/seo';
 import { classroomsQueryOptions } from '#/queries/classrooms';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
-import { campusOf, useMenuPreview, weeklyMenuQueryOptions } from '#/queries/restaurant';
+import { weeklyMenuQueryOptions } from '#/queries/restaurant';
 
 const WEEKDAYS = [
     'Domingo',
@@ -32,9 +29,9 @@ export const Route = createFileRoute('/_app/')({
     head: () => ({
         ...publicPageHead({
             path: '/',
-            title: 'Followw — SIGAA UnB e cardápio do RU',
+            title: 'Followw UnB — SIGAA, cardápio do RU e busca',
             description:
-                'Acompanhe suas turmas, horários e postagens do SIGAA, consulte o cardápio do RU e muito mais.'
+                'App independente para estudantes da UnB. Consulte o cardápio do RU e busque disciplinas, cursos e docentes. Entre com o SIGAA para ver suas turmas e horários.'
         }),
         scripts: [
             {
@@ -42,8 +39,8 @@ export const Route = createFileRoute('/_app/')({
                 children: JSON.stringify({
                     '@context': 'https://schema.org',
                     '@type': 'WebSite',
-                    name: 'Followw',
-                    alternateName: 'Followw UnB',
+                    name: 'Followw UnB',
+                    alternateName: 'Followw',
                     url: 'https://followw.app/'
                 })
             }
@@ -109,26 +106,9 @@ function HomeHeader() {
 }
 
 function HomePage() {
-    const { now, days, selectedDay, isToday, label, setPicked } = useSelectedDay();
-    const [weekOpen] = useWeekOpen();
-
     const { data: user } = useSuspenseQuery(meQueryOptions);
-    const classroomsQuery = useQuery({
-        ...classroomsQueryOptions,
-        enabled: Boolean(user)
-    });
-    const classrooms = classroomsQuery.data ?? [];
-    const campus = campusOf(user?.unit?.code);
-    const preview = useMenuPreview({
-        campus,
-        date: selectedDay.date,
-        now
-    });
-
-    const noClassReason = getNoClassReason(selectedDay.date);
-    const classes = noClassReason
-        ? []
-        : classesOn(classrooms, selectedDay.weekday, isToday ? now.time : undefined);
+    const { now, days, selectedDay, label, setPicked } = useSelectedDay();
+    const [weekOpen] = useWeekOpen();
 
     return (
         <>
@@ -140,28 +120,7 @@ function HomePage() {
                 />
             )}
 
-            <div className="home-columns flex flex-col gap-6 desktop:grid desktop:items-start desktop:gap-10">
-                <TodayClassesSection
-                    loggedIn={Boolean(user)}
-                    noClassReason={noClassReason}
-                    isLoadingError={classroomsQuery.isLoadingError}
-                    onRetry={() => void classroomsQuery.refetch()}
-                    classes={classes}
-                    date={selectedDay.date}
-                    now={now}
-                />
-                <aside className="flex min-w-0 flex-col gap-6 desktop:gap-8 desktop:border-l desktop:pl-8">
-                    <PublicInfoSection
-                        campus={campus}
-                        menus={preview.menus}
-                        isLoading={preview.isLoading}
-                        day={label}
-                        date={selectedDay.date}
-                        now={now}
-                    />
-                    {user && <LatestNewsSection />}
-                </aside>
-            </div>
+            <TodayDashboard user={user} day={selectedDay} now={now} label={label} />
         </>
     );
 }

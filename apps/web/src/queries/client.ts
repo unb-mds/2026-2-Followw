@@ -2,8 +2,10 @@ import { createIsomorphicFn } from '@tanstack/react-start';
 import createClient, { type Middleware } from 'openapi-fetch';
 
 import type { paths } from '#/queries/schema.gen.ts';
+import type { SsrServer } from '#/queries/ssr.ts';
 
 import { toApiError } from '#/queries/errors.ts';
+import { ssrRequest } from '#/queries/ssr.ts';
 
 // a API fica em /api da mesma origem; no SSR o fetch exige URL absoluta, e a origem provisória é
 // trocada pela da requisição recebida (veja `ssrMiddleware`)
@@ -11,53 +13,33 @@ const baseUrl = createIsomorphicFn()
     .client(() => '/api')
     .server(() => 'http://localhost/api')();
 
-const getSsrHeaders = createIsomorphicFn()
-    .client(() => new Headers())
-    .server(async () => {
-        const headers = new Headers();
-        try {
-            const { getRequest } = await import('@tanstack/react-start/server');
-            const incoming = getRequest();
-            const cookie = incoming.headers.get('cookie');
-            if (cookie) headers.set('cookie', cookie);
-            // a assinatura do IP é opcional: falhar aqui não pode derrubar a sessão
-            const { clientIpHeaders } = await import('#/queries/client-ip.server');
-            clientIpHeaders(incoming).forEach((value, name) => headers.set(name, value));
-        } catch {}
-        return headers;
-    });
+// a assinatura do IP é opcional: falhar aqui não pode derrubar a sessão
+const clientIpHeaders = createIsomorphicFn()
+    .client(async (_request: Request) => new Headers())
+    .server(async (request: Request) =>
+        import('#/queries/client-ip.server').then((module) => module.clientIpHeaders(request))
+    );
 
-const toSsrOrigin = createIsomorphicFn()
-    .client((request: Request) => request)
-    .server(async (request: Request) => {
-        const { getRequestUrl } = await import('@tanstack/react-start/server');
-        try {
-            const { pathname, search } = new URL(request.url);
-            return new Request(new URL(pathname + search, getRequestUrl()), request);
-        } catch {
-            return request;
-        }
-    });
-
-const forwardSsrSetCookie = createIsomorphicFn()
-    .client((_cookies: string[]) => {})
-    .server(async (cookies: string[]) => {
-        const { setResponseHeader } = await import('@tanstack/react-start/server');
-        try {
-            setResponseHeader('set-cookie', cookies);
-        } catch {}
-    });
+async function getSsrHeaders(server: SsrServer) {
+    const incoming = server.getRequest();
+    const headers = await clientIpHeaders(incoming).catch(() => new Headers());
+    const cookie = incoming.headers.get('cookie');
+    if (cookie) headers.set('cookie', cookie);
+    return headers;
+}
 
 const ssrMiddleware: Middleware = {
     async onRequest({ request: original }) {
-        const request = await toSsrOrigin(original);
-        const headers = await getSsrHeaders();
-        headers.forEach((value, name) => request.headers.set(name, value));
+        const server = await ssrRequest();
+        if (!server) return original;
+        const { pathname, search } = new URL(original.url);
+        const request = new Request(new URL(pathname + search, server.getRequestUrl()), original);
+        (await getSsrHeaders(server)).forEach((value, name) => request.headers.set(name, value));
         return request;
     },
     async onResponse({ response }) {
         const cookies = response.headers.getSetCookie();
-        if (cookies.length) await forwardSsrSetCookie(cookies);
+        if (cookies.length) (await ssrRequest())?.setResponseHeader('set-cookie', cookies);
     }
 };
 

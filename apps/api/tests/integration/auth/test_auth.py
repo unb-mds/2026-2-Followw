@@ -1,10 +1,11 @@
+import asyncio
 import base64
 from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi import Request
 from pydantic import SecretStr
-from sigaa_client import Credentials
+from sigaa_client import Credentials, SigaaClient
 from sqlalchemy import select
 
 from api.cookies import (
@@ -220,6 +221,32 @@ def test_logout_com_sigaa_fora_do_ar_ainda_desloga(client, sigaa, cookies, ler_c
 
     assert response.status_code == 200
     assert ACCESS_COOKIE_NAME in _expirados(ler_cookies(response))
+
+
+def test_logout_com_sigaa_lento_expira_os_dois_cookies(
+    client, cookies, ler_cookies, monkeypatch
+):
+    cancelled = False
+
+    async def logout_lento(self):
+        nonlocal cancelled
+        try:
+            await asyncio.Event().wait()
+        finally:
+            cancelled = True
+
+    monkeypatch.setattr(SigaaClient, "logout", logout_lento)
+    monkeypatch.setattr("api.modules.auth.router._SIGAA_LOGOUT_TIMEOUT", 0.01)
+    client.cookies.update(cookies(access="app14~VIVO", refresh=CREDENCIAIS))
+
+    response = client.delete("/auth/sigaa")
+
+    assert cancelled
+    assert response.status_code == 200
+    assert _expirados(ler_cookies(response)) == {
+        ACCESS_COOKIE_NAME,
+        REFRESH_COOKIE_NAME,
+    }
 
 
 def test_refresh_com_access_token_valido_nao_loga_na_requisicao(

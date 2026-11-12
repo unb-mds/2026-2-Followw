@@ -1,7 +1,18 @@
-import { QueryClient } from '@tanstack/react-query';
-import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { dehydrate, hydrate, QueryClient } from '@tanstack/react-query';
+import {
+    afterAll,
+    afterEach,
+    beforeAll,
+    beforeEach,
+    describe,
+    expect,
+    spyOn,
+    test
+} from 'bun:test';
+import { IDBFactory } from 'fake-indexeddb';
+import { clear, get, set } from 'idb-keyval';
 
-import { pagesCacheName } from '#/integrations/offline/pages-cache';
+import { PAGES_SESSION_MARKER, pagesCacheName } from '#/integrations/offline/pages-cache';
 import {
     clearOfflineData,
     persistQueryCache,
@@ -9,6 +20,7 @@ import {
     shouldPersistQuery,
     warmPages
 } from '#/integrations/offline/storage';
+import { credentialsQueryOptions } from '#/queries/restaurant-account';
 
 // sem o define do vite, o build é 'dev'
 const current = pagesCacheName('dev');
@@ -30,11 +42,15 @@ function redirected() {
 }
 
 const realFetch = Object.getOwnPropertyDescriptor(globalThis, 'fetch');
+const realNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
 
 describe('cache de páginas offline', () => {
     let stores: Map<string, FakeCache>;
     let pages: Record<string, Response | undefined>;
-    const cached = () => [...(stores.get(current)?.entries.keys() ?? [])].toSorted();
+    const cached = () =>
+        [...(stores.get(current)?.entries.keys() ?? [])]
+            .filter((key) => key !== PAGES_SESSION_MARKER)
+            .toSorted();
 
     beforeEach(() => {
         stores = new Map();
@@ -67,16 +83,12 @@ describe('cache de páginas offline', () => {
         Reflect.deleteProperty(globalThis, 'caches');
     });
 
-    test('guarda as páginas principais conforme o login', async () => {
+    test('guarda as páginas principais da sessão', async () => {
         for (const url of ['/', '/ru', '/turmas', '/perfil', '/login'])
             pages[url] = new Response(url);
 
-        await warmPages(true);
+        await warmPages();
         expect(cached()).toEqual(['/', '/perfil', '/ru', '/turmas']);
-
-        stores.clear();
-        await warmPages(false);
-        expect(cached()).toEqual(['/', '/login', '/ru', '/turmas']);
     });
 
     test('baixa só as páginas que faltam e apaga caches de builds antigos', async () => {
@@ -88,7 +100,7 @@ describe('cache de páginas offline', () => {
         pages['/'] = new Response('nova home');
         pages['/ru'] = new Response('ru');
 
-        await warmPages(true);
+        await warmPages();
 
         expect([...stores.keys()].toSorted()).toEqual([current, 'outro-cache'].toSorted());
         expect(stores.get(current)?.entries.get('/')).toBe(home);
@@ -105,19 +117,45 @@ describe('cache de páginas offline', () => {
         pages['/ru'] = new Response('erro', { status: 500 });
         pages['/turmas'] = new Response('turmas');
 
-        await warmPages(true);
+        await warmPages();
 
         expect(cached()).toEqual(['/turmas']);
     });
 
-    test('clearOfflineData apaga todas as páginas guardadas', async () => {
-        stores.set(current, new FakeCache());
-        stores.set('outro-cache', new FakeCache());
-        await clearOfflineData();
-        expect([...stores.keys()]).toEqual(['outro-cache']);
+    test('logout impede que uma pré-carga em andamento recrie o cache', async () => {
+        const { promise, resolve } = Promise.withResolvers<string[]>();
+        const keys = spyOn(caches, 'keys').mockReturnValueOnce(promise);
+        pages['/'] = new Response('home');
+        try {
+            const pending = warmPages();
+            await clearOfflineData();
+            resolve([]);
+            await pending;
+            expect(stores.size).toBe(0);
+        } finally {
+            keys.mockRestore();
+        }
     });
 
-    test('clearOfflineData não quebra sem Cache Storage (SSR)', async () => {
+    test('clearOfflineData apaga as páginas, mantém os arquivos públicos e remove o service worker', async () => {
+        stores.set(current, new FakeCache());
+        stores.set('workbox-precache-v2', new FakeCache());
+        let unregistered = 0;
+        const registration = { unregister: async () => Boolean(++unregistered) };
+        Object.defineProperty(globalThis, 'navigator', {
+            configurable: true,
+            value: { serviceWorker: { getRegistrations: async () => [registration] } }
+        });
+        try {
+            await clearOfflineData();
+        } finally {
+            if (realNavigator) Object.defineProperty(globalThis, 'navigator', realNavigator);
+        }
+        expect([...stores.keys()]).toEqual(['workbox-precache-v2']);
+        expect(unregistered).toBe(1);
+    });
+
+    test('clearOfflineData não quebra sem Cache Storage nem service worker (SSR)', async () => {
         Reflect.deleteProperty(globalThis, 'caches');
         await clearOfflineData();
     });
@@ -146,6 +184,41 @@ describe('shouldPersistQuery', () => {
         const query = client.getQueryCache().find({ queryKey: ['vazia'] })!;
         expect(shouldPersistQuery(query, now)).toBe(false);
     });
+
+    test('restaura a última carteirinha mesmo depois de uma atualização falhar', async () => {
+        const client = new QueryClient();
+        const { queryKey } = credentialsQueryOptions('251000000');
+        const card = { token: 'qr-local', valid_until: '2099-12-01' };
+        client.setQueryData(queryKey, card);
+        const error = new TypeError('Sem conexão');
+        const failure = await client
+            .query({
+                queryKey,
+                queryFn: () => Promise.reject(error),
+                retry: false
+            })
+            .catch((reason: unknown) => reason);
+        expect(failure).toBe(error);
+        expect(client.getQueryState(queryKey)?.status).toBe('error');
+
+        const restored = new QueryClient();
+        hydrate(restored, dehydrate(client, { shouldDehydrateQuery: shouldPersistQuery }));
+        expect(restored.getQueryData(queryKey)).toEqual(card);
+    });
+
+    test('mantém os dados da página consultada após uma falha de rede', async () => {
+        const client = new QueryClient();
+        const queryKey = ['get', '/classrooms'];
+        const classrooms = [{ id: 'turma-1' }];
+        client.setQueryData(queryKey, classrooms);
+        await client
+            .query({ queryKey, queryFn: () => Promise.reject(new TypeError()), retry: false })
+            .catch(() => null);
+
+        const restored = new QueryClient();
+        hydrate(restored, dehydrate(client, { shouldDehydrateQuery: shouldPersistQuery }));
+        expect(restored.getQueryData(queryKey)).toEqual(classrooms);
+    });
 });
 
 describe('restauração do cache', () => {
@@ -153,5 +226,64 @@ describe('restauração do cache', () => {
         let restored = 0;
         persistQueryCache(new QueryClient(), () => restored++);
         expect(restored).toBe(1);
+    });
+});
+
+// espera o throttle de 200 ms do persister
+const throttle = () => Bun.sleep(300);
+
+describe('cache de dados no IndexedDB', () => {
+    const key = 'followw-query-cache';
+    const saved = () => get<string>(key);
+
+    beforeAll(() => {
+        Object.defineProperty(globalThis, 'indexedDB', {
+            configurable: true,
+            value: new IDBFactory()
+        });
+    });
+
+    afterEach(() => clear());
+
+    afterAll(() => {
+        Reflect.deleteProperty(globalThis, 'indexedDB');
+    });
+
+    test('salva as queries da sessão', async () => {
+        const client = new QueryClient();
+        const { promise, resolve } = Promise.withResolvers<void>();
+        const stop = persistQueryCache(client, resolve);
+        await promise;
+
+        client.setQueryData(['dado'], 1);
+        await throttle();
+
+        expect(await saved()).toContain('"dado"');
+        stop();
+    });
+
+    test('clearOfflineData apaga o cache de dados salvo', async () => {
+        await set(key, 'snapshot da conta');
+
+        await clearOfflineData();
+
+        expect(await saved()).toBeUndefined();
+    });
+
+    test('depois do logout nenhuma mudança volta a ser salva', async () => {
+        const client = new QueryClient();
+        const { promise, resolve } = Promise.withResolvers<void>();
+        persistQueryCache(client, resolve);
+        await promise;
+        client.setQueryData(['dado'], 1);
+        await throttle();
+
+        // a mudança logo antes do logout ainda estava no throttle
+        client.setQueryData(['dado'], 2);
+        await clearOfflineData();
+        client.setQueryData(['dado'], 3);
+        await throttle();
+
+        expect(await saved()).toBeUndefined();
     });
 });

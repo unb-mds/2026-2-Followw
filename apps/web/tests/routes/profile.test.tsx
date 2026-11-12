@@ -13,7 +13,25 @@ import type { components } from '#/queries/schema.gen';
 
 import { meQueryOptions } from '#/queries/me';
 import { settingsQueryOptions } from '#/queries/settings';
+import { Route as AppRoute } from '#/routes/_app';
 import { Route } from '#/routes/_app/perfil';
+
+import { fakeQueryClient, runLoader } from '../helpers/route';
+
+test('abre o Perfil sem esperar pelas preferências', async () => {
+    const paths: unknown[] = [];
+    const queryClient = fakeQueryClient((queryKey) => {
+        const path = queryKey[1];
+        paths.push(path);
+        return path === '/me' ? { registration: '202600001' } : {};
+    });
+    await runLoader(AppRoute, { context: { queryClient } });
+    expect(paths).toEqual(['/me']);
+    paths.length = 0;
+    const user = await runLoader(Route, { context: { queryClient } });
+    expect(user?.registration).toBe('202600001');
+    expect(paths).toEqual(['/me']);
+});
 
 test.each([42, null])(
     'conta mantém as ações e usa o ID do curso no caminho (%s)',

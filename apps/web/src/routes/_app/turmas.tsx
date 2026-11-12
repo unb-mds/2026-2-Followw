@@ -18,6 +18,7 @@ import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
 
 export const Route = createFileRoute('/_app/turmas')({
+    codeSplitGroupings: [['loader'], ['component'], ['errorComponent']],
     head: () => ({ meta: [{ title: 'Minhas Turmas | Followw' }] }),
     loader: async ({ context: { queryClient } }) => {
         const user = await loadQuery(queryClient, meQueryOptions);

@@ -1,18 +1,17 @@
-import { environmentManager, noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Link, useLocation, useNavigate } from '@tanstack/react-router';
 import { ChevronLeft, ChevronRight, Coffee, Egg, Leaf, Soup, UtensilsCrossed } from 'lucide-react';
 import { useQueryStates } from 'nuqs';
-import { useEffect, useSyncExternalStore } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useSyncExternalStore } from 'react';
 
 import type { RestaurantSelection } from '#/lib/restaurant-share';
-import type { MenuSection } from '#/queries/restaurant';
+import type { DailyMenu, MenuSection } from '#/queries/restaurant';
 
 import { useDesktop } from '#/components/DesktopContext';
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderTitle, HeaderToggle } from '#/components/HeaderBar';
 import { LoadingText } from '#/components/LoadingText';
 import { usePageState } from '#/components/PageState';
-import { RestaurantAccount } from '#/components/ru/RestaurantAccount';
 import { ShareButton } from '#/components/ShareButton';
 import { Button } from '#/components/ui/button';
 import { Card, CardContent } from '#/components/ui/card';
@@ -27,9 +26,9 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
 import { WeekDayPicker } from '#/components/WeekDayPicker';
 import { useFailureMessage } from '#/lib/online';
-import { currentOrNextMeal, formatMenuDay, highlightMenu, MEAL_TIMES } from '#/lib/restaurant';
+import { formatMenuDay, highlightMenu, lastMenuDay, MEAL_TIMES } from '#/lib/restaurant';
 import {
-    loadRestaurantSearch,
+    restaurantDefaults,
     restaurantPageHead,
     restaurantSearchParsers,
     restaurantSelection,
@@ -40,7 +39,12 @@ import { addDays, nowInBrasilia, weekDays } from '#/lib/schedule';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
 import { CAMPUS_LABELS, CAMPUS_OPTIONS, campusOf, menuQueryOptions } from '#/queries/restaurant';
-import { credentialsQueryOptions, statementQueryOptions } from '#/queries/restaurant-account';
+
+const RestaurantAccount = lazy(() =>
+    import('#/components/ru/RestaurantAccount').then((module) => ({
+        default: module.RestaurantAccount
+    }))
+);
 
 const MEAL_ICONS = { breakfast: Coffee, lunch: UtensilsCrossed, dinner: Soup };
 const MEALS = MEAL_TIMES.map(({ key, label, start, end }) => ({
@@ -78,42 +82,25 @@ export const Route = createFileRoute('/_app/ru')({
     shouldReload: ({ cause }) => cause !== 'stay',
     loader: async ({ context: { queryClient }, location }) => {
         const now = nowInBrasilia();
-        const search = loadRestaurantSearch(location.searchStr);
-        const opening = currentOrNextMeal(now);
+        const search = validateRestaurantSearch(location.search);
         const user = await loadQuery(queryClient, meQueryOptions);
-        // no SSR a conta fica para o navegador, que pode ter o cache salvo
-        const account = environmentManager.isServer() ? null : user;
-        await Promise.all([
-            loadQuery(
-                queryClient,
-                menuQueryOptions({
-                    date: search.date ?? opening.date,
-                    campus: search.campus ?? undefined,
-                    user
-                })
-            ).catch(noop),
-            account &&
-                loadQuery(queryClient, statementQueryOptions(account.registration)).catch(noop),
-            account &&
-                loadQuery(queryClient, credentialsQueryOptions(account.registration)).catch(noop)
-        ]);
-        // Só os padrões: a URL guarda apenas o que difere deles.
-        return {
-            today: now.date,
-            defaultDate: opening.date,
-            defaultMeal: opening.meal.key,
-            defaultCampus: campusOf(user?.unit?.code)
-        };
+        const defaults = restaurantDefaults(campusOf(user?.unit?.code), now);
+        const selection = restaurantSelection(search, defaults);
+        await loadQuery(queryClient, menuQueryOptions(selection)).catch(noop);
+        return { today: now.date, defaults };
     },
-    head: ({ loaderData, match }) =>
-        restaurantPageHead(
-            {
-                date: match?.search.date ?? loaderData?.defaultDate ?? restaurantSelection({}).date,
-                meal: match?.search.meal ?? loaderData?.defaultMeal ?? restaurantSelection({}).meal,
-                campus: match?.search.campus ?? loaderData?.defaultCampus ?? 'Darcy'
-            },
-            Boolean(match?.search.date || match?.search.meal || match?.search.campus)
-        ),
+    head: ({ loaderData, match }) => {
+        const search = match?.search ?? {};
+        const selection = restaurantSelection(search, loaderData?.defaults);
+        // no SSR, o loader já deixou no cache o cardápio que decide a indexação
+        const menus = match?.context.queryClient.getQueryData<DailyMenu[]>(
+            menuQueryOptions(selection).queryKey
+        );
+        return restaurantPageHead(selection, {
+            filtered: Boolean(search.date || search.meal || search.campus),
+            menus
+        });
+    },
     staticData: { header: RUHeader },
     errorComponent: ErrorState,
     component: RUPage
@@ -170,17 +157,9 @@ function useMenuSelection() {
         () => true,
         () => false
     );
-    const opening = currentOrNextMeal(nowInBrasilia());
-    const defaultCampus = loaded?.defaultCampus ?? campusOf(user?.unit?.code);
-    const defaults: RestaurantSelection =
-        loaded && !hydrated
-            ? { date: loaded.defaultDate, meal: loaded.defaultMeal, campus: defaultCampus }
-            : { date: opening.date, meal: opening.meal.key, campus: defaultCampus };
-    const selection: RestaurantSelection = {
-        date: search.date ?? defaults.date,
-        meal: search.meal ?? defaults.meal,
-        campus: search.campus ?? defaults.campus
-    };
+    const defaults =
+        loaded && !hydrated ? loaded.defaults : restaurantDefaults(campusOf(user?.unit?.code));
+    const selection = restaurantSelection(search, defaults);
     // O padrão sai da URL; o link de compartilhamento leva a seleção completa.
     const select = (change: Partial<RestaurantSelection>) => {
         const { date, meal, campus } = { ...selection, ...change };
@@ -204,10 +183,17 @@ function RUPage() {
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const cardRequested = useLocation({ select: (location) => location.state.studentCard });
     const navigate = useNavigate();
-    // limpa o pedido para não reabrir ao voltar ou recarregar
+    const consumeCardRequest = useCallback(() => {
+        void navigate({
+            to: '.',
+            search: true,
+            replace: true,
+            state: (previous) => ({ ...previous, studentCard: undefined })
+        });
+    }, [navigate]);
     useEffect(() => {
-        if (cardRequested) void navigate({ to: '.', search: true, replace: true, state: {} });
-    }, [cardRequested, navigate]);
+        if (cardRequested && !user) consumeCardRequest();
+    }, [cardRequested, consumeCardRequest, user]);
     const { data, isPending, isLoadingError, refetch } = useQuery(
         menuQueryOptions({ date: selectedDate, campus })
     );
@@ -317,8 +303,7 @@ function RUPage() {
                             variant="ghost"
                             size="icon-sm"
                             onClick={shiftDay(1)}
-                            // só esta semana e a próxima
-                            disabled={selectedDate >= addDays(firstDay, 13)}
+                            disabled={selectedDate >= lastMenuDay(today)}
                             aria-label="Próximo dia"
                         >
                             <ChevronRight />
@@ -327,7 +312,7 @@ function RUPage() {
                     {sections.length > 0 ? (
                         <MealDetails sections={sections} />
                     ) : (
-                        <p className="px-1 text-sm text-muted-foreground">
+                        <div className="px-1 text-center text-sm text-muted-foreground">
                             {isPending && <LoadingText>Carregando cardápio...</LoadingText>}
                             {isLoadingError && (
                                 <>
@@ -342,21 +327,32 @@ function RUPage() {
                                     </Button>
                                 </>
                             )}
-                            {!isPending &&
-                                !isLoadingError &&
-                                'Cardápio não publicado para esta refeição neste dia.'}
-                        </p>
+                            {!isPending && !isLoadingError && (
+                                <div className="flex flex-col gap-1">
+                                    Cardápio não publicado para esta refeição neste dia.
+                                    <Link
+                                        to="/ru"
+                                        search={{}}
+                                        className="font-semibold text-primary underline"
+                                    >
+                                        Ver cardápio atual
+                                    </Link>
+                                </div>
+                            )}
+                        </div>
                     )}
                 </TabsContent>
             </Tabs>
 
             <div className="ru-account desktop:col-start-2 desktop:row-start-2">
                 {user ? (
-                    <RestaurantAccount
-                        key={user.registration}
-                        registration={user.registration}
-                        openCard={cardRequested}
-                    />
+                    <Suspense fallback={null}>
+                        <RestaurantAccount
+                            key={user.registration}
+                            registration={user.registration}
+                            consumeCardRequest={cardRequested ? consumeCardRequest : undefined}
+                        />
+                    </Suspense>
                 ) : (
                     <Card className="mt-4">
                         <CardContent className="text-muted-foreground">

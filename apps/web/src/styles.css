@@ -1,7 +1,10 @@
-@import 'tailwindcss';
+@import 'tailwindcss' source(none);
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 @import '@fontsource-variable/dm-sans';
+
+@source './';
+@source not './routeTree.gen.ts';
 
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 @custom-variant desktop (&:where([data-layout='desktop'], [data-layout='desktop'] *));

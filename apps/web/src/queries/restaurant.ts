@@ -4,7 +4,7 @@ import type { Day } from '#/lib/schedule';
 import type { components, operations } from '#/queries/schema.gen.ts';
 
 import { currentOrNextMeal, upcomingMenuMeals } from '#/lib/restaurant';
-import { addDays, nextDays, weekDays } from '#/lib/schedule';
+import { addDays, weekDays } from '#/lib/schedule';
 import { api } from '#/queries/api.ts';
 
 type MenuQuery = NonNullable<operations['get_menu_public_restaurant_get']['parameters']['query']>;
@@ -53,10 +53,7 @@ export const weeklyMenuQueryOptions = ({
     date: string;
     user?: Pick<UserProfile, 'unit'> | null;
 }) => {
-    // segunda a domingo, a mesma semana que a API devolve sem filtro
-    const monday = new Date(`${date}T00:00:00Z`);
-    monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7));
-    const week = nextDays(monday.toISOString().slice(0, 10), 7);
+    const week = weekDays(date, 7);
     return api.queryOptions('get', '/public/restaurant', {
         params: {
             query: {

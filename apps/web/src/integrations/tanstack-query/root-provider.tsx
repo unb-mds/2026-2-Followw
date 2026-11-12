@@ -18,7 +18,12 @@ export function getContext() {
     };
     const queryClient: QueryClient = new QueryClient({
         queryCache: new QueryCache({ onError }),
-        mutationCache: new MutationCache({ onError }),
+        mutationCache: new MutationCache({
+            onError: (error, _variables, _context, mutation) => {
+                const [method, path] = mutation.options.mutationKey ?? [];
+                if (method !== 'post' || path !== '/auth/sigaa') onError(error);
+            }
+        }),
         defaultOptions: {
             queries: {
                 staleTime: 60_000,

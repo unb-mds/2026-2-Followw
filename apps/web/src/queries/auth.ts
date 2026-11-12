@@ -12,11 +12,17 @@ import { meQueryOptions } from '#/queries/me.ts';
 
 // todo o cache é apagado no logout; só o /me fica a cargo de quem chama
 const isAccountQuery = ({ queryKey: [, path] }: Query) => path !== '/me';
+let sessionRefresh: AbortController | undefined;
+// por matrícula: outra conta na mesma aba também renova
+let refreshedRegistration: string | undefined;
 
-async function clearUserData(queryClient: QueryClient) {
+function clearUserData(queryClient: QueryClient) {
+    sessionRefresh?.abort();
+    refreshedRegistration = undefined;
+    const cleared = clearOfflineData();
     clearAccountStorage();
     queryClient.removeQueries({ predicate: isAccountQuery });
-    await clearOfflineData();
+    return cleared;
 }
 
 export function clearSession(queryClient: QueryClient) {
@@ -63,16 +69,18 @@ export function useLogout(onLoggedOut?: () => void) {
     const queryClient = useQueryClient();
     const posthog = usePostHog();
     return api.useMutation('delete', '/auth/sigaa', {
-        onSuccess: async () => {
-            await clearSession(queryClient);
+        onMutate: async () => {
+            sessionRefresh?.abort();
+            await queryClient.cancelQueries();
+        },
+        onSuccess: () => {
+            const cleared = clearSession(queryClient);
             posthog.reset();
             onLoggedOut?.();
+            return cleared;
         }
     });
 }
-
-// por matrícula: outra conta na mesma aba também renova
-let refreshedRegistration: string | undefined;
 
 export function useSessionRefresh() {
     const queryClient = useQueryClient();
@@ -82,8 +90,16 @@ export function useSessionRefresh() {
     useEffect(() => {
         if (!user || !online || refreshedRegistration === user.registration) return;
         refreshedRegistration = user.registration;
-        apiClient.POST('/auth/sigaa/refresh').catch((error: unknown) => {
-            if (error instanceof ApiError && error.isUnauthorized) void clearSession(queryClient);
-        });
+        const controller = new AbortController();
+        sessionRefresh = controller;
+        apiClient
+            .POST('/auth/sigaa/refresh', { signal: controller.signal })
+            .catch((error: unknown) => {
+                if (!controller.signal.aborted && error instanceof ApiError && error.isUnauthorized)
+                    void clearSession(queryClient);
+            })
+            .finally(() => {
+                if (sessionRefresh === controller) sessionRefresh = undefined;
+            });
     }, [user, online, queryClient]);
 }
