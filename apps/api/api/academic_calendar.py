@@ -84,6 +84,22 @@ def member_status(semester: str) -> ClassroomStatus:
     return ClassroomStatus.CURSANDO
 
 
+def no_class_reason(day: date) -> str | None:
+    """Feriado, recesso ou dia fora do período de aulas do semestre."""
+    for semester in load_academic_calendar().list_semesters():
+        if not semester.period.start <= day <= semester.period.end:
+            continue
+        for event in semester.events:
+            if (
+                event.category in _NO_CLASS
+                and event.start_date <= day <= event.end_date
+            ):
+                return event.name
+        if not semester.classes.start <= day <= semester.classes.end:
+            return "Fora do período de aulas"
+    return None
+
+
 def class_days(semester: str) -> Iterator[date]:
     """Os dias letivos do semestre, sem feriados e semana universitária."""
     calendar = load_academic_calendar().get_semester(semester)

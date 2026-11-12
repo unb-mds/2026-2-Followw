@@ -21,7 +21,7 @@ export function TabFilter<T extends string>({
     return (
         <fieldset
             className={cn(
-                'flex min-w-0 items-center gap-1 overflow-x-auto py-1 max-md:no-scrollbar lg:w-fit lg:rounded-full lg:border lg:bg-muted/40 lg:p-1',
+                'flex min-w-0 items-center gap-1 overflow-x-auto py-1 max-md:no-scrollbar',
                 className
             )}
             aria-label={label}
@@ -32,10 +32,7 @@ export function TabFilter<T extends string>({
                     variant={option === value ? 'secondary' : 'ghost'}
                     aria-pressed={option === value}
                     onClick={() => onChange(option)}
-                    className={cn(
-                        'shrink-0 lg:rounded-full',
-                        option === value && 'lg:bg-primary/10 lg:text-primary'
-                    )}
+                    className="shrink-0"
                 >
                     {labels?.[option] ?? option}
                 </Button>

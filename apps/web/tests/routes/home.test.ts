@@ -22,6 +22,6 @@ describe('tela inicial preservada', () => {
         });
         expect(paths).toContain('/public/restaurant');
         expect(paths).not.toContain('/me/recommendations');
-        expect(paths.includes('/classrooms')).toBe(Boolean(user));
+        expect(paths.includes('/lessons')).toBe(Boolean(user));
     });
 });

@@ -82,6 +82,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/classrooms/{classroom_id}/posts/{post_id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Confirmar a leitura de uma postagem
+         * @description Operação individual, idempotente e sem corpo. Consultar ou atualizar uma postagem não altera sua leitura.
+         */
+        put: operations["mark_post_read_classrooms__classroom_id__posts__post_id__read_put"];
+        post?: never;
+        /**
+         * Marcar uma postagem como não lida
+         * @description Remove somente a leitura do usuário autenticado; repetir a operação não altera o resultado.
+         */
+        delete: operations["mark_post_unread_classrooms__classroom_id__posts__post_id__read_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/classrooms": {
         parameters: {
             query?: never;
@@ -398,6 +422,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/lessons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Consultar aulas da semana
+         * @description Segunda a domingo da semana atual, com a situação do aluno em cada aula das turmas atuais.
+         */
+        get: operations["get_week_lessons_lessons_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me": {
         parameters: {
             query?: never;
@@ -647,10 +691,10 @@ export interface components {
         /** ClassroomNews */
         ClassroomNews: {
             classroom: components["schemas"]["ParticipantClassroom"];
-            post: components["schemas"]["ClassroomPost"];
+            post: components["schemas"]["ClassroomPostView"];
         };
-        /** ClassroomPost */
-        ClassroomPost: {
+        /** ClassroomPostView */
+        ClassroomPostView: {
             /** Id */
             id: string;
             type: components["schemas"]["PostType"];
@@ -683,6 +727,11 @@ export interface components {
              * @default []
              */
             attachments: components["schemas"]["NewsAttachment"][];
+            /**
+             * Is Read
+             * @description O usuário confirmou a leitura da postagem.
+             */
+            is_read: boolean;
         };
         /**
          * ClassroomProgress
@@ -870,6 +919,26 @@ export interface components {
              * @default false
              */
             marked: boolean;
+        };
+        /** LessonClassroom */
+        LessonClassroom: {
+            /** Id */
+            id: string;
+            subject: components["schemas"]["UserSubject"];
+            /** Room */
+            room: string | null;
+        };
+        /** LessonDay */
+        LessonDay: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** No Class Reason */
+            no_class_reason: string | null;
+            /** Lessons */
+            lessons: components["schemas"]["WeekLesson"][];
         };
         /** LessonMark */
         LessonMark: {
@@ -1323,6 +1392,30 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
+        /** WeekLesson */
+        WeekLesson: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Start Time
+             * Format: time
+             */
+            start_time: string;
+            /**
+             * End Time
+             * Format: time
+             */
+            end_time: string;
+            status: components["schemas"]["LessonStatus"] | null;
+            /** Marked */
+            marked: boolean;
+            /** Scheduled */
+            scheduled: boolean;
+            classroom: components["schemas"]["LessonClassroom"];
+        };
         /** Workload */
         Workload: {
             /** Total */
@@ -1458,7 +1551,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ClassroomPost"][];
+                    "application/json": components["schemas"]["ClassroomPostView"][];
                 };
             };
             /** @description Credenciais ausentes ou inválidas. */
@@ -1530,7 +1623,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ClassroomPost"];
+                    "application/json": components["schemas"]["ClassroomPostView"];
                 };
             };
             /** @description Credenciais ausentes ou inválidas. */
@@ -1572,6 +1665,118 @@ export interface operations {
             };
             /** @description Post ainda não disponível no cache. */
             504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    mark_post_read_classrooms__classroom_id__posts__post_id__read_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description `no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente). */
+                "Cache-Control"?: string | null;
+            };
+            path: {
+                /** @description Classroom.id ou Classroom.sigaa_id. */
+                classroom_id: string;
+                /** @description ID do post na listagem da turma. */
+                post_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Turma ou post não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description SIGAA indisponível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    mark_post_unread_classrooms__classroom_id__posts__post_id__read_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description `no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente). */
+                "Cache-Control"?: string | null;
+            };
+            path: {
+                /** @description Classroom.id ou Classroom.sigaa_id. */
+                classroom_id: string;
+                /** @description ID do post na listagem da turma. */
+                post_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Turma ou post não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description SIGAA indisponível. */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2386,6 +2591,66 @@ export interface operations {
                 content?: never;
             };
             /** @description Histórico em atualização. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_week_lessons_lessons_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description `no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente). */
+                "Cache-Control"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LessonDay"][];
+                };
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Turma não encontrada entre as turmas do usuário. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description SIGAA indisponível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Cache em atualização. */
             503: {
                 headers: {
                     [name: string]: unknown;

@@ -11,7 +11,7 @@ import { WeekDayPicker } from '#/components/WeekDayPicker';
 import { useBrasiliaClock } from '#/lib/clock';
 import { nowInBrasilia, weekDays } from '#/lib/schedule';
 import { publicPageHead } from '#/lib/seo';
-import { classroomsQueryOptions } from '#/queries/classrooms';
+import { weekLessonsQueryOptions } from '#/queries/lessons';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
 import { weeklyMenuQueryOptions } from '#/queries/restaurant';
@@ -58,7 +58,7 @@ export const Route = createFileRoute('/_app/')({
         const user = await loadQuery(queryClient, meQueryOptions);
         await Promise.all([
             loadQuery(queryClient, weeklyMenuQueryOptions({ date: now.date, user })).catch(noop),
-            user && loadQuery(queryClient, classroomsQueryOptions).catch(noop)
+            user && loadQuery(queryClient, weekLessonsQueryOptions).catch(noop)
         ]);
         return { now };
     },

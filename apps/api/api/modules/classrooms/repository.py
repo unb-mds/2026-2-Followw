@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 
 import sigaa_client
 from sigaa_client import AttendanceStatus
-from sqlalchemy import ColumnElement, delete, exists, func, select, tuple_
+from sqlalchemy import ColumnElement, delete, exists, func, select, true, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import contains_eager, joinedload, undefer
 
@@ -656,7 +656,9 @@ class FrequencyRepository:
         return lesson if lesson and lesson.classroom_id == classroom_id else None
 
     async def list_lessons(
-        self, participants: Collection[ClassroomParticipant]
+        self,
+        participants: Collection[ClassroomParticipant],
+        between: tuple[date, date] | None = None,
     ) -> dict[UUID, list[tuple[Lesson, LessonAttendance | None]]]:
         """As aulas de cada turma com a situação do participante, inclusive das sem aula."""
         lessons: dict[UUID, list[tuple[Lesson, LessonAttendance | None]]] = {
@@ -671,7 +673,10 @@ class FrequencyRepository:
                     [participant.id for participant in participants]
                 ),
             )
-            .where(Lesson.classroom_id.in_(lessons))
+            .where(
+                Lesson.classroom_id.in_(lessons),
+                Lesson.occurred_on.between(*between) if between else true(),
+            )
         )
         for lesson, attendance in rows:
             lessons[lesson.classroom_id].append((lesson, attendance))

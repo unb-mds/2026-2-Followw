@@ -6,7 +6,7 @@ import { api } from '#/queries/api.ts';
 import { apiClient } from '#/queries/client.ts';
 
 export type Classroom = components['schemas']['ParticipantClassroom'];
-export type ClassroomPost = components['schemas']['ClassroomPost'];
+export type ClassroomPost = components['schemas']['ClassroomPostView'];
 export type PostType = components['schemas']['PostType'];
 
 /** A menção vale nas turmas encerradas; nas atuais, quem ocupa o lugar dela é o local. */

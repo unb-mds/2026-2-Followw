@@ -29,7 +29,14 @@ const classroom: Classroom = {
 };
 
 function news(id: number, extra: Partial<ClassroomPost> = {}): ClassroomPost {
-    return { id: `news:${id}`, type: 'news', title: `Notícia ${id}`, attachments: [], ...extra };
+    return {
+        id: `news:${id}`,
+        type: 'news',
+        title: `Notícia ${id}`,
+        attachments: [],
+        is_read: false,
+        ...extra
+    };
 }
 
 function clientWith(posts: ClassroomPost[] | null, updating = false) {

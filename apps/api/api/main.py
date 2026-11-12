@@ -12,6 +12,7 @@ from api.errors import EXCEPTION_HANDLERS
 from api.logger import RequestLoggingMiddleware
 from api.modules.auth.router import router as auth_router
 from api.modules.classrooms.router import router as classrooms_router
+from api.modules.lessons.router import router as lessons_router
 from api.modules.me.router import router as me_router
 from api.modules.me.upload_guard import ProfileUploadGuard
 from api.modules.posts.router import router as posts_router
@@ -36,6 +37,10 @@ tags_metadata = [
     {
         "name": "Classrooms",
         "description": "Turmas, participantes, frequência e resultados acadêmicos.",
+    },
+    {
+        "name": "Lessons",
+        "description": "Aulas da semana com a situação do aluno.",
     },
     {
         "name": "Me",
@@ -117,7 +122,7 @@ def custom_openapi() -> dict[str, Any]:
             },
             {
                 "name": "SIGAA",
-                "tags": ["Auth", "Classrooms", "Me", "Posts"],
+                "tags": ["Auth", "Classrooms", "Lessons", "Me", "Posts"],
             },
         ]
     return app.openapi_schema
@@ -184,6 +189,7 @@ app.include_router(
 app.include_router(
     public_subjects_router, prefix="/public/subjects", tags=["Public Subjects"]
 )
+app.include_router(lessons_router, prefix="/lessons", tags=["Lessons"])
 app.include_router(me_router, prefix="/me", tags=["Me"])
 app.include_router(posts_router, prefix="/posts", tags=["Posts"])
 app.include_router(jobs_router, prefix="/jobs", tags=["Jobs"])

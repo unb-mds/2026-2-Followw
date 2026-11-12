@@ -166,6 +166,26 @@ export function currentAndNext<T extends { start: string; end: string }>(items: 
     };
 }
 
+/** Aulas do `/lessons` no formato da grade; as canceladas não contam como em andamento ou próxima. */
+export function lessonsOn<
+    T extends { start_time: string; end_time: string; status?: string | null }
+>(lessons: T[], weekday: number, time?: string): ScheduledClass<T>[] {
+    const classes = lessons.map((item): ScheduledClass<T> => ({
+        weekday,
+        start: item.start_time.slice(0, 5),
+        end: item.end_time.slice(0, 5),
+        item,
+        status: 'normal'
+    }));
+    if (time) {
+        const active = classes.filter(({ item }) => item.status !== 'cancelada');
+        const { current, next } = currentAndNext(active, time);
+        if (current) current.status = 'in_progress';
+        if (next) next.status = 'next';
+    }
+    return classes;
+}
+
 /** Aulas do dia em ordem; `time` (HH:MM) marca a aula em andamento e a próxima. */
 export function classesOn<T extends { schedule?: string | null }>(
     items: T[],

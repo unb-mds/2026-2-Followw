@@ -1,7 +1,7 @@
 import { useNavigate } from '@tanstack/react-router';
 
 import type { Day, ScheduledClass } from '#/lib/schedule';
-import type { Classroom } from '#/queries/classrooms';
+import type { WeekLesson } from '#/queries/lessons';
 
 import { ErrorCard, SIGAA_DOWN_MESSAGE } from '#/components/ErrorState';
 import { ClassCard } from '#/components/home/ClassCard';
@@ -10,14 +10,13 @@ import { LoginPromptCard } from '#/components/home/LoginPromptCard';
 import { SectionHeader } from '#/components/SectionHeader';
 import { dayTimeline } from '#/lib/day-timeline';
 import { nowInBrasilia } from '#/lib/schedule';
-import { cn } from '#/lib/shadcn';
 
 interface TodayClassesSectionProps {
     loggedIn: boolean;
     noClassReason?: string;
     isLoadingError: boolean;
     onRetry: () => void;
-    classes: ScheduledClass<Classroom>[];
+    classes: ScheduledClass<WeekLesson>[];
     date?: string;
     now?: Day & { time: string };
 }
@@ -61,7 +60,7 @@ function TodayClassesContent({
         <div className="flex flex-col gap-2 lg:gap-3">
             {dayTimeline(classes, day, now).map(
                 ({ item, start, end, status, progress, gap, overlap }) => (
-                    <div key={`${item.id}-${start}`}>
+                    <div key={item.id}>
                         {gap > 0 && (
                             <p className="mb-4 hidden items-center gap-4 text-center text-xs text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border lg:flex">
                                 Intervalo de{' '}
@@ -76,15 +75,21 @@ function TodayClassesContent({
                             </p>
                         )}
                         <div className="flex gap-3 lg:gap-4">
-                            <ClassProgress progress={progress} absent={item.last_absence === day} />
+                            <ClassProgress
+                                progress={cancelled(item) ? 0 : progress}
+                                absent={item.status === 'falta'}
+                            />
                             <div className="min-w-0 flex-1">
                                 <ClassCard
-                                    title={item.subject.name}
+                                    title={item.classroom.subject.name}
                                     time={`${start}–${end}`}
-                                    location={item.room ?? 'Local não informado'}
-                                    status={status}
+                                    location={item.classroom.room ?? 'Local não informado'}
+                                    status={cancelled(item) ? 'cancelled' : status}
                                     onClick={() =>
-                                        navigate({ to: '/turmas/$id', params: { id: item.id } })
+                                        navigate({
+                                            to: '/turmas/$id',
+                                            params: { id: item.classroom.id }
+                                        })
                                     }
                                 />
                             </div>
@@ -95,3 +100,5 @@ function TodayClassesContent({
         </div>
     );
 }
+
+const cancelled = (lesson: WeekLesson) => lesson.status === 'cancelada';

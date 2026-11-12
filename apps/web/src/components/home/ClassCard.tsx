@@ -15,7 +15,7 @@ export interface ClassCardProps {
     location?: string;
     professors?: string[];
     grade?: Classroom['grade'];
-    status?: 'in_progress' | 'next' | 'pending' | 'normal' | 'warning';
+    status?: 'in_progress' | 'next' | 'pending' | 'normal' | 'warning' | 'cancelled';
     statusText?: string;
     onLocationClick?: () => void;
     onClick?: () => void;
@@ -35,7 +35,8 @@ const STATUS = {
         variant: 'secondary',
         className: 'bg-warning/10 text-warning'
     },
-    warning: { label: 'Atenção', variant: 'destructive', className: '' }
+    warning: { label: 'Atenção', variant: 'destructive', className: '' },
+    cancelled: { label: 'Cancelada', variant: 'secondary', className: 'text-muted-foreground' }
 } as const;
 
 export const ClassCard: React.FC<ClassCardProps> = ({
@@ -63,7 +64,8 @@ export const ClassCard: React.FC<ClassCardProps> = ({
                 <h3
                     className={cn(
                         'min-w-0 flex-1 text-sm leading-snug font-semibold lg:line-clamp-none lg:text-lg lg:font-medium',
-                        compact ? 'line-clamp-1' : 'line-clamp-2'
+                        compact ? 'line-clamp-1' : 'line-clamp-2',
+                        status === 'cancelled' && 'text-muted-foreground line-through'
                     )}
                 >
                     {title}
