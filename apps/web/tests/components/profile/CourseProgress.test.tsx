@@ -32,6 +32,15 @@ const user: UserProfile = {
 
 const text = (html: string) => html.replace(/<title>.*?<\/title>/g, '').replace(/<[^>]*>/g, '');
 
+const current = (code: string, hours: number, kind: Classroom['subject']['kind']): Classroom => ({
+    id: code,
+    number: '01',
+    semester: '2026.2',
+    current: true,
+    subject: { code, name: code, hours, kind },
+    professors: []
+});
+
 describe('CourseProgress', () => {
     test('zero por cento mantém o anel vazio sem ponto de progresso concluído', () => {
         const markup = renderToStaticMarkup(
@@ -53,7 +62,7 @@ describe('CourseProgress', () => {
         ];
         const without = renderToStaticMarkup(<CourseProgress user={user} />);
         const markup = renderToStaticMarkup(<CourseProgress user={user} classrooms={classrooms} />);
-        expect(markup).toContain('stroke="var(--primary-forecast)"');
+        expect(markup).toContain('stroke="var(--info)"');
         expect(markup).toContain('Previsto');
         expect(text(markup).replace('Previsto', '')).toBe(text(without));
     });
@@ -87,6 +96,45 @@ describe('CourseProgress', () => {
         expect(text(markup)).toContain('180h / 660h');
         expect(text(markup)).toContain('Não exigido');
         expect(markup.match(/style="width:/g)).toHaveLength(2);
+    });
+
+    test('prevê obrigatórias e optativas pelas disciplinas atuais sem mudar o texto', () => {
+        const matrix = {
+            ...user,
+            workload: { ...user.workload!, mandatory: 2865, optional: 660, complementary: 0 }
+        };
+        const without = renderToStaticMarkup(<CourseProgress user={matrix} />);
+        const markup = renderToStaticMarkup(
+            <CourseProgress
+                user={matrix}
+                classrooms={[
+                    current('OBR', 60, 'mandatory'),
+                    current('OPT', 60, 'optional'),
+                    current('LIVRE', 60, 'free')
+                ]}
+            />
+        );
+        const forecasts = [...markup.matchAll(/bg-info" style="width:([\d.]+)%/g)];
+        expect(forecasts.map(([, width]) => Number(width))).toEqual([
+            ((930 + 60) / 2865) * 100,
+            ((180 + 60) / 660) * 100
+        ]);
+        expect(text(markup).replace('Previsto', '')).toBe(text(without));
+    });
+
+    test('sem tipo na matriz não desenha previsão nas categorias', () => {
+        const markup = renderToStaticMarkup(
+            <CourseProgress
+                user={{
+                    ...user,
+                    integralization: null,
+                    workload: { ...user.workload!, mandatory: 2865, optional: 660 }
+                }}
+                classrooms={[current('LIVRE', 60, 'free')]}
+            />
+        );
+        expect(markup).not.toContain('bg-info');
+        expect(markup).not.toContain('Previsto');
     });
 
     test('mantém a integralização sem estimar horas quando a carga está ausente', () => {

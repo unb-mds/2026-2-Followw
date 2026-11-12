@@ -5,6 +5,8 @@ import type { UserProfile } from '#/queries/me';
 
 import { projectedIntegralization } from '#/lib/profile';
 
+import { classroom } from './helpers';
+
 const user = {
     integralization: 30,
     workload: {
@@ -17,18 +19,6 @@ const user = {
         complementary: null
     }
 } satisfies Pick<UserProfile, 'integralization' | 'workload'>;
-
-function classroom(code: string, hours: number | null = 60): Classroom {
-    return {
-        id: code,
-        number: '01',
-        semester: '2026.2',
-        current: true,
-        status: 'cursando',
-        subject: { code, name: code, hours },
-        professors: []
-    };
-}
 
 describe('projectedIntegralization', () => {
     test('soma as horas concluídas e das disciplinas atuais e calcula a proporção do curso', () => {

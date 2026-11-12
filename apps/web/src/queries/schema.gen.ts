@@ -1013,9 +1013,21 @@ export interface components {
              * @default false
              */
             current: boolean;
-            subject: components["schemas"]["UserSubject"];
+            subject: components["schemas"]["ParticipantSubject"];
             grade?: components["schemas"]["Grade"] | null;
             status?: components["schemas"]["ClassroomStatus"] | null;
+        };
+        /** ParticipantSubject */
+        ParticipantSubject: {
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+            /** Hours */
+            hours?: number | null;
+            unit?: components["schemas"]["UnitRef"] | null;
+            /** Kind */
+            kind?: ("mandatory" | "optional" | "free") | null;
         };
         /**
          * PostType

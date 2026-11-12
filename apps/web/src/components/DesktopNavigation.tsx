@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useMatches } from '@tanstack/react-router';
 import { House, Search, User, UserRoundGroup, Utensils } from 'lucide-react';
 import { m } from 'motion/react';
-import { useState } from 'react';
 
 import { FollowwLogo } from '#/components/FollowwLogo';
 import { SearchPill } from '#/components/SearchPill';
@@ -97,30 +96,16 @@ export function DesktopNavigation() {
                 {profile && <ThemeToggle />}
                 <Link
                     to="/perfil"
-                    aria-label={user ? 'Perfil' : isPending ? 'Carregando conta' : 'Entrar'}
                     aria-current={profile ? 'page' : undefined}
                     className={cn(
-                        'flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-muted/40 text-muted-foreground shadow-sm transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring',
-                        profile &&
-                            'border-primary/30 bg-primary/10 text-primary ring-2 ring-primary/40'
+                        'flex h-14 shrink-0 items-center gap-2 rounded-full border bg-muted/40 px-5 text-sm font-medium text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring',
+                        profile && 'border-primary/30 bg-primary/10 text-primary hover:text-primary'
                     )}
                 >
-                    <ProfilePhoto src={user?.photo} />
+                    <User aria-hidden="true" className="size-5" />
+                    {user ? 'Perfil' : isPending ? 'Carregando conta' : 'Entrar'}
                 </Link>
             </div>
         </div>
-    );
-}
-
-function ProfilePhoto({ src }: { src?: string | null }) {
-    const [failedSrc, setFailedSrc] = useState<string | null>(null);
-    if (!src || failedSrc === src) return <User aria-hidden="true" className="size-5" />;
-    return (
-        <img
-            src={src}
-            alt=""
-            className="size-full object-cover"
-            onError={() => setFailedSrc(src)}
-        />
     );
 }

@@ -11,7 +11,8 @@ import {
     weeklyTimeline
 } from '#/lib/weekly-timeline';
 
-const TIMELINE_INSET = 12;
+const TIMELINE_INSET = 16;
+const BLOCK_GAP = 3;
 
 export interface WeeklyEntry {
     key: string;
@@ -47,10 +48,10 @@ export function WeeklySchedule({
             {segments.length > 0 && (
                 <div className="weekly-scroll max-h-144 overflow-auto overscroll-contain rounded-xl border">
                     <div className="min-w-md">
-                        <div className="weekly-columns sticky top-0 z-20 grid border-b bg-card text-center text-xs text-muted-foreground">
-                            <span className="p-3">Hora</span>
+                        <div className="weekly-columns sticky top-0 z-20 grid border-b border-foreground/10 bg-muted text-center text-xs">
+                            <span className="py-3 pr-3 text-right text-muted-foreground">Hora</span>
                             {GRID_DAYS.map(({ label: day }) => (
-                                <span key={day} className="py-3 font-medium">
+                                <span key={day} className="py-3 font-semibold text-foreground">
                                     {day}
                                 </span>
                             ))}
@@ -59,55 +60,46 @@ export function WeeklySchedule({
                             className="weekly-columns relative grid"
                             style={{ height: height + TIMELINE_INSET * 2 }}
                         >
-                            <div className="relative border-r bg-card">
+                            <div className="relative border-r border-foreground/10 bg-muted/50">
                                 {ticks.map(({ minute, top }) => (
                                     <span
                                         key={minute}
-                                        className="absolute left-1 -translate-y-1/2 text-xs text-muted-foreground tabular-nums"
+                                        className="absolute right-3 -translate-y-1/2 text-xs font-medium text-muted-foreground tabular-nums"
                                         style={{ top: top + TIMELINE_INSET }}
                                     >
                                         {formatMinutes(minute)}
                                     </span>
                                 ))}
                             </div>
-                            {ticks.map(({ minute, top }) => (
-                                <div
-                                    key={minute}
-                                    aria-hidden="true"
-                                    className="pointer-events-none absolute right-0 left-13 border-t border-dashed border-border/60"
-                                    style={{ top: top + TIMELINE_INSET }}
-                                />
-                            ))}
                             {GRID_DAYS.map(({ weekday, label: day }) => (
-                                <div
-                                    key={weekday}
-                                    className="relative border-r border-dashed last:border-r-0"
-                                >
+                                <div key={weekday} className="relative">
                                     {dayLanes(times.filter((time) => time.weekday === weekday)).map(
                                         ({ entry, start, end, lane, lanes }) => {
                                             const top = timePosition(start, segments);
                                             const style = {
-                                                top: top + TIMELINE_INSET + 1,
+                                                top: top + TIMELINE_INSET + BLOCK_GAP,
                                                 height: Math.max(
                                                     16,
-                                                    timePosition(end, segments) - top - 2
+                                                    timePosition(end, segments) -
+                                                        top -
+                                                        BLOCK_GAP * 2
                                                 ),
-                                                left: `calc(${(lane / lanes) * 100}% + 2px)`,
-                                                width: `calc(${100 / lanes}% - 4px)`
+                                                left: `calc(${(lane / lanes) * 100}% + ${BLOCK_GAP}px)`,
+                                                width: `calc(${100 / lanes}% - ${BLOCK_GAP * 2}px)`
                                             };
                                             const description = `${day}, ${start}–${end}: ${entry.name}, ${entry.code}, turma ${entry.number}`;
                                             const content = (
                                                 <>
-                                                    <span className="block truncate font-semibold">
+                                                    <span className="block truncate text-xs font-semibold">
                                                         {entry.code}
                                                     </span>
-                                                    <span className="block truncate text-muted-foreground">
+                                                    <span className="block truncate text-xs text-foreground/70">
                                                         T{entry.number}
                                                     </span>
                                                 </>
                                             );
                                             const className =
-                                                'absolute flex flex-col justify-center overflow-hidden rounded-lg border border-primary/30 bg-primary/5 px-1 py-2 text-center text-xs text-primary';
+                                                'absolute flex flex-col justify-center gap-0.5 overflow-hidden rounded-lg border border-primary/50 bg-primary/10 px-1 py-2 text-center text-primary shadow-xs';
                                             return onSelect ? (
                                                 <button
                                                     key={`${entry.key}-${start}`}
@@ -117,7 +109,7 @@ export function WeeklySchedule({
                                                     style={style}
                                                     className={cn(
                                                         className,
-                                                        'transition-colors hover:bg-primary/15 focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-ring'
+                                                        'transition-colors hover:border-primary hover:bg-primary/20 focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-ring'
                                                     )}
                                                     onClick={() => onSelect(entry.key)}
                                                 >

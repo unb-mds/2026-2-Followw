@@ -111,7 +111,7 @@ function Classrooms() {
                 </section>
                 {desktop && items && items.length > 0 && (
                     <aside className="min-w-0 border-l pl-8">
-                        <h2 className="mb-4 text-xl font-medium">Grade semanal · {semester}</h2>
+                        <h2 className="mb-4 text-xl font-medium">Minha grade · {semester}</h2>
                         <WeeklySchedule
                             label={`Grade das turmas de ${semester}`}
                             entries={items.map((item) => ({

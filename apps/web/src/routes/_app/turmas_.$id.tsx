@@ -87,7 +87,7 @@ export const Route = createFileRoute('/_app/turmas_/$id')({
         meta: [{ title: `${loaderData?.subjectName ?? 'Turma'} | Followw` }]
     }),
     staticData: {
-        header: () => <BackHeader to="/turmas" title="Minhas Turmas" />
+        header: () => <BackHeader sticky to="/turmas" title="Minhas Turmas" />
     },
     errorComponent: ErrorState,
     component: ClassroomPage
@@ -117,7 +117,10 @@ function ClassroomPage() {
                 <InformationCard>Turma não encontrada.</InformationCard>
             ) : (
                 <div className="classroom-detail-columns lg:grid lg:items-start lg:gap-10">
-                    <ClassroomSummary classroom={classroom} />
+                    {/* abaixo da topbar (7rem) e do cabeçalho fixo (3,5rem) */}
+                    <div className="lg:sticky lg:top-44">
+                        <ClassroomSummary classroom={classroom} />
+                    </div>
                     <Tabs
                         value={classroomTab(tab, classroom.current)}
                         onValueChange={(value: ClassroomTab) => void setSearch({ tab: value })}

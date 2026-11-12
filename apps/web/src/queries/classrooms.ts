@@ -4,6 +4,7 @@ import type { components } from '#/queries/schema.gen.ts';
 
 import { api } from '#/queries/api.ts';
 import { apiClient } from '#/queries/client.ts';
+import { weekLessonsQueryOptions } from '#/queries/lessons.ts';
 
 export type Classroom = components['schemas']['ParticipantClassroom'];
 export type ClassroomPost = components['schemas']['ClassroomPostView'];
@@ -39,7 +40,7 @@ export type Lesson = components['schemas']['Lesson'];
 export type LessonMark = components['schemas']['LessonMark'];
 export type LessonMarkStatus = NonNullable<LessonMark['status']>;
 
-/** Marca as aulas de uma vez (`null` desmarca) e relê a frequência, que já volta com aulas e totais. */
+/** Marca as aulas de uma vez (`null` desmarca) e relê a frequência e as aulas da semana. */
 export function useMarkLessons(id: string) {
     const queryClient = useQueryClient();
     return useMutation({
@@ -50,9 +51,12 @@ export function useMarkLessons(id: string) {
             if (error) throw new Error('Não foi possível salvar a marcação');
         },
         onSettled: () =>
-            queryClient.invalidateQueries({
-                queryKey: classroomFrequencyQueryOptions(id).queryKey
-            })
+            Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey: classroomFrequencyQueryOptions(id).queryKey
+                }),
+                queryClient.invalidateQueries({ queryKey: weekLessonsQueryOptions.queryKey })
+            ])
     });
 }
 

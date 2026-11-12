@@ -44,10 +44,10 @@ async function render(url: string, visitor = false) {
     return dom.testing.render(page.element);
 }
 
-test('visitante acessa o perfil por um ícone sem texto visível e com nome acessível', async () => {
+test('visitante acessa o perfil pelo ícone com o rótulo Entrar ao lado', async () => {
     const view = await render('/', true);
     const profile = view.getByRole('link', { name: 'Entrar' });
-    expect(profile.textContent).toBe('');
+    expect(profile.textContent).toBe('Entrar');
     expect(profile.getAttribute('href')).toBe('/perfil');
     expect(profile.querySelector('svg')).not.toBeNull();
 });
@@ -60,15 +60,16 @@ test('navegação do topo mostra o nome de cada rota ao lado do ícone', async (
     }
 });
 
-test('botão de perfil mostra a foto do discente quando houver', async () => {
+test('botão de perfil usa o ícone mesmo quando o discente tem foto', async () => {
     width = 1440;
     device = desktopBrowser(() => width);
     page = desktopPage('/', { ...desktopUser, photo: 'https://exemplo.test/foto.jpg' });
     await page.router.load();
     const view = dom.testing.render(page.element);
     const profile = view.getByRole('link', { name: 'Perfil' });
-    expect(profile.querySelector('img')?.getAttribute('src')).toBe('https://exemplo.test/foto.jpg');
-    expect(profile.querySelector('svg')).toBeNull();
+    expect(profile.querySelector('img')).toBeNull();
+    expect(profile.querySelector('svg')).not.toBeNull();
+    expect(profile.textContent).toBe('Perfil');
 });
 
 test('busca com barra final mantém um único campo e recolhe o atalho da navegação', async () => {

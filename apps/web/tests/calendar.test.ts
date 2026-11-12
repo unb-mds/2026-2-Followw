@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { getNoClassEvents, getNoClassReason } from '#/calendar';
+import { getHoliday, getNoClassEvents, getNoClassReason } from '#/calendar';
 
 describe('getNoClassEvents', () => {
     test('inclui todos os dias da Semana Universitária', () => {
@@ -43,5 +43,13 @@ describe('getNoClassReason', () => {
 
     test('mantém a grade quando a data não consta em um semestre', () => {
         expect(getNoClassReason('2028-02-23')).toBeUndefined();
+    });
+});
+
+describe('getHoliday', () => {
+    test('retorna só feriados, sem pontos facultativos', () => {
+        expect(getHoliday('2026-11-02')?.name).toBe('Finados');
+        expect(getHoliday('2026-10-30')).toBeUndefined();
+        expect(getHoliday('2026-11-03')).toBeUndefined();
     });
 });

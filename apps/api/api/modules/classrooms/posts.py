@@ -129,6 +129,7 @@ class ClassroomPostsService:
             return LatestNewsFeed(items=[], updating=False)
         by_id = {link.row.classroom_id: link for link in links}
         user_id = links[0].row.user_id
+        curriculum = await self._classrooms.curriculum()
 
         async def load(
             session: AsyncSession,
@@ -142,7 +143,7 @@ class ClassroomPostsService:
             user = await session.get_one(User, user_id)
             items = [
                 ClassroomNews(
-                    classroom=to_classroom(by_id[post.classroom_id]),
+                    classroom=to_classroom(by_id[post.classroom_id], curriculum),
                     post=_to_post(
                         post,
                         by_id[post.classroom_id].row.classroom.sigaa_id,

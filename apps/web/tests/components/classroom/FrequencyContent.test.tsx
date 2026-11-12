@@ -183,6 +183,21 @@ describe('marcação das aulas', () => {
         return { page, calls };
     }
 
+    test('alterna as aulas entre lista e calendário pelo toggle', () => {
+        const { fireEvent } = dom.testing;
+        const { page } = renderMarking();
+        const calendar = page.getByRole('button', { name: 'Calendário' });
+
+        expect(page.getByRole('button', { name: 'Lista' }).getAttribute('aria-pressed')).toBe(
+            'true'
+        );
+        fireEvent.click(calendar);
+
+        expect(calendar.getAttribute('aria-pressed')).toBe('true');
+        expect(page.queryByRole('checkbox')).toBeNull();
+        expect(page.getByRole('grid')).toBeTruthy();
+    });
+
     test('seleciona aulas e marca todas de uma vez pela barra', async () => {
         const { fireEvent } = dom.testing;
         const { page, calls } = renderMarking();

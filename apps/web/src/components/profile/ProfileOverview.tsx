@@ -4,10 +4,11 @@ import { useEffect, useRef, useState } from 'react';
 
 import type { components } from '#/queries/schema.gen';
 
+import { getCurrentSemester } from '#/calendar';
 import { CourseProgress } from '#/components/profile/CourseProgress';
 import { Card } from '#/components/ui/card';
 import { PersonPhoto } from '#/components/ui/person-photo';
-import { academicIndexes, titleCase, truncateProfileBio } from '#/lib/profile';
+import { academicIndexes, coursePeriod, titleCase, truncateProfileBio } from '#/lib/profile';
 import { cn } from '#/lib/shadcn';
 import { classroomsQueryOptions } from '#/queries/classrooms';
 
@@ -20,24 +21,30 @@ export function ProfileIdentity({
     user: UserProfile;
     displayName?: string | null;
 }) {
+    const period = coursePeriod(user.entry_semester, getCurrentSemester()?.semester);
     return (
         <header>
-            <div className="flex items-center gap-4">
-                <PersonPhoto src={user.photo} size="lg" />
-                <div className="flex min-w-0 flex-col justify-between gap-2">
+            <div className="flex items-center gap-4 lg:gap-6">
+                <PersonPhoto src={user.photo} size="lg" className="lg:w-32 lg:rounded-2xl" />
+                <div className="flex min-w-0 flex-col justify-between gap-2 lg:gap-4">
                     <div>
-                        <h1 className="text-2xl leading-tight font-semibold tracking-tight text-balance">
+                        <h1 className="text-2xl leading-tight font-semibold tracking-tight text-balance lg:text-4xl">
                             {displayName || titleCase(user.name)}
                         </h1>
                         <RegistrationCopy value={user.registration} />
                     </div>
                     <div>
-                        <p className="text-sm text-primary lg:text-xl lg:font-medium">
-                            {[user.course && titleCase(user.course.name), user.unit?.code]
+                        <p className="text-sm text-primary lg:text-2xl lg:font-medium">
+                            {[
+                                user.course && titleCase(user.course.name),
+                                period && `${period}º semestre`
+                            ]
                                 .filter(Boolean)
                                 .join(' · ')}
                         </p>
-                        <p className="text-xs font-medium text-muted-foreground">{user.level}</p>
+                        <p className="text-xs font-medium text-muted-foreground lg:mt-1 lg:text-sm">
+                            {user.level}
+                        </p>
                     </div>
                 </div>
             </div>
@@ -118,11 +125,11 @@ function Bio({ text }: { text: string }) {
     }, [expanded]);
 
     return (
-        <div className="mt-4 flex flex-col items-start gap-1">
+        <div className="mt-4 flex flex-col items-start gap-1 lg:mt-6">
             <p
                 ref={ref}
                 className={cn(
-                    'text-sm leading-relaxed wrap-anywhere whitespace-pre-line text-muted-foreground',
+                    'text-sm leading-relaxed wrap-anywhere whitespace-pre-line text-muted-foreground lg:text-base',
                     !expanded && 'line-clamp-3'
                 )}
             >
@@ -165,7 +172,7 @@ function RegistrationCopy({ value }: { value: string }) {
             aria-label={label}
             title={label}
             className={cn(
-                'mt-0.5 inline-flex items-center gap-1 text-sm leading-none tabular-nums',
+                'mt-0.5 inline-flex items-center gap-1 text-sm leading-none tabular-nums lg:mt-2 lg:gap-1.5 lg:text-base',
                 copied ? 'text-primary' : 'text-muted-foreground'
             )}
         >

@@ -33,6 +33,26 @@ export function curriculumProgress(workload: UserProfile['workload']) {
     return { total, pending, completed: total - pending };
 }
 
+// turmas do semestre atual ainda em curso, uma por disciplina e com carga válida
+function currentSubjects(classrooms: readonly Classroom[]) {
+    const subjects = new Map<string, Classroom['subject'] & { hours: number }>();
+    for (const classroom of classrooms) {
+        const { subject } = classroom;
+        const { hours } = subject;
+        if (
+            !classroom.current ||
+            (classroom.status != null && classroom.status !== 'cursando') ||
+            hours == null ||
+            !Number.isFinite(hours) ||
+            hours <= 0 ||
+            subjects.has(subject.code)
+        )
+            continue;
+        subjects.set(subject.code, { ...subject, hours });
+    }
+    return [...subjects.values()];
+}
+
 export function projectedIntegralization(
     user: Pick<UserProfile, 'integralization' | 'workload'>,
     classrooms: readonly Classroom[]
@@ -41,26 +61,32 @@ export function projectedIntegralization(
     const completed = user.integralization;
     if (!progress?.total || completed == null || !Number.isFinite(completed)) return null;
 
-    const subjects = new Set<string>();
-    let hours = 0;
-    for (const classroom of classrooms) {
-        const { code, hours: workload } = classroom.subject;
-        if (
-            !classroom.current ||
-            (classroom.status != null && classroom.status !== 'cursando') ||
-            workload == null ||
-            !Number.isFinite(workload) ||
-            workload <= 0 ||
-            subjects.has(code)
-        )
-            continue;
-        subjects.add(code);
-        hours += workload;
-    }
+    const hours = currentSubjects(classrooms).reduce((sum, subject) => sum + subject.hours, 0);
     if (hours === 0) return null;
     const current = Math.max(0, Math.min(100, completed));
     const projected = Math.min(100, ((progress.completed + hours) / progress.total) * 100);
     return projected > current ? projected : null;
+}
+
+/** Horas das disciplinas atuais por tipo na matriz; módulo livre não entra. */
+export function projectedCategoryHours(classrooms: readonly Classroom[]) {
+    const hours = { mandatory: 0, optional: 0 };
+    for (const subject of currentSubjects(classrooms))
+        if (subject.kind === 'mandatory' || subject.kind === 'optional')
+            hours[subject.kind] += subject.hours;
+    return hours;
+}
+
+const SEMESTER = /^(\d{4})\.([124])$/;
+const termIndex = (match: RegExpMatchArray) => Number(match[1]) * 2 + Math.min(2, Number(match[2]));
+
+// semestres letivos desde o ingresso; o de verão (.4) conta como o .2 anterior
+export function coursePeriod(entrySemester: string | null, currentSemester?: string) {
+    const entry = entrySemester?.match(SEMESTER);
+    const current = currentSemester?.match(SEMESTER);
+    if (!entry || !current || entry[2] === '4') return null;
+    const period = termIndex(current) - termIndex(entry) + 1;
+    return period >= 1 ? period : null;
 }
 
 const LOWERCASE_WORDS = new Set(['a', 'as', 'da', 'das', 'de', 'do', 'dos', 'e', 'em', 'o', 'os']);

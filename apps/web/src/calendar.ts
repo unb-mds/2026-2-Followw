@@ -59,6 +59,17 @@ export function getNoClassEvents(date: string): CalendarEvent[] {
     );
 }
 
+export function getHoliday(date: string): CalendarEvent | undefined {
+    for (const { events } of listSemesters()) {
+        const holiday = events.find(
+            (event) =>
+                event.category === 'holiday' && event.start_date <= date && date <= event.end_date
+        );
+        if (holiday) return holiday;
+    }
+    return undefined;
+}
+
 export function getNoClassReason(date: string): string | undefined {
     const event = getNoClassEvents(date)[0];
     if (event) return event.name;

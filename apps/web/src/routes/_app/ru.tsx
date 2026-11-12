@@ -25,6 +25,7 @@ import { lazy, Suspense, useCallback, useEffect, useState, useSyncExternalStore 
 import type { RestaurantSelection } from '#/lib/restaurant-share';
 import type { DailyMenu, MenuSection } from '#/queries/restaurant';
 
+import { BackToTodayBar } from '#/components/BackToTodayBar';
 import { useDesktop } from '#/components/DesktopContext';
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderTitle, HeaderToggle } from '#/components/HeaderBar';
@@ -203,7 +204,7 @@ function useMenuSelection() {
             campus: campus === defaults.campus ? null : campus
         });
     };
-    return { selection, select };
+    return { selection, select, defaults };
 }
 
 function RUPage() {
@@ -211,7 +212,8 @@ function RUPage() {
     const { today } = Route.useLoaderData();
     const {
         selection: { date: selectedDate, meal: selectedMeal, campus },
-        select
+        select,
+        defaults
     } = useMenuSelection();
     const [filtersOpen] = useFiltersOpen();
     const { data: user } = useSuspenseQuery(meQueryOptions);
@@ -410,6 +412,10 @@ function RUPage() {
                     </Card>
                 )}
             </div>
+            <BackToTodayBar
+                open={selectedDate !== defaults.date}
+                onBack={() => select({ date: defaults.date })}
+            />
         </div>
     );
 }

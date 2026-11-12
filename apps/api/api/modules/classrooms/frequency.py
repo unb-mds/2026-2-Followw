@@ -54,8 +54,11 @@ class FrequencyService:
 
     async def list_frequencies(self) -> list[ClassroomFrequencyResult]:
         links = await self._classrooms.list_links()
+        curriculum = await self._classrooms.curriculum()
         return [
-            ClassroomFrequencyResult(classroom=to_classroom(link), frequency=view)
+            ClassroomFrequencyResult(
+                classroom=to_classroom(link, curriculum), frequency=view
+            )
             for link, view in zip(links, await self._views(links), strict=True)
         ]
 

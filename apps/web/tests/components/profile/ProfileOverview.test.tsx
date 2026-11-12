@@ -4,11 +4,13 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import type { components } from '#/queries/schema.gen';
 
+import { getCurrentSemester } from '#/calendar';
 import {
     AcademicPerformance,
     ProfileIdentity,
     ProgressSection
 } from '#/components/profile/ProfileOverview';
+import { coursePeriod } from '#/lib/profile';
 
 import { useDom } from '../../helpers/dom';
 
@@ -35,8 +37,19 @@ describe('ProfileIdentity', () => {
     test('mostra nome e curso legíveis e ícone sem foto', () => {
         const markup = renderToStaticMarkup(<ProfileIdentity user={user} />);
         expect(markup).toContain('Nome Discente');
-        expect(markup).toContain('Engenharia de Software · FCTE');
+        expect(markup).toContain('Engenharia de Software</p>');
+        expect(markup).not.toContain('FCTE');
         expect(markup).not.toContain('<img');
+    });
+
+    test('mostra o semestre do aluno ao lado do curso no lugar da unidade', () => {
+        const period = coursePeriod('2020.1', getCurrentSemester()?.semester);
+        const markup = renderToStaticMarkup(
+            <ProfileIdentity user={{ ...user, entry_semester: '2020.1' }} />
+        );
+        expect(period).not.toBeNull();
+        expect(markup).toContain(`Engenharia de Software · ${period}º semestre`);
+        expect(markup).not.toContain('FCTE');
     });
 
     test('mostra matrícula copiável ao lado do curso, sem e-mail', () => {

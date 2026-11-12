@@ -6,7 +6,11 @@ import type { UserProfile } from '#/queries/me';
 import { AnimatedNumber } from '#/components/AnimatedNumber';
 import { Card } from '#/components/ui/card';
 import { ease, useEntrance } from '#/lib/motion';
-import { curriculumProgress, projectedIntegralization } from '#/lib/profile';
+import {
+    curriculumProgress,
+    projectedCategoryHours,
+    projectedIntegralization
+} from '#/lib/profile';
 import { cn } from '#/lib/shadcn';
 
 const hoursLabel = (hours: number) => `${hours.toLocaleString('pt-BR')}h`;
@@ -22,6 +26,7 @@ export function CourseProgress({
     const { integralization, workload } = user;
     const progress = curriculumProgress(workload);
     const projected = projectedIntegralization(user, classrooms);
+    const forecast = projectedCategoryHours(classrooms);
     const entrance = useEntrance();
     // o anel se desenha a partir do zero, no mesmo tempo da contagem
     const draw = (percent: number) => ({
@@ -33,21 +38,30 @@ export function CourseProgress({
         {
             label: 'Obrigatórias',
             pending: workload.pending_mandatory,
-            required: workload.mandatory
+            required: workload.mandatory,
+            projected: forecast.mandatory
         },
-        { label: 'Optativas', pending: workload.pending_optional, required: workload.optional },
+        {
+            label: 'Optativas',
+            pending: workload.pending_optional,
+            required: workload.optional,
+            projected: forecast.optional
+        },
         {
             label: 'Complementares',
             pending: workload.pending_complementary,
-            required: workload.complementary
+            required: workload.complementary,
+            projected: 0
         }
     ];
+    const showForecast =
+        projected != null || !!categories?.some((category) => categoryForecast(category) != null);
 
     return (
         <Card size="sm" className="gap-0 divide-y divide-border px-5 py-4">
             {(integralization != null || progress) && (
                 <div className="pb-5">
-                    {integralization != null && (
+                    {(integralization != null || showForecast) && (
                         <div className="mb-3 flex flex-wrap items-center gap-5 text-xs text-muted-foreground">
                             <span className="flex items-center gap-2">
                                 <span
@@ -56,11 +70,11 @@ export function CourseProgress({
                                 />
                                 Concluído
                             </span>
-                            {projected != null && (
+                            {showForecast && (
                                 <span className="flex items-center gap-2">
                                     <span
                                         aria-hidden="true"
-                                        className="h-1 w-5 rounded-full bg-primary-forecast"
+                                        className="h-1 w-5 rounded-full bg-info"
                                     />
                                     Previsto
                                 </span>
@@ -89,7 +103,7 @@ export function CourseProgress({
                                             cy="50"
                                             r="44"
                                             fill="none"
-                                            stroke="var(--primary-forecast)"
+                                            stroke="var(--info)"
                                             strokeWidth="8"
                                             strokeLinecap="round"
                                             pathLength="100"
@@ -162,31 +176,48 @@ export function CourseProgress({
     );
 }
 
-function CategoryProgress({
-    label,
-    pending,
-    required
-}: {
+interface Category {
     label: string;
     pending: number;
     required: number | null;
-}) {
+    projected: number;
+}
+
+const percentOf = (hours: number, required: number) => Math.min(100, (hours / required) * 100);
+
+// largura prevista da barra, só quando avança além do concluído
+function categoryForecast({ pending, required, projected }: Category) {
+    if (!required || projected <= 0) return null;
+    const completed = Math.max(0, required - pending);
+    const forecast = percentOf(completed + projected, required);
+    return forecast > percentOf(completed, required) ? forecast : null;
+}
+
+function CategoryProgress(category: Category) {
+    const { label, pending, required } = category;
     // Sem a matriz, mostra só o que falta.
     if (required == null)
         return <CategoryRow label={label} value={`${hoursLabel(pending)} pendentes`} />;
     if (required === 0) return <CategoryRow label={label} value="Não exigido" muted />;
 
     const completed = Math.max(0, required - pending);
+    const forecast = categoryForecast(category);
     return (
         <div className="flex flex-col gap-2">
             <CategoryRow
                 label={label}
                 value={`${hoursLabel(completed)} / ${hoursLabel(required)}`}
             />
-            <div aria-hidden="true" className="h-2 overflow-hidden rounded-full bg-muted">
+            <div aria-hidden="true" className="relative h-2 overflow-hidden rounded-full bg-muted">
+                {forecast != null && (
+                    <div
+                        className="absolute inset-y-0 left-0 rounded-full bg-info"
+                        style={{ width: `${forecast}%` }}
+                    />
+                )}
                 <div
-                    className="h-full rounded-full bg-primary"
-                    style={{ width: `${Math.min(100, (completed / required) * 100)}%` }}
+                    className="relative h-full rounded-full bg-primary"
+                    style={{ width: `${percentOf(completed, required)}%` }}
                 />
             </div>
         </div>

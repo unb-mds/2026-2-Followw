@@ -12,19 +12,23 @@ interface HeaderBarProps {
     showLogo?: boolean;
     // a topbar do desktop já identifica a página
     hideOnDesktop?: boolean;
+    // fixa sob a topbar ao rolar no desktop
+    sticky?: boolean;
 }
 
 export const HeaderBar: React.FC<HeaderBarProps> = ({
     children,
     actions,
     showLogo = true,
-    hideOnDesktop = false
+    hideOnDesktop = false,
+    sticky = false
 }) => {
     return (
         <header
             className={cn(
                 'mb-2 flex items-center justify-between py-4 pb-2 lg:mb-4 lg:gap-8 lg:pt-2',
-                hideOnDesktop && 'lg:hidden'
+                hideOnDesktop && 'lg:hidden',
+                sticky && 'lg:sticky lg:top-28 lg:z-30 lg:bg-background'
             )}
         >
             <div className="flex items-center gap-2">
@@ -72,14 +76,15 @@ interface BackHeaderProps {
     to: LinkProps['to'];
     title: string;
     ariaLabel?: string;
+    sticky?: boolean;
 }
 
-export function BackHeader({ to, title, ariaLabel = 'Voltar' }: BackHeaderProps) {
+export function BackHeader({ to, title, ariaLabel = 'Voltar', sticky }: BackHeaderProps) {
     const router = useRouter();
     const canGoBack = useCanGoBack();
 
     return (
-        <HeaderBar showLogo={false}>
+        <HeaderBar showLogo={false} sticky={sticky}>
             <Link
                 to={to}
                 aria-label={ariaLabel}

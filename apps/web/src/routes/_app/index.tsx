@@ -2,6 +2,7 @@ import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { lazy, Suspense } from 'react';
 
+import { BackToTodayBar } from '#/components/BackToTodayBar';
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderToggle } from '#/components/HeaderBar';
 import { DayClock } from '#/components/home/DayClock';
@@ -116,7 +117,7 @@ function HomeHeader() {
 
 function HomePage() {
     const { data: user } = useSuspenseQuery(meQueryOptions);
-    const { now, days, selectedDay, label, setPicked } = useSelectedDay();
+    const { now, days, selectedDay, isToday, label, setPicked } = useSelectedDay();
     const [weekOpen] = useWeekOpen();
 
     return (
@@ -130,6 +131,7 @@ function HomePage() {
             )}
 
             <TodayDashboard user={user} day={selectedDay} now={now} label={label} />
+            <BackToTodayBar open={!isToday} onBack={() => setPicked(null)} />
         </>
     );
 }
