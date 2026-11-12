@@ -46,27 +46,27 @@
             max-height: calc(100dvh - 11rem);
         }
 
+        /* centralizado, mas nunca sobre a pílula da navegação */
         .desktop-search-field {
             position: fixed;
             top: 1.75rem;
-            left: 50%;
+            left: max(50% - min(22.5vw, 24rem), 29.625rem);
             z-index: 50;
-            width: min(45vw, 48rem);
-            transform: translateX(-50%);
+            width: min(45vw, 48rem, 100vw - 36.625rem);
             animation: search-field-enter 180ms ease-out;
         }
 
         .desktop-search-control {
             position: fixed;
             top: 2rem;
-            left: calc(2.5rem + 2.5rem + 1.25rem + 0.4375rem + 9rem);
+            left: calc(2.5rem + 2.5rem + 1.25rem + 0.4375rem + 21rem);
             transition:
                 left 220ms ease,
                 opacity 150ms ease;
         }
 
         .desktop-search-control.is-searching {
-            left: calc(50% - min(22.5vw, 24rem));
+            left: calc(max(50% - min(22.5vw, 24rem), 29.625rem) - 2rem);
             opacity: 0;
             pointer-events: none;
         }

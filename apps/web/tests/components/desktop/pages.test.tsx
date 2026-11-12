@@ -10,6 +10,7 @@ import { recommendationsQueryOptions } from '#/queries/recommendations';
 
 import { desktopBrowser } from '../../helpers/desktop';
 let desktopPage: typeof import('../../helpers/desktop-page').desktopPage;
+let desktopUser: typeof import('../../helpers/desktop-page').desktopUser;
 import { useDom } from '../../helpers/dom';
 import { runLoader } from '../../helpers/route';
 
@@ -23,7 +24,7 @@ beforeAll(async () => {
     restoreLayoutEffect = async () => {
         await mock.module('@base-ui/utils/useIsoLayoutEffect', () => ({ useIsoLayoutEffect }));
     };
-    ({ desktopPage } = await import('../../helpers/desktop-page'));
+    ({ desktopPage, desktopUser } = await import('../../helpers/desktop-page'));
 });
 afterAll(() => restoreLayoutEffect());
 let device: ReturnType<typeof desktopBrowser>;
@@ -49,6 +50,25 @@ test('visitante acessa o perfil por um ícone sem texto visível e com nome aces
     expect(profile.textContent).toBe('');
     expect(profile.getAttribute('href')).toBe('/perfil');
     expect(profile.querySelector('svg')).not.toBeNull();
+});
+
+test('navegação do topo mostra o nome de cada rota ao lado do ícone', async () => {
+    const view = await render('/', true);
+    const nav = view.getByRole('navigation', { name: 'Navegação principal do aplicativo' });
+    for (const label of ['Início', 'Turmas', 'RU', 'Buscar']) {
+        expect(dom.testing.within(nav).getByRole('link', { name: label }).textContent).toBe(label);
+    }
+});
+
+test('botão de perfil mostra a foto do discente quando houver', async () => {
+    width = 1440;
+    device = desktopBrowser(() => width);
+    page = desktopPage('/', { ...desktopUser, photo: 'https://exemplo.test/foto.jpg' });
+    await page.router.load();
+    const view = dom.testing.render(page.element);
+    const profile = view.getByRole('link', { name: 'Perfil' });
+    expect(profile.querySelector('img')?.getAttribute('src')).toBe('https://exemplo.test/foto.jpg');
+    expect(profile.querySelector('svg')).toBeNull();
 });
 
 test('busca com barra final mantém um único campo e recolhe o atalho da navegação', async () => {

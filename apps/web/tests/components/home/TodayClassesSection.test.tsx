@@ -39,22 +39,26 @@ function render(lessons: WeekLesson[], noClassReason?: string) {
 }
 
 const bars = (markup: string) =>
-    [...markup.matchAll(/class="([^"]*rounded-full[^"]*)" style="height:([\d.]+)%"/g)].map(
+    [...markup.matchAll(/class="(w-full [^"]*)" style="height:([\d.]+)%"/g)].map(
         ([, classes, height]) => [classes.includes('bg-destructive') ? 'falta' : 'ok', height]
     );
 
 describe('TodayClassesSection', () => {
-    test('a barra enche com o tempo e fica vermelha na aula com falta', () => {
+    test('o trace enche com o tempo, sem vãos entre as aulas, e fica vermelho na falta', () => {
         const markup = render([
             lesson('A', '08:00', '09:50', 'falta'),
             lesson('B', '14:00', '16:00', 'nao_registrada'),
             lesson('C', '16:00', '17:50', 'presente')
         ]);
+        // Aula, divisória, aula...: a divisória enche quando a aula seguinte já começou.
         expect(bars(markup)).toEqual([
             ['falta', '100'],
+            ['ok', '100'],
             ['ok', '50'],
+            ['ok', '0'],
             ['ok', '0']
         ]);
+        expect(markup.match(/data-slot="card"/g)).toHaveLength(1);
     });
 
     test('aula cancelada fica riscada, com a barra vazia e sem virar a em andamento', () => {

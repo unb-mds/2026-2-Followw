@@ -21,6 +21,8 @@ export interface ClassCardProps {
     onClick?: () => void;
     indicator?: React.ReactNode;
     action?: React.ReactNode;
+    /** Sem a moldura do card, para listar dentro de outro card. */
+    plain?: boolean;
 }
 
 const STATUS = {
@@ -51,7 +53,8 @@ export const ClassCard: React.FC<ClassCardProps> = ({
     onLocationClick,
     onClick,
     indicator,
-    action
+    action,
+    plain = false
 }) => {
     const statusInfo = status === 'normal' ? undefined : STATUS[status];
     const active = status === 'in_progress';
@@ -99,21 +102,17 @@ export const ClassCard: React.FC<ClassCardProps> = ({
         </>
     );
 
-    return (
-        <Card
-            size="sm"
-            className={cn(
-                'relative gap-1 px-3 lg:gap-3 lg:px-6 lg:py-4',
-                active && 'bg-primary/5 ring-primary/30',
-                compact && 'gap-0.5 py-2'
-            )}
-        >
+    const content = (
+        <>
             {onClick && (
                 <Button
                     variant="ghost"
                     onClick={onClick}
                     aria-label={title}
-                    className="absolute inset-0 h-full w-full rounded-2xl hover:bg-primary/5"
+                    className={cn(
+                        'absolute inset-0 h-full w-full hover:bg-primary/5',
+                        plain ? 'rounded-none' : 'rounded-2xl'
+                    )}
                 />
             )}
             <div className="pointer-events-none relative flex items-center gap-2 text-xs">
@@ -138,6 +137,25 @@ export const ClassCard: React.FC<ClassCardProps> = ({
             ) : (
                 body
             )}
+        </>
+    );
+
+    if (plain)
+        return (
+            <div className="relative flex flex-col gap-1 py-3 pr-3 pl-4 lg:gap-2 lg:px-6">
+                {content}
+            </div>
+        );
+    return (
+        <Card
+            size="sm"
+            className={cn(
+                'relative gap-1 px-3 lg:gap-3 lg:px-6 lg:py-4',
+                active && 'bg-primary/5 ring-primary/30',
+                compact && 'gap-0.5 py-2'
+            )}
+        >
+            {content}
         </Card>
     );
 };

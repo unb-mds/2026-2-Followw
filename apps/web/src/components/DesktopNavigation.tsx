@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useMatches } from '@tanstack/react-router';
 import { House, Search, User, UserRoundGroup, Utensils } from 'lucide-react';
+import { useState } from 'react';
 
 import { FollowwLogo } from '#/components/FollowwLogo';
 import { ThemeToggle } from '#/components/ThemeToggle';
@@ -13,6 +14,10 @@ const items = [
     { to: '/turmas', label: 'Turmas', icon: UserRoundGroup },
     { to: '/ru', label: 'RU', icon: Utensils }
 ] as const;
+
+// largura fixa: o controle de busca (fixed) depende dela em styles.css
+const itemClass =
+    'flex h-12 w-28 items-center justify-center gap-2 rounded-full text-sm font-medium transition-all duration-200 hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring active:scale-95 motion-reduce:transition-none';
 
 export function DesktopNavigation() {
     const pathname = useMatches({ select: (matches) => matches.at(-1)?.pathname ?? '/' });
@@ -41,15 +46,15 @@ export function DesktopNavigation() {
                             <Link
                                 key={to}
                                 to={to}
-                                aria-label={label}
                                 aria-current={active ? 'page' : undefined}
                                 className={cn(
-                                    'desktop-nav-item flex size-12 items-center justify-center rounded-full text-muted-foreground transition-all duration-200 hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring active:scale-95 motion-reduce:transition-none',
-                                    active && 'bg-primary/10 text-primary'
+                                    itemClass,
+                                    active ? 'bg-primary/10 text-primary' : 'text-muted-foreground'
                                 )}
                                 onClick={to === '/ru' ? onRestaurantClick : undefined}
                             >
                                 <Icon aria-hidden="true" className="size-5" />
+                                {label}
                             </Link>
                         );
                     })}
@@ -57,7 +62,7 @@ export function DesktopNavigation() {
                         aria-hidden="true"
                         className={cn(
                             'h-12 transition-all duration-200 motion-reduce:transition-none',
-                            searching ? 'w-0' : 'w-12'
+                            searching ? 'w-0' : 'w-28'
                         )}
                     />
                     <div
@@ -68,19 +73,13 @@ export function DesktopNavigation() {
                         )}
                     >
                         {searching ? (
-                            <span
-                                aria-hidden="true"
-                                className="flex size-12 items-center justify-center"
-                            >
+                            <span aria-hidden="true" className={itemClass}>
                                 <Search className="size-5" />
                             </span>
                         ) : (
-                            <Link
-                                to="/buscar"
-                                aria-label="Buscar"
-                                className="flex size-12 items-center justify-center rounded-full transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring active:scale-95"
-                            >
+                            <Link to="/buscar" className={itemClass}>
                                 <Search aria-hidden="true" className="size-5" />
+                                Buscar
                             </Link>
                         )}
                     </div>
@@ -93,13 +92,27 @@ export function DesktopNavigation() {
                     aria-label={user ? 'Perfil' : isPending ? 'Carregando conta' : 'Entrar'}
                     aria-current={profile ? 'page' : undefined}
                     className={cn(
-                        'flex size-12 shrink-0 items-center justify-center rounded-full border bg-muted/40 text-muted-foreground shadow-sm transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring',
-                        profile && 'border-primary/30 bg-primary/10 text-primary'
+                        'flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-muted/40 text-muted-foreground shadow-sm transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring',
+                        profile &&
+                            'border-primary/30 bg-primary/10 text-primary ring-2 ring-primary/40'
                     )}
                 >
-                    <User aria-hidden="true" className="size-5" />
+                    <ProfilePhoto src={user?.photo} />
                 </Link>
             </div>
         </div>
+    );
+}
+
+function ProfilePhoto({ src }: { src?: string | null }) {
+    const [failedSrc, setFailedSrc] = useState<string | null>(null);
+    if (!src || failedSrc === src) return <User aria-hidden="true" className="size-5" />;
+    return (
+        <img
+            src={src}
+            alt=""
+            className="size-full object-cover"
+            onError={() => setFailedSrc(src)}
+        />
     );
 }
