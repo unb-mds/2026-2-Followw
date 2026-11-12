@@ -7,10 +7,9 @@
 @source not './routeTree.gen.ts';
 
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
-@custom-variant desktop (&:where([data-layout='desktop'], [data-layout='desktop'] *));
 
 @layer components {
-    [data-layout='desktop'] {
+    @media (width >= 64rem) {
         .home-columns,
         .ru-columns,
         .profile-columns {
@@ -72,28 +71,6 @@
             pointer-events: none;
         }
 
-        .day-track::before,
-        .day-track::after {
-            position: absolute;
-            left: -0.3rem;
-            width: 0.65rem;
-            height: 1px;
-            background: var(--border);
-            content: '';
-        }
-
-        .day-track-started::before,
-        .day-track-complete::after {
-            background: var(--primary);
-        }
-
-        .day-track::before {
-            top: 0;
-        }
-        .day-track::after {
-            bottom: 0;
-        }
-
         .clock-digit {
             animation: clock-change 180ms ease-out;
         }
@@ -125,14 +102,12 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    [data-layout='desktop'] .clock-digit {
+    .clock-digit,
+    .desktop-search-field {
         animation: none;
     }
-    [data-layout='desktop'] .desktop-search-control {
+    .desktop-search-control {
         transition: none;
-    }
-    [data-layout='desktop'] .desktop-search-field {
-        animation: none;
     }
 }
 @theme inline {

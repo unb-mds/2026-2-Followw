@@ -56,7 +56,7 @@ export function NewsNotifications() {
                     />
                 )}
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-80 gap-2 p-0 desktop:w-96">
+            <PopoverContent align="end" className="w-80 gap-2 p-0 lg:w-96">
                 <PopoverTitle className="border-b px-4 py-3">Últimas notícias</PopoverTitle>
                 <div className="flex max-h-96 flex-col overflow-y-auto pb-2">
                     <NewsList />

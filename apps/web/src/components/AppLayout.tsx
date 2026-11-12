@@ -34,11 +34,10 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     return (
         <DesktopContext value={desktop}>
             <div
-                data-layout={desktop ? 'desktop' : 'mobile'}
                 className={
                     fullscreen
                         ? 'flex min-h-dvh flex-col bg-background text-foreground lg:h-dvh lg:overflow-hidden'
-                        : 'flex min-h-screen flex-col overflow-x-hidden bg-background text-foreground desktop:overflow-x-clip'
+                        : 'flex min-h-screen flex-col overflow-x-hidden bg-background text-foreground lg:overflow-x-clip'
                 }
             >
                 {desktop && <DesktopNavigation />}
@@ -46,7 +45,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                     className={
                         fullscreen
                             ? 'flex min-h-0 flex-1 flex-col'
-                            : 'app-content mx-auto w-full max-w-2xl px-4 desktop:max-w-none desktop:px-16 desktop:pb-10'
+                            : 'app-content mx-auto w-full max-w-2xl px-4 lg:max-w-none lg:px-16 lg:pb-10'
                     }
                 >
                     <PageStateProvider page={pathname}>
@@ -54,9 +53,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                         <OfflineBanner />
                         <main
                             className={
-                                fullscreen
-                                    ? 'flex min-h-0 flex-1 flex-col'
-                                    : 'flex-1 pb-24 desktop:pb-0'
+                                fullscreen ? 'flex min-h-0 flex-1 flex-col' : 'flex-1 pb-24 lg:pb-0'
                             }
                         >
                             {children}

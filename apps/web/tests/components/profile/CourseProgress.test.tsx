@@ -19,7 +19,10 @@ const user: UserProfile = {
         total: 3525,
         pending_mandatory: 1935,
         pending_optional: 480,
-        pending_complementary: 0
+        pending_complementary: 0,
+        mandatory: null,
+        optional: null,
+        complementary: null
     },
     period_max_workload: null,
     ira: null,
@@ -60,12 +63,30 @@ describe('CourseProgress', () => {
         expect(markup).toContain('1.110h');
         expect(markup).toContain('3.525h');
         expect(markup).toContain('2.415h');
-        expect(markup).toContain('Horas pendentes');
-        expect(markup).toContain('1.935h');
-        expect(markup).toContain('480h');
-        expect(markup).toContain('0h');
+        expect(markup).toContain('1.935h pendentes');
+        expect(markup).toContain('480h pendentes');
         expect(markup).not.toContain('Previsto');
         expect(markup).not.toContain('Não exigidas');
+    });
+
+    test('mostra concluído sobre o exigido com barra por categoria da matriz', () => {
+        const markup = renderToStaticMarkup(
+            <CourseProgress
+                user={{
+                    ...user,
+                    workload: {
+                        ...user.workload!,
+                        mandatory: 2865,
+                        optional: 660,
+                        complementary: 0
+                    }
+                }}
+            />
+        );
+        expect(text(markup)).toContain('930h / 2.865h');
+        expect(text(markup)).toContain('180h / 660h');
+        expect(text(markup)).toContain('Não exigido');
+        expect(markup.match(/style="width:/g)).toHaveLength(2);
     });
 
     test('mantém a integralização sem estimar horas quando a carga está ausente', () => {
@@ -73,7 +94,7 @@ describe('CourseProgress', () => {
         expect(markup).toContain('31%');
         expect(markup).not.toContain('concluídas');
         expect(markup).not.toContain('Faltam');
-        expect(markup).not.toContain('Horas pendentes');
+        expect(markup).not.toContain('Obrigatórias');
     });
 
     test('mostra as horas sem inventar percentual quando não há integralização', () => {

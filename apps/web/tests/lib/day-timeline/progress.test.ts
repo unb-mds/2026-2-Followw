@@ -27,7 +27,6 @@ describe('trilha das aulas', () => {
         );
         const timeline = dayTimeline(classes, date, now('09:55'));
         expect(timeline.slice(0, 2).map(({ gap }) => gap)).toEqual([0, 0]);
-        expect(timeline.every(({ active }) => !active)).toBe(true);
         expect(timeline.map(({ progress }) => progress)).toEqual([1, 0, 0]);
         expect(timeline[2].gap).toBeGreaterThan(10);
     });
@@ -38,16 +37,13 @@ describe('trilha das aulas', () => {
         );
         const timeline = dayTimeline(classes, date, now('23:00'));
         expect(timeline[1].overlap).toBe(true);
-        expect(timeline.every(({ progress, active }) => progress === 1 && !active)).toBe(true);
+        expect(timeline.every(({ progress }) => progress === 1)).toBe(true);
     });
     test('recalcula o progresso após suspensão sem reproduzir tempo perdido', () => {
         const classes = classesOn([{ schedule: '3N1234' }], 2);
         const before = nowInBrasilia(new Date('2026-11-10T22:00:00Z'));
         const resumed = nowInBrasilia(new Date('2026-11-11T01:30:00Z'));
         expect(dayTimeline(classes, date, before)[0].progress).toBe(0);
-        expect(dayTimeline(classes, date, resumed)[0]).toMatchObject({
-            progress: 1,
-            active: false
-        });
+        expect(dayTimeline(classes, date, resumed)[0].progress).toBe(1);
     });
 });

@@ -127,7 +127,10 @@ describe('ProgressSection', () => {
         total: 3525,
         pending_mandatory: 2175,
         pending_optional: 420,
-        pending_complementary: 0
+        pending_complementary: 0,
+        mandatory: null,
+        optional: null,
+        complementary: null
     };
 
     test('junta a integralização e as horas pendentes em um dl semântico', () => {

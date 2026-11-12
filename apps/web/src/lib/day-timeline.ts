@@ -27,7 +27,6 @@ export function dayTimeline<T>(
         return {
             ...entry,
             progress: classProgress(entry.start, entry.end, date, now),
-            active: date === now.date && entry.start <= now.time && now.time < entry.end,
             gap: gap > 10 ? gap : 0,
             overlap: gap < 0
         };

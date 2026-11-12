@@ -71,11 +71,9 @@ test.each([1440, 390])(
             width = viewportWidth;
             device.resize();
         });
-        expect(
-            view.container.querySelector(
-                `[data-layout="${viewportWidth >= 1200 ? 'desktop' : 'mobile'}"]`
-            )
-        ).not.toBeNull();
+        expect(view.queryByRole('link', { name: 'Followw, início' }) !== null).toBe(
+            viewportWidth >= 1024
+        );
         expect(view.getAllByRole('button', { name: /Alternar tema/ })).toHaveLength(1);
         expect(view.queryByRole('link', { name: 'Entrar' })).toBeNull();
         expect(view.getByText('3,72')).toBeDefined();

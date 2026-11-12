@@ -38,7 +38,7 @@ export function ProfessorDetailsSection({ professor }: { professor: ProfessorDet
         : semesters.slice(0, INITIAL_SEMESTERS_COUNT);
 
     return (
-        <div className="flex min-w-0 flex-col gap-4 desktop:border-l desktop:pl-8">
+        <div className="flex min-w-0 flex-col gap-4 lg:border-l lg:pl-8">
             {professor.description && (
                 <DetailCard
                     icon={User}

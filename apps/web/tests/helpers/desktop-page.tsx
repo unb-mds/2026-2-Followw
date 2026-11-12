@@ -40,7 +40,10 @@ export const desktopUser: UserProfile = {
         total: 3000,
         pending_mandatory: 1500,
         pending_optional: 360,
-        pending_complementary: 0
+        pending_complementary: 0,
+        mandatory: null,
+        optional: null,
+        complementary: null
     }
 };
 

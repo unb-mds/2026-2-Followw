@@ -19,7 +19,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
     return (
         <div className={cn('mb-3 flex items-center justify-between', className)}>
             <div className="flex items-center gap-2.5">
-                <h2 className="text-xl font-bold tracking-tight text-foreground desktop:font-medium">
+                <h2 className="text-xl font-bold tracking-tight text-foreground lg:font-medium">
                     {title}
                 </h2>
             </div>

@@ -111,7 +111,7 @@ function HomeHeader() {
                 >
                     {label}
                 </HeaderToggle>
-                <p className="hidden text-sm text-muted-foreground desktop:block">
+                <p className="hidden text-sm text-muted-foreground lg:block">
                     {new Intl.DateTimeFormat('pt-BR', {
                         weekday: 'long',
                         day: 'numeric',

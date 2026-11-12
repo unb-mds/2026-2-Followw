@@ -770,20 +770,6 @@ export interface components {
             equivalences?: components["schemas"]["CatalogRequirements"] | null;
         };
         /**
-         * CurriculumWorkload
-         * @description Carga horária do currículo e o que falta integralizar, em horas.
-         */
-        CurriculumWorkload: {
-            /** Total */
-            total: number;
-            /** Pending Mandatory */
-            pending_mandatory: number;
-            /** Pending Optional */
-            pending_optional: number;
-            /** Pending Complementary */
-            pending_complementary: number;
-        };
-        /**
          * DailyMenu
          * @description Refeição que o campus não serve (ou não publicou) no dia vem `None`.
          */
@@ -1292,7 +1278,7 @@ export interface components {
             entry_semester: string | null;
             /** Integralization */
             integralization: number | null;
-            workload: components["schemas"]["CurriculumWorkload"] | null;
+            workload: components["schemas"]["Workload"] | null;
             /** Period Max Workload */
             period_max_workload: number | null;
             /** Ira */
@@ -1336,6 +1322,23 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /** Workload */
+        Workload: {
+            /** Total */
+            total: number;
+            /** Pending Mandatory */
+            pending_mandatory: number;
+            /** Pending Optional */
+            pending_optional: number;
+            /** Pending Complementary */
+            pending_complementary: number;
+            /** Mandatory */
+            mandatory: number | null;
+            /** Optional */
+            optional: number | null;
+            /** Complementary */
+            complementary: number | null;
         };
     };
     responses: never;

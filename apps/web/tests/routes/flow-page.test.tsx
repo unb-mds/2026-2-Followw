@@ -334,7 +334,7 @@ describe('fluxograma integrado', () => {
             page.getByRole('button', { name: 'Próximo semestre' }).hasAttribute('disabled')
         ).toBe(true);
         testing.act(() => {
-            width = 1200;
+            width = 1024;
             for (const observer of ViewportObserver.active) observer.emit();
         });
         await page.findByRole('region', { name: /Fluxo acadêmico por semestres/ });
@@ -342,7 +342,7 @@ describe('fluxograma integrado', () => {
         expect(page.queryByRole('button', { name: 'Próximo semestre' })).toBeNull();
         expect(page.getAllByRole('button', { name: /Ver requisitos/ })).toHaveLength(2);
         testing.act(() => {
-            width = 1199;
+            width = 1023;
             for (const observer of ViewportObserver.active) observer.emit();
         });
         await page.findByRole('button', { name: 'Próximo semestre' });

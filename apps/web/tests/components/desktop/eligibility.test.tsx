@@ -46,7 +46,7 @@ test('SSR e hidratação começam iguais e preservar a árvore mantém a digita�
     const input = dom.testing.within(container).getByRole('textbox');
     dom.testing.fireEvent.change(input, { target: { value: 'Cálculo' } });
     await dom.testing.act(async () => {
-        width = 900;
+        width = 1023;
         device.resize();
     });
     expect(container.firstElementChild?.getAttribute('data-layout')).toBe('mobile');

@@ -26,7 +26,7 @@ export function TodayDashboard({ user, day, now, label }: TodayDashboardProps) {
     const classes = noClassReason ? [] : classesOn(classrooms.data ?? [], day.weekday, time);
 
     return (
-        <div className="home-columns flex flex-col gap-6 desktop:grid desktop:items-start desktop:gap-10">
+        <div className="home-columns flex flex-col gap-6 lg:grid lg:items-start lg:gap-10">
             <TodayClassesSection
                 loggedIn={Boolean(user)}
                 noClassReason={noClassReason}
@@ -36,7 +36,7 @@ export function TodayDashboard({ user, day, now, label }: TodayDashboardProps) {
                 date={day.date}
                 now={now}
             />
-            <aside className="flex min-w-0 flex-col gap-6 desktop:gap-8 desktop:border-l desktop:pl-8">
+            <aside className="flex min-w-0 flex-col gap-6 lg:gap-8 lg:border-l lg:pl-8">
                 <PublicInfoSection
                     campus={campus}
                     menus={preview.menus}

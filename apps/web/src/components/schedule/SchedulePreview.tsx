@@ -126,7 +126,7 @@ export function SchedulePreview() {
         return (
             <aside
                 aria-label="Minha grade"
-                className="schedule-panel flex min-w-0 flex-col gap-4 self-start desktop:sticky desktop:top-32 desktop:border-l desktop:pl-8"
+                className="schedule-panel flex min-w-0 flex-col gap-4 self-start lg:sticky lg:top-32 lg:border-l lg:pl-8"
             >
                 <div className="flex items-center justify-between gap-3">
                     <h2 className="text-xl font-medium">

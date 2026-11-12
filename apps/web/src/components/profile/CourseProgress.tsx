@@ -3,6 +3,7 @@ import type { UserProfile } from '#/queries/me';
 
 import { Card } from '#/components/ui/card';
 import { curriculumProgress, projectedIntegralization } from '#/lib/profile';
+import { cn } from '#/lib/shadcn';
 
 const hoursLabel = (hours: number) => `${hours.toLocaleString('pt-BR')}h`;
 const NO_CLASSROOMS: readonly Classroom[] = [];
@@ -17,10 +18,18 @@ export function CourseProgress({
     const { integralization, workload } = user;
     const progress = curriculumProgress(workload);
     const projected = projectedIntegralization(user, classrooms);
-    const pending = workload && [
-        { label: 'Obrigatórias', hours: workload.pending_mandatory },
-        { label: 'Optativas', hours: workload.pending_optional },
-        { label: 'Complementares', hours: workload.pending_complementary }
+    const categories = workload && [
+        {
+            label: 'Obrigatórias',
+            pending: workload.pending_mandatory,
+            required: workload.mandatory
+        },
+        { label: 'Optativas', pending: workload.pending_optional, required: workload.optional },
+        {
+            label: 'Complementares',
+            pending: workload.pending_complementary,
+            required: workload.complementary
+        }
     ];
 
     return (
@@ -116,31 +125,68 @@ export function CourseProgress({
                     </div>
                 </div>
             )}
-            {pending && (
-                <div className="py-4 last:pb-0">
-                    <h3 className="mb-4 text-sm font-medium">Horas pendentes</h3>
-                    <dl className="flex flex-col gap-4">
-                        {pending.map(({ label, hours }) => (
-                            <div key={label} className="flex items-baseline justify-between gap-4">
-                                <dt className="text-sm text-muted-foreground">{label}</dt>
-                                <dd className="text-sm font-medium tabular-nums">
-                                    {hoursLabel(hours)}
-                                </dd>
-                            </div>
-                        ))}
-                        {!progress && workload && (
-                            <div className="flex items-baseline justify-between gap-4">
-                                <dt className="text-sm text-muted-foreground">
-                                    Total do currículo
-                                </dt>
-                                <dd className="text-sm font-medium tabular-nums">
-                                    {hoursLabel(workload.total)}
-                                </dd>
-                            </div>
-                        )}
-                    </dl>
-                </div>
+            {categories && (
+                <dl className="flex flex-col gap-4 py-4 last:pb-0">
+                    {categories.map((category) => (
+                        <CategoryProgress key={category.label} {...category} />
+                    ))}
+                    {!progress && workload && (
+                        <div className="flex items-baseline justify-between gap-4">
+                            <dt className="text-sm text-muted-foreground">Total do currículo</dt>
+                            <dd className="text-sm font-medium tabular-nums">
+                                {hoursLabel(workload.total)}
+                            </dd>
+                        </div>
+                    )}
+                </dl>
             )}
         </Card>
+    );
+}
+
+function CategoryProgress({
+    label,
+    pending,
+    required
+}: {
+    label: string;
+    pending: number;
+    required: number | null;
+}) {
+    // Sem a matriz, mostra só o que falta.
+    if (required == null)
+        return <CategoryRow label={label} value={`${hoursLabel(pending)} pendentes`} />;
+    if (required === 0) return <CategoryRow label={label} value="Não exigido" muted />;
+
+    const completed = Math.max(0, required - pending);
+    return (
+        <div className="flex flex-col gap-2">
+            <CategoryRow
+                label={label}
+                value={`${hoursLabel(completed)} / ${hoursLabel(required)}`}
+            />
+            <div aria-hidden="true" className="h-2 overflow-hidden rounded-full bg-muted">
+                <div
+                    className="h-full rounded-full bg-primary"
+                    style={{ width: `${Math.min(100, (completed / required) * 100)}%` }}
+                />
+            </div>
+        </div>
+    );
+}
+
+function CategoryRow({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
+    return (
+        <div className="flex items-baseline justify-between gap-4">
+            <dt className="text-sm text-muted-foreground">{label}</dt>
+            <dd
+                className={cn(
+                    'text-sm tabular-nums',
+                    muted ? 'text-muted-foreground' : 'font-medium'
+                )}
+            >
+                {value}
+            </dd>
+        </div>
     );
 }

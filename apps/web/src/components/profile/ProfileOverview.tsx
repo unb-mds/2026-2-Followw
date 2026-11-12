@@ -32,7 +32,7 @@ export function ProfileIdentity({
                         <RegistrationCopy value={user.registration} />
                     </div>
                     <div>
-                        <p className="text-sm text-primary desktop:text-xl desktop:font-medium">
+                        <p className="text-sm text-primary lg:text-xl lg:font-medium">
                             {[user.course && titleCase(user.course.name), user.unit?.code]
                                 .filter(Boolean)
                                 .join(' · ')}
@@ -56,18 +56,18 @@ export function AcademicPerformance({ user }: { user: UserProfile }) {
                 size="sm"
                 className="gap-0 overflow-visible bg-transparent py-0 shadow-none ring-0"
             >
-                <dl className={cn('grid gap-3 desktop:gap-4', indexes.length > 1 && 'grid-cols-2')}>
+                <dl className={cn('grid gap-3 lg:gap-4', indexes.length > 1 && 'grid-cols-2')}>
                     {indexes.map((index) => (
                         <div
                             key={index.label}
-                            className="rounded-2xl border bg-card p-4 shadow-sm desktop:p-5"
+                            className="rounded-2xl border bg-card p-4 shadow-sm lg:p-5"
                         >
                             <dt className="text-xs font-medium text-muted-foreground">
                                 <abbr title={index.description} className="no-underline">
                                     {index.label}
                                 </abbr>
                             </dt>
-                            <dd className="mt-2 text-3xl font-medium tracking-tight text-primary tabular-nums desktop:text-4xl">
+                            <dd className="mt-2 text-3xl font-medium tracking-tight text-primary tabular-nums lg:text-4xl">
                                 {index.value}
                             </dd>
                         </div>
@@ -95,7 +95,7 @@ function CurrentCourseProgress({ user }: { user: UserProfile }) {
 export function ProfileSection({ title, children }: { title: string; children: React.ReactNode }) {
     return (
         <section aria-label={title}>
-            <h2 className="mb-4 px-1 text-lg font-medium desktop:text-xl">{title}</h2>
+            <h2 className="mb-4 px-1 text-lg font-medium lg:text-xl">{title}</h2>
             {children}
         </section>
     );

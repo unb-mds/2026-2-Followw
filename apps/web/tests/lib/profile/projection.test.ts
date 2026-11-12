@@ -11,7 +11,10 @@ const user = {
         total: 1000,
         pending_mandatory: 500,
         pending_optional: 200,
-        pending_complementary: 0
+        pending_complementary: 0,
+        mandatory: null,
+        optional: null,
+        complementary: null
     }
 } satisfies Pick<UserProfile, 'integralization' | 'workload'>;
 

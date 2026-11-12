@@ -56,7 +56,7 @@ function ProfileHeader() {
         <HeaderBar actions={!desktop && <ThemeToggle />}>
             <div className="flex flex-col gap-3">
                 <HeaderTitle>Perfil</HeaderTitle>
-                <p className="hidden text-sm text-muted-foreground desktop:block">
+                <p className="hidden text-sm text-muted-foreground lg:block">
                     Seu percurso acadêmico e sua conta.
                 </p>
             </div>
@@ -73,28 +73,28 @@ function PerfilPage() {
     if (!user) return <Navigate to="/login" replace />;
 
     return (
-        <div className="profile-columns desktop:grid desktop:items-start desktop:gap-x-10 desktop:gap-y-8">
-            <div className="profile-identity desktop:col-start-1 desktop:row-start-1">
+        <div className="profile-columns lg:grid lg:items-start lg:gap-x-10 lg:gap-y-8">
+            <div className="profile-identity lg:col-start-1 lg:row-start-1">
                 <ProfileIdentity user={user} displayName={settings.displayName} />
             </div>
-            <div className="my-4 flex flex-col gap-4 desktop:contents">
-                <div className="profile-install contents desktop:col-start-1 desktop:row-start-4 desktop:block">
+            <div className="my-4 flex flex-col gap-4 lg:contents">
+                <div className="profile-install contents lg:col-start-1 lg:row-start-4 lg:block">
                     <InstallPromptCard />
                 </div>
-                <div className="profile-performance contents desktop:col-start-2 desktop:row-start-1 desktop:block desktop:border-l desktop:pl-8">
+                <div className="profile-performance contents lg:col-start-2 lg:row-start-1 lg:block lg:border-l lg:pl-8">
                     <AcademicPerformance user={user} />
                 </div>
-                <div className="profile-progress contents desktop:col-start-1 desktop:row-span-2 desktop:row-start-2 desktop:block">
+                <div className="profile-progress contents lg:col-start-1 lg:row-span-2 lg:row-start-2 lg:block">
                     <ProgressSection user={user} />
                 </div>
-                <div className="desktop:col-start-2 desktop:row-start-2 desktop:border-l desktop:pl-8">
+                <div className="lg:col-start-2 lg:row-start-2 lg:border-l lg:pl-8">
                     <ProfileSection title="Documentos">
-                        <div className="grid grid-cols-2 gap-3 desktop:gap-4">
+                        <div className="grid grid-cols-2 gap-3 lg:gap-4">
                             <DocumentDownloads download={download} />
                         </div>
                     </ProfileSection>
                 </div>
-                <div className="profile-account desktop:col-start-2 desktop:row-start-3 desktop:border-l desktop:pl-8">
+                <div className="profile-account lg:col-start-2 lg:row-start-3 lg:border-l lg:pl-8">
                     <AccountSection
                         user={user}
                         displayName={settings.displayName}

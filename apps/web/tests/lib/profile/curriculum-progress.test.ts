@@ -6,7 +6,10 @@ const workload = {
     total: 3525,
     pending_mandatory: 1935,
     pending_optional: 480,
-    pending_complementary: 0
+    pending_complementary: 0,
+    mandatory: null,
+    optional: null,
+    complementary: null
 };
 
 describe('curriculumProgress', () => {
@@ -40,7 +43,12 @@ describe('curriculumProgress', () => {
     });
 
     test.each([-1, NaN, Infinity])('não calcula conclusão com carga inválida: %s', (hours) => {
-        for (const key of Object.keys(workload))
+        for (const key of [
+            'total',
+            'pending_mandatory',
+            'pending_optional',
+            'pending_complementary'
+        ])
             expect(curriculumProgress({ ...workload, [key]: hours })).toBeNull();
     });
 });

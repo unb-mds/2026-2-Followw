@@ -29,7 +29,7 @@ export const Route = createFileRoute('/_app/turmas')({
             <HeaderBar>
                 <div className="flex flex-col gap-2">
                     <HeaderTitle>Minhas Turmas</HeaderTitle>
-                    <p className="hidden text-sm text-muted-foreground desktop:block">
+                    <p className="hidden text-sm text-muted-foreground lg:block">
                         Disciplinas e horários
                     </p>
                 </div>
@@ -73,15 +73,15 @@ function Classrooms() {
                     className="turmas-semesters mb-2"
                 />
             )}
-            <div className="classroom-columns desktop:grid desktop:items-start desktop:gap-10">
+            <div className="classroom-columns lg:grid lg:items-start lg:gap-10">
                 <section className="min-w-0">
-                    <h2 className="mb-4 hidden text-xl font-medium desktop:block">
+                    <h2 className="mb-4 hidden text-xl font-medium lg:block">
                         Disciplinas{' '}
                         <span className="float-right text-sm text-muted-foreground">
                             {items?.length ?? 0} turmas
                         </span>
                     </h2>
-                    <div className="flex flex-col gap-2 desktop:gap-4">
+                    <div className="flex flex-col gap-2 lg:gap-4">
                         {items?.map((classroom) => (
                             <ClassCard
                                 key={classroom.id}

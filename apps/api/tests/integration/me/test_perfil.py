@@ -50,6 +50,9 @@ def test_login_seguido_de_me_responde_do_cache(client, sigaa):
             "pending_mandatory": 2175,
             "pending_optional": 420,
             "pending_complementary": 0,
+            "mandatory": None,
+            "optional": None,
+            "complementary": None,
         },
         "period_max_workload": None,
         "ira": 3.9524,
@@ -130,6 +133,32 @@ def test_me_traz_carga_maxima_por_periodo_da_matriz(client, sigaa, database):
         )
 
     assert client.get("/me").json()["period_max_workload"] == 420
+
+
+def test_me_traz_carga_exigida_por_categoria_da_matriz(client, sigaa, database):
+    sigaa.profile = PERFIL
+    client.post(
+        "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
+    )
+    with database.begin() as session:
+        user = session.scalars(select(User)).one()
+        user.curriculum = Curriculum(
+            course_id=user.course_id,
+            sigaa_id=1,
+            code="6360/1",
+            valid_from="2025.1",
+            created_year=2025,
+            active=True,
+            matrix="ENGENHARIA DE SOFTWARE",
+            required_workload=2865,
+            optional_min_workload=660,
+            complementary_min_workload=0,
+        )
+
+    workload = client.get("/me").json()["workload"]
+    assert workload["mandatory"] == 2865
+    assert workload["optional"] == 660
+    assert workload["complementary"] == 0
 
 
 @pytest.mark.parametrize("refresh", [None, "cookie-invalido", "expirado"])

@@ -131,7 +131,7 @@ function RUHeader() {
                         Cardápio
                     </HeaderToggle>
                 )}
-                <p className="hidden text-sm text-muted-foreground desktop:block">
+                <p className="hidden text-sm text-muted-foreground lg:block">
                     {new Intl.DateTimeFormat('pt-BR', {
                         weekday: 'long',
                         day: 'numeric',
@@ -209,11 +209,11 @@ function RUPage() {
     const shiftDay = (offset: number) => () => select({ date: addDays(selectedDate, offset) });
 
     return (
-        <div className="ru-columns desktop:grid desktop:items-start desktop:gap-x-10 desktop:gap-y-8">
+        <div className="ru-columns lg:grid lg:items-start lg:gap-x-10 lg:gap-y-8">
             {(filtersOpen || desktop) && (
-                <div className="ru-filters desktop:col-start-2 desktop:row-start-1">
-                    <h2 className="mb-5 hidden text-xl font-medium desktop:block">Data e campus</h2>
-                    <div className="desktop:rounded-2xl desktop:border desktop:p-5 desktop:shadow-sm">
+                <div className="ru-filters lg:col-start-2 lg:row-start-1">
+                    <h2 className="mb-5 hidden text-xl font-medium lg:block">Data e campus</h2>
+                    <div className="lg:rounded-2xl lg:border lg:p-5 lg:shadow-sm">
                         <WeekDayPicker
                             days={days}
                             selectedDate={selectedDate}
@@ -262,7 +262,7 @@ function RUPage() {
             )}
 
             <Tabs
-                className="ru-menu desktop:col-start-1 desktop:row-start-1 desktop:row-end-3"
+                className="ru-menu lg:col-start-1 lg:row-start-1 lg:row-end-3"
                 value={selectedMeal}
                 onValueChange={(value) => {
                     const selected = MEALS.find((item) => item.key === value);
@@ -270,14 +270,14 @@ function RUPage() {
                 }}
             >
                 <TabsList
-                    className="w-full group-data-horizontal/tabs:h-auto desktop:rounded-full desktop:border desktop:p-1"
+                    className="w-full group-data-horizontal/tabs:h-auto lg:rounded-full lg:border lg:p-1"
                     aria-label="Escolher refeição"
                 >
                     {MEALS.map((item) => (
                         <TabsTrigger
                             key={item.key}
                             value={item.key}
-                            className="h-auto flex-col gap-1 py-3 text-xs desktop:flex-row desktop:gap-2 desktop:rounded-full desktop:py-2"
+                            className="h-auto flex-col gap-1 py-3 text-xs lg:flex-row lg:gap-2 lg:rounded-full lg:py-2"
                         >
                             <item.icon className="size-5" aria-hidden="true" />
                             {item.label}
@@ -309,7 +309,7 @@ function RUPage() {
                             <ChevronRight />
                         </Button>
                     </div>
-                    <div className="flex min-h-60 flex-col gap-2 desktop:gap-6">
+                    <div className="flex min-h-60 flex-col gap-2 lg:gap-6">
                         {sections.length > 0 ? (
                             <MealDetails sections={sections} />
                         ) : (
@@ -346,7 +346,7 @@ function RUPage() {
                 </TabsContent>
             </Tabs>
 
-            <div className="ru-account desktop:col-start-2 desktop:row-start-2">
+            <div className="ru-account lg:col-start-2 lg:row-start-2">
                 {user ? (
                     <Suspense fallback={null}>
                         <RestaurantAccount
@@ -379,11 +379,11 @@ function MealDetails({ sections }: { sections: MenuSection[] }) {
             {others.length > 0 && (
                 <Card size="sm">
                     <CardContent>
-                        <dl className="divide-y divide-border desktop:grid desktop:grid-cols-2 desktop:gap-x-8">
+                        <dl className="divide-y divide-border lg:grid lg:grid-cols-2 lg:gap-x-8">
                             {others.map((section) => (
                                 <div
                                     key={section.name}
-                                    className="flex gap-4 py-3 first:pt-0 last:pb-0 desktop:flex-col desktop:gap-2 desktop:py-5 desktop:first:pt-5 desktop:last:pb-5"
+                                    className="flex gap-4 py-3 first:pt-0 last:pb-0 lg:flex-col lg:gap-2 lg:py-5 lg:first:pt-5 lg:last:pb-5"
                                 >
                                     <dt className="w-28 shrink-0 pt-0.5 text-xs font-medium text-muted-foreground">
                                         {section.name}
@@ -406,14 +406,14 @@ function MealDetails({ sections }: { sections: MenuSection[] }) {
 function MealHighlight({ main, alternatives }: { main: MenuSection; alternatives: MenuSection[] }) {
     return (
         <section aria-label={main.name}>
-            <Card className="bg-primary/5 ring-primary/30 desktop:py-6">
+            <Card className="bg-primary/5 ring-primary/30 lg:py-6">
                 <CardContent>
                     <p className="text-xs font-semibold text-primary">{main.name}</p>
                     <div className="mt-1 flex flex-col gap-1">
                         {main.items.map((item) => (
                             <p
                                 key={item}
-                                className="text-xl leading-tight font-bold tracking-tight desktop:mt-3 desktop:text-3xl desktop:font-medium"
+                                className="text-xl leading-tight font-bold tracking-tight lg:mt-3 lg:text-3xl lg:font-medium"
                             >
                                 {item}
                             </p>
@@ -421,7 +421,7 @@ function MealHighlight({ main, alternatives }: { main: MenuSection; alternatives
                     </div>
 
                     {alternatives.length > 0 && (
-                        <ul className="mt-4 flex flex-col gap-3 border-t border-primary/15 pt-4 desktop:mt-6 desktop:flex-row desktop:gap-6 desktop:pt-6 desktop:*:flex-1">
+                        <ul className="desktop:*:flex-1 mt-4 flex flex-col gap-3 border-t border-primary/15 pt-4 lg:mt-6 lg:flex-row lg:gap-6 lg:pt-6">
                             {alternatives.map((section) => {
                                 const info = section.key ? ALTERNATIVES[section.key] : undefined;
                                 const Icon = info?.icon ?? Leaf;

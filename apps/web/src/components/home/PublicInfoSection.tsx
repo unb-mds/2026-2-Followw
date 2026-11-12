@@ -40,7 +40,7 @@ export const PublicInfoSection: React.FC<PublicInfoSectionProps> = ({
     return (
         <section aria-label="RU">
             <SectionHeader title="RU" actionLabel="Ver Cardápio" actionTo="/ru" />
-            <Card size="sm" className="relative gap-3 p-4 desktop:p-6">
+            <Card size="sm" className="relative gap-3 p-4 lg:p-6">
                 <Link
                     to="/ru"
                     search={isToday ? { date: next.date, meal: next.key } : { date: selectedDate }}
