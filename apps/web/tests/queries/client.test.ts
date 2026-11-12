@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, describe, expect, mock, spyOn, test } from 'bun:test';
+import { afterAll, afterEach, beforeAll, describe, expect, mock, spyOn, test } from 'bun:test';
 
 import { apiClient } from '#/queries/client';
 import { ApiError, toApiError } from '#/queries/errors';
@@ -7,6 +7,7 @@ import { ApiError, toApiError } from '#/queries/errors';
 let ssr: { url: string; cookie?: string; ip?: string; setCookie?: string[] } | null = null;
 const originalSecret = process.env.RATE_LIMIT_SECRET_KEY;
 const originalVercel = process.env.VERCEL;
+let originalServer: typeof import('@tanstack/react-start/server');
 
 function inRequest() {
     if (!ssr) throw new Error('fora de uma requisição');
@@ -14,9 +15,9 @@ function inRequest() {
 }
 
 beforeAll(async () => {
-    const real = await import('@tanstack/react-start/server');
+    originalServer = { ...(await import('@tanstack/react-start/server')) };
     await mock.module('@tanstack/react-start/server', () => ({
-        ...real,
+        ...originalServer,
         getRequestHeader: (name: string) => (name === 'cookie' ? inRequest().cookie : undefined),
         getRequest: () => {
             const incoming = inRequest();
@@ -30,6 +31,10 @@ beforeAll(async () => {
             if (name === 'set-cookie') inRequest().setCookie = value;
         }
     }));
+});
+
+afterAll(async () => {
+    await mock.module('@tanstack/react-start/server', () => originalServer);
 });
 
 afterEach(() => {

@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
@@ -19,6 +21,43 @@ const fallbackToParentPage = async ({ request }: { request: Request }) => {
     return (await caches.match(parent, options)) ?? (await caches.match('/', options));
 };
 
+type PageCacheState = { pages?: Cache };
+
+const rememberPageCache = async ({ state }: { state?: PageCacheState }) => {
+    if (!state) return;
+    try {
+        const [cacheName, oldCache] = (await caches.keys()).filter((name) =>
+            name.startsWith('followw-pages-')
+        );
+        if (!cacheName || oldCache) return;
+        const path = '/.followw-offline-session';
+        const marker = await caches.match(path, { cacheName });
+        if (!marker) return;
+        const id = await marker.text();
+        const cache = await caches.open(cacheName);
+        if ((await (await cache.match(path))?.text()) === id) state.pages = cache;
+    } catch {
+        // A navegação continua mesmo se o navegador negar acesso ao cache.
+    }
+};
+
+const savePageInSession = async ({
+    request,
+    response,
+    event,
+    state
+}: {
+    request: Request;
+    response: Response;
+    event: { waitUntil: (pending: Promise<unknown>) => void };
+    state?: PageCacheState;
+}) => {
+    // A referência antiga deixa de apontar para o cache acessível após o logout.
+    if (state?.pages && response.status === 200 && !response.redirected)
+        event.waitUntil(state.pages.put(request, response.clone()).catch(() => undefined));
+    return response;
+};
+
 // O HTML do SSR é cacheado em runtime, por URL.
 export const pwaPlugins = (buildId: string) =>
     clientOnly(
@@ -37,7 +76,9 @@ export const pwaPlugins = (buildId: string) =>
                 // public/ só é copiado pelo nitro depois do build do client
                 additionalManifestEntries: ['/favicon.svg', '/manifest.json'].map((url) => ({
                     url,
-                    revision: buildId
+                    revision: createHash('sha256')
+                        .update(readFileSync(`public${url}`))
+                        .digest('hex')
                 })),
                 navigateFallback: null,
                 cleanupOutdatedCaches: true,
@@ -49,8 +90,14 @@ export const pwaPlugins = (buildId: string) =>
                             cacheName: pagesCacheName(buildId),
                             networkTimeoutSeconds: 3,
                             matchOptions: { ignoreSearch: true },
-                            cacheableResponse: { statuses: [200] },
-                            plugins: [{ handlerDidError: fallbackToParentPage }]
+                            plugins: [
+                                {
+                                    handlerWillStart: rememberPageCache,
+                                    fetchDidSucceed: savePageInSession,
+                                    cacheWillUpdate: async () => null,
+                                    handlerDidError: fallbackToParentPage
+                                }
+                            ]
                         }
                     }
                 ]

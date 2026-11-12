@@ -242,13 +242,13 @@ def test_cache_le_so_o_intervalo_pedido(client, browser, monkeypatch):
         return await original(self, campus, start, end)
 
     monkeypatch.setattr(RestaurantRepository, "get", get)
-    client.get("/public/restaurant", params={"start_date": "2026-09-01"})
-    client.get("/public/restaurant", params={"end_date": "2026-09-01"})
+    client.get("/public/restaurant", params={"start_date": "2026-09-14"})
+    client.get("/public/restaurant", params={"end_date": "2026-09-21"})
     client.get("/public/restaurant")
     # Intervalos sem dias no cache são relidos depois de consultar o RU.
     assert list(dict.fromkeys(ranges)) == [
-        (date(2026, 9, 1), date(2026, 9, 7)),
-        (date(2026, 8, 26), date(2026, 9, 1)),
+        (date(2026, 9, 14), date(2026, 9, 20)),
+        (date(2026, 9, 15), date(2026, 9, 21)),
         (date(2026, 9, 21), date(2026, 9, 27)),
     ]
 
@@ -464,31 +464,32 @@ def test_cardapio_do_pdf_real_chega_ao_endpoint_e_ao_cache(client, today):
 @pytest.mark.parametrize(
     "params",
     [
-        {"date": "2026-10-03"},
-        {"date": "2026-10-04"},
-        {"date": "2026-10-03", "meal": "lunch"},
-        {"start_date": "2026-10-03", "end_date": "2026-10-04"},
+        {"date": "2026-09-19"},
+        {"date": "2026-09-20"},
+        {"date": "2026-09-19", "meal": "lunch"},
+        {"start_date": "2026-09-19", "end_date": "2026-09-20"},
         {},
     ],
 )
 def test_fim_de_semana_do_pdf_real_fica_em_cache_por_cinco_dias(
     client, today, database, params
 ):
-    today.value = date(2026, 10, 3)
+    today.value = date(2026, 9, 19)
     pdf_url = "https://ru.unb.br/cardapio-teste.pdf"
+    query = {"campus": "Fazenda", **params}
     with respx.mock as network:
         page = network.get(RU_MENU_URL).respond(
             200,
-            text=f'<h3>Cardápio Gama</h3><a href="{pdf_url}">'
-            "ISM – 28/9/2026 A 4/10/2026</a>",
+            text=f'<h3>Cardápio Fazenda Água Limpa</h3><a href="{pdf_url}">'
+            "ISM – 14/9/2026 A 20/9/2026</a>",
         )
         pdf = network.get(pdf_url).respond(
-            200, content=(FIXTURES / "cardapio-gama-28-09.pdf").read_bytes()
+            200, content=(FIXTURES / "cardapio-fazenda.pdf").read_bytes()
         )
-        response = client.get("/public/restaurant", params={"campus": "Gama", **params})
+        response = client.get("/public/restaurant", params=query)
         assert response.status_code == 200
         expected = response.json()
-        weekends = [item for item in expected if item["date"] >= "2026-10-03"]
+        weekends = [item for item in expected if item["date"] >= "2026-09-19"]
         assert weekends
         assert all(
             value is None
@@ -501,25 +502,22 @@ def test_fim_de_semana_do_pdf_real_fica_em_cache_por_cinco_dias(
                 session.scalars(select(RestaurantMenu).order_by(RestaurantMenu.date))
             )
             assert len(rows) == 7
-            assert rows[0].date == date(2026, 9, 28)
-            assert rows[-1].date == date(2026, 10, 4)
-            assert all(row.breakfast and row.lunch and row.dinner for row in rows[:5])
+            assert rows[0].date == date(2026, 9, 14)
+            assert rows[-1].date == date(2026, 9, 20)
+            assert all(
+                row.breakfast and row.lunch and row.dinner is None for row in rows[:5]
+            )
             assert all(
                 row.breakfast is None and row.lunch is None and row.dinner is None
                 for row in rows[5:]
             )
         for hours in (0, 73, 119):
             _age_cache(database, hours)
-            cached = client.get(
-                "/public/restaurant", params={"campus": "Gama", **params}
-            )
+            cached = client.get("/public/restaurant", params=query)
             assert cached.json() == expected
         assert page.call_count == pdf.call_count == 1
         _age_cache(database, 121)
-        assert (
-            client.get("/public/restaurant", params={"campus": "Gama", **params}).json()
-            == expected
-        )
+        assert client.get("/public/restaurant", params=query).json() == expected
         assert page.call_count == pdf.call_count == 2
 
 
@@ -579,12 +577,34 @@ def test_filtros_de_data_invalidos_retornam_422(api, browser, subtests):
         {"date": "invalida"},
         {"date": "2026-02-30"},
         {"start_date": "2026-09-26", "end_date": "2026-09-25"},
+        {"start_date": "2026-09-14", "end_date": "2026-09-28"},
+        {"date": "2026-09-13"},
+        {"date": "2026-10-05"},
+        {"start_date": "2026-10-01", "end_date": "2026-10-05"},
+        {"end_date": "2026-10-05"},
+        {"start_date": "2026-10-04"},
+        {"end_date": "2026-09-14"},
+        {"start_date": "9999-12-31"},
+        {"end_date": "0001-01-01"},
         {"date": "2026-09-25", "start_date": "2026-09-24"},
         {"date": "2026-09-25", "end_date": "2026-09-26"},
     ]:
         with subtests.test(params=params):
             assert api.get("/public/restaurant", params=params).status_code == 422
             browser.restaurant.get_menu.assert_not_awaited()
+
+
+def test_aceita_ate_o_domingo_da_proxima_semana(client, browser):
+    # hoje é sexta, 25/09: a próxima semana termina em 04/10
+    assert client.get("/public/restaurant?date=2026-10-04").status_code == 200
+
+
+def test_intervalo_de_quatorze_dias_e_aceito(client, browser):
+    response = client.get(
+        "/public/restaurant",
+        params={"start_date": "2026-09-14", "end_date": "2026-09-27"},
+    )
+    assert response.status_code == 200
 
 
 def test_refresh_com_data_atualiza_cache_completo(client, browser):

@@ -25,22 +25,22 @@ export const NotFoundPage: React.FC = () => (
                 <img
                     src="/images/not-found/icc-exterior.webp"
                     alt=""
-                    width="1500"
-                    height="1000"
+                    width="999"
+                    height="666"
                     className="not-found-photo absolute bottom-0 -left-16 h-3/5 w-3/5 -rotate-6 mask-b-from-50% mask-b-to-100% object-cover opacity-70 grayscale sm:-left-20 dark:opacity-70 dark:brightness-125"
                 />
                 <img
                     src="/images/not-found/icc-corredor.webp"
                     alt=""
-                    width="2304"
-                    height="1728"
+                    width="896"
+                    height="672"
                     className="not-found-photo absolute top-6 -right-12 h-4/5 w-2/5 rotate-6 mask-b-from-50% mask-b-to-100% object-cover opacity-60 grayscale sm:-right-16 dark:opacity-65 dark:brightness-125"
                 />
                 <img
                     src="/images/not-found/collage.webp"
                     alt=""
-                    width="1536"
-                    height="1024"
+                    width="1020"
+                    height="680"
                     fetchPriority="high"
                     className="relative z-10 size-full object-contain sm:px-16"
                 />

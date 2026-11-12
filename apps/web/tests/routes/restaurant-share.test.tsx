@@ -6,6 +6,7 @@ import type { RestaurantSelection } from '#/lib/restaurant-share';
 import type { MenuSection } from '#/queries/restaurant';
 
 import { RestaurantShareImage } from '#/components/ru/RestaurantShareImage';
+import { lastMenuDay } from '#/lib/restaurant';
 import {
     loadRestaurantSearch,
     restaurantPageHead,
@@ -15,6 +16,7 @@ import {
     validateRestaurantSearch
 } from '#/lib/restaurant-share';
 import { restaurantShareResponse } from '#/lib/restaurant-share.server';
+import { addDays, nowInBrasilia } from '#/lib/schedule';
 import { loadSharedMenu } from '#/queries/restaurant-share';
 
 const selection: RestaurantSelection = { date: '2026-10-19', meal: 'lunch', campus: 'Gama' };
@@ -118,7 +120,7 @@ describe('compartilhamento do cardápio', () => {
     });
     test('o Router valida os parâmetros vindos da URL', () => {
         const search = { date: selection.date, meal: 'dinner', campus: 'Gama' } as const;
-        expect(validateRestaurantSearch['~standard'].validate(search)).toEqual({ value: search });
+        expect(validateRestaurantSearch(search)).toEqual(search);
     });
 
     test('o link restaura dia, refeição e campus sem depender dos padrões atuais', () => {
@@ -134,6 +136,20 @@ describe('compartilhamento do cardápio', () => {
             );
         }
     );
+
+    test('aceita do primeiro dia com cardápio até o fim da próxima semana', () => {
+        const last = lastMenuDay(nowInBrasilia().date);
+        expect(loadRestaurantSearch({ date: '2026-09-14' }).date).toBe('2026-09-14');
+        expect(loadRestaurantSearch({ date: last }).date).toBe(last);
+        expect(loadRestaurantSearch({ date: '2026-09-13' }).date).toBeNull();
+        expect(loadRestaurantSearch({ date: addDays(last, 1) }).date).toBeNull();
+    });
+
+    test('o fim da próxima semana é o domingo seguinte ao desta semana', () => {
+        expect(lastMenuDay('2026-11-11')).toBe('2026-11-22');
+        expect(lastMenuDay('2026-11-15')).toBe('2026-11-22');
+        expect(lastMenuDay('2026-11-16')).toBe('2026-11-29');
+    });
 
     test('o link e a canônica não levam tema', () => {
         expect(restaurantSharePath(selection)).not.toContain('theme');
@@ -159,7 +175,7 @@ describe('compartilhamento do cardápio', () => {
             campus: selection.campus
         });
         expect(head.meta).toContainEqual({ name: 'twitter:card', content: 'summary_large_image' });
-        expect(head.meta).toContainEqual({ title: 'Almoço do RU · 19/10/2026 | Followw' });
+        expect(head.meta).toContainEqual({ title: 'Almoço do RU · 19/10/2026 | Followw UnB' });
         expect(head.links[0].href).toBe(`https://followw.app${restaurantSharePath(selection)}`);
     });
 

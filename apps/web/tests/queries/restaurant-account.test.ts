@@ -1,6 +1,6 @@
 import type { Middleware } from 'openapi-fetch';
 
-import { noop, QueryClient } from '@tanstack/react-query';
+import { noop, QueryClient, QueryObserver } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 
 import type { RestaurantStatement, RestaurantCredentials } from '#/queries/restaurant-account';
@@ -85,6 +85,27 @@ describe('conta do RU', () => {
         });
         await client.query(credentialsQueryOptions(registration));
         expect(requests).toHaveLength(0);
+    });
+
+    test('ao reconectar, refaz a carteirinha que falhou sem dado salvo', async () => {
+        const observer = new QueryObserver(client, {
+            ...credentialsQueryOptions(registration),
+            networkMode: 'always'
+        });
+        const available = response;
+        response = () => {
+            throw new TypeError('Sem conexão');
+        };
+        const unsubscribe = observer.subscribe(noop);
+        try {
+            expect((await observer.refetch()).isError).toBe(true);
+            response = available;
+            client.getQueryCache().onOnline();
+            expect(observer.getCurrentResult().isFetching).toBe(true);
+            expect((await observer.refetch()).data).toEqual(credentials);
+        } finally {
+            unsubscribe();
+        }
     });
 
     test('a carteirinha vencida é refeita depois de 90 minutos', async () => {

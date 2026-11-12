@@ -1,3 +1,5 @@
+import asyncio
+
 import httpx
 from fastapi import APIRouter, Request, Response, status
 from pydantic import BaseModel, Field
@@ -12,6 +14,7 @@ from api.sigaa import SigaaConnection, SigaaConnectionDep
 from api.sync.queue import JobQueueDep
 
 router = APIRouter()
+_SIGAA_LOGOUT_TIMEOUT = 1.0
 
 
 class SigaaLoginRequest(BaseModel):
@@ -58,9 +61,12 @@ async def sigaa_logout(request: Request, response: Response):
     )
     if session_token is not None and not getattr(request.state, "rate_limited", False):
         try:
-            async with SigaaClient(session_token=session_token) as client:
+            async with (
+                asyncio.timeout(_SIGAA_LOGOUT_TIMEOUT),
+                SigaaClient(session_token=session_token) as client,
+            ):
                 await client.logout()
-        except SigaaError, httpx.HTTPError:
+        except SigaaError, httpx.HTTPError, TimeoutError:
             pass
 
     clear_cookies(response)

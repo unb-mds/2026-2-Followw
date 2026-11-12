@@ -23,6 +23,10 @@ def today() -> date:
     return datetime.now(BRASILIA).date()
 
 
+# Primeiro dia com cardápio no Followw; o mesmo limite vale no web.
+FIRST_MENU_DAY = date(2026, 9, 14)
+
+
 class RestaurantService:
     def __init__(
         self,
@@ -35,22 +39,10 @@ class RestaurantService:
         campus: Campus,
         cache: CacheControl = NO_DIRECTIVES,
         *,
-        day: date | None = None,
-        start_date: date | None = None,
-        end_date: date | None = None,
+        start_date: date,
+        end_date: date,
         meal: Meal | None = None,
     ) -> tuple[DailyMenu, ...]:
-        if day is not None:
-            start_date = end_date = day
-        elif start_date is None and end_date is None:
-            current = today()
-            start_date = current - timedelta(days=current.weekday())
-            end_date = start_date + timedelta(days=6)
-        # Sem intervalo fechado, o limite que falta completa uma semana.
-        elif end_date is None:
-            end_date = start_date + timedelta(days=6)
-        elif start_date is None:
-            start_date = end_date - timedelta(days=6)
         days = await self._load_menu(campus, start_date, end_date, cache)
         if meal is None:
             return days

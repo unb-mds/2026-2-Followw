@@ -12,6 +12,7 @@ import {
     SessionNotStoredError,
     clearSession,
     startSession,
+    useLogin,
     useLogout,
     useSessionRefresh
 } from '#/queries/auth.ts';
@@ -44,7 +45,7 @@ describe('clearSession', () => {
         Reflect.deleteProperty(globalThis, 'caches');
     });
 
-    test('a promise só resolve depois de apagar o HTML em cache', async () => {
+    test('a promise só resolve depois de apagar o cache de páginas', async () => {
         const deleted: string[] = [];
         Object.defineProperty(globalThis, 'caches', {
             configurable: true,
@@ -256,6 +257,33 @@ describe('hooks de sessão', () => {
 
     const paths = () => requests.map((r) => `${r.method} ${new URL(r.url).pathname}`);
 
+    test('401 do perfil com a conta em cache limpa a sessão local', async () => {
+        const { queryClient } = getContext();
+        queryClient.setQueryData(meQueryOptions.queryKey, user);
+        queryClient.setQueryData(classroomsQueryOptions.queryKey, []);
+        response = () => new ApiError(401, 'Sessão expirada');
+
+        expect(await queryClient.query({ ...meQueryOptions, staleTime: 0 })).toBeNull();
+        expect(queryClient.getQueryData(classroomsQueryOptions.queryKey)).toBeUndefined();
+    });
+
+    test('credenciais rejeitadas no login não limpam os dados da conta', async () => {
+        response = () => new ApiError(401, 'Senha inválida');
+        const { result, queryClient } = renderHook(() => useLogin());
+        queryClient.setQueryData(classroomsQueryOptions.queryKey, []);
+
+        await dom.testing.act(() =>
+            result.current
+                .mutateAsync({ body: { registration: user.registration, password: 'errada' } })
+                .catch(noop)
+        );
+
+        await dom.testing.waitFor(() =>
+            expect(result.current.error).toMatchObject({ status: 401 })
+        );
+        expect(queryClient.getQueryData(classroomsQueryOptions.queryKey)).toEqual([]);
+    });
+
     test('logout encerra na API, limpa a conta e avisa quem chamou', async () => {
         const reset = spyOn(posthog, 'reset').mockImplementation(noop);
         let saiu = false;
@@ -290,6 +318,18 @@ describe('hooks de sessão', () => {
 
         await dom.testing.waitFor(() => expect(requests).toHaveLength(1));
         expect(paths()).toEqual(['POST /api/auth/sigaa/refresh']);
+    });
+
+    test('renova de novo após sair e entrar com a mesma matrícula', async () => {
+        const registration = '251000006';
+        const { queryClient, unmount } = renderHook(() => useSessionRefresh(), registration);
+        await dom.testing.waitFor(() => expect(requests).toHaveLength(1));
+        unmount();
+        await clearSession(queryClient);
+
+        renderHook(() => useSessionRefresh(), registration);
+
+        await dom.testing.waitFor(() => expect(requests).toHaveLength(2));
     });
 
     test('renovação recusada encerra a sessão local', async () => {

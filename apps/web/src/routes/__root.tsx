@@ -19,6 +19,7 @@ import PostHogProvider from '#/integrations/posthog/provider';
 import { reloadOnPreloadError } from '#/lib/chunk-reload';
 import { themeScript } from '#/lib/theme';
 import { useSessionRefresh } from '#/queries/auth';
+import { seedAnonymousProfile } from '#/queries/me';
 import appCss from '#/styles.css?url';
 
 interface MyRouterContext {
@@ -26,6 +27,7 @@ interface MyRouterContext {
 }
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
+    beforeLoad: ({ context: { queryClient } }) => seedAnonymousProfile(queryClient),
     head: ({ match }) => ({
         meta: [
             { charSet: 'utf-8' },

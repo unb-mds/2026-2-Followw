@@ -1,5 +1,4 @@
-import type { QueryKey } from '@tanstack/react-query';
-
+import { environmentManager, type QueryKey } from '@tanstack/react-query';
 import { describe, expect, test } from 'bun:test';
 
 import { Route } from '#/routes/_app/buscar';
@@ -27,6 +26,29 @@ const loadWith = async (user: User | null, searchStr = '') => {
 };
 
 describe('loader da busca de turmas', () => {
+    test('ao trocar de aba inicia a consulta sem esperar pelos resultados', async () => {
+        const { promise, resolve } = Promise.withResolvers<[]>();
+        let started = false;
+        const wasServer = environmentManager.isServer();
+        environmentManager.setIsServer(() => false);
+        try {
+            await runLoader(Route, {
+                location: { searchStr: '?q=calculo' },
+                context: {
+                    queryClient: fakeQueryClient((key) => {
+                        if (key[1] === '/me') return null;
+                        started = true;
+                        return promise;
+                    })
+                }
+            });
+            expect(started).toBe(true);
+        } finally {
+            resolve([]);
+            environmentManager.setIsServer(() => wasServer);
+        }
+    });
+
     test('sem login carrega só o perfil', async () => {
         expect((await loadWith(null)).map((key) => key[1])).toEqual(['/me']);
     });

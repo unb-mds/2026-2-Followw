@@ -53,6 +53,7 @@
         "@types/react": "^19.2.0",
         "@types/react-dom": "^19.2.0",
         "@vitejs/plugin-react": "^6.2.1",
+        "fake-indexeddb": "^6.2.8",
         "happy-dom": "^21.0.4",
         "oxfmt": "^0.77.0",
         "oxlint": "^1.92.0",

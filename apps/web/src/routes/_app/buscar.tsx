@@ -1,4 +1,4 @@
-import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import { environmentManager, noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -72,7 +72,7 @@ export const Route = createFileRoute('/_app/buscar')({
         const user = await loadQuery(queryClient, meQueryOptions);
         const { q, category } = loadSearchParams(location.searchStr);
         const view = searchView(category, q, searchText(q), user);
-        await Promise.all([
+        const results = Promise.all([
             showsSubjects(category) &&
                 user &&
                 loadQuery(queryClient, allClassroomsQueryOptions).catch(noop),
@@ -90,6 +90,7 @@ export const Route = createFileRoute('/_app/buscar')({
             view?.kind === 'unit' &&
                 loadQuery(queryClient, subjectsQueryOptions({ unit: view.unit })).catch(noop)
         ]);
+        if (environmentManager.isServer()) await results;
     },
     staticData: {
         header: () => (

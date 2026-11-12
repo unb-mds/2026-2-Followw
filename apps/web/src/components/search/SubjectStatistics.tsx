@@ -1,13 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 
 import type { SubjectClassroom } from '#/queries/subjects';
 
 import { LoadingText } from '#/components/LoadingText';
-import { StatisticsChart } from '#/components/StatisticsChart';
 import { TabFilter } from '#/components/TabFilter';
 import { Button } from '#/components/ui/button';
 import { subjectStatisticsQueryOptions } from '#/queries/subject-statistics';
+
+const StatisticsChart = lazy(() =>
+    import('#/components/StatisticsChart').then((module) => ({ default: module.StatisticsChart }))
+);
 
 export function SubjectStatistics({
     code,
@@ -64,10 +67,12 @@ export function SubjectStatistics({
                         onChange={setSelected}
                     />
                     {period ? (
-                        <StatisticsChart
-                            data={period.shares}
-                            label={`Situação dos discentes · ${period.semester ?? 'Média geral'}`}
-                        />
+                        <Suspense fallback={<LoadingText>Carregando gráfico...</LoadingText>}>
+                            <StatisticsChart
+                                data={period.shares}
+                                label={`Situação dos discentes · ${period.semester ?? 'Média geral'}`}
+                            />
+                        </Suspense>
                     ) : null}
                 </>
             ) : null}

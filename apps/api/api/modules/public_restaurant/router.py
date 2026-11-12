@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from typing import Annotated, Literal, Self
 
 from fastapi import APIRouter, Query
@@ -6,9 +6,15 @@ from pydantic import BaseModel, Field, model_validator
 from unb_browser import Campus, DailyMenu
 
 from api.cache import CacheControlDep
-from api.modules.public_restaurant.service import Meal, RestaurantServiceDep
+from api.modules.public_restaurant import service as restaurant
+from api.modules.public_restaurant.service import (
+    FIRST_MENU_DAY,
+    Meal,
+    RestaurantServiceDep,
+)
 
 router = APIRouter()
+_MAX_DAYS = 14
 _CAMPUSES = {
     "Darcy": Campus.DARCY_RIBEIRO,
     "Gama": Campus.GAMA,
@@ -34,12 +40,27 @@ class MenuQuery(BaseModel):
             self.start_date is not None or self.end_date is not None
         ):
             raise ValueError("Use date or start_date/end_date, not both")
-        if (
-            self.start_date is not None
-            and self.end_date is not None
-            and self.start_date > self.end_date
-        ):
+        current = restaurant.today()
+        monday = current - timedelta(days=current.weekday())
+        last = monday + timedelta(days=13)
+        error = f"Dates must be between {FIRST_MENU_DAY} and {last}"
+        dates = (self.day, self.start_date, self.end_date)
+        if any(day is not None and not FIRST_MENU_DAY <= day <= last for day in dates):
+            raise ValueError(error)
+        # Sem intervalo fechado, o limite que falta completa uma semana.
+        start = (
+            self.day
+            or self.start_date
+            or (self.end_date - timedelta(days=6) if self.end_date else monday)
+        )
+        end = self.day or self.end_date or (start + timedelta(days=6))
+        if start < FIRST_MENU_DAY or end > last:
+            raise ValueError(error)
+        if start > end:
             raise ValueError("start_date must not be after end_date")
+        if end - start >= timedelta(days=_MAX_DAYS):
+            raise ValueError(f"The interval must have at most {_MAX_DAYS} days")
+        self.start_date, self.end_date = start, end
         return self
 
 
@@ -58,7 +79,6 @@ async def get_menu(
     return await service.get_menu(
         _CAMPUSES[query.campus],
         cache,
-        day=query.day,
         start_date=query.start_date,
         end_date=query.end_date,
         meal=query.meal,

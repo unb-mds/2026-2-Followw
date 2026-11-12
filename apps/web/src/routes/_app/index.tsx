@@ -1,21 +1,18 @@
-import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import { noop, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 
-import { getNoClassReason } from '#/calendar';
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderToggle } from '#/components/HeaderBar';
-import { LatestNewsSection } from '#/components/home/LatestNewsSection';
-import { PublicInfoSection } from '#/components/home/PublicInfoSection';
-import { TodayClassesSection } from '#/components/home/TodayClassesSection';
+import { TodayDashboard } from '#/components/home/TodayDashboard';
 import { usePageState } from '#/components/PageState';
 import { WeekDayPicker } from '#/components/WeekDayPicker';
-import { classesOn, nowInBrasilia, weekDays } from '#/lib/schedule';
+import { nowInBrasilia, weekDays } from '#/lib/schedule';
 import { publicPageHead } from '#/lib/seo';
 import { classroomsQueryOptions } from '#/queries/classrooms';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
-import { campusOf, menuQueryOptions } from '#/queries/restaurant';
+import { menuQueryOptions } from '#/queries/restaurant';
 
 const WEEKDAYS = [
     'Domingo',
@@ -31,9 +28,9 @@ export const Route = createFileRoute('/_app/')({
     head: () => ({
         ...publicPageHead({
             path: '/',
-            title: 'Followw — SIGAA UnB e cardápio do RU',
+            title: 'Followw UnB — SIGAA, cardápio do RU e busca',
             description:
-                'Acompanhe suas turmas, horários e postagens do SIGAA, consulte o cardápio do RU e muito mais.'
+                'App independente para estudantes da UnB. Consulte o cardápio do RU e busque disciplinas, cursos e docentes. Entre com o SIGAA para ver suas turmas e horários.'
         }),
         scripts: [
             {
@@ -41,8 +38,8 @@ export const Route = createFileRoute('/_app/')({
                 children: JSON.stringify({
                     '@context': 'https://schema.org',
                     '@type': 'WebSite',
-                    name: 'Followw',
-                    alternateName: 'Followw UnB',
+                    name: 'Followw UnB',
+                    alternateName: 'Followw',
                     url: 'https://followw.app/'
                 })
             }
@@ -103,21 +100,9 @@ function HomeHeader() {
 }
 
 function HomePage() {
+    const { data: user } = useSuspenseQuery(meQueryOptions);
     const { now, days, selectedDay, isToday, label, setPicked } = useSelectedDay();
     const [weekOpen] = useWeekOpen();
-
-    const { data: user } = useSuspenseQuery(meQueryOptions);
-    const classroomsQuery = useQuery({
-        ...classroomsQueryOptions,
-        enabled: Boolean(user)
-    });
-    const classrooms = classroomsQuery.data ?? [];
-    const menu = useQuery(menuQueryOptions({ date: selectedDay.date, user }));
-
-    const noClassReason = getNoClassReason(selectedDay.date);
-    const classes = noClassReason
-        ? []
-        : classesOn(classrooms, selectedDay.weekday, isToday ? now.time : undefined);
 
     return (
         <>
@@ -129,22 +114,12 @@ function HomePage() {
                 />
             )}
 
-            <div className="flex flex-col gap-6">
-                <TodayClassesSection
-                    loggedIn={Boolean(user)}
-                    noClassReason={noClassReason}
-                    isLoadingError={classroomsQuery.isLoadingError}
-                    onRetry={() => void classroomsQuery.refetch()}
-                    classes={classes}
-                />
-                <PublicInfoSection
-                    campus={campusOf(user?.unit?.code)}
-                    menu={menu.data?.[0]}
-                    isLoading={menu.isPending}
-                    day={label}
-                />
-                {user && <LatestNewsSection />}
-            </div>
+            <TodayDashboard
+                user={user}
+                day={selectedDay}
+                time={isToday ? now.time : undefined}
+                label={label}
+            />
         </>
     );
 }

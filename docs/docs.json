@@ -10,6 +10,10 @@
   "navbar": {
     "links": [
       {
+        "label": "Followw UnB",
+        "href": "https://followw.app/"
+      },
+      {
         "type": "github",
         "href": "https://github.com/unb-mds/2026-2-Followw"
       }
