@@ -28,13 +28,8 @@ export const Route = createFileRoute('/_app/turmas')({
     },
     staticData: {
         header: () => (
-            <HeaderBar>
-                <div className="flex flex-col gap-2">
-                    <HeaderTitle>Minhas Turmas</HeaderTitle>
-                    <p className="hidden text-sm text-muted-foreground lg:block">
-                        Disciplinas e horários
-                    </p>
-                </div>
+            <HeaderBar hideOnDesktop>
+                <HeaderTitle>Minhas Turmas</HeaderTitle>
             </HeaderBar>
         )
     },
@@ -73,7 +68,7 @@ function Classrooms() {
                     value={semester}
                     options={groups.map(([name]) => name)}
                     onChange={setSelected}
-                    className="turmas-semesters mb-2"
+                    className="mb-2"
                 />
             )}
             <div className="classroom-columns lg:grid lg:items-start lg:gap-10">

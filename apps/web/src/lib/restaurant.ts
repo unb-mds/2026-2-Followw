@@ -83,6 +83,18 @@ export function highlightMenu(sections: MenuSection[]) {
     return { main: null, alternatives: [], others: sections };
 }
 
+// Junta as saladas 1 e 2 num bloco só, na posição da primeira.
+export function groupSalads(sections: MenuSection[]): MenuSection[] {
+    const salads = sections.filter((s) => s.key === 'salad_1' || s.key === 'salad_2');
+    if (salads.length < 2) return sections;
+    const grouped: MenuSection = {
+        key: 'salad_1',
+        name: 'Saladas',
+        items: salads.flatMap((s) => s.items)
+    };
+    return sections.flatMap((s) => (s === salads[0] ? [grouped] : salads.includes(s) ? [] : [s]));
+}
+
 export function mainMenuDish(sections: MenuSection[] | null | undefined) {
     if (!sections?.length) return undefined;
     const section = highlightMenu(sections).main ?? sections[0];

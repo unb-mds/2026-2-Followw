@@ -57,12 +57,12 @@ describe('CourseProgress', () => {
         expect(markup).toContain('Previsto');
         expect(text(markup).replace('Previsto', '')).toBe(text(without));
     });
-    test('mostra conclusão, total e pendências reais com gráfico acessível', () => {
+    test('mostra conclusão, total e pendências por categoria com gráfico acessível', () => {
         const markup = renderToStaticMarkup(<CourseProgress user={user} />);
         expect(markup).toContain('Integralização do curso: 31%');
         expect(markup).toContain('1.110h');
         expect(markup).toContain('3.525h');
-        expect(markup).toContain('2.415h');
+        expect(markup).not.toContain('Faltam');
         expect(markup).toContain('1.935h pendentes');
         expect(markup).toContain('480h pendentes');
         expect(markup).not.toContain('Previsto');

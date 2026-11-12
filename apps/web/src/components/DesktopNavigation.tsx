@@ -5,6 +5,7 @@ import { m } from 'motion/react';
 import { useState } from 'react';
 
 import { FollowwLogo } from '#/components/FollowwLogo';
+import { SearchPill } from '#/components/SearchPill';
 import { ThemeToggle } from '#/components/ThemeToggle';
 import { useRestaurantShortcut } from '#/components/useRestaurantShortcut';
 import { ease, spring } from '#/lib/motion';
@@ -17,7 +18,6 @@ const items = [
     { to: '/ru', label: 'RU', icon: Utensils }
 ] as const;
 
-// largura fixa: o controle de busca (fixed) depende dela em styles.css
 const itemClass =
     'relative flex h-12 w-28 items-center justify-center gap-2 rounded-full text-sm font-medium transition-[color,background-color,scale] duration-200 hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring active:scale-95 motion-reduce:transition-none';
 
@@ -29,7 +29,7 @@ export function DesktopNavigation() {
     const searching = pathname === '/buscar';
 
     return (
-        <div className="desktop-navigation sticky top-0 z-40 flex h-28 shrink-0 items-center justify-between gap-6 bg-background/95 px-10 backdrop-blur-xl">
+        <div className="desktop-navigation sticky top-0 z-40 flex h-28 shrink-0 items-center justify-between gap-6 bg-background/95 px-16 backdrop-blur-xl">
             <div className="flex shrink-0 items-center gap-5">
                 <Link
                     to="/"
@@ -72,33 +72,23 @@ export function DesktopNavigation() {
                             </Link>
                         );
                     })}
-                    <m.span
-                        aria-hidden="true"
-                        className="h-12"
-                        initial={false}
-                        animate={{ width: searching ? 0 : 112 }}
-                        transition={{ duration: 0.2, ease }}
-                    />
                     <m.div
-                        layout="position"
-                        data-desktop-search=""
-                        className={cn(
-                            'desktop-search-control text-muted-foreground',
-                            searching && 'is-searching'
-                        )}
+                        className="relative h-12"
                         initial={false}
-                        animate={{ opacity: searching ? 0 : 1 }}
-                        transition={{ duration: 0.22, ease }}
+                        animate={{ width: searching ? 0 : 112, opacity: searching ? 0 : 1 }}
+                        transition={{ duration: 0.2, ease }}
                     >
-                        {searching ? (
-                            <span aria-hidden="true" className={itemClass}>
-                                <Search className="size-5" />
-                            </span>
-                        ) : (
-                            <Link to="/buscar" className={itemClass}>
-                                <Search aria-hidden="true" className="size-5" />
-                                Buscar
-                            </Link>
+                        {!searching && (
+                            <>
+                                <SearchPill />
+                                <Link
+                                    to="/buscar"
+                                    className={cn(itemClass, 'text-muted-foreground')}
+                                >
+                                    <Search aria-hidden="true" className="relative size-5" />
+                                    <span className="relative">Buscar</span>
+                                </Link>
+                            </>
                         )}
                     </m.div>
                 </nav>

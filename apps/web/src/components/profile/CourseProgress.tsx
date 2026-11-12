@@ -136,9 +136,6 @@ export function CourseProgress({
                                 <p className="mt-1 text-sm text-muted-foreground">
                                     de {hoursLabel(progress.total)} concluídas
                                 </p>
-                                <p className="mt-1 text-sm text-muted-foreground">
-                                    Faltam {hoursLabel(progress.pending)}
-                                </p>
                             </div>
                         ) : (
                             <p className="text-sm text-muted-foreground">Integralização do curso</p>

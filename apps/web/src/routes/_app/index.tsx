@@ -86,7 +86,7 @@ function useSelectedDay() {
 }
 
 function HomeHeader() {
-    const { label, now, selectedDay } = useSelectedDay();
+    const { label, now } = useSelectedDay();
     const [weekOpen, setWeekOpen] = useWeekOpen();
     const { data: user } = useQuery(meQueryOptions);
 
@@ -103,23 +103,13 @@ function HomeHeader() {
                 </>
             }
         >
-            <div className="flex flex-col gap-3">
-                <HeaderToggle
-                    open={weekOpen}
-                    onToggle={() => setWeekOpen(!weekOpen)}
-                    title={weekOpen ? 'Ocultar seletor de dias' : 'Exibir dias da semana'}
-                >
-                    {label}
-                </HeaderToggle>
-                <p className="hidden text-sm text-muted-foreground lg:block">
-                    {new Intl.DateTimeFormat('pt-BR', {
-                        weekday: 'long',
-                        day: 'numeric',
-                        month: 'long',
-                        timeZone: 'UTC'
-                    }).format(new Date(`${selectedDay.date}T00:00:00Z`))}
-                </p>
-            </div>
+            <HeaderToggle
+                open={weekOpen}
+                onToggle={() => setWeekOpen(!weekOpen)}
+                title={weekOpen ? 'Ocultar seletor de dias' : 'Exibir dias da semana'}
+            >
+                {label}
+            </HeaderToggle>
         </HeaderBar>
     );
 }

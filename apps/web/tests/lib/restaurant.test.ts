@@ -6,6 +6,7 @@ import {
     cardIsExpired,
     currentOrNextMeal,
     formatMenuDay,
+    groupSalads,
     highlightMenu,
     insufficientMealBalance
 } from '#/lib/restaurant';
@@ -89,6 +90,29 @@ describe('cardIsExpired', () => {
 function section(key: MenuSection['key'], name = key ?? 'Sem chave'): MenuSection {
     return { key, name, items: [name] };
 }
+
+describe('groupSalads', () => {
+    test('junta as saladas 1 e 2 num card só na posição da primeira', () => {
+        const sections = [
+            section('drink'),
+            section('salad_1'),
+            section('fruit'),
+            section('salad_2')
+        ];
+        const grouped = groupSalads(sections);
+        expect(grouped.map((s) => s.key)).toEqual(['drink', 'salad_1', 'fruit']);
+        expect(grouped[1]).toEqual({
+            key: 'salad_1',
+            name: 'Saladas',
+            items: ['salad_1', 'salad_2']
+        });
+    });
+
+    test('com uma salada só mantém as seções', () => {
+        const sections = [section('salad_2'), section('fruit')];
+        expect(groupSalads(sections)).toBe(sections);
+    });
+});
 
 describe('highlightMenu', () => {
     test('destaca o prato principal com as opções vegetarianas', () => {

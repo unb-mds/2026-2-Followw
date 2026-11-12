@@ -171,7 +171,6 @@ test('download pendente e erro do documento persistem ao alternar entre desktop 
 
 test('turmas desktop mostra grade matriculada com noite e sábado além dos cartões', async () => {
     const view = await render('/turmas');
-    expect(view.getByText('Disciplinas e horários', { exact: true })).toBeDefined();
     const grid = view.getByRole('region', { name: 'Grade das turmas de 2026.2' });
     expect(grid.textContent).toContain('23:00');
     expect(grid.textContent).toContain('Sáb');

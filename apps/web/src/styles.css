@@ -25,13 +25,6 @@
             grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
         }
 
-        .turmas-semesters {
-            position: absolute;
-            top: -6.5rem;
-            right: 0;
-            max-width: 55%;
-        }
-
         .search-columns {
             grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
             grid-template-rows: auto 1fr;
@@ -50,20 +43,9 @@
         .desktop-search-field {
             position: fixed;
             top: 1.75rem;
-            left: max(50% - min(22.5vw, 24rem), 29.625rem);
+            left: max(50% - min(22.5vw, 24rem), 31.125rem);
             z-index: 50;
-            width: min(45vw, 48rem, 100vw - 36.625rem);
-        }
-
-        .desktop-search-control {
-            position: fixed;
-            top: 2rem;
-            left: calc(2.5rem + 2.5rem + 1.25rem + 0.4375rem + 21rem);
-        }
-
-        .desktop-search-control.is-searching {
-            left: calc(max(50% - min(22.5vw, 24rem), 29.625rem) - 2rem);
-            pointer-events: none;
+            width: min(45vw, 48rem, 100vw - 39.625rem);
         }
     }
 

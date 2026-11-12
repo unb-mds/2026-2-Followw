@@ -1,8 +1,26 @@
 import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Link, useLocation, useNavigate } from '@tanstack/react-router';
-import { ChevronLeft, ChevronRight, Coffee, Egg, Leaf, Soup, UtensilsCrossed } from 'lucide-react';
+import {
+    Apple,
+    Carrot,
+    ChevronLeft,
+    ChevronRight,
+    Coffee,
+    Croissant,
+    CupSoda,
+    Droplet,
+    Egg,
+    IceCreamCone,
+    Leaf,
+    Salad,
+    Sandwich,
+    Soup,
+    UtensilsCrossed,
+    Wheat
+} from 'lucide-react';
+import { AnimatePresence, m, type Variants } from 'motion/react';
 import { useQueryStates } from 'nuqs';
-import { lazy, Suspense, useCallback, useEffect, useSyncExternalStore } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 
 import type { RestaurantSelection } from '#/lib/restaurant-share';
 import type { DailyMenu, MenuSection } from '#/queries/restaurant';
@@ -25,8 +43,16 @@ import {
 } from '#/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
 import { WeekDayPicker } from '#/components/WeekDayPicker';
+import { easeIn, rise, useEntrance } from '#/lib/motion';
 import { useFailureMessage } from '#/lib/online';
-import { formatMenuDay, highlightMenu, lastMenuDay, MEAL_TIMES } from '#/lib/restaurant';
+import {
+    formatMenuDay,
+    groupSalads,
+    highlightMenu,
+    lastMenuDay,
+    MEAL_TIMES,
+    type MealKey
+} from '#/lib/restaurant';
 import {
     restaurantDefaults,
     restaurantPageHead,
@@ -36,6 +62,7 @@ import {
     validateRestaurantSearch
 } from '#/lib/restaurant-share';
 import { addDays, nowInBrasilia, weekDays } from '#/lib/schedule';
+import { cn } from '#/lib/shadcn';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
 import { CAMPUS_LABELS, CAMPUS_OPTIONS, campusOf, menuQueryOptions } from '#/queries/restaurant';
@@ -65,6 +92,23 @@ const ALTERNATIVES: Partial<Record<NonNullable<MenuSection['key']>, AlternativeI
     main_dish_vegan: { label: 'Vegetariano estrito', icon: Leaf },
     complement_vegetarian: { label: 'Ovolactovegetariano', icon: Egg },
     complement_vegan: { label: 'Vegetariano estrito', icon: Leaf }
+};
+
+const SECTION_ICONS: Partial<Record<NonNullable<MenuSection['key']>, AlternativeInfo['icon']>> = {
+    drink: CupSoda,
+    bread: Croissant,
+    extra: Wheat,
+    spread: Droplet,
+    fruit: Apple,
+    salad_1: Salad,
+    salad_2: Salad,
+    salad_dressing: Droplet,
+    side_dish: Carrot,
+    accompaniments: Carrot,
+    soup: Soup,
+    toast: Sandwich,
+    dessert: IceCreamCone,
+    complement: Egg
 };
 
 declare module '@tanstack/history' {
@@ -119,27 +163,17 @@ function RUHeader() {
                 <ShareButton title="Cardápio do RU" url={() => restaurantSharePath(selection)} />
             }
         >
-            <div className="flex flex-col gap-3">
-                {desktop ? (
-                    <HeaderTitle>Cardápio</HeaderTitle>
-                ) : (
-                    <HeaderToggle
-                        open={filtersOpen}
-                        onToggle={() => setFiltersOpen(!filtersOpen)}
-                        title={filtersOpen ? 'Ocultar dia e campus' : 'Escolher dia e campus'}
-                    >
-                        Cardápio
-                    </HeaderToggle>
-                )}
-                <p className="hidden text-sm text-muted-foreground lg:block">
-                    {new Intl.DateTimeFormat('pt-BR', {
-                        weekday: 'long',
-                        day: 'numeric',
-                        month: 'long',
-                        timeZone: 'UTC'
-                    }).format(new Date(`${selection.date}T00:00:00Z`))}
-                </p>
-            </div>
+            {desktop ? (
+                <HeaderTitle>Cardápio</HeaderTitle>
+            ) : (
+                <HeaderToggle
+                    open={filtersOpen}
+                    onToggle={() => setFiltersOpen(!filtersOpen)}
+                    title={filtersOpen ? 'Ocultar dia e campus' : 'Escolher dia e campus'}
+                >
+                    Cardápio
+                </HeaderToggle>
+            )}
         </HeaderBar>
     );
 }
@@ -211,9 +245,9 @@ function RUPage() {
     return (
         <div className="ru-columns lg:grid lg:items-start lg:gap-x-10 lg:gap-y-8">
             {(filtersOpen || desktop) && (
-                <div className="ru-filters lg:col-start-2 lg:row-start-1">
-                    <h2 className="mb-5 hidden text-xl font-medium lg:block">Data e campus</h2>
-                    <div className="lg:rounded-2xl lg:border lg:p-5 lg:shadow-sm">
+                <div className="ru-filters lg:col-start-2 lg:row-start-2">
+                    <div className="lg:rounded-2xl lg:bg-card lg:p-4 lg:shadow-card lg:ring-1 lg:ring-foreground/8">
+                        <h2 className="mb-5 hidden text-lg font-bold lg:block">Data e campus</h2>
                         <WeekDayPicker
                             days={days}
                             selectedDate={selectedDate}
@@ -245,7 +279,10 @@ function RUPage() {
                                     if (selected) select({ campus: selected });
                                 }}
                             >
-                                <SelectTrigger id="menu-campus" className="w-full bg-background">
+                                <SelectTrigger
+                                    id="menu-campus"
+                                    className="w-full bg-background lg:h-12 lg:rounded-xl lg:px-4"
+                                >
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -257,6 +294,10 @@ function RUPage() {
                                 </SelectContent>
                             </Select>
                         </div>
+                        <MealPicker
+                            selected={selectedMeal}
+                            onSelect={(key) => select({ meal: key })}
+                        />
                     </div>
                 </div>
             )}
@@ -270,7 +311,7 @@ function RUPage() {
                 }}
             >
                 <TabsList
-                    className="w-full group-data-horizontal/tabs:h-auto lg:rounded-full lg:border lg:p-1"
+                    className="w-full group-data-horizontal/tabs:h-auto lg:hidden"
                     aria-label="Escolher refeição"
                 >
                     {MEALS.map((item) => (
@@ -285,7 +326,7 @@ function RUPage() {
                     ))}
                 </TabsList>
 
-                <TabsContent value={selectedMeal} className="mt-4">
+                <TabsContent value={selectedMeal} className="mt-4 lg:mt-0">
                     <div className="mb-4 flex items-center justify-between gap-2">
                         <Button
                             variant="ghost"
@@ -296,9 +337,9 @@ function RUPage() {
                         >
                             <ChevronLeft />
                         </Button>
-                        <p className="text-xs font-bold text-muted-foreground" aria-live="polite">
+                        <MenuDayLabel date={selectedDate}>
                             {formatMenuDay(selectedDate, today)} · {meal.start}–{meal.end}
-                        </p>
+                        </MenuDayLabel>
                         <Button
                             variant="ghost"
                             size="icon-sm"
@@ -311,7 +352,10 @@ function RUPage() {
                     </div>
                     <div className="flex min-h-60 flex-col gap-2 lg:gap-6">
                         {sections.length > 0 ? (
-                            <MealDetails sections={sections} />
+                            <MealDetails
+                                key={`${selectedDate}-${selectedMeal}-${campus}`}
+                                sections={sections}
+                            />
                         ) : (
                             <div className="my-auto px-1 text-center text-sm text-muted-foreground">
                                 {isPending && <LoadingText>Carregando cardápio...</LoadingText>}
@@ -346,7 +390,7 @@ function RUPage() {
                 </TabsContent>
             </Tabs>
 
-            <div className="ru-account lg:col-start-2 lg:row-start-2">
+            <div className="ru-account lg:col-start-2 lg:row-start-1">
                 {user ? (
                     <Suspense fallback={null}>
                         <RestaurantAccount
@@ -370,36 +414,114 @@ function RUPage() {
     );
 }
 
-function MealDetails({ sections }: { sections: MenuSection[] }) {
-    const { main, alternatives, others } = highlightMenu(sections);
+// no desktop, a refeição é escolhida na coluna lateral
+function MealPicker({
+    selected,
+    onSelect
+}: {
+    selected: MealKey;
+    onSelect: (key: MealKey) => void;
+}) {
+    return (
+        <fieldset className="hidden flex-col gap-1 lg:flex">
+            <legend className="sr-only">Escolher refeição</legend>
+            {MEALS.map((item) => (
+                <button
+                    key={item.key}
+                    type="button"
+                    aria-pressed={item.key === selected}
+                    onClick={() => onSelect(item.key)}
+                    className={cn(
+                        'flex items-center justify-between gap-3 rounded-xl px-4 py-3 text-sm text-muted-foreground transition-colors hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-ring',
+                        item.key === selected && 'bg-muted hover:bg-muted'
+                    )}
+                >
+                    {item.label}
+                    <span className="font-semibold text-foreground tabular-nums">
+                        {item.start} – {item.end}
+                    </span>
+                </button>
+            ))}
+        </fieldset>
+    );
+}
+
+const slide: Variants = {
+    enter: (direction: number) => ({ opacity: 0, x: direction * 24 }),
+    center: { opacity: 1, x: 0 },
+    exit: (direction: number) => ({
+        opacity: 0,
+        x: direction * -24,
+        transition: { duration: 0.15, ease: easeIn }
+    })
+};
+
+// desliza para o lado em que o dia mudou
+function MenuDayLabel({ date, children }: { date: string; children: React.ReactNode }) {
+    const [[previous, direction], setState] = useState([date, 0]);
+    if (date !== previous) setState([date, date > previous ? 1 : -1]);
 
     return (
-        <>
-            {main && <MealHighlight main={main} alternatives={alternatives} />}
-            {others.length > 0 && (
-                <Card size="sm">
-                    <CardContent>
-                        <dl className="divide-y divide-border lg:grid lg:grid-cols-2 lg:gap-x-8">
-                            {others.map((section) => (
-                                <div
-                                    key={section.name}
-                                    className="flex gap-4 py-3 first:pt-0 last:pb-0 lg:flex-col lg:gap-2 lg:py-5 lg:first:pt-5 lg:last:pb-5"
-                                >
-                                    <dt className="w-28 shrink-0 pt-0.5 text-xs font-medium text-muted-foreground">
-                                        {section.name}
-                                    </dt>
-                                    <dd className="flex min-w-0 flex-1 flex-col gap-1 text-sm leading-snug font-semibold text-foreground">
-                                        {section.items.map((item) => (
-                                            <p key={item}>{item}</p>
-                                        ))}
-                                    </dd>
-                                </div>
-                            ))}
-                        </dl>
-                    </CardContent>
-                </Card>
+        <p
+            className="relative flex min-w-0 flex-1 justify-center overflow-hidden text-xs font-bold text-muted-foreground"
+            aria-live="polite"
+        >
+            <AnimatePresence initial={false} mode="popLayout" custom={direction}>
+                <m.span
+                    key={date}
+                    custom={direction}
+                    variants={slide}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    className="inline-block"
+                >
+                    {children}
+                </m.span>
+            </AnimatePresence>
+        </p>
+    );
+}
+
+function MealDetails({ sections }: { sections: MenuSection[] }) {
+    const { main, alternatives, others: ungrouped } = highlightMenu(sections);
+    const others = groupSalads(ungrouped);
+    const entrance = useEntrance();
+    const offset = main ? 1 : 0;
+
+    return (
+        <m.div className="flex flex-col gap-3 lg:gap-4" {...entrance}>
+            {main && (
+                <m.div custom={0} variants={rise}>
+                    <MealHighlight main={main} alternatives={alternatives} />
+                </m.div>
             )}
-        </>
+            {others.length > 0 && (
+                <dl className="grid gap-3 sm:grid-cols-2 lg:gap-4">
+                    {others.map((section, index) => {
+                        const Icon = (section.key && SECTION_ICONS[section.key]) || UtensilsCrossed;
+                        return (
+                            <m.div
+                                key={section.name}
+                                custom={offset + index}
+                                variants={rise}
+                                className="flex flex-col gap-3 rounded-2xl bg-card p-4 shadow-card ring-1 ring-foreground/8 lg:p-5"
+                            >
+                                <dt className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                                    <Icon className="size-4 text-primary" aria-hidden="true" />
+                                    {section.name}
+                                </dt>
+                                <dd className="flex flex-col gap-1.5 text-base leading-snug font-medium text-foreground">
+                                    {section.items.map((item) => (
+                                        <p key={item}>{item}</p>
+                                    ))}
+                                </dd>
+                            </m.div>
+                        );
+                    })}
+                </dl>
+            )}
+        </m.div>
     );
 }
 

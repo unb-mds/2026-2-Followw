@@ -3,7 +3,7 @@ import { useState } from 'react';
 
 import { cn } from '#/lib/shadcn';
 
-const WIDTHS = { sm: 'w-9', lg: 'w-20', xl: 'w-28' };
+const WIDTHS = { sm: 'w-9', md: 'w-14', lg: 'w-20', xl: 'w-28' };
 
 export function PersonPhoto({
     src,

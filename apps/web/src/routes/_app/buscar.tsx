@@ -1,12 +1,14 @@
 import { environmentManager, noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { Search } from 'lucide-react';
+import { m, type Variants } from 'motion/react';
 import { useEffect, useMemo, useState } from 'react';
 
 import type { SearchCategory } from '#/lib/search-categories';
 import type { UserProfile } from '#/queries/me';
 
 import { getCurrentSemester } from '#/calendar';
+import { useDesktop } from '#/components/DesktopContext';
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
 import { SchedulePreview } from '#/components/schedule/SchedulePreview';
@@ -18,8 +20,10 @@ import {
 import { RecommendationsSection } from '#/components/search/RecommendationsSection';
 import { SearchResults } from '#/components/search/SearchResults';
 import { SubjectResults } from '#/components/search/SubjectResults';
+import { SearchPill } from '#/components/SearchPill';
 import { TabFilter } from '#/components/TabFilter';
 import { Input } from '#/components/ui/input';
+import { ease, useEntrance } from '#/lib/motion';
 import {
     SEARCH_CATEGORIES,
     searchCategoryLabels,
@@ -94,19 +98,20 @@ export const Route = createFileRoute('/_app/buscar')({
     },
     staticData: {
         header: () => (
-            <HeaderBar>
-                <div className="flex flex-col gap-3">
-                    <HeaderTitle>Buscar</HeaderTitle>
-                    <p className="hidden text-sm text-muted-foreground lg:block">
-                        Encontre turmas e organize seus horários.
-                    </p>
-                </div>
+            <HeaderBar hideOnDesktop>
+                <HeaderTitle>Buscar</HeaderTitle>
             </HeaderBar>
         )
     },
     errorComponent: ErrorState,
     component: BuscarPage
 });
+
+// o conteúdo do campo aparece depois que a pílula termina de expandir
+const fieldContent: Variants = {
+    hidden: { opacity: 0 },
+    show: { opacity: 1, transition: { duration: 0.2, ease, delay: 0.2 } }
+};
 
 function BuscarPage() {
     const { data: user } = useSuspenseQuery(meQueryOptions);
@@ -128,26 +133,36 @@ function BuscarPage() {
         enabled: subjects && Boolean(user)
     });
     const taken = useMemo(() => (history ? takenCodes(history) : null), [history]);
+    const desktop = useDesktop();
+    const entrance = useEntrance();
     return (
         <div className="search-columns flex flex-col gap-5 lg:grid lg:items-start lg:gap-x-10">
-            <div className="desktop-search-field relative lg:fixed">
-                <Search
-                    className="pointer-events-none absolute top-1/2 left-3.5 size-5 -translate-y-1/2 text-muted-foreground"
-                    aria-hidden="true"
-                />
-                <Input
-                    type="search"
-                    value={q}
-                    onChange={(event) => {
-                        const value = event.target.value.slice(0, SEARCH_MAX_LENGTH);
-                        void setSearch({ q: value.trim() ? value : null });
-                    }}
-                    maxLength={SEARCH_MAX_LENGTH}
-                    placeholder="Busque por matéria, curso ou professor..."
-                    aria-label="Busque por matéria, curso ou professor"
-                    className="h-11 bg-card pl-10 text-sm lg:h-14 lg:rounded-full lg:border-primary lg:bg-background lg:pl-12"
-                />
-            </div>
+            <m.div layoutRoot className="desktop-search-field relative lg:fixed">
+                <SearchPill className="hidden border border-primary bg-background lg:block" />
+                <m.div
+                    className="relative"
+                    initial={desktop ? entrance.initial : false}
+                    animate="show"
+                    variants={fieldContent}
+                >
+                    <Search
+                        className="pointer-events-none absolute top-1/2 left-3.5 size-5 -translate-y-1/2 text-muted-foreground"
+                        aria-hidden="true"
+                    />
+                    <Input
+                        type="search"
+                        value={q}
+                        onChange={(event) => {
+                            const value = event.target.value.slice(0, SEARCH_MAX_LENGTH);
+                            void setSearch({ q: value.trim() ? value : null });
+                        }}
+                        maxLength={SEARCH_MAX_LENGTH}
+                        placeholder="Busque por matéria, curso ou professor..."
+                        aria-label="Busque por matéria, curso ou professor"
+                        className="h-11 bg-card pl-10 text-sm lg:h-14 lg:rounded-full lg:border-transparent lg:bg-transparent lg:pl-12 lg:dark:bg-transparent"
+                    />
+                </m.div>
+            </m.div>
             <TabFilter
                 label="Categoria da busca"
                 value={category}

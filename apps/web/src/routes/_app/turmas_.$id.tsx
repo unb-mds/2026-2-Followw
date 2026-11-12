@@ -16,7 +16,6 @@ import {
 } from '#/components/ErrorState';
 import { BackHeader } from '#/components/HeaderBar';
 import { LoginPromptCard } from '#/components/home/LoginPromptCard';
-import { ListCard } from '#/components/ListCard';
 import { LoadingText } from '#/components/LoadingText';
 import { Card, CardContent } from '#/components/ui/card';
 import { PersonPhoto } from '#/components/ui/person-photo';
@@ -262,7 +261,7 @@ function MemberGroup({
     return (
         <section>
             <GroupTitle title={title} count={count} />
-            <ListCard>{children}</ListCard>
+            <div className="grid gap-3 lg:grid-cols-2 lg:gap-4">{children}</div>
         </section>
     );
 }
@@ -315,17 +314,19 @@ function PersonRow({
     email?: string | null;
 }) {
     return (
-        <div className="flex items-center gap-3 py-2.5">
-            <PersonPhoto src={photo} />
-            <div className="min-w-0 text-xs text-muted-foreground">
-                <p className="truncate text-sm font-medium text-foreground">{name}</p>
-                {details && <p className="truncate">{details}</p>}
-                {email && (
-                    <a className="break-all text-primary" href={mailto(email)}>
-                        {email}
-                    </a>
-                )}
-            </div>
-        </div>
+        <Card>
+            <CardContent className="flex items-center gap-4">
+                <PersonPhoto src={photo} size="md" />
+                <div className="flex min-w-0 flex-col gap-1 text-sm text-muted-foreground">
+                    <p className="truncate text-base font-medium text-foreground">{name}</p>
+                    {details && <p className="truncate">{details}</p>}
+                    {email && (
+                        <a className="break-all text-primary" href={mailto(email)}>
+                            {email}
+                        </a>
+                    )}
+                </div>
+            </CardContent>
+        </Card>
     );
 }

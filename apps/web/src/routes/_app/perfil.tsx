@@ -53,13 +53,8 @@ export const Route = createFileRoute('/_app/perfil')({
 function ProfileHeader() {
     const desktop = useDesktop();
     return (
-        <HeaderBar actions={!desktop && <ThemeToggle />}>
-            <div className="flex flex-col gap-3">
-                <HeaderTitle>Perfil</HeaderTitle>
-                <p className="hidden text-sm text-muted-foreground lg:block">
-                    Seu percurso acadêmico e sua conta.
-                </p>
-            </div>
+        <HeaderBar hideOnDesktop actions={!desktop && <ThemeToggle />}>
+            <HeaderTitle>Perfil</HeaderTitle>
         </HeaderBar>
     );
 }
