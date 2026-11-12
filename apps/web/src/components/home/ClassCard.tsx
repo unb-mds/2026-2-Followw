@@ -1,4 +1,5 @@
 import { Award, MapIcon, MapPin } from 'lucide-react';
+import { m } from 'motion/react';
 
 import type { Classroom } from '#/queries/classrooms';
 
@@ -6,6 +7,7 @@ import { GradeText } from '#/components/classroom/GradeText';
 import { Badge } from '#/components/ui/badge';
 import { Button } from '#/components/ui/button';
 import { Card } from '#/components/ui/card';
+import { snappy } from '#/lib/motion';
 import { cn } from '#/lib/shadcn';
 
 export interface ClassCardProps {
@@ -146,7 +148,7 @@ export const ClassCard: React.FC<ClassCardProps> = ({
                 {content}
             </div>
         );
-    return (
+    const card = (
         <Card
             size="sm"
             className={cn(
@@ -157,5 +159,11 @@ export const ClassCard: React.FC<ClassCardProps> = ({
         >
             {content}
         </Card>
+    );
+    if (!onClick) return card;
+    return (
+        <m.div whileTap={{ scale: 0.98 }} transition={snappy}>
+            {card}
+        </m.div>
     );
 };

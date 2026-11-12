@@ -1,10 +1,12 @@
 import { Moon, Sun, SunMoon } from 'lucide-react';
+import { AnimatePresence, m } from 'motion/react';
 import { useSyncExternalStore } from 'react';
 import { flushSync } from 'react-dom';
 
 import type { Theme } from '#/lib/theme';
 
 import { Button } from '#/components/ui/button';
+import { spring } from '#/lib/motion';
 import {
     THEME_LABELS,
     applyTheme,
@@ -65,7 +67,18 @@ export const ThemeToggle: React.FC = () => {
             title={label}
             className="lg:size-14 lg:rounded-full lg:border lg:bg-muted/40 lg:shadow-sm"
         >
-            <Icon className="size-5" />
+            <AnimatePresence initial={false} mode="popLayout">
+                <m.span
+                    key={theme}
+                    className="flex"
+                    initial={{ opacity: 0, rotate: -90, scale: 0.6 }}
+                    animate={{ opacity: 1, rotate: 0, scale: 1 }}
+                    exit={{ opacity: 0, rotate: 90, scale: 0.6 }}
+                    transition={spring}
+                >
+                    <Icon className="size-5" />
+                </m.span>
+            </AnimatePresence>
         </Button>
     );
 };

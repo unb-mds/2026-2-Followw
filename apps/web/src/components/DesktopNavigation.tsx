@@ -1,11 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useMatches } from '@tanstack/react-router';
 import { House, Search, User, UserRoundGroup, Utensils } from 'lucide-react';
+import { m } from 'motion/react';
 import { useState } from 'react';
 
 import { FollowwLogo } from '#/components/FollowwLogo';
 import { ThemeToggle } from '#/components/ThemeToggle';
 import { useRestaurantShortcut } from '#/components/useRestaurantShortcut';
+import { ease, spring } from '#/lib/motion';
 import { cn } from '#/lib/shadcn';
 import { meQueryOptions } from '#/queries/me';
 
@@ -17,7 +19,7 @@ const items = [
 
 // largura fixa: o controle de busca (fixed) depende dela em styles.css
 const itemClass =
-    'flex h-12 w-28 items-center justify-center gap-2 rounded-full text-sm font-medium transition-all duration-200 hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring active:scale-95 motion-reduce:transition-none';
+    'relative flex h-12 w-28 items-center justify-center gap-2 rounded-full text-sm font-medium transition-[color,background-color,scale] duration-200 hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring active:scale-95 motion-reduce:transition-none';
 
 export function DesktopNavigation() {
     const pathname = useMatches({ select: (matches) => matches.at(-1)?.pathname ?? '/' });
@@ -49,28 +51,44 @@ export function DesktopNavigation() {
                                 aria-current={active ? 'page' : undefined}
                                 className={cn(
                                     itemClass,
-                                    active ? 'bg-primary/10 text-primary' : 'text-muted-foreground'
+                                    active
+                                        ? 'text-primary hover:bg-transparent'
+                                        : 'text-muted-foreground'
                                 )}
                                 onClick={to === '/ru' ? onRestaurantClick : undefined}
                             >
-                                <Icon aria-hidden="true" className="size-5" />
-                                {label}
+                                {active && (
+                                    <m.span
+                                        layoutId="desktop-navigation-pill"
+                                        aria-hidden="true"
+                                        className="absolute inset-0 rounded-full bg-primary/10"
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        transition={spring}
+                                    />
+                                )}
+                                <Icon aria-hidden="true" className="relative size-5" />
+                                <span className="relative">{label}</span>
                             </Link>
                         );
                     })}
-                    <span
+                    <m.span
                         aria-hidden="true"
-                        className={cn(
-                            'h-12 transition-all duration-200 motion-reduce:transition-none',
-                            searching ? 'w-0' : 'w-28'
-                        )}
+                        className="h-12"
+                        initial={false}
+                        animate={{ width: searching ? 0 : 112 }}
+                        transition={{ duration: 0.2, ease }}
                     />
-                    <div
+                    <m.div
+                        layout="position"
                         data-desktop-search=""
                         className={cn(
                             'desktop-search-control text-muted-foreground',
                             searching && 'is-searching'
                         )}
+                        initial={false}
+                        animate={{ opacity: searching ? 0 : 1 }}
+                        transition={{ duration: 0.22, ease }}
                     >
                         {searching ? (
                             <span aria-hidden="true" className={itemClass}>
@@ -82,7 +100,7 @@ export function DesktopNavigation() {
                                 Buscar
                             </Link>
                         )}
-                    </div>
+                    </m.div>
                 </nav>
             </div>
             <div className="flex shrink-0 items-center gap-3">

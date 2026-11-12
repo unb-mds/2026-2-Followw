@@ -1,15 +1,21 @@
 import { ArrowUpRight, Building2, Mail } from 'lucide-react';
+import { m } from 'motion/react';
 
 import type { ProfessorDetails } from '#/queries/professors';
 
 import { PersonPhoto } from '#/components/ui/person-photo';
 import { mailto } from '#/lib/contact';
+import { rise, useEntrance } from '#/lib/motion';
 import { titleCase, unitLabel } from '#/lib/profile';
 import { cn } from '#/lib/shadcn';
 
 export function ProfessorHeader({ professor }: { professor: ProfessorDetails }) {
     return (
-        <div className="flex animate-in items-stretch gap-4 rounded-2xl bg-card p-4 shadow-card ring-1 ring-foreground/8 duration-500 fade-in slide-in-from-bottom-2 sm:gap-5 sm:p-5">
+        <m.div
+            variants={rise}
+            {...useEntrance()}
+            className="flex items-stretch gap-4 rounded-2xl bg-card p-4 shadow-card ring-1 ring-foreground/8 sm:gap-5 sm:p-5"
+        >
             <div className="shrink-0 rounded-xl bg-background/60 p-1 shadow-card ring-1 ring-primary/20">
                 <PersonPhoto src={professor.photo} size="xl" />
             </div>
@@ -39,7 +45,7 @@ export function ProfessorHeader({ professor }: { professor: ProfessorDetails }) 
                     <ExternalLink href={professor.url}>SIGAA</ExternalLink>
                 </div>
             </div>
-        </div>
+        </m.div>
     );
 }
 

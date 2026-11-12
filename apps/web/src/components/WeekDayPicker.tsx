@@ -1,8 +1,11 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { m } from 'motion/react';
+import { useId } from 'react';
 
 import type { Day } from '#/lib/schedule';
 
 import { Button } from '#/components/ui/button';
+import { spring } from '#/lib/motion';
 import { cn } from '#/lib/shadcn';
 
 const WEEKDAYS = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
@@ -73,8 +76,10 @@ function WeekHeader({ days, week }: { days: Day[]; week: WeekNavigation }) {
 }
 
 function DayButtons({ days, selectedDate, onSelect }: Omit<WeekDayPickerProps, 'week'>) {
+    const id = useId();
     return (
-        <div
+        <m.div
+            layoutScroll
             className="mb-4 flex items-center gap-1 overflow-x-auto py-1"
             aria-label="Escolher dia"
         >
@@ -88,8 +93,19 @@ function DayButtons({ days, selectedDate, onSelect }: Omit<WeekDayPickerProps, '
                         onClick={() => onSelect(day)}
                         aria-label={day.date}
                         aria-pressed={isActive}
-                        className="h-16 min-w-0 flex-1 flex-col gap-1 px-0"
+                        className={cn(
+                            'relative isolate h-16 min-w-0 flex-1 flex-col gap-1 px-0',
+                            isActive && 'bg-transparent hover:bg-transparent'
+                        )}
                     >
+                        {isActive && (
+                            <m.span
+                                layoutId={id}
+                                aria-hidden="true"
+                                className="absolute -inset-px -z-10 rounded-[inherit] bg-primary"
+                                transition={spring}
+                            />
+                        )}
                         <span
                             className={cn(
                                 'text-xs font-bold tracking-wider uppercase',
@@ -102,6 +118,6 @@ function DayButtons({ days, selectedDate, onSelect }: Omit<WeekDayPickerProps, '
                     </Button>
                 );
             })}
-        </div>
+        </m.div>
     );
 }

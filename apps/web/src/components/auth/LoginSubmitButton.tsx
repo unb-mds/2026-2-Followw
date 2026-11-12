@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { m, useTime, useTransform } from 'motion/react';
 
 import { Button } from '#/components/ui/button';
 import { Spinner } from '#/components/ui/spinner';
@@ -32,21 +32,12 @@ export function LoginSubmitButton({ pending }: LoginSubmitButtonProps) {
 }
 
 function LoginProgressBar() {
-    const [progress, setProgress] = useState(0);
-
-    useEffect(() => {
-        const startedAt = performance.now();
-        const interval = window.setInterval(() => {
-            setProgress(loginProgressAt(performance.now() - startedAt));
-        }, 50);
-
-        return () => window.clearInterval(interval);
-    }, []);
+    const scaleX = useTransform(useTime(), (elapsed) => loginProgressAt(elapsed) / 100);
 
     return (
-        <span
-            className="pointer-events-none absolute inset-y-0 left-0 w-full origin-left bg-[color-mix(in_oklch,var(--primary),black_25%)] transition-transform duration-50 ease-out motion-reduce:transition-none"
-            style={{ transform: `scaleX(${progress / 100})` }}
+        <m.span
+            className="pointer-events-none absolute inset-y-0 left-0 w-full origin-left bg-[color-mix(in_oklch,var(--primary),black_25%)]"
+            style={{ scaleX }}
             aria-hidden="true"
         />
     );

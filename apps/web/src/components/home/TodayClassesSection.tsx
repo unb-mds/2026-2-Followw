@@ -1,4 +1,5 @@
 import { useNavigate } from '@tanstack/react-router';
+import { m } from 'motion/react';
 import { Fragment } from 'react';
 
 import type { Day, ScheduledClass } from '#/lib/schedule';
@@ -11,6 +12,7 @@ import { LoginPromptCard } from '#/components/home/LoginPromptCard';
 import { SectionHeader } from '#/components/SectionHeader';
 import { Card } from '#/components/ui/card';
 import { dayTimeline } from '#/lib/day-timeline';
+import { rise, useEntrance } from '#/lib/motion';
 import { nowInBrasilia } from '#/lib/schedule';
 import { cn } from '#/lib/shadcn';
 
@@ -47,6 +49,7 @@ function TodayClassesContent({
     now = nowInBrasilia()
 }: TodayClassesSectionProps) {
     const navigate = useNavigate();
+    const entrance = useEntrance();
 
     if (!loggedIn) return <LoginPromptCard />;
     if (noClassReason)
@@ -68,7 +71,7 @@ function TodayClassesContent({
                 aria-hidden="true"
                 className="absolute inset-y-0 right-0 left-3.5 py-0 lg:left-4.5"
             />
-            <div className="relative flex flex-col">
+            <m.div key={day} className="relative flex flex-col" {...entrance}>
                 {timeline.map(({ item, start, end, status, progress, gap, overlap }, index) => (
                     <Fragment key={item.id}>
                         {index > 0 && (
@@ -92,24 +95,26 @@ function TodayClassesContent({
                                     index === timeline.length - 1 && 'rounded-b-2xl'
                                 )}
                             >
-                                <ClassCard
-                                    plain
-                                    title={item.classroom.subject.name}
-                                    time={`${start}–${end}`}
-                                    location={item.classroom.room ?? 'Local não informado'}
-                                    status={cancelled(item) ? 'cancelled' : status}
-                                    onClick={() =>
-                                        navigate({
-                                            to: '/turmas/$id',
-                                            params: { id: item.classroom.id }
-                                        })
-                                    }
-                                />
+                                <m.div custom={index} variants={rise}>
+                                    <ClassCard
+                                        plain
+                                        title={item.classroom.subject.name}
+                                        time={`${start}–${end}`}
+                                        location={item.classroom.room ?? 'Local não informado'}
+                                        status={cancelled(item) ? 'cancelled' : status}
+                                        onClick={() =>
+                                            navigate({
+                                                to: '/turmas/$id',
+                                                params: { id: item.classroom.id }
+                                            })
+                                        }
+                                    />
+                                </m.div>
                             </div>
                         </div>
                     </Fragment>
                 ))}
-            </div>
+            </m.div>
         </div>
     );
 }

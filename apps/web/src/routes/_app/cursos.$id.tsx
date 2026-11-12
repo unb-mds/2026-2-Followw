@@ -6,7 +6,6 @@ import type { UserProfile } from '#/queries/me';
 import { getCurrentSemester } from '#/calendar';
 import { CourseSummary } from '#/components/curriculum/CourseSummary';
 import { CurriculumView } from '#/components/curriculum/CurriculumView';
-import { Legend } from '#/components/curriculum/Legend';
 import { useDesktop } from '#/components/DesktopContext';
 import { ErrorCard, ErrorState } from '#/components/ErrorState';
 import { BackHeader } from '#/components/HeaderBar';
@@ -86,8 +85,8 @@ export const Route = createFileRoute('/_app/cursos/$id')({
     component: FlowPage
 });
 
-function FlowHeader({ legend = false }: { legend?: boolean }) {
-    return <BackHeader to="/buscar" title="Fluxo acadêmico" actions={legend && <Legend />} />;
+function FlowHeader() {
+    return <BackHeader to="/buscar" title="Fluxo acadêmico" />;
 }
 
 function FlowPage() {
@@ -104,7 +103,7 @@ function FlowPage() {
     return (
         <div ref={ref} className="flex min-h-0 flex-1 flex-col">
             <div className="shrink-0 px-4 pb-5 lg:px-6">
-                <FlowHeader legend={Boolean(desktop && loggedIn && course && entrySemester)} />
+                <FlowHeader />
                 {course && <CourseSummary course={course} entrySemester={entrySemester} />}
             </div>
             {!ownCourse && listed.isPending ? (

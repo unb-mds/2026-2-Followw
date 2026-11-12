@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { RefreshCw } from 'lucide-react';
+import { m } from 'motion/react';
 import { useState } from 'react';
 
 import type { ClassroomPost, PostType } from '#/queries/classrooms';
@@ -7,6 +8,7 @@ import type { ClassroomPost, PostType } from '#/queries/classrooms';
 import { ErrorCard, SIGAA_DOWN_MESSAGE, StaleDataNotice } from '#/components/ErrorState';
 import { ListCard } from '#/components/ListCard';
 import { LoadingText } from '#/components/LoadingText';
+import { TabFilter } from '#/components/TabFilter';
 import {
     Accordion,
     AccordionContent,
@@ -18,17 +20,19 @@ import { Button } from '#/components/ui/button';
 import { Card, CardContent } from '#/components/ui/card';
 import { postDateLabel, postLink, postTypeLabels } from '#/lib/classroom-posts';
 import { Markdown } from '#/lib/markdown';
+import { rise, useEntrance } from '#/lib/motion';
 import { cn } from '#/lib/shadcn';
 import { classroomPostDetailQueryOptions, classroomPostsQueryOptions } from '#/queries/classrooms';
 import { refreshQuery } from '#/queries/refresh';
 
-const filters: { type: PostType | 'all'; label: string }[] = [
-    { type: 'all', label: 'Todas' },
-    { type: 'news', label: 'Notícias' },
-    { type: 'topic', label: 'Tópicos de aula' },
-    { type: 'material', label: 'Materiais' },
-    { type: 'assessment', label: 'Avaliações' }
-];
+const filters = ['all', 'news', 'topic', 'material', 'assessment'] as const;
+const filterLabels: Record<(typeof filters)[number], string> = {
+    all: 'Todas',
+    news: 'Notícias',
+    topic: 'Tópicos de aula',
+    material: 'Materiais',
+    assessment: 'Avaliações'
+};
 
 export function ClassroomPosts({ id }: { id: string }) {
     const queryClient = useQueryClient();
@@ -36,6 +40,7 @@ export function ClassroomPosts({ id }: { id: string }) {
     const posts = useQuery(options);
     const [openedId, setOpenedId] = useState<string | null>(null);
     const [type, setType] = useState<PostType | 'all'>('all');
+    const entrance = useEntrance();
 
     if (posts.isPending)
         return (
@@ -54,25 +59,17 @@ export function ClassroomPosts({ id }: { id: string }) {
     return (
         <section aria-label="Postagens da turma" className="flex flex-col gap-3">
             <div className="flex items-center justify-between gap-2">
-                <fieldset
-                    aria-label="Filtrar postagens por tipo"
-                    className="flex min-w-0 gap-1 overflow-x-auto py-1 max-md:no-scrollbar"
-                >
-                    {filters.map((filter) => (
-                        <Button
-                            key={filter.type}
-                            size="sm"
-                            variant={type === filter.type ? 'secondary' : 'ghost'}
-                            aria-pressed={type === filter.type}
-                            onClick={() => {
-                                setType(filter.type);
-                                setOpenedId(null);
-                            }}
-                        >
-                            {filter.label}
-                        </Button>
-                    ))}
-                </fieldset>
+                <TabFilter
+                    label="Filtrar postagens por tipo"
+                    size="sm"
+                    value={type}
+                    options={filters}
+                    labels={filterLabels}
+                    onChange={(next) => {
+                        setType(next);
+                        setOpenedId(null);
+                    }}
+                />
                 <Button
                     variant="ghost"
                     size="icon-sm"
@@ -108,13 +105,19 @@ export function ClassroomPosts({ id }: { id: string }) {
             ) : (
                 <ListCard>
                     <Accordion
+                        key={type}
+                        render={<m.div {...entrance} />}
                         value={openedId === null ? [] : [openedId]}
                         onValueChange={(value) =>
                             setOpenedId(typeof value[0] === 'string' ? value[0] : null)
                         }
                     >
-                        {visible.map((post) => (
-                            <AccordionItem key={post.id} value={post.id}>
+                        {visible.map((post, index) => (
+                            <AccordionItem
+                                key={post.id}
+                                value={post.id}
+                                render={<m.div custom={index} variants={rise} />}
+                            >
                                 <AccordionTrigger className="gap-3 py-3 hover:no-underline">
                                     <span className="flex min-w-0 flex-1 flex-col items-start gap-2">
                                         <span className="flex flex-wrap items-center gap-2">

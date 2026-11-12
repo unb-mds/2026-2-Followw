@@ -78,7 +78,7 @@ function PerfilPage() {
                 <ProfileIdentity user={user} displayName={settings.displayName} />
             </div>
             <div className="my-4 flex flex-col gap-4 lg:contents">
-                <div className="profile-install contents lg:col-start-1 lg:row-start-4 lg:block">
+                <div className="profile-install contents lg:hidden">
                     <InstallPromptCard />
                 </div>
                 <div className="profile-performance contents lg:col-start-2 lg:row-start-1 lg:block lg:border-l lg:pl-8">

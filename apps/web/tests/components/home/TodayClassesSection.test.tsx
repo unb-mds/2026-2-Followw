@@ -38,9 +38,15 @@ function render(lessons: WeekLesson[], noClassReason?: string) {
     );
 }
 
+// o preenchimento é um scaleY; `none` é a barra cheia
 const bars = (markup: string) =>
-    [...markup.matchAll(/class="(w-full [^"]*)" style="height:([\d.]+)%"/g)].map(
-        ([, classes, height]) => [classes.includes('bg-destructive') ? 'falta' : 'ok', height]
+    [...markup.matchAll(/class="(w-full [^"]*)" style="transform:([^"]*)"/g)].map(
+        ([, classes, transform]) => [
+            classes.includes('bg-destructive') ? 'falta' : 'ok',
+            transform === 'none'
+                ? '100'
+                : String(Number(/scaleY\(([\d.]+)\)/.exec(transform)?.[1]) * 100)
+        ]
     );
 
 describe('TodayClassesSection', () => {

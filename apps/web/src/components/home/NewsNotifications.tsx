@@ -3,6 +3,7 @@ import type { Components } from 'react-markdown';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { Bell } from 'lucide-react';
+import { m } from 'motion/react';
 import { useSyncExternalStore } from 'react';
 import ReactMarkdown from 'react-markdown';
 
@@ -14,6 +15,7 @@ import { Button } from '#/components/ui/button';
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '#/components/ui/popover';
 import { postDateLabel } from '#/lib/classroom-posts';
 import { STORAGE_KEYS, storedValue } from '#/lib/local-storage';
+import { rise, useEntrance } from '#/lib/motion';
 import { latestNewsQueryOptions } from '#/queries/posts';
 
 const previewComponents: Components = { p: ({ children }) => <span>{children} </span> };
@@ -68,6 +70,7 @@ export function NewsNotifications() {
 
 function NewsList() {
     const feed = useQuery(latestNewsQueryOptions);
+    const entrance = useEntrance();
 
     if (feed.isPending)
         return (
@@ -91,13 +94,13 @@ function NewsList() {
                 </div>
             )}
             {items.length > 0 ? (
-                <ul className="flex flex-col divide-y divide-border">
-                    {items.map((item) => (
-                        <li key={newsKey(item)}>
+                <m.ul className="flex flex-col divide-y divide-border" {...entrance}>
+                    {items.map((item, index) => (
+                        <m.li key={newsKey(item)} custom={index} variants={rise}>
                             <NewsItem item={item} />
-                        </li>
+                        </m.li>
                     ))}
-                </ul>
+                </m.ul>
             ) : (
                 <NewsMessage>
                     {updating ? 'Buscando notícias das turmas...' : 'Nenhuma notícia por enquanto.'}

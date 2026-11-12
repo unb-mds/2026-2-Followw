@@ -1,5 +1,6 @@
 import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { m } from 'motion/react';
 import { useState } from 'react';
 
 import { useDesktop } from '#/components/DesktopContext';
@@ -12,6 +13,7 @@ import { WeeklySchedule } from '#/components/schedule/WeeklySchedule';
 import { TabFilter } from '#/components/TabFilter';
 import { Card, CardContent } from '#/components/ui/card';
 import { groupBySemester } from '#/lib/classroom-details';
+import { rise, useEntrance } from '#/lib/motion';
 import { describeSchedule } from '#/lib/schedule';
 import { allClassroomsQueryOptions, finalGrade } from '#/queries/classrooms';
 import { loadQuery } from '#/queries/load';
@@ -56,6 +58,7 @@ function Classrooms() {
         refetch
     } = useQuery(allClassroomsQueryOptions);
     const [selected, setSelected] = useState<string>();
+    const entrance = useEntrance();
 
     const groups = groupBySemester(classrooms ?? []);
     const [semester, items] = groups.find(([name]) => name === selected) ?? groups[0] ?? [];
@@ -81,27 +84,35 @@ function Classrooms() {
                             {items?.length ?? 0} turmas
                         </span>
                     </h2>
-                    <div className="flex flex-col gap-2 lg:gap-4">
-                        {items?.map((classroom) => (
-                            <ClassCard
-                                key={classroom.id}
-                                title={classroom.subject.name}
-                                time={describeSchedule(classroom.schedule) ?? 'Horário a definir'}
-                                location={
-                                    classroom.current
-                                        ? (classroom.room ?? 'Local não informado')
-                                        : undefined
-                                }
-                                grade={finalGrade(classroom)}
-                                status={
-                                    classroom.status === 'pending_enrollment' ? 'pending' : 'normal'
-                                }
-                                onClick={() =>
-                                    navigate({ to: '/turmas/$id', params: { id: classroom.id } })
-                                }
-                            />
+                    <m.div className="flex flex-col gap-2 lg:gap-4" {...entrance}>
+                        {items?.map((classroom, index) => (
+                            <m.div key={classroom.id} custom={index} variants={rise}>
+                                <ClassCard
+                                    title={classroom.subject.name}
+                                    time={
+                                        describeSchedule(classroom.schedule) ?? 'Horário a definir'
+                                    }
+                                    location={
+                                        classroom.current
+                                            ? (classroom.room ?? 'Local não informado')
+                                            : undefined
+                                    }
+                                    grade={finalGrade(classroom)}
+                                    status={
+                                        classroom.status === 'pending_enrollment'
+                                            ? 'pending'
+                                            : 'normal'
+                                    }
+                                    onClick={() =>
+                                        navigate({
+                                            to: '/turmas/$id',
+                                            params: { id: classroom.id }
+                                        })
+                                    }
+                                />
+                            </m.div>
                         ))}
-                    </div>
+                    </m.div>
                 </section>
                 {desktop && items && items.length > 0 && (
                     <aside className="min-w-0 border-l pl-8">

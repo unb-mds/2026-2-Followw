@@ -1,4 +1,5 @@
 import { CalendarDays, Download, X } from 'lucide-react';
+import { AnimatePresence, m } from 'motion/react';
 import { useState } from 'react';
 
 import { useDesktop } from '#/components/DesktopContext';
@@ -18,6 +19,7 @@ import {
 } from '#/components/ui/dialog';
 import { Progress } from '#/components/ui/progress';
 import { saveFile } from '#/lib/download';
+import { easeIn, spring } from '#/lib/motion';
 import { classKey, weeklyGrid } from '#/lib/planned-schedule';
 import { describeSchedule } from '#/lib/schedule';
 import { createSchedulePng } from '#/lib/schedule-image';
@@ -83,29 +85,42 @@ export function SchedulePreview() {
                     </p>
                 </div>
             ) : (
-                <ul className="flex flex-col gap-2">
-                    {items.map((item) => (
-                        <li key={classKey(item)}>
-                            <ClassCard
-                                compact
-                                title={item.name}
-                                time={describeSchedule(item.schedule) ?? 'Horário a definir'}
-                                location={item.room ?? undefined}
-                                professors={item.professors.map(({ name }) => name)}
-                                action={
-                                    <Button
-                                        variant="ghost"
-                                        size="icon-sm"
-                                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                        aria-label={`Remover da grade: ${item.code}, turma ${item.number}`}
-                                        onClick={() => toggle(item)}
-                                    >
-                                        <X aria-hidden="true" />
-                                    </Button>
-                                }
-                            />
-                        </li>
-                    ))}
+                <ul className="relative flex flex-col gap-2">
+                    <AnimatePresence initial={false} mode="popLayout">
+                        {items.map((item) => (
+                            <m.li
+                                key={classKey(item)}
+                                layout
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{
+                                    opacity: 0,
+                                    scale: 0.96,
+                                    transition: { duration: 0.15, ease: easeIn }
+                                }}
+                                transition={spring}
+                            >
+                                <ClassCard
+                                    compact
+                                    title={item.name}
+                                    time={describeSchedule(item.schedule) ?? 'Horário a definir'}
+                                    location={item.room ?? undefined}
+                                    professors={item.professors.map(({ name }) => name)}
+                                    action={
+                                        <Button
+                                            variant="ghost"
+                                            size="icon-sm"
+                                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                            aria-label={`Remover da grade: ${item.code}, turma ${item.number}`}
+                                            onClick={() => toggle(item)}
+                                        >
+                                            <X aria-hidden="true" />
+                                        </Button>
+                                    }
+                                />
+                            </m.li>
+                        ))}
+                    </AnimatePresence>
                 </ul>
             )}
             {items.length > 0 && (
@@ -151,24 +166,22 @@ export function SchedulePreview() {
 
     return (
         <Dialog>
-            {items.length > 0 && (
-                <SelectionBar
-                    label="Turmas selecionadas"
-                    count={items.length}
-                    units={['turma', 'turmas']}
-                    onClear={clear}
+            <SelectionBar
+                label="Turmas selecionadas"
+                count={items.length}
+                units={['turma', 'turmas']}
+                onClear={clear}
+            >
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="rounded-full text-primary"
+                    render={<DialogTrigger />}
                 >
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="rounded-full text-primary"
-                        render={<DialogTrigger />}
-                    >
-                        <CalendarDays aria-hidden="true" />
-                        Ver grade
-                    </Button>
-                </SelectionBar>
-            )}
+                    <CalendarDays aria-hidden="true" />
+                    Ver grade
+                </Button>
+            </SelectionBar>
             <DialogContent
                 className="max-h-9/10 overflow-y-auto rounded-2xl sm:max-w-3xl"
                 showCloseButton={false}

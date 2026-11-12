@@ -1,7 +1,9 @@
 import { Link, useLocation } from '@tanstack/react-router';
 import { House, Search, User, type LucideIcon, Utensils, UserRoundGroup } from 'lucide-react';
+import { m } from 'motion/react';
 
 import { useRestaurantShortcut } from '#/components/useRestaurantShortcut';
+import { snappy, spring } from '#/lib/motion';
 import { cn } from '#/lib/shadcn';
 
 interface NavItem {
@@ -32,17 +34,18 @@ export const BottomNavigation: React.FC = () => {
             aria-label="Navegação principal do aplicativo"
         >
             <div className="relative grid h-11 grid-cols-5">
-                <div
+                <m.div
                     aria-hidden="true"
-                    className="pointer-events-none absolute inset-y-0 left-0 w-1/5 px-1 transition-all duration-400 motion-reduce:transition-none"
-                    style={{
-                        transform: `translateX(${Math.max(activeIndex, 0) * 100}%)`,
-                        opacity: activeIndex === -1 ? 0 : 1,
-                        transitionTimingFunction: 'cubic-bezier(0.34, 1.4, 0.64, 1)'
+                    className="pointer-events-none absolute inset-y-0 left-0 w-1/5 px-1"
+                    initial={false}
+                    animate={{
+                        x: `${Math.max(activeIndex, 0) * 100}%`,
+                        opacity: activeIndex === -1 ? 0 : 1
                     }}
+                    transition={spring}
                 >
                     <div className="h-full rounded-full bg-primary/10 shadow-sm" />
-                </div>
+                </m.div>
                 {navItems.map((item, index) => {
                     const isActive = index === activeIndex;
                     return (
@@ -61,14 +64,18 @@ export const BottomNavigation: React.FC = () => {
                                 aria-hidden="true"
                                 className="absolute inset-x-1 inset-y-0 rounded-full transition-colors group-hover:bg-muted"
                             />
-                            <item.icon
-                                aria-hidden="true"
-                                strokeWidth={isActive ? 2.5 : 2}
-                                className={cn(
-                                    'relative size-5 transition-transform duration-350 motion-reduce:transition-none',
-                                    isActive && 'scale-110'
-                                )}
-                            />
+                            <m.span
+                                className="relative"
+                                initial={false}
+                                animate={{ scale: isActive ? 1.1 : 1 }}
+                                transition={snappy}
+                            >
+                                <item.icon
+                                    aria-hidden="true"
+                                    strokeWidth={isActive ? 2.5 : 2}
+                                    className="size-5"
+                                />
+                            </m.span>
                         </Link>
                     );
                 })}

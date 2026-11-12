@@ -321,33 +321,6 @@ describe('fluxograma integrado', () => {
         testing.fireEvent.click(close);
         await testing.waitFor(() => expect(page.router.state.location.pathname).toBe('/buscar'));
     });
-    test('mobile omite legenda, limita semestres reais e troca para um único diagrama no breakpoint', async () => {
-        const page = await renderPage();
-        await page.findByRole('button', { name: /A, Base, Em curso/ });
-        expect(page.queryByRole('list', { name: 'Legenda dos estados acadêmicos' })).toBeNull();
-        expect(
-            page.getByRole('button', { name: 'Semestre anterior' }).hasAttribute('disabled')
-        ).toBe(true);
-        testing.fireEvent.click(page.getByRole('button', { name: 'Próximo semestre' }));
-        await page.findByRole('heading', { name: '2º semestre' });
-        expect(
-            page.getByRole('button', { name: 'Próximo semestre' }).hasAttribute('disabled')
-        ).toBe(true);
-        testing.act(() => {
-            width = 1024;
-            for (const observer of ViewportObserver.active) observer.emit();
-        });
-        await page.findByRole('region', { name: /Fluxo acadêmico por semestres/ });
-        expect(page.getByRole('list', { name: 'Legenda dos estados acadêmicos' })).toBeDefined();
-        expect(page.queryByRole('button', { name: 'Próximo semestre' })).toBeNull();
-        expect(page.getAllByRole('button', { name: /Ver requisitos/ })).toHaveLength(2);
-        testing.act(() => {
-            width = 1023;
-            for (const observer of ViewportObserver.active) observer.emit();
-        });
-        await page.findByRole('button', { name: 'Próximo semestre' });
-        expect(page.queryByRole('list', { name: 'Legenda dos estados acadêmicos' })).toBeNull();
-    });
     test('mobile mantém todos os semestres e a linha entre eles, rolando suavemente no seletor', async () => {
         const page = await renderPage();
         const region = await page.findByRole('region', { name: /um semestre por vez/ });
@@ -460,26 +433,6 @@ describe('fluxograma integrado', () => {
         await page.findByRole('heading', { name: '1º semestre' });
         expect(page.getByRole('button', { name: /A, Base, Em curso/ })).toBeDefined();
     });
-    test('desktop mantém legenda no cabeçalho ao selecionar matéria que não está em curso', async () => {
-        width = 1440;
-        const page = await renderPage('/cursos/42?subject=B');
-        const diagram = await page.findByRole('region', { name: /Fluxo acadêmico por semestres/ });
-        const legend = page.getByRole('list', { name: 'Legenda dos estados acadêmicos' });
-        expect(
-            legend.compareDocumentPosition(diagram) & Node.DOCUMENT_POSITION_FOLLOWING
-        ).toBeTruthy();
-        expect(legend.closest('header')).toBe(
-            page.getByRole('heading', { name: 'Fluxo acadêmico' }).closest('header')
-        );
-        expect(page.getByRole('button', { name: /B, Avançada, Pendente/ })).toBeDefined();
-        expect(page.getByRole('button', { name: /A, Base/ }).textContent).toContain('60 h · 4 cr');
-        expect(page.getByRole('button', { name: /B, Avançada/ }).textContent).toContain(
-            '30 h · 2 cr'
-        );
-        expect(legend.querySelector('button')).toBeNull();
-        expect(page.queryByText(/Matriz Teste/)).toBeNull();
-        expect(page.queryByText(/Vigência/)).toBeNull();
-    });
     test('desktop mostra todas as linhas e isola temporariamente as relações durante hover', async () => {
         width = 1440;
         client.setQueryData(
@@ -552,12 +505,6 @@ describe('fluxograma integrado', () => {
         testing.fireEvent.blur(card);
         expect(edges()).toHaveLength(4);
     });
-    test('matéria ausente não modifica a matriz nem exibe legenda no mobile', async () => {
-        const page = await renderPage('/cursos/42?subject=OPT');
-        await page.findByText(/não pertence aos períodos exibidos/);
-        expect(page.queryByRole('list', { name: 'Legenda dos estados acadêmicos' })).toBeNull();
-        expect(page.queryByRole('button', { name: /OPT,/ })).toBeNull();
-    });
     test('falha de histórico mantém matriz e estado desconhecido', async () => {
         client.removeQueries({ queryKey: allClassroomsQueryOptions.queryKey });
         const page = await renderPage();
@@ -605,11 +552,6 @@ describe('fluxograma integrado', () => {
                     course_id: 99
                 }
             );
-        });
-        test('mostra a legenda dos estados no desktop', async () => {
-            const page = await renderPage('/cursos/99');
-            await page.findByRole('button', { name: /A, Base/ });
-            expect(page.getByRole('list', { name: 'Legenda dos estados acadêmicos' })).toBeTruthy();
         });
         test('aplica o histórico do aluno aos cards', async () => {
             const page = await renderPage('/cursos/99');

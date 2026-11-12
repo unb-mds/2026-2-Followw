@@ -301,7 +301,7 @@ describe('montagem da grade semanal', () => {
         expect(view.getByRole('table').textContent).not.toContain('FGA0108');
     });
 
-    test('barra aparece com turmas selecionadas e limpar esvazia a grade', () => {
+    test('barra aparece com turmas selecionadas e limpar esvazia a grade', async () => {
         const { fireEvent } = dom.testing;
         const view = setup({ schedule: '24M12' });
         expect(view.queryByRole('toolbar')).toBeNull();
@@ -312,7 +312,7 @@ describe('montagem da grade semanal', () => {
         fireEvent.click(button(view, 'Adicionar à grade: FGA0001, turma 01'));
         expect(view.getByRole('toolbar').textContent).toContain('2 turmas');
         fireEvent.click(button(view, 'Limpar seleção'));
-        expect(view.queryByRole('toolbar')).toBeNull();
+        await dom.testing.waitForElementToBeRemoved(() => view.queryByRole('toolbar'));
         expect(localStorage.getItem('followw:schedule')).toBeNull();
     });
 

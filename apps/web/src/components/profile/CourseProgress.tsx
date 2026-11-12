@@ -1,7 +1,11 @@
+import { m } from 'motion/react';
+
 import type { Classroom } from '#/queries/classrooms';
 import type { UserProfile } from '#/queries/me';
 
+import { AnimatedNumber } from '#/components/AnimatedNumber';
 import { Card } from '#/components/ui/card';
+import { ease, useEntrance } from '#/lib/motion';
 import { curriculumProgress, projectedIntegralization } from '#/lib/profile';
 import { cn } from '#/lib/shadcn';
 
@@ -18,6 +22,13 @@ export function CourseProgress({
     const { integralization, workload } = user;
     const progress = curriculumProgress(workload);
     const projected = projectedIntegralization(user, classrooms);
+    const entrance = useEntrance();
+    // o anel se desenha a partir do zero, no mesmo tempo da contagem
+    const draw = (percent: number) => ({
+        initial: entrance.initial && { strokeDasharray: '0 100' },
+        animate: { strokeDasharray: `${percent} 100` },
+        transition: { duration: 0.6, ease }
+    });
     const categories = workload && [
         {
             label: 'Obrigatórias',
@@ -73,7 +84,7 @@ export function CourseProgress({
                                         strokeWidth="8"
                                     />
                                     {projected != null && (
-                                        <circle
+                                        <m.circle
                                             cx="50"
                                             cy="50"
                                             r="44"
@@ -82,11 +93,11 @@ export function CourseProgress({
                                             strokeWidth="8"
                                             strokeLinecap="round"
                                             pathLength="100"
-                                            strokeDasharray={`${projected} 100`}
+                                            {...draw(projected)}
                                         />
                                     )}
                                     {integralization > 0 && (
-                                        <circle
+                                        <m.circle
                                             cx="50"
                                             cy="50"
                                             r="44"
@@ -95,7 +106,7 @@ export function CourseProgress({
                                             strokeWidth="8"
                                             strokeLinecap="round"
                                             pathLength="100"
-                                            strokeDasharray={`${Math.min(100, integralization)} 100`}
+                                            {...draw(Math.min(100, integralization))}
                                         />
                                     )}
                                 </svg>
@@ -103,7 +114,17 @@ export function CourseProgress({
                                     aria-hidden="true"
                                     className="text-2xl font-medium tabular-nums"
                                 >
-                                    {integralization.toLocaleString('pt-BR')}%
+                                    <AnimatedNumber
+                                        value={integralization}
+                                        format={(value) =>
+                                            // inteiro durante a contagem, exato ao final
+                                            (value === integralization
+                                                ? value
+                                                : Math.round(value)
+                                            ).toLocaleString('pt-BR')
+                                        }
+                                    />
+                                    %
                                 </span>
                             </div>
                         )}

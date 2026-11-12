@@ -1,9 +1,11 @@
 import { Plus } from 'lucide-react';
+import { m } from 'motion/react';
 
 import type { CatalogSubject, SubjectClassroom } from '#/queries/subjects';
 
 import { usePlannedSchedule } from '#/components/schedule/usePlannedSchedule';
 import { Button } from '#/components/ui/button';
+import { spring } from '#/lib/motion';
 import { cn } from '#/lib/shadcn';
 
 export function AddToSchedule({
@@ -34,13 +36,14 @@ export function AddToSchedule({
             aria-label={`${selected ? 'Remover da' : 'Adicionar à'} grade: ${subject.code}, turma ${classroom.number}`}
             onClick={() => toggle(item)}
         >
-            <Plus
-                aria-hidden="true"
-                className={cn(
-                    'transition-transform duration-200 ease-out motion-reduce:transition-none',
-                    selected && 'rotate-45'
-                )}
-            />
+            <m.span
+                className="flex"
+                initial={false}
+                animate={{ rotate: selected ? 45 : 0 }}
+                transition={spring}
+            >
+                <Plus aria-hidden="true" />
+            </m.span>
         </Button>
     );
 }

@@ -1,8 +1,19 @@
+import type { RenderOptions, RenderResult } from '@testing-library/react/pure';
+
 import { environmentManager } from '@tanstack/react-query';
 import { afterAll, afterEach, beforeAll } from 'bun:test';
 import { Window } from 'happy-dom';
+import { LazyMotion, domMax } from 'motion/react';
+import { createElement } from 'react';
 
-type Testing = typeof import('@testing-library/react/pure');
+type Library = typeof import('@testing-library/react/pure');
+type Testing = Omit<Library, 'render'> & {
+    render: (ui: React.ReactNode, options?: RenderOptions) => RenderResult;
+};
+
+// como o MotionProvider do app: sem o LazyMotion acima, o `m` não anima nem conclui saídas
+const motionWrapper = ({ children }: { children: React.ReactNode }) =>
+    createElement(LazyMotion, { features: domMax }, children);
 
 // navegador happy-dom para o arquivo de teste; a Testing Library só existe depois do beforeAll
 export function useDom(url = 'http://localhost/') {
@@ -40,7 +51,11 @@ export function useDom(url = 'http://localhost/') {
             previousGlobals.set(key, Object.getOwnPropertyDescriptor(globalThis, key));
             Object.defineProperty(globalThis, key, { value, configurable: true, writable: true });
         }
-        testing = await import('@testing-library/react/pure');
+        const library = await import('@testing-library/react/pure');
+        testing = {
+            ...library,
+            render: (ui, options) => library.render(ui, { wrapper: motionWrapper, ...options })
+        };
     });
 
     afterEach(() => testing?.cleanup());

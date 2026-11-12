@@ -60,15 +60,14 @@ interface BackHeaderProps {
     to: LinkProps['to'];
     title: string;
     ariaLabel?: string;
-    actions?: React.ReactNode;
 }
 
-export function BackHeader({ to, title, ariaLabel = 'Voltar', actions }: BackHeaderProps) {
+export function BackHeader({ to, title, ariaLabel = 'Voltar' }: BackHeaderProps) {
     const router = useRouter();
     const canGoBack = useCanGoBack();
 
     return (
-        <HeaderBar showLogo={false} actions={actions}>
+        <HeaderBar showLogo={false}>
             <Link
                 to={to}
                 aria-label={ariaLabel}

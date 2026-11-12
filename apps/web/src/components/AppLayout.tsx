@@ -1,4 +1,5 @@
 import { useLocation, useMatches } from '@tanstack/react-router';
+import { m } from 'motion/react';
 import { createElement } from 'react';
 
 import { BottomNavigation } from '#/components/BottomNavigation';
@@ -9,6 +10,10 @@ import { OfflineBanner } from '#/components/OfflineBanner';
 import { PageStateProvider } from '#/components/PageState';
 import { Toaster } from '#/components/ui/toast';
 import { useDesktopEligibility } from '#/lib/desktop';
+import { useEntrance } from '#/lib/motion';
+
+// só opacidade: transform no <main> quebraria os elementos fixed das páginas durante a entrada
+const page = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { duration: 0.2 } } };
 
 declare module '@tanstack/react-router' {
     interface StaticDataRouteOption {
@@ -27,6 +32,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     const header =
         useMatches({ select: (matches) => matches.at(-1)?.staticData.header }) ?? HeaderBar;
     const pathname = useLocation({ select: (location) => location.pathname });
+    const rendered = useMatches({ select: (matches) => matches.at(-1)?.pathname });
+    const entrance = useEntrance();
 
     const fullscreen = useMatches({
         select: (matches) => matches.at(-1)?.staticData.presentation === 'fullscreen'
@@ -51,13 +58,16 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                     <PageStateProvider page={pathname}>
                         {!fullscreen && createElement(header)}
                         <OfflineBanner />
-                        <main
+                        <m.main
+                            key={rendered}
+                            variants={page}
+                            {...entrance}
                             className={
                                 fullscreen ? 'flex min-h-0 flex-1 flex-col' : 'flex-1 pb-24 lg:pb-0'
                             }
                         >
                             {children}
-                        </main>
+                        </m.main>
                     </PageStateProvider>
                     {!fullscreen && !desktop && <BottomNavigation />}
                     <Toaster />

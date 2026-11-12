@@ -129,31 +129,29 @@ export function FrequencyContent({
                     </ListCard>
                 </section>
             )}
-            {selected.length > 0 && (
-                <SelectionBar
-                    label="Marcar aulas selecionadas"
-                    count={selected.length}
-                    units={['aula', 'aulas']}
-                    onClear={() => setSelectedIds(new Set())}
-                >
-                    {(['presente', 'falta'] as const).map((mark) => {
-                        const option = LESSON_VIEW[mark];
-                        return (
-                            <Button
-                                key={mark}
-                                variant="ghost"
-                                size="sm"
-                                disabled={pending}
-                                className={cn('rounded-full', option.color)}
-                                onClick={() => markSelected(mark)}
-                            >
-                                <option.icon />
-                                {option.name}
-                            </Button>
-                        );
-                    })}
-                </SelectionBar>
-            )}
+            <SelectionBar
+                label="Marcar aulas selecionadas"
+                count={selected.length}
+                units={['aula', 'aulas']}
+                onClear={() => setSelectedIds(new Set())}
+            >
+                {(['presente', 'falta'] as const).map((mark) => {
+                    const option = LESSON_VIEW[mark];
+                    return (
+                        <Button
+                            key={mark}
+                            variant="ghost"
+                            size="sm"
+                            disabled={pending}
+                            className={cn('rounded-full', option.color)}
+                            onClick={() => markSelected(mark)}
+                        >
+                            <option.icon />
+                            {option.name}
+                        </Button>
+                    );
+                })}
+            </SelectionBar>
         </div>
     );
 }
