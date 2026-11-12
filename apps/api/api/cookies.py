@@ -78,7 +78,7 @@ def decrypt_cookie(name: str, token: str) -> dict | None:
     try:
         claims = jwt.decode(token, _key(name), registry=_JWE_REGISTRY).claims
         _CLAIMS.validate(claims)
-    except JoseError, ValueError, TypeError:
+    except (JoseError, ValueError, TypeError):
         return None
     return claims
 

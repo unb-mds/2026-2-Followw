@@ -66,7 +66,7 @@ async def sigaa_logout(request: Request, response: Response):
                 SigaaClient(session_token=session_token) as client,
             ):
                 await client.logout()
-        except SigaaError, httpx.HTTPError, TimeoutError:
+        except (SigaaError, httpx.HTTPError, TimeoutError):
             pass
 
     clear_cookies(response)

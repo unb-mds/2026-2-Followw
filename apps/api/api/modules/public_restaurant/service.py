@@ -61,7 +61,7 @@ class RestaurantService:
                 rows = await repository.get(campus, start, end)
                 cached = _MENU.validate_python(rows, from_attributes=True)
                 synced_at = await repository.synced_at(campus)
-        except SQLAlchemyError, OSError, TimeoutError, ValidationError:
+        except (SQLAlchemyError, OSError, TimeoutError, ValidationError):
             event("restaurant.cache_read_failed", level=logging.WARNING)
 
         if (
@@ -107,7 +107,7 @@ class RestaurantService:
                 await session.commit()
                 rows = await repository.get(campus, start, end)
                 return _MENU.validate_python(rows, from_attributes=True)
-        except SQLAlchemyError, OSError, TimeoutError, ValidationError:
+        except (SQLAlchemyError, OSError, TimeoutError, ValidationError):
             event("restaurant.cache_write_failed", level=logging.WARNING)
         # Revalida para marcar todos os campos como definidos, igual ao que vem do banco.
         return _MENU.validate_python(

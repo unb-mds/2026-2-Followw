@@ -149,7 +149,7 @@ def _client_host(request: Request) -> str:
             and abs(time() - int(timestamp)) <= 60
         ):
             host = str(ip_address(address))
-    except ValueError, OverflowError:
+    except (ValueError, OverflowError):
         pass
     return host
 

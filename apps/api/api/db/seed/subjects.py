@@ -51,7 +51,7 @@ def parse_requirements(expression: str) -> Requirements | None:
         terms = _or(tokens)
         if tokens:
             raise ValueError
-    except ValueError, IndexError:
+    except (ValueError, IndexError):
         raise ValueError(f"Requisito malformado: `{expression}`.") from None
     return [list(t) for t in dict.fromkeys(terms)]
 
