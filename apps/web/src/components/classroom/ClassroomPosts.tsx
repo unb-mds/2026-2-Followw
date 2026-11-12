@@ -53,10 +53,10 @@ export function ClassroomPosts({ id }: { id: string }) {
 
     return (
         <section aria-label="Postagens da turma" className="flex flex-col gap-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-2">
                 <fieldset
                     aria-label="Filtrar postagens por tipo"
-                    className="flex min-w-0 flex-wrap gap-1"
+                    className="flex min-w-0 gap-1 overflow-x-auto py-1 max-md:no-scrollbar"
                 >
                     {filters.map((filter) => (
                         <Button
@@ -75,7 +75,8 @@ export function ClassroomPosts({ id }: { id: string }) {
                 </fieldset>
                 <Button
                     variant="ghost"
-                    size="sm"
+                    size="icon-sm"
+                    aria-label="Atualizar"
                     disabled={posts.isFetching}
                     onClick={() => {
                         const openedNews = posts.data.find(
@@ -95,7 +96,6 @@ export function ClassroomPosts({ id }: { id: string }) {
                     }}
                 >
                     <RefreshCw className={cn('size-4', posts.isFetching && 'animate-spin')} />
-                    Atualizar
                 </Button>
             </div>
             {posts.isError && <StaleDataNotice subject="as postagens" />}

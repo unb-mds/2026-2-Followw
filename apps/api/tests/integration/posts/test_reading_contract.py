@@ -55,13 +55,14 @@ def test_mutacoes_de_leitura_retornam_no_store(api):
         assert response.headers["cache-control"] == "no-store"
 
 
-def test_openapi_documenta_leitura_e_conflitos(api):
+def test_openapi_documenta_leitura(api):
     schema = api.get("/openapi.json").json()
     view = schema["components"]["schemas"]["ClassroomPostView"]
     assert "is_read" in view["required"]
     assert "version" not in view["properties"]
     route = schema["paths"]["/classrooms/{classroom_id}/posts/{post_id}/read"]
-    assert {"204", "401", "404", "409", "422"} <= route["put"]["responses"].keys()
+    assert {"204", "401", "404", "422"} <= route["put"]["responses"].keys()
+    assert "409" not in route["put"]["responses"]
     assert {"204", "401", "404", "422"} <= route["delete"]["responses"].keys()
 
     assert "requestBody" not in route["put"]

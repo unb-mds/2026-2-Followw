@@ -143,6 +143,10 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     # Do relatório com as menções de todos os semestres; zera com turma nova na lista.
     grades_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Última leitura da home do SIGAA, que aponta as turmas com posts novos.
+    dashboard_synced_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
     settings: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict)
 
     course: Mapped[Course | None] = relationship(lazy="joined")

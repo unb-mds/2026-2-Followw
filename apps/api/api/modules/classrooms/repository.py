@@ -527,6 +527,26 @@ class PostsRepository:
             stmt.with_for_update() if for_update else stmt
         )
 
+    async def dashboard_keys(
+        self, classroom_ids: Collection[UUID]
+    ) -> set[tuple[UUID, sigaa_client.PostType, str, date | None, date | None]]:
+        """Notícias e avaliações em cache, no formato em que a home as mostra."""
+        rows = await self._session.execute(
+            select(
+                ClassroomPosts.classroom_id,
+                ClassroomPosts.type,
+                ClassroomPosts.title,
+                ClassroomPosts.published_on,
+                ClassroomPosts.starts_on,
+            ).where(
+                ClassroomPosts.classroom_id.in_(classroom_ids),
+                ClassroomPosts.type.in_(
+                    [sigaa_client.PostType.NEWS, sigaa_client.PostType.ASSESSMENT]
+                ),
+            )
+        )
+        return {tuple(row) for row in rows}
+
     async def save_list(
         self,
         classroom_id: UUID,
@@ -551,7 +571,18 @@ class PostsRepository:
                     )
                     self._session.add(cached)
                     existing[item.id] = cached
-                elif cached.content_synced_at is not None and not refresh:
+                elif item.type == sigaa_client.PostType.NEWS:
+                    # Notícia editada: o texto é buscado de novo na próxima abertura.
+                    if (cached.title, cached.published_on) != (
+                        item.title,
+                        item.published_on,
+                    ):
+                        cached.content_synced_at = None
+                elif (
+                    cached.content_synced_at is not None
+                    and not refresh
+                    and item.type != sigaa_client.PostType.ASSESSMENT
+                ):
                     continue
                 cached.type = item.type
                 cached.sigaa_id = item.sigaa_id

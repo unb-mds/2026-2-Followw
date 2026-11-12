@@ -99,15 +99,11 @@ async def get_classroom_post(
     "/{classroom_id}/posts/{post_id}/read",
     status_code=204,
     summary="Confirmar a leitura de uma postagem",
-    description="Operação individual, idempotente e sem corpo. Exige conteúdo completo já carregado. Consultar ou atualizar uma postagem não altera sua leitura.",
+    description="Operação individual, idempotente e sem corpo. Consultar ou atualizar uma postagem não altera sua leitura.",
     responses={
         **CLASSROOM_ERRORS,
         404: {"description": "Turma ou post não encontrado."},
-        409: {
-            "description": "Conteúdo ainda não carregado; consulte o detalhe primeiro."
-        },
     },
-    dependencies=[NoStore],
 )
 async def mark_post_read(
     service: ClassroomPostsServiceDep,
@@ -128,7 +124,6 @@ async def mark_post_read(
         **CLASSROOM_ERRORS,
         404: {"description": "Turma ou post não encontrado."},
     },
-    dependencies=[NoStore],
 )
 async def mark_post_unread(
     service: ClassroomPostsServiceDep,

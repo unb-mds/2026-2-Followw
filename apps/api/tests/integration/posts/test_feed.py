@@ -21,15 +21,12 @@ def test_feed_sem_turmas_nao_agenda_jobs(client, cookies, posts_sigaa, qstash):
     assert qstash.published == []
 
 
-def test_feed_nao_busca_conteudo_das_noticias(client, cookies, posts_sigaa, qstash):
+def test_feed_nao_busca_conteudo_das_noticias(client, cookies, posts_sigaa):
     client.cookies.update(cookies(refresh=CREDENTIALS))
     client.get("/classrooms/AAA/posts")
-    qstash.published.clear()
     response = client.get("/posts/news")
-    assert response.json()["updating"] is False
     assert response.json()["items"][0]["post"]["content"] is None
     posts_sigaa.classrooms.get_classroom_news.assert_not_awaited()
-    assert qstash.published == []
 
 
 def test_noticias_agregadas_retornam_ate_cinco_com_ids_e_conteudo_salvo(
@@ -74,7 +71,7 @@ def test_noticias_agregadas_preservam_mesmo_titulo_dia_e_id_em_turmas_distintas(
     assert [item["post"]["id"] for item in items] == ["news:1", "news:1"]
 
 
-def test_feed_frio_agenda_a_lista_e_devolve_cache_sem_esperar_a_turma(
+def test_feed_frio_le_a_home_e_devolve_cache_sem_esperar_a_turma(
     client, cookies, posts_sigaa, qstash
 ):
     client.cookies.update(cookies(refresh=CREDENTIALS))
@@ -84,7 +81,7 @@ def test_feed_frio_agenda_a_lista_e_devolve_cache_sem_esperar_a_turma(
     assert response.json() == {"items": [], "updating": True}
     posts_sigaa.classrooms.list_classroom_posts.assert_awaited_once()
     assert len(qstash.published) == 1
-    assert [step.task for step in qstash.jobs()[0].steps] == ["sync_posts"]
+    assert [step.task for step in qstash.jobs()[0].steps] == ["sync_dashboard_posts"]
     assert client.get("/posts/news").json()["items"][0]["post"]["id"] == "news:1"
 
 

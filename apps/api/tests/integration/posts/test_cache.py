@@ -16,7 +16,7 @@ from api.db.models import ClassroomPosts
 from api.modules.classrooms.posts import sync_news_content
 from api.sync.engine import Job, Step
 
-from .helpers import CREDENTIALS, DETAIL_PATH, PATHS, _fetch, _post
+from .helpers import CREDENTIALS, DETAIL_PATH, PATHS, _fetch, _post, mark_read
 
 
 @pytest.mark.parametrize("path", PATHS[1:])
@@ -49,14 +49,14 @@ def test_lista_vencida_retorna_cache_e_atualiza_pela_fila(
     original = client.get("/classrooms/AAA/posts").json()
     with database() as session:
         classroom = session.scalar(select(DBClassroom))
-        classroom.posts_synced_at = datetime.now(UTC) - timedelta(minutes=61)
+        classroom.posts_synced_at = datetime.now(UTC) - timedelta(hours=25)
         session.commit()
     posts_sigaa.classrooms.list_classroom_posts.return_value = [
         _post(id=2, title="Novo aviso", published_on=date(2026, 9, 25))
     ]
     response = client.get("/classrooms/AAA/posts")
     assert response.json() == original
-    assert int(response.headers["age"]) >= 3600
+    assert int(response.headers["age"]) >= 25 * 3600
     assert len(qstash.published) == 1
     assert qstash.deliveries[0].status_code == 204
     # O novo aviso foi acrescentado; o antigo não foi apagado.
@@ -65,6 +65,17 @@ def test_lista_vencida_retorna_cache_e_atualiza_pela_fila(
         "news:1",
     ]
     assert posts_sigaa.classrooms.list_classroom_posts.await_count == 2
+
+
+def test_lista_de_turma_atual_vale_24_horas(client, cookies, posts_sigaa, database):
+    client.cookies.update(cookies(refresh=CREDENTIALS))
+    client.get("/classrooms/AAA/posts")
+    with database() as session:
+        classroom = session.scalar(select(DBClassroom))
+        classroom.posts_synced_at = datetime.now(UTC) - timedelta(hours=23)
+        session.commit()
+    client.get("/classrooms/AAA/posts")
+    posts_sigaa.classrooms.list_classroom_posts.assert_awaited_once()
 
 
 def test_lista_de_turma_do_historico_nao_vence(
@@ -223,10 +234,8 @@ def test_conteudo_antigo_nao_e_buscado_novamente(
 @pytest.mark.parametrize(
     ("post_type", "post_id"),
     [
-        (PostType.NEWS, "news:1"),
         (PostType.TOPIC, "topic:" + "a" * 64),
         (PostType.MATERIAL, "material:" + "b" * 64),
-        (PostType.ASSESSMENT, "assessment:1"),
     ],
 )
 def test_lista_vencida_descobre_posts_sem_sobrescrever_conteudo(
@@ -240,7 +249,7 @@ def test_lista_vencida_descobre_posts_sem_sobrescrever_conteudo(
     saved = client.get(path).json()
     with database() as session:
         classroom = session.scalar(select(DBClassroom))
-        classroom.posts_synced_at = datetime.now(UTC) - timedelta(minutes=61)
+        classroom.posts_synced_at = datetime.now(UTC) - timedelta(hours=25)
         session.commit()
     fetch.return_value = [
         original.model_copy(update={"title": "Editado", "content": "Editado"}),
@@ -257,23 +266,33 @@ def test_lista_vencida_descobre_posts_sem_sobrescrever_conteudo(
     }
 
 
-def test_job_de_conteudo_ignora_noticia_ja_carregada(
-    reading_client, posts_sigaa, qstash
+def test_lista_vencida_atualiza_avaliacao_e_mantem_leitura(
+    reading_client, posts_sigaa, database
 ):
-    from api.sync.queue import JOBS_URL, encode_job
-
     client = reading_client
-    assert client.get(DETAIL_PATH).status_code == 200
-    job = Job(
-        credentials=CREDENTIALS,
-        classroom_id="AAA",
-        steps=(Step.of(sync_news_content, 1),),
+    fetch = posts_sigaa.classrooms.list_classroom_posts
+    original = ClassroomPost(
+        id="assessment:1",
+        type=PostType.ASSESSMENT,
+        title="Prova 1",
+        starts_on=date(2026, 10, 1),
     )
-    body = encode_job(job)
-    response = client.post(
-        "/jobs",
-        content=body,
-        headers={"Upstash-Signature": qstash.sign(JOBS_URL, body)},
-    )
-    assert response.status_code == 204
-    posts_sigaa.classrooms.get_classroom_news.assert_awaited_once()
+    fetch.return_value = [original]
+    path = "/classrooms/AAA/posts/assessment:1"
+    saved = client.get(path).json()
+    assert mark_read(client, saved).status_code == 204
+    with database() as session:
+        classroom = session.scalar(select(DBClassroom))
+        classroom.posts_synced_at = datetime.now(UTC) - timedelta(hours=25)
+        session.commit()
+    fetch.return_value = [
+        original.model_copy(
+            update={"title": "Prova 1 (adiada)", "starts_on": date(2026, 10, 8)}
+        )
+    ]
+    assert client.get(path).json()["title"] == "Prova 1"
+    updated = client.get(path).json()
+    assert updated["title"] == "Prova 1 (adiada)"
+    assert updated["starts_on"] == "2026-10-08"
+    assert updated["is_read"] is True
+    assert fetch.await_count == 2

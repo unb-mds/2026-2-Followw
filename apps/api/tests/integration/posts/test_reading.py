@@ -153,12 +153,12 @@ def test_troca_de_curso_preserva_leituras_ao_absorver_usuario_sombra(
         assert {read.user_id for read in reads} == {users[0].id}
 
 
-def test_noticia_sem_conteudo_carregado_nao_pode_ser_marcada(
-    reading_client, posts_sigaa
-):
+def test_noticia_sem_conteudo_carregado_pode_ser_marcada(reading_client, posts_sigaa):
     client = reading_client
-    assert client.get("/classrooms/AAA/posts").json()[0]["content"] is None
-    assert client.put(f"{DETAIL_PATH}/read").status_code == 409
+    listed = client.get("/classrooms/AAA/posts").json()[0]
+    assert listed["content"] is None
+    assert mark_read(client, listed).status_code == 204
+    assert client.get("/classrooms/AAA/posts").json()[0]["is_read"] is True
     posts_sigaa.classrooms.get_classroom_news.assert_not_awaited()
 
 

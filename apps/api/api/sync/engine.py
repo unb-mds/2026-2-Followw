@@ -138,10 +138,6 @@ class Sync:
     def registration(self) -> str:
         return self._sigaa.registration
 
-    @property
-    def refresh_requested(self) -> bool:
-        return self._cache.no_cache
-
     async def resolve[T: Target, V](
         self,
         task: Task[T],
