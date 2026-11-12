@@ -3,7 +3,7 @@ import { useQuery, type QueryClient } from '@tanstack/react-query';
 import type { Day } from '#/lib/schedule';
 import type { components, operations } from '#/queries/schema.gen.ts';
 
-import { currentOrNextMeal, upcomingMenuMeals } from '#/lib/restaurant';
+import { currentOrNextMeal } from '#/lib/restaurant';
 import { addDays, weekDays } from '#/lib/schedule';
 import { api } from '#/queries/api.ts';
 
@@ -80,12 +80,8 @@ export function useMenuPreview({
     now: Day & { time: string };
 }) {
     const current = useQuery(weeklyMenuQueryOptions({ campus, date }));
-    const needsNextWeek =
-        date === now.date &&
-        currentOrNextMeal(now).date > date &&
-        current.data != null &&
-        upcomingMenuMeals(current.data, date, now).length === 0;
     const nextMonday = addDays(weekDays(date, 7)[0].date, 7);
+    const needsNextWeek = date === now.date && currentOrNextMeal(now).date >= nextMonday;
     const next = useQuery({
         ...weeklyMenuQueryOptions({ campus, date: nextMonday }),
         enabled: needsNextWeek

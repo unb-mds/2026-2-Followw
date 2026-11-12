@@ -89,23 +89,16 @@ export function mainMenuDish(sections: MenuSection[] | null | undefined) {
     return section.items.join(', ') || undefined;
 }
 
-export function upcomingMenuMeals(
+// Hoje, só a refeição atual ou a próxima (a mesma do padrão do /ru); outros dias, todas.
+export function previewMenuMeals(
     menus: readonly DailyMenu[],
     date: string,
     now: Day & { time: string }
 ) {
-    const firstDate = date === now.date ? currentOrNextMeal(now).date : date;
-    const afterDinner = date === now.date && firstDate > date;
-    const selected = menus
-        .filter((menu) => (afterDinner ? menu.date >= firstDate : menu.date === firstDate))
-        .toSorted((a, b) => a.date.localeCompare(b.date))
-        .find((menu) => MEAL_TIMES.some((meal) => mainMenuDish(menu[meal.key])));
-    if (!selected) return [];
-    return MEAL_TIMES.flatMap((meal) => {
-        if (selected.date === now.date && date === now.date && meal.end <= now.time) return [];
-        const dish = mainMenuDish(selected[meal.key]);
-        return dish ? [{ ...meal, date: selected.date, dish }] : [];
-    });
+    const next = date === now.date ? currentOrNextMeal(now) : undefined;
+    const day = next?.date ?? date;
+    const menu = menus.find((item) => item.date === day);
+    return (next ? [next.meal] : MEAL_TIMES).map((meal) =>
+        Object.assign({ date: day, dish: mainMenuDish(menu?.[meal.key]) }, meal)
+    );
 }
-
-export type MenuMeal = ReturnType<typeof upcomingMenuMeals>[number];

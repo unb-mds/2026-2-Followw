@@ -89,8 +89,6 @@ export function SchedulePreview() {
                             <ClassCard
                                 compact
                                 title={item.name}
-                                code={item.code}
-                                classNumber={item.number}
                                 time={describeSchedule(item.schedule) ?? 'Horário a definir'}
                                 location={item.room ?? undefined}
                                 professors={item.professors.map(({ name }) => name)}

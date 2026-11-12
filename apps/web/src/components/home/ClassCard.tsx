@@ -11,11 +11,9 @@ import { cn } from '#/lib/shadcn';
 export interface ClassCardProps {
     title: string;
     compact?: boolean;
-    code?: string;
     time: string;
     location?: string;
     professors?: string[];
-    classNumber?: string;
     grade?: Classroom['grade'];
     status?: 'in_progress' | 'next' | 'pending' | 'normal' | 'warning';
     statusText?: string;
@@ -43,11 +41,9 @@ const STATUS = {
 export const ClassCard: React.FC<ClassCardProps> = ({
     title,
     compact = false,
-    code,
     time,
     location,
     professors,
-    classNumber,
     grade,
     status = 'normal',
     statusText,
@@ -130,11 +126,6 @@ export const ClassCard: React.FC<ClassCardProps> = ({
                         )}
                         {statusText || statusInfo.label}
                     </Badge>
-                )}
-                {code && (
-                    <span className="ml-auto shrink-0 font-medium tracking-wide text-muted-foreground">
-                        {[code, classNumber && `T${classNumber}`].filter(Boolean).join(' · ')}
-                    </span>
                 )}
             </div>
             {action ? (

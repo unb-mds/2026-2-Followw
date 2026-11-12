@@ -28,49 +28,35 @@ function render(time: string, data = [menu]) {
     );
 }
 
-test('prévia desktop disponibiliza as refeições do dia e inicia pelo café', () => {
+test('prévia desktop mostra só a refeição atual', () => {
     const html = render('08:00');
     expect(html).toContain('Café da manhã');
-    expect(html).toContain('Almoço');
-    expect(html).not.toContain('Atual ·');
-    expect(html).not.toContain('Próxima refeição ·');
-    expect(html).toContain('Sopa');
+    expect(html).toContain('Pão');
+    expect(html).not.toContain('Almoço');
+    expect(html).not.toContain('Sopa');
 });
 
-test('não inventa próxima refeição nem mantém oferta encerrada', () => {
-    const html = render('18:00');
+test('entre refeições mostra a próxima e não mantém oferta encerrada', () => {
+    const html = render('16:00');
     expect(html).toContain('Jantar');
+    expect(html).toContain('Sopa');
     expect(html).not.toContain('Café da manhã');
     expect(html).not.toContain('Almoço');
-    expect(render('20:00')).toContain('Cardápio das próximas refeições não publicado.');
-    const breakfastOnly = render('08:00', [{ ...menu, lunch: null, dinner: null }]);
-    expect(breakfastOnly).not.toContain('Almoço');
-    expect(breakfastOnly).not.toContain('Jantar');
 });
 
-test('após o jantar mostra café e almoço de amanhã com destaque apenas na refeição mais próxima', () => {
+test('após o jantar mostra o café de amanhã', () => {
     const tomorrow = {
         ...menu,
         date: '2026-11-11',
-        breakfast: [{ name: 'Complemento', key: 'complement' as const, items: ['Pão com ovos'] }],
-        lunch: [{ name: 'Prato', key: 'main_dish' as const, items: ['Frango assado'] }],
-        dinner: [{ name: 'Prato', key: 'main_dish' as const, items: ['Omelete'] }]
+        breakfast: [{ name: 'Complemento', key: 'complement' as const, items: ['Pão com ovos'] }]
     };
     const html = render('22:00', [menu, tomorrow]);
-    expect(html).toContain('Café da manhã');
-    expect(html).toContain('Almoço');
-    expect(html).not.toContain('amanhã');
-    expect(html).not.toContain('Próxima refeição ·');
+    expect(html).toContain('Café da manhã · amanhã');
     expect(html).toContain('Pão com ovos');
-    expect(html).toContain('Frango assado');
     expect(html).not.toContain('Sopa');
-    expect(html.match(/aria-roledescription="slide"/g)).toHaveLength(4);
-    expect(html.match(/data-state="active"/g)).toHaveLength(1);
+    expect(html).not.toContain('aria-roledescription');
 });
 
-test('durante o jantar mantém somente a refeição atual até encerrar', () => {
-    const html = render('18:00', [menu, { ...menu, date: '2026-11-11' }]);
-    expect(html).toContain('Jantar');
-    expect(html).not.toContain('Café da manhã');
-    expect(html).not.toContain('Almoço');
+test('após o jantar sem cardápio de amanhã avisa que o café não foi publicado', () => {
+    expect(render('22:00')).toContain('Cardápio do café da manhã não publicado.');
 });

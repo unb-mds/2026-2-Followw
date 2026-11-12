@@ -309,38 +309,40 @@ function RUPage() {
                             <ChevronRight />
                         </Button>
                     </div>
-                    {sections.length > 0 ? (
-                        <MealDetails sections={sections} />
-                    ) : (
-                        <div className="px-1 text-center text-sm text-muted-foreground">
-                            {isPending && <LoadingText>Carregando cardápio...</LoadingText>}
-                            {isLoadingError && (
-                                <>
-                                    {failureMessage}{' '}
-                                    <Button
-                                        variant="link"
-                                        size="xs"
-                                        onClick={() => refetch()}
-                                        className="h-auto p-0"
-                                    >
-                                        Tentar novamente
-                                    </Button>
-                                </>
-                            )}
-                            {!isPending && !isLoadingError && (
-                                <div className="flex flex-col gap-1">
-                                    Cardápio não publicado para esta refeição neste dia.
-                                    <Link
-                                        to="/ru"
-                                        search={{}}
-                                        className="font-semibold text-primary underline"
-                                    >
-                                        Ver cardápio atual
-                                    </Link>
-                                </div>
-                            )}
-                        </div>
-                    )}
+                    <div className="flex min-h-60 flex-col gap-2 desktop:gap-6">
+                        {sections.length > 0 ? (
+                            <MealDetails sections={sections} />
+                        ) : (
+                            <div className="my-auto px-1 text-center text-sm text-muted-foreground">
+                                {isPending && <LoadingText>Carregando cardápio...</LoadingText>}
+                                {isLoadingError && (
+                                    <>
+                                        {failureMessage}{' '}
+                                        <Button
+                                            variant="link"
+                                            size="xs"
+                                            onClick={() => refetch()}
+                                            className="h-auto p-0"
+                                        >
+                                            Tentar novamente
+                                        </Button>
+                                    </>
+                                )}
+                                {!isPending && !isLoadingError && (
+                                    <div className="flex flex-col gap-1">
+                                        Cardápio não publicado para esta refeição neste dia.
+                                        <Link
+                                            to="/ru"
+                                            search={{}}
+                                            className="font-semibold text-primary underline"
+                                        >
+                                            Ver cardápio atual
+                                        </Link>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </TabsContent>
             </Tabs>
 
@@ -372,7 +374,7 @@ function MealDetails({ sections }: { sections: MenuSection[] }) {
     const { main, alternatives, others } = highlightMenu(sections);
 
     return (
-        <div className="flex flex-col gap-2 desktop:gap-6">
+        <>
             {main && <MealHighlight main={main} alternatives={alternatives} />}
             {others.length > 0 && (
                 <Card size="sm">
@@ -397,7 +399,7 @@ function MealDetails({ sections }: { sections: MenuSection[] }) {
                     </CardContent>
                 </Card>
             )}
-        </div>
+        </>
     );
 }
 

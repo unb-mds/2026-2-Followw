@@ -1,5 +1,6 @@
-import { noop, useSuspenseQuery } from '@tanstack/react-query';
+import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
+import { lazy, Suspense } from 'react';
 
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderToggle } from '#/components/HeaderBar';
@@ -14,6 +15,12 @@ import { classroomsQueryOptions } from '#/queries/classrooms';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
 import { weeklyMenuQueryOptions } from '#/queries/restaurant';
+
+const NewsNotifications = lazy(() =>
+    import('#/components/home/NewsNotifications').then((module) => ({
+        default: module.NewsNotifications
+    }))
+);
 
 const WEEKDAYS = [
     'Domingo',
@@ -81,9 +88,21 @@ function useSelectedDay() {
 function HomeHeader() {
     const { label, now, selectedDay } = useSelectedDay();
     const [weekOpen, setWeekOpen] = useWeekOpen();
+    const { data: user } = useQuery(meQueryOptions);
 
     return (
-        <HeaderBar actions={<DayClock time={now.time} />}>
+        <HeaderBar
+            actions={
+                <>
+                    <DayClock time={now.time} />
+                    {user && (
+                        <Suspense fallback={null}>
+                            <NewsNotifications />
+                        </Suspense>
+                    )}
+                </>
+            }
+        >
             <div className="flex flex-col gap-3">
                 <HeaderToggle
                     open={weekOpen}

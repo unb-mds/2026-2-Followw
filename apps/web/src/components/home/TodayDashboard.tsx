@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query';
-import { lazy, Suspense } from 'react';
 
 import type { Day } from '#/lib/schedule';
 import type { UserProfile } from '#/queries/me';
@@ -10,12 +9,6 @@ import { TodayClassesSection } from '#/components/home/TodayClassesSection';
 import { classesOn } from '#/lib/schedule';
 import { classroomsQueryOptions } from '#/queries/classrooms';
 import { campusOf, useMenuPreview } from '#/queries/restaurant';
-
-const LatestNewsSection = lazy(() =>
-    import('#/components/home/LatestNewsSection').then((module) => ({
-        default: module.LatestNewsSection
-    }))
-);
 
 interface TodayDashboardProps {
     user: UserProfile | null;
@@ -52,11 +45,6 @@ export function TodayDashboard({ user, day, now, label }: TodayDashboardProps) {
                     date={day.date}
                     now={now}
                 />
-                {user && (
-                    <Suspense fallback={null}>
-                        <LatestNewsSection />
-                    </Suspense>
-                )}
             </aside>
         </div>
     );

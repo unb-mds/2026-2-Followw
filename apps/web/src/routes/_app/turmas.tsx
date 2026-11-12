@@ -86,14 +86,12 @@ function Classrooms() {
                             <ClassCard
                                 key={classroom.id}
                                 title={classroom.subject.name}
-                                code={classroom.subject.code}
                                 time={describeSchedule(classroom.schedule) ?? 'Horário a definir'}
                                 location={
                                     classroom.current
                                         ? (classroom.room ?? 'Local não informado')
                                         : undefined
                                 }
-                                classNumber={classroom.number}
                                 grade={finalGrade(classroom)}
                                 status={
                                     classroom.status === 'pending_enrollment' ? 'pending' : 'normal'

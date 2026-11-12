@@ -2,7 +2,8 @@ export const STORAGE_PREFIX = 'followw:';
 
 export const STORAGE_KEYS = {
     THEME: 'theme',
-    SCHEDULE: 'schedule'
+    SCHEDULE: 'schedule',
+    SEEN_NEWS: 'seen-news'
 } as const;
 
 function getStorage(): Storage | null {
@@ -110,7 +111,7 @@ export const localStorageRepository: LocalStorageRepository = {
 };
 
 // Dados da conta, apagados ao trocar de sessão.
-const ACCOUNT_KEYS: string[] = [STORAGE_KEYS.SCHEDULE];
+const ACCOUNT_KEYS: string[] = [STORAGE_KEYS.SCHEDULE, STORAGE_KEYS.SEEN_NEWS];
 const stores = new Map<string, { clear: () => void }>();
 
 /** Valor salvo no storage e observável pelo `useSyncExternalStore`. */

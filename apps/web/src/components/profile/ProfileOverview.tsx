@@ -24,17 +24,21 @@ export function ProfileIdentity({
         <header>
             <div className="flex items-center gap-4">
                 <PersonPhoto src={user.photo} size="lg" />
-                <div className="min-w-0">
-                    <h1 className="text-2xl leading-tight font-semibold tracking-tight text-balance">
-                        {displayName || titleCase(user.name)}
-                    </h1>
-                    <RegistrationCopy value={user.registration} />
-                    <p className="mt-2 text-sm text-primary desktop:text-xl desktop:font-medium">
-                        {[user.course && titleCase(user.course.name), user.unit?.code]
-                            .filter(Boolean)
-                            .join(' · ')}
-                    </p>
-                    <p className="text-xs font-medium text-muted-foreground">{user.level}</p>
+                <div className="flex min-w-0 flex-col justify-between gap-2">
+                    <div>
+                        <h1 className="text-2xl leading-tight font-semibold tracking-tight text-balance">
+                            {displayName || titleCase(user.name)}
+                        </h1>
+                        <RegistrationCopy value={user.registration} />
+                    </div>
+                    <div>
+                        <p className="text-sm text-primary desktop:text-xl desktop:font-medium">
+                            {[user.course && titleCase(user.course.name), user.unit?.code]
+                                .filter(Boolean)
+                                .join(' · ')}
+                        </p>
+                        <p className="text-xs font-medium text-muted-foreground">{user.level}</p>
+                    </div>
                 </div>
             </div>
             {user.bio && <Bio text={user.bio} />}

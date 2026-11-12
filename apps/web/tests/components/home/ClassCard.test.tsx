@@ -5,10 +5,8 @@ import { ClassCard } from '#/components/home/ClassCard';
 
 const classroom = {
     title: 'Cálculo 1',
-    code: 'MAT0025',
     time: '08:00 - 09:50',
-    location: 'ICC Norte',
-    classNumber: '02'
+    location: 'ICC Norte'
 };
 
 describe('ClassCard', () => {
@@ -60,7 +58,6 @@ describe('ClassCard', () => {
 
         expect(markup).not.toContain('ICC Norte');
         expect(markup).not.toContain('lucide-map-pin');
-        expect(markup).toContain('MAT0025 · T02');
     });
 
     test.each([

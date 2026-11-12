@@ -3,7 +3,7 @@ import type { Middleware } from 'openapi-fetch';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, expect, test } from 'bun:test';
 
-import { upcomingMenuMeals } from '#/lib/restaurant';
+import { previewMenuMeals } from '#/lib/restaurant';
 import { apiClient } from '#/queries/client';
 import { useMenuPreview, type DailyMenu } from '#/queries/restaurant';
 
@@ -29,12 +29,12 @@ function menu(date: string): DailyMenu {
 function Preview({ date, time = '22:00' }: { date: string; time?: string }) {
     const now = { date, weekday: 0, time };
     const result = useMenuPreview({ campus: 'Gama', date, now });
-    const meals = upcomingMenuMeals(result.menus, date, now);
+    const meals = previewMenuMeals(result.menus, date, now);
     return (
         <output>
             {result.isLoading
                 ? 'Carregando'
-                : meals.map((meal) => `${meal.date}:${meal.key}`).join('|')}
+                : meals.map((meal) => `${meal.date}:${meal.key}:${meal.dish ?? '-'}`).join('|')}
         </output>
     );
 }
@@ -60,14 +60,12 @@ function setup(weeks: Record<string, DailyMenu[]>, date: string, time = '22:00')
     return { view, requests };
 }
 
-test('reaproveita a semana atual para as refeições de amanhã sem outra requisição', async () => {
+test('reaproveita a semana atual para o café de amanhã sem outra requisição', async () => {
     const { view, requests } = setup(
         { '2026-11-09': [menu('2026-11-10'), menu('2026-11-11')] },
         '2026-11-10'
     );
-    expect(
-        await view.findByText('2026-11-11:breakfast|2026-11-11:lunch|2026-11-11:dinner')
-    ).toBeDefined();
+    expect(await view.findByText('2026-11-11:breakfast:Pão')).toBeDefined();
     expect(requests).toEqual(['2026-11-09']);
 });
 
@@ -76,9 +74,7 @@ test('busca a próxima semana quando o domingo já terminou', async () => {
         { '2026-11-09': [menu('2026-11-15')], '2026-11-16': [menu('2026-11-16')] },
         '2026-11-15'
     );
-    expect(
-        await view.findByText('2026-11-16:breakfast|2026-11-16:lunch|2026-11-16:dinner')
-    ).toBeDefined();
+    expect(await view.findByText('2026-11-16:breakfast:Pão')).toBeDefined();
     expect(requests).toEqual(['2026-11-09', '2026-11-16']);
 });
 
@@ -87,33 +83,29 @@ test('prévia compartilhada mostra a próxima semana também no mobile', async (
         { '2026-11-09': [menu('2026-11-15')], '2026-11-16': [menu('2026-11-16')] },
         '2026-11-15'
     );
-    expect(
-        await view.findByText('2026-11-16:breakfast|2026-11-16:lunch|2026-11-16:dinner')
-    ).toBeDefined();
+    expect(await view.findByText('2026-11-16:breakfast:Pão')).toBeDefined();
     expect(requests).toEqual(['2026-11-09', '2026-11-16']);
 });
 
-test('ao terminar o jantar muda para as refeições de amanhã usando a mesma consulta em cache', async () => {
+test('ao terminar o jantar muda para o café de amanhã usando a mesma consulta em cache', async () => {
     const { view, requests } = setup(
         { '2026-11-09': [menu('2026-11-15')], '2026-11-16': [menu('2026-11-16')] },
         '2026-11-15',
         '18:00'
     );
-    expect(await view.findByText('2026-11-15:dinner')).toBeDefined();
+    expect(await view.findByText('2026-11-15:dinner:Sopa')).toBeDefined();
     expect(requests).toEqual(['2026-11-09']);
     view.rerender(
         <QueryClientProvider client={client}>
             <Preview date="2026-11-15" time="22:00" />
         </QueryClientProvider>
     );
-    expect(
-        await view.findByText('2026-11-16:breakfast|2026-11-16:lunch|2026-11-16:dinner')
-    ).toBeDefined();
+    expect(await view.findByText('2026-11-16:breakfast:Pão')).toBeDefined();
     expect(requests).toEqual(['2026-11-09', '2026-11-16']);
 });
 
 test('não consulta a semana seguinte antes do fim do jantar mesmo sem oferta publicada', async () => {
     const { view, requests } = setup({}, '2026-11-15', '18:00');
-    await dom.testing.waitFor(() => expect(view.getByRole('status').textContent).toBe(''));
+    expect(await view.findByText('2026-11-15:dinner:-')).toBeDefined();
     expect(requests).toEqual(['2026-11-09']);
 });

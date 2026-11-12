@@ -263,7 +263,7 @@ describe('montagem da grade semanal', () => {
         expect(cells[0].textContent).toBe('—');
         const listItem = view.getByRole('listitem');
         expect(listItem.textContent).toContain('Matemática Discreta 2');
-        expect(listItem.textContent).toContain('FGA0108 · T01');
+        expect(listItem.textContent).not.toContain('FGA0108 · T01');
         expect(listItem.textContent).not.toContain('2026.2');
         fireEvent.click(
             view.getAllByRole('button', { name: 'Remover da grade: FGA0108, turma 01' })[0]
