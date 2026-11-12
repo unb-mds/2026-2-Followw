@@ -1,8 +1,8 @@
 # Modo offline (service worker + cache do TanStack Query)
 
 Com login, o site abre e navega sem internet usando duas camadas independentes, ambas em
-`apps/web/src/integrations/offline/`. Visitantes não registram o service worker nem preparam
-páginas e dados da conta para uso offline.
+`apps/web/src/integrations/offline/`. Visitantes não registram o service worker nem preparam páginas
+e dados da conta para uso offline.
 
 | Camada                      | O que guarda                                                         | Onde                                                  | Código                               |
 | :-------------------------- | :------------------------------------------------------------------- | :---------------------------------------------------- | :----------------------------------- |
@@ -59,8 +59,8 @@ Atualiza sozinho (`autoUpdate`: `skipWaiting` + `clientsClaim`).
 
 `clearSession` (e o login, que espera a limpeza terminar) remove todas as queries, exceto o `/me`
 (zerado em seguida), e chama `clearOfflineData`, que cancela a pré-carga, apaga o cache de dados e
-de páginas e remove o service worker. Arquivos públicos do build podem ser reaproveitados no
-próximo login.
+de páginas e remove o service worker. Arquivos públicos do build podem ser reaproveitados no próximo
+login.
 
 ## Testar
 

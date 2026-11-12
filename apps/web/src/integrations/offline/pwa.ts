@@ -14,35 +14,30 @@ const clientOnly = (plugins: Plugin[]): Plugin[] =>
 
 // O workbox serializa esta função dentro do sw.js: não pode referenciar nada de fora dela.
 // URL nunca visitada: cai na página pai (/turmas/x → /turmas) ou na home.
-const fallbackToParentPage = async ({
-    request,
-    state
-}: {
-    request: Request;
-    state?: PageCacheState;
-}) => {
-    const pages = state?.pages;
-    if (!pages) return undefined;
+const fallbackToParentPage = async ({ request }: { request: Request }) => {
     const path = new URL(request.url).pathname;
     const parent = path.replace(/\/[^/]+\/?$/, '') || '/';
     const options = { ignoreSearch: true };
-    return (await pages.match(parent, options)) ?? (await pages.match('/', options));
+    return (await caches.match(parent, options)) ?? (await caches.match('/', options));
 };
 
-type PageCacheState = { name?: string; pages?: Cache };
+type PageCacheState = { pages?: Cache };
 
 const rememberPageCache = async ({ state }: { state?: PageCacheState }) => {
     if (!state) return;
     try {
-        const params = new URL(globalThis.location.href).searchParams;
-        const name = params.get('pages');
-        const session = params.get('session');
-        if (!name || !session) return;
-        const pages = await caches.open(name);
-        const owner = await (await pages.match('/.followw-offline-session'))?.text();
-        if (owner === session) Object.assign(state, { name, pages });
+        const [cacheName, oldCache] = (await caches.keys()).filter((name) =>
+            name.startsWith('followw-pages-')
+        );
+        if (!cacheName || oldCache) return;
+        const path = '/.followw-offline-session';
+        const marker = await caches.match(path, { cacheName });
+        if (!marker) return;
+        const id = await marker.text();
+        const cache = await caches.open(cacheName);
+        if ((await (await cache.match(path))?.text()) === id) state.pages = cache;
     } catch {
-        // A navegação continua se o navegador negar acesso ao cache.
+        // A navegação continua mesmo se o navegador negar acesso ao cache.
     }
 };
 
@@ -64,31 +59,8 @@ const savePageInSession = async ({
 };
 
 // O HTML do SSR é cacheado em runtime, por URL.
-export const pwaPlugins = (buildId: string) => {
-    const cacheName = pagesCacheName(buildId);
-    const pageCachePlugin = {
-        handlerWillStart: rememberPageCache,
-        fetchDidSucceed: savePageInSession,
-        cacheWillUpdate: async () => null,
-        cachedResponseWillBeUsed: async ({
-            cacheName: activeCacheName,
-            request,
-            matchOptions,
-            state
-        }: {
-            cacheName: string;
-            request: Request;
-            matchOptions?: CacheQueryOptions;
-            state?: PageCacheState;
-        }) => {
-            if (state?.name === activeCacheName) return state.pages?.match(request, matchOptions);
-            // O worker pode atualizar antes de a aba registrar a URL do build novo.
-            if (state) state.pages = undefined;
-            return undefined;
-        },
-        handlerDidError: fallbackToParentPage
-    };
-    return clientOnly(
+export const pwaPlugins = (buildId: string) =>
+    clientOnly(
         VitePWA({
             // o SW vai para a pasta pública do preset do nitro (.output/public, .vercel/output/static...)
             integration: {
@@ -115,14 +87,20 @@ export const pwaPlugins = (buildId: string) => {
                         urlPattern: ({ request }) => request.mode === 'navigate',
                         handler: 'NetworkFirst',
                         options: {
-                            cacheName,
+                            cacheName: pagesCacheName(buildId),
                             networkTimeoutSeconds: 3,
                             matchOptions: { ignoreSearch: true },
-                            plugins: [pageCachePlugin]
+                            plugins: [
+                                {
+                                    handlerWillStart: rememberPageCache,
+                                    fetchDidSucceed: savePageInSession,
+                                    cacheWillUpdate: async () => null,
+                                    handlerDidError: fallbackToParentPage
+                                }
+                            ]
                         }
                     }
                 ]
             }
         })
     );
-};

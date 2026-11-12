@@ -116,7 +116,7 @@ describe('montagem da grade semanal', () => {
             apiClient.use(middleware);
             try {
                 await act(async () => {
-                    if (change === 'login') await startSession(queryClient, 'outra-conta');
+                    if (change === 'login') await startSession(queryClient);
                     else if (change === 'logout') await clearSession(queryClient);
                     else {
                         await queryClient

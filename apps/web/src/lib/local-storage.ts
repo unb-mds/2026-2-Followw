@@ -111,7 +111,7 @@ export const localStorageRepository: LocalStorageRepository = {
 
 // Dados da conta, apagados ao trocar de sessão.
 const ACCOUNT_KEYS: string[] = [STORAGE_KEYS.SCHEDULE];
-const stores = new Map<string, { reset: () => void }>();
+const stores = new Map<string, { clear: () => void }>();
 
 /** Valor salvo no storage e observável pelo `useSyncExternalStore`. */
 export function storedValue<T>(key: string, empty: T) {
@@ -140,13 +140,13 @@ export function storedValue<T>(key: string, empty: T) {
             update(empty);
         }
     };
-    stores.set(key, { reset: () => update(empty) });
+    stores.set(key, store);
     return store;
 }
 
-export function clearAccountStorage(persisted = true) {
+export function clearAccountStorage() {
     for (const key of ACCOUNT_KEYS) {
-        if (persisted) localStorageRepository.remove(key);
-        stores.get(key)?.reset();
+        localStorageRepository.remove(key);
+        stores.get(key)?.clear();
     }
 }

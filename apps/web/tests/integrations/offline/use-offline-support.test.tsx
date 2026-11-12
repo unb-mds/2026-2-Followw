@@ -1,11 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, expect, spyOn, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, jest, spyOn, test } from 'bun:test';
 
 import type { UserProfile } from '#/queries/me';
 
 import * as offlineStorage from '#/integrations/offline/storage';
 import { useOfflineSupport } from '#/integrations/offline/use-offline-support';
 import { meQueryOptions } from '#/queries/me';
+import * as restaurant from '#/queries/restaurant';
 
 import { useDom } from '../../helpers/dom';
 
@@ -40,7 +41,7 @@ const user: UserProfile = {
 };
 
 describe('modo offline', () => {
-    test('visitante não restaura nem guarda cache no dispositivo', () => {
+    test('visitante não espera restaurar cache', () => {
         expect(renderWith(null).states).toEqual([false]);
     });
 
@@ -62,5 +63,53 @@ describe('modo offline', () => {
         } finally {
             persist.mockRestore();
         }
+    });
+});
+
+describe('service worker, cache e pré-carga', () => {
+    let register: ReturnType<typeof spyOn>;
+    let persist: ReturnType<typeof spyOn>;
+    let warm: ReturnType<typeof spyOn>;
+    let prefetch: ReturnType<typeof spyOn>;
+
+    beforeEach(() => {
+        // o SW só é registrado no build de produção
+        process.env.PROD = 'true';
+        Object.defineProperty(navigator, 'serviceWorker', {
+            configurable: true,
+            value: { register: () => Promise.resolve() }
+        });
+        register = spyOn(navigator.serviceWorker, 'register');
+        persist = spyOn(offlineStorage, 'persistQueryCache').mockReturnValue(() => {});
+        warm = spyOn(offlineStorage, 'warmPages').mockResolvedValue(undefined);
+        prefetch = spyOn(restaurant, 'prefetchWeekMenus').mockResolvedValue([]);
+        jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+        jest.useRealTimers();
+        for (const spy of [register, persist, warm, prefetch]) spy.mockRestore();
+        Reflect.deleteProperty(navigator, 'serviceWorker');
+        delete process.env.PROD;
+    });
+
+    test('visitante não registra o service worker, não salva cache nem pré-carrega', async () => {
+        renderWith(null);
+        await dom.testing.act(() => jest.advanceTimersByTime(5_000));
+
+        expect(register).not.toHaveBeenCalled();
+        expect(persist).not.toHaveBeenCalled();
+        expect(warm).not.toHaveBeenCalled();
+        expect(prefetch).not.toHaveBeenCalled();
+    });
+
+    test('sessão logada registra o service worker, salva o cache e pré-carrega', async () => {
+        renderWith(user);
+        await dom.testing.act(() => jest.advanceTimersByTime(5_000));
+
+        expect(register).toHaveBeenCalledWith('/sw.js');
+        expect(persist).toHaveBeenCalledTimes(1);
+        expect(warm).toHaveBeenCalledTimes(1);
+        expect(prefetch).toHaveBeenCalledTimes(1);
     });
 });
