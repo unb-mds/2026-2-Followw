@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.db.courses import course_ids
 from api.db.enums import UserLevel
 from api.db.models import ClassroomParticipant, Course, User
+from api.modules.classrooms.post_reading import PostReadingRepository
 from api.modules.public_courses.repository import PublicCourseRepository
 from api.modules.recommendations.ranking import CurriculumInfo, select_curriculum
 
@@ -149,6 +150,7 @@ class UserRepository:
             .execution_options(synchronize_session=False)
         )
         email, photo = shadow.email, shadow.photo
+        await PostReadingRepository(self._session).merge_users(account.id, shadow.id)
         await self._session.execute(delete(User).where(User.id == shadow.id))
         await self._session.flush()
         account.email = account.email or email

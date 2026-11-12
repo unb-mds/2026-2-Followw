@@ -143,18 +143,23 @@ class Sync:
         task: Task[T],
         target: T,
         load: Callable[[AsyncSession], Awaitable[Cached[V] | None]],
+        *,
+        immutable: bool = False,
     ) -> V:
         """Devolve o cache na hora e, se vencido, agenda a revalidação.
 
         `load` lê o cache numa sessão fechada antes de ir ao SIGAA. Sem cache, ou
         quando a requisição pede, roda a tarefa antes de responder e relê o cache;
         se o SIGAA falhar, o cache fica intacto.
+
+        Conteúdo imutável só é revalidado com `no-cache`, ignorando `max-age`.
         """
         cache = self._cache
         cached = await self.db.read(load)
         if cached is not None and (
             cached.freshness is Freshness.FROZEN
             or cache.only_if_cached
+            or (immutable and not cache.no_cache)
             or not cache.revalidate(cached.synced_at)
         ):
             return self._serve(task, target, cached)

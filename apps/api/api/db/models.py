@@ -143,6 +143,10 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     # Do relatório com as menções de todos os semestres; zera com turma nova na lista.
     grades_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Última leitura da home do SIGAA, que aponta as turmas com posts novos.
+    dashboard_synced_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
     settings: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict)
 
     course: Mapped[Course | None] = relationship(lazy="joined")
@@ -389,6 +393,20 @@ class ClassroomPosts(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     content: Mapped[str | None] = mapped_column(Text)
     attachments: Mapped[list[dict[str, str]]] = mapped_column(JSONB, default=list)
     content_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ClassroomPostRead(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "classroom_post_reads"
+    __table_args__ = (
+        UniqueConstraint("user_id", "post_id", name="uq_classroom_post_read"),
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE")
+    )
+    post_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("classroom_posts.id", ondelete="CASCADE"), index=True
+    )
 
 
 class RestaurantMenu(Base, UUIDPrimaryKeyMixin, TimestampMixin):
