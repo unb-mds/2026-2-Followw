@@ -36,14 +36,12 @@ export function AcademicSimulator({
     classrooms,
     entry,
     current,
-    curriculum,
-    loadingCurriculum
+    curriculum
 }: {
     classrooms: Classroom[];
     entry: string | null;
     current: string | undefined;
     curriculum: Set<string> | null;
-    loadingCurriculum: boolean;
 }) {
     const overrides = useSyncExternalStore(
         simulatedGrades.subscribe,
@@ -120,9 +118,7 @@ export function AcademicSimulator({
                 )}
                 {!curriculum && (
                     <p className="text-xs text-muted-foreground">
-                        {loadingCurriculum
-                            ? 'Carregando matriz curricular...'
-                            : 'MP indisponível sem a matriz curricular.'}
+                        MP indisponível sem a matriz curricular.
                     </p>
                 )}
                 <Button

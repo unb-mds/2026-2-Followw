@@ -1,27 +1,24 @@
 import { expect, test } from 'bun:test';
 
 import { allClassroomsQueryOptions } from '#/queries/classrooms';
-import { curriculumQueryOptions } from '#/queries/curriculum';
+import { meQueryOptions } from '#/queries/me';
 import { Route } from '#/routes/_app/perfil_.simulador';
 
 import { fakeQueryClient, runLoader } from '../helpers/route';
 
-test('carrega o histórico e a revisão de matriz vinculada ao aluno', async () => {
+test('carrega o perfil e o histórico para usar a matriz vinculada ao aluno', async () => {
     const keys: unknown[] = [];
     const queryClient = fakeQueryClient((key) => {
         keys.push(key);
         return key[1] === '/me'
             ? {
                   level: 'Graduação',
-                  course: { id: 42 },
-                  entry_semester: '2024.2',
-                  curriculum_sigaa_id: 7
+                  curriculum_subject_codes: ['MAT0001']
               }
             : [];
     });
     await runLoader(Route, { context: { queryClient } });
-    expect(keys).toContainEqual(allClassroomsQueryOptions.queryKey);
-    expect(keys).toContainEqual(curriculumQueryOptions(42, '2024.2', 7).queryKey);
+    expect(keys).toEqual([meQueryOptions.queryKey, allClassroomsQueryOptions.queryKey]);
 });
 
 test('solicita login antes de consultar o histórico de turmas', async () => {

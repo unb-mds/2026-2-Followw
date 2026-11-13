@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.cache import Freshness, freshness
 from api.db.models import User
 from api.modules.me.repository import UserRepository
+from api.modules.recommendations.repository import RecommendationRepository
 from api.schemas import CourseRef, UnitRef, course_ref, unit_ref
 from api.sync import Cached, Context, SyncDep
 
@@ -28,7 +29,7 @@ class UserProfile(BaseModel):
     unit: UnitRef | None
     course: CourseRef | None
     entry_semester: str | None
-    curriculum_sigaa_id: int | None = None
+    curriculum_subject_codes: list[str] | None = None
     integralization: int | None
     workload: CurriculumWorkload | None
     # Carga horária máxima por período da matriz do aluno, em horas.
@@ -63,7 +64,7 @@ class ProfileService:
             if user is None or user.profile_synced_at is None:
                 return None
             return Cached(
-                _to_profile(user),
+                await _to_profile(session, user),
                 user.profile_synced_at,
                 profile_freshness(user.profile_synced_at),
             )
@@ -71,8 +72,13 @@ class ProfileService:
         return await self._sync.resolve(sync_profile, None, load)
 
 
-def _to_profile(user: User) -> UserProfile:
+async def _to_profile(session: AsyncSession, user: User) -> UserProfile:
     assert user.registration and user.level
+    codes = (
+        sorted(await RecommendationRepository(session).components(user.curriculum_id))
+        if user.curriculum_id is not None
+        else None
+    )
     return UserProfile(
         name=user.name,
         registration=user.registration,
@@ -82,7 +88,7 @@ def _to_profile(user: User) -> UserProfile:
         unit=unit_ref(user.course.unit) if user.course else None,
         course=course_ref(user.course),
         entry_semester=user.entry_semester,
-        curriculum_sigaa_id=user.curriculum.sigaa_id if user.curriculum else None,
+        curriculum_subject_codes=codes,
         integralization=user.integralization,
         workload=CurriculumWorkload.model_validate(user.workload)
         if user.workload

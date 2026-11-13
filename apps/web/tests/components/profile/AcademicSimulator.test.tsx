@@ -44,7 +44,6 @@ test('abre o semestre atual e recolhe as disciplinas anteriores preenchidas pelo
             entry="2026.1"
             current="2026.2"
             curriculum={new Set(['A'])}
-            loadingCurriculum={false}
         />
     );
     expect(currentGrade(container)).toBe('');
@@ -64,7 +63,6 @@ test('recalcula na alteração, preserva ao voltar e restaura as menções ao li
             entry="2026.1"
             current="2026.2"
             curriculum={new Set(['A'])}
-            loadingCurriculum={false}
         />
     );
     const first = render(simulator);

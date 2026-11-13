@@ -1,5 +1,4 @@
 import type { Classroom } from '#/queries/classrooms';
-import type { CourseCurriculum } from '#/queries/curriculum';
 
 import { STORAGE_KEYS, storedValue } from '#/lib/local-storage';
 import { currentCurriculumPeriod } from '#/queries/subjects';
@@ -43,17 +42,6 @@ export function simulationGrade(classroom: Classroom, overrides: SimulatedGrades
     const override = overrides[simulationKey(classroom)];
     if (override === null || (override && isGrade(override))) return override;
     return classroom.grade ?? null;
-}
-
-export function curriculumCodes(curriculum: CourseCurriculum | undefined) {
-    if (!curriculum) return null;
-    const codes = new Set(
-        [
-            ...curriculum.periods.flatMap(({ subjects }) => subjects),
-            ...curriculum.complementary
-        ].map(({ code }) => subjectCode(code))
-    );
-    return codes.size > 0 ? codes : null;
 }
 
 export function simulateIndexes(

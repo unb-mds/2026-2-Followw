@@ -8,9 +8,7 @@ import { ErrorCard, ErrorState, StaleDataNotice } from '#/components/ErrorState'
 import { BackHeader } from '#/components/HeaderBar';
 import { LoadingText } from '#/components/LoadingText';
 import { AcademicSimulator } from '#/components/profile/AcademicSimulator';
-import { curriculumCodes } from '#/lib/academic-simulation';
 import { allClassroomsQueryOptions } from '#/queries/classrooms';
-import { curriculumQueryOptions } from '#/queries/curriculum';
 import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
 
@@ -20,11 +18,7 @@ export const Route = createFileRoute('/_app/perfil_/simulador')({
         const user = await loadQuery(queryClient, meQueryOptions);
         if (!user) throw redirect({ to: '/login' });
         if (user.level !== 'Graduação') throw redirect({ to: '/perfil' });
-        const curriculum = simulationCurriculum(user);
-        await Promise.all([
-            loadQuery(queryClient, allClassroomsQueryOptions).catch(noop),
-            curriculum && loadQuery(queryClient, curriculum).catch(noop)
-        ]);
+        await loadQuery(queryClient, allClassroomsQueryOptions).catch(noop);
     },
     staticData: {
         header: () => <BackHeader to="/perfil" title="Simulador de IRA e MP" />
@@ -32,13 +26,6 @@ export const Route = createFileRoute('/_app/perfil_/simulador')({
     errorComponent: ErrorState,
     component: SimulatorPage
 });
-
-function simulationCurriculum(user: UserProfile) {
-    const { course, entry_semester, curriculum_sigaa_id } = user;
-    return course && entry_semester && curriculum_sigaa_id != null
-        ? curriculumQueryOptions(course.id, entry_semester, curriculum_sigaa_id)
-        : null;
-}
 
 function SimulatorPage() {
     const { data: user } = useSuspenseQuery(meQueryOptions);
@@ -49,11 +36,6 @@ function SimulatorPage() {
 
 function SimulatorData({ user }: { user: UserProfile }) {
     const classrooms = useQuery(allClassroomsQueryOptions);
-    const curriculum = simulationCurriculum(user);
-    const matrix = useQuery({
-        ...(curriculum ?? curriculumQueryOptions(0, '')),
-        enabled: curriculum !== null
-    });
     if (classrooms.isLoadingError) {
         return (
             <ErrorCard
@@ -70,19 +52,15 @@ function SimulatorData({ user }: { user: UserProfile }) {
     return (
         <>
             {classrooms.isError && <StaleDataNotice subject="as disciplinas" />}
-            {matrix.isLoadingError && (
-                <ErrorCard
-                    message="Não foi possível carregar sua matriz curricular."
-                    onRetry={() => matrix.refetch()}
-                />
-            )}
-            {matrix.data && matrix.isError && <StaleDataNotice subject="a matriz curricular" />}
             <AcademicSimulator
                 classrooms={classrooms.data}
                 entry={user.entry_semester}
                 current={current}
-                curriculum={curriculumCodes(matrix.data)}
-                loadingCurriculum={matrix.isLoading}
+                curriculum={
+                    user.curriculum_subject_codes?.length
+                        ? new Set(user.curriculum_subject_codes)
+                        : null
+                }
             />
         </>
     );
