@@ -1,3 +1,6 @@
+import type { components } from '@followw/core/queries/schema.gen.ts';
+
+import { settingsQueryOptions } from '@followw/core/queries/settings.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
     RouterProvider,
@@ -9,10 +12,7 @@ import { expect, test } from 'bun:test';
 import { Window } from 'happy-dom';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import type { components } from '#/queries/schema.gen';
-
 import { meQueryOptions } from '#/queries/me';
-import { settingsQueryOptions } from '#/queries/settings';
 import { Route as AppRoute } from '#/routes/_app';
 import { Route } from '#/routes/_app/perfil';
 

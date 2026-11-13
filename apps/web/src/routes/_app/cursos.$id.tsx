@@ -1,9 +1,16 @@
+import { getCurrentSemester } from '@followw/core/calendar.ts';
+import { titleCase } from '@followw/core/lib/profile.ts';
+import { allClassroomsQueryOptions } from '@followw/core/queries/classrooms.ts';
+import { courseQueryOptions } from '@followw/core/queries/courses.ts';
+import { curriculumQueryOptions } from '@followw/core/queries/curriculum.ts';
+import { ApiError } from '@followw/core/queries/errors.ts';
+import { loadQuery } from '@followw/core/queries/load.ts';
+import { currentCurriculumPeriod } from '@followw/core/queries/subjects.ts';
 import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, notFound, rootRouteId } from '@tanstack/react-router';
 
 import type { UserProfile } from '#/queries/me';
 
-import { getCurrentSemester } from '#/calendar';
 import { CourseSummary } from '#/components/curriculum/CourseSummary';
 import { CurriculumView } from '#/components/curriculum/CurriculumView';
 import { Legend } from '#/components/curriculum/Legend';
@@ -11,15 +18,8 @@ import { ErrorCard, ErrorState } from '#/components/ErrorState';
 import { BackHeader } from '#/components/HeaderBar';
 import { LoadingText } from '#/components/LoadingText';
 import { useFlowSearch, validateFlowSearch } from '#/lib/curriculum/navigation';
-import { titleCase } from '#/lib/profile';
 import { useWidth } from '#/lib/width';
-import { allClassroomsQueryOptions } from '#/queries/classrooms';
-import { courseQueryOptions } from '#/queries/courses';
-import { curriculumQueryOptions } from '#/queries/curriculum';
-import { ApiError } from '#/queries/errors';
-import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
-import { currentCurriculumPeriod } from '#/queries/subjects';
 
 const DESKTOP_MIN_WIDTH = 1024;
 

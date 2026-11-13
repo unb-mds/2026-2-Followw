@@ -1,7 +1,7 @@
-import { useNavigate } from '@tanstack/react-router';
+import type { ScheduledClass } from '@followw/core/lib/schedule.ts';
+import type { Classroom } from '@followw/core/queries/classrooms.ts';
 
-import type { ScheduledClass } from '#/lib/schedule';
-import type { Classroom } from '#/queries/classrooms';
+import { useNavigate } from '@tanstack/react-router';
 
 import { ErrorCard, SIGAA_DOWN_MESSAGE } from '#/components/ErrorState';
 import { ClassCard } from '#/components/home/ClassCard';

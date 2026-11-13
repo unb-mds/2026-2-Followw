@@ -1,7 +1,7 @@
+import type { CatalogSubject, Requirements } from '@followw/core/queries/subjects.ts';
+
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { expect, test } from 'bun:test';
-
-import type { CatalogSubject, Requirements } from '#/queries/subjects';
 
 import { RequirementList } from '#/components/search/RequirementList';
 import { TurmaDetails } from '#/components/search/TurmaDetails';

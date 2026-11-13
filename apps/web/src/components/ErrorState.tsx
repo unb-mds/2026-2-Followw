@@ -1,11 +1,11 @@
+import { useFailureMessage } from '@followw/core/lib/online.ts';
+import { ApiError } from '@followw/core/queries/errors.ts';
 import { type ErrorComponentProps, useRouter } from '@tanstack/react-router';
 import { CloudOff } from 'lucide-react';
 
 import { Button } from '#/components/ui/button';
 import { Card, CardContent } from '#/components/ui/card';
-import { useFailureMessage } from '#/lib/online';
 import { cn } from '#/lib/shadcn';
-import { ApiError } from '#/queries/errors';
 
 export const SIGAA_DOWN_MESSAGE = 'O SIGAA está com problemas. Tente novamente em instantes.';
 

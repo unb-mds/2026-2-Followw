@@ -1,6 +1,6 @@
-import { Plus, X } from 'lucide-react';
+import type { CatalogSubject, SubjectClassroom } from '@followw/core/queries/subjects.ts';
 
-import type { CatalogSubject, SubjectClassroom } from '#/queries/subjects';
+import { Plus, X } from 'lucide-react';
 
 import { usePlannedSchedule } from '#/components/schedule/usePlannedSchedule';
 import { Button } from '#/components/ui/button';

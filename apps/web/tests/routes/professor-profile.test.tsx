@@ -1,15 +1,14 @@
+import type { ProfessorDetails } from '@followw/core/queries/professors.ts';
 import type { Middleware } from 'openapi-fetch';
 
+import { apiClient } from '@followw/core/queries/client.ts';
+import { toApiError } from '@followw/core/queries/errors.ts';
+import { professorQueryOptions } from '@followw/core/queries/professors.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory, createRouter } from '@tanstack/react-router';
 import { afterEach, describe, expect, test } from 'bun:test';
 
-import type { ProfessorDetails } from '#/queries/professors';
-
-import { apiClient } from '#/queries/client';
-import { toApiError } from '#/queries/errors';
 import { meQueryOptions } from '#/queries/me';
-import { professorQueryOptions } from '#/queries/professors';
 import { Route } from '#/routes/_app/professores_.$siape';
 import { routeTree } from '#/routeTree.gen';
 

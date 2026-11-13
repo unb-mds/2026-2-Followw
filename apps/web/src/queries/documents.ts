@@ -1,8 +1,8 @@
+import { apiClient } from '@followw/core/queries/client.ts';
+import { ApiError } from '@followw/core/queries/errors.ts';
 import { useMutation } from '@tanstack/react-query';
 
 import { saveFile } from '#/lib/download';
-import { apiClient } from '#/queries/client';
-import { ApiError } from '#/queries/errors';
 
 export const studentDocuments = {
     'student-card': { label: 'Carteirinha estudantil', filename: 'carteirinha.pdf' },

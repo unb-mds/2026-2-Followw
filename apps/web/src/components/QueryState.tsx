@@ -1,8 +1,9 @@
 import type { UseQueryResult } from '@tanstack/react-query';
 
+import { useOnline } from '@followw/core/lib/online.ts';
+
 import { ErrorCard } from '#/components/ErrorState';
 import { LoadingText } from '#/components/LoadingText';
-import { useOnline } from '#/lib/online';
 
 interface QueryStateProps<T, E> {
     query: UseQueryResult<T, E>;

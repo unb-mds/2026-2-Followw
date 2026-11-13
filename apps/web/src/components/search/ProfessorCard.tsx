@@ -1,10 +1,10 @@
+import type { ProfessorItem } from '@followw/core/queries/professors.ts';
+
+import { titleCase, unitLabel } from '@followw/core/lib/profile.ts';
 import { Link } from '@tanstack/react-router';
 import { ChevronRight } from 'lucide-react';
 
-import type { ProfessorItem } from '#/queries/professors';
-
 import { PersonPhoto } from '#/components/ui/person-photo';
-import { titleCase, unitLabel } from '#/lib/profile';
 
 export function ProfessorCard({ professor }: { professor: ProfessorItem }) {
     const label = unitLabel(professor.unit);

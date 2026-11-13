@@ -1,10 +1,10 @@
 import type { Middleware } from 'openapi-fetch';
 
+import { apiClient } from '@followw/core/queries/client.ts';
+import { ApiError } from '@followw/core/queries/errors.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, expect, mock, spyOn, test } from 'bun:test';
 
-import { apiClient } from '#/queries/client';
-import { ApiError } from '#/queries/errors';
 import { meQueryOptions, type UserProfile } from '#/queries/me';
 
 import { useDom } from '../helpers/dom';

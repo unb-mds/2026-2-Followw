@@ -1,8 +1,13 @@
+import type { ClassroomPost, PostType } from '@followw/core/queries/classrooms.ts';
+
+import { postDateLabel, postLink, postTypeLabels } from '@followw/core/lib/classroom-posts.ts';
+import {
+    classroomPostDetailQueryOptions,
+    classroomPostsQueryOptions
+} from '@followw/core/queries/classrooms.ts';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { RefreshCw } from 'lucide-react';
 import { useState } from 'react';
-
-import type { ClassroomPost, PostType } from '#/queries/classrooms';
 
 import { ErrorCard, SIGAA_DOWN_MESSAGE, StaleDataNotice } from '#/components/ErrorState';
 import { ListCard } from '#/components/ListCard';
@@ -16,10 +21,8 @@ import {
 import { Badge } from '#/components/ui/badge';
 import { Button } from '#/components/ui/button';
 import { Card, CardContent } from '#/components/ui/card';
-import { postDateLabel, postLink, postTypeLabels } from '#/lib/classroom-posts';
 import { Markdown } from '#/lib/markdown';
 import { cn } from '#/lib/shadcn';
-import { classroomPostDetailQueryOptions, classroomPostsQueryOptions } from '#/queries/classrooms';
 import { refreshQuery } from '#/queries/refresh';
 
 const filters: { type: PostType | 'all'; label: string }[] = [

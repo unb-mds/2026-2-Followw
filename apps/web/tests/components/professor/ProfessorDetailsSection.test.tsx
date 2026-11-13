@@ -1,3 +1,5 @@
+import type { ProfessorDetails } from '@followw/core/queries/professors.ts';
+
 import {
     RouterContextProvider,
     createMemoryHistory,
@@ -5,8 +7,6 @@ import {
     createRouter
 } from '@tanstack/react-router';
 import { describe, expect, test } from 'bun:test';
-
-import type { ProfessorDetails } from '#/queries/professors';
 
 import { ProfessorDetailsSection } from '#/components/professor/ProfessorDetailsSection';
 

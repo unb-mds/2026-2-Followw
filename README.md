@@ -60,6 +60,7 @@ apps/
 ├── api/              API FastAPI, autenticação e cache
 └── web/              aplicação web em TanStack Start
 packages/
+├── core/             queries, tipos e regras compartilhados em TypeScript
 ├── sigaa-client/     cliente assíncrono do SIGAA
 └── unb-browser/      cliente dos serviços públicos da UnB
 docs/                 documentação e notas de sprint
@@ -75,6 +76,7 @@ na raiz do repositório, salvo quando indicado.
 
     ```sh
     uv sync
+    bun install
     cp .env.example .env
     ```
 
@@ -85,12 +87,11 @@ na raiz do repositório, salvo quando indicado.
     python -c "import secrets; print(secrets.token_urlsafe(32))"
     ```
 
-2. Inicie os serviços, prepare o banco e execute a API:
+2. Inicie os serviços e prepare o banco:
 
     ```sh
     docker compose up -d
     uv run db-init
-    uv run api
     ```
 
     A API fica em <http://localhost:8000> e a documentação local, gerada das suas rotas, em
@@ -98,13 +99,13 @@ na raiz do repositório, salvo quando indicado.
     [documentação](https://docs.followw.app/)). O `db-init` cria as tabelas e carrega os dados
     públicos iniciais.
 
-3. Em outro terminal, inicie a aplicação web:
+3. Inicie a API e a aplicação web juntas, da raiz:
 
     ```sh
-    cd apps/web
-    bun install
     bun dev
     ```
+
+    Para executar separadamente, use `bun dev:api` e `bun dev:web`.
 
     Abra <http://localhost:3000>. Para acessar seus dados acadêmicos, entre com sua conta do SIGAA.
 
@@ -118,12 +119,11 @@ uv run ruff check .
 uv run ruff format --check .
 ```
 
-Para verificar a aplicação web:
+Para verificar o core e a aplicação web, também na raiz:
 
 ```sh
-cd apps/web
-bun check
-bun test
+bun run check
+bun run test
 bun run build
 ```
 

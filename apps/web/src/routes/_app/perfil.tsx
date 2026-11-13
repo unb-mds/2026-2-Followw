@@ -1,3 +1,5 @@
+import { useOnline } from '@followw/core/lib/online.ts';
+import { loadQuery } from '@followw/core/queries/load.ts';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { Link, Navigate, createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import { GitFork, LogOut } from 'lucide-react';
@@ -29,10 +31,8 @@ import {
     AlertDialogTrigger
 } from '#/components/ui/alert-dialog';
 import { Button, buttonVariants } from '#/components/ui/button';
-import { useOnline } from '#/lib/online';
 import { cn } from '#/lib/shadcn';
 import { useLogout } from '#/queries/auth';
-import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
 import { useUserSettings } from '#/queries/settings';
 

@@ -1,3 +1,4 @@
+import * as restaurant from '@followw/core/queries/restaurant.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, jest, spyOn, test } from 'bun:test';
 
@@ -6,7 +7,6 @@ import type { UserProfile } from '#/queries/me';
 import * as offlineStorage from '#/integrations/offline/storage';
 import { useOfflineSupport } from '#/integrations/offline/use-offline-support';
 import { meQueryOptions } from '#/queries/me';
-import * as restaurant from '#/queries/restaurant';
 
 import { useDom } from '../../helpers/dom';
 

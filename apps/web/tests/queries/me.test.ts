@@ -1,11 +1,11 @@
 import type { Middleware } from 'openapi-fetch';
 
+import { apiClient } from '@followw/core/queries/client.ts';
+import { ApiError } from '@followw/core/queries/errors.ts';
 import { QueryClient } from '@tanstack/react-query';
 import { createServerEntry } from '@tanstack/react-start/server';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 
-import { apiClient } from '#/queries/client';
-import { ApiError } from '#/queries/errors';
 import { meQueryOptions } from '#/queries/me';
 
 describe('perfil no SSR', () => {

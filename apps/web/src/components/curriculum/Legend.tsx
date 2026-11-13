@@ -1,9 +1,9 @@
+import type { AcademicState } from '@followw/core/lib/curriculum/types.ts';
+
+import { stateLabels } from '@followw/core/lib/curriculum/model.ts';
 import { cn } from 'cn';
 
-import type { AcademicState } from '#/lib/curriculum/types';
-
 import { Badge } from '#/components/ui/badge';
-import { stateLabels } from '#/lib/curriculum/model';
 
 const legendStyles: Record<Exclude<AcademicState, 'unknown'>, string> = {
     completed: 'bg-success/10 text-success',

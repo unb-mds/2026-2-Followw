@@ -1,10 +1,10 @@
 import type { Middleware } from 'openapi-fetch';
 
+import { apiClient } from '@followw/core/queries/client.ts';
+import { ApiError } from '@followw/core/queries/errors.ts';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 
-import { apiClient } from '#/queries/client';
 import { documentRefusal, getDocumentDownload } from '#/queries/documents';
-import { ApiError } from '#/queries/errors';
 
 describe('download de documentos', () => {
     let middleware: Middleware;

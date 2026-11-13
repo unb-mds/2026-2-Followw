@@ -1,7 +1,7 @@
+import type { CatalogSubject, SubjectClassroom } from '@followw/core/queries/subjects.ts';
+
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, test } from 'bun:test';
-
-import type { CatalogSubject, SubjectClassroom } from '#/queries/subjects';
 
 import { TurmaCard } from '#/components/search/TurmaCard';
 import { TurmaDetails } from '#/components/search/TurmaDetails';

@@ -1,9 +1,5 @@
 import type { Middleware } from 'openapi-fetch';
 
-import { QueryClient, QueryClientProvider, noop } from '@tanstack/react-query';
-import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { createElement, type ReactNode } from 'react';
-
 import {
     allClassroomsQueryOptions,
     classroomFrequencyQueryOptions,
@@ -11,8 +7,11 @@ import {
     classroomPostDetailQueryOptions,
     classroomPostsQueryOptions,
     useMarkLessons
-} from '#/queries/classrooms';
-import { apiClient } from '#/queries/client';
+} from '@followw/core/queries/classrooms.ts';
+import { apiClient } from '@followw/core/queries/client.ts';
+import { QueryClient, QueryClientProvider, noop } from '@tanstack/react-query';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { createElement, type ReactNode } from 'react';
 
 import { useDom } from '../helpers/dom';
 

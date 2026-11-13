@@ -1,3 +1,6 @@
+import { useOnline } from '@followw/core/lib/online.ts';
+import { MAX_PROFILE_BIO_LENGTH, truncateProfileBio } from '@followw/core/lib/profile.ts';
+import { ApiError } from '@followw/core/queries/errors.ts';
 import { ImagePlus, Pencil, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -19,9 +22,6 @@ import { Label } from '#/components/ui/label';
 import { PersonPhoto } from '#/components/ui/person-photo';
 import { Textarea } from '#/components/ui/textarea';
 import { toast } from '#/components/ui/toast';
-import { useOnline } from '#/lib/online';
-import { MAX_PROFILE_BIO_LENGTH, truncateProfileBio } from '#/lib/profile';
-import { ApiError } from '#/queries/errors';
 import { useEditProfile } from '#/queries/profile-edit';
 import { useUpdateSettings } from '#/queries/settings';
 

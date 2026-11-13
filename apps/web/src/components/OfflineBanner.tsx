@@ -1,6 +1,5 @@
+import { useOnline } from '@followw/core/lib/online.ts';
 import { WifiOff } from 'lucide-react';
-
-import { useOnline } from '#/lib/online';
 
 export const OfflineBanner: React.FC = () => {
     const online = useOnline();

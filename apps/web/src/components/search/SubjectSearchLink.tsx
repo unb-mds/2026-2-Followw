@@ -1,6 +1,5 @@
+import { SEARCH_MAX_LENGTH } from '@followw/core/queries/subjects.ts';
 import { Link } from '@tanstack/react-router';
-
-import { SEARCH_MAX_LENGTH } from '#/queries/subjects';
 
 export function SubjectSearchLink({
     query,

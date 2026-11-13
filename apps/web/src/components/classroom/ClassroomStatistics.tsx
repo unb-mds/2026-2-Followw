@@ -1,3 +1,7 @@
+import {
+    classroomFrequencyQueryOptions,
+    classroomStatisticsQueryOptions
+} from '@followw/core/queries/classrooms.ts';
 import { type UseQueryResult, useQuery } from '@tanstack/react-query';
 
 import { FrequencySummary } from '#/components/classroom/FrequencyContent';
@@ -5,10 +9,6 @@ import { ErrorCard, SIGAA_DOWN_MESSAGE, StaleDataNotice } from '#/components/Err
 import { LoadingText } from '#/components/LoadingText';
 import { StatisticsChart } from '#/components/StatisticsChart';
 import { Card, CardContent } from '#/components/ui/card';
-import {
-    classroomFrequencyQueryOptions,
-    classroomStatisticsQueryOptions
-} from '#/queries/classrooms';
 
 export function ClassroomStatistics({ id }: { id: string }) {
     const statistics = useQuery(classroomStatisticsQueryOptions(id));

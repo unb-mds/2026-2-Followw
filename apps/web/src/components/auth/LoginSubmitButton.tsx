@@ -1,8 +1,8 @@
+import { loginProgressAt } from '@followw/core/lib/login-progress.ts';
 import { useEffect, useState } from 'react';
 
 import { Button } from '#/components/ui/button';
 import { Spinner } from '#/components/ui/spinner';
-import { loginProgressAt } from '#/lib/login-progress';
 
 interface LoginSubmitButtonProps {
     pending: boolean;

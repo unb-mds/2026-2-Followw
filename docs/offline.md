@@ -33,14 +33,15 @@ Atualiza sozinho (`autoUpdate`: `skipWaiting` + `clientsClaim`).
 - Validade: **14 dias** (`PERSIST_MAX_AGE`: `maxAge` do persister e `gcTime` das queries no
   navegador). Query sem atualização há mais tempo deixa de ser salva (`shouldPersistQuery`); só o
   `gcTime` não bastaria, já que a restauração reinicia o prazo a cada sessão.
-- `buster`: hash de `schema.gen.ts`. Mudou o contrato da API, o cache salvo é descartado.
+- `buster`: hash de `packages/core/src/queries/schema.gen.ts`. Mudou o contrato da API, o cache
+  salvo é descartado.
 - O cardápio é uma query por campus e semana (segunda a domingo); cada dia é um `select` dela. A
   semana do campus do usuário é pré-carregada (`prefetchWeekMenus`), salvo se já estiver no cache.
 
 ## Nenhuma rota trava
 
-- Loaders usam `loadQuery` (`src/queries/load.ts`): com dado em cache resolvem na hora e revalidam
-  em segundo plano; sem cache, esperam a rede.
+- Loaders usam `loadQuery` (`packages/core/src/queries/load.ts`): com dado em cache resolvem na hora
+  e revalidam em segundo plano; sem cache, esperam a rede.
 - Queries e mutações usam `networkMode: 'always'`, e as queries não fazem retry offline: nunca ficam
   pausadas (o que travava o loader), nem se a conexão cair entre uma tentativa e outra.
 - As páginas só mostram erro quando **não há** dado (`isLoadingError`): falha ao revalidar mantém o

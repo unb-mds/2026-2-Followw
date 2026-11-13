@@ -1,20 +1,19 @@
+import type { ClassroomNews } from '@followw/core/queries/posts.ts';
 import type { Components } from 'react-markdown';
 
+import { postDateLabel } from '@followw/core/lib/classroom-posts.ts';
+import { latestNewsQueryOptions } from '@followw/core/queries/posts.ts';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 
-import type { ClassroomNews } from '#/queries/posts';
-
 import { ErrorCard, SIGAA_DOWN_MESSAGE, StaleDataNotice } from '#/components/ErrorState';
 import { LoadingText } from '#/components/LoadingText';
 import { SectionHeader } from '#/components/SectionHeader';
 import { Button } from '#/components/ui/button';
 import { Card, CardContent } from '#/components/ui/card';
-import { postDateLabel } from '#/lib/classroom-posts';
-import { latestNewsQueryOptions } from '#/queries/posts';
 
 const previewComponents: Components = { p: ({ children }) => <span>{children} </span> };
 

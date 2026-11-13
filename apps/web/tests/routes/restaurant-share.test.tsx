@@ -1,12 +1,14 @@
+import type { MenuSection } from '@followw/core/queries/restaurant.ts';
+
+import { lastMenuDay } from '@followw/core/lib/restaurant.ts';
+import { addDays, nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { afterEach, beforeAll, describe, expect, mock, spyOn, test } from 'bun:test';
 import { createSerializer } from 'nuqs/server';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import type { RestaurantSelection } from '#/lib/restaurant-share';
-import type { MenuSection } from '#/queries/restaurant';
 
 import { RestaurantShareImage } from '#/components/ru/RestaurantShareImage';
-import { lastMenuDay } from '#/lib/restaurant';
 import {
     loadRestaurantSearch,
     restaurantPageHead,
@@ -16,7 +18,6 @@ import {
     validateRestaurantSearch
 } from '#/lib/restaurant-share';
 import { restaurantShareResponse } from '#/lib/restaurant-share.server';
-import { addDays, nowInBrasilia } from '#/lib/schedule';
 import { loadSharedMenu } from '#/queries/restaurant-share';
 
 const selection: RestaurantSelection = { date: '2026-10-19', meal: 'lunch', campus: 'Gama' };

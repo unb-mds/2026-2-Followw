@@ -1,7 +1,8 @@
-import type { Occupancy, SubjectClassroom } from '#/queries/subjects';
+import type { Occupancy, SubjectClassroom } from '@followw/core/queries/subjects.ts';
+
+import { seats } from '@followw/core/queries/subjects.ts';
 
 import { cn } from '#/lib/shadcn';
-import { seats } from '#/queries/subjects';
 
 export const OCCUPANCY_COLOR: Record<Occupancy, string> = {
     free: 'text-primary',

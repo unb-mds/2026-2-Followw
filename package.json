@@ -1,0 +1,27 @@
+{
+    "name": "followw",
+    "private": true,
+    "workspaces": [
+        "apps/web",
+        "packages/core"
+    ],
+    "scripts": {
+        "dev": "bun run --parallel dev:api dev:web",
+        "dev:api": "uv run api",
+        "dev:web": "bun run --filter web dev",
+        "build": "bun run --filter web build",
+        "check": "bun run --filter \"*\" check",
+        "test": "bun run --filter \"*\" test",
+        "fmt": "oxfmt apps/web packages/core package.json bunfig.toml .oxfmtrc.json .oxlintrc.json",
+        "lint": "oxlint apps/web packages/core --fix",
+        "generate-api": "bun run --filter @followw/core generate-api"
+    },
+    "devDependencies": {
+        "@oxlint/plugins": "1.92.0",
+        "oxfmt": "^0.77.0",
+        "oxlint": "^1.92.0",
+        "oxlint-tsgolint": "^7.0.2006",
+        "typescript": "^7.0.2"
+    },
+    "packageManager": "bun@1.4.4"
+}

@@ -1,13 +1,13 @@
+import type { Campus, DailyMenu, MenuSection } from '@followw/core/queries/restaurant.ts';
+
+import { highlightMenu } from '@followw/core/lib/restaurant.ts';
+import { CAMPUS_LABELS } from '@followw/core/queries/restaurant.ts';
 import { Link } from '@tanstack/react-router';
 import { Coffee, Soup, UtensilsCrossed } from 'lucide-react';
-
-import type { Campus, DailyMenu, MenuSection } from '#/queries/restaurant';
 
 import { LoadingText } from '#/components/LoadingText';
 import { SectionHeader } from '#/components/SectionHeader';
 import { Card } from '#/components/ui/card';
-import { highlightMenu } from '#/lib/restaurant';
-import { CAMPUS_LABELS } from '#/queries/restaurant';
 
 interface PublicInfoSectionProps {
     campus: Campus;
