@@ -25,8 +25,9 @@ export function CourseProgress({
 }) {
     const { integralization, workload } = user;
     const progress = curriculumProgress(workload);
-    const projected = projectedIntegralization(user, classrooms);
+
     const forecast = projectedCategoryHours(classrooms);
+    const projected = projectedIntegralization(user, forecast);
     const entrance = useEntrance();
     // o anel se desenha a partir do zero, no mesmo tempo da contagem
     const draw = (percent: number) => ({
@@ -56,13 +57,21 @@ export function CourseProgress({
     ];
     const showForecast =
         projected != null || !!categories?.some((category) => categoryForecast(category) != null);
+    const displayedForecast =
+        projected == null || projected === 100
+            ? projected
+            : Math.max(integralization ?? 0, Math.min(99.9, Math.round(projected * 10) / 10));
+    const forecastLabel =
+        displayedForecast == null
+            ? 'Em andamento'
+            : `Em andamento ${displayedForecast.toLocaleString('pt-BR', { maximumFractionDigits: 20 })}%`;
 
     return (
-        <Card size="sm" className="gap-0 divide-y divide-border px-5 py-4">
+        <Card size="sm" className="gap-0 divide-y divide-border px-4 py-3 lg:px-5 lg:py-4">
             {(integralization != null || progress) && (
-                <div className="pb-5">
+                <div className="pb-3 last:pb-0 lg:pb-5">
                     {(integralization != null || showForecast) && (
-                        <div className="mb-3 flex flex-wrap items-center gap-5 text-xs text-muted-foreground">
+                        <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground lg:mb-3 lg:gap-x-5">
                             <span className="flex items-center gap-2">
                                 <span
                                     aria-hidden="true"
@@ -74,21 +83,23 @@ export function CourseProgress({
                                 <span className="flex items-center gap-2">
                                     <span
                                         aria-hidden="true"
-                                        className="h-1 w-5 rounded-full bg-info"
+                                        className="h-1 w-5 rounded-full bg-forecast"
                                     />
-                                    Previsto
+                                    <span className="font-medium text-forecast-foreground tabular-nums">
+                                        {forecastLabel}
+                                    </span>
                                 </span>
                             )}
                         </div>
                     )}
-                    <div className="flex flex-wrap items-center gap-5">
+                    <div className="flex flex-wrap items-center gap-4 lg:gap-5">
                         {integralization != null && (
-                            <div className="relative flex size-28 shrink-0 items-center justify-center">
+                            <div className="relative flex size-20 shrink-0 items-center justify-center lg:size-28">
                                 <svg
                                     viewBox="0 0 100 100"
                                     className="absolute inset-0 size-full -rotate-90"
                                 >
-                                    <title>{`Integralização do curso: ${integralization.toLocaleString('pt-BR')}%${projected != null ? '. Previsto: avanço com as disciplinas do semestre atual.' : ''}`}</title>
+                                    <title>{`Integralização do curso: ${integralization.toLocaleString('pt-BR')}%${projected != null ? '. Em andamento: avanço com as disciplinas do semestre atual.' : ''}`}</title>
                                     <circle
                                         cx="50"
                                         cy="50"
@@ -103,7 +114,7 @@ export function CourseProgress({
                                             cy="50"
                                             r="44"
                                             fill="none"
-                                            stroke="var(--info)"
+                                            stroke="var(--forecast)"
                                             strokeWidth="8"
                                             strokeLinecap="round"
                                             pathLength="100"
@@ -126,7 +137,7 @@ export function CourseProgress({
                                 </svg>
                                 <span
                                     aria-hidden="true"
-                                    className="text-2xl font-medium tabular-nums"
+                                    className="text-xl font-medium tabular-nums lg:text-2xl"
                                 >
                                     <AnimatedNumber
                                         value={integralization}
@@ -144,10 +155,10 @@ export function CourseProgress({
                         )}
                         {progress ? (
                             <div className="min-w-0">
-                                <p className="text-3xl font-medium tracking-tight tabular-nums">
+                                <p className="text-2xl font-medium tracking-tight tabular-nums lg:text-3xl">
                                     {hoursLabel(progress.completed)}
                                 </p>
-                                <p className="mt-1 text-sm text-muted-foreground">
+                                <p className="text-sm text-muted-foreground lg:mt-1">
                                     de {hoursLabel(progress.total)} concluídas
                                 </p>
                             </div>
@@ -158,7 +169,7 @@ export function CourseProgress({
                 </div>
             )}
             {categories && (
-                <dl className="flex flex-col gap-4 py-4 last:pb-0">
+                <dl className="flex flex-col gap-3 py-3 last:pb-0 lg:gap-4 lg:py-4">
                     {categories.map((category) => (
                         <CategoryProgress key={category.label} {...category} />
                     ))}
@@ -203,7 +214,7 @@ function CategoryProgress(category: Category) {
     const completed = Math.max(0, required - pending);
     const forecast = categoryForecast(category);
     return (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1 lg:gap-2">
             <CategoryRow
                 label={label}
                 value={`${hoursLabel(completed)} / ${hoursLabel(required)}`}
@@ -211,7 +222,7 @@ function CategoryProgress(category: Category) {
             <div aria-hidden="true" className="relative h-2 overflow-hidden rounded-full bg-muted">
                 {forecast != null && (
                     <div
-                        className="absolute inset-y-0 left-0 rounded-full bg-info"
+                        className="absolute inset-y-0 left-0 rounded-full bg-forecast"
                         style={{ width: `${forecast}%` }}
                     />
                 )}

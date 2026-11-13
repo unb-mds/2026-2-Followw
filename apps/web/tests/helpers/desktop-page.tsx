@@ -53,7 +53,12 @@ export const desktopClassrooms: Classroom[] = [
         number: '01',
         semester: '2026.2',
         current: true,
-        subject: { code: 'MAT1000', name: 'Disciplina com nome extenso de manhã', hours: 60 },
+        subject: {
+            code: 'MAT1000',
+            name: 'Disciplina com nome extenso de manhã',
+            hours: 60,
+            kind: 'mandatory'
+        },
         schedule: '2M12',
         professors: []
     },
@@ -62,7 +67,7 @@ export const desktopClassrooms: Classroom[] = [
         number: '02',
         semester: '2026.2',
         current: true,
-        subject: { code: 'MAT2000', name: 'Disciplina de noite', hours: 60 },
+        subject: { code: 'MAT2000', name: 'Disciplina de noite', hours: 60, kind: 'optional' },
         schedule: '2N34 7N4',
         professors: []
     }

@@ -3,7 +3,7 @@ import { describe, expect, test } from 'bun:test';
 import type { Classroom } from '#/queries/classrooms';
 import type { UserProfile } from '#/queries/me';
 
-import { projectedIntegralization } from '#/lib/profile';
+import { projectedCategoryHours, projectedIntegralization } from '#/lib/profile';
 
 import { classroom } from './helpers';
 
@@ -20,52 +20,78 @@ const user = {
     }
 } satisfies Pick<UserProfile, 'integralization' | 'workload'>;
 
+function project(
+    profile: Pick<UserProfile, 'integralization' | 'workload'>,
+    classrooms: Classroom[]
+) {
+    return projectedIntegralization(profile, projectedCategoryHours(classrooms));
+}
+
 describe('projectedIntegralization', () => {
     test('soma as horas concluídas e das disciplinas atuais e calcula a proporção do curso', () => {
         expect(
-            projectedIntegralization(user, [classroom('A', 60), classroom('B', 90)])
+            project(user, [classroom('A', 60, 'mandatory'), classroom('B', 90, 'optional')])
         ).toBeCloseTo(45);
     });
 
     test('conta a mesma disciplina uma vez mesmo com mais de uma turma', () => {
         expect(
-            projectedIntegralization(user, [classroom('A'), { ...classroom('A'), id: 'outra' }])
+            project(user, [
+                classroom('A', 60, 'mandatory'),
+                { ...classroom('A', 60, 'mandatory'), id: 'outra' }
+            ])
         ).toBeCloseTo(36);
     });
 
     test('ignora semestres anteriores e matrículas não confirmadas ou encerradas', () => {
         const ignored: Classroom[] = [
-            { ...classroom('ANTERIOR'), current: false },
+            { ...classroom('ANTERIOR', 60, 'mandatory'), current: false },
             ...(['pending_enrollment', 'denied', 'trancado', 'concluido'] as const).map((status) =>
-                Object.assign(classroom(status), { status })
+                Object.assign(classroom(status, 60, 'mandatory'), { status })
             )
         ];
-        expect(projectedIntegralization(user, [...ignored, classroom('ATUAL')])).toBeCloseTo(36);
+        expect(project(user, [...ignored, classroom('ATUAL', 60, 'mandatory')])).toBeCloseTo(36);
     });
 
     test('usa turmas atuais sem status e ignora cargas horárias ausentes ou inválidas', () => {
         const unknown = [null, 0, -1, NaN, Infinity].map((hours, index) =>
-            classroom(String(index), hours)
+            classroom(String(index), hours, 'mandatory')
         );
-        expect(projectedIntegralization(user, unknown)).toBeNull();
+        expect(project(user, unknown)).toBeNull();
         expect(
-            projectedIntegralization(user, [...unknown, { ...classroom('ATUAL'), status: null }])
+            project(user, [...unknown, { ...classroom('ATUAL', 60, 'mandatory'), status: null }])
         ).toBeCloseTo(36);
     });
 
-    test('limita a previsão ao total de horas do curso', () => {
-        expect(projectedIntegralization(user, [classroom('A', 900)])).toBe(100);
+    test('limita optativas à pendência sem transferir excedente para obrigatórias', () => {
+        expect(
+            project(user, [classroom('OBR', 60, 'mandatory'), classroom('OPT', 900, 'optional')])
+        ).toBeCloseTo(56);
+    });
+
+    test('limita obrigatórias à pendência e mantém as optativas separadas', () => {
+        expect(project(user, [classroom('OBR', 900, 'mandatory')])).toBeCloseTo(80);
+    });
+
+    test('ignora optativa com carga cumprida, módulo livre e disciplina sem classificação', () => {
+        expect(
+            project({ ...user, workload: { ...user.workload, pending_optional: 0 } }, [
+                classroom('OPT', 60, 'optional'),
+                classroom('LIVRE', 60, 'free'),
+                classroom('SEM', 60, null)
+            ])
+        ).toBeNull();
     });
 
     test('não projeta sem turmas, integralização ou carga total válida', () => {
-        expect(projectedIntegralization(user, [])).toBeNull();
+        expect(project(user, [])).toBeNull();
         expect(
-            projectedIntegralization({ ...user, integralization: null }, [classroom('A')])
+            project({ ...user, integralization: null }, [classroom('A', 60, 'mandatory')])
         ).toBeNull();
-        expect(projectedIntegralization({ ...user, workload: null }, [classroom('A')])).toBeNull();
+        expect(project({ ...user, workload: null }, [classroom('A', 60, 'mandatory')])).toBeNull();
         expect(
-            projectedIntegralization({ ...user, workload: { ...user.workload, total: 0 } }, [
-                classroom('A')
+            project({ ...user, workload: { ...user.workload, total: 0 } }, [
+                classroom('A', 60, 'mandatory')
             ])
         ).toBeNull();
     });

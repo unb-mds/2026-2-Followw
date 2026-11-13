@@ -49,23 +49,53 @@ describe('CourseProgress', () => {
         expect(markup).toContain('Integralização do curso: 0%');
         expect(markup).not.toContain('stroke="var(--primary)"');
     });
-    test('exibe a previsão em outra cor sem acrescentar valores previstos ao texto', () => {
+    test('exibe o percentual previsto na legenda azul', () => {
         const classrooms: Classroom[] = [
             {
                 id: 'atual',
                 number: '01',
                 semester: '2026.2',
                 current: true,
-                subject: { code: 'MAT1000', name: 'Disciplina atual', hours: 60 },
+                subject: {
+                    code: 'MAT1000',
+                    name: 'Disciplina atual',
+                    hours: 60,
+                    kind: 'mandatory'
+                },
                 professors: []
             }
         ];
-        const without = renderToStaticMarkup(<CourseProgress user={user} />);
         const markup = renderToStaticMarkup(<CourseProgress user={user} classrooms={classrooms} />);
-        expect(markup).toContain('stroke="var(--info)"');
-        expect(markup).toContain('Previsto');
-        expect(text(markup).replace('Previsto', '')).toBe(text(without));
+        expect(markup).toContain('stroke="var(--forecast)"');
+        expect(text(markup)).toContain('Em andamento 33,2%');
     });
+
+    test.each([
+        [40.1, 1000, 600, 4, '40,4%'],
+        [40.14, 100000, 59900, 45, '40,14%'],
+        [99.8, 10000, 10, 6, '99,9%'],
+        [99.8, 10000, 10, 10, '100%']
+    ])(
+        'formata a previsão a partir de %s%% concluídos',
+        (integralization, total, pending, hours, label) => {
+            const markup = renderToStaticMarkup(
+                <CourseProgress
+                    user={{
+                        ...user,
+                        integralization,
+                        workload: {
+                            ...user.workload!,
+                            total,
+                            pending_mandatory: pending,
+                            pending_optional: 0
+                        }
+                    }}
+                    classrooms={[current('OBR', hours, 'mandatory')]}
+                />
+            );
+            expect(text(markup)).toContain(`Em andamento ${label}`);
+        }
+    );
     test('mostra conclusão, total e pendências por categoria com gráfico acessível', () => {
         const markup = renderToStaticMarkup(<CourseProgress user={user} />);
         expect(markup).toContain('Integralização do curso: 31%');
@@ -74,7 +104,7 @@ describe('CourseProgress', () => {
         expect(markup).not.toContain('Faltam');
         expect(markup).toContain('1.935h pendentes');
         expect(markup).toContain('480h pendentes');
-        expect(markup).not.toContain('Previsto');
+        expect(markup).not.toContain('Em andamento');
         expect(markup).not.toContain('Não exigidas');
     });
 
@@ -98,7 +128,7 @@ describe('CourseProgress', () => {
         expect(markup.match(/style="width:/g)).toHaveLength(2);
     });
 
-    test('prevê obrigatórias e optativas pelas disciplinas atuais sem mudar o texto', () => {
+    test('prevê obrigatórias e optativas sem acrescentar horas previstas ao texto', () => {
         const matrix = {
             ...user,
             workload: { ...user.workload!, mandatory: 2865, optional: 660, complementary: 0 }
@@ -114,12 +144,12 @@ describe('CourseProgress', () => {
                 ]}
             />
         );
-        const forecasts = [...markup.matchAll(/bg-info" style="width:([\d.]+)%/g)];
+        const forecasts = [...markup.matchAll(/bg-forecast" style="width:([\d.]+)%/g)];
         expect(forecasts.map(([, width]) => Number(width))).toEqual([
             ((930 + 60) / 2865) * 100,
             ((180 + 60) / 660) * 100
         ]);
-        expect(text(markup).replace('Previsto', '')).toBe(text(without));
+        expect(text(markup).replace('Em andamento 34,9%', '')).toBe(text(without));
     });
 
     test('sem tipo na matriz não desenha previsão nas categorias', () => {
@@ -133,8 +163,8 @@ describe('CourseProgress', () => {
                 classrooms={[current('LIVRE', 60, 'free')]}
             />
         );
-        expect(markup).not.toContain('bg-info');
-        expect(markup).not.toContain('Previsto');
+        expect(markup).not.toContain('bg-forecast');
+        expect(markup).not.toContain('Em andamento');
     });
 
     test('mantém a integralização sem estimar horas quando a carga está ausente', () => {

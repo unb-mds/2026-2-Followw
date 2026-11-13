@@ -107,8 +107,7 @@ test.each([1440, 390])(
         const account = view.getByRole('region', { name: 'Conta' });
         expect(dom.testing.within(account).queryByRole('button', { name: /Baixar/ })).toBeNull();
         expect(view.queryByText('Não exigidas')).toBeNull();
-        expect(dom.testing.within(progress).getByText('Previsto', { exact: true })).toBeDefined();
-        expect(progress.textContent).not.toContain('42%');
+        expect(dom.testing.within(progress).getByText('Em andamento 42%')).toBeDefined();
         expect(progress.textContent).not.toContain('120h');
         expect(view.getByRole('button', { name: 'Baixar histórico acadêmico' })).toBeDefined();
         expect(

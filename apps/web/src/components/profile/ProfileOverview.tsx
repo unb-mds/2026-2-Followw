@@ -26,21 +26,21 @@ export function ProfileIdentity({
         <header>
             <div className="flex items-center gap-4 lg:gap-6">
                 <PersonPhoto src={user.photo} size="lg" className="lg:w-32 lg:rounded-2xl" />
-                <div className="flex min-w-0 flex-col justify-between gap-2 lg:gap-4">
-                    <div>
+                <div className="flex min-w-0 flex-col gap-1 lg:gap-4">
+                    <div className="flex flex-col items-start">
                         <h1 className="text-2xl leading-tight font-semibold tracking-tight text-balance lg:text-4xl">
                             {displayName || titleCase(user.name)}
                         </h1>
                         <RegistrationCopy value={user.registration} />
                     </div>
                     <div>
-                        <p className="text-sm text-primary lg:text-2xl lg:font-medium">
-                            {[
-                                user.course && titleCase(user.course.name),
-                                period && `${period}º semestre`
-                            ]
-                                .filter(Boolean)
-                                .join(' · ')}
+                        <p className="text-sm wrap-anywhere text-primary lg:text-2xl lg:font-medium">
+                            {user.course && titleCase(user.course.name)}
+                            {period != null && (
+                                <span className="whitespace-nowrap">
+                                    {`${user.course ? ' · ' : ''}${period}º semestre`}
+                                </span>
+                            )}
                         </p>
                         <p className="text-xs font-medium text-muted-foreground lg:mt-1 lg:text-sm">
                             {user.level}
@@ -58,23 +58,23 @@ export function AcademicPerformance({ user }: { user: UserProfile }) {
     if (indexes.length === 0) return null;
 
     return (
-        <ProfileSection title="Desempenho">
+        <ProfileSection title="Desempenho" compact>
             <Card
                 size="sm"
                 className="gap-0 overflow-visible bg-transparent py-0 shadow-none ring-0"
             >
-                <dl className={cn('grid gap-3 lg:gap-4', indexes.length > 1 && 'grid-cols-2')}>
+                <dl className={cn('grid gap-2 lg:gap-4', indexes.length > 1 && 'grid-cols-2')}>
                     {indexes.map((index) => (
                         <div
                             key={index.label}
-                            className="rounded-2xl border bg-card p-4 shadow-sm lg:p-5"
+                            className="rounded-2xl border bg-card px-4 py-2 shadow-sm lg:p-5"
                         >
                             <dt className="text-xs font-medium text-muted-foreground">
                                 <abbr title={index.description} className="no-underline">
                                     {index.label}
                                 </abbr>
                             </dt>
-                            <dd className="mt-2 text-3xl font-medium tracking-tight text-primary tabular-nums lg:text-4xl">
+                            <dd className="mt-1 text-2xl font-medium tracking-tight text-primary tabular-nums lg:mt-2 lg:text-4xl">
                                 {index.value}
                             </dd>
                         </div>
@@ -88,7 +88,7 @@ export function AcademicPerformance({ user }: { user: UserProfile }) {
 export function ProgressSection({ user }: { user: UserProfile }) {
     if (user.integralization == null && !user.workload) return null;
     return (
-        <ProfileSection title="Progresso do curso">
+        <ProfileSection title="Progresso do curso" compact>
             <CurrentCourseProgress user={user} />
         </ProfileSection>
     );
@@ -99,10 +99,25 @@ function CurrentCourseProgress({ user }: { user: UserProfile }) {
     return <CourseProgress user={user} classrooms={data ?? []} />;
 }
 
-export function ProfileSection({ title, children }: { title: string; children: React.ReactNode }) {
+export function ProfileSection({
+    title,
+    compact = false,
+    children
+}: {
+    title: string;
+    compact?: boolean;
+    children: React.ReactNode;
+}) {
     return (
         <section aria-label={title}>
-            <h2 className="mb-4 px-1 text-lg font-medium lg:text-xl">{title}</h2>
+            <h2
+                className={cn(
+                    'px-1 text-lg font-medium lg:text-xl',
+                    compact ? 'mb-2 lg:mb-4' : 'mb-4'
+                )}
+            >
+                {title}
+            </h2>
             {children}
         </section>
     );
@@ -172,7 +187,7 @@ function RegistrationCopy({ value }: { value: string }) {
             aria-label={label}
             title={label}
             className={cn(
-                'mt-0.5 inline-flex items-center gap-1 text-sm leading-none tabular-nums lg:mt-2 lg:gap-1.5 lg:text-base',
+                'mt-1.5 inline-flex items-center gap-1 text-sm leading-none tabular-nums lg:mt-2 lg:gap-1.5 lg:text-base',
                 copied ? 'text-primary' : 'text-muted-foreground'
             )}
         >

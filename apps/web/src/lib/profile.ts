@@ -55,16 +55,24 @@ function currentSubjects(classrooms: readonly Classroom[]) {
 
 export function projectedIntegralization(
     user: Pick<UserProfile, 'integralization' | 'workload'>,
-    classrooms: readonly Classroom[]
+    { mandatory, optional }: ReturnType<typeof projectedCategoryHours>
 ) {
-    const progress = curriculumProgress(user.workload);
-    const completed = user.integralization;
-    if (!progress?.total || completed == null || !Number.isFinite(completed)) return null;
+    const { workload, integralization } = user;
+    const progress = curriculumProgress(workload);
+    if (
+        !workload ||
+        !progress?.total ||
+        integralization == null ||
+        !Number.isFinite(integralization)
+    )
+        return null;
 
-    const hours = currentSubjects(classrooms).reduce((sum, subject) => sum + subject.hours, 0);
+    const hours =
+        Math.min(mandatory, workload.pending_mandatory) +
+        Math.min(optional, workload.pending_optional);
     if (hours === 0) return null;
-    const current = Math.max(0, Math.min(100, completed));
-    const projected = Math.min(100, ((progress.completed + hours) / progress.total) * 100);
+    const current = Math.max(0, Math.min(100, integralization));
+    const projected = ((progress.completed + hours) / progress.total) * 100;
     return projected > current ? projected : null;
 }
 

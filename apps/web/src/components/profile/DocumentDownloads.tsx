@@ -41,17 +41,17 @@ export function DocumentDownloads({
                 return (
                     <div
                         key={document}
-                        className="flex min-w-0 items-center gap-3 rounded-2xl border bg-card p-3 shadow-sm lg:p-4"
+                        className="flex min-w-0 items-center gap-2 rounded-2xl border bg-card p-2 shadow-sm @sm:gap-3 @sm:p-3"
                     >
-                        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary @sm:size-8">
                             <Icon className="size-4" aria-hidden="true" />
                         </span>
                         <span className="min-w-0 flex-1">
-                            <span className="block">{shortLabel}</span>
+                            <span className="block text-sm @sm:text-base">{shortLabel}</span>
                             <span
                                 role={message ? 'alert' : undefined}
                                 className={cn(
-                                    'block text-xs',
+                                    'block text-xs wrap-anywhere',
                                     message ? 'text-destructive' : 'text-muted-foreground'
                                 )}
                                 aria-live="polite"
@@ -63,7 +63,7 @@ export function DocumentDownloads({
                             type="button"
                             size="icon-sm"
                             variant="ghost"
-                            className="-mr-2 size-11 shrink-0 lg:mr-0 lg:size-7"
+                            className="size-11"
                             disabled={!online || pending !== null}
                             aria-label={`Baixar ${label.toLowerCase()}`}
                             aria-busy={isPending}
@@ -79,7 +79,7 @@ export function DocumentDownloads({
                 );
             })}
             {!online && (
-                <output className="col-span-2 block py-2 text-xs text-muted-foreground">
+                <output className="col-span-full block py-2 text-xs text-muted-foreground">
                     Conecte-se à internet para baixar os documentos.
                 </output>
             )}

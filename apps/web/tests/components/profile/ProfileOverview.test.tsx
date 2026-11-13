@@ -48,7 +48,8 @@ describe('ProfileIdentity', () => {
             <ProfileIdentity user={{ ...user, entry_semester: '2020.1' }} />
         );
         expect(period).not.toBeNull();
-        expect(markup).toContain(`Engenharia de Software · ${period}º semestre`);
+        expect(markup).toContain('Engenharia de Software');
+        expect(markup).toContain(`class="whitespace-nowrap"> · ${period}º semestre</span>`);
         expect(markup).not.toContain('FCTE');
     });
 
