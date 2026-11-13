@@ -1,6 +1,15 @@
 {
-    "$schema": "./apps/web/node_modules/oxlint/configuration_schema.json",
-    "ignorePatterns": ["**.gen.ts", "schema.gen.ts", "**/components/ui/**"],
+    "$schema": "./node_modules/oxlint/configuration_schema.json",
+    "ignorePatterns": [
+        "**.gen.ts",
+        "schema.gen.ts",
+        "**/components/ui/**",
+        "**/node_modules/**",
+        "**/.output/**",
+        "**/.tanstack/**",
+        "**/.nitro/**",
+        "**/dist/**"
+    ],
     "plugins": ["typescript", "react", "import", "unicorn", "oxc", "jsx-a11y", "promise"],
     "categories": {
         "correctness": "error",
@@ -26,7 +35,10 @@
         "followw/no-hardcoded-email": "error",
         "no-restricted-globals": [
             "error",
-            { "name": "fetch", "message": "Use o client de src/queries." }
+            {
+                "name": "fetch",
+                "message": "Use o client de src/queries."
+            }
         ],
         "no-restricted-imports": [
             "error",
@@ -48,13 +60,17 @@
     },
     "overrides": [
         {
-            "files": ["src/queries/**"],
+            "files": ["apps/web/src/queries/**", "packages/core/src/queries/**"],
             "rules": {
                 "no-restricted-globals": "off"
             }
         },
         {
-            "files": ["apps/web/src/lib/contact.ts", "apps/web/tests/**"],
+            "files": [
+                "packages/core/src/lib/contact.ts",
+                "packages/core/tests/**",
+                "apps/web/tests/**"
+            ],
             "rules": {
                 "followw/no-hardcoded-email": "off"
             }

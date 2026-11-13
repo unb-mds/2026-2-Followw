@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react';
 
+import { coursesQueryOptions } from '@followw/core/queries/courses.ts';
+import { professorsQueryOptions } from '@followw/core/queries/professors.ts';
 import { type UseQueryResult, useQuery } from '@tanstack/react-query';
 
 import { QueryState } from '#/components/QueryState';
 import { CourseSection } from '#/components/search/CourseSection';
 import { ProfessorSection } from '#/components/search/ProfessorSection';
-import { coursesQueryOptions } from '#/queries/courses';
-import { professorsQueryOptions } from '#/queries/professors';
 
 export type CatalogCategory = 'courses' | 'professors';
 

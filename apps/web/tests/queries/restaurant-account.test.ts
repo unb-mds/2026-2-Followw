@@ -1,15 +1,20 @@
+import type {
+    RestaurantStatement,
+    RestaurantCredentials
+} from '@followw/core/queries/restaurant-account.ts';
 import type { Middleware } from 'openapi-fetch';
 
+import { apiClient } from '@followw/core/queries/client.ts';
+import { ApiError } from '@followw/core/queries/errors.ts';
+import {
+    credentialsQueryOptions,
+    statementQueryOptions
+} from '@followw/core/queries/restaurant-account.ts';
 import { noop, QueryClient, QueryObserver } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 
-import type { RestaurantStatement, RestaurantCredentials } from '#/queries/restaurant-account';
-
 import { clearSession } from '#/queries/auth';
-import { apiClient } from '#/queries/client';
-import { ApiError } from '#/queries/errors';
 import { refreshQuery } from '#/queries/refresh';
-import { credentialsQueryOptions, statementQueryOptions } from '#/queries/restaurant-account';
 
 const registration = '251000000';
 const statement: RestaurantStatement = {

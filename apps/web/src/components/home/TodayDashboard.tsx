@@ -1,15 +1,16 @@
+import type { Day } from '@followw/core/lib/schedule.ts';
+
+import { getNoClassReason } from '@followw/core/calendar.ts';
+import { classesOn } from '@followw/core/lib/schedule.ts';
+import { classroomsQueryOptions } from '@followw/core/queries/classrooms.ts';
+import { campusOf, menuQueryOptions } from '@followw/core/queries/restaurant.ts';
 import { useQuery } from '@tanstack/react-query';
 import { lazy, Suspense } from 'react';
 
-import type { Day } from '#/lib/schedule';
 import type { UserProfile } from '#/queries/me';
 
-import { getNoClassReason } from '#/calendar';
 import { PublicInfoSection } from '#/components/home/PublicInfoSection';
 import { TodayClassesSection } from '#/components/home/TodayClassesSection';
-import { classesOn } from '#/lib/schedule';
-import { classroomsQueryOptions } from '#/queries/classrooms';
-import { campusOf, menuQueryOptions } from '#/queries/restaurant';
 
 const LatestNewsSection = lazy(() =>
     import('#/components/home/LatestNewsSection').then((module) => ({

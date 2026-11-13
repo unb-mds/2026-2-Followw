@@ -1,16 +1,16 @@
+import type { SearchResult, SearchType } from '@followw/core/queries/search.ts';
+
+import { searchTypes } from '@followw/core/lib/search-categories.ts';
+import { searchQueryOptions } from '@followw/core/queries/search.ts';
+import { withClassrooms } from '@followw/core/queries/subjects.ts';
 import { keepPreviousData, noop, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Fragment } from 'react';
-
-import type { SearchResult, SearchType } from '#/queries/search';
 
 import { QueryState } from '#/components/QueryState';
 import { CourseSection } from '#/components/search/CourseSection';
 import { ProfessorSection } from '#/components/search/ProfessorSection';
 import { TurmaSection } from '#/components/search/TurmaSection';
-import { searchTypes } from '#/lib/search-categories';
 import { refreshQuery } from '#/queries/refresh';
-import { searchQueryOptions } from '#/queries/search';
-import { withClassrooms } from '#/queries/subjects';
 
 /** Cursos, docentes e matérias pedidos em `types` numa só consulta. */
 export function SearchResults({

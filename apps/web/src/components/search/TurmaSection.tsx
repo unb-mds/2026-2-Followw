@@ -1,6 +1,7 @@
-import { useState, type ReactNode } from 'react';
+import type { CatalogSubject } from '@followw/core/queries/subjects.ts';
 
-import type { CatalogSubject } from '#/queries/subjects';
+import { covered } from '@followw/core/queries/subjects.ts';
+import { useState, type ReactNode } from 'react';
 
 import { SubjectSummary } from '#/components/search/SubjectSummary';
 import { TurmaCard } from '#/components/search/TurmaCard';
@@ -11,7 +12,6 @@ import {
     AccordionTrigger
 } from '#/components/ui/accordion';
 import { Button } from '#/components/ui/button';
-import { covered } from '#/queries/subjects';
 
 const PAGE_SIZE = 25;
 
