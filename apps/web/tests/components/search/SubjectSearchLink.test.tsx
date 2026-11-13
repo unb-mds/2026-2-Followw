@@ -1,7 +1,7 @@
+import { SEARCH_MAX_LENGTH, searchText } from '@followw/core/queries/subjects.ts';
 import { expect, test } from 'bun:test';
 
 import { SubjectSearchLink } from '#/components/search/SubjectSearchLink';
-import { SEARCH_MAX_LENGTH, searchText } from '#/queries/subjects';
 
 import { renderWithRouter } from '../../helpers/router';
 

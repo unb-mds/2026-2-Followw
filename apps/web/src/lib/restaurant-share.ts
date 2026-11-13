@@ -1,14 +1,18 @@
+import type { MealKey } from '@followw/core/lib/restaurant.ts';
+import type { Campus, DailyMenu } from '@followw/core/queries/restaurant.ts';
 import type { inferParserType } from 'nuqs/server';
 
+import {
+    currentOrNextMeal,
+    FIRST_MENU_DAY,
+    lastMenuDay,
+    MEAL_TIMES
+} from '@followw/core/lib/restaurant.ts';
+import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
+import { CAMPUS_LABELS, CAMPUS_OPTIONS } from '@followw/core/queries/restaurant.ts';
 import { createLoader, createParser, parseAsStringLiteral } from 'nuqs/server';
 
-import type { MealKey } from '#/lib/restaurant';
-import type { Campus, DailyMenu } from '#/queries/restaurant';
-
-import { currentOrNextMeal, FIRST_MENU_DAY, lastMenuDay, MEAL_TIMES } from '#/lib/restaurant';
-import { nowInBrasilia } from '#/lib/schedule';
 import { publicPageHead } from '#/lib/seo';
-import { CAMPUS_LABELS, CAMPUS_OPTIONS } from '#/queries/restaurant';
 
 const isMenuDay = (value: string) =>
     /^\d{4}-\d{2}-\d{2}$/.test(value) &&

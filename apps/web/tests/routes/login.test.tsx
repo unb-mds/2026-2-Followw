@@ -1,5 +1,9 @@
+import type { components } from '@followw/core/queries/schema.gen.ts';
 import type { Middleware } from 'openapi-fetch';
 
+import { OFFLINE_MESSAGE } from '@followw/core/lib/online.ts';
+import { apiClient } from '@followw/core/queries/client.ts';
+import { ApiError } from '@followw/core/queries/errors.ts';
 import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import {
     Outlet,
@@ -11,11 +15,6 @@ import {
 } from '@tanstack/react-router';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 
-import type { components } from '#/queries/schema.gen.ts';
-
-import { OFFLINE_MESSAGE } from '#/lib/online';
-import { apiClient } from '#/queries/client';
-import { ApiError } from '#/queries/errors';
 import { Route as LoginRoute } from '#/routes/login';
 
 import { useDom } from '../helpers/dom';

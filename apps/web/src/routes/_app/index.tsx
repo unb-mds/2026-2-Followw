@@ -1,3 +1,7 @@
+import { nowInBrasilia, weekDays } from '@followw/core/lib/schedule.ts';
+import { classroomsQueryOptions } from '@followw/core/queries/classrooms.ts';
+import { loadQuery } from '@followw/core/queries/load.ts';
+import { menuQueryOptions } from '@followw/core/queries/restaurant.ts';
 import { noop, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
@@ -7,12 +11,8 @@ import { HeaderBar, HeaderToggle } from '#/components/HeaderBar';
 import { TodayDashboard } from '#/components/home/TodayDashboard';
 import { usePageState } from '#/components/PageState';
 import { WeekDayPicker } from '#/components/WeekDayPicker';
-import { nowInBrasilia, weekDays } from '#/lib/schedule';
 import { publicPageHead } from '#/lib/seo';
-import { classroomsQueryOptions } from '#/queries/classrooms';
-import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
-import { menuQueryOptions } from '#/queries/restaurant';
 
 const WEEKDAYS = [
     'Domingo',

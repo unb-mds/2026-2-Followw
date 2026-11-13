@@ -5,9 +5,11 @@ import { ErrorPage } from '#/components/ErrorPage';
 import { PendingPage } from '#/components/PendingPage';
 import { getContext } from '#/integrations/tanstack-query/root-provider';
 import { parseRouterSearch, stringifyRouterSearch } from '#/lib/search-params';
+import { installApiClient } from '#/queries/client.ts';
 import { routeTree } from '#/routeTree.gen';
 
 export function getRouter() {
+    installApiClient();
     const context = getContext();
 
     const router = createTanStackRouter({

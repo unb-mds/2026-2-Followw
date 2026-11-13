@@ -1,9 +1,9 @@
+import type { paths } from '@followw/core/queries/schema.gen.ts';
+
 import { QueryClient, queryOptions } from '@tanstack/react-query';
 import { describe, expect, test } from 'bun:test';
 import createClient from 'openapi-fetch';
 import createQueryHooks from 'openapi-react-query';
-
-import type { paths } from '#/queries/schema.gen.ts';
 
 import { refreshQuery } from '#/queries/refresh.ts';
 

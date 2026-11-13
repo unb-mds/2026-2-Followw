@@ -11,7 +11,7 @@ bun fmt && bun lint        # formata e corrige lint
 bun check                  # verifica formatação + lint (sem alterar)
 bun test                   # testes em tests/
 bun generate-routes        # gera routeTree.gen.ts
-bun generate-api           # gera src/queries/schema.gen.ts a partir de localhost:8000/openapi.json
+bun generate-api           # gera o schema em packages/core a partir de localhost:8000/openapi.json
 ```
 
 ## Convenções
@@ -32,13 +32,15 @@ bun generate-api           # gera src/queries/schema.gen.ts a partir de localhos
 - Testes em `tests/` espelhando `src/`.
 - Arquivos `*.gen.ts` são gerados: nunca edite à mão.
 
-## Acesso à API (`src/queries`)
+## Acesso à API (`packages/core/src/queries` e adaptadores em `src/queries`)
 
-`fetch` nativo é proibido fora de `src/queries/**`. Um arquivo por recurso exportando `queryOptions`
-via `api.queryOptions(...)`; o loader pré-carrega com `loadQuery` (cache primeiro, para nenhuma rota
-travar; tratando `ApiError.isUnauthorized`) e o componente consome com `useSuspenseQuery`. O cache é
-persistido para uso offline (veja `docs/offline.md`): tela de erro por falta de dado usa
-`isLoadingError`; `isError` só onde há dado salvo para exibir junto do aviso de falha.
+`fetch` nativo é proibido fora das pastas de queries. Queries e lógica portável ficam em
+`@followw/core`; sessão, SSR e armazenamento ficam no web. Um arquivo por recurso exportando
+`queryOptions` via `api.queryOptions(...)`; o loader pré-carrega com `loadQuery` (cache primeiro,
+para nenhuma rota travar; tratando `ApiError.isUnauthorized`) e o componente consome com
+`useSuspenseQuery`. O cache é persistido para uso offline (veja `docs/offline.md`): tela de erro por
+falta de dado usa `isLoadingError`; `isError` só onde há dado salvo para exibir junto do aviso de
+falha.
 
 A API fica em `/api` da mesma origem. No SSR, a origem e os cookies vêm do contexto da requisição,
 nunca de variável de módulo (vazaria sessão entre usuários).

@@ -1,8 +1,20 @@
+import type {
+    ClassroomFrequency,
+    Lesson,
+    LessonMarkStatus
+} from '@followw/core/queries/classrooms.ts';
+
 import { Progress as ProgressPrimitive } from '@base-ui/react/progress';
+import {
+    formatClassroomDate,
+    daysFrom,
+    formatClassroomWeekday,
+    formatRelativeDay,
+    frequencyTone
+} from '@followw/core/lib/classroom-details.ts';
+import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { CircleCheck, CircleDashed, CircleSlash, CircleX } from 'lucide-react';
 import { useRef, useState } from 'react';
-
-import type { ClassroomFrequency, Lesson, LessonMarkStatus } from '#/queries/classrooms';
 
 import { ListCard, Meter } from '#/components/ListCard';
 import { SelectionBar } from '#/components/SelectionBar';
@@ -16,14 +28,6 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger
 } from '#/components/ui/dropdown-menu';
-import {
-    formatClassroomDate,
-    daysFrom,
-    formatClassroomWeekday,
-    formatRelativeDay,
-    frequencyTone
-} from '#/lib/classroom-details';
-import { nowInBrasilia } from '#/lib/schedule';
 import { cn } from '#/lib/shadcn';
 
 export type MarkLessons = (lessons: Lesson[], status: LessonMarkStatus | null) => void;

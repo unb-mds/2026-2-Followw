@@ -1,3 +1,5 @@
+import { addDays, nowInBrasilia } from '@followw/core/lib/schedule.ts';
+import { menuQueryOptions } from '@followw/core/queries/restaurant.ts';
 import {
     RouterProvider,
     createMemoryHistory,
@@ -13,9 +15,7 @@ import { Window } from 'happy-dom';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { NotFoundPage } from '#/components/NotFoundPage';
-import { addDays, nowInBrasilia } from '#/lib/schedule';
 import { meQueryOptions } from '#/queries/me';
-import { menuQueryOptions } from '#/queries/restaurant';
 import { getRouter } from '#/router';
 import { Route as FallbackRoute } from '#/routes/$';
 import { Route as RootRoute } from '#/routes/__root';

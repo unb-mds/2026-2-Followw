@@ -205,12 +205,13 @@ suas interações com as bibliotecas do monorepo e dados.
 │       ├── src/
 │       │   ├── components/         # Componentes React de interface
 │       │   ├── integrations/       # Suporte offline (PWA/Workbox + IndexedDB), TanStack Query e PostHog
-│       │   ├── lib/                # Utilitários de domínio, grade horária, status online/offline e downloads
-│       │   ├── queries/            # Clientes de API (openapi-fetch, schema.gen.ts e queries tipadas)
+│       │   ├── lib/                # Armazenamento, tema, parâmetros de URL e exportação de imagens
+│       │   ├── queries/            # Adaptadores web de sessão, SSR e documentos
 │       │   └── routes/             # Rotas da aplicação (file-based routing: /, /turmas, /buscar, /ru, /perfil, /login, /privacidade)
 │       └── tests/                  # Testes unitários e de componentes do frontend
 │
 ├── packages/
+│   ├── core/                       # Queries, schema OpenAPI e regras compartilhados (TypeScript)
 │   ├── sigaa-client/               # Scraper assíncrono do SIGAA e datasets públicos (data/*.csv)
 │   └── unb-browser/                # Scraper do RU e calendários acadêmicos
 │

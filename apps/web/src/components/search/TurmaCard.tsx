@@ -1,6 +1,8 @@
-import { X } from 'lucide-react';
+import type { CatalogSubject, SubjectClassroom } from '@followw/core/queries/subjects.ts';
 
-import type { CatalogSubject, SubjectClassroom } from '#/queries/subjects';
+import { titleCase } from '@followw/core/lib/profile.ts';
+import { describeSchedule } from '@followw/core/lib/schedule.ts';
+import { X } from 'lucide-react';
 
 import { AddToSchedule } from '#/components/schedule/AddToSchedule';
 import { Seats } from '#/components/search/Seats';
@@ -15,8 +17,6 @@ import {
     DialogTitle,
     DialogTrigger
 } from '#/components/ui/dialog';
-import { titleCase } from '#/lib/profile';
-import { describeSchedule } from '#/lib/schedule';
 import { cn } from '#/lib/shadcn';
 
 export interface TurmaProps {

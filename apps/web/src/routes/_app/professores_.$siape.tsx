@@ -1,3 +1,7 @@
+import { titleCase } from '@followw/core/lib/profile.ts';
+import { ApiError } from '@followw/core/queries/errors.ts';
+import { loadQuery } from '@followw/core/queries/load.ts';
+import { professorQueryOptions } from '@followw/core/queries/professors.ts';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, notFound, rootRouteId } from '@tanstack/react-router';
 
@@ -5,10 +9,6 @@ import { ErrorState } from '#/components/ErrorState';
 import { BackHeader } from '#/components/HeaderBar';
 import { ProfessorDetailsSection } from '#/components/professor/ProfessorDetailsSection';
 import { ProfessorHeader } from '#/components/professor/ProfessorHeader';
-import { titleCase } from '#/lib/profile';
-import { ApiError } from '#/queries/errors';
-import { loadQuery } from '#/queries/load';
-import { professorQueryOptions } from '#/queries/professors';
 
 // mesmo limite do `Path` da API; fora dele o docente não existe
 const MAX_SIAPE = 2 ** 31 - 1;

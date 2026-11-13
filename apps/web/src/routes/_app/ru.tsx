@@ -1,3 +1,20 @@
+import type { DailyMenu, MenuSection } from '@followw/core/queries/restaurant.ts';
+
+import { useFailureMessage } from '@followw/core/lib/online.ts';
+import {
+    formatMenuDay,
+    highlightMenu,
+    lastMenuDay,
+    MEAL_TIMES
+} from '@followw/core/lib/restaurant.ts';
+import { addDays, nowInBrasilia, weekDays } from '@followw/core/lib/schedule.ts';
+import { loadQuery } from '@followw/core/queries/load.ts';
+import {
+    CAMPUS_LABELS,
+    CAMPUS_OPTIONS,
+    campusOf,
+    menuQueryOptions
+} from '@followw/core/queries/restaurant.ts';
 import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Link, useLocation, useNavigate } from '@tanstack/react-router';
 import { ChevronLeft, ChevronRight, Coffee, Egg, Leaf, Soup, UtensilsCrossed } from 'lucide-react';
@@ -5,7 +22,6 @@ import { useQueryStates } from 'nuqs';
 import { lazy, Suspense, useCallback, useEffect, useSyncExternalStore } from 'react';
 
 import type { RestaurantSelection } from '#/lib/restaurant-share';
-import type { DailyMenu, MenuSection } from '#/queries/restaurant';
 
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderToggle } from '#/components/HeaderBar';
@@ -24,8 +40,6 @@ import {
 } from '#/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
 import { WeekDayPicker } from '#/components/WeekDayPicker';
-import { useFailureMessage } from '#/lib/online';
-import { formatMenuDay, highlightMenu, lastMenuDay, MEAL_TIMES } from '#/lib/restaurant';
 import {
     restaurantDefaults,
     restaurantPageHead,
@@ -34,10 +48,7 @@ import {
     restaurantSharePath,
     validateRestaurantSearch
 } from '#/lib/restaurant-share';
-import { addDays, nowInBrasilia, weekDays } from '#/lib/schedule';
-import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
-import { CAMPUS_LABELS, CAMPUS_OPTIONS, campusOf, menuQueryOptions } from '#/queries/restaurant';
 
 const RestaurantAccount = lazy(() =>
     import('#/components/ru/RestaurantAccount').then((module) => ({
