@@ -1,7 +1,7 @@
+import type { InternshipDetail, InternshipItem } from '@followw/core/queries/internships.ts';
+
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, expect, test } from 'bun:test';
-
-import type { InternshipDetail, InternshipItem } from '@followw/core/queries/internships.ts';
 
 import { formatCurrency, formatDate, InternshipCard } from '#/components/search/InternshipCard';
 import { InternshipDetailView } from '#/components/search/InternshipDetailDialog';
