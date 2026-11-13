@@ -40,32 +40,41 @@ export function ProfileIdentity({
     );
 }
 
-export function AcademicPerformance({ user }: { user: UserProfile }) {
+export function AcademicPerformance({
+    user,
+    action
+}: {
+    user: UserProfile;
+    action?: React.ReactNode;
+}) {
     const indexes = academicIndexes(user);
-    if (indexes.length === 0) return null;
+    if (indexes.length === 0 && !action) return null;
 
     return (
         <ProfileSection title="Desempenho">
             <Card size="sm" className="gap-0 py-0">
-                <dl
-                    className={cn(
-                        'grid divide-x divide-border',
-                        indexes.length > 1 && 'grid-cols-2'
-                    )}
-                >
-                    {indexes.map((index) => (
-                        <div key={index.label} className="px-3 py-3">
-                            <dt className="text-xs font-medium text-muted-foreground">
-                                <abbr title={index.description} className="no-underline">
-                                    {index.label}
-                                </abbr>
-                            </dt>
-                            <dd className="mt-1 text-2xl font-semibold tracking-tight text-primary tabular-nums">
-                                {index.value}
-                            </dd>
-                        </div>
-                    ))}
-                </dl>
+                {indexes.length > 0 && (
+                    <dl
+                        className={cn(
+                            'grid divide-x divide-border',
+                            indexes.length > 1 && 'grid-cols-2'
+                        )}
+                    >
+                        {indexes.map((index) => (
+                            <div key={index.label} className="px-3 py-3">
+                                <dt className="text-xs font-medium text-muted-foreground">
+                                    <abbr title={index.description} className="no-underline">
+                                        {index.label}
+                                    </abbr>
+                                </dt>
+                                <dd className="mt-1 text-2xl font-semibold tracking-tight text-primary tabular-nums">
+                                    {index.value}
+                                </dd>
+                            </div>
+                        ))}
+                    </dl>
+                )}
+                {action && <div className="border-t border-border p-3">{action}</div>}
             </Card>
         </ProfileSection>
     );

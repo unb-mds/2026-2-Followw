@@ -9,7 +9,17 @@ export const shiftLabels: Record<NonNullable<CourseCurriculum['shift']>, string>
     N: 'Noturno'
 };
 
-export const curriculumQueryOptions = (courseId: number, entrySemester: string) =>
+export const curriculumQueryOptions = (
+    courseId: number,
+    entrySemester: string,
+    curriculumSigaaId?: number
+) =>
     api.queryOptions('get', '/public/courses/{course_id}/curriculum', {
-        params: { path: { course_id: courseId }, query: { entry_semester: entrySemester } }
+        params: {
+            path: { course_id: courseId },
+            query: {
+                entry_semester: entrySemester,
+                ...(curriculumSigaaId == null ? {} : { curriculum_sigaa_id: curriculumSigaaId })
+            }
+        }
     });

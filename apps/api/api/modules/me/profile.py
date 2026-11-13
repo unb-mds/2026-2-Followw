@@ -28,6 +28,7 @@ class UserProfile(BaseModel):
     unit: UnitRef | None
     course: CourseRef | None
     entry_semester: str | None
+    curriculum_sigaa_id: int | None = None
     integralization: int | None
     workload: CurriculumWorkload | None
     # Carga horária máxima por período da matriz do aluno, em horas.
@@ -81,6 +82,7 @@ def _to_profile(user: User) -> UserProfile:
         unit=unit_ref(user.course.unit) if user.course else None,
         course=course_ref(user.course),
         entry_semester=user.entry_semester,
+        curriculum_sigaa_id=user.curriculum.sigaa_id if user.curriculum else None,
         integralization=user.integralization,
         workload=CurriculumWorkload.model_validate(user.workload)
         if user.workload

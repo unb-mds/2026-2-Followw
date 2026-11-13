@@ -44,6 +44,7 @@ def test_login_seguido_de_me_responde_do_cache(client, sigaa):
         "unit": {"id": 673, "code": "FCTE", "name": "CAMPUS UNB GAMA"},
         "course": {"id": ANY, "name": "ENGENHARIA DE SOFTWARE", "shift": None},
         "entry_semester": "2025.1",
+        "curriculum_sigaa_id": None,
         "integralization": 35,
         "workload": {
             "total": 3525,
@@ -102,6 +103,7 @@ def test_me_sem_campos_opcionais_retorna_null(client, sigaa, cookies):
         "email",
         "bio",
         "entry_semester",
+        "curriculum_sigaa_id",
         "integralization",
         "workload",
         "period_max_workload",
@@ -111,7 +113,7 @@ def test_me_sem_campos_opcionais_retorna_null(client, sigaa, cookies):
         assert response.json()[field] is None
 
 
-def test_me_traz_carga_maxima_por_periodo_da_matriz(client, sigaa, database):
+def test_me_traz_id_e_carga_maxima_por_periodo_da_matriz(client, sigaa, database):
     sigaa.profile = PERFIL
     client.post(
         "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
@@ -129,7 +131,9 @@ def test_me_traz_carga_maxima_por_periodo_da_matriz(client, sigaa, database):
             period_max_workload=420,
         )
 
-    assert client.get("/me").json()["period_max_workload"] == 420
+    profile = client.get("/me").json()
+    assert profile["curriculum_sigaa_id"] == 1
+    assert profile["period_max_workload"] == 420
 
 
 @pytest.mark.parametrize("refresh", [None, "cookie-invalido", "expirado"])
