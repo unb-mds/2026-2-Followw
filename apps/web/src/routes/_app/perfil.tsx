@@ -66,7 +66,19 @@ function PerfilPage() {
             <ProfileIdentity user={user} displayName={settings.displayName} />
             <div className="my-4 flex flex-col gap-4">
                 <InstallPromptCard />
-                <AcademicPerformance user={user} />
+                <AcademicPerformance
+                    user={user}
+                    action={
+                        user.level === 'Graduação' && (
+                            <Link
+                                to="/perfil/simulador"
+                                className={buttonVariants({ variant: 'outline' })}
+                            >
+                                Simular IRA e MP
+                            </Link>
+                        )
+                    }
+                />
                 <ProgressSection user={user} />
                 <AccountSection
                     user={user}

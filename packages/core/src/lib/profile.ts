@@ -14,6 +14,8 @@ const indexFormat = new Intl.NumberFormat('pt-BR', {
     maximumFractionDigits: 3
 });
 
+export const formatAcademicIndex = (value: number) => indexFormat.format(value);
+
 const HOURS_PER_CREDIT = 15;
 const creditFormat = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 });
 
@@ -63,7 +65,7 @@ export function academicIndexes(user: Pick<UserProfile, 'ira' | 'mp'>): Academic
         { label: 'MP', description: 'Média ponderada', value: user.mp }
     ];
     return indexes.flatMap(({ value, ...index }) =>
-        value == null ? [] : [{ ...index, value: indexFormat.format(value) }]
+        value == null ? [] : [{ ...index, value: formatAcademicIndex(value) }]
     );
 }
 

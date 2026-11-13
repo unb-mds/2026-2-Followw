@@ -68,6 +68,9 @@ test.each([42, null])(
             );
             expect(browser.document.body.textContent).toContain('a'.repeat(1024));
             expect(browser.document.body.textContent).not.toContain('Trecho acima do limite');
+            expect(browser.document.querySelector('a[href="/perfil/simulador"]')?.textContent).toBe(
+                'Simular IRA e MP'
+            );
             const account = [...browser.document.querySelectorAll('[data-slot="card"]')].find(
                 (card) => card.textContent.includes('Editar perfil')
             );
