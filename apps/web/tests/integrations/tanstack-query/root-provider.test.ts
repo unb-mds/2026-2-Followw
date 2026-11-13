@@ -1,10 +1,10 @@
+import type { components } from '@followw/core/queries/schema.gen.ts';
+
+import { ApiError } from '@followw/core/queries/errors.ts';
 import { environmentManager, noop, onlineManager } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 
-import type { components } from '#/queries/schema.gen.ts';
-
 import { getContext } from '#/integrations/tanstack-query/root-provider.tsx';
-import { ApiError } from '#/queries/errors.ts';
 import { meQueryOptions } from '#/queries/me.ts';
 
 const queryKey = ['get', '/classrooms'];

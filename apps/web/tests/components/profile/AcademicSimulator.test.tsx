@@ -1,6 +1,6 @@
-import { afterEach, expect, test } from 'bun:test';
+import type { Classroom } from '@followw/core/queries/classrooms.ts';
 
-import type { Classroom } from '#/queries/classrooms';
+import { afterEach, expect, test } from 'bun:test';
 
 import { AcademicSimulator } from '#/components/profile/AcademicSimulator';
 import { clearAccountStorage } from '#/lib/local-storage';

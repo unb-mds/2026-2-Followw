@@ -1,3 +1,4 @@
+import { SEARCH_CATEGORIES } from '@followw/core/lib/search-categories.ts';
 import { defaultParseSearch, defaultStringifySearch } from '@tanstack/react-router';
 import { useQueryStates } from 'nuqs';
 import {
@@ -6,8 +7,6 @@ import {
     parseAsString,
     parseAsStringLiteral
 } from 'nuqs/server';
-
-import { SEARCH_CATEGORIES } from '#/lib/search-categories';
 
 export const searchParsers = {
     q: parseAsString.withDefault(''),

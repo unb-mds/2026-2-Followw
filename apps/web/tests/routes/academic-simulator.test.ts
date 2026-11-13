@@ -1,6 +1,6 @@
+import { allClassroomsQueryOptions } from '@followw/core/queries/classrooms.ts';
 import { expect, test } from 'bun:test';
 
-import { allClassroomsQueryOptions } from '#/queries/classrooms';
 import { meQueryOptions } from '#/queries/me';
 import { Route } from '#/routes/_app/perfil_.simulador';
 

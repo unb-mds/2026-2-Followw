@@ -1,10 +1,11 @@
-import type { AcademicState, FlowNode, FlowSubject } from '#/lib/curriculum/types';
+import type { AcademicState, FlowNode, FlowSubject } from '@followw/core/lib/curriculum/types.ts';
+
+import { creditText, hoursText } from '@followw/core/lib/curriculum/format.ts';
+import { stateLabels } from '@followw/core/lib/curriculum/model.ts';
+import { titleCase } from '@followw/core/lib/profile.ts';
 
 import { SubjectDetails } from '#/components/curriculum/SubjectDetails';
 import { Dialog, DialogContent, DialogTrigger } from '#/components/ui/dialog';
-import { creditText, hoursText } from '#/lib/curriculum/format';
-import { stateLabels } from '#/lib/curriculum/model';
-import { titleCase } from '#/lib/profile';
 import { cn } from '#/lib/shadcn';
 
 const stateStyles: Record<AcademicState, string> = {

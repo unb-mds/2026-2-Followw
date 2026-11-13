@@ -1,9 +1,12 @@
+import type { Classroom } from '@followw/core/queries/classrooms.ts';
+
+import { groupBySemester } from '@followw/core/lib/classroom-details.ts';
+import { formatAcademicIndex, titleCase } from '@followw/core/lib/profile.ts';
 import { ChevronDown } from 'lucide-react';
 import { useSyncExternalStore } from 'react';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 
 import type { Grade } from '#/lib/academic-simulation';
-import type { Classroom } from '#/queries/classrooms';
 
 import { Button } from '#/components/ui/button';
 import { Card } from '#/components/ui/card';
@@ -18,8 +21,6 @@ import {
     simulationGrade,
     simulationKey
 } from '#/lib/academic-simulation';
-import { groupBySemester } from '#/lib/classroom-details';
-import { formatAcademicIndex, titleCase } from '#/lib/profile';
 
 const chartConfig = { ira: { label: 'IRA', color: 'var(--primary)' } };
 const displayIndex = (value: number | null) => (value === null ? '—' : formatAcademicIndex(value));

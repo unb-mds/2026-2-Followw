@@ -1,9 +1,9 @@
+import type { Classroom } from '@followw/core/queries/classrooms.ts';
+
+import { groupBySemester } from '@followw/core/lib/classroom-details.ts';
 import { expect, test } from 'bun:test';
 
-import type { Classroom } from '#/queries/classrooms';
-
 import { simulateIndexes, simulationClassrooms, simulationKey } from '#/lib/academic-simulation';
-import { groupBySemester } from '#/lib/classroom-details';
 
 function turma(
     code: string,

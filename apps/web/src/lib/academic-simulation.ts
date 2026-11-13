@@ -1,7 +1,8 @@
-import type { Classroom } from '#/queries/classrooms';
+import type { Classroom } from '@followw/core/queries/classrooms.ts';
+
+import { currentCurriculumPeriod } from '@followw/core/queries/subjects.ts';
 
 import { STORAGE_KEYS, storedValue } from '#/lib/local-storage';
-import { currentCurriculumPeriod } from '#/queries/subjects';
 
 export const gradeWeights = { SS: 5, MS: 4, MM: 3, MI: 2, II: 1, SR: 0 } as const;
 export type Grade = keyof typeof gradeWeights;

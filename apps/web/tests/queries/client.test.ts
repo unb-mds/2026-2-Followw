@@ -1,7 +1,6 @@
+import { apiClient } from '@followw/core/queries/client.ts';
+import { ApiError, toApiError } from '@followw/core/queries/errors.ts';
 import { afterAll, afterEach, beforeAll, describe, expect, mock, spyOn, test } from 'bun:test';
-
-import { apiClient } from '#/queries/client';
-import { ApiError, toApiError } from '#/queries/errors';
 
 // Requisição recebida pelo SSR; `null` simula o código fora de uma requisição.
 let ssr: { url: string; cookie?: string; ip?: string; setCookie?: string[] } | null = null;

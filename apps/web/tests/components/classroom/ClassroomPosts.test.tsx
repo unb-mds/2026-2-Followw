@@ -1,15 +1,14 @@
+import type { ClassroomPost } from '@followw/core/queries/classrooms.ts';
 import type { Middleware } from 'openapi-fetch';
 
+import { classroomPostsQueryOptions } from '@followw/core/queries/classrooms.ts';
+import { apiClient } from '@followw/core/queries/client.ts';
 import { QueryClient, QueryClientProvider, environmentManager } from '@tanstack/react-query';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 import { Window } from 'happy-dom';
 
-import type { ClassroomPost } from '#/queries/classrooms';
-
 import { ClassroomPosts } from '#/components/classroom/ClassroomPosts';
 import { SIGAA_DOWN_MESSAGE } from '#/components/ErrorState';
-import { classroomPostsQueryOptions } from '#/queries/classrooms';
-import { apiClient } from '#/queries/client';
 
 const topic: ClassroomPost = {
     id: 'topic:' + 'a'.repeat(64),

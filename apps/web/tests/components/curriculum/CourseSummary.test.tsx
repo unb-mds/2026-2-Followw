@@ -1,16 +1,16 @@
+import type { PublicCourse } from '@followw/core/queries/courses.ts';
+import type { CourseCurriculum } from '@followw/core/queries/curriculum.ts';
 import type { Middleware } from 'openapi-fetch';
 
+import { apiClient } from '@followw/core/queries/client.ts';
+import { courseQueryOptions } from '@followw/core/queries/courses.ts';
+import { curriculumQueryOptions } from '@followw/core/queries/curriculum.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, expect, test } from 'bun:test';
 
 import type { CourseSummaryProps } from '#/components/curriculum/CourseSummary';
-import type { PublicCourse } from '#/queries/courses';
-import type { CourseCurriculum } from '#/queries/curriculum';
 
 import { CourseSummary } from '#/components/curriculum/CourseSummary';
-import { apiClient } from '#/queries/client';
-import { courseQueryOptions } from '#/queries/courses';
-import { curriculumQueryOptions } from '#/queries/curriculum';
 
 import { useDom } from '../../helpers/dom';
 

@@ -3,7 +3,8 @@
     "regions": ["gru1"],
     "services": {
         "web": {
-            "root": "apps/web/"
+            "root": "apps/web/",
+            "installCommand": "cd ../.. && bun install --frozen-lockfile"
         },
         "api": {
             "root": "apps/api/",

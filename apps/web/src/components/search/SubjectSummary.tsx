@@ -1,4 +1,4 @@
-import type { CatalogSubject } from '#/queries/subjects';
+import type { CatalogSubject } from '@followw/core/queries/subjects.ts';
 
 import { SubjectKindBadge } from '#/components/search/SubjectKindBadge';
 import { Badge } from '#/components/ui/badge';

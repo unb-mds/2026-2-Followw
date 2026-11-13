@@ -1,4 +1,4 @@
-import type { Classroom } from '#/queries/classrooms';
+import type { Classroom } from '@followw/core/queries/classrooms.ts';
 
 import { cn } from '#/lib/shadcn';
 

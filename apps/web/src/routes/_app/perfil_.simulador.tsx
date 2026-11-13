@@ -1,15 +1,15 @@
+import { getCurrentSemester } from '@followw/core/calendar.ts';
+import { allClassroomsQueryOptions } from '@followw/core/queries/classrooms.ts';
+import { loadQuery } from '@followw/core/queries/load.ts';
 import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { Navigate, createFileRoute, redirect } from '@tanstack/react-router';
 
 import type { UserProfile } from '#/queries/me';
 
-import { getCurrentSemester } from '#/calendar';
 import { ErrorCard, ErrorState, StaleDataNotice } from '#/components/ErrorState';
 import { BackHeader } from '#/components/HeaderBar';
 import { LoadingText } from '#/components/LoadingText';
 import { AcademicSimulator } from '#/components/profile/AcademicSimulator';
-import { allClassroomsQueryOptions } from '#/queries/classrooms';
-import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
 
 export const Route = createFileRoute('/_app/perfil_/simulador')({

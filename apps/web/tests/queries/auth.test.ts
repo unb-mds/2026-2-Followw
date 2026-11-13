@@ -1,11 +1,17 @@
+import type { components } from '@followw/core/queries/schema.gen.ts';
 import type { Middleware } from 'openapi-fetch';
 
+import {
+    classroomPostsQueryOptions,
+    classroomsQueryOptions
+} from '@followw/core/queries/classrooms.ts';
+import { apiClient } from '@followw/core/queries/client.ts';
+import { ApiError } from '@followw/core/queries/errors.ts';
+import { menuQueryOptions } from '@followw/core/queries/restaurant.ts';
 import { QueryClientProvider, noop, onlineManager } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
 import { posthog } from 'posthog-js';
 import { createElement, type ReactNode } from 'react';
-
-import type { components } from '#/queries/schema.gen.ts';
 
 import { getContext } from '#/integrations/tanstack-query/root-provider.tsx';
 import {
@@ -16,11 +22,7 @@ import {
     useLogout,
     useSessionRefresh
 } from '#/queries/auth.ts';
-import { classroomPostsQueryOptions, classroomsQueryOptions } from '#/queries/classrooms.ts';
-import { apiClient } from '#/queries/client.ts';
-import { ApiError } from '#/queries/errors.ts';
 import { meQueryOptions } from '#/queries/me.ts';
-import { menuQueryOptions } from '#/queries/restaurant.ts';
 
 import { useDom } from '../helpers/dom';
 

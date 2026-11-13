@@ -1,6 +1,6 @@
+import { apiClient } from '@followw/core/queries/client.ts';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { apiClient } from '#/queries/client';
 import { meQueryOptions } from '#/queries/me';
 
 export function useEditProfile() {
