@@ -12,7 +12,7 @@ from api.cookies import (
     encrypt_cookie,
 )
 from api.db.enums import UserLevel
-from api.db.models import Curriculum, User
+from api.db.models import Curriculum, CurriculumComponent, User
 from api.modules.me.repository import UserRepository
 
 from .helpers import (
@@ -44,6 +44,7 @@ def test_login_seguido_de_me_responde_do_cache(client, sigaa):
         "unit": {"id": 673, "code": "FCTE", "name": "CAMPUS UNB GAMA"},
         "course": {"id": ANY, "name": "ENGENHARIA DE SOFTWARE", "shift": None},
         "entry_semester": "2025.1",
+        "curriculum_subject_codes": None,
         "integralization": 35,
         "workload": {
             "total": 3525,
@@ -102,6 +103,7 @@ def test_me_sem_campos_opcionais_retorna_null(client, sigaa, cookies):
         "email",
         "bio",
         "entry_semester",
+        "curriculum_subject_codes",
         "integralization",
         "workload",
         "period_max_workload",
@@ -111,7 +113,9 @@ def test_me_sem_campos_opcionais_retorna_null(client, sigaa, cookies):
         assert response.json()[field] is None
 
 
-def test_me_traz_carga_maxima_por_periodo_da_matriz(client, sigaa, database):
+def test_me_traz_componentes_da_matriz_vinculada_mesmo_com_vigencia_mais_recente(
+    client, sigaa, database
+):
     sigaa.profile = PERFIL
     client.post(
         "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
@@ -122,14 +126,40 @@ def test_me_traz_carga_maxima_por_periodo_da_matriz(client, sigaa, database):
             course_id=user.course_id,
             sigaa_id=1,
             code="6360/1",
-            valid_from="2025.1",
+            valid_from="2022.2",
             created_year=2025,
             active=True,
             matrix="ENGENHARIA DE SOFTWARE",
             period_max_workload=420,
         )
+        newer = Curriculum(
+            course_id=user.course_id,
+            sigaa_id=2,
+            code="6360/2",
+            valid_from="2024.2",
+            created_year=2024,
+            active=True,
+            matrix="ENGENHARIA DE SOFTWARE",
+        )
+        session.add(newer)
+        session.flush()
+        session.add_all(
+            [
+                CurriculumComponent(
+                    curriculum_id=matrix.id,
+                    subject_code=code,
+                    kind="required",
+                    period=1,
+                )
+                for matrix, code in ((user.curriculum, "MAT0001"), (newer, "MAT0002"))
+            ]
+        )
 
-    assert client.get("/me").json()["period_max_workload"] == 420
+    response = client.get("/me")
+    assert response.status_code == 200
+    profile = response.json()
+    assert profile["curriculum_subject_codes"] == ["MAT0001"]
+    assert profile["period_max_workload"] == 420
 
 
 @pytest.mark.parametrize("refresh", [None, "cookie-invalido", "expirado"])

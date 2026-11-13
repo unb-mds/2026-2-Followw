@@ -28,7 +28,9 @@ export const BottomNavigation: React.FC = () => {
     const location = useLocation();
     const pathname = location.pathname.replace(/(.)\/$/, '$1');
     const activeIndex = navItems.findIndex(
-        (item) => item.to === pathname || (item.to === '/turmas' && pathname.startsWith('/turmas/'))
+        (item) =>
+            item.to === pathname ||
+            ((item.to === '/turmas' || item.to === '/perfil') && pathname.startsWith(item.to + '/'))
     );
     const navigate = useNavigate();
     const lastRestaurantTap = useRef<number | null>(null);

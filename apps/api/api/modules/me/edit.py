@@ -33,7 +33,7 @@ async def edit_profile(
                 replace_photo=remove_photo or photo is not None,
             )
             await session.refresh(user, ["course", "curriculum"])
-            return _to_profile(user)
+            return await _to_profile(session, user)
 
         return await db.write(save)
     finally:

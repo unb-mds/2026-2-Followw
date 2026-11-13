@@ -1290,6 +1290,8 @@ export interface components {
             course: components["schemas"]["CourseRef"] | null;
             /** Entry Semester */
             entry_semester: string | null;
+            /** Curriculum Subject Codes */
+            curriculum_subject_codes?: string[] | null;
             /** Integralization */
             integralization: number | null;
             workload: components["schemas"]["CurriculumWorkload"] | null;
