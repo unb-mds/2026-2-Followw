@@ -34,9 +34,9 @@ Todos os erros derivam de `SigaaError`.
 `client.internships.list_internships()` lista as ofertas do mural, incluindo resumos repetidos. Use
 `only_my_course=True` para ver só as do seu curso e `get_internship(vaga.reference)` para abrir o
 detalhe, com descrição em Markdown. O SIGAA não expõe um ID estável e `sigaa_id` fica `None`. A
-referência depende da posição e do texto da tabela. Se o texto mudar ou houver resumos idênticos na
-mesma tabela, o detalhe levanta `InternshipNotFound`. Uma substituição por outra oferta com o mesmo
-resumo pode passar despercebida.
+referência depende da posição e do texto da tabela. Se o texto mudar, o detalhe levanta
+`InternshipNotFound`. Ofertas com o mesmo resumo são abertas pela posição da linha, então uma troca
+entre linhas idênticas pode passar despercebida.
 
 Valores monetários usam `Decimal` e datas seguem o calendário da UnB, sem fuso no valor retornado.
 Transporte zero, bolsa ou descrição em branco e anexo ausente ficam `None`. O link do anexo pode

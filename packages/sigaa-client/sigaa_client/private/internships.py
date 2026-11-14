@@ -56,7 +56,7 @@ class Internships:
         ]
 
     async def get_internship(self, reference: str) -> Internship:
-        """Abre uma referência cujo resumo é único na tabela."""
+        """Abre a linha selecionada no mural."""
         table_id, _, _ = reference.partition(":")
         if table_id not in _TABLE_IDS:
             raise InternshipNotFound("Referência de estágio inválida; liste novamente.")
@@ -86,10 +86,6 @@ class Internships:
             )
         summary, anchor = match
         key = _summary_key(summary)
-        if sum(_summary_key(item) == key for item, _ in items) > 1:
-            raise InternshipNotFound(
-                "Referência de estágio ambígua: há ofertas com o mesmo resumo na tabela."
-            )
         form = read_form(page, "form")
         action, payload = build_postback(
             form, link_params(anchor), read_viewstate(form)

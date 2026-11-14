@@ -136,9 +136,9 @@ class FakeSigaa:
             "MURAL_NOVO" if self.renewed else "MURAL"
         )
         assert payload["form"] == "form"
-        assert (
-            payload.get("form:j_id_31") == "form:j_id_31"
-            or payload.get("form:j_id_63") == "form:j_id_63"
+        assert any(
+            payload.get(key) == key
+            for key in ("form:j_id_31", "form:j_id_32", "form:j_id_63")
         )
         return httpx.Response(200, text=self.detail)
 
@@ -254,15 +254,21 @@ async def test_reordenacao_do_mural_invalida_referencia():
             await client.internships.get_internship(summary.reference)
 
 
-async def test_detalhe_recusa_resumo_repetido_na_mesma_tabela():
+async def test_resumos_iguais_abrem_as_linhas_selecionadas():
     sigaa = FakeSigaa()
     sigaa.board = board(MY_ROW + MY_ROW.replace("form:j_id_31", "form:j_id_32"))
     async with client_for(sigaa) as client:
         items = await client.internships.list_internships()
         assert len(items) == 2
-        with pytest.raises(InternshipNotFound, match="ambígua"):
-            await client.internships.get_internship(items[0].reference)
-    assert len(sigaa.requests) == 4
+        for item, component in zip(
+            items, ("form:j_id_31", "form:j_id_32"), strict=True
+        ):
+            detail = await client.internships.get_internship(item.reference)
+            assert detail.title == item.title
+            assert (
+                httpx.QueryParams(sigaa.requests[-1].content.decode())[component]
+                == component
+            )
 
 
 async def test_consulta_vaga_de_outro_curso():
