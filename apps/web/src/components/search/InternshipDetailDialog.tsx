@@ -1,8 +1,12 @@
-import type { InternshipDetail } from '@followw/core/queries/internships.ts';
+import type { InternshipDetail, InternshipItem } from '@followw/core/queries/internships.ts';
 
 import { titleCase } from '@followw/core/lib/profile.ts';
-import { internshipDetailQueryOptions } from '@followw/core/queries/internships.ts';
-import { useQuery } from '@tanstack/react-query';
+import { ApiError } from '@followw/core/queries/errors.ts';
+import {
+    internshipDetailQueryOptions,
+    internshipsQueryOptions
+} from '@followw/core/queries/internships.ts';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Briefcase, Building2, Download, GraduationCap, Users, Wallet } from 'lucide-react';
 
 import { formatCurrency, formatDate } from '#/components/search/InternshipCard';
@@ -18,12 +22,7 @@ import {
 import { Spinner } from '#/components/ui/spinner';
 import { Markdown } from '#/lib/markdown';
 
-export function InternshipDetailView({
-    detail
-}: {
-    detail: InternshipDetail;
-    onClose?: () => void;
-}) {
+export function InternshipDetailView({ detail }: { detail: InternshipDetail }) {
     return (
         <div className="flex flex-col gap-6">
             <DialogHeader className="gap-2">
@@ -105,17 +104,14 @@ export function InternshipDetailView({
                         <GraduationCap className="size-3.5 text-primary" aria-hidden="true" />
                         Cursos Elegíveis ({detail.courses.length})
                     </h4>
-                    <div className="flex flex-wrap gap-1.5">
+                    <ul className="flex flex-col gap-1 text-xs">
                         {detail.courses.map((course) => (
-                            <Badge
-                                key={`${course.name}-${course.degree}-${course.unit}`}
-                                variant="outline"
-                                className="text-xs"
-                            >
-                                {titleCase(course.name)} · {course.degree}
-                            </Badge>
+                            <li key={`${course.name}-${course.degree}-${course.unit}`}>
+                                {titleCase(course.name)}
+                                {course.degree === 'Licenciatura' && ' · Licenciatura'}
+                            </li>
                         ))}
-                    </div>
+                    </ul>
                 </div>
             )}
 
@@ -153,49 +149,67 @@ export function InternshipDetailView({
 }
 
 export function InternshipDetailDialog({
-    reference,
+    summary,
     open,
     onOpenChange
 }: {
-    reference: string | null;
+    summary: InternshipItem | null;
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }) {
+    const client = useQueryClient();
     const {
         data: detail,
         isLoading,
-        isError
+        error,
+        refetch
     } = useQuery({
-        ...internshipDetailQueryOptions(reference ?? ''),
-        enabled: Boolean(reference && open)
+        ...internshipDetailQueryOptions(summary?.reference ?? ''),
+        enabled: open && Boolean(summary)
     });
+    const missing = error instanceof ApiError && error.isNotFound;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
                 {isLoading ? (
-                    <div className="flex h-56 flex-col items-center justify-center gap-3">
-                        <Spinner className="size-8 text-primary" />
-                        <p className="text-sm text-muted-foreground">
+                    <DialogHeader className="pr-8">
+                        <DialogTitle>{titleCase(summary?.title ?? 'Detalhes da vaga')}</DialogTitle>
+                        <DialogDescription>
+                            Inscrições até {summary && formatDate(summary.published_until)}
+                        </DialogDescription>
+                        <output className="flex items-center gap-2 text-muted-foreground">
+                            <Spinner />
                             Carregando detalhes da vaga...
-                        </p>
-                    </div>
-                ) : isError || !detail ? (
+                        </output>
+                    </DialogHeader>
+                ) : missing || !detail ? (
                     <div className="py-8 text-center">
-                        <p className="text-sm text-destructive">
-                            Não foi possível carregar os detalhes do estágio.
-                        </p>
+                        <DialogTitle className="text-sm text-destructive">
+                            {missing
+                                ? 'A vaga mudou ou saiu do mural. Atualize a lista para continuar.'
+                                : 'Não foi possível carregar os detalhes do estágio.'}
+                        </DialogTitle>
                         <Button
                             variant="outline"
                             size="sm"
                             className="mt-4"
-                            onClick={() => onOpenChange(false)}
+                            onClick={() => {
+                                if (!missing) {
+                                    void refetch();
+                                    return;
+                                }
+                                void client.invalidateQueries({
+                                    queryKey: internshipsQueryOptions.queryKey
+                                });
+                                onOpenChange(false);
+                            }}
                         >
-                            Fechar
+                            {missing ? 'Atualizar mural' : 'Tentar novamente'}
                         </Button>
                     </div>
                 ) : (
-                    <InternshipDetailView detail={detail} onClose={() => onOpenChange(false)} />
+                    <InternshipDetailView detail={detail} />
                 )}
             </DialogContent>
         </Dialog>

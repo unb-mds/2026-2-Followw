@@ -1,7 +1,7 @@
 import type { InternshipItem } from '@followw/core/queries/internships.ts';
 
-import { internshipsQueryOptions } from '@followw/core/queries/internships.ts';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { filterInternships, internshipsQueryOptions } from '@followw/core/queries/internships.ts';
+import { useQuery } from '@tanstack/react-query';
 import { ArrowRight } from 'lucide-react';
 import { useState } from 'react';
 
@@ -23,7 +23,8 @@ export function InternshipSection({
     onShowAll?: () => void;
     emptyMessage?: string;
 }) {
-    const [selectedRef, setSelectedRef] = useState<string | null>(null);
+    const [selected, setSelected] = useState<InternshipItem | null>(null);
+    const [detailOpen, setDetailOpen] = useState(false);
 
     if (internships.length === 0) {
         if (!emptyMessage) return null;
@@ -60,27 +61,25 @@ export function InternshipSection({
                     <InternshipCard
                         key={internship.reference}
                         internship={internship}
-                        onClick={() => setSelectedRef(internship.reference)}
+                        onClick={() => {
+                            setSelected(internship);
+                            setDetailOpen(true);
+                        }}
                     />
                 ))}
             </div>
 
             <InternshipDetailDialog
-                reference={selectedRef}
-                open={Boolean(selectedRef)}
-                onOpenChange={(open) => {
-                    if (!open) setSelectedRef(null);
-                }}
+                summary={selected}
+                open={detailOpen}
+                onOpenChange={setDetailOpen}
             />
         </section>
     );
 }
 
 export function InternshipResults({ text }: { text: string | null }) {
-    const query = useQuery({
-        ...internshipsQueryOptions(text),
-        placeholderData: keepPreviousData
-    });
+    const query = useQuery(internshipsQueryOptions);
 
     return (
         <div aria-busy={query.isFetching} className="flex flex-col gap-5">
@@ -93,7 +92,7 @@ export function InternshipResults({ text }: { text: string | null }) {
             >
                 {(data) => (
                     <InternshipSection
-                        internships={data}
+                        internships={filterInternships(data, text)}
                         title={text ? 'Resultados em Estágios' : 'Mural de Estágios'}
                         emptyMessage={
                             text

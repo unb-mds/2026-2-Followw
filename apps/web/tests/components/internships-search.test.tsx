@@ -1,11 +1,15 @@
 import type { InternshipDetail, InternshipItem } from '@followw/core/queries/internships.ts';
+import type { UserProfile } from '@followw/core/queries/me.ts';
 
+import { filterInternships, internshipsQueryOptions } from '@followw/core/queries/internships.ts';
+import { meQueryOptions } from '@followw/core/queries/me.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, expect, test } from 'bun:test';
 
 import { formatCurrency, formatDate, InternshipCard } from '#/components/search/InternshipCard';
 import { InternshipDetailView } from '#/components/search/InternshipDetailDialog';
 import { InternshipSection } from '#/components/search/InternshipSection';
+import { SearchResults } from '#/components/search/SearchResults';
 import { Dialog } from '#/components/ui/dialog';
 
 import { useDom } from '../helpers/dom';
@@ -83,6 +87,48 @@ test('formatDate formata data em formato pt-BR', () => {
     expect(formatted).toMatch(/\d{2}\/\d{2}\/\d{4}/);
 });
 
+test('filtra o mural por todos os termos sem acentos e mantém a ordem', () => {
+    const items = [ITEM_CURSO, ITEM_GERAL];
+    expect(filterInternships(items, '  JUNIOR python ')).toEqual([ITEM_CURSO]);
+    expect(filterInternships(items, 'administracao publica')).toEqual([ITEM_GERAL]);
+    expect(filterInternships(items, 'python publica')).toEqual([]);
+    expect(filterInternships(items, null)).toBe(items);
+});
+
+test('exibe estágios na aba Todos enquanto a busca pública está pendente', () => {
+    const user: UserProfile = {
+        name: 'Fulano',
+        registration: '123',
+        photo: null,
+        bio: null,
+        unit: null,
+        course: null,
+        entry_semester: null,
+        integralization: null,
+        workload: null,
+        period_max_workload: null,
+        ira: null,
+        mp: null,
+        level: 'Graduação'
+    };
+    client.setQueryData(meQueryOptions.queryKey, user);
+    client.setQueryData(internshipsQueryOptions.queryKey, [ITEM_CURSO]);
+    const { getByText } = dom.testing.render(
+        <QueryClientProvider client={client}>
+            <SearchResults
+                text="python"
+                types={undefined}
+                empty="Nenhum resultado"
+                currentPeriod={null}
+                taken={null}
+                onShowCategory={() => {}}
+            />
+        </QueryClientProvider>
+    );
+
+    expect(getByText('Desenvolvedor Python Júnior')).toBeTruthy();
+});
+
 test('InternshipCard exibe título, badge Seu Curso e dispara clique', () => {
     let clicked = false;
 
@@ -130,10 +176,19 @@ test('InternshipSection renderiza itens e botão Ver todas com previewLimit', ()
     expect(showAllCalled).toBe(true);
 });
 
-test('InternshipDetailView exibe concedente, cursos e descrição formatada', () => {
-    const { getByText } = dom.testing.render(
+test('exibe o concedente, a descrição e um curso elegível por item da lista', () => {
+    const { getByText, getAllByRole } = dom.testing.render(
         <Dialog open>
-            <InternshipDetailView detail={DETAIL} />
+            <InternshipDetailView
+                detail={{
+                    ...DETAIL,
+                    courses: [
+                        ...DETAIL.courses,
+                        { name: 'MATEMÁTICA', unit: 'MAT', degree: 'Bacharelado' },
+                        { name: 'MATEMÁTICA', unit: 'MAT', degree: 'Licenciatura' }
+                    ]
+                }}
+            />
         </Dialog>
     );
 
@@ -141,6 +196,11 @@ test('InternshipDetailView exibe concedente, cursos e descrição formatada', ()
     expect(getByText('Empresa Tech Df')).toBeTruthy();
     expect(getByText('CNPJ: 00.000.000/0001-91')).toBeTruthy();
     expect(getByText('Inscrição via SIGAA')).toBeTruthy();
+    expect(getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+        'Engenharia de Software',
+        'Matemática',
+        'Matemática · Licenciatura'
+    ]);
     expect(getByText('edital_estagio.pdf')).toBeTruthy();
     expect(getByText(/Atuação com Python e/)).toBeTruthy();
 });

@@ -98,7 +98,7 @@ export const Route = createFileRoute('/_app/buscar')({
                 loadQuery(queryClient, subjectsQueryOptions({ unit: view.unit })).catch(noop),
             view?.kind === 'internships' &&
                 user &&
-                loadQuery(queryClient, internshipsQueryOptions(view.text)).catch(noop)
+                loadQuery(queryClient, internshipsQueryOptions).catch(noop)
         ]);
         if (environmentManager.isServer()) await results;
     },
@@ -128,6 +128,10 @@ function BuscarPage() {
         return () => clearTimeout(timer);
     }, [q]);
     const view = searchView(category, q, text, user);
+    const searchLabel =
+        category === 'internships'
+            ? 'Busque por estágio'
+            : 'Busque por matéria, curso ou professor';
     const { data: history } = useQuery({
         ...allClassroomsQueryOptions,
         enabled: subjects && Boolean(user)
@@ -148,8 +152,8 @@ function BuscarPage() {
                         void setSearch({ q: value.trim() ? value : null });
                     }}
                     maxLength={SEARCH_MAX_LENGTH}
-                    placeholder="Busque por matéria, curso ou professor..."
-                    aria-label="Busque por matéria, curso ou professor"
+                    placeholder={`${searchLabel}...`}
+                    aria-label={searchLabel}
                     className="h-11 bg-card pl-10 text-sm"
                 />
             </div>

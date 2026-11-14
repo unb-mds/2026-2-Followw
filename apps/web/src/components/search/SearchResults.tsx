@@ -1,9 +1,8 @@
 import type { SearchResult, SearchType } from '@followw/core/queries/search.ts';
 
 import { searchTypes } from '@followw/core/lib/search-categories.ts';
-import { internshipsQueryOptions } from '@followw/core/queries/internships.ts';
+import { filterInternships, internshipsQueryOptions } from '@followw/core/queries/internships.ts';
 import { meQueryOptions } from '@followw/core/queries/me.ts';
-import { refreshQuery } from '@followw/core/queries/refresh.ts';
 import { searchQueryOptions } from '@followw/core/queries/search.ts';
 import { withClassrooms } from '@followw/core/queries/subjects.ts';
 import { keepPreviousData, noop, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -14,6 +13,7 @@ import { CourseSection } from '#/components/search/CourseSection';
 import { InternshipSection } from '#/components/search/InternshipSection';
 import { ProfessorSection } from '#/components/search/ProfessorSection';
 import { TurmaSection } from '#/components/search/TurmaSection';
+import { refreshQuery } from '#/queries/refresh';
 
 /** Cursos, docentes e matérias pedidos em `types` numa só consulta. */
 export function SearchResults({
@@ -37,12 +37,11 @@ export function SearchResults({
     const options = searchQueryOptions(text, types);
     const result = useQuery({ ...options, placeholderData: keepPreviousData });
 
-    // busca estágios na aba Todos quando autenticado
-    const isAll = !types || types.length === 0;
-    const { data: internships = [] } = useQuery({
-        ...internshipsQueryOptions(text),
-        enabled: Boolean(user && isAll),
-        placeholderData: keepPreviousData
+    const showInternships = Boolean(user && onShowCategory);
+    const internships = useQuery({
+        ...internshipsQueryOptions,
+        enabled: showInternships,
+        select: (items) => filterInternships(items, text)
     });
 
     // a aba da categoria reaproveita a primeira página já carregada
@@ -66,8 +65,14 @@ export function SearchResults({
             onShowCategory(category);
         });
     const refresh = () => void refreshQuery(client, options).catch(noop);
+    const { courses, professors, subjects } = result.data ?? {};
+    const offered = withClassrooms(subjects ?? []);
+    const found = courses?.items.length || professors?.items.length || offered.length;
     return (
-        <div aria-busy={result.isFetching} className="flex flex-col gap-5">
+        <div
+            aria-busy={result.isFetching || (showInternships && internships.isFetching)}
+            className="flex flex-col gap-5"
+        >
             <QueryState
                 query={result}
                 loading="Buscando..."
@@ -75,15 +80,8 @@ export function SearchResults({
                 stale="Não foi possível atualizar a busca. Exibindo os dados salvos."
                 className="justify-center"
             >
-                {({ courses, professors, subjects }) => {
-                    const offered = withClassrooms(subjects ?? []);
-                    const found =
-                        courses?.items.length ||
-                        professors?.items.length ||
-                        offered.length ||
-                        internships.length;
-                    // nova busca volta os limites de cada seção ao início
-                    return found ? (
+                {() =>
+                    found ? (
                         <Fragment key={text}>
                             {courses && (
                                 <CourseSection
@@ -99,13 +97,6 @@ export function SearchResults({
                                     onShowAll={showCategory && (() => showCategory('professors'))}
                                 />
                             )}
-                            {internships.length > 0 && (
-                                <InternshipSection
-                                    internships={internships}
-                                    previewLimit={3}
-                                    onShowAll={showCategory && (() => showCategory('internships'))}
-                                />
-                            )}
                             <TurmaSection
                                 title="Matérias"
                                 subjects={offered}
@@ -114,11 +105,32 @@ export function SearchResults({
                                 onOpenDetails={refresh}
                             />
                         </Fragment>
-                    ) : (
-                        <p className="py-8 text-center text-sm text-muted-foreground">{empty}</p>
-                    );
-                }}
+                    ) : null
+                }
             </QueryState>
+            {showInternships && (
+                <QueryState
+                    query={internships}
+                    loading="Carregando ofertas de estágio..."
+                    error="Não foi possível carregar as ofertas de estágio."
+                    stale="Não foi possível atualizar as vagas. Exibindo os dados salvos."
+                >
+                    {(data) => (
+                        <InternshipSection
+                            key={text}
+                            internships={data}
+                            previewLimit={3}
+                            onShowAll={showCategory && (() => showCategory('internships'))}
+                        />
+                    )}
+                </QueryState>
+            )}
+            {result.isSuccess &&
+                !result.isPlaceholderData &&
+                !found &&
+                (!showInternships || (internships.isSuccess && !internships.data.length)) && (
+                    <p className="py-8 text-center text-sm text-muted-foreground">{empty}</p>
+                )}
         </div>
     );
 }
