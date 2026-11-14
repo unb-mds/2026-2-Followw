@@ -8,6 +8,7 @@ from sigaa_client import (
     AuthenticationFailed,
     ClassroomNotFound,
     DocumentUnavailable,
+    InternshipNotFound,
     MissingProfilePhoto,
     NewsNotFound,
     SigaaError,
@@ -50,6 +51,7 @@ async def _document_unavailable(_: Request, error: Exception) -> JSONResponse:
 EXCEPTION_HANDLERS: dict[type[Exception], Handler] = {
     AuthenticationFailed: _authentication_failed,
     ClassroomNotFound: _error(404, "Classroom not found"),
+    InternshipNotFound: _error(404, "Internship not found"),
     NewsNotFound: _error(404, "News not found"),
     SigaaSearchError: _error(422),
     UnitNotFound: _error(422),

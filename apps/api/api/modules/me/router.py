@@ -5,6 +5,7 @@ from fastapi import (
     File,
     Form,
     HTTPException,
+    Query,
     Request,
     Response,
     UploadFile,
@@ -17,6 +18,11 @@ from api.cache import CacheControl, NoStore
 from api.db.main import DatabaseDep
 from api.errors import SIGAA_ERRORS
 from api.modules.me.edit import edit_profile
+from api.modules.me.internships import (
+    InternshipDetail,
+    InternshipItem,
+    filter_internships,
+)
 from api.modules.me.photo import MAX_PHOTO_BYTES, normalize_photo
 from api.modules.me.profile import ProfileServiceDep, UserProfile
 from api.modules.me.repository import MAX_PROFILE_BIO_LENGTH
@@ -201,3 +207,44 @@ async def update_profile(
     return await edit_profile(
         connection, db, bio=bio, photo=content, remove_photo=photo_action == "remove"
     )
+
+
+@router.get(
+    "/internships",
+    response_model=list[InternshipItem],
+    summary="Listar e buscar ofertas de estágio",
+    description="Lista as ofertas de estágio disponíveis no mural do SIGAA. As vagas do curso do aluno vêm primeiro, seguidas pelas demais.",
+    responses=SIGAA_ERRORS,
+    dependencies=[NoStore],
+)
+async def list_internships(
+    client: SigaaClientDep,
+    q: Annotated[
+        str | None,
+        Query(
+            description="Termo para filtrar ofertas de estágio pelo título.",
+            max_length=100,
+        ),
+    ] = None,
+) -> list[InternshipItem]:
+    summaries = await client.internships.list_internships()
+    return filter_internships(summaries, q)
+
+
+@router.get(
+    "/internships/{reference:path}",
+    response_model=InternshipDetail,
+    summary="Consultar detalhes de uma oferta de estágio",
+    description="Abre os dados completos da vaga a partir da referência obtida no mural.",
+    responses={
+        **SIGAA_ERRORS,
+        404: {"description": "Oferta de estágio não encontrada ou mural alterado."},
+    },
+    dependencies=[NoStore],
+)
+async def get_internship(
+    reference: str,
+    client: SigaaClientDep,
+) -> InternshipDetail:
+    detail = await client.internships.get_internship(reference)
+    return InternshipDetail.from_internship(detail, reference)
