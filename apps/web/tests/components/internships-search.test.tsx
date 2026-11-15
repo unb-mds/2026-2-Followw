@@ -129,7 +129,7 @@ test('exibe estágios na aba Todos enquanto a busca pública está pendente', ()
     expect(getByText('Desenvolvedor Python Júnior')).toBeTruthy();
 });
 
-test('InternshipCard exibe título, badge Seu Curso e dispara clique', () => {
+test('InternshipCard exibe título, vagas e dispara clique', () => {
     let clicked = false;
 
     const { getByText } = dom.testing.render(
@@ -137,20 +137,18 @@ test('InternshipCard exibe título, badge Seu Curso e dispara clique', () => {
     );
 
     expect(getByText('Desenvolvedor Python Júnior')).toBeTruthy();
-    expect(getByText('Seu Curso')).toBeTruthy();
     expect(getByText('2 vagas')).toBeTruthy();
 
     dom.testing.fireEvent.click(getByText('Desenvolvedor Python Júnior'));
     expect(clicked).toBe(true);
 });
 
-test('InternshipCard exibe badge Geral e bolsa a combinar quando nula', () => {
+test('InternshipCard exibe bolsa a combinar quando nula', () => {
     const { getByText } = dom.testing.render(
         <InternshipCard internship={ITEM_GERAL} onClick={() => {}} />
     );
 
     expect(getByText('Estágio em Administração Pública')).toBeTruthy();
-    expect(getByText('Geral')).toBeTruthy();
     expect(getByText('Bolsa a combinar')).toBeTruthy();
     expect(getByText('1 vaga')).toBeTruthy();
 });
@@ -162,6 +160,7 @@ test('InternshipSection renderiza itens e botão Ver todas com previewLimit', ()
         <QueryClientProvider client={client}>
             <InternshipSection
                 internships={[ITEM_CURSO, ITEM_GERAL]}
+                title="Estágios"
                 previewLimit={1}
                 onShowAll={() => (showAllCalled = true)}
             />
@@ -174,6 +173,32 @@ test('InternshipSection renderiza itens e botão Ver todas com previewLimit', ()
 
     dom.testing.fireEvent.click(getByText('Ver todas'));
     expect(showAllCalled).toBe(true);
+});
+
+test('separa o mural por curso com a contagem de cada grupo', () => {
+    const outro = { ...ITEM_GERAL, reference: 'listagem_outros_cursos:1:hash789' };
+    const { getAllByRole } = dom.testing.render(
+        <QueryClientProvider client={client}>
+            <InternshipSection internships={[ITEM_CURSO, ITEM_GERAL, outro]} />
+        </QueryClientProvider>
+    );
+
+    expect(
+        getAllByRole('heading', { level: 2 }).map(
+            (h) => `${h.textContent} ${h.nextElementSibling?.textContent}`
+        )
+    ).toEqual(['Seu curso 1 vaga', 'Outros cursos 2 vagas']);
+});
+
+test('omite o grupo Seu curso quando não há vagas do curso', () => {
+    const { queryByText, getByText } = dom.testing.render(
+        <QueryClientProvider client={client}>
+            <InternshipSection internships={[ITEM_GERAL]} />
+        </QueryClientProvider>
+    );
+
+    expect(queryByText('Seu curso')).toBeNull();
+    expect(getByText('Outros cursos')).toBeTruthy();
 });
 
 test('exibe o concedente, a descrição e um curso elegível por item da lista', () => {

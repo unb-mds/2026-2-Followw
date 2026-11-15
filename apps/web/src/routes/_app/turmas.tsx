@@ -16,7 +16,7 @@ import { LoadingText } from '#/components/LoadingText';
 import { WeeklySchedule } from '#/components/schedule/WeeklySchedule';
 import { TabFilter } from '#/components/TabFilter';
 import { Card, CardContent } from '#/components/ui/card';
-import { rise, useEntrance } from '#/lib/motion';
+import { rise, SlideSwitch, useEntrance, useSlideDirection } from '#/lib/motion';
 import { meQueryOptions } from '#/queries/me';
 
 export const Route = createFileRoute('/_app/turmas')({
@@ -57,57 +57,60 @@ function Classrooms() {
 
     const groups = groupBySemester(classrooms ?? []);
     const [semester, items] = groups.find(([name]) => name === selected) ?? groups[0] ?? [];
+    const direction = useSlideDirection(
+        semester ? groups.findIndex(([name]) => name === semester) : undefined
+    );
 
     if (isLoadingError) return <ErrorCard message={SIGAA_DOWN_MESSAGE} onRetry={() => refetch()} />;
 
     return (
-        <div className="relative flex flex-col gap-5">
+        <div className="relative flex flex-col gap-2">
             {groups.length > 0 && (
                 <TabFilter
                     label="Escolher semestre"
                     value={semester}
                     options={groups.map(([name]) => name)}
                     onChange={setSelected}
-                    className="mb-2"
                 />
             )}
             <div className="classroom-columns lg:grid lg:items-start lg:gap-10">
                 <section className="min-w-0">
-                    <h2 className="mb-4 hidden text-xl font-medium lg:block">
-                        Disciplinas{' '}
-                        <span className="float-right text-sm text-muted-foreground">
-                            {items?.length ?? 0} turmas
-                        </span>
-                    </h2>
-                    <m.div className="flex flex-col gap-2 lg:gap-4" {...entrance}>
-                        {items?.map((classroom, index) => (
-                            <m.div key={classroom.id} custom={index} variants={rise}>
-                                <ClassCard
-                                    title={classroom.subject.name}
-                                    time={
-                                        describeSchedule(classroom.schedule) ?? 'Horário a definir'
-                                    }
-                                    location={
-                                        classroom.current
-                                            ? (classroom.room ?? 'Local não informado')
-                                            : undefined
-                                    }
-                                    grade={finalGrade(classroom)}
-                                    status={
-                                        classroom.status === 'pending_enrollment'
-                                            ? 'pending'
-                                            : 'normal'
-                                    }
-                                    onClick={() =>
-                                        navigate({
-                                            to: '/turmas/$id',
-                                            params: { id: classroom.id }
-                                        })
-                                    }
-                                />
-                            </m.div>
-                        ))}
-                    </m.div>
+                    <SlideSwitch id={semester ?? ''} direction={direction}>
+                        <m.div
+                            className="flex flex-col gap-2 lg:gap-4"
+                            initial={direction ? false : entrance.initial}
+                            animate={entrance.animate}
+                        >
+                            {items?.map((classroom, index) => (
+                                <m.div key={classroom.id} custom={index} variants={rise}>
+                                    <ClassCard
+                                        title={classroom.subject.name}
+                                        time={
+                                            describeSchedule(classroom.schedule) ??
+                                            'Horário a definir'
+                                        }
+                                        location={
+                                            classroom.current
+                                                ? (classroom.room ?? 'Local não informado')
+                                                : undefined
+                                        }
+                                        grade={finalGrade(classroom)}
+                                        status={
+                                            classroom.status === 'pending_enrollment'
+                                                ? 'pending'
+                                                : 'normal'
+                                        }
+                                        onClick={() =>
+                                            navigate({
+                                                to: '/turmas/$id',
+                                                params: { id: classroom.id }
+                                            })
+                                        }
+                                    />
+                                </m.div>
+                            ))}
+                        </m.div>
+                    </SlideSwitch>
                 </section>
                 {desktop && items && items.length > 0 && (
                     <aside className="min-w-0 border-l pl-8">

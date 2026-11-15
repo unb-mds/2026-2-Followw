@@ -15,6 +15,8 @@ import { ease, useEntrance } from '#/lib/motion';
 import { cn } from '#/lib/shadcn';
 
 const hoursLabel = (hours: number) => `${hours.toLocaleString('pt-BR')}h`;
+const percentLabel = (value: number) =>
+    `${value.toLocaleString('pt-BR', { maximumFractionDigits: 20 })}%`;
 const NO_CLASSROOMS: readonly Classroom[] = [];
 
 export function CourseProgress({
@@ -58,14 +60,19 @@ export function CourseProgress({
     ];
     const showForecast =
         projected != null || !!categories?.some((category) => categoryForecast(category) != null);
-    const displayedForecast =
-        projected == null || projected === 100
-            ? projected
-            : Math.max(integralization ?? 0, Math.min(99.9, Math.round(projected * 10) / 10));
-    const forecastLabel =
-        displayedForecast == null
-            ? 'Em andamento'
-            : `Em andamento ${displayedForecast.toLocaleString('pt-BR', { maximumFractionDigits: 20 })}%`;
+    // acréscimo com uma casa, que só chega a 100% quando conclui o curso
+    const percentGain =
+        projected == null || integralization == null
+            ? null
+            : Math.round(
+                  Math.min(
+                      (projected >= 100 ? 100 : 99.9) - integralization,
+                      Math.max(0.1, projected - integralization)
+                  ) * 10
+              ) / 10;
+    const hoursGain = categories
+        ? categories.reduce((sum, category) => sum + categoryGain(category), 0)
+        : 0;
 
     return (
         <Card size="sm" className="gap-0 divide-y divide-border px-4 py-3 lg:px-5 lg:py-4">
@@ -86,8 +93,8 @@ export function CourseProgress({
                                         aria-hidden="true"
                                         className="h-1 w-5 rounded-full bg-forecast"
                                     />
-                                    <span className="font-medium text-forecast-foreground tabular-nums">
-                                        {forecastLabel}
+                                    <span className="font-medium text-forecast-foreground">
+                                        Em andamento
                                     </span>
                                 </span>
                             )}
@@ -138,19 +145,26 @@ export function CourseProgress({
                                 </svg>
                                 <span
                                     aria-hidden="true"
-                                    className="text-xl font-medium tabular-nums lg:text-2xl"
+                                    className="flex flex-col items-center leading-tight"
                                 >
-                                    <AnimatedNumber
-                                        value={integralization}
-                                        format={(value) =>
-                                            // inteiro durante a contagem, exato ao final
-                                            (value === integralization
-                                                ? value
-                                                : Math.round(value)
-                                            ).toLocaleString('pt-BR')
-                                        }
-                                    />
-                                    %
+                                    <span className="text-xl font-medium tabular-nums lg:text-2xl">
+                                        <AnimatedNumber
+                                            value={integralization}
+                                            format={(value) =>
+                                                // inteiro durante a contagem, exato ao final
+                                                (value === integralization
+                                                    ? value
+                                                    : Math.round(value)
+                                                ).toLocaleString('pt-BR')
+                                            }
+                                        />
+                                        %
+                                    </span>
+                                    {percentGain != null && percentGain > 0 && (
+                                        <span className="text-[0.625rem] font-medium text-forecast-foreground tabular-nums lg:text-xs">
+                                            +{percentLabel(percentGain)}
+                                        </span>
+                                    )}
                                 </span>
                             </div>
                         )}
@@ -158,6 +172,11 @@ export function CourseProgress({
                             <div className="min-w-0">
                                 <p className="text-2xl font-medium tracking-tight tabular-nums lg:text-3xl">
                                     {hoursLabel(progress.completed)}
+                                    {hoursGain > 0 && (
+                                        <span className="ml-2 text-base text-forecast-foreground lg:text-lg">
+                                            +{hoursLabel(hoursGain)}
+                                        </span>
+                                    )}
                                 </p>
                                 <p className="text-sm text-muted-foreground lg:mt-1">
                                     de {hoursLabel(progress.total)} concluídas
@@ -196,6 +215,8 @@ interface Category {
 }
 
 const percentOf = (hours: number, required: number) => Math.min(100, (hours / required) * 100);
+const categoryGain = ({ pending, projected }: Category) =>
+    Math.max(0, Math.min(projected, pending));
 
 // largura prevista da barra, só quando avança além do concluído
 function categoryForecast({ pending, required, projected }: Category) {
@@ -218,7 +239,18 @@ function CategoryProgress(category: Category) {
         <div className="flex flex-col gap-1 lg:gap-2">
             <CategoryRow
                 label={label}
-                value={`${hoursLabel(completed)} / ${hoursLabel(required)}`}
+                value={
+                    <>
+                        {hoursLabel(completed)}
+                        {forecast != null && (
+                            <span className="text-forecast-foreground">
+                                {' '}
+                                +{hoursLabel(categoryGain(category))}
+                            </span>
+                        )}{' '}
+                        / {hoursLabel(required)}
+                    </>
+                }
             />
             <div aria-hidden="true" className="relative h-2 overflow-hidden rounded-full bg-muted">
                 {forecast != null && (
@@ -236,7 +268,15 @@ function CategoryProgress(category: Category) {
     );
 }
 
-function CategoryRow({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
+function CategoryRow({
+    label,
+    value,
+    muted
+}: {
+    label: string;
+    value: React.ReactNode;
+    muted?: boolean;
+}) {
     return (
         <div className="flex items-baseline justify-between gap-4">
             <dt className="text-sm text-muted-foreground">{label}</dt>

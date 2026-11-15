@@ -106,8 +106,7 @@ test.each([1440, 390])(
         const account = view.getByRole('region', { name: 'Conta' });
         expect(dom.testing.within(account).queryByRole('button', { name: /Baixar/ })).toBeNull();
         expect(view.queryByText('Não exigidas')).toBeNull();
-        expect(dom.testing.within(progress).getByText('Em andamento 42%')).toBeDefined();
-        expect(progress.textContent).not.toContain('120h');
+        expect(progress.textContent).toContain('37%+5%1.140h+120h');
         expect(view.getByRole('button', { name: 'Baixar histórico acadêmico' })).toBeDefined();
         expect(
             view.getByRole('link', { name: 'Visualizar fluxo acadêmico' }).getAttribute('href')

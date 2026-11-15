@@ -9,10 +9,20 @@ import { QueryState } from '#/components/QueryState';
 import { InternshipCard } from '#/components/search/InternshipCard';
 import { InternshipDetailDialog } from '#/components/search/InternshipDetailDialog';
 import { Button } from '#/components/ui/button';
+import { cn } from '#/lib/shadcn';
+
+const GROUPS = [
+    { label: 'Seu curso', mine: true },
+    { label: 'Outros cursos', mine: false }
+];
+
+function countLabel(count: number) {
+    return `${count} ${count === 1 ? 'vaga' : 'vagas'}`;
+}
 
 export function InternshipSection({
     internships,
-    title = 'Estágios',
+    title,
     previewLimit,
     onShowAll,
     emptyMessage
@@ -35,39 +45,62 @@ export function InternshipSection({
     const hasMore = previewLimit ? internships.length > previewLimit : false;
 
     return (
-        <section className="flex flex-col gap-3">
-            <div className="flex items-baseline justify-between gap-3">
-                <div className="flex items-baseline gap-2">
-                    <h2 className="text-base font-bold text-foreground">{title}</h2>
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                        {internships.length} {internships.length === 1 ? 'vaga' : 'vagas'}
-                    </span>
+        <section className="flex flex-col gap-4">
+            {title && (
+                <div className="flex items-baseline justify-between gap-3">
+                    <div className="flex items-baseline gap-2">
+                        <h2 className="text-base font-bold text-foreground">{title}</h2>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                            {countLabel(internships.length)}
+                        </span>
+                    </div>
+                    {onShowAll && hasMore && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={onShowAll}
+                            className="h-auto p-0 text-xs font-semibold text-primary hover:bg-transparent hover:underline"
+                        >
+                            Ver todas
+                            <ArrowRight className="ml-1 size-3" aria-hidden="true" />
+                        </Button>
+                    )}
                 </div>
-                {onShowAll && hasMore && (
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={onShowAll}
-                        className="h-auto p-0 text-xs font-semibold text-primary hover:bg-transparent hover:underline"
-                    >
-                        Ver todas
-                        <ArrowRight className="ml-1 size-3" aria-hidden="true" />
-                    </Button>
-                )}
-            </div>
+            )}
 
-            <div className="flex flex-col gap-2.5">
-                {items.map((internship) => (
-                    <InternshipCard
-                        key={internship.reference}
-                        internship={internship}
-                        onClick={() => {
-                            setSelected(internship);
-                            setDetailOpen(true);
-                        }}
-                    />
-                ))}
-            </div>
+            {GROUPS.map(({ label, mine }) => {
+                const visible = items.filter((item) => item.is_my_course === mine);
+                if (visible.length === 0) return null;
+                const total = internships.filter((item) => item.is_my_course === mine).length;
+                const Heading = title ? 'h3' : 'h2';
+                return (
+                    <div key={label} className="flex flex-col gap-2.5">
+                        <div className="flex items-baseline gap-2">
+                            <Heading
+                                className={cn(
+                                    'text-foreground',
+                                    title ? 'text-sm font-semibold' : 'text-base font-bold'
+                                )}
+                            >
+                                {label}
+                            </Heading>
+                            <span className="text-xs text-muted-foreground">
+                                {countLabel(total)}
+                            </span>
+                        </div>
+                        {visible.map((internship) => (
+                            <InternshipCard
+                                key={internship.reference}
+                                internship={internship}
+                                onClick={() => {
+                                    setSelected(internship);
+                                    setDetailOpen(true);
+                                }}
+                            />
+                        ))}
+                    </div>
+                );
+            })}
 
             <InternshipDetailDialog
                 summary={selected}
@@ -93,7 +126,6 @@ export function InternshipResults({ text }: { text: string | null }) {
                 {(data) => (
                     <InternshipSection
                         internships={filterInternships(data, text)}
-                        title={text ? 'Resultados em Estágios' : 'Mural de Estágios'}
                         emptyMessage={
                             text
                                 ? 'Nenhum estágio encontrado para esta busca.'

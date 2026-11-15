@@ -3,8 +3,6 @@ import type { InternshipItem } from '@followw/core/queries/internships.ts';
 import { titleCase } from '@followw/core/lib/profile.ts';
 import { Briefcase, Calendar, Users } from 'lucide-react';
 
-import { Badge } from '#/components/ui/badge';
-
 export function formatCurrency(value: string | number | null | undefined): string | null {
     if (!value) return null;
     const num = typeof value === 'string' ? parseFloat(value) : value;
@@ -37,28 +35,16 @@ export function InternshipCard({
         <button
             type="button"
             onClick={onClick}
+            aria-label={titleCase(internship.title)}
             className="flex w-full cursor-pointer flex-col gap-3 rounded-2xl border bg-card p-4 text-left text-card-foreground transition-all hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
-            <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-2">
-                    <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                        <Briefcase className="size-5" aria-hidden="true" />
-                    </div>
-                    <div>
-                        <h3 className="text-sm leading-snug font-semibold">
-                            {titleCase(internship.title)}
-                        </h3>
-                    </div>
+            <div className="flex items-center gap-2">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <Briefcase className="size-5" aria-hidden="true" />
                 </div>
-                {internship.is_my_course ? (
-                    <Badge variant="default" className="shrink-0">
-                        Seu Curso
-                    </Badge>
-                ) : (
-                    <Badge variant="secondary" className="shrink-0">
-                        Geral
-                    </Badge>
-                )}
+                <h3 className="text-sm leading-snug font-semibold">
+                    {titleCase(internship.title)}
+                </h3>
             </div>
 
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">

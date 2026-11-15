@@ -12,6 +12,13 @@ import { Button } from '#/components/ui/button';
 import { Card } from '#/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '#/components/ui/chart';
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue
+} from '#/components/ui/select';
+import {
     gradeWeights,
     isFreeModule,
     isGrade,
@@ -23,6 +30,10 @@ import {
 } from '#/lib/academic-simulation';
 
 const chartConfig = { ira: { label: 'IRA', color: 'var(--primary)' } };
+const gradeItems = [
+    { value: null, label: 'Sem menção' },
+    ...Object.keys(gradeWeights).map((grade) => ({ value: grade, label: grade }))
+];
 const displayIndex = (value: number | null) => (value === null ? '—' : formatAcademicIndex(value));
 
 function changeGrade(classroom: Classroom, grade: Grade | null) {
@@ -62,7 +73,7 @@ export function AcademicSimulator({
                     const name = titleCase(classroom.subject.name);
                     return (
                         <li key={simulationKey(classroom)}>
-                            <label className="flex min-h-14 items-center justify-between gap-3 px-4 py-2">
+                            <div className="flex min-h-14 items-center justify-between gap-3 px-4 py-2">
                                 <span className="flex min-w-0 flex-col gap-0.5">
                                     <span className="font-medium wrap-anywhere">{name}</span>
                                     {isFreeModule(classroom, curriculum) && (
@@ -71,23 +82,31 @@ export function AcademicSimulator({
                                         </span>
                                     )}
                                 </span>
-                                <select
-                                    aria-label={`Menção de ${name}, ${classroom.semester}`}
-                                    className="h-9 shrink-0 rounded-lg border border-input bg-background px-2 text-sm focus-visible:ring-3 focus-visible:ring-ring/50"
-                                    value={simulationGrade(classroom, overrides) ?? ''}
-                                    onChange={(event) => {
-                                        const value = event.currentTarget.value;
-                                        changeGrade(classroom, isGrade(value) ? value : null);
-                                    }}
+                                <Select
+                                    items={gradeItems}
+                                    value={simulationGrade(classroom, overrides) ?? null}
+                                    onValueChange={(value) =>
+                                        changeGrade(
+                                            classroom,
+                                            value && isGrade(value) ? value : null
+                                        )
+                                    }
                                 >
-                                    <option value="">Sem menção</option>
-                                    {Object.keys(gradeWeights).map((grade) => (
-                                        <option key={grade} value={grade}>
-                                            {grade}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
+                                    <SelectTrigger
+                                        aria-label={`Menção de ${name}, ${classroom.semester}`}
+                                        className="h-9 shrink-0 bg-background"
+                                    >
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {gradeItems.map((item) => (
+                                            <SelectItem key={item.label} value={item.value}>
+                                                {item.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </li>
                     );
                 })}

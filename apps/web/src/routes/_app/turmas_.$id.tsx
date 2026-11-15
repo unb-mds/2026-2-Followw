@@ -39,6 +39,7 @@ import {
     loadClassroomSearch,
     validateClassroomSearch
 } from '#/lib/classroom-search';
+import { SlideSwitch, useSlideDirection } from '#/lib/motion';
 import { meQueryOptions } from '#/queries/me';
 
 type Member = components['schemas']['ClassroomMember'];
@@ -102,6 +103,8 @@ function ClassroomPage() {
         scroll: false
     });
     const classroom = classrooms.data?.find((item) => item.id === id);
+    const active = classroomTab(tab, classroom?.current ?? false);
+    const direction = useSlideDirection(CLASSROOM_TABS.indexOf(active));
 
     return (
         <>
@@ -122,7 +125,7 @@ function ClassroomPage() {
                         <ClassroomSummary classroom={classroom} />
                     </div>
                     <Tabs
-                        value={classroomTab(tab, classroom.current)}
+                        value={active}
                         onValueChange={(value: ClassroomTab) => void setSearch({ tab: value })}
                         className="mt-5 min-w-0 gap-4 lg:mt-0 lg:border-l lg:pl-8"
                     >
@@ -143,20 +146,13 @@ function ClassroomPage() {
                                 </TabsTrigger>
                             ))}
                         </TabsList>
-                        <TabsContent value="posts">
-                            <ClassroomPosts key={id} id={id} />
-                        </TabsContent>
-                        {classroom.current ? (
-                            <TabsContent value="frequency">
-                                <FrequencyTab id={id} />
-                            </TabsContent>
-                        ) : (
-                            <TabsContent value="statistics">
-                                <ClassroomStatistics id={id} />
-                            </TabsContent>
-                        )}
-                        <TabsContent value="members">
-                            <MembersTab id={id} />
+                        <TabsContent value={active}>
+                            <SlideSwitch id={active} direction={direction}>
+                                {active === 'posts' && <ClassroomPosts key={id} id={id} />}
+                                {active === 'frequency' && <FrequencyTab id={id} />}
+                                {active === 'statistics' && <ClassroomStatistics id={id} />}
+                                {active === 'members' && <MembersTab id={id} />}
+                            </SlideSwitch>
                         </TabsContent>
                     </Tabs>
                 </div>

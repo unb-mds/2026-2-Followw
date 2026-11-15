@@ -37,9 +37,9 @@ import {
     UtensilsCrossed,
     Wheat
 } from 'lucide-react';
-import { AnimatePresence, m, type Variants } from 'motion/react';
+import { AnimatePresence, m } from 'motion/react';
 import { useQueryStates } from 'nuqs';
-import { lazy, Suspense, useCallback, useEffect, useState, useSyncExternalStore } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useSyncExternalStore } from 'react';
 
 import type { RestaurantSelection } from '#/lib/restaurant-share';
 
@@ -62,7 +62,7 @@ import {
 } from '#/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
 import { WeekDayPicker } from '#/components/WeekDayPicker';
-import { easeIn, rise, useEntrance } from '#/lib/motion';
+import { rise, slide, SlideSwitch, useEntrance, useSlideDirection } from '#/lib/motion';
 import {
     restaurantDefaults,
     restaurantPageHead,
@@ -249,6 +249,8 @@ function RUPage() {
     const isNextWeek = days[0].date > firstDay;
     const shiftWeek = (weeks: number) => () => select({ date: addDays(selectedDate, 7 * weeks) });
     const shiftDay = (offset: number) => () => select({ date: addDays(selectedDate, offset) });
+    const mealOrder = MEALS.findIndex((item) => item.key === selectedMeal);
+    const menuDirection = useSlideDirection(`${selectedDate}-${mealOrder}`);
 
     return (
         <div className="ru-columns lg:grid lg:items-start lg:gap-x-10 lg:gap-y-8">
@@ -358,12 +360,13 @@ function RUPage() {
                             <ChevronRight />
                         </Button>
                     </div>
-                    <div className="flex min-h-60 flex-col gap-2 lg:gap-6">
+                    <SlideSwitch
+                        id={`${selectedDate}-${selectedMeal}-${campus}`}
+                        direction={menuDirection}
+                        className="flex min-h-60 flex-col gap-2 lg:gap-6"
+                    >
                         {sections.length > 0 ? (
-                            <MealDetails
-                                key={`${selectedDate}-${selectedMeal}-${campus}`}
-                                sections={sections}
-                            />
+                            <MealDetails sections={sections} cascade={!menuDirection} />
                         ) : (
                             <div className="my-auto px-1 text-center text-sm text-muted-foreground">
                                 {isPending && <LoadingText>Carregando cardápio...</LoadingText>}
@@ -394,7 +397,7 @@ function RUPage() {
                                 )}
                             </div>
                         )}
-                    </div>
+                    </SlideSwitch>
                 </TabsContent>
             </Tabs>
 
@@ -458,20 +461,9 @@ function MealPicker({
     );
 }
 
-const slide: Variants = {
-    enter: (direction: number) => ({ opacity: 0, x: direction * 24 }),
-    center: { opacity: 1, x: 0 },
-    exit: (direction: number) => ({
-        opacity: 0,
-        x: direction * -24,
-        transition: { duration: 0.15, ease: easeIn }
-    })
-};
-
 // desliza para o lado em que o dia mudou
 function MenuDayLabel({ date, children }: { date: string; children: React.ReactNode }) {
-    const [[previous, direction], setState] = useState([date, 0]);
-    if (date !== previous) setState([date, date > previous ? 1 : -1]);
+    const direction = useSlideDirection(date);
 
     return (
         <p
@@ -495,14 +487,18 @@ function MenuDayLabel({ date, children }: { date: string; children: React.ReactN
     );
 }
 
-function MealDetails({ sections }: { sections: MenuSection[] }) {
+function MealDetails({ sections, cascade }: { sections: MenuSection[]; cascade: boolean }) {
     const { main, alternatives, others: ungrouped } = highlightMenu(sections);
     const others = groupSalads(ungrouped);
     const entrance = useEntrance();
     const offset = main ? 1 : 0;
 
     return (
-        <m.div className="flex flex-col gap-3 lg:gap-4" {...entrance}>
+        <m.div
+            className="flex flex-col gap-3 lg:gap-4"
+            initial={cascade ? entrance.initial : false}
+            animate={entrance.animate}
+        >
             {main && (
                 <m.div custom={0} variants={rise}>
                     <MealHighlight main={main} alternatives={alternatives} />
