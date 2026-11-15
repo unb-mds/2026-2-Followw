@@ -100,6 +100,23 @@ function setup(alternative: Partial<SubjectClassroom> = {}) {
 const button = (view: ReturnType<typeof setup>, name: string) => view.getByRole('button', { name });
 
 describe('montagem da grade semanal', () => {
+    test('preserva o ícone durante a transformação de adicionar para remover e de volta', () => {
+        const view = setup();
+        const add = button(view, 'Adicionar à grade: FGA0108, turma 01');
+        const icon = add.querySelector('svg');
+        expect(add.getAttribute('aria-pressed')).toBe('false');
+        dom.testing.fireEvent.click(add);
+        const remove = button(view, 'Remover da grade: FGA0108, turma 01');
+        expect(remove).toBe(add);
+        expect(remove.querySelector('svg')).toBe(icon);
+        expect(remove.getAttribute('aria-pressed')).toBe('true');
+        dom.testing.fireEvent.click(remove);
+        expect(button(view, 'Adicionar à grade: FGA0108, turma 01').querySelector('svg')).toBe(
+            icon
+        );
+        expect(add.getAttribute('aria-pressed')).toBe('false');
+    });
+
     test.each(['logout', 'login', 'sessão expirada'])(
         'limpa a grade salva e montada ao mudar a sessão (%s) sem herdar conflitos',
         async (change) => {
@@ -245,17 +262,16 @@ describe('montagem da grade semanal', () => {
         expect(cells[0].textContent).toBe('—');
         const listItem = view.getByRole('listitem');
         expect(listItem.textContent).toContain('Matemática Discreta 2');
-        expect(listItem.textContent).toContain('FGA0108 · T01');
+        expect(listItem.textContent).not.toContain('FGA0108 · T01');
         expect(listItem.textContent).not.toContain('2026.2');
         fireEvent.click(
             view.getAllByRole('button', { name: 'Remover da grade: FGA0108, turma 01' })[0]
         );
         expect(view.queryByRole('table')).toBeNull();
-        expect(view.getByRole('button', { name: 'Baixar imagem' }).hasAttribute('disabled')).toBe(
-            true
-        );
+        expect(view.queryByRole('button', { name: 'Baixar imagem' })).toBeNull();
+        expect(view.getByRole('heading', { name: 'Monte sua grade' })).toBeTruthy();
         expect(
-            view.getByText('Adicione turmas nos resultados da busca para montar sua grade.')
+            view.getByText('Abra uma matéria e use o botão + para adicionar uma turma.')
         ).toBeTruthy();
     });
 
@@ -284,7 +300,7 @@ describe('montagem da grade semanal', () => {
         expect(view.getByRole('table').textContent).not.toContain('FGA0108');
     });
 
-    test('barra aparece com turmas selecionadas e limpar esvazia a grade', () => {
+    test('barra aparece com turmas selecionadas e limpar esvazia a grade', async () => {
         const { fireEvent } = dom.testing;
         const view = setup({ schedule: '24M12' });
         expect(view.queryByRole('toolbar')).toBeNull();
@@ -295,7 +311,7 @@ describe('montagem da grade semanal', () => {
         fireEvent.click(button(view, 'Adicionar à grade: FGA0001, turma 01'));
         expect(view.getByRole('toolbar').textContent).toContain('2 turmas');
         fireEvent.click(button(view, 'Limpar seleção'));
-        expect(view.queryByRole('toolbar')).toBeNull();
+        await dom.testing.waitForElementToBeRemoved(() => view.queryByRole('toolbar'));
         expect(localStorage.getItem('followw:schedule')).toBeNull();
     });
 

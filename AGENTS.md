@@ -27,7 +27,7 @@ trabalhar nas suas respectivas pastas.
 ## Comandos
 
 ```fish
-uv sync                 # instala o workspace Python
+uv sync --all-packages  # instala o workspace Python
 bun install             # instala o workspace TypeScript
 bun dev                 # API e web em paralelo
 bun run check           # check do core e web

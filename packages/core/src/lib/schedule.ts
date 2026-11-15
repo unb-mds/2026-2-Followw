@@ -48,7 +48,7 @@ export function visibleSlots(times: TimeRange[]) {
 // Intervalo máximo entre blocos para juntá-los, como o T6 (até 18:55) e o N1 (a partir de 19:00).
 const MERGE_GAP_MINUTES = 5;
 
-const getMinutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
+export const minutesOf = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
 
 export const WEEKDAYS_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
@@ -80,9 +80,9 @@ export function parseSchedule(code: string | null | undefined): ClassTime[] {
         if (
             last &&
             last.weekday === time.weekday &&
-            getMinutes(time.start) - getMinutes(last.end) <= MERGE_GAP_MINUTES
+            minutesOf(time.start) - minutesOf(last.end) <= MERGE_GAP_MINUTES
         )
-            last.end = time.end;
+            last.end = last.end > time.end ? last.end : time.end;
         else merged.push(time);
     }
     return merged;
@@ -164,6 +164,26 @@ export function currentAndNext<T extends { start: string; end: string }>(items: 
         current: items.find((item) => item.start <= time && time < item.end),
         next: items.find((item) => item.start > time)
     };
+}
+
+/** Aulas do `/lessons` no formato da grade; as canceladas não contam como em andamento ou próxima. */
+export function lessonsOn<
+    T extends { start_time: string; end_time: string; status?: string | null }
+>(lessons: T[], weekday: number, time?: string): ScheduledClass<T>[] {
+    const classes = lessons.map((item): ScheduledClass<T> => ({
+        weekday,
+        start: item.start_time.slice(0, 5),
+        end: item.end_time.slice(0, 5),
+        item,
+        status: 'normal'
+    }));
+    if (time) {
+        const active = classes.filter(({ item }) => item.status !== 'cancelada');
+        const { current, next } = currentAndNext(active, time);
+        if (current) current.status = 'in_progress';
+        if (next) next.status = 'next';
+    }
+    return classes;
 }
 
 /** Aulas do dia em ordem; `time` (HH:MM) marca a aula em andamento e a próxima. */

@@ -1,6 +1,7 @@
 import type { CatalogSubject } from '@followw/core/queries/subjects.ts';
 
 import { covered } from '@followw/core/queries/subjects.ts';
+import { m } from 'motion/react';
 import { useState, type ReactNode } from 'react';
 
 import { SubjectSummary } from '#/components/search/SubjectSummary';
@@ -12,6 +13,7 @@ import {
     AccordionTrigger
 } from '#/components/ui/accordion';
 import { Button } from '#/components/ui/button';
+import { rise, useEntrance } from '#/lib/motion';
 
 const PAGE_SIZE = 25;
 
@@ -31,6 +33,7 @@ export function TurmaSection({
     footer?: (subject: CatalogSubject) => ReactNode;
 }) {
     const [limit, setLimit] = useState(PAGE_SIZE);
+    const entrance = useEntrance();
     if (subjects.length === 0) return null;
 
     return (
@@ -43,14 +46,15 @@ export function TurmaSection({
                     </span>
                 </div>
             )}
-            <Accordion multiple className="gap-2">
-                {subjects.slice(0, limit).map((subject) => (
+            <Accordion multiple className="gap-2" render={<m.div {...entrance} />}>
+                {subjects.slice(0, limit).map((subject, index) => (
                     <AccordionItem
                         key={subject.code}
+                        render={<m.div custom={index % PAGE_SIZE} variants={rise} />}
                         value={subject.code}
                         className="overflow-hidden rounded-2xl border bg-card text-card-foreground"
                     >
-                        <AccordionTrigger className="items-center gap-3 rounded-none px-3 py-3 hover:bg-primary/5 hover:no-underline focus-visible:ring-inset">
+                        <AccordionTrigger className="items-center gap-3 rounded-none px-3 py-3 hover:bg-primary/5 hover:no-underline focus-visible:ring-inset lg:px-5 lg:py-4">
                             <SubjectSummary
                                 subject={subject}
                                 currentPeriod={currentPeriod}

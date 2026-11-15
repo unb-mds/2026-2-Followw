@@ -1,6 +1,6 @@
 import type { MenuSection } from '@followw/core/queries/restaurant.ts';
 
-import { highlightMenu, MEAL_TIMES } from '@followw/core/lib/restaurant.ts';
+import { highlightMenu, MEAL_TIMES, groupSalads } from '@followw/core/lib/restaurant.ts';
 import { CAMPUS_LABELS } from '@followw/core/queries/restaurant.ts';
 import { Egg, Leaf } from 'lucide-react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -39,18 +39,6 @@ const column: React.CSSProperties = { display: 'flex', flexDirection: 'column' }
 // Limita textos longos para o conteúdo não estourar o card.
 function truncate(text: string, max: number) {
     return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
-}
-
-// Junta as saladas 1 e 2 num bloco só, na posição da primeira.
-function groupSalads(sections: MenuSection[]): MenuSection[] {
-    const salads = sections.filter((s) => s.key === 'salad_1' || s.key === 'salad_2');
-    if (salads.length < 2) return sections;
-    const grouped: MenuSection = {
-        key: 'salad_1',
-        name: 'Saladas',
-        items: salads.flatMap((s) => s.items)
-    };
-    return sections.flatMap((s) => (s === salads[0] ? [grouped] : salads.includes(s) ? [] : [s]));
 }
 
 export function RestaurantShareImage({

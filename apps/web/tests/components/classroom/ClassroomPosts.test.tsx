@@ -17,7 +17,8 @@ const topic: ClassroomPost = {
     starts_on: '2026-10-15',
     ends_on: '2026-10-20',
     content: 'Leia o **capítulo 1**.',
-    attachments: []
+    attachments: [],
+    is_read: false
 };
 const posts: ClassroomPost[] = [
     {
@@ -25,7 +26,8 @@ const posts: ClassroomPost[] = [
         type: 'news',
         title: 'Bem-vindos à turma',
         published_on: '2026-10-15',
-        attachments: []
+        attachments: [],
+        is_read: false
     },
     topic,
     {
@@ -33,7 +35,8 @@ const posts: ClassroomPost[] = [
         type: 'material',
         title: 'Slides.pdf',
         topic_id: topic.id,
-        attachments: []
+        attachments: [],
+        is_read: false
     },
     {
         id: 'material:' + 'c'.repeat(64),
@@ -41,7 +44,8 @@ const posts: ClassroomPost[] = [
         title: 'Leitura online',
         topic_id: topic.id,
         url: 'https://example.org/aula',
-        attachments: []
+        attachments: [],
+        is_read: false
     },
     {
         id: 'assessment:1',
@@ -49,7 +53,8 @@ const posts: ClassroomPost[] = [
         title: 'Prova 1',
         starts_on: '2026-10-29',
         time_label: 'Hora da aula',
-        attachments: []
+        attachments: [],
+        is_read: false
     }
 ];
 

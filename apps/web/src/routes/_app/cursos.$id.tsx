@@ -13,15 +13,13 @@ import type { UserProfile } from '#/queries/me';
 
 import { CourseSummary } from '#/components/curriculum/CourseSummary';
 import { CurriculumView } from '#/components/curriculum/CurriculumView';
-import { Legend } from '#/components/curriculum/Legend';
+import { useDesktop } from '#/components/DesktopContext';
 import { ErrorCard, ErrorState } from '#/components/ErrorState';
 import { BackHeader } from '#/components/HeaderBar';
 import { LoadingText } from '#/components/LoadingText';
 import { useFlowSearch, validateFlowSearch } from '#/lib/curriculum/navigation';
 import { useWidth } from '#/lib/width';
 import { meQueryOptions } from '#/queries/me';
-
-const DESKTOP_MIN_WIDTH = 1024;
 
 /** O curso do aluno usa o ingresso dele; outro curso, a matriz vigente no semestre atual. */
 function flowTarget(user: UserProfile | null | undefined, courseId: number) {
@@ -87,13 +85,14 @@ export const Route = createFileRoute('/_app/cursos/$id')({
     component: FlowPage
 });
 
-function FlowHeader({ legend = false }: { legend?: boolean }) {
-    return <BackHeader to="/buscar" title="Fluxo acadêmico" actions={legend && <Legend />} />;
+function FlowHeader() {
+    return <BackHeader to="/buscar" title="Fluxo acadêmico" />;
 }
 
 function FlowPage() {
+    const eligible = useDesktop();
     const { ref, width } = useWidth<HTMLDivElement>();
-    const desktop = width ? width >= DESKTOP_MIN_WIDTH : null;
+    const desktop = width ? eligible : null;
     const [{ subject }] = useFlowSearch();
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const { id: courseId } = Route.useParams();
@@ -104,7 +103,7 @@ function FlowPage() {
     return (
         <div ref={ref} className="flex min-h-0 flex-1 flex-col">
             <div className="shrink-0 px-4 pb-5 lg:px-6">
-                <FlowHeader legend={Boolean(desktop && loggedIn && course && entrySemester)} />
+                <FlowHeader />
                 {course && <CourseSummary course={course} entrySemester={entrySemester} />}
             </div>
             {!ownCourse && listed.isPending ? (

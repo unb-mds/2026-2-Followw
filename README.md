@@ -75,7 +75,7 @@ na raiz do repositório, salvo quando indicado.
 1. Instale as dependências e crie a configuração:
 
     ```sh
-    uv sync
+    uv sync --all-packages
     bun install
     cp .env.example .env
     ```

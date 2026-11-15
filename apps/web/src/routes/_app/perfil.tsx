@@ -2,10 +2,11 @@ import { useOnline } from '@followw/core/lib/online.ts';
 import { loadQuery } from '@followw/core/queries/load.ts';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { Link, Navigate, createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
-import { GitFork, LogOut } from 'lucide-react';
+import { ChevronRight, GitFork, LogOut } from 'lucide-react';
 
 import type { UserProfile } from '#/queries/me';
 
+import { useDesktop } from '#/components/DesktopContext';
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
 import { ListCard } from '#/components/ListCard';
@@ -33,6 +34,7 @@ import {
 import { Button, buttonVariants } from '#/components/ui/button';
 import { cn } from '#/lib/shadcn';
 import { useLogout } from '#/queries/auth';
+import { useDownloadDocument } from '#/queries/documents';
 import { meQueryOptions } from '#/queries/me';
 import { useUserSettings } from '#/queries/settings';
 
@@ -43,50 +45,73 @@ export const Route = createFileRoute('/_app/perfil')({
         if (!user) throw redirect({ to: '/login' });
         return user;
     },
-    staticData: {
-        header: () => (
-            <HeaderBar actions={<ThemeToggle />}>
-                <HeaderTitle>Perfil</HeaderTitle>
-            </HeaderBar>
-        )
-    },
+    staticData: { header: ProfileHeader },
     errorComponent: ErrorState,
     component: PerfilPage
 });
 
+function ProfileHeader() {
+    const desktop = useDesktop();
+    return (
+        <HeaderBar hideOnDesktop actions={!desktop && <ThemeToggle />}>
+            <HeaderTitle>Perfil</HeaderTitle>
+        </HeaderBar>
+    );
+}
+
 function PerfilPage() {
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const settings = useUserSettings();
+    const download = useDownloadDocument();
 
     // sessão encerrada por um 401 em qualquer query ou mutation
     if (!user) return <Navigate to="/login" replace />;
 
     return (
-        <>
-            <ProfileIdentity user={user} displayName={settings.displayName} />
-            <div className="my-4 flex flex-col gap-4">
-                <InstallPromptCard />
-                <AcademicPerformance
-                    user={user}
-                    action={
-                        user.level === 'Graduação' && (
-                            <Link
-                                to="/perfil/simulador"
-                                className={buttonVariants({ variant: 'outline' })}
-                            >
-                                Simular IRA e MP
-                            </Link>
-                        )
-                    }
-                />
-                <ProgressSection user={user} />
-                <AccountSection
-                    user={user}
-                    displayName={settings.displayName}
-                    courseId={user.course?.id}
-                />
+        <div className="profile-columns lg:grid lg:items-start lg:gap-x-10 lg:gap-y-8">
+            <div className="profile-identity lg:col-start-1 lg:row-start-1">
+                <ProfileIdentity user={user} displayName={settings.displayName} />
             </div>
-        </>
+            <div className="my-4 flex flex-col gap-4 lg:contents">
+                <div className="profile-install contents lg:hidden">
+                    <InstallPromptCard />
+                </div>
+                <div className="profile-performance contents lg:col-start-2 lg:row-start-1 lg:block">
+                    <AcademicPerformance
+                        user={user}
+                        action={
+                            user.level === 'Graduação' && (
+                                <Link
+                                    to="/perfil/simulador"
+                                    className={buttonVariants({ variant: 'outline' })}
+                                >
+                                    Simular IRA e MP
+                                </Link>
+                            )
+                        }
+                    />
+                </div>
+                <div className="profile-progress contents lg:col-start-1 lg:row-span-2 lg:row-start-2 lg:block">
+                    <ProgressSection user={user} />
+                </div>
+                <div className="lg:col-start-2 lg:row-start-2">
+                    <ProfileSection title="Documentos">
+                        <div className="@container">
+                            <div className="grid gap-3 lg:gap-4 @xs:grid-cols-2">
+                                <DocumentDownloads download={download} />
+                            </div>
+                        </div>
+                    </ProfileSection>
+                </div>
+                <div className="profile-account lg:col-start-2 lg:row-start-3">
+                    <AccountSection
+                        user={user}
+                        displayName={settings.displayName}
+                        courseId={user.course?.id}
+                    />
+                </div>
+            </div>
+        </div>
     );
 }
 
@@ -110,19 +135,23 @@ function AccountSection({
                         <Link
                             to="/cursos/$id"
                             params={{ id: courseId }}
+                            aria-label="Visualizar fluxo acadêmico"
                             className={cn(
                                 buttonVariants({ variant: 'ghost' }),
                                 'h-auto min-h-12 w-full justify-start gap-3 rounded-none px-3 py-2.5'
                             )}
                         >
-                            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                                 <GitFork className="size-4" aria-hidden="true" />
                             </span>
-                            <span className="flex-1 text-left">Visualizar fluxo acadêmico</span>
+                            <span className="flex-1 text-left">Fluxo acadêmico</span>
+                            <ChevronRight
+                                aria-hidden="true"
+                                className="size-4 text-muted-foreground"
+                            />
                         </Link>
                     </div>
                 )}
-                <DocumentDownloads />
                 <LogoutButton />
             </ListCard>
         </ProfileSection>
@@ -145,7 +174,7 @@ function LogoutButton() {
                     />
                 }
             >
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-destructive/10">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-destructive/10">
                     <LogOut className="size-4" />
                 </span>
                 <span className="flex-1 text-left">Desconectar</span>

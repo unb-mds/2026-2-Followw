@@ -13,9 +13,10 @@ import {
     frequencyTone
 } from '@followw/core/lib/classroom-details.ts';
 import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
-import { CircleCheck, CircleDashed, CircleSlash, CircleX } from 'lucide-react';
+import { CalendarDays, CircleCheck, CircleDashed, CircleSlash, CircleX, List } from 'lucide-react';
 import { useRef, useState } from 'react';
 
+import { LessonCalendar } from '#/components/classroom/LessonCalendar';
 import { ListCard, Meter } from '#/components/ListCard';
 import { SelectionBar } from '#/components/SelectionBar';
 import { Button } from '#/components/ui/button';
@@ -28,6 +29,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger
 } from '#/components/ui/dropdown-menu';
+import { ToggleGroup, ToggleGroupItem } from '#/components/ui/toggle-group';
 import { cn } from '#/lib/shadcn';
 
 export type MarkLessons = (lessons: Lesson[], status: LessonMarkStatus | null) => void;
@@ -66,6 +68,7 @@ export function FrequencyContent({
     const { totals, lessons } = data;
     const notice = FREQUENCY_NOTICE[data.frequency_status];
     const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
+    const [view, setView] = useState<'list' | 'calendar'>('list');
     // a aula some da seleção quando deixa de ser selecionável (marcada ou registrada)
     const selected = lessons.filter((lesson) => selectable(lesson) && selectedIds.has(lesson.id));
 
@@ -94,70 +97,105 @@ export function FrequencyContent({
             {(lessons.length > 0 || notice) && (
                 <section>
                     {lessons.length > 0 && (
-                        <div className="mb-2 flex items-center justify-between gap-2 px-1">
+                        <div className="mb-2 flex items-center gap-2 px-1">
                             <h3 className="text-sm font-semibold">
                                 Aulas{' '}
                                 <span className="font-normal text-muted-foreground">
                                     {lessons.length}
                                 </span>
                             </h3>
-                            {marked.length > 0 && (
+                            {marked.length > 0 && view === 'list' && (
                                 <Button
                                     variant="ghost"
                                     size="xs"
                                     disabled={pending}
-                                    className="text-muted-foreground"
+                                    className="ml-auto text-muted-foreground"
                                     onClick={() => onMark(marked, null)}
                                 >
                                     Limpar marcações
                                 </Button>
                             )}
+                            <ToggleGroup
+                                aria-label="Visualização das aulas"
+                                size="sm"
+                                spacing={0}
+                                variant="outline"
+                                value={[view]}
+                                onValueChange={([next]) => {
+                                    if (!next) return;
+                                    setView(next === 'calendar' ? 'calendar' : 'list');
+                                    setSelectedIds(new Set());
+                                }}
+                                className={
+                                    marked.length > 0 && view === 'list' ? undefined : 'ml-auto'
+                                }
+                            >
+                                <ToggleGroupItem value="list" aria-label="Lista" title="Lista">
+                                    <List />
+                                </ToggleGroupItem>
+                                <ToggleGroupItem
+                                    value="calendar"
+                                    aria-label="Calendário"
+                                    title="Calendário"
+                                >
+                                    <CalendarDays />
+                                </ToggleGroupItem>
+                            </ToggleGroup>
                         </div>
                     )}
-                    <ListCard>
-                        {lessons.map((lesson) => (
-                            <LessonRow
-                                key={lesson.id}
-                                lesson={lesson}
-                                onMark={onMark}
-                                pending={pending}
-                                selected={selectedIds.has(lesson.id)}
-                                onSelect={(checked) => toggle(lesson, checked)}
-                            />
-                        ))}
-                        {notice && (
-                            <p className="py-2.5 text-center text-sm text-muted-foreground">
-                                {notice}
-                            </p>
-                        )}
-                    </ListCard>
+                    {view === 'calendar' && lessons.length > 0 ? (
+                        <div className="flex flex-col gap-2">
+                            <LessonCalendar lessons={lessons} />
+                            {notice && (
+                                <p className="px-1 text-center text-sm text-muted-foreground">
+                                    {notice}
+                                </p>
+                            )}
+                        </div>
+                    ) : (
+                        <ListCard>
+                            {lessons.map((lesson) => (
+                                <LessonRow
+                                    key={lesson.id}
+                                    lesson={lesson}
+                                    onMark={onMark}
+                                    pending={pending}
+                                    selected={selectedIds.has(lesson.id)}
+                                    onSelect={(checked) => toggle(lesson, checked)}
+                                />
+                            ))}
+                            {notice && (
+                                <p className="py-2.5 text-center text-sm text-muted-foreground">
+                                    {notice}
+                                </p>
+                            )}
+                        </ListCard>
+                    )}
                 </section>
             )}
-            {selected.length > 0 && (
-                <SelectionBar
-                    label="Marcar aulas selecionadas"
-                    count={selected.length}
-                    units={['aula', 'aulas']}
-                    onClear={() => setSelectedIds(new Set())}
-                >
-                    {(['presente', 'falta'] as const).map((mark) => {
-                        const option = LESSON_VIEW[mark];
-                        return (
-                            <Button
-                                key={mark}
-                                variant="ghost"
-                                size="sm"
-                                disabled={pending}
-                                className={cn('rounded-full', option.color)}
-                                onClick={() => markSelected(mark)}
-                            >
-                                <option.icon />
-                                {option.name}
-                            </Button>
-                        );
-                    })}
-                </SelectionBar>
-            )}
+            <SelectionBar
+                label="Marcar aulas selecionadas"
+                count={selected.length}
+                units={['aula', 'aulas']}
+                onClear={() => setSelectedIds(new Set())}
+            >
+                {(['presente', 'falta'] as const).map((mark) => {
+                    const option = LESSON_VIEW[mark];
+                    return (
+                        <Button
+                            key={mark}
+                            variant="ghost"
+                            size="sm"
+                            disabled={pending}
+                            className={cn('rounded-full', option.color)}
+                            onClick={() => markSelected(mark)}
+                        >
+                            <option.icon />
+                            {option.name}
+                        </Button>
+                    );
+                })}
+            </SelectionBar>
         </div>
     );
 }

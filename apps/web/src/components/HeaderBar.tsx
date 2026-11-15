@@ -10,13 +10,29 @@ interface HeaderBarProps {
     // ações alinhadas à direita
     actions?: React.ReactNode;
     showLogo?: boolean;
+    // a topbar do desktop já identifica a página
+    hideOnDesktop?: boolean;
+    // fixa sob a topbar ao rolar no desktop
+    sticky?: boolean;
 }
 
-export const HeaderBar: React.FC<HeaderBarProps> = ({ children, actions, showLogo = true }) => {
+export const HeaderBar: React.FC<HeaderBarProps> = ({
+    children,
+    actions,
+    showLogo = true,
+    hideOnDesktop = false,
+    sticky = false
+}) => {
     return (
-        <header className="mb-2 flex items-center justify-between py-4 pb-2">
+        <header
+            className={cn(
+                'mb-2 flex items-center justify-between py-4 pb-2 lg:mb-4 lg:gap-8 lg:pt-2',
+                hideOnDesktop && 'lg:hidden',
+                sticky && 'lg:sticky lg:top-28 lg:z-30 lg:bg-background'
+            )}
+        >
             <div className="flex items-center gap-2">
-                {showLogo && <FollowwLogo className="size-10 shrink-0" />}
+                {showLogo && <FollowwLogo className="size-10 shrink-0 lg:hidden" />}
                 {children}
             </div>
             {actions && <div className="flex items-center gap-2">{actions}</div>}
@@ -25,7 +41,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({ children, actions, showLog
 };
 
 export const HeaderTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <h1 className="text-xl leading-none font-bold tracking-tight text-foreground">{children}</h1>
+    <h1 className="text-xl leading-none font-bold tracking-tight text-foreground lg:text-2xl lg:font-medium">
+        {children}
+    </h1>
 );
 
 interface HeaderToggleProps {
@@ -58,15 +76,15 @@ interface BackHeaderProps {
     to: LinkProps['to'];
     title: string;
     ariaLabel?: string;
-    actions?: React.ReactNode;
+    sticky?: boolean;
 }
 
-export function BackHeader({ to, title, ariaLabel = 'Voltar', actions }: BackHeaderProps) {
+export function BackHeader({ to, title, ariaLabel = 'Voltar', sticky }: BackHeaderProps) {
     const router = useRouter();
     const canGoBack = useCanGoBack();
 
     return (
-        <HeaderBar showLogo={false} actions={actions}>
+        <HeaderBar showLogo={false} sticky={sticky}>
             <Link
                 to={to}
                 aria-label={ariaLabel}

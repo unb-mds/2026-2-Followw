@@ -1,4 +1,4 @@
-import type { MenuSection } from '../queries/restaurant.ts';
+import type { DailyMenu, MenuSection } from '../queries/restaurant.ts';
 import type { Day } from './schedule.ts';
 
 import { daysFrom, formatRelativeDays } from './classroom-details.ts';
@@ -81,4 +81,36 @@ export function highlightMenu(sections: MenuSection[]) {
         };
     }
     return { main: null, alternatives: [], others: sections };
+}
+
+// Junta as saladas 1 e 2 num bloco só, na posição da primeira.
+export function groupSalads(sections: MenuSection[]): MenuSection[] {
+    const salads = sections.filter((s) => s.key === 'salad_1' || s.key === 'salad_2');
+    if (salads.length < 2) return sections;
+    const grouped: MenuSection = {
+        key: 'salad_1',
+        name: 'Saladas',
+        items: salads.flatMap((s) => s.items)
+    };
+    return sections.flatMap((s) => (s === salads[0] ? [grouped] : salads.includes(s) ? [] : [s]));
+}
+
+export function mainMenuDish(sections: MenuSection[] | null | undefined) {
+    if (!sections?.length) return undefined;
+    const section = highlightMenu(sections).main ?? sections[0];
+    return section.items.join(', ') || undefined;
+}
+
+// Hoje, só a refeição atual ou a próxima (a mesma do padrão do /ru); outros dias, todas.
+export function previewMenuMeals(
+    menus: readonly DailyMenu[],
+    date: string,
+    now: Day & { time: string }
+) {
+    const next = date === now.date ? currentOrNextMeal(now) : undefined;
+    const day = next?.date ?? date;
+    const menu = menus.find((item) => item.date === day);
+    return (next ? [next.meal] : MEAL_TIMES).map((meal) =>
+        Object.assign({ date: day, dish: mainMenuDish(menu?.[meal.key]) }, meal)
+    );
 }

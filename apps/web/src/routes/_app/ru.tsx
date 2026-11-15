@@ -5,7 +5,9 @@ import {
     formatMenuDay,
     highlightMenu,
     lastMenuDay,
-    MEAL_TIMES
+    MEAL_TIMES,
+    groupSalads,
+    type MealKey
 } from '@followw/core/lib/restaurant.ts';
 import { addDays, nowInBrasilia, weekDays } from '@followw/core/lib/schedule.ts';
 import { loadQuery } from '@followw/core/queries/load.ts';
@@ -17,18 +19,38 @@ import {
 } from '@followw/core/queries/restaurant.ts';
 import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Link, useLocation, useNavigate } from '@tanstack/react-router';
-import { ChevronLeft, ChevronRight, Coffee, Egg, Leaf, Soup, UtensilsCrossed } from 'lucide-react';
+import {
+    Apple,
+    Carrot,
+    ChevronLeft,
+    ChevronRight,
+    Coffee,
+    Croissant,
+    CupSoda,
+    Droplet,
+    Egg,
+    IceCreamCone,
+    Leaf,
+    Salad,
+    Sandwich,
+    Soup,
+    UtensilsCrossed,
+    Wheat
+} from 'lucide-react';
+import { AnimatePresence, m } from 'motion/react';
 import { useQueryStates } from 'nuqs';
 import { lazy, Suspense, useCallback, useEffect, useSyncExternalStore } from 'react';
 
 import type { RestaurantSelection } from '#/lib/restaurant-share';
 
+import { BackToTodayBar } from '#/components/BackToTodayBar';
+import { useDesktop } from '#/components/DesktopContext';
 import { ErrorState } from '#/components/ErrorState';
-import { HeaderBar, HeaderToggle } from '#/components/HeaderBar';
+import { HeaderBar, HeaderTitle, HeaderToggle } from '#/components/HeaderBar';
 import { LoadingText } from '#/components/LoadingText';
 import { usePageState } from '#/components/PageState';
 import { ShareButton } from '#/components/ShareButton';
-import { Button } from '#/components/ui/button';
+import { Button, buttonVariants } from '#/components/ui/button';
 import { Card, CardContent } from '#/components/ui/card';
 import { Label } from '#/components/ui/label';
 import {
@@ -40,6 +62,7 @@ import {
 } from '#/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
 import { WeekDayPicker } from '#/components/WeekDayPicker';
+import { rise, slide, SlideSwitch, useEntrance, useSlideDirection } from '#/lib/motion';
 import {
     restaurantDefaults,
     restaurantPageHead,
@@ -48,6 +71,7 @@ import {
     restaurantSharePath,
     validateRestaurantSearch
 } from '#/lib/restaurant-share';
+import { cn } from '#/lib/shadcn';
 import { meQueryOptions } from '#/queries/me';
 
 const RestaurantAccount = lazy(() =>
@@ -75,6 +99,23 @@ const ALTERNATIVES: Partial<Record<NonNullable<MenuSection['key']>, AlternativeI
     main_dish_vegan: { label: 'Vegetariano estrito', icon: Leaf },
     complement_vegetarian: { label: 'Ovolactovegetariano', icon: Egg },
     complement_vegan: { label: 'Vegetariano estrito', icon: Leaf }
+};
+
+const SECTION_ICONS: Partial<Record<NonNullable<MenuSection['key']>, AlternativeInfo['icon']>> = {
+    drink: CupSoda,
+    bread: Croissant,
+    extra: Wheat,
+    spread: Droplet,
+    fruit: Apple,
+    salad_1: Salad,
+    salad_2: Salad,
+    salad_dressing: Droplet,
+    side_dish: Carrot,
+    accompaniments: Carrot,
+    soup: Soup,
+    toast: Sandwich,
+    dessert: IceCreamCone,
+    complement: Egg
 };
 
 declare module '@tanstack/history' {
@@ -119,6 +160,7 @@ export const Route = createFileRoute('/_app/ru')({
 const useFiltersOpen = () => usePageState('filters', false);
 
 function RUHeader() {
+    const desktop = useDesktop();
     const [filtersOpen, setFiltersOpen] = useFiltersOpen();
     const { selection } = useMenuSelection();
 
@@ -128,13 +170,17 @@ function RUHeader() {
                 <ShareButton title="Cardápio do RU" url={() => restaurantSharePath(selection)} />
             }
         >
-            <HeaderToggle
-                open={filtersOpen}
-                onToggle={() => setFiltersOpen(!filtersOpen)}
-                title={filtersOpen ? 'Ocultar dia e campus' : 'Escolher dia e campus'}
-            >
-                Cardápio
-            </HeaderToggle>
+            {desktop ? (
+                <HeaderTitle>Cardápio</HeaderTitle>
+            ) : (
+                <HeaderToggle
+                    open={filtersOpen}
+                    onToggle={() => setFiltersOpen(!filtersOpen)}
+                    title={filtersOpen ? 'Ocultar dia e campus' : 'Escolher dia e campus'}
+                >
+                    Cardápio
+                </HeaderToggle>
+            )}
         </HeaderBar>
     );
 }
@@ -164,14 +210,16 @@ function useMenuSelection() {
             campus: campus === defaults.campus ? null : campus
         });
     };
-    return { selection, select };
+    return { selection, select, defaults };
 }
 
 function RUPage() {
+    const desktop = useDesktop();
     const { today } = Route.useLoaderData();
     const {
         selection: { date: selectedDate, meal: selectedMeal, campus },
-        select
+        select,
+        defaults
     } = useMenuSelection();
     const [filtersOpen] = useFiltersOpen();
     const { data: user } = useSuspenseQuery(meQueryOptions);
@@ -201,56 +249,71 @@ function RUPage() {
     const isNextWeek = days[0].date > firstDay;
     const shiftWeek = (weeks: number) => () => select({ date: addDays(selectedDate, 7 * weeks) });
     const shiftDay = (offset: number) => () => select({ date: addDays(selectedDate, offset) });
+    const mealOrder = MEALS.findIndex((item) => item.key === selectedMeal);
+    const menuDirection = useSlideDirection(`${selectedDate}-${mealOrder}`);
 
     return (
-        <>
-            {filtersOpen && (
-                <div>
-                    <WeekDayPicker
-                        days={days}
-                        selectedDate={selectedDate}
-                        onSelect={(day) => select({ date: day.date })}
-                        week={{
-                            label: isNextWeek ? 'Próxima semana' : 'Esta semana',
-                            onPrevious: isNextWeek ? shiftWeek(-1) : undefined,
-                            onNext: isNextWeek ? undefined : shiftWeek(1)
-                        }}
-                    />
-
-                    <div className="mb-5">
-                        <Label
-                            htmlFor="menu-campus"
-                            className="mb-2 px-1 text-xs text-muted-foreground"
-                        >
-                            Campus
-                        </Label>
-                        <Select
-                            items={CAMPUS_OPTIONS.map((option) => ({
-                                value: option,
-                                label: CAMPUS_LABELS[option]
-                            }))}
-                            value={campus}
-                            onValueChange={(value) => {
-                                const selected = CAMPUS_OPTIONS.find((option) => option === value);
-                                if (selected) select({ campus: selected });
+        <div className="ru-columns lg:grid lg:items-start lg:gap-x-10 lg:gap-y-8">
+            {(filtersOpen || desktop) && (
+                <div className="ru-filters lg:col-start-2 lg:row-start-2">
+                    <div className="lg:rounded-2xl lg:bg-card lg:p-4 lg:shadow-card lg:ring-1 lg:ring-foreground/8">
+                        <h2 className="mb-5 hidden text-lg font-bold lg:block">Data e campus</h2>
+                        <WeekDayPicker
+                            days={days}
+                            selectedDate={selectedDate}
+                            onSelect={(day) => select({ date: day.date })}
+                            week={{
+                                label: isNextWeek ? 'Próxima semana' : 'Esta semana',
+                                onPrevious: isNextWeek ? shiftWeek(-1) : undefined,
+                                onNext: isNextWeek ? undefined : shiftWeek(1)
                             }}
-                        >
-                            <SelectTrigger id="menu-campus" className="w-full bg-background">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {CAMPUS_OPTIONS.map((option) => (
-                                    <SelectItem key={option} value={option}>
-                                        {CAMPUS_LABELS[option]}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        />
+
+                        <div className="mb-5">
+                            <Label
+                                htmlFor="menu-campus"
+                                className="mb-2 px-1 text-xs text-muted-foreground"
+                            >
+                                Campus
+                            </Label>
+                            <Select
+                                items={CAMPUS_OPTIONS.map((option) => ({
+                                    value: option,
+                                    label: CAMPUS_LABELS[option]
+                                }))}
+                                value={campus}
+                                onValueChange={(value) => {
+                                    const selected = CAMPUS_OPTIONS.find(
+                                        (option) => option === value
+                                    );
+                                    if (selected) select({ campus: selected });
+                                }}
+                            >
+                                <SelectTrigger
+                                    id="menu-campus"
+                                    className="w-full bg-background lg:h-12 lg:rounded-xl lg:px-4"
+                                >
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {CAMPUS_OPTIONS.map((option) => (
+                                        <SelectItem key={option} value={option}>
+                                            {CAMPUS_LABELS[option]}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <MealPicker
+                            selected={selectedMeal}
+                            onSelect={(key) => select({ meal: key })}
+                        />
                     </div>
                 </div>
             )}
 
             <Tabs
+                className="ru-menu lg:col-start-1 lg:row-start-1 lg:row-end-3"
                 value={selectedMeal}
                 onValueChange={(value) => {
                     const selected = MEALS.find((item) => item.key === value);
@@ -258,14 +321,14 @@ function RUPage() {
                 }}
             >
                 <TabsList
-                    className="w-full group-data-horizontal/tabs:h-auto"
+                    className="w-full group-data-horizontal/tabs:h-auto lg:hidden"
                     aria-label="Escolher refeição"
                 >
                     {MEALS.map((item) => (
                         <TabsTrigger
                             key={item.key}
                             value={item.key}
-                            className="h-auto flex-col gap-1 py-3 text-xs"
+                            className="h-auto flex-col gap-1 py-3 text-xs lg:flex-row lg:gap-2 lg:rounded-full lg:py-2"
                         >
                             <item.icon className="size-5" aria-hidden="true" />
                             {item.label}
@@ -273,7 +336,7 @@ function RUPage() {
                     ))}
                 </TabsList>
 
-                <TabsContent value={selectedMeal} className="mt-4">
+                <TabsContent value={selectedMeal} className="mt-4 lg:mt-0">
                     <div className="mb-4 flex items-center justify-between gap-2">
                         <Button
                             variant="ghost"
@@ -284,9 +347,9 @@ function RUPage() {
                         >
                             <ChevronLeft />
                         </Button>
-                        <p className="text-xs font-bold text-muted-foreground" aria-live="polite">
+                        <MenuDayLabel date={selectedDate}>
                             {formatMenuDay(selectedDate, today)} · {meal.start}–{meal.end}
-                        </p>
+                        </MenuDayLabel>
                         <Button
                             variant="ghost"
                             size="icon-sm"
@@ -297,107 +360,208 @@ function RUPage() {
                             <ChevronRight />
                         </Button>
                     </div>
-                    {sections.length > 0 ? (
-                        <MealDetails sections={sections} />
-                    ) : (
-                        <div className="px-1 text-center text-sm text-muted-foreground">
-                            {isPending && <LoadingText>Carregando cardápio...</LoadingText>}
-                            {isLoadingError && (
-                                <>
-                                    {failureMessage}{' '}
-                                    <Button
-                                        variant="link"
-                                        size="xs"
-                                        onClick={() => refetch()}
-                                        className="h-auto p-0"
-                                    >
-                                        Tentar novamente
-                                    </Button>
-                                </>
-                            )}
-                            {!isPending && !isLoadingError && (
-                                <div className="flex flex-col gap-1">
-                                    Cardápio não publicado para esta refeição neste dia.
-                                    <Link
-                                        to="/ru"
-                                        search={{}}
-                                        className="font-semibold text-primary underline"
-                                    >
-                                        Ver cardápio atual
-                                    </Link>
-                                </div>
-                            )}
-                        </div>
-                    )}
+                    <SlideSwitch
+                        id={`${selectedDate}-${selectedMeal}-${campus}`}
+                        direction={menuDirection}
+                        className="flex min-h-40 flex-col gap-2 lg:gap-6"
+                    >
+                        {sections.length > 0 ? (
+                            <MealDetails sections={sections} cascade={!menuDirection} />
+                        ) : (
+                            <div className="my-auto px-1 text-center text-sm text-muted-foreground">
+                                {isPending && <LoadingText>Carregando cardápio...</LoadingText>}
+                                {isLoadingError && (
+                                    <>
+                                        {failureMessage}{' '}
+                                        <Button
+                                            variant="link"
+                                            size="xs"
+                                            onClick={() => refetch()}
+                                            className="h-auto p-0"
+                                        >
+                                            Tentar novamente
+                                        </Button>
+                                    </>
+                                )}
+                                {!isPending && !isLoadingError && (
+                                    <div className="flex flex-col items-center gap-3 py-4">
+                                        <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+                                            <UtensilsCrossed
+                                                className="size-6"
+                                                aria-hidden="true"
+                                            />
+                                        </div>
+                                        <div className="flex flex-col gap-1">
+                                            <p className="font-semibold text-foreground">
+                                                Cardápio não publicado
+                                            </p>
+                                            <p>
+                                                Ainda não há pratos divulgados para esta refeição.
+                                            </p>
+                                        </div>
+                                        {selectedDate !== today && (
+                                            <Link
+                                                to="/ru"
+                                                search={{}}
+                                                className={buttonVariants({
+                                                    variant: 'outline',
+                                                    size: 'sm'
+                                                })}
+                                            >
+                                                Ver cardápio atual
+                                            </Link>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </SlideSwitch>
                 </TabsContent>
             </Tabs>
 
-            {user ? (
-                <Suspense fallback={null}>
-                    <RestaurantAccount
-                        key={user.registration}
-                        registration={user.registration}
-                        consumeCardRequest={cardRequested ? consumeCardRequest : undefined}
-                    />
-                </Suspense>
-            ) : (
-                <Card className="mt-4">
-                    <CardContent className="text-muted-foreground">
-                        <Link to="/login" className="font-bold text-primary hover:underline">
-                            Entre com o SIGAA
-                        </Link>{' '}
-                        para ver seu saldo, extrato e carteirinha do RU.
-                    </CardContent>
-                </Card>
-            )}
-        </>
+            <div className="ru-account lg:col-start-2 lg:row-start-1">
+                {user ? (
+                    <Suspense fallback={null}>
+                        <RestaurantAccount
+                            key={user.registration}
+                            registration={user.registration}
+                            consumeCardRequest={cardRequested ? consumeCardRequest : undefined}
+                        />
+                    </Suspense>
+                ) : (
+                    <Card className="mt-4">
+                        <CardContent className="text-muted-foreground">
+                            <Link to="/login" className="font-bold text-primary hover:underline">
+                                Entre com o SIGAA
+                            </Link>{' '}
+                            para ver seu saldo, extrato e carteirinha do RU.
+                        </CardContent>
+                    </Card>
+                )}
+            </div>
+            <BackToTodayBar
+                open={selectedDate !== defaults.date}
+                onBack={() => select({ date: defaults.date })}
+            />
+        </div>
     );
 }
 
-function MealDetails({ sections }: { sections: MenuSection[] }) {
-    const { main, alternatives, others } = highlightMenu(sections);
+// no desktop, a refeição é escolhida na coluna lateral
+function MealPicker({
+    selected,
+    onSelect
+}: {
+    selected: MealKey;
+    onSelect: (key: MealKey) => void;
+}) {
+    return (
+        <fieldset className="hidden flex-col gap-1 lg:flex">
+            <legend className="sr-only">Escolher refeição</legend>
+            {MEALS.map((item) => (
+                <button
+                    key={item.key}
+                    type="button"
+                    aria-pressed={item.key === selected}
+                    onClick={() => onSelect(item.key)}
+                    className={cn(
+                        'flex items-center justify-between gap-3 rounded-xl px-4 py-3 text-sm text-muted-foreground transition-colors hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-ring',
+                        item.key === selected && 'bg-muted hover:bg-muted'
+                    )}
+                >
+                    {item.label}
+                    <span className="font-semibold text-foreground tabular-nums">
+                        {item.start} – {item.end}
+                    </span>
+                </button>
+            ))}
+        </fieldset>
+    );
+}
+
+// desliza para o lado em que o dia mudou
+function MenuDayLabel({ date, children }: { date: string; children: React.ReactNode }) {
+    const direction = useSlideDirection(date);
 
     return (
-        <div className="flex flex-col gap-2">
-            {main && <MealHighlight main={main} alternatives={alternatives} />}
-            {others.length > 0 && (
-                <Card size="sm">
-                    <CardContent>
-                        <dl className="divide-y divide-border">
-                            {others.map((section) => (
-                                <div
-                                    key={section.name}
-                                    className="flex gap-4 py-3 first:pt-0 last:pb-0"
-                                >
-                                    <dt className="w-28 shrink-0 pt-0.5 text-xs font-medium text-muted-foreground">
-                                        {section.name}
-                                    </dt>
-                                    <dd className="flex min-w-0 flex-1 flex-col gap-1 text-sm leading-snug font-semibold text-foreground">
-                                        {section.items.map((item) => (
-                                            <p key={item}>{item}</p>
-                                        ))}
-                                    </dd>
-                                </div>
-                            ))}
-                        </dl>
-                    </CardContent>
-                </Card>
+        <p
+            className="relative flex min-w-0 flex-1 justify-center overflow-hidden text-xs font-bold text-muted-foreground"
+            aria-live="polite"
+        >
+            <AnimatePresence initial={false} mode="popLayout" custom={direction}>
+                <m.span
+                    key={date}
+                    custom={direction}
+                    variants={slide}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    className="inline-block"
+                >
+                    {children}
+                </m.span>
+            </AnimatePresence>
+        </p>
+    );
+}
+
+function MealDetails({ sections, cascade }: { sections: MenuSection[]; cascade: boolean }) {
+    const { main, alternatives, others: ungrouped } = highlightMenu(sections);
+    const others = groupSalads(ungrouped);
+    const entrance = useEntrance();
+    const offset = main ? 1 : 0;
+
+    return (
+        <m.div
+            className="flex flex-col gap-3 lg:gap-4"
+            initial={cascade ? entrance.initial : false}
+            animate={entrance.animate}
+        >
+            {main && (
+                <m.div custom={0} variants={rise}>
+                    <MealHighlight main={main} alternatives={alternatives} />
+                </m.div>
             )}
-        </div>
+            {others.length > 0 && (
+                <dl className="grid gap-3 sm:grid-cols-2 lg:gap-4">
+                    {others.map((section, index) => {
+                        const Icon = (section.key && SECTION_ICONS[section.key]) || UtensilsCrossed;
+                        return (
+                            <m.div
+                                key={section.name}
+                                custom={offset + index}
+                                variants={rise}
+                                className="flex flex-col gap-3 rounded-2xl bg-card p-4 shadow-card ring-1 ring-foreground/8 lg:p-5"
+                            >
+                                <dt className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                                    <Icon className="size-4 text-primary" aria-hidden="true" />
+                                    {section.name}
+                                </dt>
+                                <dd className="flex flex-col gap-1.5 text-base leading-snug font-medium text-foreground">
+                                    {section.items.map((item) => (
+                                        <p key={item}>{item}</p>
+                                    ))}
+                                </dd>
+                            </m.div>
+                        );
+                    })}
+                </dl>
+            )}
+        </m.div>
     );
 }
 
 function MealHighlight({ main, alternatives }: { main: MenuSection; alternatives: MenuSection[] }) {
     return (
         <section aria-label={main.name}>
-            <Card className="bg-primary/5 ring-primary/30">
+            <Card className="bg-primary/5 ring-primary/30 lg:py-6">
                 <CardContent>
                     <p className="text-xs font-semibold text-primary">{main.name}</p>
                     <div className="mt-1 flex flex-col gap-1">
                         {main.items.map((item) => (
                             <p
                                 key={item}
-                                className="text-xl leading-tight font-bold tracking-tight"
+                                className="text-xl leading-tight font-bold tracking-tight lg:mt-3 lg:text-3xl lg:font-medium"
                             >
                                 {item}
                             </p>
@@ -405,7 +569,7 @@ function MealHighlight({ main, alternatives }: { main: MenuSection; alternatives
                     </div>
 
                     {alternatives.length > 0 && (
-                        <ul className="mt-4 flex flex-col gap-3 border-t border-primary/15 pt-4">
+                        <ul className="desktop:*:flex-1 mt-4 flex flex-col gap-3 border-t border-primary/15 pt-4 lg:mt-6 lg:flex-row lg:gap-6 lg:pt-6">
                             {alternatives.map((section) => {
                                 const info = section.key ? ALTERNATIVES[section.key] : undefined;
                                 const Icon = info?.icon ?? Leaf;

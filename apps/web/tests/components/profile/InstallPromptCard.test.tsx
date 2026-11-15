@@ -59,27 +59,31 @@ describe('card de instalação', () => {
             expect(page.queryByRole('button', { name: 'Entendi' })).toBeNull();
 
             dom.testing.fireEvent.click(page.getByRole('button', { name: 'Próxima instrução' }));
-            expect(page.getByRole('heading', { name: '2. Selecione Compartilhar' })).toBeTruthy();
-            expect(page.getByRole('img', { name: /opção Compartilhar destacada/ })).toBeTruthy();
-            dom.testing.fireEvent.click(page.getByRole('button', { name: 'Instrução anterior' }));
-            expect(page.getByRole('heading', { name: '1. Abra o menu' })).toBeTruthy();
-            dom.testing.fireEvent.click(page.getByRole('button', { name: 'Próxima instrução' }));
-            dom.testing.fireEvent.click(page.getByRole('button', { name: 'Próxima instrução' }));
             expect(
-                page.getByRole('heading', { name: '3. Adicione à Tela de Início' })
+                await page.findByRole('heading', { name: '2. Selecione Compartilhar' })
             ).toBeTruthy();
             expect(
-                page.getByRole('img', { name: /Adicionar à Tela de Início destacado/ })
+                await page.findByRole('img', { name: /opção Compartilhar destacada/ })
+            ).toBeTruthy();
+            dom.testing.fireEvent.click(page.getByRole('button', { name: 'Instrução anterior' }));
+            expect(await page.findByRole('heading', { name: '1. Abra o menu' })).toBeTruthy();
+            dom.testing.fireEvent.click(page.getByRole('button', { name: 'Próxima instrução' }));
+            dom.testing.fireEvent.click(page.getByRole('button', { name: 'Próxima instrução' }));
+            expect(
+                await page.findByRole('heading', { name: '3. Adicione à Tela de Início' })
+            ).toBeTruthy();
+            expect(
+                await page.findByRole('img', { name: /Adicionar à Tela de Início destacado/ })
             ).toBeTruthy();
             dom.testing.fireEvent.click(
                 page.getByRole('button', { name: 'Ver instruções completas' })
             );
-            expect(page.getAllByRole('listitem')).toHaveLength(3);
-            expect(page.getByText('“Abrir como App da Web”')).toBeTruthy();
-            expect(page.getByText('“Adicionar”')).toBeTruthy();
+            expect(await page.findAllByRole('listitem')).toHaveLength(3);
+            expect(await page.findByText('“Abrir como App da Web”')).toBeTruthy();
+            expect(await page.findByText('“Adicionar”')).toBeTruthy();
             dom.testing.fireEvent.click(page.getByRole('button', { name: 'Instrução anterior' }));
             expect(
-                page.getByRole('heading', { name: '3. Adicione à Tela de Início' })
+                await page.findByRole('heading', { name: '3. Adicione à Tela de Início' })
             ).toBeTruthy();
             dom.testing.fireEvent.click(
                 page.getByRole('button', { name: 'Ver instruções completas' })

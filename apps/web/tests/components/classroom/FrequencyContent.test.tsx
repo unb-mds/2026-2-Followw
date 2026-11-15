@@ -168,6 +168,10 @@ describe('marcação das aulas', () => {
     const semChamada = [lesson('2026-10-08'), lesson('2026-10-06'), lesson('2026-10-01')];
     const data: ClassroomFrequency = { ...notRegistered, lessons: semChamada };
 
+    // a barra sai animada: some só ao fim da saída
+    const semBarra = (page: ReturnType<typeof renderMarking>['page']) =>
+        dom.testing.waitForElementToBeRemoved(() => page.queryByRole('toolbar'));
+
     function renderMarking(frequency = data) {
         const calls: Parameters<MarkLessons>[] = [];
         const page = dom.testing.render(
@@ -180,7 +184,22 @@ describe('marcação das aulas', () => {
         return { page, calls };
     }
 
-    test('seleciona aulas e marca todas de uma vez pela barra', () => {
+    test('alterna as aulas entre lista e calendário pelo toggle', () => {
+        const { fireEvent } = dom.testing;
+        const { page } = renderMarking();
+        const calendar = page.getByRole('button', { name: 'Calendário' });
+
+        expect(page.getByRole('button', { name: 'Lista' }).getAttribute('aria-pressed')).toBe(
+            'true'
+        );
+        fireEvent.click(calendar);
+
+        expect(calendar.getAttribute('aria-pressed')).toBe('true');
+        expect(page.queryByRole('checkbox')).toBeNull();
+        expect(page.getByRole('grid')).toBeTruthy();
+    });
+
+    test('seleciona aulas e marca todas de uma vez pela barra', async () => {
         const { fireEvent } = dom.testing;
         const { page, calls } = renderMarking();
 
@@ -191,22 +210,22 @@ describe('marcação das aulas', () => {
         fireEvent.click(dom.testing.within(toolbar).getByRole('button', { name: 'Presença' }));
 
         expect(calls).toEqual([[[semChamada[0], semChamada[2]], 'presente']]);
-        expect(page.queryByRole('toolbar')).toBeNull();
+        await semBarra(page);
     });
 
-    test('desmarcar e limpar a seleção escondem a barra sem marcar', () => {
+    test('desmarcar e limpar a seleção escondem a barra sem marcar', async () => {
         const { fireEvent } = dom.testing;
         const { page, calls } = renderMarking();
         const primeira = page.getByRole('checkbox', { name: 'Selecionar aula de 08/10/2026' });
 
         fireEvent.click(primeira);
         fireEvent.click(primeira);
-        expect(page.queryByRole('toolbar')).toBeNull();
+        await semBarra(page);
 
         fireEvent.click(primeira);
         fireEvent.click(page.getByRole('button', { name: 'Limpar seleção' }));
 
-        expect(page.queryByRole('toolbar')).toBeNull();
+        await semBarra(page);
         expect(calls).toEqual([]);
     });
 

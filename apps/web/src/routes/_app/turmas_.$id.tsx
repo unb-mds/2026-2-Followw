@@ -27,7 +27,6 @@ import {
 } from '#/components/ErrorState';
 import { BackHeader } from '#/components/HeaderBar';
 import { LoginPromptCard } from '#/components/home/LoginPromptCard';
-import { ListCard } from '#/components/ListCard';
 import { LoadingText } from '#/components/LoadingText';
 import { Card, CardContent } from '#/components/ui/card';
 import { PersonPhoto } from '#/components/ui/person-photo';
@@ -40,6 +39,7 @@ import {
     loadClassroomSearch,
     validateClassroomSearch
 } from '#/lib/classroom-search';
+import { SlideSwitch, useSlideDirection } from '#/lib/motion';
 import { meQueryOptions } from '#/queries/me';
 
 type Member = components['schemas']['ClassroomMember'];
@@ -88,7 +88,7 @@ export const Route = createFileRoute('/_app/turmas_/$id')({
         meta: [{ title: `${loaderData?.subjectName ?? 'Turma'} | Followw` }]
     }),
     staticData: {
-        header: () => <BackHeader to="/turmas" title="Minhas Turmas" />
+        header: () => <BackHeader sticky to="/turmas" title="Minhas Turmas" />
     },
     errorComponent: ErrorState,
     component: ClassroomPage
@@ -103,6 +103,8 @@ function ClassroomPage() {
         scroll: false
     });
     const classroom = classrooms.data?.find((item) => item.id === id);
+    const active = classroomTab(tab, classroom?.current ?? false);
+    const direction = useSlideDirection(CLASSROOM_TABS.indexOf(active));
 
     return (
         <>
@@ -117,12 +119,15 @@ function ClassroomPage() {
             ) : !classroom ? (
                 <InformationCard>Turma não encontrada.</InformationCard>
             ) : (
-                <>
-                    <ClassroomSummary classroom={classroom} />
+                <div className="classroom-detail-columns lg:grid lg:items-start lg:gap-10">
+                    {/* abaixo da topbar (7rem) e do cabeçalho fixo (3,5rem) */}
+                    <div className="lg:sticky lg:top-44">
+                        <ClassroomSummary classroom={classroom} />
+                    </div>
                     <Tabs
-                        value={classroomTab(tab, classroom.current)}
+                        value={active}
                         onValueChange={(value: ClassroomTab) => void setSearch({ tab: value })}
-                        className="mt-5 gap-4"
+                        className="mt-5 min-w-0 gap-4 lg:mt-0"
                     >
                         <TabsList
                             variant="line"
@@ -141,23 +146,16 @@ function ClassroomPage() {
                                 </TabsTrigger>
                             ))}
                         </TabsList>
-                        <TabsContent value="posts">
-                            <ClassroomPosts key={id} id={id} />
-                        </TabsContent>
-                        {classroom.current ? (
-                            <TabsContent value="frequency">
-                                <FrequencyTab id={id} />
-                            </TabsContent>
-                        ) : (
-                            <TabsContent value="statistics">
-                                <ClassroomStatistics id={id} />
-                            </TabsContent>
-                        )}
-                        <TabsContent value="members">
-                            <MembersTab id={id} />
+                        <TabsContent value={active}>
+                            <SlideSwitch id={active} direction={direction}>
+                                {active === 'posts' && <ClassroomPosts key={id} id={id} />}
+                                {active === 'frequency' && <FrequencyTab id={id} />}
+                                {active === 'statistics' && <ClassroomStatistics id={id} />}
+                                {active === 'members' && <MembersTab id={id} />}
+                            </SlideSwitch>
                         </TabsContent>
                     </Tabs>
-                </>
+                </div>
             )}
         </>
     );
@@ -262,7 +260,7 @@ function MemberGroup({
     return (
         <section>
             <GroupTitle title={title} count={count} />
-            <ListCard>{children}</ListCard>
+            <div className="grid gap-3 lg:grid-cols-2 lg:gap-4">{children}</div>
         </section>
     );
 }
@@ -315,17 +313,19 @@ function PersonRow({
     email?: string | null;
 }) {
     return (
-        <div className="flex items-center gap-3 py-2.5">
-            <PersonPhoto src={photo} />
-            <div className="min-w-0 text-xs text-muted-foreground">
-                <p className="truncate text-sm font-medium text-foreground">{name}</p>
-                {details && <p className="truncate">{details}</p>}
-                {email && (
-                    <a className="break-all text-primary" href={mailto(email)}>
-                        {email}
-                    </a>
-                )}
-            </div>
-        </div>
+        <Card>
+            <CardContent className="flex items-center gap-4">
+                <PersonPhoto src={photo} size="md" />
+                <div className="flex min-w-0 flex-col gap-1 text-sm text-muted-foreground">
+                    <p className="truncate text-base font-medium text-foreground">{name}</p>
+                    {details && <p className="truncate">{details}</p>}
+                    {email && (
+                        <a className="break-all text-primary" href={mailto(email)}>
+                            {email}
+                        </a>
+                    )}
+                </div>
+            </CardContent>
+        </Card>
     );
 }

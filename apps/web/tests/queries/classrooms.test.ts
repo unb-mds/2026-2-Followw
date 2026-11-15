@@ -9,6 +9,7 @@ import {
     useMarkLessons
 } from '@followw/core/queries/classrooms.ts';
 import { apiClient } from '@followw/core/queries/client.ts';
+import { weekLessonsQueryOptions } from '@followw/core/queries/lessons.ts';
 import { QueryClient, QueryClientProvider, noop } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { createElement, type ReactNode } from 'react';
@@ -103,6 +104,15 @@ describe('marcação de aulas', () => {
         expect(new URL(requests[0].url).pathname).toBe('/api/classrooms/TURMA-1/frequency/lessons');
         expect(await requests[0].json()).toEqual(marks);
         expect(client.getQueryState(frequency)?.isInvalidated).toBe(true);
+    });
+
+    test('marcar frequência revalida as aulas da semana', async () => {
+        client.setQueryData(weekLessonsQueryOptions.queryKey, []);
+        const { result } = renderMark();
+
+        await dom.testing.act(() => result.current.mutateAsync(marks));
+
+        expect(client.getQueryState(weekLessonsQueryOptions.queryKey)?.isInvalidated).toBe(true);
     });
 
     test('falha ao salvar vira erro e também relê a frequência', async () => {

@@ -1,4 +1,5 @@
 import { AlignLeft, ArrowLeft, ArrowRight, Check, PlusSquare, Share, X } from 'lucide-react';
+import { AnimatePresence, m } from 'motion/react';
 import { useState } from 'react';
 
 import type { IosInstallScreenshot } from '#/components/profile/IosInstallIllustrations';
@@ -12,6 +13,7 @@ import {
     DialogHeader,
     DialogTitle
 } from '#/components/ui/dialog';
+import { ease, easeIn, rise, spring } from '#/lib/motion';
 import { cn } from '#/lib/shadcn';
 
 const steps: {
@@ -41,8 +43,20 @@ const steps: {
     }
 ];
 
+// a etapa entra pelo lado para onde o usuário avançou
+const slide = {
+    enter: (direction: number) => ({ opacity: 0, x: direction * 24 }),
+    center: { opacity: 1, x: 0, transition: { duration: 0.25, ease } },
+    exit: (direction: number) => ({
+        opacity: 0,
+        x: direction * -16,
+        transition: { duration: 0.15, ease: easeIn }
+    })
+};
+
 function IosInstallTourContent() {
-    const [page, setPage] = useState(0);
+    const [[page, direction], setPageState] = useState([0, 0]);
+    const setPage = (next: number) => setPageState([next, Math.sign(next - page)]);
     const step = steps[page];
     const isSummary = !step;
 
@@ -70,56 +84,81 @@ function IosInstallTourContent() {
                 </DialogClose>
             </div>
 
-            <div aria-live="polite" aria-atomic="true">
-                {step ? (
-                    <div
-                        key={step.screenshot}
-                        className="flex flex-col gap-4 motion-safe:animate-in motion-safe:duration-200 motion-safe:fade-in"
+            <div aria-live="polite" aria-atomic="true" className="overflow-hidden">
+                <AnimatePresence initial={false} mode="wait" custom={direction}>
+                    <m.div
+                        key={step?.screenshot ?? 'summary'}
+                        custom={direction}
+                        variants={slide}
+                        initial="enter"
+                        animate="center"
+                        exit="exit"
                     >
-                        <IosInstallIllustration screenshot={step.screenshot} />
-                        <div className="flex min-h-24 flex-col gap-2">
-                            <h2 className="text-lg font-bold tracking-tight">
-                                {page + 1}. {step.title}
-                            </h2>
-                            <p className="text-sm leading-relaxed text-muted-foreground">
-                                {step.description}
-                            </p>
-                            {page === 0 && (
-                                <p className="text-xs leading-relaxed text-muted-foreground">
-                                    Se o botão de compartilhar já estiver na barra, toque nele e
-                                    siga para a etapa 3.
+                        {step ? (
+                            <div className="flex flex-col gap-4">
+                                <IosInstallIllustration screenshot={step.screenshot} />
+                                <div className="flex min-h-24 flex-col gap-2">
+                                    <h2 className="text-lg font-bold tracking-tight">
+                                        {page + 1}. {step.title}
+                                    </h2>
+                                    <p className="text-sm leading-relaxed text-muted-foreground">
+                                        {step.description}
+                                    </p>
+                                    {page === 0 && (
+                                        <p className="text-xs leading-relaxed text-muted-foreground">
+                                            Se o botão de compartilhar já estiver na barra, toque
+                                            nele e siga para a etapa 3.
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-4">
+                                <div className="flex items-center gap-3 rounded-2xl bg-primary/10 p-4">
+                                    <Check
+                                        className="size-6 shrink-0 text-primary"
+                                        aria-hidden="true"
+                                    />
+                                    <h2 className="text-base font-bold">
+                                        Tudo pronto para instalar
+                                    </h2>
+                                </div>
+                                <m.ol
+                                    className="flex flex-col gap-4"
+                                    initial="hidden"
+                                    animate="show"
+                                >
+                                    {steps.map(({ title, icon: Icon }, index) => (
+                                        <m.li
+                                            key={title}
+                                            custom={index + 1}
+                                            variants={rise}
+                                            className="flex items-center gap-3"
+                                        >
+                                            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                                                <Icon className="size-5" aria-hidden="true" />
+                                            </div>
+                                            <h3 className="text-base font-semibold">
+                                                {index + 1}. {title}
+                                            </h3>
+                                        </m.li>
+                                    ))}
+                                </m.ol>
+                                <p className="rounded-xl border p-3 text-xs leading-relaxed text-muted-foreground">
+                                    Para finalizar, ative{' '}
+                                    <strong className="font-medium text-foreground">
+                                        “Abrir como App da Web”
+                                    </strong>
+                                    , se aparecer, e toque em{' '}
+                                    <strong className="font-medium text-foreground">
+                                        “Adicionar”
+                                    </strong>
+                                    .
                                 </p>
-                            )}
-                        </div>
-                    </div>
-                ) : (
-                    <div className="flex flex-col gap-4 motion-safe:animate-in motion-safe:duration-200 motion-safe:fade-in">
-                        <div className="flex items-center gap-3 rounded-2xl bg-primary/10 p-4">
-                            <Check className="size-6 shrink-0 text-primary" aria-hidden="true" />
-                            <h2 className="text-base font-bold">Tudo pronto para instalar</h2>
-                        </div>
-                        <ol className="flex flex-col gap-4">
-                            {steps.map(({ title, icon: Icon }, index) => (
-                                <li key={title} className="flex items-center gap-3">
-                                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                                        <Icon className="size-5" aria-hidden="true" />
-                                    </div>
-                                    <h3 className="text-base font-semibold">
-                                        {index + 1}. {title}
-                                    </h3>
-                                </li>
-                            ))}
-                        </ol>
-                        <p className="rounded-xl border p-3 text-xs leading-relaxed text-muted-foreground">
-                            Para finalizar, ative{' '}
-                            <strong className="font-medium text-foreground">
-                                “Abrir como App da Web”
-                            </strong>
-                            , se aparecer, e toque em{' '}
-                            <strong className="font-medium text-foreground">“Adicionar”</strong>.
-                        </p>
-                    </div>
-                )}
+                            </div>
+                        )}
+                    </m.div>
+                </AnimatePresence>
             </div>
 
             <nav
@@ -142,12 +181,15 @@ function IosInstallTourContent() {
                     <div className="flex gap-1.5" aria-hidden="true">
                         {[...steps.map(({ screenshot }) => screenshot), 'summary'].map(
                             (id, index) => (
-                                <span
+                                <m.span
                                     key={id}
                                     className={cn(
-                                        'h-1.5 rounded-full transition-all motion-reduce:transition-none',
-                                        page === index ? 'w-5 bg-primary' : 'w-1.5 bg-primary/20'
+                                        'h-1.5 rounded-full transition-colors',
+                                        page === index ? 'bg-primary' : 'bg-primary/20'
                                     )}
+                                    initial={false}
+                                    animate={{ width: page === index ? 20 : 6 }}
+                                    transition={spring}
                                 />
                             )
                         )}

@@ -17,6 +17,7 @@ import { initializeInstallSupport } from '#/integrations/offline/install';
 import { useOfflineSupport } from '#/integrations/offline/use-offline-support';
 import PostHogProvider from '#/integrations/posthog/provider';
 import { reloadOnPreloadError } from '#/lib/chunk-reload';
+import { MotionProvider } from '#/lib/motion';
 import { themeScript } from '#/lib/theme';
 import { useSessionRefresh } from '#/queries/auth';
 import { seedAnonymousProfile } from '#/queries/me';
@@ -67,7 +68,9 @@ function RootComponent() {
     return (
         <IsRestoringProvider value={restoring}>
             <NuqsAdapter>
-                <Outlet />
+                <MotionProvider>
+                    <Outlet />
+                </MotionProvider>
             </NuqsAdapter>
         </IsRestoringProvider>
     );

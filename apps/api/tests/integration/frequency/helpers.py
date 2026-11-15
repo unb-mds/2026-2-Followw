@@ -135,6 +135,7 @@ def without_ids(frequency: dict) -> dict:
 def classroom_json(classroom: Classroom) -> dict:
     data = classroom.model_dump(mode="json")
     del data["subject"]["sigaa_id"]
+    data["subject"]["kind"] = None
     return {
         **data,
         "grade": None,

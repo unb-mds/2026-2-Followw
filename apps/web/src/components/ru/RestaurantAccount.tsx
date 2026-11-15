@@ -123,27 +123,27 @@ export function RestaurantAccount({
     );
 
     return (
-        <section className="mt-4 flex flex-col gap-3" aria-label="Minha conta">
-            <div className="flex items-center justify-between px-1">
-                <h2 className="text-lg font-extrabold text-foreground">Minha conta</h2>
-                <Button
-                    variant="ghost"
-                    size="xs"
-                    onClick={() => refresh()}
-                    disabled={refreshDisabled}
-                    className="text-primary"
-                >
-                    {refreshing ? (
-                        <Spinner aria-hidden="true" />
-                    ) : (
-                        <RefreshCw className="size-4" aria-hidden="true" />
-                    )}
-                    {refreshing ? 'Atualizando...' : 'Atualizar'}
-                </Button>
-            </div>
+        <Card as="section" className="mt-4 lg:mt-0" aria-label="Minha conta">
+            <CardContent className="flex flex-col gap-5">
+                <div className="flex items-center justify-between">
+                    <h2 className="text-lg font-bold text-foreground">Minha conta</h2>
+                    <Button
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => refresh()}
+                        disabled={refreshDisabled}
+                        className="text-primary"
+                    >
+                        {refreshing ? (
+                            <Spinner aria-hidden="true" />
+                        ) : (
+                            <RefreshCw className="size-4" aria-hidden="true" />
+                        )}
+                        {refreshing ? 'Atualizando...' : 'Atualizar'}
+                    </Button>
+                </div>
 
-            <Card>
-                <CardContent>
+                <div>
                     <div
                         className={cn(
                             'flex items-center justify-between gap-2',
@@ -153,7 +153,7 @@ export function RestaurantAccount({
                         {loadingStatement ? (
                             statementStatus
                         ) : (
-                            <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                 Saldo disponível
                             </div>
                         )}
@@ -163,9 +163,9 @@ export function RestaurantAccount({
                         <StatementDetails statement={statement.data} action={cardDrawer} />
                     )}
                     {!loadingStatement && statementStatus}
-                </CardContent>
-            </Card>
-        </section>
+                </div>
+            </CardContent>
+        </Card>
     );
 }
 
@@ -187,9 +187,8 @@ function StudentCardDrawer({
             <DrawerTrigger
                 render={
                     <Button
-                        variant="outline"
                         size="icon-sm"
-                        className="size-10 rounded-xl"
+                        className="size-14 rounded-2xl bg-foreground text-background hover:bg-foreground/90 lg:size-16"
                         aria-label="Ver QR code da carteirinha"
                         title="Ver QR code da carteirinha"
                     />
@@ -249,15 +248,13 @@ export function StatementDetails({
                 </p>
                 {action}
             </div>
-            <Accordion className="mt-4 border-t border-border pt-3">
+            <Accordion className="mt-5 border-t border-border pt-4">
                 <AccordionItem value="statement">
-                    <AccordionTrigger className="mb-2 py-0 text-primary">
-                        Extrato do RU
-                    </AccordionTrigger>
+                    <AccordionTrigger className="mb-3 py-0">Extrato do RU</AccordionTrigger>
                     <AccordionContent className="pb-0" keepMounted>
                         {entries.length === 0 ? (
                             <p className="mt-3 text-sm text-muted-foreground">
-                                Nenhuma movimentação no extrato.
+                                Nenhuma movimentação recente.
                             </p>
                         ) : (
                             <ul className="max-h-64 overflow-y-auto">

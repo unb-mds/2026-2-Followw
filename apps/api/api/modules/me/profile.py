@@ -16,6 +16,13 @@ from api.sync import Cached, Context, SyncDep
 PROFILE_TTL = timedelta(hours=12)
 
 
+class Workload(CurriculumWorkload):
+    # Carga exigida por categoria na matriz do aluno.
+    mandatory: int | None
+    optional: int | None
+    complementary: int | None
+
+
 class UserProfile(BaseModel):
     """Perfil acadêmico do usuário."""
 
@@ -31,7 +38,7 @@ class UserProfile(BaseModel):
     entry_semester: str | None
     curriculum_subject_codes: list[str] | None = None
     integralization: int | None
-    workload: CurriculumWorkload | None
+    workload: Workload | None
     # Carga horária máxima por período da matriz do aluno, em horas.
     period_max_workload: int | None
     ira: float | None
@@ -90,15 +97,25 @@ async def _to_profile(session: AsyncSession, user: User) -> UserProfile:
         entry_semester=user.entry_semester,
         curriculum_subject_codes=codes,
         integralization=user.integralization,
-        workload=CurriculumWorkload.model_validate(user.workload)
-        if user.workload
-        else None,
+        workload=_workload(user),
         period_max_workload=user.curriculum.period_max_workload
         if user.curriculum
         else None,
         ira=user.ira,
         mp=user.mp,
         level=UserLevel(user.level.value),
+    )
+
+
+def _workload(user: User) -> Workload | None:
+    if not user.workload:
+        return None
+    curriculum = user.curriculum
+    return Workload(
+        **CurriculumWorkload.model_validate(user.workload).model_dump(),
+        mandatory=curriculum and curriculum.required_workload,
+        optional=curriculum and curriculum.optional_min_workload,
+        complementary=curriculum and curriculum.complementary_min_workload,
     )
 
 

@@ -8,7 +8,8 @@ import {
 import { describe, expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import { BottomNavigation, isDoubleTap } from '#/components/BottomNavigation';
+import { BottomNavigation } from '#/components/BottomNavigation';
+import { isDoubleTap } from '#/components/useRestaurantShortcut';
 
 async function renderNavigation(pathname: string) {
     const rootRoute = createRootRoute({ component: BottomNavigation });

@@ -7,6 +7,53 @@
 @source not './routeTree.gen.ts';
 
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+@layer components {
+    @media (width >= 64rem) {
+        .home-columns,
+        .ru-columns,
+        .profile-columns {
+            grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
+        }
+
+        .professor-columns,
+        .classroom-detail-columns {
+            grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+        }
+
+        .classroom-columns {
+            grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+        }
+
+        .search-columns {
+            grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+            grid-template-rows: auto 1fr;
+        }
+
+        .schedule-panel {
+            grid-column: 2;
+            grid-row: 1 / 3;
+        }
+
+        .schedule-content {
+            max-height: calc(100dvh - 11rem);
+        }
+
+        /* centralizado, mas nunca sobre a pílula da navegação */
+        .desktop-search-field {
+            position: fixed;
+            top: 1.75rem;
+            left: max(50% - min(22.5vw, 24rem), 31.125rem);
+            z-index: 50;
+            width: min(45vw, 48rem, 100vw - 39.625rem);
+        }
+    }
+
+    .weekly-columns {
+        grid-template-columns: 3.25rem repeat(6, minmax(0, 1fr));
+    }
+}
+
 @theme inline {
     --font-heading: var(--font-sans);
     --font-sans: 'DM Sans Variable', sans-serif;
@@ -37,6 +84,8 @@
     --color-warning: var(--warning);
     --color-success: var(--success);
     --color-info: var(--info);
+    --color-forecast: var(--forecast);
+    --color-forecast-foreground: var(--forecast-foreground);
     --color-accent-foreground: var(--accent-foreground);
     --color-accent: var(--accent);
     --color-muted-foreground: var(--muted-foreground);
@@ -80,7 +129,9 @@
     --destructive: oklch(0.577 0.245 27.325);
     --warning: oklch(0.65 0.15 75);
     --success: oklch(0.56 0.15 150);
-    --info: oklch(0.546 0.215 262.881);
+    --info: oklch(0.4 0.15 262);
+    --forecast: #2759ba;
+    --forecast-foreground: var(--forecast);
     --flow-1: oklch(0.55 0.11 168);
     --flow-2: oklch(0.55 0.13 240);
     --flow-3: oklch(0.55 0.15 300);
@@ -113,7 +164,9 @@
     --destructive: oklch(0.704 0.191 22.216);
     --warning: oklch(0.82 0.16 85);
     --success: oklch(0.76 0.17 152);
-    --info: oklch(0.707 0.165 254.624);
+    --info: oklch(0.58 0.2 262);
+    --forecast: var(--info);
+    --forecast-foreground: oklch(0.66 0.14 262);
     --flow-1: oklch(0.7 0.11 168);
     --flow-2: oklch(0.72 0.12 240);
     --flow-3: oklch(0.72 0.13 300);

@@ -1,18 +1,27 @@
 import { nowInBrasilia, weekDays } from '@followw/core/lib/schedule.ts';
-import { classroomsQueryOptions } from '@followw/core/queries/classrooms.ts';
+import { weekLessonsQueryOptions } from '@followw/core/queries/lessons.ts';
 import { loadQuery } from '@followw/core/queries/load.ts';
-import { menuQueryOptions } from '@followw/core/queries/restaurant.ts';
-import { noop, useSuspenseQuery } from '@tanstack/react-query';
+import { weeklyMenuQueryOptions } from '@followw/core/queries/restaurant.ts';
+import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { lazy, Suspense } from 'react';
 
+import { BackToTodayBar } from '#/components/BackToTodayBar';
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderToggle } from '#/components/HeaderBar';
+import { DayClock } from '#/components/home/DayClock';
 import { TodayDashboard } from '#/components/home/TodayDashboard';
 import { usePageState } from '#/components/PageState';
 import { WeekDayPicker } from '#/components/WeekDayPicker';
+import { useBrasiliaClock } from '#/lib/clock';
 import { publicPageHead } from '#/lib/seo';
 import { meQueryOptions } from '#/queries/me';
+
+const NewsNotifications = lazy(() =>
+    import('#/components/home/NewsNotifications').then((module) => ({
+        default: module.NewsNotifications
+    }))
+);
 
 const WEEKDAYS = [
     'Domingo',
@@ -49,8 +58,8 @@ export const Route = createFileRoute('/_app/')({
         const now = nowInBrasilia();
         const user = await loadQuery(queryClient, meQueryOptions);
         await Promise.all([
-            loadQuery(queryClient, menuQueryOptions({ date: now.date, user })).catch(noop),
-            user && loadQuery(queryClient, classroomsQueryOptions).catch(noop)
+            loadQuery(queryClient, weeklyMenuQueryOptions({ date: now.date, user })).catch(noop),
+            user && loadQuery(queryClient, weekLessonsQueryOptions).catch(noop)
         ]);
         return { now };
     },
@@ -62,12 +71,7 @@ export const Route = createFileRoute('/_app/')({
 function useNow() {
     // sem loaderData quando a rota falha, e o header ainda renderiza
     const loaded = Route.useLoaderData({ select: (data) => data?.now });
-    const [now, setNow] = useState(() => loaded ?? nowInBrasilia());
-    useEffect(() => {
-        const id = setInterval(() => setNow(nowInBrasilia()), 30_000);
-        return () => clearInterval(id);
-    }, []);
-    return now;
+    return useBrasiliaClock(loaded);
 }
 
 const useWeekOpen = () => usePageState('week', false);
@@ -83,11 +87,23 @@ function useSelectedDay() {
 }
 
 function HomeHeader() {
-    const { label } = useSelectedDay();
+    const { label, now } = useSelectedDay();
     const [weekOpen, setWeekOpen] = useWeekOpen();
+    const { data: user } = useQuery(meQueryOptions);
 
     return (
-        <HeaderBar>
+        <HeaderBar
+            actions={
+                <>
+                    <DayClock time={now.time} />
+                    {user && (
+                        <Suspense fallback={null}>
+                            <NewsNotifications />
+                        </Suspense>
+                    )}
+                </>
+            }
+        >
             <HeaderToggle
                 open={weekOpen}
                 onToggle={() => setWeekOpen(!weekOpen)}
@@ -114,12 +130,8 @@ function HomePage() {
                 />
             )}
 
-            <TodayDashboard
-                user={user}
-                day={selectedDay}
-                time={isToday ? now.time : undefined}
-                label={label}
-            />
+            <TodayDashboard user={user} day={selectedDay} now={now} label={label} />
+            <BackToTodayBar open={!isToday} onBack={() => setPicked(null)} />
         </>
     );
 }

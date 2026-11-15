@@ -1,9 +1,11 @@
 import type { CatalogSubject, SubjectClassroom } from '@followw/core/queries/subjects.ts';
 
-import { Plus, X } from 'lucide-react';
+import { Plus } from 'lucide-react';
+import { m } from 'motion/react';
 
 import { usePlannedSchedule } from '#/components/schedule/usePlannedSchedule';
 import { Button } from '#/components/ui/button';
+import { spring } from '#/lib/motion';
 import { cn } from '#/lib/shadcn';
 
 export function AddToSchedule({
@@ -27,14 +29,21 @@ export function AddToSchedule({
             variant={selected ? 'destructive' : 'ghost'}
             size="icon"
             className={cn(
-                'rounded-lg',
+                'rounded-lg duration-200 motion-reduce:transition-none',
                 !selected && 'bg-primary/15 text-primary hover:bg-primary/25 hover:text-primary'
             )}
             aria-pressed={selected}
             aria-label={`${selected ? 'Remover da' : 'Adicionar à'} grade: ${subject.code}, turma ${classroom.number}`}
             onClick={() => toggle(item)}
         >
-            {selected ? <X aria-hidden="true" /> : <Plus aria-hidden="true" />}
+            <m.span
+                className="flex"
+                initial={false}
+                animate={{ rotate: selected ? 45 : 0 }}
+                transition={spring}
+            >
+                <Plus aria-hidden="true" />
+            </m.span>
         </Button>
     );
 }

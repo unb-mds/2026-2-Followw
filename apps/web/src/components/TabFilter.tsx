@@ -1,4 +1,8 @@
+import { m } from 'motion/react';
+import { useId } from 'react';
+
 import { Button } from '#/components/ui/button';
+import { spring } from '#/lib/motion';
 import { cn } from '#/lib/shadcn';
 
 interface TabFilterProps<T extends string> {
@@ -7,6 +11,7 @@ interface TabFilterProps<T extends string> {
     options: readonly T[];
     labels?: Partial<Record<T, string>>;
     onChange: (value: T) => void;
+    size?: 'default' | 'sm';
     className?: string;
 }
 
@@ -16,10 +21,13 @@ export function TabFilter<T extends string>({
     options,
     labels,
     onChange,
+    size,
     className
 }: TabFilterProps<T>) {
+    const id = useId();
     return (
-        <fieldset
+        <m.fieldset
+            layoutScroll
             className={cn(
                 'flex min-w-0 items-center gap-1 overflow-x-auto py-1 max-md:no-scrollbar',
                 className
@@ -29,14 +37,23 @@ export function TabFilter<T extends string>({
             {options.map((option) => (
                 <Button
                     key={option}
-                    variant={option === value ? 'secondary' : 'ghost'}
+                    variant="ghost"
+                    size={size}
                     aria-pressed={option === value}
                     onClick={() => onChange(option)}
-                    className="shrink-0"
+                    className="relative isolate shrink-0 aria-pressed:text-secondary-foreground aria-pressed:hover:bg-transparent"
                 >
+                    {option === value && (
+                        <m.span
+                            layoutId={id}
+                            aria-hidden="true"
+                            className="absolute inset-0 -z-10 rounded-[inherit] bg-secondary"
+                            transition={spring}
+                        />
+                    )}
                     {labels?.[option] ?? option}
                 </Button>
             ))}
-        </fieldset>
+        </m.fieldset>
     );
 }

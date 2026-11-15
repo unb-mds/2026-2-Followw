@@ -1,6 +1,6 @@
 from datetime import UTC, datetime, timedelta
 from functools import partial
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import Depends
 from pydantic import BaseModel, ConfigDict
@@ -19,6 +19,8 @@ from api.db.models import ClassroomParticipant, OwnLink, User
 from api.modules.classrooms.repository import ClassroomRepository
 from api.modules.me.profile import sync_profile
 from api.modules.me.repository import UserRepository
+from api.modules.recommendations.ranking import Component, subject_kind
+from api.modules.recommendations.repository import RecommendationRepository
 from api.schemas import (
     ClassroomOffer,
     CourseRef,
@@ -146,10 +148,15 @@ class ClassroomMembers(BaseModel):
     professors: list[ProfessorRef]
 
 
+class ParticipantSubject(UserSubject):
+    # Tipo na matriz gravada do aluno; nulo sem matriz.
+    kind: Literal["mandatory", "optional", "free"] | None = None
+
+
 class ParticipantClassroom(Classroom, ClassroomOffer):
     """A turma com a menção do usuário, `None` enquanto não lançada ou sincronizada."""
 
-    subject: UserSubject
+    subject: ParticipantSubject
     grade: Grade | None = None
     status: ClassroomStatus | None = None
 
@@ -162,7 +169,17 @@ class ClassroomService:
         self, semester: str | None = None
     ) -> list[ParticipantClassroom]:
         """A menção sai do cache: quem a revalida é o sync do login."""
-        return [to_classroom(link) for link in await self.list_links(semester)]
+        links = await self.list_links(semester)
+        curriculum = await self.curriculum()
+        return [to_classroom(link, curriculum) for link in links]
+
+    async def curriculum(self) -> dict[str, Component] | None:
+        """A matriz gravada do aluno, que classifica as matérias das turmas."""
+        return await self._sync.db.read(
+            lambda session: RecommendationRepository(session).curriculum(
+                self._sync.registration
+            )
+        )
 
     async def list_links(self, semester: str | None = None) -> list[OwnLink]:
         """Os vínculos da lista de turmas, na ordem em que ela é exibida."""
@@ -276,7 +293,9 @@ def _in_semester(link: OwnLink, semester: str | None) -> bool:
     return semester == "all" or link.row.classroom.semester == semester
 
 
-def to_classroom(link: OwnLink) -> ParticipantClassroom:
+def to_classroom(
+    link: OwnLink, curriculum: dict[str, Component] | None = None
+) -> ParticipantClassroom:
     classroom = link.row.classroom
     subject = classroom.subject
 
@@ -288,11 +307,14 @@ def to_classroom(link: OwnLink) -> ParticipantClassroom:
         schedule=classroom.schedule,
         room=classroom.room,
         current=link.row.current,
-        subject=UserSubject(
+        subject=ParticipantSubject(
             code=subject.code,
             name=subject.name,
             hours=subject.hours,
             unit=unit_ref(subject.unit),
+            kind=subject_kind(curriculum, subject.code)
+            if curriculum is not None
+            else None,
         ),
         grade=link.row.grade,
         status=link.row.status,

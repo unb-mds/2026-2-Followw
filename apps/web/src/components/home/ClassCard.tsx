@@ -1,28 +1,30 @@
 import type { Classroom } from '@followw/core/queries/classrooms.ts';
 
 import { Award, MapIcon, MapPin } from 'lucide-react';
+import { m } from 'motion/react';
 
 import { GradeText } from '#/components/classroom/GradeText';
 import { Badge } from '#/components/ui/badge';
 import { Button } from '#/components/ui/button';
 import { Card } from '#/components/ui/card';
+import { snappy } from '#/lib/motion';
 import { cn } from '#/lib/shadcn';
 
 export interface ClassCardProps {
     title: string;
     compact?: boolean;
-    code?: string;
     time: string;
     location?: string;
     professors?: string[];
-    classNumber?: string;
     grade?: Classroom['grade'];
-    status?: 'in_progress' | 'next' | 'pending' | 'normal' | 'warning';
+    status?: 'in_progress' | 'next' | 'pending' | 'normal' | 'warning' | 'cancelled';
     statusText?: string;
     onLocationClick?: () => void;
     onClick?: () => void;
     indicator?: React.ReactNode;
     action?: React.ReactNode;
+    /** Sem a moldura do card, para listar dentro de outro card. */
+    plain?: boolean;
 }
 
 const STATUS = {
@@ -37,24 +39,24 @@ const STATUS = {
         variant: 'secondary',
         className: 'bg-warning/10 text-warning'
     },
-    warning: { label: 'Atenção', variant: 'destructive', className: '' }
+    warning: { label: 'Atenção', variant: 'destructive', className: '' },
+    cancelled: { label: 'Cancelada', variant: 'secondary', className: 'text-muted-foreground' }
 } as const;
 
 export const ClassCard: React.FC<ClassCardProps> = ({
     title,
     compact = false,
-    code,
     time,
     location,
     professors,
-    classNumber,
     grade,
     status = 'normal',
     statusText,
     onLocationClick,
     onClick,
     indicator,
-    action
+    action,
+    plain = false
 }) => {
     const statusInfo = status === 'normal' ? undefined : STATUS[status];
     const active = status === 'in_progress';
@@ -66,8 +68,9 @@ export const ClassCard: React.FC<ClassCardProps> = ({
             <div className="pointer-events-none relative flex items-center gap-2">
                 <h3
                     className={cn(
-                        'min-w-0 flex-1 text-sm leading-snug font-semibold',
-                        compact ? 'line-clamp-1' : 'line-clamp-2'
+                        'min-w-0 flex-1 text-sm leading-snug font-semibold lg:line-clamp-none lg:text-lg lg:font-medium',
+                        compact ? 'line-clamp-1' : 'line-clamp-2',
+                        status === 'cancelled' && 'text-muted-foreground line-through'
                     )}
                 >
                     {title}
@@ -101,21 +104,17 @@ export const ClassCard: React.FC<ClassCardProps> = ({
         </>
     );
 
-    return (
-        <Card
-            size="sm"
-            className={cn(
-                'relative gap-1 px-3',
-                active && 'bg-primary/5 ring-primary/30',
-                compact && 'gap-0.5 py-2'
-            )}
-        >
+    const content = (
+        <>
             {onClick && (
                 <Button
                     variant="ghost"
                     onClick={onClick}
                     aria-label={title}
-                    className="absolute inset-0 h-full w-full rounded-2xl hover:bg-primary/5"
+                    className={cn(
+                        'absolute inset-0 h-full w-full hover:bg-primary/5',
+                        plain ? 'rounded-none' : 'rounded-2xl'
+                    )}
                 />
             )}
             <div className="pointer-events-none relative flex items-center gap-2 text-xs">
@@ -131,11 +130,6 @@ export const ClassCard: React.FC<ClassCardProps> = ({
                         {statusText || statusInfo.label}
                     </Badge>
                 )}
-                {code && (
-                    <span className="ml-auto shrink-0 font-medium tracking-wide text-muted-foreground">
-                        {[code, classNumber && `T${classNumber}`].filter(Boolean).join(' · ')}
-                    </span>
-                )}
             </div>
             {action ? (
                 <div className="flex items-center justify-between gap-2">
@@ -145,6 +139,31 @@ export const ClassCard: React.FC<ClassCardProps> = ({
             ) : (
                 body
             )}
+        </>
+    );
+
+    if (plain)
+        return (
+            <div className="relative flex flex-col gap-1 py-3 pr-3 pl-4 lg:gap-2 lg:px-6">
+                {content}
+            </div>
+        );
+    const card = (
+        <Card
+            size="sm"
+            className={cn(
+                'relative gap-1 px-3 lg:gap-3 lg:px-6 lg:py-4',
+                active && 'bg-primary/5 ring-primary/30',
+                compact && 'gap-0.5 py-2'
+            )}
+        >
+            {content}
         </Card>
+    );
+    if (!onClick) return card;
+    return (
+        <m.div whileTap={{ scale: 0.98 }} transition={snappy}>
+            {card}
+        </m.div>
     );
 };

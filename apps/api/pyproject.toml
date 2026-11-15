@@ -6,11 +6,11 @@ requires-python = ">=3.14"
 dependencies = [
     "asyncpg>=0.32.0",
     "cryptography>=50.0.2",
-    "fastapi[standard]>=0.162.2",
+    "fastapi[standard]>=0.163.1",
     "joserfc>=1.8.0",
     "pillow>=13.0.0",
     "pydantic>=2.14.3",
-    "pydantic-settings>=2.16.2",
+    "pydantic-settings>=2.16.3",
     "qstash>=3.4.0",
     "sigaa-client",
     "sqlalchemy[asyncio]>=2.1.8",
@@ -44,11 +44,11 @@ module-root = ""
 
 [dependency-groups]
 dev = [
-    "psycopg[binary]>=3.3.8",
+    "psycopg[binary]>=3.3.9",
     "pyjwt>=2.15.1",
     "pytest>=9.2.0",
-    "pytest-asyncio>=1.4.1.post1",
+    "pytest-asyncio>=1.5.0",
     "respx>=0.23.1",
-    "ruff>=0.17.4",
+    "ruff>=0.17.5",
     "testcontainers[postgres]>=4.15.0",
 ]

@@ -1,15 +1,18 @@
 import type { components } from '@followw/core/queries/schema.gen.ts';
 
+import { getCurrentSemester } from '@followw/core/calendar.ts';
 import {
     academicIndexes,
-    creditsLabel,
     titleCase,
-    truncateProfileBio
+    truncateProfileBio,
+    coursePeriod
 } from '@followw/core/lib/profile.ts';
+import { classroomsQueryOptions } from '@followw/core/queries/classrooms.ts';
+import { useQuery } from '@tanstack/react-query';
 import { Check, IdCard } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
-import { ListCard, Meter } from '#/components/ListCard';
+import { CourseProgress } from '#/components/profile/CourseProgress';
 import { Card } from '#/components/ui/card';
 import { PersonPhoto } from '#/components/ui/person-photo';
 import { cn } from '#/lib/shadcn';
@@ -23,21 +26,31 @@ export function ProfileIdentity({
     user: UserProfile;
     displayName?: string | null;
 }) {
+    const period = coursePeriod(user.entry_semester, getCurrentSemester()?.semester);
     return (
         <header>
-            <div className="flex items-center gap-4">
-                <PersonPhoto src={user.photo} size="lg" />
-                <div className="min-w-0">
-                    <h1 className="text-2xl leading-tight font-semibold tracking-tight text-balance">
-                        {displayName || titleCase(user.name)}
-                    </h1>
-                    <RegistrationCopy value={user.registration} />
-                    <p className="mt-2 text-sm text-primary">
-                        {[user.course && titleCase(user.course.name), user.unit?.code]
-                            .filter(Boolean)
-                            .join(' · ')}
-                    </p>
-                    <p className="text-xs font-medium text-muted-foreground">{user.level}</p>
+            <div className="flex items-center gap-4 lg:gap-6">
+                <PersonPhoto src={user.photo} size="lg" className="lg:w-32 lg:rounded-2xl" />
+                <div className="flex min-w-0 flex-col gap-4">
+                    <div className="flex flex-col gap-1">
+                        <h1 className="text-2xl leading-tight font-semibold tracking-tight text-balance lg:text-3xl">
+                            {displayName || titleCase(user.name)}
+                        </h1>
+                        <RegistrationCopy value={user.registration} />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        <p className="text-sm wrap-anywhere text-primary lg:text-lg lg:font-medium">
+                            {user.course && titleCase(user.course.name)}
+                            {period != null && (
+                                <span className="whitespace-nowrap">
+                                    {`${user.course ? ' · ' : ''}${period}º semestre`}
+                                </span>
+                            )}
+                        </p>
+                        <p className="text-xs font-medium text-muted-foreground lg:text-sm">
+                            {user.level}
+                        </p>
+                    </div>
                 </div>
             </div>
             {user.bio && <Bio text={user.bio} />}
@@ -56,79 +69,69 @@ export function AcademicPerformance({
     if (indexes.length === 0 && !action) return null;
 
     return (
-        <ProfileSection title="Desempenho">
-            <Card size="sm" className="gap-0 py-0">
+        <ProfileSection title="Desempenho" compact>
+            <Card
+                size="sm"
+                className="gap-0 overflow-visible bg-transparent py-0 shadow-none ring-0"
+            >
                 {indexes.length > 0 && (
-                    <dl
-                        className={cn(
-                            'grid divide-x divide-border',
-                            indexes.length > 1 && 'grid-cols-2'
-                        )}
-                    >
+                    <dl className={cn('grid gap-2 lg:gap-4', indexes.length > 1 && 'grid-cols-2')}>
                         {indexes.map((index) => (
-                            <div key={index.label} className="px-3 py-3">
+                            <div
+                                key={index.label}
+                                className="rounded-2xl border bg-card px-4 py-2 shadow-sm lg:p-5"
+                            >
                                 <dt className="text-xs font-medium text-muted-foreground">
                                     <abbr title={index.description} className="no-underline">
                                         {index.label}
                                     </abbr>
                                 </dt>
-                                <dd className="mt-1 text-2xl font-semibold tracking-tight text-primary tabular-nums">
+                                <dd className="mt-1 text-2xl font-medium tracking-tight text-primary tabular-nums lg:mt-2 lg:text-4xl">
                                     {index.value}
                                 </dd>
                             </div>
                         ))}
                     </dl>
                 )}
-                {action && <div className="border-t border-border p-3">{action}</div>}
+                {action && <div className="mt-3">{action}</div>}
             </Card>
         </ProfileSection>
     );
 }
 
 export function ProgressSection({ user }: { user: UserProfile }) {
-    const { integralization, workload } = user;
-    if (integralization == null && !workload) return null;
-
-    const items = workload && [
-        { label: 'Obrigatória pendente', hours: workload.pending_mandatory, credits: true },
-        { label: 'Optativa pendente', hours: workload.pending_optional, credits: true },
-        { label: 'Complementar pendente', hours: workload.pending_complementary, credits: true },
-        { label: 'Total do currículo', hours: workload.total, credits: true }
-    ];
-
+    if (user.integralization == null && !user.workload) return null;
     return (
-        <ProfileSection title="Progresso">
-            <ListCard>
-                {integralization != null && (
-                    <Meter label="Integralização" value={integralization} />
-                )}
-                {items && (
-                    <dl className="flex flex-col gap-3 py-3">
-                        {items.map(({ label, hours, credits }) => (
-                            <div key={label} className="flex items-baseline justify-between gap-2">
-                                <dt className="text-sm text-muted-foreground">{label}</dt>
-                                <dd className="text-sm font-medium tabular-nums">
-                                    {hours}h
-                                    {credits && hours > 0 && (
-                                        <span className="text-muted-foreground">
-                                            {' · '}
-                                            {creditsLabel(hours)}
-                                        </span>
-                                    )}
-                                </dd>
-                            </div>
-                        ))}
-                    </dl>
-                )}
-            </ListCard>
+        <ProfileSection title="Progresso do curso" compact>
+            <CurrentCourseProgress user={user} />
         </ProfileSection>
     );
 }
 
-export function ProfileSection({ title, children }: { title: string; children: React.ReactNode }) {
+function CurrentCourseProgress({ user }: { user: UserProfile }) {
+    const { data } = useQuery(classroomsQueryOptions);
+    return <CourseProgress user={user} classrooms={data ?? []} />;
+}
+
+export function ProfileSection({
+    title,
+    compact = false,
+    children
+}: {
+    title: string;
+    compact?: boolean;
+    children: React.ReactNode;
+}) {
     return (
         <section aria-label={title}>
-            <h2 className="mb-2 px-1 text-sm font-semibold">{title}</h2>
+            <h2
+                className={cn(
+                    'px-1 text-lg font-medium lg:text-xl',
+                    compact ? 'mb-2 lg:mb-4' : 'mb-4'
+                )}
+            >
+                {title}
+            </h2>
             {children}
         </section>
     );
@@ -151,11 +154,11 @@ function Bio({ text }: { text: string }) {
     }, [expanded]);
 
     return (
-        <div className="mt-4 flex flex-col items-start gap-1">
+        <div className="mt-4 flex flex-col items-start gap-1 lg:mt-6">
             <p
                 ref={ref}
                 className={cn(
-                    'text-sm leading-relaxed wrap-anywhere whitespace-pre-line text-muted-foreground',
+                    'text-sm leading-relaxed wrap-anywhere whitespace-pre-line text-muted-foreground lg:text-base',
                     !expanded && 'line-clamp-3'
                 )}
             >
@@ -198,12 +201,12 @@ function RegistrationCopy({ value }: { value: string }) {
             aria-label={label}
             title={label}
             className={cn(
-                'mt-0.5 flex items-center gap-1 text-sm tabular-nums',
+                'inline-flex items-center gap-1 text-sm leading-none tabular-nums lg:gap-1.5 lg:text-base',
                 copied ? 'text-primary' : 'text-muted-foreground'
             )}
         >
-            <Icon className="size-3" />
-            {value}
+            <Icon aria-hidden="true" className="size-4 shrink-0" />
+            <span>{value}</span>
         </button>
     );
 }

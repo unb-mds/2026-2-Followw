@@ -1,7 +1,7 @@
 import { useOnline } from '@followw/core/lib/online.ts';
 import { MAX_PROFILE_BIO_LENGTH, truncateProfileBio } from '@followw/core/lib/profile.ts';
 import { ApiError } from '@followw/core/queries/errors.ts';
-import { ImagePlus, Pencil, Trash2 } from 'lucide-react';
+import { ChevronRight, ImagePlus, Pencil, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import type { UserProfile } from '#/queries/me';
@@ -60,12 +60,13 @@ export function EditProfile({
                     />
                 }
             >
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                     <Pencil className="size-4" aria-hidden="true" />
                 </span>
                 <span className="flex-1 text-left">
                     {saving ? 'Salvando perfil...' : 'Editar perfil'}
                 </span>
+                <ChevronRight aria-hidden="true" className="size-4 text-muted-foreground" />
             </DialogTrigger>
             <DialogContent className="max-h-dvh overflow-y-auto sm:max-w-lg">
                 {open && (

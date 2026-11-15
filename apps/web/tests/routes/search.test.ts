@@ -26,6 +26,26 @@ const loadWith = async (user: User | null, searchStr = '') => {
 };
 
 describe('loader da busca de turmas', () => {
+    test('libera a página enquanto o histórico e as recomendações ainda carregam', async () => {
+        const keys: QueryKey[] = [];
+        const { promise, resolve } = Promise.withResolvers<never[]>();
+        const queryClient = fakeQueryClient((key) => {
+            keys.push(key);
+            return key[1] === '/me'
+                ? { registration: '1', unit: null, level: 'Graduação' }
+                : promise;
+        });
+        const wasServer = environmentManager.isServer();
+        environmentManager.setIsServer(() => false);
+        try {
+            await runLoader(Route, { location: { searchStr: '' }, context: { queryClient } });
+            expect(keys.map((key) => key[1])).toEqual(['/me', '/classrooms', '/public/subjects']);
+        } finally {
+            resolve([]);
+            environmentManager.setIsServer(() => wasServer);
+        }
+    });
+
     test('ao trocar de aba inicia a consulta sem esperar pelos resultados', async () => {
         const { promise, resolve } = Promise.withResolvers<[]>();
         let started = false;

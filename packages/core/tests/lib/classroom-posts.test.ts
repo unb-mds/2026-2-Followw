@@ -4,7 +4,13 @@ import type { ClassroomPost } from '../../src/queries/classrooms.ts';
 
 import { postDateLabel, postLink, postTypeLabels } from '../../src/lib/classroom-posts.ts';
 
-const post: ClassroomPost = { id: 'topic:abc', type: 'topic', title: 'Aula', attachments: [] };
+const post: ClassroomPost = {
+    id: 'topic:abc',
+    type: 'topic',
+    title: 'Aula',
+    attachments: [],
+    is_read: false
+};
 
 describe('postagens da turma', () => {
     test('datas ausentes não ganham data de publicação fictícia', () => {

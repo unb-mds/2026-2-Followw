@@ -85,6 +85,22 @@ describe('exportação da grade em PNG', () => {
         expect(texts).toContain('Horário a definir');
     });
 
+    test('exporta manhã e noite até 22h30 e marca a quebra comum sem ocultar a tarde de outro dia', async () => {
+        const { fillText } = canvasMock();
+        await createSchedulePng([
+            { ...items[0], schedule: '2M12' },
+            { ...items[0], code: 'NOITE', schedule: '2N34 7N4' },
+            { ...items[0], code: 'TARDE', schedule: '3T23' }
+        ]);
+        const texts = fillText.mock.calls.map((call) => call[0]);
+        expect(texts).toContain('21:40–22:30');
+        expect(texts).toContain('14:00–14:55');
+        expect(texts).toContain('NOITE');
+        expect(texts).toContain('TARDE');
+        expect(texts).toContain('Intervalo omitido · 09:50–14:00');
+        expect(texts).toContain('Intervalo omitido · 15:50–20:50');
+    });
+
     test('corta textos longos com reticências', async () => {
         const { fillText } = canvasMock();
         await createSchedulePng([{ ...items[0], name: 'A'.repeat(200) }]);

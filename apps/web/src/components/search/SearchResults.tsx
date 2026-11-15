@@ -119,6 +119,7 @@ export function SearchResults({
                         <InternshipSection
                             key={text}
                             internships={data}
+                            title="Estágios"
                             previewLimit={3}
                             onShowAll={showCategory && (() => showCategory('internships'))}
                         />
