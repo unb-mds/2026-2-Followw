@@ -14,15 +14,17 @@ def _days(response) -> dict[str, dict]:
     return {day["date"]: day for day in response.json()}
 
 
-def test_semana_traz_os_sete_dias_com_as_aulas_da_turma(logged, scheduled, hoje):
+def test_semana_traz_os_sete_dias_de_domingo_a_sabado_com_as_aulas_da_turma(
+    logged, scheduled, hoje
+):
     hoje(datetime(2026, 9, 17, 15, 0))
 
     response = logged.get(LESSONS)
 
     assert response.status_code == 200
     days = _days(response)
-    assert list(days) == [f"2026-09-{day}" for day in range(14, 21)]
-    assert [len(day["lessons"]) for day in days.values()] == [0, 1, 0, 1, 0, 0, 0]
+    assert list(days) == [f"2026-09-{day}" for day in range(13, 20)]
+    assert [len(day["lessons"]) for day in days.values()] == [0, 0, 1, 0, 1, 0, 0]
     lesson = days["2026-09-17"]["lessons"][0]
     assert lesson | {"id": None} == {
         "id": None,
@@ -42,10 +44,7 @@ def test_semana_traz_os_sete_dias_com_as_aulas_da_turma(logged, scheduled, hoje)
             "room": None,
         },
     }
-    # O domingo já é da Semana Universitária.
-    assert [day["no_class_reason"] for day in days.values()] == [None] * 6 + [
-        "Semana Universitária 2026"
-    ]
+    assert all(day["no_class_reason"] is None for day in days.values())
 
 
 def test_situacao_marcada_aparece_na_aula_da_semana(logged, scheduled, hoje):
@@ -70,13 +69,13 @@ def test_semana_universitaria_traz_o_motivo_nos_dias_sem_aula(logged, scheduled)
 
     assert all(not day["lessons"] for day in days.values())
     assert {date: day["no_class_reason"] for date, day in days.items()} == {
+        "2026-09-20": "Semana Universitária 2026",
         "2026-09-21": "Semana Universitária 2026",
         "2026-09-22": "Semana Universitária 2026",
         "2026-09-23": "Semana Universitária 2026",
         "2026-09-24": "Semana Universitária 2026",
         "2026-09-25": "Semana Universitária 2026",
         "2026-09-26": None,
-        "2026-09-27": None,
     }
 
 
@@ -116,3 +115,11 @@ def test_frequencia_em_dia_nao_agenda_sync(logged, scheduled, hoje, qstash):
     assert logged.get(LESSONS).status_code == 200
 
     assert len(qstash.published) == published
+
+
+def test_no_domingo_a_semana_comeca_no_proprio_dia(logged, scheduled, hoje):
+    hoje(date(2026, 9, 13))
+
+    assert list(_days(logged.get(LESSONS))) == [
+        f"2026-09-{day}" for day in range(13, 20)
+    ]

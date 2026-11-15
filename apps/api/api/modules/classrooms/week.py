@@ -55,7 +55,7 @@ class WeekLessonsService:
         self._classrooms = classrooms
 
     async def week(self) -> list[LessonDay]:
-        """Segunda a domingo da semana atual; a frequência vencida só é agendada."""
+        """Domingo a sábado da semana atual; a frequência vencida só é agendada."""
         links = [
             link for link in await self._classrooms.list_links() if link.row.current
         ]
@@ -64,7 +64,8 @@ class WeekLessonsService:
                 self._sync.schedule(sync_frequency, link)
 
         today = academic_calendar.today()
-        days = [today - timedelta(days=today.weekday() - n) for n in range(7)]
+        sunday = today - timedelta(days=(today.weekday() + 1) % 7)
+        days = [sunday + timedelta(days=n) for n in range(7)]
         rows = await self._sync.db.read(
             lambda session: FrequencyRepository(session).list_lessons(
                 [link.row for link in links], between=(days[0], days[-1])

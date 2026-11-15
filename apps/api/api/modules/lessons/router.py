@@ -10,7 +10,7 @@ router = APIRouter()
     "",
     response_model=list[LessonDay],
     summary="Consultar aulas da semana",
-    description="Segunda a domingo da semana atual, com a situação do aluno em cada aula das turmas atuais.",
+    description="Domingo a sábado da semana atual, com a situação do aluno em cada aula das turmas atuais.",
     responses={**CLASSROOM_ERRORS, 503: {"description": "Cache em atualização."}},
 )
 async def get_week_lessons(service: WeekLessonsServiceDep) -> list[LessonDay]:

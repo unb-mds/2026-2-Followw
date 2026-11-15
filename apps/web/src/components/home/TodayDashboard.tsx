@@ -36,7 +36,7 @@ export function TodayDashboard({ user, day, now, label }: TodayDashboardProps) {
                 date={day.date}
                 now={now}
             />
-            <aside className="flex min-w-0 flex-col gap-6 lg:gap-8 lg:border-l lg:pl-8">
+            <aside className="flex min-w-0 flex-col gap-6 lg:gap-8">
                 <PublicInfoSection
                     campus={campus}
                     menus={preview.menus}

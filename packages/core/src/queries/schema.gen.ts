@@ -431,7 +431,7 @@ export interface paths {
         };
         /**
          * Consultar aulas da semana
-         * @description Segunda a domingo da semana atual, com a situação do aluno em cada aula das turmas atuais.
+         * @description Domingo a sábado da semana atual, com a situação do aluno em cada aula das turmas atuais.
          */
         get: operations["get_week_lessons_lessons_get"];
         put?: never;
@@ -575,7 +575,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Listar e buscar ofertas de estágio */
+        /**
+         * Listar e buscar ofertas de estágio
+         * @description Lista as ofertas de estágio disponíveis no mural do SIGAA. As vagas do curso do aluno vêm primeiro, seguidas pelas demais.
+         */
         get: operations["list_internships_me_internships_get"];
         put?: never;
         post?: never;
@@ -592,7 +595,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Consultar detalhes de uma oferta de estágio */
+        /**
+         * Consultar detalhes de uma oferta de estágio
+         * @description Abre os dados completos da vaga a partir da referência obtida no mural.
+         */
         get: operations["get_internship_me_internships__reference__get"];
         put?: never;
         post?: never;
@@ -646,50 +652,6 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        InternshipItem: {
-            reference: string;
-            sigaa_id?: number | null;
-            title: string;
-            vacancies: number;
-            stipend: string | null;
-            published_until: string;
-            is_my_course: boolean;
-        };
-        InternshipTransportAllowance: {
-            amount: string;
-            period: string;
-        };
-        InternshipAttachment: {
-            name: string;
-            url: string;
-        };
-        InternshipGrantor: {
-            agreement_type: string;
-            cnpj: string;
-            name: string;
-            responsibles: string[];
-        };
-        InternshipCourse: {
-            name: string;
-            unit: string;
-            degree: string;
-        };
-        InternshipDetail: {
-            reference: string;
-            sigaa_id?: number | null;
-            title: string;
-            vacancies: number;
-            stipend: string | null;
-            transport_allowance?: components["schemas"]["InternshipTransportAllowance"] | null;
-            published_from: string;
-            published_until: string;
-            sigaa_enrollment: boolean;
-            attachment?: components["schemas"]["InternshipAttachment"] | null;
-            grantor: components["schemas"]["InternshipGrantor"];
-            courses: components["schemas"]["InternshipCourse"][];
-            description: string | null;
-            is_my_course: boolean;
-        };
         /** Body_update_profile_me_profile_patch */
         Body_update_profile_me_profile_patch: {
             /**
@@ -959,6 +921,100 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** InternshipAttachment */
+        InternshipAttachment: {
+            /** Name */
+            name: string;
+            /** Url */
+            url: string;
+        };
+        /** InternshipCourse */
+        InternshipCourse: {
+            /** Name */
+            name: string;
+            /** Unit */
+            unit: string;
+            /** Degree */
+            degree: string;
+        };
+        /**
+         * InternshipDetail
+         * @description Detalhes completos de uma oferta de estágio.
+         */
+        InternshipDetail: {
+            /** Sigaa Id */
+            sigaa_id?: number | null;
+            /** Title */
+            title: string;
+            /** Vacancies */
+            vacancies: number;
+            /** Stipend */
+            stipend: string | null;
+            transport_allowance: components["schemas"]["InternshipTransportAllowance"] | null;
+            /**
+             * Published From
+             * Format: date-time
+             */
+            published_from: string;
+            /**
+             * Published Until
+             * Format: date-time
+             */
+            published_until: string;
+            /** Sigaa Enrollment */
+            sigaa_enrollment: boolean;
+            attachment: components["schemas"]["InternshipAttachment"] | null;
+            grantor: components["schemas"]["InternshipGrantor"];
+            /** Courses */
+            courses: components["schemas"]["InternshipCourse"][];
+            /** Description */
+            description: string | null;
+            /** Reference */
+            reference: string;
+            /** Is My Course */
+            is_my_course: boolean;
+        };
+        /** InternshipGrantor */
+        InternshipGrantor: {
+            /** Agreement Type */
+            agreement_type: string;
+            /** Cnpj */
+            cnpj: string;
+            /** Name */
+            name: string;
+            /** Responsibles */
+            responsibles: string[];
+        };
+        /**
+         * InternshipItem
+         * @description Resumo de uma vaga de estágio no mural.
+         */
+        InternshipItem: {
+            /** Reference */
+            reference: string;
+            /** Sigaa Id */
+            sigaa_id?: number | null;
+            /** Title */
+            title: string;
+            /** Vacancies */
+            vacancies: number;
+            /** Stipend */
+            stipend: string | null;
+            /**
+             * Published Until
+             * Format: date-time
+             */
+            published_until: string;
+            /** Is My Course */
+            is_my_course: boolean;
+        };
+        /** InternshipTransportAllowance */
+        InternshipTransportAllowance: {
+            /** Amount */
+            amount: string;
+            /** Period */
+            period: string;
         };
         /** LatestNewsFeed */
         LatestNewsFeed: {
@@ -3089,86 +3145,6 @@ export interface operations {
             };
         };
     };
-    get_latest_news_posts_news_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description `no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente). */
-                "Cache-Control"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LatestNewsFeed"];
-                };
-            };
-            /** @description Credenciais ausentes ou inválidas. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            /** @description SIGAA indisponível. */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    get_posts_posts_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DashboardPost"][];
-                };
-            };
-            /** @description Credenciais ausentes ou inválidas. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description SIGAA indisponível. */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     list_internships_me_internships_get: {
         parameters: {
             query?: {
@@ -3257,6 +3233,86 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description SIGAA indisponível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_latest_news_posts_news_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description `no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente). */
+                "Cache-Control"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LatestNewsFeed"];
+                };
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description SIGAA indisponível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_posts_posts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardPost"][];
+                };
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description SIGAA indisponível. */
             502: {

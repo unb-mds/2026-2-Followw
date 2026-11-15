@@ -31,15 +31,15 @@ export function ProfileIdentity({
         <header>
             <div className="flex items-center gap-4 lg:gap-6">
                 <PersonPhoto src={user.photo} size="lg" className="lg:w-32 lg:rounded-2xl" />
-                <div className="flex min-w-0 flex-col gap-1 lg:gap-4">
-                    <div className="flex flex-col items-start">
-                        <h1 className="text-2xl leading-tight font-semibold tracking-tight text-balance lg:text-4xl">
+                <div className="flex min-w-0 flex-col gap-4">
+                    <div className="flex flex-col gap-1">
+                        <h1 className="text-2xl leading-tight font-semibold tracking-tight text-balance lg:text-3xl">
                             {displayName || titleCase(user.name)}
                         </h1>
                         <RegistrationCopy value={user.registration} />
                     </div>
-                    <div>
-                        <p className="text-sm wrap-anywhere text-primary lg:text-2xl lg:font-medium">
+                    <div className="flex flex-col gap-1">
+                        <p className="text-sm wrap-anywhere text-primary lg:text-lg lg:font-medium">
                             {user.course && titleCase(user.course.name)}
                             {period != null && (
                                 <span className="whitespace-nowrap">
@@ -47,7 +47,7 @@ export function ProfileIdentity({
                                 </span>
                             )}
                         </p>
-                        <p className="text-xs font-medium text-muted-foreground lg:mt-1 lg:text-sm">
+                        <p className="text-xs font-medium text-muted-foreground lg:text-sm">
                             {user.level}
                         </p>
                     </div>
@@ -201,7 +201,7 @@ function RegistrationCopy({ value }: { value: string }) {
             aria-label={label}
             title={label}
             className={cn(
-                'mt-1.5 inline-flex items-center gap-1 text-sm leading-none tabular-nums lg:mt-2 lg:gap-1.5 lg:text-base',
+                'inline-flex items-center gap-1 text-sm leading-none tabular-nums lg:gap-1.5 lg:text-base',
                 copied ? 'text-primary' : 'text-muted-foreground'
             )}
         >

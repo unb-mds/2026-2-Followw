@@ -80,7 +80,7 @@ function DayButtons({ days, selectedDate, onSelect }: Omit<WeekDayPickerProps, '
     return (
         <m.div
             layoutScroll
-            className="mb-4 flex items-center gap-1 overflow-x-auto py-1"
+            className="mb-4 flex items-center gap-1 overflow-x-auto px-px py-1"
             aria-label="Escolher dia"
         >
             {days.map((day) => {

@@ -16,7 +16,7 @@ import { cn } from '#/lib/shadcn';
 
 const hoursLabel = (hours: number) => `${hours.toLocaleString('pt-BR')}h`;
 const percentLabel = (value: number) =>
-    `${value.toLocaleString('pt-BR', { maximumFractionDigits: 20 })}%`;
+    `${value.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}%`;
 const NO_CLASSROOMS: readonly Classroom[] = [];
 
 export function CourseProgress({
@@ -79,7 +79,7 @@ export function CourseProgress({
             {(integralization != null || progress) && (
                 <div className="pb-3 last:pb-0 lg:pb-5">
                     {(integralization != null || showForecast) && (
-                        <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground lg:mb-3 lg:gap-x-5">
+                        <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground lg:gap-x-4">
                             <span className="flex items-center gap-2">
                                 <span
                                     aria-hidden="true"

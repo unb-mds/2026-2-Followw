@@ -50,7 +50,7 @@ import { HeaderBar, HeaderTitle, HeaderToggle } from '#/components/HeaderBar';
 import { LoadingText } from '#/components/LoadingText';
 import { usePageState } from '#/components/PageState';
 import { ShareButton } from '#/components/ShareButton';
-import { Button } from '#/components/ui/button';
+import { Button, buttonVariants } from '#/components/ui/button';
 import { Card, CardContent } from '#/components/ui/card';
 import { Label } from '#/components/ui/label';
 import {
@@ -363,7 +363,7 @@ function RUPage() {
                     <SlideSwitch
                         id={`${selectedDate}-${selectedMeal}-${campus}`}
                         direction={menuDirection}
-                        className="flex min-h-60 flex-col gap-2 lg:gap-6"
+                        className="flex min-h-40 flex-col gap-2 lg:gap-6"
                     >
                         {sections.length > 0 ? (
                             <MealDetails sections={sections} cascade={!menuDirection} />
@@ -384,15 +384,33 @@ function RUPage() {
                                     </>
                                 )}
                                 {!isPending && !isLoadingError && (
-                                    <div className="flex flex-col gap-1">
-                                        Cardápio não publicado para esta refeição neste dia.
-                                        <Link
-                                            to="/ru"
-                                            search={{}}
-                                            className="font-semibold text-primary underline"
-                                        >
-                                            Ver cardápio atual
-                                        </Link>
+                                    <div className="flex flex-col items-center gap-3 py-4">
+                                        <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+                                            <UtensilsCrossed
+                                                className="size-6"
+                                                aria-hidden="true"
+                                            />
+                                        </div>
+                                        <div className="flex flex-col gap-1">
+                                            <p className="font-semibold text-foreground">
+                                                Cardápio não publicado
+                                            </p>
+                                            <p>
+                                                Ainda não há pratos divulgados para esta refeição.
+                                            </p>
+                                        </div>
+                                        {selectedDate !== today && (
+                                            <Link
+                                                to="/ru"
+                                                search={{}}
+                                                className={buttonVariants({
+                                                    variant: 'outline',
+                                                    size: 'sm'
+                                                })}
+                                            >
+                                                Ver cardápio atual
+                                            </Link>
+                                        )}
                                     </div>
                                 )}
                             </div>

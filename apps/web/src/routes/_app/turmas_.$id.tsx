@@ -127,7 +127,7 @@ function ClassroomPage() {
                     <Tabs
                         value={active}
                         onValueChange={(value: ClassroomTab) => void setSearch({ tab: value })}
-                        className="mt-5 min-w-0 gap-4 lg:mt-0 lg:border-l lg:pl-8"
+                        className="mt-5 min-w-0 gap-4 lg:mt-0"
                     >
                         <TabsList
                             variant="line"

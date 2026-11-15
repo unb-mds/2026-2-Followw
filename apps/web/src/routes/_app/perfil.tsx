@@ -76,7 +76,7 @@ function PerfilPage() {
                 <div className="profile-install contents lg:hidden">
                     <InstallPromptCard />
                 </div>
-                <div className="profile-performance contents lg:col-start-2 lg:row-start-1 lg:block lg:border-l lg:pl-8">
+                <div className="profile-performance contents lg:col-start-2 lg:row-start-1 lg:block">
                     <AcademicPerformance
                         user={user}
                         action={
@@ -94,7 +94,7 @@ function PerfilPage() {
                 <div className="profile-progress contents lg:col-start-1 lg:row-span-2 lg:row-start-2 lg:block">
                     <ProgressSection user={user} />
                 </div>
-                <div className="lg:col-start-2 lg:row-start-2 lg:border-l lg:pl-8">
+                <div className="lg:col-start-2 lg:row-start-2">
                     <ProfileSection title="Documentos">
                         <div className="@container">
                             <div className="grid gap-3 lg:gap-4 @xs:grid-cols-2">
@@ -103,7 +103,7 @@ function PerfilPage() {
                         </div>
                     </ProfileSection>
                 </div>
-                <div className="profile-account lg:col-start-2 lg:row-start-3 lg:border-l lg:pl-8">
+                <div className="profile-account lg:col-start-2 lg:row-start-3">
                     <AccountSection
                         user={user}
                         displayName={settings.displayName}
