@@ -1,11 +1,11 @@
+import { titleCase } from '@followw/core/lib/profile.ts';
+import { type CoursePage, coursesQueryOptions } from '@followw/core/queries/courses.ts';
 import { Link } from '@tanstack/react-router';
 import { GraduationCap } from 'lucide-react';
 import { m } from 'motion/react';
 
 import { PagedSection } from '#/components/search/PagedSection';
 import { rise, useEntrance } from '#/lib/motion';
-import { titleCase } from '#/lib/profile';
-import { type CoursePage, coursesQueryOptions } from '#/queries/courses';
 
 export function CourseSection({
     page,

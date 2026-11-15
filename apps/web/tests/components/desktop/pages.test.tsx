@@ -1,12 +1,11 @@
 import type { Middleware } from 'openapi-fetch';
 
+import { allClassroomsQueryOptions, type Classroom } from '@followw/core/queries/classrooms.ts';
+import { apiClient } from '@followw/core/queries/client.ts';
+import { ApiError } from '@followw/core/queries/errors.ts';
+import { recommendationsQueryOptions } from '@followw/core/queries/recommendations.ts';
 import { afterAll, afterEach, beforeAll, expect, mock, test } from 'bun:test';
 import { useLayoutEffect } from 'react';
-
-import { allClassroomsQueryOptions, type Classroom } from '#/queries/classrooms';
-import { apiClient } from '#/queries/client';
-import { ApiError } from '#/queries/errors';
-import { recommendationsQueryOptions } from '#/queries/recommendations';
 
 import { desktopBrowser } from '../../helpers/desktop';
 let desktopPage: typeof import('../../helpers/desktop-page').desktopPage;

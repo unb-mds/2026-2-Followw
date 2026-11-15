@@ -1,6 +1,6 @@
-import { expect, test } from 'bun:test';
+import type { DailyMenu } from '@followw/core/queries/restaurant.ts';
 
-import type { DailyMenu } from '#/queries/restaurant';
+import { expect, test } from 'bun:test';
 
 import { DesktopContext } from '#/components/DesktopContext';
 import { PublicInfoSection } from '#/components/home/PublicInfoSection';

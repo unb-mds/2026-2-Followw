@@ -1,7 +1,7 @@
+import type { Classroom } from '@followw/core/queries/classrooms.ts';
+
 import { Award, MapIcon, MapPin } from 'lucide-react';
 import { m } from 'motion/react';
-
-import type { Classroom } from '#/queries/classrooms';
 
 import { GradeText } from '#/components/classroom/GradeText';
 import { Badge } from '#/components/ui/badge';

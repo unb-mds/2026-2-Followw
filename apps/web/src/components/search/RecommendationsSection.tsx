@@ -1,7 +1,9 @@
+import type { CatalogSubject } from '@followw/core/queries/subjects.ts';
+
+import { reasonLabel, recommendationsQueryOptions } from '@followw/core/queries/recommendations.ts';
+import { withClassrooms } from '@followw/core/queries/subjects.ts';
 import { noop, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, CircleHelp } from 'lucide-react';
-
-import type { CatalogSubject } from '#/queries/subjects';
 
 import { ErrorCard } from '#/components/ErrorState';
 import { LoadingText } from '#/components/LoadingText';
@@ -16,9 +18,7 @@ import {
     DialogTitle,
     DialogTrigger
 } from '#/components/ui/dialog';
-import { reasonLabel, recommendationsQueryOptions } from '#/queries/recommendations';
 import { refreshQuery } from '#/queries/refresh';
-import { withClassrooms } from '#/queries/subjects';
 
 export function RecommendationReasons({ subject }: { subject: CatalogSubject }) {
     const reasons = subject.recommendation?.reasons ?? [];

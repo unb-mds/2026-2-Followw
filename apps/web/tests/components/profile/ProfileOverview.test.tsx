@@ -1,16 +1,16 @@
+import type { components } from '@followw/core/queries/schema.gen.ts';
+
+import { getCurrentSemester } from '@followw/core/calendar.ts';
+import { coursePeriod } from '@followw/core/lib/profile.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, describe, expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import type { components } from '#/queries/schema.gen';
-
-import { getCurrentSemester } from '#/calendar';
 import {
     AcademicPerformance,
     ProfileIdentity,
     ProgressSection
 } from '#/components/profile/ProfileOverview';
-import { coursePeriod } from '#/lib/profile';
 
 import { useDom } from '../../helpers/dom';
 

@@ -1,10 +1,9 @@
+import type { CurriculumModel, FlowGeometry } from '@followw/core/lib/curriculum/types.ts';
+
+import { edgeLabel } from '@followw/core/lib/curriculum/format.ts';
+import { pathData } from '@followw/core/lib/curriculum/geometry.ts';
+import { connectionSegments } from '@followw/core/lib/curriculum/segments.ts';
 import { useId, useMemo } from 'react';
-
-import type { CurriculumModel, FlowGeometry } from '#/lib/curriculum/types';
-
-import { edgeLabel } from '#/lib/curriculum/format';
-import { pathData } from '#/lib/curriculum/geometry';
-import { connectionSegments } from '#/lib/curriculum/segments';
 
 // uma classe por índice de RoutedEdge.color
 const palette = [

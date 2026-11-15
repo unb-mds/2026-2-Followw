@@ -1,10 +1,10 @@
 import type { ErrorComponentProps } from '@tanstack/react-router';
 
+import { ApiError } from '@followw/core/queries/errors.ts';
 import { RefreshCw } from 'lucide-react';
 
 import { FollowwLogo } from '#/components/FollowwLogo';
 import { Button } from '#/components/ui/button';
-import { ApiError } from '#/queries/errors';
 
 export interface ErrorPageProps extends Partial<ErrorComponentProps> {
     message?: string;

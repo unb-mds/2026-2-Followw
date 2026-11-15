@@ -1,3 +1,4 @@
+import { credentialsQueryOptions } from '@followw/core/queries/restaurant-account.ts';
 import { dehydrate, hydrate, QueryClient } from '@tanstack/react-query';
 import {
     afterAll,
@@ -20,7 +21,6 @@ import {
     shouldPersistQuery,
     warmPages
 } from '#/integrations/offline/storage';
-import { credentialsQueryOptions } from '#/queries/restaurant-account';
 
 // sem o define do vite, o build é 'dev'
 const current = pagesCacheName('dev');

@@ -1,13 +1,12 @@
+import type { PublicCourse } from '@followw/core/queries/courses.ts';
+
+import { normalizeCurriculum } from '@followw/core/lib/curriculum/model.ts';
+import { titleCase, unitLabel } from '@followw/core/lib/profile.ts';
+import { courseQueryOptions } from '@followw/core/queries/courses.ts';
+import { curriculumQueryOptions, shiftLabels } from '@followw/core/queries/curriculum.ts';
 import { useQuery } from '@tanstack/react-query';
 import { Building2, Clock3, GraduationCap, Layers } from 'lucide-react';
 import { useMemo } from 'react';
-
-import type { PublicCourse } from '#/queries/courses';
-
-import { normalizeCurriculum } from '#/lib/curriculum/model';
-import { titleCase, unitLabel } from '#/lib/profile';
-import { courseQueryOptions } from '#/queries/courses';
-import { curriculumQueryOptions, shiftLabels } from '#/queries/curriculum';
 
 export interface CourseSummaryProps {
     course: Pick<PublicCourse, 'id' | 'name' | 'shift'>;

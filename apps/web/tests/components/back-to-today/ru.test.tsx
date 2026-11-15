@@ -1,7 +1,7 @@
+import { addDays, nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { expect, test } from 'bun:test';
 
 import { restaurantDefaults } from '#/lib/restaurant-share';
-import { addDays, nowInBrasilia } from '#/lib/schedule';
 import { Route } from '#/routes/_app/ru';
 
 import { useDom } from '../../helpers/dom';

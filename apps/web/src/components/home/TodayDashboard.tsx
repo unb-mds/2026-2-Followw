@@ -1,13 +1,14 @@
+import type { Day } from '@followw/core/lib/schedule.ts';
+
+import { lessonsOn } from '@followw/core/lib/schedule.ts';
+import { weekLessonsQueryOptions } from '@followw/core/queries/lessons.ts';
+import { campusOf, useMenuPreview } from '@followw/core/queries/restaurant.ts';
 import { useQuery } from '@tanstack/react-query';
 
-import type { Day } from '#/lib/schedule';
 import type { UserProfile } from '#/queries/me';
 
 import { PublicInfoSection } from '#/components/home/PublicInfoSection';
 import { TodayClassesSection } from '#/components/home/TodayClassesSection';
-import { lessonsOn } from '#/lib/schedule';
-import { weekLessonsQueryOptions } from '#/queries/lessons';
-import { campusOf, useMenuPreview } from '#/queries/restaurant';
 
 interface TodayDashboardProps {
     user: UserProfile | null;

@@ -1,7 +1,7 @@
+import type { ProfessorItem, ProfessorPage } from '@followw/core/queries/professors.ts';
+
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, test } from 'bun:test';
-
-import type { ProfessorItem, ProfessorPage } from '#/queries/professors';
 
 import { ProfessorCard } from '#/components/search/ProfessorCard';
 import { ProfessorSection } from '#/components/search/ProfessorSection';

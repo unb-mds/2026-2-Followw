@@ -1,3 +1,5 @@
+import { weekDays } from '@followw/core/lib/schedule.ts';
+import { menuQueryOptions } from '@followw/core/queries/restaurant.ts';
 import { QueryClient, QueryClientProvider, environmentManager } from '@tanstack/react-query';
 import {
     Outlet,
@@ -13,9 +15,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import { PageStateProvider } from '#/components/PageState';
 import { restaurantSelection } from '#/lib/restaurant-share';
-import { weekDays } from '#/lib/schedule';
 import { meQueryOptions } from '#/queries/me';
-import { menuQueryOptions } from '#/queries/restaurant';
 import { Route } from '#/routes/_app/ru';
 import { routeTree } from '#/routeTree.gen';
 

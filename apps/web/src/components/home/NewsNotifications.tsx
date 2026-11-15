@@ -1,5 +1,8 @@
+import type { ClassroomNews } from '@followw/core/queries/posts.ts';
 import type { Components } from 'react-markdown';
 
+import { postDateLabel } from '@followw/core/lib/classroom-posts.ts';
+import { latestNewsQueryOptions } from '@followw/core/queries/posts.ts';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { Bell } from 'lucide-react';
@@ -7,16 +10,12 @@ import { m } from 'motion/react';
 import { useSyncExternalStore } from 'react';
 import ReactMarkdown from 'react-markdown';
 
-import type { ClassroomNews } from '#/queries/posts';
-
 import { ErrorCard, SIGAA_DOWN_MESSAGE, StaleDataNotice } from '#/components/ErrorState';
 import { LoadingText } from '#/components/LoadingText';
 import { Button } from '#/components/ui/button';
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '#/components/ui/popover';
-import { postDateLabel } from '#/lib/classroom-posts';
 import { STORAGE_KEYS, storedValue } from '#/lib/local-storage';
 import { rise, useEntrance } from '#/lib/motion';
-import { latestNewsQueryOptions } from '#/queries/posts';
 
 const previewComponents: Components = { p: ({ children }) => <span>{children} </span> };
 

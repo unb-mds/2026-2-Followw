@@ -1,6 +1,6 @@
+import { addDays, nowInBrasilia, weekDays } from '@followw/core/lib/schedule.ts';
 import { expect, test } from 'bun:test';
 
-import { addDays, nowInBrasilia, weekDays } from '#/lib/schedule';
 import { Route } from '#/routes/_app/index';
 
 import { useDom } from '../../helpers/dom';

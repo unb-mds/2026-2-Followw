@@ -1,11 +1,12 @@
+import type { ClassroomFrequency, Lesson } from '@followw/core/queries/classrooms.ts';
+
+import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { afterEach, describe, expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import type { MarkLessons } from '#/components/classroom/FrequencyContent';
-import type { ClassroomFrequency, Lesson } from '#/queries/classrooms';
 
 import { FrequencyContent, lessonRuns } from '#/components/classroom/FrequencyContent';
-import { nowInBrasilia } from '#/lib/schedule';
 
 import { useDom } from '../../helpers/dom';
 

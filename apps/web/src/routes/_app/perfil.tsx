@@ -1,3 +1,5 @@
+import { useOnline } from '@followw/core/lib/online.ts';
+import { loadQuery } from '@followw/core/queries/load.ts';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { Link, Navigate, createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import { ChevronRight, GitFork, LogOut } from 'lucide-react';
@@ -30,11 +32,9 @@ import {
     AlertDialogTrigger
 } from '#/components/ui/alert-dialog';
 import { Button, buttonVariants } from '#/components/ui/button';
-import { useOnline } from '#/lib/online';
 import { cn } from '#/lib/shadcn';
 import { useLogout } from '#/queries/auth';
 import { useDownloadDocument } from '#/queries/documents';
-import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
 import { useUserSettings } from '#/queries/settings';
 
@@ -77,7 +77,19 @@ function PerfilPage() {
                     <InstallPromptCard />
                 </div>
                 <div className="profile-performance contents lg:col-start-2 lg:row-start-1 lg:block lg:border-l lg:pl-8">
-                    <AcademicPerformance user={user} />
+                    <AcademicPerformance
+                        user={user}
+                        action={
+                            user.level === 'Graduação' && (
+                                <Link
+                                    to="/perfil/simulador"
+                                    className={buttonVariants({ variant: 'outline' })}
+                                >
+                                    Simular IRA e MP
+                                </Link>
+                            )
+                        }
+                    />
                 </div>
                 <div className="profile-progress contents lg:col-start-1 lg:row-span-2 lg:row-start-2 lg:block">
                     <ProgressSection user={user} />

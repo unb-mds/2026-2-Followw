@@ -1,8 +1,8 @@
+import { useOnline } from '@followw/core/lib/online.ts';
 import { Download, GraduationCap, IdCard } from 'lucide-react';
 
 import { Button } from '#/components/ui/button';
 import { Spinner } from '#/components/ui/spinner';
-import { useOnline } from '#/lib/online';
 import { cn } from '#/lib/shadcn';
 import {
     documentRefusal,

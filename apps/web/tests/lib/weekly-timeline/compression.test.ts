@@ -1,6 +1,6 @@
+import { parseSchedule } from '@followw/core/lib/schedule.ts';
 import { describe, expect, test } from 'bun:test';
 
-import { parseSchedule } from '#/lib/schedule';
 import { dayLanes, timePosition, weeklyTimeline } from '#/lib/weekly-timeline';
 
 describe('escala semanal compartilhada', () => {

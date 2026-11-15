@@ -1,3 +1,5 @@
+import { classKey, weeklyGrid } from '@followw/core/lib/planned-schedule.ts';
+import { describeSchedule } from '@followw/core/lib/schedule.ts';
 import { CalendarDays, Download, X } from 'lucide-react';
 import { AnimatePresence, m } from 'motion/react';
 import { useState } from 'react';
@@ -20,8 +22,6 @@ import {
 import { Progress } from '#/components/ui/progress';
 import { saveFile } from '#/lib/download';
 import { easeIn, spring } from '#/lib/motion';
-import { classKey, weeklyGrid } from '#/lib/planned-schedule';
-import { describeSchedule } from '#/lib/schedule';
 import { createSchedulePng } from '#/lib/schedule-image';
 
 export function SchedulePreview() {

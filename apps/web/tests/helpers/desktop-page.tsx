@@ -1,3 +1,10 @@
+import {
+    allClassroomsQueryOptions,
+    classroomsQueryOptions,
+    type Classroom
+} from '@followw/core/queries/classrooms.ts';
+import { searchQueryOptions } from '@followw/core/queries/search.ts';
+import { settingsQueryOptions } from '@followw/core/queries/settings.ts';
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
 import {
     createMemoryHistory,
@@ -11,14 +18,7 @@ import { NuqsAdapter } from 'nuqs/adapters/tanstack-router';
 
 import { AppLayout } from '#/components/AppLayout';
 import { parseRouterSearch, stringifyRouterSearch } from '#/lib/search-params';
-import {
-    allClassroomsQueryOptions,
-    classroomsQueryOptions,
-    type Classroom
-} from '#/queries/classrooms';
 import { meQueryOptions, type UserProfile } from '#/queries/me';
-import { searchQueryOptions } from '#/queries/search';
-import { settingsQueryOptions } from '#/queries/settings';
 import { Route as SearchRoute } from '#/routes/_app/buscar';
 import { Route as ProfileRoute } from '#/routes/_app/perfil';
 import { Route as ClassroomsRoute } from '#/routes/_app/turmas';

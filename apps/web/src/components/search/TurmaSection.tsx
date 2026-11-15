@@ -1,7 +1,8 @@
+import type { CatalogSubject } from '@followw/core/queries/subjects.ts';
+
+import { covered } from '@followw/core/queries/subjects.ts';
 import { m } from 'motion/react';
 import { useState, type ReactNode } from 'react';
-
-import type { CatalogSubject } from '#/queries/subjects';
 
 import { SubjectSummary } from '#/components/search/SubjectSummary';
 import { TurmaCard } from '#/components/search/TurmaCard';
@@ -13,7 +14,6 @@ import {
 } from '#/components/ui/accordion';
 import { Button } from '#/components/ui/button';
 import { rise, useEntrance } from '#/lib/motion';
-import { covered } from '#/queries/subjects';
 
 const PAGE_SIZE = 25;
 

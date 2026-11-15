@@ -1,9 +1,9 @@
+import { type ProfessorPage, professorsQueryOptions } from '@followw/core/queries/professors.ts';
 import { m } from 'motion/react';
 
 import { PagedSection } from '#/components/search/PagedSection';
 import { ProfessorCard } from '#/components/search/ProfessorCard';
 import { rise, useEntrance } from '#/lib/motion';
-import { type ProfessorPage, professorsQueryOptions } from '#/queries/professors';
 
 export function ProfessorSection({
     page,

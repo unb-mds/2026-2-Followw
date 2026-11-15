@@ -1,13 +1,17 @@
+import {
+    academicState,
+    initialMobilePeriod,
+    normalizeCurriculum
+} from '@followw/core/lib/curriculum/model.ts';
+import { allClassroomsQueryOptions } from '@followw/core/queries/classrooms.ts';
+import { curriculumQueryOptions } from '@followw/core/queries/curriculum.ts';
+import { ApiError } from '@followw/core/queries/errors.ts';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
 import { DesktopDiagram, MobileDiagram } from '#/components/curriculum/Diagram';
 import { LoadingText } from '#/components/LoadingText';
 import { QueryState } from '#/components/QueryState';
-import { academicState, initialMobilePeriod, normalizeCurriculum } from '#/lib/curriculum/model';
-import { allClassroomsQueryOptions } from '#/queries/classrooms';
-import { curriculumQueryOptions } from '#/queries/curriculum';
-import { ApiError } from '#/queries/errors';
 
 export function CurriculumView({
     courseId,

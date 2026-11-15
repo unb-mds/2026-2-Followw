@@ -1,17 +1,16 @@
+import type { components } from '@followw/core/queries/schema.gen.ts';
+import type { CatalogSubject, SubjectClassroom } from '@followw/core/queries/subjects.ts';
 import type { Middleware } from 'openapi-fetch';
 
+import { apiClient } from '@followw/core/queries/client.ts';
+import { ApiError } from '@followw/core/queries/errors.ts';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { afterAll, afterEach, beforeAll, describe, expect, mock, test } from 'bun:test';
 import { useLayoutEffect } from 'react';
 
-import type { components } from '#/queries/schema.gen';
-import type { CatalogSubject, SubjectClassroom } from '#/queries/subjects';
-
 import { getContext } from '#/integrations/tanstack-query/root-provider';
 import { localStorageRepository, STORAGE_KEYS } from '#/lib/local-storage';
 import { clearSession, startSession } from '#/queries/auth';
-import { apiClient } from '#/queries/client';
-import { ApiError } from '#/queries/errors';
 import { meQueryOptions } from '#/queries/me';
 
 let AddToSchedule: typeof import('#/components/schedule/AddToSchedule').AddToSchedule;

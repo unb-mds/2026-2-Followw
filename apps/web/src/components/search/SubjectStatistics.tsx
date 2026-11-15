@@ -1,12 +1,12 @@
+import type { SubjectClassroom } from '@followw/core/queries/subjects.ts';
+
+import { subjectStatisticsQueryOptions } from '@followw/core/queries/subject-statistics.ts';
 import { useQuery } from '@tanstack/react-query';
 import { lazy, Suspense, useState } from 'react';
-
-import type { SubjectClassroom } from '#/queries/subjects';
 
 import { LoadingText } from '#/components/LoadingText';
 import { TabFilter } from '#/components/TabFilter';
 import { Button } from '#/components/ui/button';
-import { subjectStatisticsQueryOptions } from '#/queries/subject-statistics';
 
 const StatisticsChart = lazy(() =>
     import('#/components/StatisticsChart').then((module) => ({ default: module.StatisticsChart }))

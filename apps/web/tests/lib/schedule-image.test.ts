@@ -1,8 +1,8 @@
+import type { PlannedClass } from '@followw/core/lib/planned-schedule.ts';
+
+import { weeklyGrid } from '@followw/core/lib/planned-schedule.ts';
 import { afterEach, describe, expect, mock, spyOn, test } from 'bun:test';
 
-import type { PlannedClass } from '#/lib/planned-schedule';
-
-import { weeklyGrid } from '#/lib/planned-schedule';
 import { createSchedulePng as render } from '#/lib/schedule-image';
 
 import { useDom } from '../helpers/dom';

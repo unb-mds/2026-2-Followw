@@ -1,14 +1,13 @@
+import type { Lesson } from '@followw/core/queries/classrooms.ts';
 import type { DayProps } from 'react-day-picker';
 
+import { getHoliday } from '@followw/core/calendar.ts';
+import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { createContext, use } from 'react';
 import { ptBR } from 'react-day-picker/locale';
 
-import type { Lesson } from '#/queries/classrooms';
-
-import { getHoliday } from '#/calendar';
 import { Calendar } from '#/components/ui/calendar';
 import { Card } from '#/components/ui/card';
-import { nowInBrasilia } from '#/lib/schedule';
 import { cn } from '#/lib/shadcn';
 
 type Status = Lesson['status'];

@@ -1,3 +1,7 @@
+import { unitLabel } from '@followw/core/lib/profile.ts';
+import { describeSchedule } from '@followw/core/lib/schedule.ts';
+import { displayedRequirements, seats } from '@followw/core/queries/subjects.ts';
+
 import type { TurmaProps } from '#/components/search/TurmaCard';
 
 import { RequirementList } from '#/components/search/RequirementList';
@@ -5,10 +9,7 @@ import { OCCUPANCY_COLOR } from '#/components/search/Seats';
 import { SubjectDisclosure } from '#/components/search/SubjectDisclosure';
 import { SubjectSearchLink } from '#/components/search/SubjectSearchLink';
 import { SubjectStatistics } from '#/components/search/SubjectStatistics';
-import { unitLabel } from '#/lib/profile';
-import { describeSchedule } from '#/lib/schedule';
 import { cn } from '#/lib/shadcn';
-import { displayedRequirements, seats } from '#/queries/subjects';
 
 export function TurmaDetails({ subject, classroom }: TurmaProps) {
     const { prerequisites, corequisites, equivalences } = displayedRequirements(subject);

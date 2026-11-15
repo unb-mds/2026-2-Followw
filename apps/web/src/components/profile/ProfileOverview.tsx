@@ -1,16 +1,21 @@
+import type { components } from '@followw/core/queries/schema.gen.ts';
+
+import { getCurrentSemester } from '@followw/core/calendar.ts';
+import {
+    academicIndexes,
+    titleCase,
+    truncateProfileBio,
+    coursePeriod
+} from '@followw/core/lib/profile.ts';
+import { classroomsQueryOptions } from '@followw/core/queries/classrooms.ts';
 import { useQuery } from '@tanstack/react-query';
 import { Check, IdCard } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
-import type { components } from '#/queries/schema.gen';
-
-import { getCurrentSemester } from '#/calendar';
 import { CourseProgress } from '#/components/profile/CourseProgress';
 import { Card } from '#/components/ui/card';
 import { PersonPhoto } from '#/components/ui/person-photo';
-import { academicIndexes, coursePeriod, titleCase, truncateProfileBio } from '#/lib/profile';
 import { cn } from '#/lib/shadcn';
-import { classroomsQueryOptions } from '#/queries/classrooms';
 
 type UserProfile = components['schemas']['UserProfile'];
 
@@ -53,9 +58,15 @@ export function ProfileIdentity({
     );
 }
 
-export function AcademicPerformance({ user }: { user: UserProfile }) {
+export function AcademicPerformance({
+    user,
+    action
+}: {
+    user: UserProfile;
+    action?: React.ReactNode;
+}) {
     const indexes = academicIndexes(user);
-    if (indexes.length === 0) return null;
+    if (indexes.length === 0 && !action) return null;
 
     return (
         <ProfileSection title="Desempenho" compact>
@@ -63,23 +74,26 @@ export function AcademicPerformance({ user }: { user: UserProfile }) {
                 size="sm"
                 className="gap-0 overflow-visible bg-transparent py-0 shadow-none ring-0"
             >
-                <dl className={cn('grid gap-2 lg:gap-4', indexes.length > 1 && 'grid-cols-2')}>
-                    {indexes.map((index) => (
-                        <div
-                            key={index.label}
-                            className="rounded-2xl border bg-card px-4 py-2 shadow-sm lg:p-5"
-                        >
-                            <dt className="text-xs font-medium text-muted-foreground">
-                                <abbr title={index.description} className="no-underline">
-                                    {index.label}
-                                </abbr>
-                            </dt>
-                            <dd className="mt-1 text-2xl font-medium tracking-tight text-primary tabular-nums lg:mt-2 lg:text-4xl">
-                                {index.value}
-                            </dd>
-                        </div>
-                    ))}
-                </dl>
+                {indexes.length > 0 && (
+                    <dl className={cn('grid gap-2 lg:gap-4', indexes.length > 1 && 'grid-cols-2')}>
+                        {indexes.map((index) => (
+                            <div
+                                key={index.label}
+                                className="rounded-2xl border bg-card px-4 py-2 shadow-sm lg:p-5"
+                            >
+                                <dt className="text-xs font-medium text-muted-foreground">
+                                    <abbr title={index.description} className="no-underline">
+                                        {index.label}
+                                    </abbr>
+                                </dt>
+                                <dd className="mt-1 text-2xl font-medium tracking-tight text-primary tabular-nums lg:mt-2 lg:text-4xl">
+                                    {index.value}
+                                </dd>
+                            </div>
+                        ))}
+                    </dl>
+                )}
+                {action && <div className="mt-3">{action}</div>}
             </Card>
         </ProfileSection>
     );

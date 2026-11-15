@@ -1,14 +1,13 @@
+import type { UserSettings } from '@followw/core/queries/settings.ts';
 import type { Middleware } from 'openapi-fetch';
 
+import { apiClient } from '@followw/core/queries/client.ts';
+import { ApiError } from '@followw/core/queries/errors.ts';
+import { settingsQueryOptions } from '@followw/core/queries/settings.ts';
 import { QueryClient } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 
-import type { UserSettings } from '#/queries/settings';
-
 import { clearSession } from '#/queries/auth';
-import { apiClient } from '#/queries/client';
-import { ApiError } from '#/queries/errors';
-import { settingsQueryOptions } from '#/queries/settings';
 
 const registration = '251000000';
 const settings: UserSettings = { displayName: 'Ana' };

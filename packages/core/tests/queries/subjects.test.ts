@@ -1,0 +1,171 @@
+import type { Middleware } from 'openapi-fetch';
+
+import { QueryClient } from '@tanstack/react-query';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+
+import type { Classroom } from '../../src/queries/classrooms.ts';
+import type { CatalogSubject, Requirements, SubjectClassroom } from '../../src/queries/subjects.ts';
+
+import { apiClient } from '../../src/queries/client.ts';
+import {
+    approvedCodes,
+    covered,
+    currentCurriculumPeriod,
+    withClassrooms,
+    seats,
+    subjectRequirementLabel,
+    searchText,
+    subjectsQueryOptions
+} from '../../src/queries/subjects.ts';
+
+const morning: SubjectClassroom = {
+    number: '01',
+    semester: '2026.2',
+    schedule: '35M12',
+    professors: [],
+    vacancies: 50,
+    occupied: 48
+};
+const night: SubjectClassroom = { ...morning, number: '02', schedule: '24N12', occupied: 50 };
+const requirements = (groups: string[][]): Requirements =>
+    groups.map((group) => group.map((code) => ({ code, subject: null })));
+const subject: CatalogSubject = {
+    code: 'FGA0003',
+    name: 'COMPILADORES',
+    prerequisites: requirements([['FGA0001', 'FGA0002'], ['FGA0010']]),
+    classrooms: [morning, night]
+};
+
+describe('busca de matérias', () => {
+    let middleware: Middleware;
+    let client: QueryClient;
+    let requests: Request[];
+
+    beforeEach(() => {
+        requests = [];
+        middleware = {
+            onRequest: ({ request }) => {
+                requests.push(request);
+                return Response.json([subject]);
+            }
+        };
+        apiClient.use(middleware);
+        client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    });
+    afterEach(() => {
+        client.clear();
+        apiClient.eject(middleware);
+    });
+
+    test('consulta o endpoint público com o filtro escolhido', async () => {
+        expect(await client.query(subjectsQueryOptions({ q: 'compila' }))).toEqual([subject]);
+        const url = new URL(requests[0].url);
+        expect(url.pathname).toBe('/api/public/subjects');
+        expect(url.searchParams.get('q')).toBe('compila');
+    });
+
+    test.each([
+        ['FGA0003', 'FGA0003'],
+        [' fga0003 ', 'fga0003'],
+        [' cálculo 1 ', 'cálculo 1'],
+        ['ab', null],
+        ['abc', 'abc'],
+        ['a'.repeat(32), 'a'.repeat(32)],
+        ['a'.repeat(33), null],
+        ['  ', null],
+        ['', null]
+    ])('"%s" vira o texto de busca %p', (q, expected) => {
+        expect(searchText(q)).toBe(expected);
+    });
+
+    test('texto fora dos limites mantém o anterior e vazio limpa', () => {
+        expect(searchText('ab', 'calculo')).toBe('calculo');
+        expect(searchText('a'.repeat(33), 'calculo')).toBe('calculo');
+        expect(searchText('', 'calculo')).toBeNull();
+    });
+});
+
+const history = (code: string, grade: Classroom['grade'], current = false): Classroom => ({
+    ...morning,
+    id: code,
+    subject: { code, name: code },
+    grade,
+    current
+});
+
+describe('pré-requisitos', () => {
+    test('feita pela própria matéria ou por um grupo inteiro de equivalências', () => {
+        const equivalences = [['E', 'F'], ['G']].map((group) =>
+            group.map((code) => ({ code, subject: null }))
+        );
+        const done = (...codes: string[]) => covered(new Set(codes), { code: 'B', equivalences });
+        expect(done('B')).toBe(true);
+        expect(done('E')).toBe(false);
+        expect(done('E', 'F')).toBe(true);
+        expect(done('G')).toBe(true);
+        expect(covered(new Set(['B']), { code: 'A', equivalences: [[]] })).toBe(false);
+        expect(covered(null, { code: 'B', equivalences })).toBe(false);
+    });
+    test('aprovado só com SS, MS ou MM em turma encerrada', () => {
+        const approved = approvedCodes([
+            history('A', 'SS'),
+            history('B', 'MM'),
+            history('C', 'MI'),
+            history('D', 'SR'),
+            history('E', 'SS', true),
+            history('F', null)
+        ]);
+        expect([...approved]).toEqual(['A', 'B']);
+    });
+
+    test('mostra nomes resolvidos e mantém códigos sem relacionamento', () => {
+        const groups = [
+            [
+                { code: 'MAT0023', subject: { code: 'MAT0023', name: 'Cálculo 1' } },
+                { code: 'ANTIGO', subject: null }
+            ]
+        ];
+        expect(groups[0].map(subjectRequirementLabel)).toEqual(['Cálculo 1', 'ANTIGO']);
+    });
+});
+
+describe('filtros no cliente', () => {
+    test('descarta matérias sem turmas', () => {
+        expect(withClassrooms([subject, { ...subject, classrooms: [] }])).toEqual([subject]);
+    });
+
+    test.each([
+        [40, 10, 30, 'free'],
+        [40, 31, 9, 'filling'],
+        [40, 40, 0, 'full'],
+        [40, 45, 0, 'full'],
+        [0, 0, 0, 'full']
+    ] as const)(
+        'vagas %p com %p ocupadas: %p livres, %p',
+        (vacancies, occupied, available, tone) => {
+            expect(seats({ ...morning, vacancies, occupied })).toEqual({
+                vacancies,
+                occupied,
+                available,
+                occupancy: tone
+            });
+        }
+    );
+
+    test('cadeado distingue turma cheia de dado ausente', () => {
+        expect(seats(night)?.available).toBe(0);
+        expect(seats({ ...morning, vacancies: null })).toBeNull();
+    });
+});
+
+test.each([
+    ['2025.1', '2026.2', 4],
+    ['2026.2', '2026.2', 1],
+    ['2025.2', '2026.1', 2],
+    ['2027.1', '2026.2', null],
+    [null, '2026.2', null],
+    ['2025.1', undefined, null],
+    ['2025.3', '2026.2', null]
+] as const)('calcula período atual para ingresso %s e semestre %s', (entry, semester, expected) => {
+    expect(currentCurriculumPeriod(entry, semester)).toBe(expected);
+});

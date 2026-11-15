@@ -1,11 +1,10 @@
 import type { Middleware } from 'openapi-fetch';
 
+import { previewMenuMeals } from '@followw/core/lib/restaurant.ts';
+import { apiClient } from '@followw/core/queries/client.ts';
+import { useMenuPreview, type DailyMenu } from '@followw/core/queries/restaurant.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, expect, test } from 'bun:test';
-
-import { previewMenuMeals } from '#/lib/restaurant';
-import { apiClient } from '#/queries/client';
-import { useMenuPreview, type DailyMenu } from '#/queries/restaurant';
 
 import { useDom } from '../../helpers/dom';
 

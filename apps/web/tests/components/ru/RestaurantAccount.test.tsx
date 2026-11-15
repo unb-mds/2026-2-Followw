@@ -1,3 +1,7 @@
+import {
+    credentialsQueryOptions,
+    statementQueryOptions
+} from '@followw/core/queries/restaurant-account.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, mock, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -7,7 +11,6 @@ import {
     StatementDetails,
     StudentCard
 } from '#/components/ru/RestaurantAccount';
-import { credentialsQueryOptions, statementQueryOptions } from '#/queries/restaurant-account';
 
 import { useDom } from '../../helpers/dom';
 

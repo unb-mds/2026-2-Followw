@@ -1,3 +1,6 @@
+import type { Classroom, ClassroomPost } from '@followw/core/queries/classrooms.ts';
+
+import { latestNewsQueryOptions } from '@followw/core/queries/posts.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
     RouterContextProvider,
@@ -9,12 +12,9 @@ import { afterAll, afterEach, beforeAll, describe, expect, mock, test } from 'bu
 import { createLoader, createSerializer } from 'nuqs/server';
 import { useLayoutEffect } from 'react';
 
-import type { Classroom, ClassroomPost } from '#/queries/classrooms';
-
 import { classroomSearchParsers, validateClassroomSearch } from '#/lib/classroom-search';
 import { localStorageRepository, STORAGE_KEYS } from '#/lib/local-storage';
 import { parseRouterSearch, stringifyRouterSearch } from '#/lib/search-params';
-import { latestNewsQueryOptions } from '#/queries/posts';
 import { Route as ClassroomRoute } from '#/routes/_app/turmas_.$id';
 
 import { useDom } from '../../helpers/dom';

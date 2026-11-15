@@ -1,3 +1,5 @@
+import type { DailyMenu } from '@followw/core/queries/restaurant.ts';
+
 import {
     createMemoryHistory,
     createRootRoute,
@@ -7,8 +9,6 @@ import {
 } from '@tanstack/react-router';
 import { describe, expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
-
-import type { DailyMenu } from '#/queries/restaurant';
 
 import { PublicInfoSection } from '#/components/home/PublicInfoSection';
 

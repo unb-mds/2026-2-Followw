@@ -1,6 +1,5 @@
+import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { useState, useSyncExternalStore } from 'react';
-
-import { nowInBrasilia } from '#/lib/schedule';
 
 type Now = ReturnType<typeof nowInBrasilia>;
 const listeners = new Set<() => void>();

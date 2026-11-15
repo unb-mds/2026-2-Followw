@@ -1,3 +1,4 @@
+import { ApiError } from '@followw/core/queries/errors.ts';
 import {
     MutationCache,
     QueryCache,
@@ -8,7 +9,6 @@ import {
 
 import { PERSIST_MAX_AGE } from '#/integrations/offline/storage.ts';
 import { clearSession } from '#/queries/auth.ts';
-import { ApiError } from '#/queries/errors.ts';
 
 export function getContext() {
     const isServer = environmentManager.isServer();

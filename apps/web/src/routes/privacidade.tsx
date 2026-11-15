@@ -1,8 +1,8 @@
+import { EMAILS, mailto } from '@followw/core/lib/contact.ts';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { ArrowLeft } from 'lucide-react';
 
 import { FollowwLogo } from '#/components/FollowwLogo';
-import { EMAILS, mailto } from '#/lib/contact';
 
 export const Route = createFileRoute('/privacidade')({
     head: () => ({ meta: [{ title: 'Privacidade e termos | Followw' }] }),

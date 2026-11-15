@@ -1,7 +1,7 @@
+import type { Lesson } from '@followw/core/queries/classrooms.ts';
+
 import { describe, expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
-
-import type { Lesson } from '#/queries/classrooms';
 
 import { LessonCalendar, lessonsByDay } from '#/components/classroom/LessonCalendar';
 

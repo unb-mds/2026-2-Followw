@@ -1,15 +1,15 @@
+import type { Day } from '@followw/core/lib/schedule.ts';
+import type { Campus, DailyMenu } from '@followw/core/queries/restaurant.ts';
+
+import { formatMenuDay, previewMenuMeals } from '@followw/core/lib/restaurant.ts';
+import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
+import { CAMPUS_LABELS } from '@followw/core/queries/restaurant.ts';
 import { Link } from '@tanstack/react-router';
 import { Coffee, Soup, UtensilsCrossed } from 'lucide-react';
-
-import type { Day } from '#/lib/schedule';
-import type { Campus, DailyMenu } from '#/queries/restaurant';
 
 import { LoadingText } from '#/components/LoadingText';
 import { SectionHeader } from '#/components/SectionHeader';
 import { Card } from '#/components/ui/card';
-import { formatMenuDay, previewMenuMeals } from '#/lib/restaurant';
-import { nowInBrasilia } from '#/lib/schedule';
-import { CAMPUS_LABELS } from '#/queries/restaurant';
 
 const MEAL_ICONS = { breakfast: Coffee, lunch: UtensilsCrossed, dinner: Soup };
 

@@ -1,12 +1,16 @@
+import type {
+    ProfessorDegree,
+    ProfessorDetails,
+    ProfessorDiscipline
+} from '@followw/core/queries/professors.ts';
+
+import { titleCase } from '@followw/core/lib/profile.ts';
 import { Link } from '@tanstack/react-router';
 import { BookOpen, Calendar, GraduationCap, Lightbulb, type LucideIcon, User } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
-import type { ProfessorDegree, ProfessorDetails, ProfessorDiscipline } from '#/queries/professors';
-
 import { Button } from '#/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card';
-import { titleCase } from '#/lib/profile';
 
 const INITIAL_SEMESTERS_COUNT = 6;
 

@@ -1,7 +1,7 @@
+import { GRID_DAYS } from '@followw/core/lib/planned-schedule.ts';
+import { parseSchedule } from '@followw/core/lib/schedule.ts';
 import { useMemo } from 'react';
 
-import { GRID_DAYS } from '#/lib/planned-schedule';
-import { parseSchedule } from '#/lib/schedule';
 import { cn } from '#/lib/shadcn';
 import {
     dayLanes,

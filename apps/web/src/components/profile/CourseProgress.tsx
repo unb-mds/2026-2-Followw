@@ -1,16 +1,17 @@
+import type { Classroom } from '@followw/core/queries/classrooms.ts';
+
+import {
+    curriculumProgress,
+    projectedCategoryHours,
+    projectedIntegralization
+} from '@followw/core/lib/profile.ts';
 import { m } from 'motion/react';
 
-import type { Classroom } from '#/queries/classrooms';
 import type { UserProfile } from '#/queries/me';
 
 import { AnimatedNumber } from '#/components/AnimatedNumber';
 import { Card } from '#/components/ui/card';
 import { ease, useEntrance } from '#/lib/motion';
-import {
-    curriculumProgress,
-    projectedCategoryHours,
-    projectedIntegralization
-} from '#/lib/profile';
 import { cn } from '#/lib/shadcn';
 
 const hoursLabel = (hours: number) => `${hours.toLocaleString('pt-BR')}h`;

@@ -1,8 +1,8 @@
+import type { Day } from '@followw/core/lib/schedule.ts';
+
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { m } from 'motion/react';
 import { useId } from 'react';
-
-import type { Day } from '#/lib/schedule';
 
 import { Button } from '#/components/ui/button';
 import { spring } from '#/lib/motion';

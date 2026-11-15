@@ -1,6 +1,6 @@
-import type { Day, ScheduledClass } from '#/lib/schedule';
+import type { Day, ScheduledClass } from '@followw/core/lib/schedule.ts';
 
-import { minutesOf } from '#/lib/schedule';
+import { minutesOf } from '@followw/core/lib/schedule.ts';
 
 export function classProgress(
     start: string,

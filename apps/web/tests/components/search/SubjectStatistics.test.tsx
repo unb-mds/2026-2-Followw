@@ -1,11 +1,11 @@
+import type { components } from '@followw/core/queries/schema.gen.ts';
+import type { SubjectClassroom } from '@followw/core/queries/subjects.ts';
+
+import { subjectStatisticsQueryOptions } from '@followw/core/queries/subject-statistics.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, expect, test, spyOn } from 'bun:test';
 
-import type { components } from '#/queries/schema.gen';
-import type { SubjectClassroom } from '#/queries/subjects';
-
 import { SubjectStatistics } from '#/components/search/SubjectStatistics';
-import { subjectStatisticsQueryOptions } from '#/queries/subject-statistics';
 
 import { useDom } from '../../helpers/dom';
 import { professorRef } from '../../helpers/professor';

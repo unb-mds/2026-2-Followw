@@ -1,6 +1,7 @@
-import type { GridSemester } from '#/lib/planned-schedule';
+import type { GridSemester } from '@followw/core/lib/planned-schedule.ts';
 
-import { classKey, GRID_DAYS } from '#/lib/planned-schedule';
+import { classKey, GRID_DAYS } from '@followw/core/lib/planned-schedule.ts';
+
 import { cn } from '#/lib/shadcn';
 
 export function WeeklyTable({

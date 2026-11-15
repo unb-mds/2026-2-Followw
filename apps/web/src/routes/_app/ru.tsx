@@ -1,3 +1,22 @@
+import type { DailyMenu, MenuSection } from '@followw/core/queries/restaurant.ts';
+
+import { useFailureMessage } from '@followw/core/lib/online.ts';
+import {
+    formatMenuDay,
+    highlightMenu,
+    lastMenuDay,
+    MEAL_TIMES,
+    groupSalads,
+    type MealKey
+} from '@followw/core/lib/restaurant.ts';
+import { addDays, nowInBrasilia, weekDays } from '@followw/core/lib/schedule.ts';
+import { loadQuery } from '@followw/core/queries/load.ts';
+import {
+    CAMPUS_LABELS,
+    CAMPUS_OPTIONS,
+    campusOf,
+    menuQueryOptions
+} from '@followw/core/queries/restaurant.ts';
 import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Link, useLocation, useNavigate } from '@tanstack/react-router';
 import {
@@ -23,7 +42,6 @@ import { useQueryStates } from 'nuqs';
 import { lazy, Suspense, useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 
 import type { RestaurantSelection } from '#/lib/restaurant-share';
-import type { DailyMenu, MenuSection } from '#/queries/restaurant';
 
 import { BackToTodayBar } from '#/components/BackToTodayBar';
 import { useDesktop } from '#/components/DesktopContext';
@@ -45,15 +63,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
 import { WeekDayPicker } from '#/components/WeekDayPicker';
 import { easeIn, rise, useEntrance } from '#/lib/motion';
-import { useFailureMessage } from '#/lib/online';
-import {
-    formatMenuDay,
-    groupSalads,
-    highlightMenu,
-    lastMenuDay,
-    MEAL_TIMES,
-    type MealKey
-} from '#/lib/restaurant';
 import {
     restaurantDefaults,
     restaurantPageHead,
@@ -62,11 +71,8 @@ import {
     restaurantSharePath,
     validateRestaurantSearch
 } from '#/lib/restaurant-share';
-import { addDays, nowInBrasilia, weekDays } from '#/lib/schedule';
 import { cn } from '#/lib/shadcn';
-import { loadQuery } from '#/queries/load';
 import { meQueryOptions } from '#/queries/me';
-import { CAMPUS_LABELS, CAMPUS_OPTIONS, campusOf, menuQueryOptions } from '#/queries/restaurant';
 
 const RestaurantAccount = lazy(() =>
     import('#/components/ru/RestaurantAccount').then((module) => ({

@@ -1,6 +1,6 @@
-import { Pie, PieChart } from 'recharts';
+import type { components } from '@followw/core/queries/schema.gen.ts';
 
-import type { components } from '#/queries/schema.gen';
+import { Pie, PieChart } from 'recharts';
 
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '#/components/ui/chart';
 

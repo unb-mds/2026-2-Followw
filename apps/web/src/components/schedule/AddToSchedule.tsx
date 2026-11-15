@@ -1,7 +1,7 @@
+import type { CatalogSubject, SubjectClassroom } from '@followw/core/queries/subjects.ts';
+
 import { Plus } from 'lucide-react';
 import { m } from 'motion/react';
-
-import type { CatalogSubject, SubjectClassroom } from '#/queries/subjects';
 
 import { usePlannedSchedule } from '#/components/schedule/usePlannedSchedule';
 import { Button } from '#/components/ui/button';

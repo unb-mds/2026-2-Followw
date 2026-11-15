@@ -1,7 +1,7 @@
-import type { GridRow } from '#/lib/planned-schedule';
-import type { ClassTime } from '#/lib/schedule';
+import type { GridRow } from '@followw/core/lib/planned-schedule.ts';
+import type { ClassTime } from '@followw/core/lib/schedule.ts';
 
-import { minutesOf } from '#/lib/schedule';
+import { minutesOf } from '@followw/core/lib/schedule.ts';
 
 export interface TimeSegment {
     start: number;

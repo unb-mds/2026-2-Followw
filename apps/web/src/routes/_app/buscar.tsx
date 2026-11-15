@@ -1,13 +1,37 @@
+import type { SearchCategory } from '@followw/core/lib/search-categories.ts';
+import type { UserProfile } from '@followw/core/queries/me.ts';
+
+import { getCurrentSemester } from '@followw/core/calendar.ts';
+import {
+    SEARCH_CATEGORIES,
+    searchCategoryLabels,
+    searchEmptyMessages,
+    searchTypes,
+    showsSubjects
+} from '@followw/core/lib/search-categories.ts';
+import { allClassroomsQueryOptions } from '@followw/core/queries/classrooms.ts';
+import { internshipsQueryOptions } from '@followw/core/queries/internships.ts';
+import { loadQuery } from '@followw/core/queries/load.ts';
+import { meQueryOptions } from '@followw/core/queries/me.ts';
+import {
+    recommendationsQueryOptions,
+    showRecommendations
+} from '@followw/core/queries/recommendations.ts';
+import { searchQueryOptions } from '@followw/core/queries/search.ts';
+import {
+    takenCodes,
+    currentCurriculumPeriod,
+    SEARCH_MAX_LENGTH,
+    SEARCH_MIN_LENGTH,
+    searchText,
+    subjectsQueryOptions
+} from '@followw/core/queries/subjects.ts';
 import { environmentManager, noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { Search } from 'lucide-react';
+import { Search, Briefcase } from 'lucide-react';
 import { m, type Variants } from 'motion/react';
 import { useEffect, useMemo, useState } from 'react';
 
-import type { SearchCategory } from '#/lib/search-categories';
-import type { UserProfile } from '#/queries/me';
-
-import { getCurrentSemester } from '#/calendar';
 import { useDesktop } from '#/components/DesktopContext';
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
@@ -17,6 +41,7 @@ import {
     type CatalogCategory,
     catalogQueryOptions
 } from '#/components/search/CatalogResults';
+import { InternshipResults } from '#/components/search/InternshipSection';
 import { RecommendationsSection } from '#/components/search/RecommendationsSection';
 import { SearchResults } from '#/components/search/SearchResults';
 import { SubjectResults } from '#/components/search/SubjectResults';
@@ -24,33 +49,14 @@ import { SearchPill } from '#/components/SearchPill';
 import { TabFilter } from '#/components/TabFilter';
 import { Input } from '#/components/ui/input';
 import { ease, useEntrance } from '#/lib/motion';
-import {
-    SEARCH_CATEGORIES,
-    searchCategoryLabels,
-    searchEmptyMessages,
-    searchTypes,
-    showsSubjects
-} from '#/lib/search-categories';
 import { loadSearchParams, useSearchState, validateSearch } from '#/lib/search-params';
-import { allClassroomsQueryOptions } from '#/queries/classrooms';
-import { loadQuery } from '#/queries/load';
-import { meQueryOptions } from '#/queries/me';
-import { recommendationsQueryOptions, showRecommendations } from '#/queries/recommendations';
-import { searchQueryOptions } from '#/queries/search';
-import {
-    takenCodes,
-    currentCurriculumPeriod,
-    SEARCH_MAX_LENGTH,
-    SEARCH_MIN_LENGTH,
-    searchText,
-    subjectsQueryOptions
-} from '#/queries/subjects';
 
 type SearchView =
     | { kind: 'recommendations' }
     | { kind: 'catalog'; category: CatalogCategory }
     | { kind: 'search'; text: string }
-    | { kind: 'unit'; unit: string };
+    | { kind: 'unit'; unit: string }
+    | { kind: 'internships'; text: string | null };
 
 /** Sem texto, as abas com matérias mostram as recomendações ou a unidade do aluno, e as demais o catálogo. */
 function searchView(
@@ -59,6 +65,7 @@ function searchView(
     text: string | null,
     user: UserProfile | null
 ): SearchView | null {
+    if (category === 'internships') return { kind: 'internships', text };
     const subjects = showsSubjects(category);
     if (subjects && showRecommendations(user, { q })) return { kind: 'recommendations' };
     if (text) return { kind: 'search', text };
@@ -92,7 +99,10 @@ export const Route = createFileRoute('/_app/buscar')({
                     : loadQuery(queryClient, catalogQueryOptions.professors)
                 ).catch(noop),
             view?.kind === 'unit' &&
-                loadQuery(queryClient, subjectsQueryOptions({ unit: view.unit })).catch(noop)
+                loadQuery(queryClient, subjectsQueryOptions({ unit: view.unit })).catch(noop),
+            view?.kind === 'internships' &&
+                user &&
+                loadQuery(queryClient, internshipsQueryOptions).catch(noop)
         ]);
         if (environmentManager.isServer()) await results;
     },
@@ -128,6 +138,10 @@ function BuscarPage() {
         return () => clearTimeout(timer);
     }, [q]);
     const view = searchView(category, q, text, user);
+    const searchLabel =
+        category === 'internships'
+            ? 'Busque por estágio'
+            : 'Busque por matéria, curso ou professor';
     const { data: history } = useQuery({
         ...allClassroomsQueryOptions,
         enabled: subjects && Boolean(user)
@@ -157,8 +171,8 @@ function BuscarPage() {
                             void setSearch({ q: value.trim() ? value : null });
                         }}
                         maxLength={SEARCH_MAX_LENGTH}
-                        placeholder="Busque por matéria, curso ou professor..."
-                        aria-label="Busque por matéria, curso ou professor"
+                        placeholder={`${searchLabel}...`}
+                        aria-label={searchLabel}
                         className="h-11 bg-card pl-10 text-sm lg:h-14 lg:rounded-full lg:border-transparent lg:bg-transparent lg:pl-12 lg:dark:bg-transparent"
                     />
                 </m.div>
@@ -209,6 +223,31 @@ function BuscarPage() {
                 {view?.kind === 'unit' && (
                     <SubjectResults unit={view.unit} currentPeriod={currentPeriod} taken={taken} />
                 )}
+                {view?.kind === 'internships' &&
+                    (user ? (
+                        <InternshipResults text={view.text} />
+                    ) : (
+                        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border bg-card p-8 text-center text-card-foreground">
+                            <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                                <Briefcase className="size-6" aria-hidden="true" />
+                            </div>
+                            <div className="flex max-w-sm flex-col gap-1">
+                                <h3 className="text-base font-semibold">
+                                    Ofertas de Estágio do SIGAA
+                                </h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Entre na sua conta para consultar as vagas de estágio abertas
+                                    para o seu curso e para a UnB.
+                                </p>
+                            </div>
+                            <Link
+                                to="/login"
+                                className="mt-2 inline-flex h-10 items-center justify-center rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90"
+                            >
+                                Entrar na sua conta
+                            </Link>
+                        </div>
+                    ))}
             </div>
         </div>
     );

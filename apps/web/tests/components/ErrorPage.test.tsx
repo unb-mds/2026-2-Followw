@@ -1,8 +1,8 @@
+import { ApiError } from '@followw/core/queries/errors.ts';
 import { describe, expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { ErrorPage } from '#/components/ErrorPage';
-import { ApiError } from '#/queries/errors';
 
 describe('ErrorPage', () => {
     test('renderiza o título de feedback com a identidade do Followw', () => {

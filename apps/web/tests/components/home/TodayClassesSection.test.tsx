@@ -1,9 +1,9 @@
+import type { WeekLesson } from '@followw/core/queries/lessons.ts';
+
+import { lessonsOn } from '@followw/core/lib/schedule.ts';
 import { describe, expect, test } from 'bun:test';
 
-import type { WeekLesson } from '#/queries/lessons';
-
 import { TodayClassesSection } from '#/components/home/TodayClassesSection';
-import { lessonsOn } from '#/lib/schedule';
 
 import { renderWithRouter } from '../../helpers/router';
 
