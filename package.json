@@ -17,10 +17,10 @@
         "generate-api": "bun run --filter @followw/core generate-api"
     },
     "devDependencies": {
-        "@oxlint/plugins": "1.92.0",
-        "oxfmt": "^0.77.0",
-        "oxlint": "^1.92.0",
-        "oxlint-tsgolint": "^7.0.2006",
+        "@oxlint/plugins": "1.93.0",
+        "oxfmt": "^0.78.0",
+        "oxlint": "^1.93.0",
+        "oxlint-tsgolint": "^7.0.2007",
         "typescript": "^7.0.2"
     },
     "packageManager": "bun@1.4.4"
