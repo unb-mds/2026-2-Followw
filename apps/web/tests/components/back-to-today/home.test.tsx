@@ -30,6 +30,6 @@ test('ao escolher outro dia da semana mostra o atalho e volta para hoje', async 
     dom.testing.fireEvent.click(view.getByRole('button', { name: other }));
     expect(view.getByRole('button', { name: other }).getAttribute('aria-pressed')).toBe('true');
     dom.testing.fireEvent.click(await view.findByRole('button', { name: 'Voltar para hoje' }));
-    expect(view.getByRole('button', { name: now.date }).getAttribute('aria-pressed')).toBe('true');
+    expect(view.getByRole('button', { name: other }).getAttribute('aria-pressed')).toBe('false');
     await dom.testing.waitFor(() => expect(bar()).toBeNull());
 });

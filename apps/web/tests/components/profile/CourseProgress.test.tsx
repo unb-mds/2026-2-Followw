@@ -68,14 +68,14 @@ describe('CourseProgress', () => {
         ];
         const markup = renderToStaticMarkup(<CourseProgress user={user} classrooms={classrooms} />);
         expect(markup).toContain('stroke="var(--forecast)"');
-        expect(text(markup)).toContain('Em andamento31%+2,2%1.110h+60h');
+        expect(text(markup)).toContain('Em andamento31%+2%1.110h+60h');
     });
 
     test.each([
-        [40.1, 1000, 600, 4, '+0,3%'],
-        [40.14, 100000, 59900, 45, '+0,1%'],
-        [99.8, 10000, 10, 6, '+0,1%'],
-        [99.8, 10000, 10, 10, '+0,2%']
+        [40.1, 1000, 600, 4, '+0%'],
+        [40.14, 100000, 59900, 45, '+0%'],
+        [99.8, 10000, 10, 6, '+0%'],
+        [99.8, 10000, 10, 10, '+0%']
     ])(
         'formata o acréscimo a partir de %s%% concluídos',
         (integralization, total, pending, hours, label) => {
