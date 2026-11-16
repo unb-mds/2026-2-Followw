@@ -101,6 +101,19 @@ def test_listar_estagios_autenticado_retorna_itens_na_ordem_e_com_is_my_course(
     internships.list_internships.assert_awaited_once()
 
 
+def test_listar_estagios_quando_nao_ha_vagas_do_meu_curso(api, cookies, internships):
+    internships.list_internships.return_value = [SUMMARY_OUTROS_CURSOS]
+    api.cookies.update(cookies(refresh=CREDENCIAIS))
+    response = api.get("/me/internships")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["reference"] == SUMMARY_OUTROS_CURSOS.reference
+    assert data[0]["is_my_course"] is False
+    internships.list_internships.assert_awaited_once()
+
+
 def test_filtrar_estagios_por_termo_de_busca_case_e_accent_insensitive(
     api, cookies, internships
 ):
