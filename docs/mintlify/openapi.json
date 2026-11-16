@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "https://api.followw.app",
+      "url": "https://followw.app/api",
       "description": "Produção"
     },
     {
