@@ -8,12 +8,11 @@ from PIL import Image
 from sigaa_client import StudentSituation
 from sigaa_client.exceptions import SigaaParseError
 from sigaa_client.private.classrooms import (
-    _GLYPHS,
     _chart_source,
-    _legend_percentages,
     _open_statistics,
     _parse_statistics,
 )
+from sigaa_client.private.statistics_chart import _GLYPHS, _legend_percentages
 
 from ...fakes import FakeSession
 

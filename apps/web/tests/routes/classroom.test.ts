@@ -47,12 +47,32 @@ describe('cache da página da turma', () => {
         });
         const loaded = await load(client, searchStr);
         expect(loaded.subjectName).toBe('Cálculo');
-        expect(paths).toEqual(['/me', '/classrooms', tabPath]);
+        expect(paths).toEqual([
+            '/me',
+            '/classrooms',
+            tabPath,
+            ...(searchStr === '?tab=posts' ? ['/classrooms/{classroom_id}/teaching-plan'] : [])
+        ]);
     });
 
     test('trocar de aba não recarrega a rota', () => {
         expect(callRoute(Route.options.shouldReload, { cause: 'stay' })).toBe(false);
         expect(callRoute(Route.options.shouldReload, { cause: 'enter' })).toBe(true);
+    });
+
+    test('plano pendente não bloqueia o carregamento de Postagens', async () => {
+        const pending = Promise.withResolvers<null>();
+        const client = fakeQueryClient((key) => {
+            if (key[1] === '/me') return { registration: '123' };
+            if (key[1] === '/classrooms') return [classroom];
+            if (key[1] === '/classrooms/{classroom_id}/teaching-plan') return pending.promise;
+            return [];
+        });
+        try {
+            expect(await load(client, '?tab=posts')).toEqual({ subjectName: 'Cálculo' });
+        } finally {
+            pending.resolve(null);
+        }
     });
 
     test.each([null, { registration: '123' }])(
@@ -138,7 +158,10 @@ test.each([
     ['', statisticsTab],
     ['?tab=frequency', statisticsTab],
     ['?tab=statistics', statisticsTab],
-    ['?tab=posts', ['/classrooms/{classroom_id}/posts']],
+    [
+        '?tab=posts',
+        ['/classrooms/{classroom_id}/posts', '/classrooms/{classroom_id}/teaching-plan']
+    ],
     ['?tab=members', ['/classrooms/{classroom_id}/members']]
 ])('turma antiga pré-carrega a aba correta em %p', async (searchStr, tabPaths) => {
     const paths: unknown[] = [];

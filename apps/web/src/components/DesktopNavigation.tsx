@@ -24,6 +24,9 @@ export function DesktopNavigation() {
     const pathname = useMatches({ select: (matches) => matches.at(-1)?.pathname ?? '/' });
     const { data: user, isPending } = useQuery(meQueryOptions);
     const onRestaurantClick = useRestaurantShortcut(pathname);
+    const activeIndex = items.findIndex(({ to }) =>
+        to === '/' ? pathname === '/' : pathname.startsWith(to)
+    );
     const profile = pathname === '/perfil';
     const searching = pathname === '/buscar';
 
@@ -39,10 +42,20 @@ export function DesktopNavigation() {
                 </Link>
                 <nav
                     aria-label="Navegação principal do aplicativo"
-                    className="flex items-center rounded-full border bg-muted/40 p-1.5 shadow-sm"
+                    className="relative flex items-center rounded-full border bg-muted/40 p-1.5 shadow-sm"
                 >
-                    {items.map(({ to, label, icon: Icon }) => {
-                        const active = to === '/' ? pathname === '/' : pathname.startsWith(to);
+                    <m.span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute top-1.5 left-1.5 h-12 w-28 rounded-full bg-primary/10"
+                        initial={false}
+                        animate={{
+                            x: `${Math.max(activeIndex, 0) * 100}%`,
+                            opacity: activeIndex < 0 ? 0 : 1
+                        }}
+                        transition={spring}
+                    />
+                    {items.map(({ to, label, icon: Icon }, index) => {
+                        const active = index === activeIndex;
                         return (
                             <Link
                                 key={to}
@@ -56,16 +69,6 @@ export function DesktopNavigation() {
                                 )}
                                 onClick={to === '/ru' ? onRestaurantClick : undefined}
                             >
-                                {active && (
-                                    <m.span
-                                        layoutId="desktop-navigation-pill"
-                                        aria-hidden="true"
-                                        className="absolute inset-0 rounded-full bg-primary/10"
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        transition={spring}
-                                    />
-                                )}
                                 <Icon aria-hidden="true" className="relative size-5" />
                                 <span className="relative">{label}</span>
                             </Link>

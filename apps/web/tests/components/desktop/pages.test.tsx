@@ -310,3 +310,23 @@ test('navegação pendente mantém um único controle de busca durante a transfo
     expect(view.queryByRole('searchbox')).toBeNull();
     expect(sharedIcons()).toHaveLength(1);
 });
+
+/* oxlint-disable no-await-in-loop -- As navegações exercitam transições sucessivas. */
+test('destaque da navegação acompanha a rota usando um único elemento persistente', async () => {
+    const view = await render('/');
+    const nav = view.getByRole('navigation', { name: 'Navegação principal do aplicativo' });
+    const indicator = nav.querySelector(':scope > [aria-hidden="true"]');
+    expect(indicator).not.toBeNull();
+    for (const to of ['/turmas', '/', '/turmas', '/'] as const) {
+        await dom.testing.act(async () => {
+            await page.router.navigate({ to });
+        });
+        const current = nav.querySelector('a[aria-current="page"]');
+        expect(current?.getAttribute('href')).toBe(to);
+        expect(nav.querySelectorAll('a[aria-current="page"]')).toHaveLength(1);
+        expect(nav.querySelector(':scope > [aria-hidden="true"]')).toBe(indicator);
+        expect(current?.querySelector('.bg-primary\\/10')).toBeNull();
+    }
+});
+
+/* oxlint-enable no-await-in-loop */

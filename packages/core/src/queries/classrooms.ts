@@ -8,6 +8,7 @@ import { weekLessonsQueryOptions } from './lessons.ts';
 
 export type Classroom = components['schemas']['ParticipantClassroom'];
 export type ClassroomPost = components['schemas']['ClassroomPostView'];
+export type TeachingPlan = components['schemas']['ClassroomTeachingPlan'];
 export type PostType = components['schemas']['PostType'];
 
 /** A menção vale nas turmas encerradas; nas atuais, quem ocupa o lugar dela é o local. */
@@ -23,6 +24,11 @@ export const allClassroomsQueryOptions = api.queryOptions('get', '/classrooms', 
 export const classroomPostsQueryOptions = (id: string, type?: PostType) =>
     api.queryOptions('get', '/classrooms/{classroom_id}/posts', {
         params: { path: { classroom_id: id }, ...(type ? { query: { type } } : {}) }
+    });
+
+export const classroomTeachingPlanQueryOptions = (id: string) =>
+    api.queryOptions('get', '/classrooms/{classroom_id}/teaching-plan', {
+        params: { path: { classroom_id: id } }
     });
 
 export const classroomPostDetailQueryOptions = (id: string, postId: string) =>

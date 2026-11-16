@@ -3,13 +3,15 @@ import type { ClassroomPost, PostType } from '@followw/core/queries/classrooms.t
 import { postDateLabel, postLink, postTypeLabels } from '@followw/core/lib/classroom-posts.ts';
 import {
     classroomPostDetailQueryOptions,
-    classroomPostsQueryOptions
+    classroomPostsQueryOptions,
+    classroomTeachingPlanQueryOptions
 } from '@followw/core/queries/classrooms.ts';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { noop, useQuery, useQueryClient } from '@tanstack/react-query';
 import { RefreshCw } from 'lucide-react';
 import { m } from 'motion/react';
 import { useState } from 'react';
 
+import { ClassroomTeachingPlan } from '#/components/classroom/ClassroomTeachingPlan';
 import { ErrorCard, SIGAA_DOWN_MESSAGE, StaleDataNotice } from '#/components/ErrorState';
 import { ListCard } from '#/components/ListCard';
 import { LoadingText } from '#/components/LoadingText';
@@ -41,26 +43,26 @@ export function ClassroomPosts({ id }: { id: string }) {
     const queryClient = useQueryClient();
     const options = classroomPostsQueryOptions(id);
     const posts = useQuery(options);
+    const planOptions = classroomTeachingPlanQueryOptions(id);
+    const plan = useQuery(planOptions);
     const [openedId, setOpenedId] = useState<string | null>(null);
     const [type, setType] = useState<PostType | 'all'>('all');
     const entrance = useEntrance();
 
-    if (posts.isPending)
-        return (
-            <PostsMessage>
-                <LoadingText>Carregando postagens...</LoadingText>
-            </PostsMessage>
-        );
-    if (posts.isLoadingError)
-        return <ErrorCard message={SIGAA_DOWN_MESSAGE} onRetry={() => posts.refetch()} />;
-
-    const visible = posts.data.filter((post) => type === 'all' || post.type === type);
+    const visible = (posts.data ?? []).filter((post) => type === 'all' || post.type === type);
     const topics = new Map(
-        posts.data.filter((post) => post.type === 'topic').map((post) => [post.id, post])
+        (posts.data ?? []).filter((post) => post.type === 'topic').map((post) => [post.id, post])
     );
+    const refreshing = posts.isFetching || plan.isFetching;
 
     return (
         <section aria-label="Postagens da turma" className="flex flex-col gap-3">
+            <ClassroomTeachingPlan
+                data={plan.data}
+                isPending={plan.isPending}
+                isError={plan.isError}
+                onRetry={() => void refreshQuery(queryClient, planOptions).catch(noop)}
+            />
             <div className="flex items-center justify-between gap-2">
                 <TabFilter
                     label="Filtrar postagens por tipo"
@@ -77,13 +79,14 @@ export function ClassroomPosts({ id }: { id: string }) {
                     variant="ghost"
                     size="icon-sm"
                     aria-label="Atualizar"
-                    disabled={posts.isFetching}
+                    disabled={refreshing}
                     onClick={() => {
-                        const openedNews = posts.data.find(
+                        const openedNews = posts.data?.find(
                             (post) => post.id === openedId && post.type === 'news'
                         );
                         void Promise.all([
                             refreshQuery(queryClient, options),
+                            refreshQuery(queryClient, planOptions),
                             ...(openedNews
                                 ? [
                                       refreshQuery(
@@ -92,14 +95,20 @@ export function ClassroomPosts({ id }: { id: string }) {
                                       )
                                   ]
                                 : [])
-                        ]).catch(() => {});
+                        ]).catch(noop);
                     }}
                 >
-                    <RefreshCw className={cn('size-4', posts.isFetching && 'animate-spin')} />
+                    <RefreshCw className={cn('size-4', refreshing && 'animate-spin')} />
                 </Button>
             </div>
-            {posts.isError && <StaleDataNotice subject="as postagens" />}
-            {visible.length === 0 ? (
+            {posts.isError && !posts.isLoadingError && <StaleDataNotice subject="as postagens" />}
+            {posts.isPending ? (
+                <PostsMessage>
+                    <LoadingText>Carregando postagens...</LoadingText>
+                </PostsMessage>
+            ) : posts.isLoadingError ? (
+                <ErrorCard message={SIGAA_DOWN_MESSAGE} onRetry={() => posts.refetch()} />
+            ) : visible.length === 0 ? (
                 <PostsMessage>
                     {posts.data.length === 0
                         ? 'Nenhuma postagem publicada.'

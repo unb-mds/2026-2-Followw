@@ -234,6 +234,12 @@ class Classroom(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     statistics_synced_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True)
     )
+    teaching_plan: Mapped[dict[str, object] | None] = mapped_column(
+        JSONB, deferred=True
+    )
+    teaching_plan_synced_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
     # As aulas pelo horário e calendário são criadas uma vez, no sync de um aluno.
     lessons_created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # "Andamento das Aulas", lido na frequência de qualquer aluno da turma.

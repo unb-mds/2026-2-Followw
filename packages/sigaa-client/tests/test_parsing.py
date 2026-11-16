@@ -100,6 +100,18 @@ def test_markdown_deixa_links_absolutos_e_sem_titulo():
     )
 
 
+@pytest.mark.parametrize(
+    "html,expected",
+    [
+        ("<b>A</b><span><strong>B</strong></span><b>C</b>", "**ABC**"),
+        ("<b>A</b> <b>B</b>", "**A** **B**"),
+        ("<p><b>A</b></p><p><b>B</b></p>", "**A**\n\n**B**"),
+    ],
+)
+def test_markdown_normaliza_negritos_sem_unir_palavras_ou_paragrafos(html, expected):
+    assert _markdown(html) == expected
+
+
 def test_markdown_de_html_vazio_e_none():
     assert _markdown("<p>&nbsp;</p><br>") is None
 
