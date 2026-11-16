@@ -31,6 +31,7 @@ _MENU_ACTION = (
     "menu_form_menu_discente_discente_menu:A]"
     "#{ ofertaEstagioMBean.listarOfertasDisponiveis }"
 )
+_BOARD_FORM = "form"
 _TABLE_IDS = ("listagem_meu_curso", "listagem_outros_cursos")
 _DETAIL_TITLE = "Visualizar Oferta de Estágio"
 _MONEY_RE = re.compile(r"R\$\s*((?:\d{1,3}(?:\.\d{3})+|\d+),\d{2})")
@@ -72,7 +73,9 @@ class Internships:
         response = await self._session.post(
             action, data=payload, allow_renewal=allow_renewal
         )
-        return BeautifulSoup(response.text, "lxml")
+        page = BeautifulSoup(response.text, "lxml")
+        read_form(page, _BOARD_FORM)
+        return page
 
     async def _read_detail(
         self, reference: str, table_id: str, *, allow_renewal: bool
@@ -86,7 +89,7 @@ class Internships:
             )
         summary, anchor = match
         key = _summary_key(summary)
-        form = read_form(page, "form")
+        form = read_form(page, _BOARD_FORM)
         action, payload = build_postback(
             form, link_params(anchor), read_viewstate(form)
         )
@@ -112,7 +115,7 @@ def _parse_table(
 ) -> list[tuple[InternshipSummary, Tag]]:
     table = page.find("table", id=table_id)
     if not isinstance(table, Tag):
-        raise SigaaParseError(f"Tabela `{table_id}` ausente no mural de estágios.")
+        return []
     rows = table.select("tbody > tr")
     # shortcut: a posição só é verificável pelo texto até o SIGAA expor um ID.
     fingerprint = sha256(

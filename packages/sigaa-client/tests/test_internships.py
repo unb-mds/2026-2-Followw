@@ -26,14 +26,24 @@ ROW = """
 """
 
 
-def board(my_rows: str, other_rows: str = "") -> str:
+def board(my_rows: str | None = "", other_rows: str | None = "") -> str:
+    my_table = (
+        f'<table id="listagem_meu_curso"><thead><tr><th>Título</th></tr></thead>'
+        f"<tbody>{my_rows}</tbody></table>"
+        if my_rows is not None
+        else ""
+    )
+    other_table = (
+        f'<table id="listagem_outros_cursos"><thead><tr><th>Título</th></tr></thead>'
+        f"<tbody>{other_rows}</tbody></table>"
+        if other_rows is not None
+        else ""
+    )
     return f"""
     <form id="form" name="form" action="/sigaa/estagio/oferta_estagio/lista.jsf">
      <input name="form" value="form" type="hidden">
-     <table id="listagem_meu_curso"><thead><tr><th>Título</th></tr></thead>
-      <tbody>{my_rows}</tbody></table>
-     <table id="listagem_outros_cursos"><thead><tr><th>Título</th></tr></thead>
-      <tbody>{other_rows}</tbody></table>
+     {my_table}
+     {other_table}
      <input name="javax.faces.ViewState" value="MURAL" type="hidden">
     </form>
     """
@@ -342,12 +352,49 @@ async def test_layout_ou_dado_invalido_levanta_erro_descritivo(old, new, match):
             await client.internships.get_internship(summary.reference)
 
 
-async def test_mural_sem_tabela_levanta_erro():
+async def test_mural_sem_form_levanta_erro():
     sigaa = FakeSigaa()
     sigaa.board = "<h2>Página inesperada</h2>"
     async with client_for(sigaa) as client:
-        with pytest.raises(SigaaParseError, match="listagem_meu_curso"):
+        with pytest.raises(SigaaParseError, match="Form `form` não encontrado"):
             await client.internships.list_internships()
+
+
+async def test_mural_sem_ofertas_do_meu_curso_retorna_outros_cursos():
+    sigaa = FakeSigaa()
+    sigaa.board = board(None, OTHER_ROW)
+    async with client_for(sigaa) as client:
+        items = await client.internships.list_internships()
+        assert len(items) == 1
+        assert items[0].reference.startswith("listagem_outros_cursos:")
+        assert await client.internships.list_internships(only_my_course=True) == []
+
+
+async def test_mural_apenas_com_meu_curso_retorna_apenas_meu_curso():
+    sigaa = FakeSigaa()
+    sigaa.board = board(MY_ROW, None)
+    async with client_for(sigaa) as client:
+        items = await client.internships.list_internships()
+        assert len(items) == 1
+        assert items[0].reference.startswith("listagem_meu_curso:")
+
+
+async def test_mural_sem_nenhuma_tabela_retorna_lista_vazia():
+    sigaa = FakeSigaa()
+    sigaa.board = board(None, None)
+    async with client_for(sigaa) as client:
+        assert await client.internships.list_internships() == []
+
+
+async def test_detalhe_quando_tabela_ausente_levanta_not_found():
+    sigaa = FakeSigaa()
+    sigaa.board = board(None, OTHER_ROW)
+    async with client_for(sigaa) as client:
+        with pytest.raises(
+            InternshipNotFound,
+            match="Referência de estágio ausente ou mural alterado",
+        ):
+            await client.internships.get_internship("listagem_meu_curso:0:abc")
 
 
 @pytest.mark.parametrize("href", ["/sigaa/arquivo.pdf", "javascript:alert(1)", "#"])
