@@ -1,11 +1,12 @@
 from uuid import UUID
 
-from sqlalchemy import ColumnElement, exists, func, literal_column, or_, select
+from sqlalchemy import ColumnElement, and_, exists, func, literal_column, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, selectinload, undefer
 
 from api.db.models import Classroom, ClassroomProfessor, Professor, Subject
 from api.db.search import all_terms, contains_term
+from api.modules.public_subjects.schedule_search import ScheduleSearch
 
 
 def _matches_query(q: str, semester: str | None) -> ColumnElement[bool]:
@@ -147,6 +148,17 @@ class SubjectCatalogRepository:
             )
         )
 
+    async def latest_classroom_counts(self, codes: set[str]) -> dict[str, int]:
+        if not codes:
+            return {}
+        latest = select(func.max(Classroom.semester)).scalar_subquery()
+        rows = await self._session.execute(
+            select(Classroom.subject_code, func.count())
+            .where(Classroom.subject_code.in_(codes), Classroom.semester == latest)
+            .group_by(Classroom.subject_code)
+        )
+        return {code: count for code, count in rows}
+
     async def list_subjects(
         self,
         *,
@@ -155,6 +167,7 @@ class SubjectCatalogRepository:
         codes: set[str] | None = None,
         unit_id: int | None = None,
         semester: str | None = None,
+        schedule: ScheduleSearch | None = None,
     ) -> list[Subject]:
         """Cada componente com as turmas de `semester` (o mais recente gravado, se omitido)."""
         semester = semester or await self.latest_semester()
@@ -167,10 +180,25 @@ class SubjectCatalogRepository:
             query = query.where(Subject.unit_id == unit_id)
         if q is not None:
             query = query.where(_matches_query(q, semester))
-        # Sem semestre não há turma gravada, então o filtro não tira nada.
-        offered = selectinload(Subject.classrooms)
+        classrooms = Subject.classrooms
         if semester is not None:
-            offered = selectinload(
-                Subject.classrooms.and_(Classroom.semester == semester)
+            classrooms = classrooms.and_(Classroom.semester == semester)
+        if schedule is not None:
+            schedules = await self._session.scalars(
+                select(Classroom.schedule)
+                .where(Classroom.semester == semester, Classroom.schedule.is_not(None))
+                .distinct()
             )
-        return list(await self._session.scalars(query.options(offered)))
+            matching = [
+                value for value in schedules if value and schedule.matches(value)
+            ]
+            if not matching:
+                return []
+            match = Classroom.schedule.in_(matching)
+            query = query.where(
+                Subject.classrooms.any(and_(Classroom.semester == semester, match))
+            )
+            classrooms = classrooms.and_(match)
+        return list(
+            await self._session.scalars(query.options(selectinload(classrooms)))
+        )

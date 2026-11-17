@@ -15,6 +15,7 @@ from api.modules.public_professors.service import (
     ProfessorPage,
     ProfessorServiceDep,
 )
+from api.modules.public_subjects.schedule_search import ScheduleSearch
 from api.modules.public_subjects.service import CatalogSubject, PublicSubjectServiceDep
 from api.sync import Sync
 
@@ -46,9 +47,13 @@ class SearchService:
         types: Collection[SearchType] | None,
         unit: int | str | None,
         sync: Sync | None,
+        *,
+        schedule: ScheduleSearch | None = None,
     ) -> SearchResult:
         searches: dict[SearchType, Callable[[], Awaitable[Any]]] = {
-            "subjects": lambda: self._subjects.search(q, unit=unit, sync=sync),
+            "subjects": lambda: self._subjects.search(
+                q if schedule is None else None, unit=unit, sync=sync, schedule=schedule
+            ),
             "courses": lambda: self._courses.list_courses(
                 q, unit, 1, COURSES_PAGE_SIZE
             ),
@@ -56,7 +61,8 @@ class SearchService:
                 q, unit, None, 1, PROFESSORS_PAGE_SIZE
             ),
         }
-        wanted = [name for name in searches if not types or name in types]
+        requested = types or (("subjects",) if schedule else searches)
+        wanted = [name for name in searches if name in requested]
         # Espera todas as buscas antes de propagar a primeira falha.
         results = await asyncio.gather(
             *(searches[name]() for name in wanted), return_exceptions=True

@@ -29,7 +29,7 @@ export function SubjectResults({
                 skeleton={<TurmaSectionSkeleton title />}
             >
                 {(data) => {
-                    const subjects = withClassrooms(data);
+                    const subjects = withClassrooms(data, taken);
                     return (
                         <>
                             <TurmaSection

@@ -69,7 +69,7 @@ export function RecommendationsSection({
     const client = useQueryClient();
     const query = useQuery(recommendationsQueryOptions);
     const refresh = () => void refreshQuery(client, recommendationsQueryOptions).catch(noop);
-    const subjects = query.data && withClassrooms(query.data);
+    const subjects = query.data && withClassrooms(query.data, taken);
     return (
         <section
             aria-label="Matérias recomendadas"

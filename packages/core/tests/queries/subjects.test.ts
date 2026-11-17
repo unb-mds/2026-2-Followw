@@ -14,6 +14,7 @@ import {
     withClassrooms,
     seats,
     subjectRequirementLabel,
+    isScheduleSearch,
     searchText,
     subjectsQueryOptions
 } from '../../src/queries/subjects.ts';
@@ -68,6 +69,9 @@ describe('busca de matérias', () => {
         ['FGA0003', 'FGA0003'],
         [' fga0003 ', 'fga0003'],
         [' cálculo 1 ', 'cálculo 1'],
+        ['10', '10'],
+        ['8', '8'],
+        ['24', null],
         ['ab', null],
         ['abc', 'abc'],
         ['a'.repeat(32), 'a'.repeat(32)],
@@ -82,6 +86,31 @@ describe('busca de matérias', () => {
         expect(searchText('ab', 'calculo')).toBe('calculo');
         expect(searchText('a'.repeat(33), 'calculo')).toBe('calculo');
         expect(searchText('', 'calculo')).toBeNull();
+    });
+
+    test.each([
+        ['segunda 10', true],
+        ['segunda e quarta 10h', true],
+        ['segunda quarta 10h', true],
+        ['seg, qua e sex 10h', true],
+        ['terça-feira e sábado 10:00', true],
+        ['segunda e física 10h', false],
+        ['segunda e 10h', false],
+        ['TERÇA-feira 10h', true],
+        ['seg 10:55', true],
+        ['sábado 10', true],
+        ['24M34', true],
+        ['35t34', true],
+        ['35N34', true],
+        ['24M6', false],
+        ['35N5', false],
+        ['84M34', false],
+        ['seg 10:60', false],
+        ['segunda 24', false],
+        ['cálculo 1', false],
+        ['MAT0010', false]
+    ])('reconhece a busca de horário %s como %p', (q, expected) => {
+        expect(isScheduleSearch(q)).toBe(expected);
     });
 });
 

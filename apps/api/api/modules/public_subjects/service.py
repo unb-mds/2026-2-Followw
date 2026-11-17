@@ -8,6 +8,7 @@ from api.db.main import DatabaseDep
 from api.db.models import Subject
 from api.db.units import find_unit_id
 from api.modules.public_subjects.repository import SubjectCatalogRepository
+from api.modules.public_subjects.schedule_search import ScheduleSearch
 from api.modules.recommendations.ranking import (
     Component,
     ReasonCode,
@@ -28,6 +29,8 @@ from api.schemas import (
     unit_ref,
 )
 from api.sync import Sync
+
+_CURRICULUM_PRIORITY = {"mandatory": 0, "optional": 1, "free": 2, None: 2}
 
 
 class SubjectClassroom(ClassroomOffer):
@@ -81,15 +84,18 @@ class PublicSubjectService:
         unit: int | str | None = None,
         semester: str | None = None,
         sync: Sync | None = None,
+        schedule: ScheduleSearch | None = None,
     ) -> list[CatalogSubject]:
         registration = sync.registration if sync else None
-        if q is None and code is None and unit is None:
+        if q is None and code is None and unit is None and schedule is None:
             if sync is None:
                 raise _invalid("Informe `q`, `code` ou `unit`.")
             ranking = await RecommendationService(sync).recommend()
             return await self._db.read(lambda session: _recommended(session, ranking))
         return await self._db.read(
-            lambda session: _search(session, q, code, unit, semester, registration)
+            lambda session: _search(
+                session, q, code, unit, semester, registration, schedule
+            )
         )
 
 
@@ -100,6 +106,7 @@ async def _search(
     unit: int | str | None,
     semester: str | None,
     registration: str | None,
+    schedule: ScheduleSearch | None,
 ) -> list[CatalogSubject]:
     repository = SubjectCatalogRepository(session)
     unit_id = await find_unit_id(session, unit)
@@ -109,11 +116,15 @@ async def _search(
         code=code,
         unit_id=unit_id,
         semester=semester,
+        schedule=schedule,
     )
     curriculum = None
     if registration is not None:
         curriculum = await RecommendationRepository(session).curriculum(registration)
-    return await _catalog(session, curriculum, subjects, semester)
+    results = await _catalog(session, curriculum, subjects, semester)
+    if curriculum is not None:
+        results.sort(key=lambda subject: _CURRICULUM_PRIORITY[subject.kind])
+    return results
 
 
 async def _recommended(session: AsyncSession, ranking: Ranking) -> list[CatalogSubject]:

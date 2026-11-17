@@ -1,6 +1,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Query, Response
+from pydantic import AfterValidator, StringConstraints
 
 from api.cache import no_store
 from api.modules.public_search.service import (
@@ -8,10 +9,17 @@ from api.modules.public_search.service import (
     SearchServiceDep,
     SearchType,
 )
-from api.schemas import SearchText, UnitFilter
+from api.modules.public_subjects.schedule_search import parse_schedule_search
+from api.schemas import UnitFilter
 from api.sync import OptionalSyncDep
 
 router = APIRouter()
+
+
+def _validate_text(text: str) -> str:
+    if len(text) < 3 and parse_schedule_search(text) is None:
+        raise ValueError("Informe pelo menos 3 caracteres ou um horário válido.")
+    return text
 
 
 @router.get(
@@ -26,7 +34,14 @@ async def search(
     sync: OptionalSyncDep,
     response: Response,
     q: Annotated[
-        SearchText,
+        str,
+        StringConstraints(
+            strip_whitespace=True,
+            min_length=1,
+            max_length=32,
+            pattern=r"^[^\x00-\x1f\x7f]+$",
+        ),
+        AfterValidator(_validate_text),
         Query(
             description="Termos da busca.",
         ),
@@ -40,6 +55,8 @@ async def search(
         Query(description="ID ou sigla da unidade, para todos os tipos."),
     ] = None,
 ) -> SearchResult:
-    result = await service.search(q, type, unit, sync)
+    result = await service.search(
+        q, type, unit, sync, schedule=parse_schedule_search(q)
+    )
     no_store(response)
     return result

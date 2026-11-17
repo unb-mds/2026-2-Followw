@@ -10,6 +10,7 @@ import {
     showsSubjects
 } from '@followw/core/lib/search-categories.ts';
 import { allClassroomsQueryOptions } from '@followw/core/queries/classrooms.ts';
+import { curriculumQueryOptions } from '@followw/core/queries/curriculum.ts';
 import { internshipsQueryOptions } from '@followw/core/queries/internships.ts';
 import { loadQuery } from '@followw/core/queries/load.ts';
 import { meQueryOptions } from '@followw/core/queries/me.ts';
@@ -21,6 +22,7 @@ import { searchQueryOptions } from '@followw/core/queries/search.ts';
 import {
     approvedCodes,
     currentCurriculumPeriod,
+    isScheduleSearch,
     SEARCH_MAX_LENGTH,
     SEARCH_MIN_LENGTH,
     searchText,
@@ -42,6 +44,7 @@ import {
     type CatalogCategory,
     catalogQueryOptions
 } from '#/components/search/CatalogResults';
+import { ElectiveResults } from '#/components/search/ElectiveResults';
 import { InternshipResults } from '#/components/search/InternshipSection';
 import { RecommendationsSection } from '#/components/search/RecommendationsSection';
 import { SearchResults } from '#/components/search/SearchResults';
@@ -56,7 +59,9 @@ type SearchView =
     | { kind: 'recommendations' }
     | { kind: 'catalog'; category: CatalogCategory }
     | { kind: 'search'; text: string }
+    | { kind: 'schedule'; text: string }
     | { kind: 'unit'; unit: string }
+    | { kind: 'electives'; text: string | null; schedule: boolean }
     | { kind: 'internships'; text: string | null };
 
 /** Sem texto, as abas com matérias mostram as recomendações ou a unidade do aluno, e as demais o catálogo. */
@@ -66,10 +71,14 @@ function searchView(
     text: string | null,
     user: UserProfile | null
 ): SearchView | null {
-    if (category === 'internships') return { kind: 'internships', text };
+    const schedule = text !== null && isScheduleSearch(text);
+    if (category === 'electives') return { kind: 'electives', text, schedule };
+    const name = text && text.length >= SEARCH_MIN_LENGTH ? text : null;
+    if (category === 'internships') return { kind: 'internships', text: name };
     const subjects = showsSubjects(category);
     if (subjects && showRecommendations(user, { q })) return { kind: 'recommendations' };
-    if (text) return { kind: 'search', text };
+    if (subjects && text && schedule) return { kind: 'schedule', text };
+    if (name) return { kind: 'search', text: name };
     if (category === 'courses' || category === 'professors') return { kind: 'catalog', category };
     const unit = user?.unit?.code;
     return subjects && unit ? { kind: 'unit', unit } : null;
@@ -85,13 +94,22 @@ export const Route = createFileRoute('/_app/buscar')({
         const { q, category } = loadSearchParams(location.searchStr);
         const view = searchView(category, q, searchText(q), user);
         const results = Promise.all([
-            showsSubjects(category) &&
+            (showsSubjects(category) || category === 'electives') &&
                 user &&
                 loadQuery(queryClient, allClassroomsQueryOptions).catch(noop),
             view?.kind === 'recommendations' &&
                 loadQuery(queryClient, recommendationsQueryOptions).catch(noop),
             view?.kind === 'search' &&
                 loadQuery(queryClient, searchQueryOptions(view.text, searchTypes[category])).catch(
+                    noop
+                ),
+            (view?.kind === 'schedule' ||
+                (view?.kind === 'electives' &&
+                    view.schedule &&
+                    user?.course &&
+                    user.entry_semester)) &&
+                view.text &&
+                loadQuery(queryClient, searchQueryOptions(view.text, searchTypes.classrooms)).catch(
                     noop
                 ),
             view?.kind === 'catalog' &&
@@ -101,6 +119,13 @@ export const Route = createFileRoute('/_app/buscar')({
                 ).catch(noop),
             view?.kind === 'unit' &&
                 loadQuery(queryClient, subjectsQueryOptions({ unit: view.unit })).catch(noop),
+            view?.kind === 'electives' &&
+                user?.course &&
+                user.entry_semester &&
+                loadQuery(
+                    queryClient,
+                    curriculumQueryOptions(user.course.id, user.entry_semester)
+                ).catch(noop),
             view?.kind === 'internships' &&
                 user &&
                 loadQuery(queryClient, internshipsQueryOptions).catch(noop)
@@ -124,6 +149,13 @@ const fieldContent: Variants = {
     show: { opacity: 1, transition: { duration: 0.2, ease, delay: 0.2 } }
 };
 
+const searchLabels: Partial<Record<SearchCategory, string>> = {
+    all: 'Busque por matéria, horário, curso ou professor',
+    classrooms: 'Busque por matéria ou horário',
+    electives: 'Busque por optativa ou horário',
+    internships: 'Busque por estágio'
+};
+
 function BuscarPage() {
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const [{ q, category }, setSearch] = useSearchState();
@@ -139,13 +171,10 @@ function BuscarPage() {
         return () => clearTimeout(timer);
     }, [q]);
     const view = searchView(category, q, text, user);
-    const searchLabel =
-        category === 'internships'
-            ? 'Busque por estágio'
-            : 'Busque por matéria, curso ou professor';
+    const searchLabel = searchLabels[category] ?? 'Busque por matéria, curso ou professor';
     const { data: history } = useQuery({
         ...allClassroomsQueryOptions,
-        enabled: subjects && Boolean(user)
+        enabled: Boolean(user) && (subjects || category === 'electives')
     });
     const completed = user?.completed_subjects;
     const taken = useMemo(
@@ -188,7 +217,7 @@ function BuscarPage() {
                 options={SEARCH_CATEGORIES}
                 labels={searchCategoryLabels}
                 onChange={(value) => void setSearch({ category: value })}
-                className="search-filters -my-2 lg:col-start-1 lg:row-start-1 lg:my-0 lg:mb-4 lg:w-fit"
+                className="search-filters -my-2 lg:col-start-1 lg:row-start-1 lg:my-0 lg:mb-4 lg:w-fit lg:max-w-full"
             />
             <SchedulePreview />
             <div
@@ -196,7 +225,10 @@ function BuscarPage() {
                 className="search-results flex min-w-0 flex-col gap-5 pb-8 lg:col-start-1 lg:row-start-2"
             >
                 {!view && (
-                    <p className="py-8 text-center text-sm text-muted-foreground">{`Digite de ${SEARCH_MIN_LENGTH} a ${SEARCH_MAX_LENGTH} caracteres do nome, código da matéria, curso ou professor para ver os resultados.`}</p>
+                    <p className="py-8 text-center text-sm text-muted-foreground">
+                        Para buscar pelo início da aula, digite 10h ou segunda e quarta 10h. Você
+                        também pode usar um código do SIGAA, como 24M34.
+                    </p>
                 )}
                 {subjects && !user && text && (
                     <p className="text-sm text-muted-foreground">
@@ -224,9 +256,27 @@ function BuscarPage() {
                         }
                     />
                 )}
+                {view?.kind === 'schedule' && (
+                    <SearchResults
+                        key={view.text}
+                        text={view.text}
+                        types={searchTypes.classrooms}
+                        empty="Nenhuma turma corresponde ao horário pesquisado."
+                        currentPeriod={currentPeriod}
+                        taken={taken}
+                    />
+                )}
                 {view?.kind === 'catalog' && <CatalogResults category={view.category} />}
                 {view?.kind === 'unit' && (
                     <SubjectResults unit={view.unit} currentPeriod={currentPeriod} taken={taken} />
+                )}
+                {view?.kind === 'electives' && (
+                    <ElectiveResults
+                        user={user}
+                        text={view.text}
+                        schedule={view.schedule}
+                        taken={taken}
+                    />
                 )}
                 {view?.kind === 'internships' &&
                     (user ? (

@@ -1,4 +1,5 @@
 import pytest
+from sqlalchemy import select
 
 from api.db.models import (
     Classroom,
@@ -315,6 +316,44 @@ def catalog(client, database):
 
 def _get(client, entry="2026.1", **params):
     return client.get(URL, params={"entry_semester": entry, **params})
+
+
+def test_optativas_com_mais_turmas_no_semestre_recente_aparecem_primeiro(
+    catalog, database
+):
+    with database.begin() as session:
+        matrix_id = session.scalar(
+            select(Curriculum.id).where(Curriculum.sigaa_id == 201)
+        )
+        codes = ["FGA0003", "FGA0004", "FGA0005"]
+        session.add_all(Subject(code=code, name=code) for code in codes)
+        session.flush()
+        session.add_all(
+            CurriculumComponent(
+                curriculum_id=matrix_id, subject_code=code, kind="optional", period=0
+            )
+            for code in codes
+        )
+        session.add_all(
+            Classroom(subject_code=code, semester=semester, number=f"{index + 1:02}")
+            for code, semester, count in [
+                ("FGA0002", "2025.2", 4),
+                ("FGA0003", "2026.1", 1),
+                ("FGA0004", "2026.1", 2),
+                ("FGA0005", "2026.1", 1),
+            ]
+            for index in range(count)
+        )
+
+    response = _get(catalog)
+    assert response.status_code == 200, response.text
+    electives = response.json()["periods"][0]["subjects"]
+    assert [subject["code"] for subject in electives] == [
+        "FGA0004",
+        "FGA0003",
+        "FGA0005",
+        "FGA0002",
+    ]
 
 
 def test_curriculo_por_ingresso_traz_materias_agrupadas_e_requisitos(catalog):
