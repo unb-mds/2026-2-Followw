@@ -29,7 +29,8 @@ TTL (`None`), o dado **nunca vence** sozinho.
 | Participantes da turma          | 24 h    | turma                   | Turma de semestre passado: sem TTL                 |
 | Estatísticas da turma           | 24 h    | turma                   | Turma de semestre passado: sem TTL                 |
 | Frequência da turma             | 24 h    | vínculo usuário × turma | Turma de semestre passado: sem TTL                 |
-| Lista de notícias da turma      | 60 min  | turma                   | Turma de semestre passado: sem TTL                 |
+| Lista de posts da turma         | 24 h    | turma                   | Turma de semestre passado: sem TTL                 |
+| Verificação da home do SIGAA    | 1 h     | usuário                 | Agenda sync das turmas com novidades não salvas    |
 | Conteúdo de uma notícia         | sem TTL | notícia                 | Gravado no primeiro acesso; só muda com `no-cache` |
 | Cardápio do RU                  | 5 dias  | campus                  | Sem job: revalida na hora (veja abaixo)            |
 
@@ -154,14 +155,15 @@ tópico de outra turma.
 `GET /classrooms/{classroom_id}/posts/{post_id}` usa o `id` opaco da listagem. `/posts` é o feed
 recente da home do SIGAA (notícias e avaliações de todas as turmas atuais), sem cache e sem IDs.
 
-`GET /posts/news` devolve até cinco notícias das turmas atuais diretamente do banco, com IDs e
-conteúdo já salvo. A identidade é `(classroom_id, source_id)`, nunca título e data. Listas vencidas
-viram `sync_posts` no job de cada turma; o conteúdo das notícias continua sob demanda. Resultados
-disponíveis são retornados enquanto outras turmas ainda não têm cache. `updating` orienta a home a
-reler o feed a cada cinco segundos até as listas sincronizarem.
+`GET /posts/news` devolve até cinco notícias das turmas do usuário diretamente do banco, com IDs e
+conteúdo já salvo. A identidade é `(classroom_id, source_id)`, nunca título e data. A cada hora,
+quando há turmas atuais, agenda uma verificação da home do SIGAA. O job relê as listas das turmas
+com notícias ou avaliações ainda não presentes no cache. O conteúdo das notícias continua sob
+demanda; `updating` indica que a verificação está pendente e precisa ser agendada.
 
-`sync_posts` atualiza a lista completa a cada 60 minutos nas turmas atuais; listas históricas não
-vencem. Tópicos, materiais e avaliações atualizam seus conteúdos junto com a lista. Notícias mantêm
+`sync_posts` atualiza a lista completa quando necessário; seu TTL é de 24 horas nas turmas atuais e
+listas históricas não vencem. A verificação da home também pode antecipar o sync. Tópicos, materiais
+e avaliações atualizam seus conteúdos junto com a lista. Notícias mantêm
 o carregamento de conteúdo sob demanda por `sync_news_content`, com revalidação por
 `Cache-Control: no-cache`. Posts removidos da origem são preservados, assim como os conteúdos de
 notícias já consultados. Datas de publicação ausentes continuam nulas; a agenda usa campos próprios
@@ -169,3 +171,6 @@ para data e horário. Resultados individuais ficam fora dos posts.
 
 Não há migração do cache antigo: conforme a convenção do projeto, a mudança de
 `classrooms.news_synced_at` para `posts_synced_at` exige recriar o banco existente.
+
+O campo `is_read` é individual: `PUT` e `DELETE /classrooms/{classroom_id}/posts/{post_id}/read`
+confirmam e desfazem a leitura no banco do Followw, sem alterar a postagem no SIGAA.

@@ -1,9 +1,8 @@
 # Segurança das credenciais do SIGAA
 
 O Followw não tem conta própria: você entra com a mesma matrícula e senha do SIGAA, e é o CAS da UnB
-que confere se elas estão certas. Este documento explica o que acontece com essas credenciais depois
-do login e por que elas não ficam expostas nem no nosso servidor nem no seu navegador. Todo o código
-citado é aberto e pode ser auditado.
+que confere se elas estão certas. Este documento explica como as credenciais são protegidas depois
+do login e os limites dessa proteção. Todo o código citado é aberto e pode ser auditado.
 
 ## O Followw não guarda sua senha
 
@@ -35,7 +34,8 @@ Estes cookies recebem as seguintes configurações de segurança:
 
 - `HttpOnly`: o JavaScript das páginas não consegue lê-los
 - `Secure`: em produção, só trafegam em conexão segura (HTTPS)
-- `SameSite=Lax`: outros sites não conseguem usar o Followw com seu login.
+- `SameSite=Lax`: restringe o envio dos cookies em requisições entre sites, mas permite, por exemplo,
+  navegações de nível superior com métodos seguros; não elimina todos os riscos de CSRF.
 
 ## Os cookies são criptografados
 
@@ -58,9 +58,9 @@ Na prática:
 
 ## Se o seu navegador for comprometido
 
-Se alguém copiar seus cookies (por um malware ou acesso ao seu computador), essa pessoa **não
-descobre a sua senha nem sua matrícula**. Estes cookies só possibilitam o acesso através do próprio
-Followw.
+Quem copiar os cookies pode usá-los para acessar sua conta no Followw enquanto forem válidos. Sem a
+chave do servidor, o conteúdo cifrado não revela diretamente a matrícula nem a senha; um navegador
+ou dispositivo comprometido também pode expor dados por outros meios.
 
 ## Padrões utilizados
 

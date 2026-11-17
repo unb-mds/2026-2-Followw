@@ -165,6 +165,16 @@ suas interações com as bibliotecas do monorepo e dados.
   3 dias do término do semestre, após um último sync consolidado), evitando requisições
   desnecessárias ao SIGAA em semestres passados.
 
+### Descoberta, planejamento e serviços autenticados
+
+- A busca pública reúne matérias, cursos e docentes; o catálogo e as matrizes alimentam os fluxos
+  de cursos, estatísticas por matéria e recomendações. As ofertas de estágio vêm do mural do SIGAA
+  e exigem sessão.
+- A grade planejada e as menções simuladas ficam no armazenamento local do navegador. A grade não
+  realiza matrícula e o simulador não altera índices ou menções no SIGAA.
+- A agenda semanal reúne aulas das turmas atuais e usa o cache de frequência. A confirmação de
+  leitura de posts é armazenada por usuário no banco do Followw.
+
 ### Observabilidade Estruturada e Privacidade por Design
 
 - **Logs Estruturados (`api/logger.py`)**: A API emite eventos em formato JSON por linha em
@@ -207,7 +217,8 @@ suas interações com as bibliotecas do monorepo e dados.
 │       │   ├── integrations/       # Suporte offline (PWA/Workbox + IndexedDB), TanStack Query e PostHog
 │       │   ├── lib/                # Armazenamento, tema, parâmetros de URL e exportação de imagens
 │       │   ├── queries/            # Adaptadores web de sessão, SSR e documentos
-│       │   └── routes/             # Rotas da aplicação (file-based routing: /, /turmas, /buscar, /ru, /perfil, /login, /privacidade)
+│       │   └── routes/             # Rotas: /, /turmas, /buscar, /cursos/$id, /professores/$siape,
+│       │                           # /ru, /perfil, /perfil/simulador, /login e /privacidade
 │       └── tests/                  # Testes unitários e de componentes do frontend
 │
 ├── packages/

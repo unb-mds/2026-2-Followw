@@ -1,7 +1,8 @@
 # Documento de Requisitos de Software: Followw UnB
 
-**Versão:** 0.2.0 (Escopo da Release 2 / Sprints 1 a 7)  
-**Data:** 16 de Outubro de 2026
+**Escopo:** funcionalidades atuais e histórico das releases
+
+**Revisão:** 17 de novembro de 2026
 
 ---
 
@@ -248,15 +249,17 @@ inscrito, histórico letivo, controle de frequência, avisos dos professores e a
 - **US21:** Como estudante, quero acessar os comunicados da matéria mesmo se estiver sem internet ou
   se a publicação for apagada do portal legado.
 
-- **RF08 — Notícias da Disciplina com Suporte a Markdown (`GET /classrooms/{id}/news`):** O sistema
+- **RF08 — Notícias da Disciplina com Suporte a Markdown (`GET /classrooms/{id}/posts`):** O sistema
   deve extrair e exibir comunicados das turmas convertendo a marcação para Markdown higienizado,
-  salvando-os em cache com validade de 60 minutos e retenção persistente.
+  salvando a lista em cache por 24 horas para turmas atuais e preservando posts já obtidos.
 
 **Critérios de Aceitação:**
 
 - Links externos presentes nas notícias devem abrir obrigatoriamente em nova aba
   (`target="_blank" rel="noopener noreferrer"`).
 - Notícias consultadas anteriormente devem permanecer legíveis em modo offline.
+- A API deve permitir confirmar e desfazer a leitura de cada post por usuário, pelo endpoint
+  `PUT` ou `DELETE /classrooms/{id}/posts/{post_id}/read`, e informar `is_read` na resposta.
 
 #### 2.5: Agenda Diária e Calendário Acadêmico
 
@@ -315,10 +318,10 @@ analisar concorrência de vagas, pré-requisitos, quadro de professores e recome
   precisar de login, filtrando por departamento, código, nome ou professor.
 - **US27:** Como estudante, quero consultar uma matéria diretamente pelo código da disciplina (ex.:
   `MAT0031` ou `FGA0312`) sem saber previamente o departamento ofertante.
-- **US28:** Como estudante em fase de matrícula, quero visualizar o total de vagas e a ocupação em
-  tempo real de cada turma, identificando turmas lotadas.
-- **US29:** Como estudante autenticado, quero que o catálogo me informe se já atendi aos
-  pré-requisitos ou equivalências da turma com base no meu histórico acadêmico.
+- **US28:** Como estudante em fase de matrícula, quero visualizar o total de vagas e a ocupação
+  disponível de cada turma, identificando turmas lotadas.
+- **US29:** Como estudante autenticado, quero receber recomendações que considerem meu histórico,
+  pré-requisitos e equivalências.
 
 - **RF11 — Catálogo Geral e Pesquisa Pública de Turmas (`GET /public/classrooms`):** O sistema deve
   oferecer busca pública aberta no catálogo geral da UnB, suportando filtros por unidade, código
@@ -329,10 +332,11 @@ analisar concorrência de vagas, pré-requisitos, quadro de professores e recome
 
 - A busca pública não deve exigir autenticação e deve tolerar variações de acentuação e caixa
   alta/baixa.
+- A ocupação do catálogo reflete os dados coletados e não é garantida em tempo real.
 - A visualização da turma deve exibir barra de progresso com vagas ocupadas sobre o total (ex.:
   `64 de 80 vagas ocupadas`).
-- Para estudantes autenticados, o sistema deve avaliar o histórico escolar e indicar se a turma está
-  liberada ou impedida por pré-requisitos não atendidos.
+- As recomendações consideram o histórico e os requisitos conforme
+  [recomendacoes.md](recomendacoes.md); elas não autorizam uma matrícula.
 
 #### 3.2: Estatísticas Históricas de Aprovação
 
@@ -340,12 +344,11 @@ analisar concorrência de vagas, pré-requisitos, quadro de professores e recome
 
 - **US30:** Como estudante planejando minha matrícula, quero consultar a taxa histórica consolidada
   de aprovação e reprovação de cada professor na matéria.
-- **US31:** Como estudante, quero compartilhar um link direto com as estatísticas de aprovação da
-  disciplina com meus colegas.
+- **US31:** Como estudante, quero consultar resultados históricos disponíveis para comparar turmas.
 
-- **RF12 — Estatísticas Consolidadas de Rendimento (`GET /classrooms/{id}/statistics`):** O sistema
-  deve prover métricas históricas de aprovação e reprovação agrupadas por disciplina e docente,
-  permitindo compartilhamento via URL pública.
+- **RF12 — Estatísticas de Rendimento:** `GET /classrooms/{id}/statistics` consulta os resultados
+  de uma turma do usuário. `GET /public/subjects/{code}/statistics` consulta médias de turmas de
+  semestres anteriores com o mesmo conjunto de docentes; a cobertura depende dos dados coletados.
 
 **Critérios de Aceitação:**
 
@@ -394,6 +397,39 @@ analisar concorrência de vagas, pré-requisitos, quadro de professores e recome
 - A listagem deve vir ordenada alfabeticamente pelo nome do docente.
 - Docentes com dados parciais (sem e-mail ou página pública) devem ser exibidos sem quebra de
   leiaute.
+
+#### 3.5: Cursos, fluxo e montagem de grade
+
+- **RF19 — Consulta pública:** a busca reúne matérias, cursos e docentes. O visitante pode abrir
+  cursos e consultar a matriz por ingresso, com períodos, carga horária e relações entre matérias.
+- **RF20 — Grade planejada:** o estudante pode adicionar e remover turmas, visualizar a grade por
+  semestre e baixá-la como imagem. A seleção é salva no navegador e não efetua matrícula no SIGAA.
+- A grade impede matérias repetidas no mesmo semestre, conflitos de horário e, quando disponível,
+  carga horária acima do limite do estudante. Turmas sem horário identificável são exibidas à parte.
+
+#### 3.6: Busca de estágios
+
+- **RF21 — Mural de estágios:** o estudante autenticado pode consultar ofertas do SIGAA, filtrar
+  pelo título e abrir os detalhes. Ofertas do próprio curso são identificadas e aparecem primeiro.
+- A consulta exige sessão; visitantes recebem orientação para entrar. Os detalhes dependem da
+  disponibilidade do mural e uma referência que deixou de existir pode retornar 404.
+
+#### 3.7: Simulador de índices
+
+- **RF22 — Simulação de IRA e MP:** estudantes de graduação autenticados podem alterar menções
+  simuladas do semestre atual e de semestres anteriores, visualizar os índices e a evolução do IRA
+  e limpar a simulação. As alterações são locais e não modificam o SIGAA.
+- As menções SS, MS, MM, MI, II e SR recebem pesos de 5 a 0. O IRA pondera a carga horária pelo
+  período desde o ingresso, limitado a 6; o MP pondera a carga horária das matérias da matriz.
+  Disciplinas sem menção ou carga horária válida não entram no cálculo.
+- Sem semestre de ingresso não há IRA; sem matriz não há MP. Os resultados são estimativas, não
+  índices oficiais, e dependem do histórico e da matriz disponíveis.
+
+#### 3.8: Aulas da semana
+
+- **RF23 — Agenda semanal:** `GET /lessons` reúne as aulas das turmas atuais de domingo a sábado,
+  com horário, local e situação do aluno; dias sem aulas podem indicar feriado, recesso ou período
+  fora das aulas. Frequências vencidas são agendadas para atualização em segundo plano.
 
 ---
 
@@ -524,9 +560,9 @@ conformidade de arquitetura e segurança da informação.
     - O front-end deve funcionar como uma aplicação web progressiva instalável na tela inicial de
       celulares (Android e iOS) e desktops, com manifesto de aplicativo válido (`manifest.json`) e
       Service Worker.
-    - O aplicativo deve permitir navegação completa pelas páginas já visitadas mesmo sem acesso à
-      internet, mantendo os dados locais por até 14 dias em armazenamento seguro (`IndexedDB` e
-      `localStorage`), exibindo banner indicativo de modo offline.
+    - Após login, páginas preparadas e dados previamente salvos podem ser acessados offline; dados
+      ausentes continuam indisponíveis. O cache de queries dura até 14 dias e um banner informa a
+      ausência de conexão. Os detalhes e limites estão em [offline.md](offline.md).
 
 - **RNF08 — Padronização Visual e Acessibilidade (Design System):**
     - A interface deve adotar componentes reutilizáveis padronizados construídos com **shadcn/ui**,
@@ -594,7 +630,7 @@ O desenvolvimento do Followw UnB é conduzido de forma incremental através de s
 - Sincronização inicial de turmas com o SIGAA.
 - Documentação dos endpoints em OpenAPI.
 
-### Funcionalidades Entregues na Release 2 (Escopo Atual — Sprints 4 a 7 — 16/10/2026)
+### Funcionalidades Entregues na Release 2 (Sprints 4 a 7 — 16/10/2026)
 
 - **Módulo do RU Completo:** Cardápio de 5 campi, suporte a domingos e dias sem cardápio, extrato,
   saldo, avisos de saldo insuficiente e compartilhamento com prévia OpenGraph.
@@ -617,12 +653,17 @@ O desenvolvimento do Followw UnB é conduzido de forma incremental através de s
   ataques de força bruta no login e scraping excessivo.
 - **Transparência e LGPD:** Página pública de termos de uso e política de privacidade
   (`/privacidade`).
-- **PWA e Suporte Offline Total:** Instalação na tela inicial do celular/desktop e navegação
-  completa por até 14 dias sem conexão.
+- **PWA e Suporte Offline:** Instalação e acesso a páginas e dados disponíveis no cache local,
+  conforme as limitações do modo offline.
 - **Design System e Resiliência:** Padronização com shadcn/ui, suporte a temas e tela dedicada para
   indisponibilidades do SIGAA.
 
-### Backlog Evolutivo (Próximas Releases)
+### Evolução posterior
+
+- Busca de cursos, docentes e estágios; visualização de fluxos e montagem de grade com exportação.
+- Simulação de IRA e MP, agenda semanal e confirmação de leitura de posts pela API.
+
+### Backlog Evolutivo
 
 - **Ações Ativas de Matrícula:** Solicitação interativa de trancamento de matrícula e ajuste de
   inscrição direto pelo Followw.
@@ -661,4 +702,4 @@ O desenvolvimento do Followw UnB é conduzido de forma incremental através de s
 - **Documentação de Recomendação de Matérias:** [`docs/recomendacoes.md`](recomendacoes.md)
 - **Documentação de Observabilidade e Logs:** [`docs/observabilidade.md`](observabilidade.md)
 - **Registro de Uso de IA:** [`docs/AI-USAGE.md`](AI-USAGE.md)
-- **Atas de Sprints:** Diretório [`docs/sprints/`](sprints/) (Sprints 01 a 07)
+- **Atas de Sprints:** Diretório [`docs/sprints/`](sprints/) (Sprints 01 a 08)
