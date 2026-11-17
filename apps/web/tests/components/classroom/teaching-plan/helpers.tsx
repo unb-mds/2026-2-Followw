@@ -3,9 +3,17 @@ import type { Middleware } from 'openapi-fetch';
 
 import { apiClient } from '@followw/core/queries/client.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+    RouterContextProvider,
+    createMemoryHistory,
+    createRootRoute,
+    createRoute,
+    createRouter
+} from '@tanstack/react-router';
 import { afterEach, beforeEach } from 'bun:test';
 
 import { ClassroomPosts } from '#/components/classroom/ClassroomPosts';
+import { ClassroomTeachingPlanPage } from '#/components/classroom/ClassroomTeachingPlanPage';
 
 import { useDom } from '../../../helpers/dom';
 
@@ -35,10 +43,22 @@ export const POSTS: ClassroomPost[] = [
     }
 ];
 
+function createPlanRouter() {
+    const root = createRootRoute();
+    return createRouter({
+        routeTree: root.addChildren([
+            createRoute({ getParentRoute: () => root, path: '/turmas/$id' }),
+            createRoute({ getParentRoute: () => root, path: '/turmas/$id/plano-de-ensino' })
+        ]),
+        history: createMemoryHistory({ initialEntries: ['/turmas/AAA/plano-de-ensino'] })
+    });
+}
+
 export function useTeachingPlan() {
     const dom = useDom();
     const state = {
         client: new QueryClient(),
+        router: createPlanRouter(),
         plans: {} as Record<string, TeachingPlan | null>,
         failPlan: false,
         failPosts: false,
@@ -48,6 +68,7 @@ export function useTeachingPlan() {
     };
     let middleware: Middleware;
     beforeEach(() => {
+        state.router = createPlanRouter();
         state.client = new QueryClient({
             defaultOptions: { queries: { retry: false, staleTime: Infinity } }
         });
@@ -81,10 +102,20 @@ export function useTeachingPlan() {
         state.client.clear();
         apiClient.eject(middleware);
     });
-    const render = (id = 'AAA') =>
+    const render = (id = 'AAA', posts = false) =>
         dom.testing.render(
             <QueryClientProvider client={state.client}>
-                <ClassroomPosts key={id} id={id} />
+                <RouterContextProvider router={state.router}>
+                    {posts ? (
+                        <ClassroomPosts key={id} id={id} />
+                    ) : (
+                        <ClassroomTeachingPlanPage
+                            key={id}
+                            id={id}
+                            subjectName="Matemática Discreta 2"
+                        />
+                    )}
+                </RouterContextProvider>
             </QueryClientProvider>
         );
     return { state, dom, render };

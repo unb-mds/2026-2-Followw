@@ -8,7 +8,6 @@ import {
     classroomMembersQueryOptions,
     classroomPostsQueryOptions,
     classroomStatisticsQueryOptions,
-    classroomTeachingPlanQueryOptions,
     useMarkLessons
 } from '@followw/core/queries/classrooms.ts';
 import { loadQuery } from '@followw/core/queries/load.ts';
@@ -61,11 +60,7 @@ const PRELOAD_TAB: Record<ClassroomTab, (client: QueryClient, id: string) => Pro
             loadQuery(client, classroomStatisticsQueryOptions(id)),
             loadQuery(client, classroomFrequencyQueryOptions(id))
         ]),
-    posts: (client, id) => {
-        const posts = loadQuery(client, classroomPostsQueryOptions(id));
-        void loadQuery(client, classroomTeachingPlanQueryOptions(id)).catch(noop);
-        return posts;
-    },
+    posts: (client, id) => loadQuery(client, classroomPostsQueryOptions(id)),
     members: (client, id) => loadQuery(client, classroomMembersQueryOptions(id))
 };
 
@@ -136,7 +131,7 @@ function ClassroomPage() {
                     >
                         <TabsList
                             variant="line"
-                            className="grid w-full grid-cols-3 border-b border-border group-data-horizontal/tabs:h-auto"
+                            className="grid w-full grid-cols-2 border-b border-border group-data-horizontal/tabs:h-auto sm:grid-cols-4"
                             aria-label="Detalhes da turma"
                         >
                             {CLASSROOM_TABS.filter(

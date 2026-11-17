@@ -6,12 +6,12 @@ import {
     classroomPostsQueryOptions,
     classroomTeachingPlanQueryOptions
 } from '@followw/core/queries/classrooms.ts';
-import { noop, useQuery, useQueryClient } from '@tanstack/react-query';
-import { RefreshCw } from 'lucide-react';
+import { noop, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
+import { BookOpen, RefreshCw } from 'lucide-react';
 import { m } from 'motion/react';
 import { useState } from 'react';
 
-import { ClassroomTeachingPlan } from '#/components/classroom/ClassroomTeachingPlan';
 import { ErrorCard, SIGAA_DOWN_MESSAGE, StaleDataNotice } from '#/components/ErrorState';
 import { ListCard } from '#/components/ListCard';
 import { LoadingText } from '#/components/LoadingText';
@@ -44,7 +44,7 @@ export function ClassroomPosts({ id }: { id: string }) {
     const options = classroomPostsQueryOptions(id);
     const posts = useQuery(options);
     const planOptions = classroomTeachingPlanQueryOptions(id);
-    const plan = useQuery(planOptions);
+    const plan = useQuery({ ...planOptions, enabled: !posts.isPending });
     const [openedId, setOpenedId] = useState<string | null>(null);
     const [type, setType] = useState<PostType | 'all'>('all');
     const entrance = useEntrance();
@@ -53,16 +53,36 @@ export function ClassroomPosts({ id }: { id: string }) {
     const topics = new Map(
         (posts.data ?? []).filter((post) => post.type === 'topic').map((post) => [post.id, post])
     );
-    const refreshing = posts.isFetching || plan.isFetching;
+    const refresh = useMutation({
+        mutationFn: async () => {
+            const openedNews = posts.data?.find(
+                (post) => post.id === openedId && post.type === 'news'
+            );
+            await refreshQuery(queryClient, options).catch(noop);
+            if (openedNews)
+                await refreshQuery(
+                    queryClient,
+                    classroomPostDetailQueryOptions(id, openedNews.id)
+                ).catch(noop);
+            await refreshQuery(queryClient, planOptions).catch(noop);
+        }
+    });
+    const refreshing = posts.isFetching || refresh.isPending;
 
     return (
         <section aria-label="Postagens da turma" className="flex flex-col gap-3">
-            <ClassroomTeachingPlan
-                data={plan.data}
-                isPending={plan.isPending}
-                isError={plan.isError}
-                onRetry={() => void refreshQuery(queryClient, planOptions).catch(noop)}
-            />
+            {plan.data && (
+                <ListCard>
+                    <Link
+                        to="/turmas/$id/plano-de-ensino"
+                        params={{ id }}
+                        className="flex min-h-11 items-center gap-3 rounded-lg py-3 text-sm font-semibold transition-colors outline-none hover:text-primary focus-visible:ring-3 focus-visible:ring-ring/50"
+                    >
+                        <BookOpen aria-hidden className="size-4 shrink-0 text-primary" />
+                        Plano de ensino
+                    </Link>
+                </ListCard>
+            )}
             <div className="flex items-center justify-between gap-2">
                 <TabFilter
                     label="Filtrar postagens por tipo"
@@ -80,23 +100,7 @@ export function ClassroomPosts({ id }: { id: string }) {
                     size="icon-sm"
                     aria-label="Atualizar"
                     disabled={refreshing}
-                    onClick={() => {
-                        const openedNews = posts.data?.find(
-                            (post) => post.id === openedId && post.type === 'news'
-                        );
-                        void Promise.all([
-                            refreshQuery(queryClient, options),
-                            refreshQuery(queryClient, planOptions),
-                            ...(openedNews
-                                ? [
-                                      refreshQuery(
-                                          queryClient,
-                                          classroomPostDetailQueryOptions(id, openedNews.id)
-                                      )
-                                  ]
-                                : [])
-                        ]).catch(noop);
-                    }}
+                    onClick={() => refresh.mutate()}
                 >
                     <RefreshCw className={cn('size-4', refreshing && 'animate-spin')} />
                 </Button>

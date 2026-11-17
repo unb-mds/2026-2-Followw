@@ -47,12 +47,7 @@ describe('cache da página da turma', () => {
         });
         const loaded = await load(client, searchStr);
         expect(loaded.subjectName).toBe('Cálculo');
-        expect(paths).toEqual([
-            '/me',
-            '/classrooms',
-            tabPath,
-            ...(searchStr === '?tab=posts' ? ['/classrooms/{classroom_id}/teaching-plan'] : [])
-        ]);
+        expect(paths).toEqual(['/me', '/classrooms', tabPath]);
     });
 
     test('trocar de aba não recarrega a rota', () => {
@@ -158,10 +153,7 @@ test.each([
     ['', statisticsTab],
     ['?tab=frequency', statisticsTab],
     ['?tab=statistics', statisticsTab],
-    [
-        '?tab=posts',
-        ['/classrooms/{classroom_id}/posts', '/classrooms/{classroom_id}/teaching-plan']
-    ],
+    ['?tab=posts', ['/classrooms/{classroom_id}/posts']],
     ['?tab=members', ['/classrooms/{classroom_id}/members']]
 ])('turma antiga pré-carrega a aba correta em %p', async (searchStr, tabPaths) => {
     const paths: unknown[] = [];

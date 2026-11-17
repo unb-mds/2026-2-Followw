@@ -3,143 +3,122 @@ import { describe, expect, test } from 'bun:test';
 
 import { PLAN, useTeachingPlan } from './helpers';
 
-describe('consulta do plano na aba Postagens', () => {
+describe('página e acesso ao plano de ensino', () => {
     const { state, dom, render } = useTeachingPlan();
 
-    test('ausência oculta o plano sem exibir aviso', async () => {
+    test('página sem plano retorna a Postagens sem exibir conteúdo', async () => {
         const page = render('BBB');
         await dom.testing.waitFor(() =>
-            expect(page.getByRole('button', { name: 'Atualizar' }).hasAttribute('disabled')).toBe(
-                false
-            )
+            expect(state.router.state.location.href).toBe('/turmas/BBB?tab=posts')
         );
-        expect(page.queryByText(/nenhum plano de ensino/i)).toBeNull();
-        expect(page.queryByRole('button', { name: 'Plano de ensino' })).toBeNull();
-        expect(page.getByRole('button', { name: /Aviso da turma/ })).toBeDefined();
+        expect(page.queryByText(/plano de ensino/i)).toBeNull();
+        expect(page.queryByRole('article')).toBeNull();
     });
 
-    test('plano pendente não bloqueia postagens', async () => {
-        const pending = Promise.withResolvers<void>();
-        state.pendingPlan = pending.promise;
-        try {
-            const page = render();
-            expect(await page.findByRole('button', { name: /Aviso da turma/ })).toBeDefined();
-            expect(page.getByText('Consultando plano de ensino...')).toBeDefined();
-            expect(
-                page.queryByText('Nenhum plano de ensino publicado para esta turma.')
-            ).toBeNull();
-            pending.resolve();
-            expect(await page.findByRole('button', { name: 'Plano de ensino' })).toBeDefined();
-        } finally {
-            pending.resolve();
-        }
+    test('plano retirado durante atualização retorna à turma em vez de deixar tela vazia', async () => {
+        const page = render();
+        await page.findByRole('article');
+        state.plans.AAA = null;
+        dom.testing.fireEvent.click(
+            page.getByRole('button', { name: 'Atualizar plano de ensino' })
+        );
+        await dom.testing.waitFor(() =>
+            expect(state.router.state.location.href).toBe('/turmas/AAA?tab=posts')
+        );
+        expect(page.queryByRole('article')).toBeNull();
     });
 
-    test('falha do plano oferece nova tentativa sem bloquear postagens', async () => {
+    test('falha permite nova tentativa', async () => {
         state.failPlan = true;
         const page = render();
-        expect(
-            await page.findByText('Não foi possível consultar o plano de ensino.')
-        ).toBeDefined();
-        expect(page.getByRole('button', { name: /Aviso da turma/ })).toBeDefined();
-        expect(page.queryByText('Nenhum plano de ensino publicado para esta turma.')).toBeNull();
+        await page.findByText('Não foi possível consultar o plano de ensino.');
         state.failPlan = false;
         dom.testing.fireEvent.click(page.getByRole('button', { name: 'Tentar novamente' }));
-        expect(await page.findByRole('button', { name: 'Plano de ensino' })).toBeDefined();
+        expect(await page.findByRole('article')).toBeDefined();
     });
 
-    test('postagens com falha não impedem abrir plano publicado', async () => {
-        state.failPosts = true;
+    test('falha preserva o plano salvo', async () => {
+        state.client.setQueryData(classroomTeachingPlanQueryOptions('AAA').queryKey, PLAN);
+        state.failPlan = true;
         const page = render();
-        dom.testing.fireEvent.click(await page.findByRole('button', { name: 'Plano de ensino' }));
-        expect(await page.findByRole('heading', { name: 'Metodologia' })).toBeDefined();
-        expect(
-            page.getByText('O SIGAA está com problemas. Tente novamente em instantes.')
-        ).toBeDefined();
+        dom.testing.fireEvent.click(
+            page.getByRole('button', { name: 'Atualizar plano de ensino' })
+        );
+        await page.findByText(
+            'Não foi possível atualizar o plano de ensino. Exibindo os dados salvos.'
+        );
+        expect(page.getByRole('article')).toBeDefined();
     });
 
-    test('dados salvos aparecem enquanto a consulta está pendente', async () => {
-        const options = classroomTeachingPlanQueryOptions('AAA');
-        state.client.setQueryData(options.queryKey, PLAN);
-        state.client.setQueryDefaults(options.queryKey, { staleTime: 0 });
+    test('plano automático lento não desabilita atualizar postagens e a atualização aguarda sua conclusão', async () => {
         const pending = Promise.withResolvers<void>();
         state.pendingPlan = pending.promise;
+        const page = render('AAA', true);
         try {
-            const page = render();
-            expect(page.getByRole('button', { name: 'Plano de ensino' })).toBeDefined();
-            expect(page.queryByText('Consultando plano de ensino...')).toBeNull();
+            await page.findByRole('button', { name: /Aviso da turma/ });
+            await dom.testing.waitFor(() => expect(state.requests).toHaveLength(2));
+            const button = page.getByRole('button', { name: 'Atualizar' });
+            expect(button.hasAttribute('disabled')).toBe(false);
+            expect(page.queryByText(/plano de ensino/i)).toBeNull();
+            dom.testing.fireEvent.click(button);
+            await dom.testing.waitFor(() => expect(button.hasAttribute('disabled')).toBe(true));
+            expect(state.requests).toHaveLength(2);
             pending.resolve();
-            await dom.testing.waitFor(() =>
-                expect(state.client.getQueryState(options.queryKey)?.fetchStatus).toBe('idle')
-            );
+            await dom.testing.waitFor(() => expect(button.hasAttribute('disabled')).toBe(false));
+            expect(state.requests.map((r) => new URL(r.url).pathname.split('/').at(-1))).toEqual([
+                'posts',
+                'teaching-plan',
+                'posts',
+                'teaching-plan'
+            ]);
         } finally {
             pending.resolve();
         }
     });
 
-    test('atualizar consulta posts e plano mesmo após ausência', async () => {
-        const page = render('BBB');
-        await dom.testing.waitFor(() =>
-            expect(page.getByRole('button', { name: 'Atualizar' }).hasAttribute('disabled')).toBe(
-                false
-            )
+    test('botão de acesso fica antes dos filtros, sem seta, e aponta para página própria', async () => {
+        const page = render('AAA', true);
+        const link = await page.findByRole('link', { name: 'Plano de ensino' });
+        expect(link.getAttribute('href')).toBe('/turmas/AAA/plano-de-ensino');
+        expect(link.hasAttribute('aria-expanded')).toBe(false);
+        expect(link.querySelectorAll('svg')).toHaveLength(1);
+        expect(link.compareDocumentPosition(page.getByRole('button', { name: 'Todas' })) & 4).toBe(
+            4
         );
-        state.plans.BBB = PLAN;
-        dom.testing.fireEvent.click(page.getByRole('button', { name: 'Atualizar' }));
-        expect(await page.findByRole('button', { name: 'Plano de ensino' })).toBeDefined();
-        const refreshed = state.requests.slice(2);
-        expect(refreshed).toHaveLength(2);
-        expect(refreshed.some((r) => r.url.endsWith('/posts'))).toBe(true);
-        expect(refreshed.some((r) => r.url.endsWith('/teaching-plan'))).toBe(true);
-        expect(
-            refreshed.every(
-                (r) => r.cache === 'reload' || r.headers.get('Cache-Control') === 'no-cache'
-            )
-        ).toBe(true);
+        expect(page.queryByRole('article')).toBeNull();
+        expect(page.queryByRole('tab', { name: 'Plano de ensino' })).toBeNull();
     });
 
-    test('atualizar remove plano retirado da origem', async () => {
-        const page = render();
-        await page.findByRole('button', { name: 'Plano de ensino' });
-        state.plans.AAA = null;
-        dom.testing.fireEvent.click(page.getByRole('button', { name: 'Atualizar' }));
-        await dom.testing.waitFor(() =>
-            expect(page.getByRole('button', { name: 'Atualizar' }).hasAttribute('disabled')).toBe(
-                false
-            )
-        );
-        expect(page.queryByRole('button', { name: 'Plano de ensino' })).toBeNull();
-    });
-
-    test.each([PLAN, null])('falha ao atualizar preserva o resultado salvo %p', async (saved) => {
-        state.client.setQueryData(classroomTeachingPlanQueryOptions('AAA').queryKey, saved);
-        const page = render();
+    test('turma sem plano não exibe botão, carregamento ou aviso e atualizar revela plano recém-publicado', async () => {
+        const page = render('BBB', true);
+        const button = page.getByRole('button', { name: 'Atualizar' });
         await page.findByRole('button', { name: /Aviso da turma/ });
-        state.failPlan = true;
-        dom.testing.fireEvent.click(page.getByRole('button', { name: 'Atualizar' }));
-        expect(
-            await page.findByText(
-                'Não foi possível atualizar o plano de ensino. Exibindo os dados salvos.'
-            )
-        ).toBeDefined();
-        if (saved) expect(page.getByRole('button', { name: 'Plano de ensino' })).toBeDefined();
-        else {
-            expect(page.queryByText(/não havia plano de ensino/i)).toBeNull();
-            expect(page.queryByRole('button', { name: 'Plano de ensino' })).toBeNull();
-        }
+        await dom.testing.waitFor(() =>
+            expect(
+                state.client.getQueryData(classroomTeachingPlanQueryOptions('BBB').queryKey)
+            ).toBeNull()
+        );
+        expect(page.queryByText(/plano de ensino/i)).toBeNull();
+        state.plans.BBB = PLAN;
+        dom.testing.fireEvent.click(button);
+        expect(await page.findByRole('link', { name: 'Plano de ensino' })).toBeDefined();
+        await dom.testing.waitFor(() => expect(button.hasAttribute('disabled')).toBe(false));
+        state.plans.BBB = null;
+        dom.testing.fireEvent.click(button);
+        await dom.testing.waitFor(() =>
+            expect(page.queryByRole('link', { name: 'Plano de ensino' })).toBeNull()
+        );
     });
 
-    test('trocar de turma não reutiliza plano de outra oferta', async () => {
-        const first = render();
-        await first.findByRole('button', { name: 'Plano de ensino' });
-        first.unmount();
-        const second = render('BBB');
-        await dom.testing.waitFor(() =>
-            expect(second.getByRole('button', { name: 'Atualizar' }).hasAttribute('disabled')).toBe(
-                false
-            )
+    test('página segue a estrutura de artigo com retorno a Postagens', async () => {
+        const page = render();
+        await page.findByRole('article');
+        expect(page.getByRole('main')).toBeDefined();
+        expect(page.getByRole('heading', { level: 1, name: 'Plano de ensino' })).toBeDefined();
+        expect(page.getByRole('link', { name: 'Voltar à turma' }).getAttribute('href')).toBe(
+            '/turmas/AAA?tab=posts'
         );
-        expect(second.queryByRole('button', { name: 'Plano de ensino' })).toBeNull();
-        expect(state.requests.some((r) => r.url.endsWith('/BBB/teaching-plan'))).toBe(true);
+        expect(page.queryByRole('tablist')).toBeNull();
+        expect(page.getByText('Matemática Discreta 2')).toBeDefined();
     });
 });
