@@ -30,8 +30,8 @@ _offline_, proteção contra abusos via rate limiting (Redis) e catálogo públi
   mantida em cookies cifrados no próprio navegador do estudante.
 - **Modularidade e Baixo Acoplamento:** A arquitetura separa a biblioteca de comunicação com o SIGAA
   (`sigaa-client`), os módulos de portais públicos da UnB (`unb-browser`), a API e o front-end web.
-- **Experiência Offline-First e PWA:** Dados acadêmicos consultados previamente ficam acessíveis no
-  dispositivo do usuário mesmo sem conexão ativa à internet por até 14 dias.
+- **Experiência Offline-First e PWA:** Dados acadêmicos disponíveis no cache local podem ser
+  acessados sem conexão por até 14 dias, sujeitos às condições descritas em [offline.md](offline.md).
 - **Resiliência e Proteção Institucional:** Rate limiting distribuído em memória (Redis) para
   prevenir abusos de força bruta e sobrecarga no CAS/SIGAA, operando em modelo tolerante a falhas
   (_fail-open_).
@@ -78,8 +78,8 @@ interface.
   mensagem clara na interface.
 - O campo de senha deve dispor de botão para alternar a visibilidade dos caracteres (_show/hide
   password_).
-- A sessão do usuário dura enquanto forem válidos os cookies originais da sessão do SIGAA, sendo
-  renovada automaticamente quando oportuno.
+- Os cookies cifrados do Followw mantêm a sessão no navegador. A sessão do SIGAA pode ser renovada
+  com as credenciais do `refresh_token`, conforme [seguranca.md](seguranca.md).
 - Usuários já logados que navegam até a página `/login` devem ser redirecionados imediatamente à
   tela principal (`/`).
 
@@ -92,8 +92,8 @@ interface.
   temporariamente salvos no dispositivo sejam removidos.
 
 - **RF02 — Logout Seguro e Limpeza de Sessão:** O sistema deve fornecer encerramento de sessão
-  (`POST /auth/logout`) que invalida imediatamente os tokens emitidos e expurga os dados pessoais
-  cacheados no navegador do discente.
+  (`DELETE /auth/sigaa`) que remove os cookies do navegador, tenta encerrar a sessão no SIGAA e
+  limpa os dados pessoais cacheados no navegador do discente.
 
 **Critérios de Aceitação:**
 
@@ -101,7 +101,8 @@ interface.
   `Max-Age=0`.
 - A camada cliente deve limpar chaves de dados confidenciais do discente armazenadas em
   `localStorage` e `IndexedDB`.
-- Requisições subsequentes com cookies antigos devem receber HTTP 401.
+- Requisições protegidas sem cookies válidos devem receber HTTP 401. Como a sessão é stateless,
+  o logout não revoga uma cópia dos cookies em todos os dispositivos.
 
 #### 1.3: Visualização de Perfil Acadêmico e Carga Horária Pendente
 
@@ -323,10 +324,10 @@ analisar concorrência de vagas, pré-requisitos, quadro de professores e recome
 - **US29:** Como estudante autenticado, quero receber recomendações que considerem meu histórico,
   pré-requisitos e equivalências.
 
-- **RF11 — Catálogo Geral e Pesquisa Pública de Turmas (`GET /public/classrooms`):** O sistema deve
-  oferecer busca pública aberta no catálogo geral da UnB, suportando filtros por unidade, código
-  completo ou prefixo, nome da matéria e docente, integrando dataset estruturado para respostas em
-  milissegundos.
+- **RF11 — Catálogo Geral e Pesquisa Pública de Turmas:** `GET /public/subjects` consulta o
+  catálogo local de matérias e ofertas; `GET /public/search` reúne matérias, cursos e docentes.
+  `GET /public/classrooms` consulta ofertas diretamente no SIGAA, com filtros próprios de unidade,
+  código, semestre e outros parâmetros.
 
 **Critérios de Aceitação:**
 
@@ -500,12 +501,11 @@ acadêmicas.
 - **US39:** Como estudante, quero ser informado caso minha carteirinha estudantil esteja com a
   validade mensal expirada, recebendo instruções para emissão de nova via.
 - **US40:** Como estudante, quero realizar o download direto do PDF da minha carteirinha estudantil
-  e da declaração de vínculo do SIGAA pelo Followw.
+  e do histórico acadêmico do SIGAA pelo Followw.
 
-- **RF15 — Carteirinha Digital e Emissão de Documentos Estudantis (`GET /me/ru-token` e
-  `/me/documents`):** O sistema deve extrair o código de barras/QR Code da carteirinha estudantil do
-  SIGAA, gerar o SVG local com verificação de vigência mensal e disponibilizar o download de
-  comprovantes acadêmicos em formato PDF.
+- **RF15 — Carteirinha Digital e Emissão de Documentos Estudantis:** `GET /me/ru-token` fornece os
+  dados da carteirinha digital. `POST /me/student-card` e `POST /me/transcript` disponibilizam,
+  respectivamente, a carteirinha e o histórico acadêmico em PDF.
 
 **Critérios de Aceitação:**
 
@@ -513,8 +513,7 @@ acadêmicas.
   gaveta/gaveta modal (_drawer_) sem expor dados desnecessários na tela.
 - Carteirinhas vencidas devem exibir alerta destacado indicando que o estudante deve emitir novo
   documento no portal institucional.
-- O sistema deve oferecer botões diretos de download para o PDF da Carteirinha e para a Declaração
-  de Vínculo Oficial.
+- O sistema deve oferecer botões de download dos PDFs da carteirinha e do histórico acadêmico.
 
 ---
 

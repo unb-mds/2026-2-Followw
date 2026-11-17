@@ -27,7 +27,7 @@ TTL (`None`), o dado **nunca vence** sozinho.
 | Perfil (`/me`)                  | 12 h    | usuário                 |                                                    |
 | Lista de turmas (`/classrooms`) | 72 h    | usuário                 | Vale para todos os semestres                       |
 | Participantes da turma          | 24 h    | turma                   | Turma de semestre passado: sem TTL                 |
-| Estatísticas da turma           | 24 h    | turma                   | Turma de semestre passado: sem TTL                 |
+| Estatísticas da turma           | sem TTL | turma                   | Revalidada com `no-cache`                          |
 | Frequência da turma             | 24 h    | vínculo usuário × turma | Turma de semestre passado: sem TTL                 |
 | Lista de posts da turma         | 24 h    | turma                   | Turma de semestre passado: sem TTL                 |
 | Verificação da home do SIGAA    | 1 h     | usuário                 | Agenda sync das turmas com novidades não salvas    |
@@ -88,8 +88,9 @@ uma vez. O job roda as tarefas **sem rechecar o TTL**.
 ## Quando a API **não** sincroniza
 
 - **Cache dentro do TTL** e o cliente não pediu para revalidar.
-- **Dado sem TTL**: conteúdo de notícia, e participantes, estatísticas, frequência e lista de
-  notícias de turmas de semestres passados. Só são relidos com `no-cache`.
+- **Dado sem TTL**: estatísticas e conteúdo de notícia de qualquer turma, além de participantes,
+  frequência e lista de posts de turmas de semestres passados. Só são relidos com `no-cache`,
+  respeitando o congelamento dos participantes descrito abaixo.
 - **Regras do calendário acadêmico** (`api/academic_calendar.py`): passados 3 dias do fim do
   semestre da turma, os participantes vencem até um último sync. Depois dele, **nunca** são
   ressincronizados, nem com `no-cache` nem no login. Semestres anteriores ao calendário já contam
