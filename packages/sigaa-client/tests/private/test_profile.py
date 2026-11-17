@@ -278,8 +278,11 @@ async def test_remocao_exclui_e_grava_o_perfil_a_partir_da_resposta():
     async with SigaaClient(
         session_token="tok", transport=httpx.MockTransport(handle)
     ) as client:
-        await client.profile.update_profile(password="segredo", remove_photo=True)
+        profile = await client.profile.update_profile(
+            password="segredo", remove_photo=True
+        )
     assert len(posts) == 2
+    assert profile.photo is None
 
 
 async def test_remocao_sem_mensagem_ao_gravar_nao_confirma_sucesso():
@@ -400,3 +403,50 @@ async def test_tela_sem_imagem_nao_e_confundida_com_foto_removida():
         with pytest.raises(SigaaParseError, match="Imagem de perfil ausente"):
             await client.profile.update_profile(password="segredo", remove_photo=True)
     assert all(request.method == "GET" for request in fake.requests)
+
+
+async def test_redirecionamento_para_perfil_jsf_confirma_sucesso():
+    page_updated = EDIT_FORM.replace(
+        '<form name="form:1"',
+        '<div id="painel-erros"><ul class="info"><li>Perfil atualizado com sucesso!</li></ul></div><form name="form:1"',
+    )
+
+    def handle(request):
+        if request.method == "POST":
+            return httpx.Response(
+                302, headers={"location": "/sigaa/portais/discente/perfil.jsf"}
+            )
+        if request.url.path.endswith("discente.jsf"):
+            return httpx.Response(200, text=DASHBOARD)
+        return httpx.Response(200, text=page_updated)
+
+    async with SigaaClient(
+        session_token="tok", transport=httpx.MockTransport(handle)
+    ) as client:
+        await client.profile.update_profile(password="segredo", bio="Nova bio")
+
+
+async def test_foto_alterada_confirma_mesmo_sem_mensagem_de_sucesso():
+    new_path = "/arquivos/nova_foto.jpg"
+    page = EDIT_FORM.replace("/sigaa/img/no_picture.png", "/arquivos/antiga.jpg")
+    page_after = EDIT_FORM.replace("/sigaa/img/no_picture.png", new_path)
+    current_page = page
+
+    def handle(request):
+        nonlocal current_page
+        if request.method == "POST":
+            current_page = page_after
+            return httpx.Response(
+                302, headers={"location": "/sigaa/portais/discente/discente.jsf"}
+            )
+        if request.url.path.endswith("discente.jsf"):
+            return httpx.Response(200, text=DASHBOARD)
+        return httpx.Response(200, text=current_page)
+
+    async with SigaaClient(
+        session_token="tok", transport=httpx.MockTransport(handle)
+    ) as client:
+        profile = await client.profile.update_profile(
+            password="segredo", photo=b"novos bytes"
+        )
+    assert profile.photo.endswith(new_path)

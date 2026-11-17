@@ -1,4 +1,4 @@
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 import httpx
 from bs4 import BeautifulSoup, Tag
@@ -57,8 +57,13 @@ def _payload(form: Tag, password: str, bio: str) -> dict[str, str]:
 
 def _confirmed(html: str) -> bool:
     soup = BeautifulSoup(html, "lxml")
-    notices = soup.select("#painel-erros ul.info li")
-    return any(item.get_text(strip=True) == _SUCCESS for item in notices)
+    notices = soup.select(
+        "#painel-erros ul.info li, #painel-erros .info, .mensagem-sucesso, ul.info li"
+    )
+    return any(
+        _SUCCESS in item.get_text() or "sucesso" in item.get_text().lower()
+        for item in notices
+    )
 
 
 async def _post(
@@ -77,15 +82,23 @@ async def _post(
 
 async def _confirm(session: Session, response: httpx.Response) -> bool:
     if response.is_redirect:
-        target = urljoin(SIGAA_BASE_URL, response.headers.get("location", ""))
-        if target in {SIGAA_BASE_URL + DASHBOARD_PATH, SIGAA_BASE_URL + PORTAL_PATH}:
-            response = await session.get(target.removeprefix(SIGAA_BASE_URL))
-        elif target == SIGAA_BASE_URL + PROFILE_EDIT_PATH:
-            return False
+        raw_target = response.headers.get("location", "")
+        target = urljoin(SIGAA_BASE_URL, raw_target)
+        path = urlsplit(target).path
+        if path in {DASHBOARD_PATH, PORTAL_PATH, PROFILE_EDIT_PATH}:
+            response = await session.get(path)
         else:
             raise SigaaParseError("Redirecionamento inesperado após editar perfil.")
-    elif BeautifulSoup(response.text, "lxml").select_one(".erros, .erro, .errors"):
-        raise SigaaParseError("O SIGAA recusou a alteração do perfil.")
+    error_node = BeautifulSoup(response.text, "lxml").select_one(
+        ".erros, .erro, .errors, #painel-erros ul.erros"
+    )
+    if error_node:
+        detail = error_node.get_text(strip=True)
+        raise SigaaParseError(
+            f"O SIGAA recusou a alteração do perfil: {detail}"
+            if detail
+            else "O SIGAA recusou a alteração do perfil."
+        )
     return _confirmed(response.text)
 
 
@@ -130,13 +143,23 @@ async def update_profile(
         if previous_photo is None:
             return None, original_bio or None
         await _remove_photo(session, form, password, original_bio)
+        return None, original_bio or None
     elif photo is not None or bio is not None:
-        payload = _payload(form, password, original_bio if bio is None else bio)
-        if not await _confirm(session, await _post(session, payload, photo)):
+        target_bio = original_bio if bio is None else bio
+        payload = _payload(form, password, target_bio)
+        response = await _post(session, payload, photo)
+        confirmed = await _confirm(session, response)
+        current = await _read(session)
+        current_photo = _photo(current)
+        saved_bio = current.find("textarea", attrs={"name": _BIO}).get_text()
+        photo_changed = photo is not None and current_photo != previous_photo
+        bio_changed = bio is not None and saved_bio == bio
+        if not (confirmed or photo_changed or bio_changed):
             raise SigaaParseError(
                 "O SIGAA não confirmou a atualização do perfil; "
                 "releia o perfil antes de tentar novamente."
             )
+        return current_photo, saved_bio or None
     else:
         return previous_photo, original_bio or None
 
