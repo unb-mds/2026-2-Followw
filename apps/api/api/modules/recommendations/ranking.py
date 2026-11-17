@@ -1,4 +1,5 @@
 from collections import defaultdict
+from collections.abc import Container
 from typing import Literal
 from uuid import UUID
 
@@ -68,6 +69,27 @@ def satisfies(rules: Rules, approved: set[str]) -> bool:
     )
 
 
+def curriculum_rules(
+    rules: Rules,
+    curriculum: Container[str] | None,
+    completed: Container[str] | None = None,
+) -> Rules:
+    """Filtra grupos com requisitos na matriz ou já cumpridos no histórico."""
+    if not rules or not curriculum:
+        return rules
+    completed_codes = {normalize(code) for code in completed} if completed else set()
+    scoped = [
+        group
+        for group in rules
+        if group
+        and (
+            all(normalize(code) in curriculum for code in group)
+            or all(normalize(code) in completed_codes for code in group)
+        )
+    ]
+    return scoped or rules
+
+
 def select_curriculum(
     options: list[CurriculumInfo], entry: str, shift: str | None
 ) -> CurriculumInfo | None:
@@ -132,11 +154,16 @@ def subject_kind(
     return "mandatory" if component.kind == "required" else "optional"
 
 
-def dependency_graph(pending: dict[str, CatalogSubject]) -> dict[str, set[str]]:
+def dependency_graph(
+    pending: dict[str, CatalogSubject],
+    curriculum: Container[str] | None = None,
+    completed: Container[str] | None = None,
+) -> dict[str, set[str]]:
     """Para cada código, as pendentes que o têm como pré-requisito."""
     graph: dict[str, set[str]] = defaultdict(set)
     for code, subject in pending.items():
-        for group in subject.prerequisites or []:
+        rules = curriculum_rules(subject.prerequisites, curriculum, completed)
+        for group in rules or []:
             for reference in group:
                 if normalize(reference) != code:
                     graph[normalize(reference)].add(code)
@@ -169,17 +196,26 @@ def descendants(code: str, graph: dict[str, set[str]]) -> set[str]:
 
 
 def eligible(
-    catalog: dict[str, CatalogSubject], candidates: set[str], done: set[str]
+    catalog: dict[str, CatalogSubject],
+    candidates: set[str],
+    done: set[str],
+    curriculum: Container[str] | None = None,
+    completed: Container[str] | None = None,
 ) -> set[str]:
     """As candidatas com pré-requisitos cumpridos e correquisitos cursáveis junto."""
+
+    def reqs(code: str, attr: str) -> Rules:
+        rules = getattr(catalog[code], attr)
+        return curriculum_rules(rules, curriculum, completed)
+
     allowed = {
-        code for code in candidates if satisfies(catalog[code].prerequisites, done)
+        code for code in candidates if satisfies(reqs(code, "prerequisites"), done)
     }
     while True:
         kept = {
             code
             for code in allowed
-            if satisfies(catalog[code].corequisites, done | allowed)
+            if satisfies(reqs(code, "corequisites"), done | allowed)
         }
         if kept == allowed:
             return kept
@@ -216,12 +252,16 @@ def rank(
             code: catalog[code]
             for code, component in curriculum.items()
             if code in catalog and code not in done and component.kind == "required"
-        }
+        },
+        curriculum,
+        completed,
     )
     lengths: dict[str, int] = {}
     ranked = []
     candidates = {code for code in offered if code in curriculum and code not in done}
-    for code in eligible(catalog, candidates, done):
+    for code in eligible(
+        catalog, candidates, done, curriculum=curriculum, completed=completed
+    ):
         subject, component = catalog[code], curriculum[code]
         period = component.period
         required = component.kind == "required"

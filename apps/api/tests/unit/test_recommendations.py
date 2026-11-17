@@ -1,10 +1,13 @@
 import pytest
 
 from api.modules.recommendations.ranking import (
+    CatalogSubject,
     Component,
     chain_length,
     components_by_code,
+    curriculum_rules,
     descendants,
+    eligible,
     target_period,
 )
 
@@ -46,3 +49,33 @@ def test_cadeias_toleram_pre_requisitos_ciclicos():
     graph = {"A": {"B"}, "B": {"A", "C"}}
     assert chain_length("A", graph) == 2
     assert descendants("A", graph) == {"B", "C"}
+
+
+def test_regras_do_curriculo_filtram_codigos_fora_da_matriz():
+    rules = [["FGA0138"], ["FGA0313"]]
+    matrix = {"FGA0312", "FGA0313", "FGA0314"}
+    assert curriculum_rules(rules, matrix) == [["FGA0313"]]
+
+
+def test_regras_do_curriculo_mantem_originais_quando_nenhuma_opcao_esta_na_matriz():
+    rules = [["EXT0001"]]
+    matrix = {"FGA0312"}
+    assert curriculum_rules(rules, matrix) == [["EXT0001"]]
+
+
+def test_materia_com_pre_requisito_legado_nao_e_elegivel_sem_requisito_da_matriz():
+    catalog = {
+        "FGA0314": CatalogSubject(
+            code="FGA0314",
+            hours=60,
+            unit_id=673,
+            prerequisites=[["FGA0138"], ["FGA0313"]],
+            corequisites=None,
+        )
+    }
+    matrix = {"FGA0313", "FGA0314"}
+    assert eligible(catalog, {"FGA0314"}, {"FGA0138"}, matrix) == set()
+    assert eligible(catalog, {"FGA0314"}, {"FGA0313"}, matrix) == {"FGA0314"}
+    assert eligible(
+        catalog, {"FGA0314"}, {"FGA0138"}, matrix, completed={"FGA0138"}
+    ) == {"FGA0314"}

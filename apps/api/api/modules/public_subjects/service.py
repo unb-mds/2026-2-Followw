@@ -145,7 +145,9 @@ async def _catalog(
     semester: str | None = None,
 ) -> list[CatalogSubject]:
     repository = SubjectCatalogRepository(session)
-    unlocks = await repository.unlocked_subjects({subject.code for subject in subjects})
+    unlocks = await repository.unlocked_subjects(
+        {subject.code for subject in subjects}, semester
+    )
     codes = requirement_codes(subjects)
     names = await repository.subject_names(codes)
     offered = {

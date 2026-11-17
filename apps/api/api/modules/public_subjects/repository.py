@@ -97,24 +97,34 @@ class SubjectCatalogRepository:
         )
 
     async def unlocked_subjects(
-        self, codes: set[str]
+        self, codes: set[str], semester: str | None = None
     ) -> dict[str, list[tuple[str, str]]]:
         if not codes:
             return {}
+        semester = semester or await self._session.scalar(
+            select(func.max(Classroom.semester))
+        )
         prerequisite = func.jsonb_array_elements_text(
             func.jsonb_path_query_array(
                 Subject.prerequisites, literal_column("'$[*][*]'")
             )
         ).column_valued("prerequisite")
-        rows = await self._session.execute(
-            select(prerequisite, Subject.code, Subject.name)
-            .where(
-                Subject.prerequisites.is_not(None),
-                prerequisite.in_(codes),
-                prerequisite != Subject.code,
+        query = select(prerequisite, Subject.code, Subject.name).where(
+            Subject.prerequisites.is_not(None),
+            prerequisite.in_(codes),
+            prerequisite != Subject.code,
+        )
+        if semester is not None:
+            query = query.where(
+                select(Classroom.id)
+                .where(
+                    Classroom.subject_code == Subject.code,
+                    Classroom.semester == semester,
+                )
+                .exists()
             )
-            .distinct()
-            .order_by(Subject.name, Subject.code)
+        rows = await self._session.execute(
+            query.distinct().order_by(Subject.name, Subject.code)
         )
         result: dict[str, list[tuple[str, str]]] = {}
         for req, code, name in rows:
