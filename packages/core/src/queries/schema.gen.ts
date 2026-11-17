@@ -42,6 +42,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/classrooms/{classroom_id}/posts/{post_id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Baixar um arquivo dos tópicos da turma
+         * @description Busca o arquivo na Principal do SIGAA com a sessão do aluno, sem armazenar seu conteúdo.
+         */
+        post: operations["download_classroom_material_classrooms__classroom_id__posts__post_id__download_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/classrooms/{classroom_id}/teaching-plan": {
         parameters: {
             query?: never;
@@ -1738,6 +1758,64 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description SIGAA indisponível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    download_classroom_material_classrooms__classroom_id__posts__post_id__download_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description `no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente). */
+                "Cache-Control"?: string | null;
+            };
+            path: {
+                /** @description Classroom.id ou Classroom.sigaa_id. */
+                classroom_id: string;
+                /** @description ID do material na turma. */
+                post_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Arquivo original; Content-Type e Content-Disposition identificam seu tipo e nome. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Turma ou arquivo não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
             /** @description SIGAA indisponível. */
             502: {

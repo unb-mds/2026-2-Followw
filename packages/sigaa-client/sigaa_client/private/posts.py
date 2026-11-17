@@ -29,19 +29,34 @@ def _fingerprint(value: str) -> str:
     return sha256(value.encode()).hexdigest()
 
 
+def _topic_identity(topic: Tag) -> tuple[str, str, str, str]:
+    heading = topic.select_one(".titulo")
+    match = _TOPIC_DATES_RE.match(clean_text(heading)) if heading else None
+    if match is None or not match.group(1).strip():
+        raise SigaaParseError("Tópico de aula sem título ou período reconhecível.")
+    title, start, end = match.groups()
+    return f"topic:{_fingerprint(match.group(0))}", title.strip(), start, end
+
+
+def _material_links(topic: Tag) -> Iterable[tuple[Tag, Tag]]:
+    for item in topic.select(".item"):
+        anchor = item.find("a")
+        if isinstance(anchor, Tag):
+            yield item, anchor
+
+
+def _material_id(topic_id: str, source_id: str) -> str:
+    return f"material:{_fingerprint(topic_id + ':' + source_id)}"
+
+
 def _parse_topics(soup: BeautifulSoup) -> list[ClassroomPost]:
     form = soup.find("form", id="formAva")
     if not isinstance(form, Tag):
         raise SigaaParseError("Página principal da turma sem formAva.")
     posts = []
     for topic in form.select(".topico-aula"):
-        heading = topic.select_one(".titulo")
-        match = _TOPIC_DATES_RE.match(clean_text(heading)) if heading else None
-        if match is None or not match.group(1).strip():
-            raise SigaaParseError("Tópico de aula sem título ou período reconhecível.")
-        title, start, end = match.groups()
         # A lista não expõe o ID do tópico; nunca use o índice instável do JSF.
-        topic_id = f"topic:{_fingerprint(match.group(0))}"
+        topic_id, title, start, end = _topic_identity(topic)
         body = topic.select_one(".conteudotopico")
         content = BeautifulSoup(str(body), "lxml") if body else None
         if content is not None:
@@ -57,10 +72,7 @@ def _parse_topics(soup: BeautifulSoup) -> list[ClassroomPost]:
                 content=to_markdown(content) if content is not None else None,
             )
         )
-        for item in topic.select(".item"):
-            anchor = item.find("a")
-            if not isinstance(anchor, Tag):
-                continue
+        for item, anchor in _material_links(topic):
             name = clean_text(anchor)
             params = link_params(anchor)
             href = str(anchor.get("href") or "").strip()
@@ -76,7 +88,7 @@ def _parse_topics(soup: BeautifulSoup) -> list[ClassroomPost]:
             description = item.select_one(".descricao-item")
             posts.append(
                 ClassroomPost(
-                    id=f"material:{_fingerprint(topic_id + ':' + source_id)}",
+                    id=_material_id(topic_id, source_id),
                     type=PostType.MATERIAL,
                     sigaa_id=params.get("id"),
                     topic_id=topic_id,

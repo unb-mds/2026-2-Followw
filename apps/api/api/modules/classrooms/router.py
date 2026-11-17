@@ -1,4 +1,5 @@
 from typing import Annotated, Literal
+from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import APIRouter, Path, Query, Response
@@ -20,6 +21,7 @@ from api.modules.classrooms.service import (
     ClassroomServiceDep,
     ParticipantClassroom,
 )
+from api.sigaa import SigaaConnectionDep
 
 router = APIRouter()
 
@@ -35,6 +37,53 @@ PostId = Annotated[
         description="ID do post na listagem da turma.",
     ),
 ]
+MaterialId = Annotated[
+    str,
+    Path(pattern=r"^material:[a-f0-9]{64}$", description="ID do material na turma."),
+]
+
+
+@router.post(
+    "/{classroom_id}/posts/{post_id}/download",
+    response_class=Response,
+    summary="Baixar um arquivo dos tópicos da turma",
+    description="Busca o arquivo na Principal do SIGAA com a sessão do aluno, sem armazenar seu conteúdo.",
+    responses={
+        **CLASSROOM_ERRORS,
+        404: {"description": "Turma ou arquivo não encontrado."},
+        200: {
+            "content": {
+                "application/octet-stream": {
+                    "schema": {"type": "string", "format": "binary"}
+                }
+            },
+            "description": "Arquivo original; Content-Type e Content-Disposition identificam seu tipo e nome.",
+        },
+    },
+    dependencies=[NoStore],
+)
+async def download_classroom_material(
+    service: ClassroomServiceDep,
+    connection: SigaaConnectionDep,
+    response: Response,
+    classroom_id: ClassroomId,
+    post_id: MaterialId,
+) -> Response:
+    link = await service.get_link(classroom_id)
+    client = await connection.client()
+    file = await client.classrooms.download_classroom_material(
+        link.front_end_id, post_id
+    )
+    download = Response(
+        content=file.content,
+        headers={
+            "Content-Type": file.content_type,
+            "Content-Disposition": f"attachment; filename*=UTF-8''{quote(file.filename, safe='')}",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+    download.raw_headers.extend(response.raw_headers)
+    return download
 
 
 class LessonMark(BaseModel):

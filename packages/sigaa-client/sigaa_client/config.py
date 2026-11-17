@@ -5,6 +5,7 @@ CAS_SERVICE_URL = "https://sig.unb.br/sigaa/login/cas"
 
 SIGAA_BASE_URL = "https://sigaa.unb.br"
 SIGAA_COOKIE_DOMAIN = "sigaa.unb.br"
+MATERIAL_DOWNLOAD_HOSTS = ("sigaa.unb.br", "arquivos.unb.br")
 
 SESSION_COOKIE_NAME = "JSESSIONID"
 

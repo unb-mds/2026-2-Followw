@@ -7,7 +7,6 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup, Tag
 
 from ..config import (
-    CLASSROOM_HOME_PATH,
     CLASSROOMS_PATH,
     DASHBOARD_PATH,
     PARTICIPANTS_PATH,
@@ -35,6 +34,7 @@ from ..models import (
     ClassroomTeachingPlan,
     DashboardPost,
     Grade,
+    MaterialFile,
     News,
     NewsAttachment,
     StatisticsShare,
@@ -60,13 +60,14 @@ from ..utils.parsing import (
     to_markdown,
     visible_text,
 )
+from .classroom_navigation import _open_menu, _open_topics
+from .materials import download_material
 from .posts import _parse_assessments, _parse_dashboard_posts, _parse_topics
 from .session import Session
 from .statistics_chart import legend_percentages
 from .teaching_plan import _parse_teaching_plan
 
 CLASSROOM_ID_FIELD = "frontEndIdTurma"
-MENU_FORM_ID = "formMenu"
 FREQUENCY_MENU_LABEL = "Frequência"
 GRADES_FORM_ID = "menu:form_menu_discente"
 GRADES_MENU_ACTION = (
@@ -80,10 +81,7 @@ NEWS_ID_FIELD = "id"
 NEWS_DETAIL_LEGEND = "Visualização de Notícia"
 PROGRESS_PANEL_LABEL = "Andamento das Aulas"
 ASSESSMENTS_MENU_LABEL = "Avaliações"
-CLASSROOM_MAIN_MENU_LABEL = "Principal"
 TEACHING_PLAN_MENU_LABEL = "Plano de Ensino"
-TOPICS_LIST_BUTTON = "formAcoesTurma:visualizarAulasEmLista"
-TOPICS_LIST_LINK = "formAcoesTurma:linkExibirEmLista"
 
 # O gráfico de situação não escreve os rótulos em lugar nenhum além da própria
 # imagem — a legenda traz sempre estas situações, sempre nesta ordem.
@@ -205,7 +203,29 @@ class Classrooms:
         return _parse_news_detail(BeautifulSoup(page, "lxml"), news_id)
 
     async def _read_screen(self, classroom_id: str, open_screen: OpenScreen) -> str:
-        # A troca de turma e a leitura da tela são uma operação única.
+        async def read(expected: Classroom, allow_renewal: bool) -> str:
+            page = await open_screen(self._session, allow_renewal)
+            _assert_context(page, expected)
+            return page
+
+        return await self._in_classroom(classroom_id, read)
+
+    async def download_classroom_material(
+        self, classroom_id: str, material_id: str
+    ) -> MaterialFile:
+        async def download(expected: Classroom, allow_renewal: bool) -> MaterialFile:
+            page = await _open_topics(self._session, allow_renewal)
+            _assert_context(page, expected)
+            return await download_material(
+                self._session, page, material_id, allow_renewal
+            )
+
+        return await self._in_classroom(classroom_id, download)
+
+    async def _in_classroom[T](
+        self, classroom_id: str, operation: Callable[[Classroom, bool], Awaitable[T]]
+    ) -> T:
+        # Mantém o contexto até terminar a leitura ou o download.
         async with self._context_lock:
             renewed = False
             for attempt in range(_SCREEN_ATTEMPTS):
@@ -213,9 +233,7 @@ class Classrooms:
                     expected = await self._enter_classroom(
                         classroom_id, allow_renewal=not renewed
                     )
-                    page = await open_screen(self._session, not renewed)
-                    _assert_context(page, expected)
-                    return page
+                    return await operation(expected, not renewed)
                 except SessionRenewed:
                     renewed = True
                 except _ContextSwitched:
@@ -300,23 +318,6 @@ async def _open_assessments(session: Session, allow_renewal: bool) -> str:
     return await _open_menu(session, ASSESSMENTS_MENU_LABEL, allow_renewal)
 
 
-async def _open_topics(session: Session, allow_renewal: bool) -> str:
-    page = await _open_menu(session, CLASSROOM_MAIN_MENU_LABEL, allow_renewal)
-    soup = BeautifulSoup(page, "lxml")
-    button = soup.find(id=TOPICS_LIST_BUTTON)
-    if button is None:
-        return page
-    anchor = soup.find(id=TOPICS_LIST_LINK)
-    if not isinstance(anchor, Tag):
-        raise SigaaParseError("Link para exibir os tópicos em lista não encontrado.")
-    form = button.find_parent("form")
-    if not isinstance(form, Tag):
-        raise SigaaParseError("Botão de tópicos em lista sem form.")
-    action, payload = build_postback(form, link_params(anchor), read_viewstate(soup))
-    response = await session.post(action, data=payload, allow_renewal=allow_renewal)
-    return response.text
-
-
 async def _open_news_detail(news_id: int, session: Session, allow_renewal: bool) -> str:
     page = await _open_news(session, allow_renewal)
     soup = BeautifulSoup(page, "lxml")
@@ -335,25 +336,6 @@ async def _open_news_detail(news_id: int, session: Session, allow_renewal: bool)
         return page
 
     action, payload = build_postback(form, link_params(anchor), read_viewstate(soup))
-    response = await session.post(action, data=payload, allow_renewal=allow_renewal)
-    return response.text
-
-
-async def _open_menu(session: Session, label: str, allow_renewal: bool) -> str:
-    """Essas telas só abrem pelo item do menu da turma — GET direto dá erro."""
-    response = await session.get(
-        CLASSROOM_HOME_PATH, retry_on_renewal=False, allow_renewal=allow_renewal
-    )
-    soup = BeautifulSoup(response.text, "lxml")
-    anchor = next(
-        (link for link in soup.find_all("a") if clean_text(link) == label), None
-    )
-    if not isinstance(anchor, Tag):
-        raise SigaaParseError(f"Item `{label}` não encontrado no menu da turma.")
-
-    action, payload = build_postback(
-        read_form(soup, MENU_FORM_ID), link_params(anchor), read_viewstate(soup)
-    )
     response = await session.post(action, data=payload, allow_renewal=allow_renewal)
     return response.text
 

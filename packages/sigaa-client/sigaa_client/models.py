@@ -103,6 +103,14 @@ class Curriculum(CurriculumSummary):
     complementary: tuple[str, ...] = ()
 
 
+class MaterialFile(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    content: bytes
+    filename: str
+    content_type: str
+
+
 class Credentials(BaseModel):
     model_config = ConfigDict(frozen=True)
 

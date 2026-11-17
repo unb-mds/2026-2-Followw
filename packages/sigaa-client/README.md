@@ -154,6 +154,13 @@ tópico só existe se informado pela origem.
 Notícias da lista trazem título e dia; use `get_classroom_news` com o `sigaa_id` para texto e
 anexos.
 
+`await client.classrooms.download_classroom_material(classroom_id, material.id)` baixa um arquivo
+dos tópicos da Principal e retorna `MaterialFile` com `content`, `filename` e `content_type`.
+O ID opaco da postagem identifica o arquivo dentro do tópico, inclusive com nomes repetidos.
+A turma e o formulário são reabertos a cada download e após renovação de sessão. Ausência do
+arquivo levanta `MaterialNotFound`; página de erro ou destino não autorizado, `SigaaParseError`.
+Links externos continuam em `url`; a tela Materiais → Arquivos e o ZIP não são consultados.
+
 `await client.classrooms.list_dashboard_posts()` lê a home do SIGAA e devolve `DashboardPost`: as
 notícias das "Últimas Atualizações" e as avaliações de "Minhas atividades". A home não traz IDs,
 então o detalhe fica nos posts da turma (`classroom_sigaa_id`); avaliação de disciplina que não casa

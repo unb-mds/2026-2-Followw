@@ -2,7 +2,7 @@ import asyncio
 import inspect
 from collections.abc import Awaitable, Callable
 from typing import Any
-from urllib.parse import urlencode, urljoin
+from urllib.parse import urlencode, urljoin, urlsplit
 
 import httpx
 from bs4 import BeautifulSoup
@@ -13,6 +13,7 @@ from ..config import (
     CAS_SERVICE_URL,
     LOGOUT_PATH,
     SESSION_COOKIE_NAME,
+    SIGAA_BASE_URL,
     SIGAA_COOKIE_DOMAIN,
 )
 from ..exceptions import (
@@ -198,6 +199,13 @@ class Session:
 
 def _is_unauthenticated(response: httpx.Response) -> bool:
     url = str(response.url)
+    if response.is_redirect:
+        target = urljoin(url, response.headers.get("location", ""))
+        if urlsplit(target).hostname in (
+            urlsplit(SIGAA_BASE_URL).hostname,
+            urlsplit(CAS_BASE_URL).hostname,
+        ):
+            url = target
     return any(path in url for path in _UNAUTHENTICATED_PATHS)
 
 

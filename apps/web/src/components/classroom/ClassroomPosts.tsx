@@ -10,6 +10,7 @@ import { RefreshCw } from 'lucide-react';
 import { m } from 'motion/react';
 import { useState } from 'react';
 
+import { MaterialDownload } from '#/components/classroom/MaterialDownload';
 import { ErrorCard, SIGAA_DOWN_MESSAGE, StaleDataNotice } from '#/components/ErrorState';
 import { ListCard } from '#/components/ListCard';
 import { LoadingText } from '#/components/LoadingText';
@@ -148,7 +149,7 @@ export function ClassroomPosts({ id }: { id: string }) {
                                         (post.type === 'news' ? (
                                             <PostDetail classroomId={id} postId={post.id} />
                                         ) : (
-                                            <PostContent post={post} />
+                                            <PostContent classroomId={id} post={post} />
                                         ))}
                                 </AccordionContent>
                             </AccordionItem>
@@ -178,12 +179,12 @@ function PostDetail({ classroomId, postId }: { classroomId: string; postId: stri
     return (
         <>
             {detail.isError && <StaleDataNotice subject="esta postagem" className="mb-3" />}
-            <PostContent post={detail.data} />
+            <PostContent classroomId={classroomId} post={detail.data} />
         </>
     );
 }
 
-function PostContent({ post }: { post: ClassroomPost }) {
+function PostContent({ classroomId, post }: { classroomId: string; post: ClassroomPost }) {
     const url = postLink(post.url);
     const attachments = post.attachments.flatMap((attachment) => {
         const href = postLink(attachment.url);
@@ -208,19 +209,7 @@ function PostContent({ post }: { post: ClassroomPost }) {
                 </a>
             )}
             {post.type === 'material' && !url && (
-                <div className="flex flex-col gap-2">
-                    <p className="text-sm text-muted-foreground">
-                        Este material está disponível na página da turma no SIGAA.
-                    </p>
-                    <a
-                        href="https://sigaa.unb.br/sigaa/"
-                        target="_blank"
-                        rel="external noopener noreferrer"
-                        className="text-sm font-medium text-primary underline decoration-primary/30"
-                    >
-                        Abrir SIGAA
-                    </a>
-                </div>
+                <MaterialDownload classroomId={classroomId} postId={post.id} />
             )}
             {attachments.length > 0 && (
                 <div className="flex flex-col gap-1">
