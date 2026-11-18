@@ -50,7 +50,7 @@ function PrivacyPage() {
                 <article>
                     <section
                         aria-labelledby="politica-de-privacidade"
-                        className="flex flex-col gap-4 text-sm leading-6 text-muted-foreground"
+                        className="article flex flex-col gap-4"
                     >
                         <h2
                             id="politica-de-privacidade"
@@ -126,7 +126,7 @@ function PrivacyPage() {
                     </section>
                     <section
                         aria-labelledby="termos-de-servico"
-                        className="flex flex-col gap-4 border-border pt-8 text-sm leading-6 text-muted-foreground"
+                        className="article flex flex-col gap-4 border-border pt-8"
                     >
                         <h2
                             id="termos-de-servico"

@@ -6,7 +6,7 @@ import { Markdown } from '#/lib/markdown';
 
 export function ClassroomTeachingPlan({ plan }: { plan: TeachingPlan }) {
     return (
-        <article aria-label="Plano de ensino" className="flex min-w-0 flex-col gap-8">
+        <article aria-label="Plano de ensino" className="article flex min-w-0 flex-col gap-10">
             <PlanText title="Metodologia" content={plan.methodology} />
             <PlanText title="Critérios de avaliação" content={plan.assessment_procedures} />
             <PlanText title="Horário de atendimento" content={plan.office_hours} />
@@ -51,8 +51,8 @@ function PlanText({ title, content }: { title: string; content: string | null })
     if (!content?.trim()) return null;
     return (
         <section className="flex flex-col gap-3">
-            <h2 className="text-xl font-bold text-foreground">{title}</h2>
-            <Markdown>{content}</Markdown>
+            <h2 className="text-2xl font-bold tracking-tight">{title}</h2>
+            <Markdown article>{content}</Markdown>
         </section>
     );
 }
@@ -74,7 +74,7 @@ function PlanRows({
         .filter(({ index }) => populated.some((row) => row[index]?.trim()));
     return (
         <section className="flex min-w-0 flex-col gap-3">
-            <h2 className="text-xl font-bold text-foreground">{title}</h2>
+            <h2 className="text-2xl font-bold tracking-tight">{title}</h2>
             <table aria-label={title} className="hidden w-full text-left text-sm lg:table">
                 <thead className="border-b border-border bg-muted/50 text-muted-foreground">
                     <tr>
@@ -89,10 +89,7 @@ function PlanRows({
                     {populated.map((row, index) => (
                         <tr key={index}>
                             {fields.map(({ label, index: cellIndex }) => (
-                                <td
-                                    key={label}
-                                    className="px-3 py-3 align-top wrap-anywhere text-muted-foreground"
-                                >
+                                <td key={label} className="px-3 py-3 align-top wrap-anywhere">
                                     {row[cellIndex]}
                                 </td>
                             ))}
@@ -108,9 +105,7 @@ function PlanRows({
                                 row[cellIndex]?.trim() ? (
                                     <div key={label} className="flex flex-col gap-1">
                                         <dt className="font-medium">{label}</dt>
-                                        <dd className="wrap-anywhere text-muted-foreground">
-                                            {row[cellIndex]}
-                                        </dd>
+                                        <dd className="wrap-anywhere">{row[cellIndex]}</dd>
                                     </div>
                                 ) : null
                             )}

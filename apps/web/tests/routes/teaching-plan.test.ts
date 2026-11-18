@@ -41,7 +41,9 @@ const account = (plan: unknown, has: boolean | null) => (key: QueryKey) => {
 describe('rota independente do plano de ensino', () => {
     test.each([true, null])('carrega o plano da turma com plano %p', async (has) => {
         const { paths, load } = setup(account(PLAN, has));
-        expect(await load()).toEqual({ subjectName: 'Matemática Discreta 2', plan: PLAN });
+        const { classroom: loaded, plan } = await load();
+        expect(loaded.subject.name).toBe('Matemática Discreta 2');
+        expect(plan).toEqual(PLAN);
         expect(paths).toEqual(['/me', '/classrooms', '/classrooms/{classroom_id}/teaching-plan']);
     });
 

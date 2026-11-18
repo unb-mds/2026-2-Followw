@@ -25,17 +25,20 @@ export const Route = createFileRoute('/turmas_/$id_/plano-de-ensino')({
             void queryClient.invalidateQueries({ queryKey: allClassroomsQueryOptions.queryKey });
             throw redirect({ to: '/turmas/$id', params: { id } });
         }
-        return { subjectName: classroom.subject.name, plan };
+        return { classroom, plan };
     },
     head: ({ loaderData }) => ({
-        meta: [{ title: `Plano de ensino · ${loaderData?.subjectName ?? 'Turma'} | Followw` }]
+        meta: [
+            {
+                title: `Plano de ensino · ${loaderData?.classroom.subject.name ?? 'Turma'} | Followw`
+            }
+        ]
     }),
     errorComponent: ErrorState,
     component: TeachingPlanPage
 });
 
 function TeachingPlanPage() {
-    const { id } = Route.useParams();
-    const { subjectName, plan } = Route.useLoaderData();
-    return <ClassroomTeachingPlanPage id={id} subjectName={subjectName} plan={plan} />;
+    const { classroom, plan } = Route.useLoaderData();
+    return <ClassroomTeachingPlanPage classroom={classroom} plan={plan} />;
 }

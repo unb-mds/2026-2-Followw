@@ -1,4 +1,4 @@
-import type { TeachingPlan } from '@followw/core/queries/classrooms.ts';
+import type { Classroom, TeachingPlan } from '@followw/core/queries/classrooms.ts';
 
 import {
     RouterContextProvider,
@@ -31,6 +31,19 @@ export const PLAN: TeachingPlan = {
     complementary_references: []
 };
 
+export const CLASSROOM: Classroom = {
+    id: 'AAA',
+    sigaa_id: 1,
+    number: '02',
+    semester: '2026.2',
+    schedule: null,
+    room: null,
+    current: true,
+    subject: { code: 'FGA0108', name: 'MATEMÁTICA DISCRETA 2', hours: 60, unit: null },
+    professors: [],
+    has_teaching_plan: true
+};
+
 function createPlanRouter() {
     const root = createRootRoute();
     return createRouter({
@@ -52,13 +65,7 @@ export function useTeachingPlan() {
     return {
         dom,
         renderPage: (plan = PLAN) =>
-            render(
-                <ClassroomTeachingPlanPage
-                    id="AAA"
-                    subjectName="Matemática Discreta 2"
-                    plan={plan}
-                />
-            ),
+            render(<ClassroomTeachingPlanPage classroom={CLASSROOM} plan={plan} />),
         renderLink: () => render(<TeachingPlanLink id="AAA" />)
     };
 }
