@@ -16,10 +16,16 @@ export const Route = createFileRoute('/turmas_/$id_/plano-de-ensino')({
         const classrooms = await loadQuery(queryClient, allClassroomsQueryOptions);
         const classroom = classrooms.find((item) => item.id === id);
         if (!classroom) throw notFound();
-        const plan = await loadQuery(queryClient, classroomTeachingPlanQueryOptions(id));
-        if (plan === null)
-            throw redirect({ to: '/turmas/$id', params: { id }, search: { tab: 'posts' } });
-        return { subjectName: classroom.subject.name };
+        const plan =
+            classroom.has_teaching_plan === false
+                ? null
+                : await loadQuery(queryClient, classroomTeachingPlanQueryOptions(id));
+        if (!plan) {
+            // A turma passa a constar sem plano e o link some.
+            void queryClient.invalidateQueries({ queryKey: allClassroomsQueryOptions.queryKey });
+            throw redirect({ to: '/turmas/$id', params: { id } });
+        }
+        return { subjectName: classroom.subject.name, plan };
     },
     head: ({ loaderData }) => ({
         meta: [{ title: `Plano de ensino · ${loaderData?.subjectName ?? 'Turma'} | Followw` }]
@@ -30,6 +36,6 @@ export const Route = createFileRoute('/turmas_/$id_/plano-de-ensino')({
 
 function TeachingPlanPage() {
     const { id } = Route.useParams();
-    const { subjectName } = Route.useLoaderData();
-    return <ClassroomTeachingPlanPage id={id} subjectName={subjectName} />;
+    const { subjectName, plan } = Route.useLoaderData();
+    return <ClassroomTeachingPlanPage id={id} subjectName={subjectName} plan={plan} />;
 }

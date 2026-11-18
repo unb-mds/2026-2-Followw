@@ -254,7 +254,7 @@ def _parse_detail(page: BeautifulSoup) -> Internship:
             ),
         ),
         courses=courses,
-        description=to_markdown(BeautifulSoup(description.decode_contents(), "lxml")),
+        description=to_markdown(description),
     )
 
 

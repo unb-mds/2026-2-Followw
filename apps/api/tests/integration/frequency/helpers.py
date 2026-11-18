@@ -143,6 +143,7 @@ def classroom_json(classroom: Classroom) -> dict:
         "professors": [],
         "vacancies": None,
         "occupied": None,
+        "has_teaching_plan": None,
     }
 
 

@@ -40,7 +40,7 @@ _GLYPHS = {
 _CHARS = {glyph: char for char, glyph in _GLYPHS.items()}
 
 
-def _legend_percentages(png: bytes) -> tuple[float, ...]:
+def legend_percentages(png: bytes) -> tuple[float, ...]:
     """As porcentagens da legenda, na ordem em que o gráfico lista os itens."""
     image = Image.open(BytesIO(png)).convert("RGB")
     width, _ = image.size

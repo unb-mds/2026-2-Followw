@@ -11,6 +11,10 @@ from sigaa_client import (
 
 CREDENTIALS = Credentials(registration="251000000", password=SecretStr("senha123"))
 PATH = "/classrooms/AAA/teaching-plan"
+LOGIN = {
+    "registration": CREDENTIALS.registration,
+    "password": CREDENTIALS.password.get_secret_value(),
+}
 PLAN = ClassroomTeachingPlan(
     methodology="Aulas **práticas**.",
     assessment_procedures="Média das provas.",

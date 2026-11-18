@@ -20,8 +20,8 @@ from api.modules.classrooms.service import (
     sync_grades,
     sync_members,
     sync_statistics,
+    sync_teaching_plan,
 )
-from api.modules.classrooms.teaching_plan import sync_teaching_plan
 from api.modules.me.profile import sync_profile
 from api.sigaa import SigaaConnection
 from api.sync import Sync

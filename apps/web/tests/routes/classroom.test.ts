@@ -55,21 +55,6 @@ describe('cache da página da turma', () => {
         expect(callRoute(Route.options.shouldReload, { cause: 'enter' })).toBe(true);
     });
 
-    test('plano pendente não bloqueia o carregamento de Postagens', async () => {
-        const pending = Promise.withResolvers<null>();
-        const client = fakeQueryClient((key) => {
-            if (key[1] === '/me') return { registration: '123' };
-            if (key[1] === '/classrooms') return [classroom];
-            if (key[1] === '/classrooms/{classroom_id}/teaching-plan') return pending.promise;
-            return [];
-        });
-        try {
-            expect(await load(client, '?tab=posts')).toEqual({ subjectName: 'Cálculo' });
-        } finally {
-            pending.resolve(null);
-        }
-    });
-
     test.each([null, { registration: '123' }])(
         'não busca detalhes sem acesso à turma com perfil %p',
         async (user) => {

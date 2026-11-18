@@ -1,8 +1,5 @@
-import type { ClassroomPost, TeachingPlan } from '@followw/core/queries/classrooms.ts';
-import type { Middleware } from 'openapi-fetch';
+import type { TeachingPlan } from '@followw/core/queries/classrooms.ts';
 
-import { apiClient } from '@followw/core/queries/client.ts';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
     RouterContextProvider,
     createMemoryHistory,
@@ -10,10 +7,10 @@ import {
     createRoute,
     createRouter
 } from '@tanstack/react-router';
-import { afterEach, beforeEach } from 'bun:test';
+import { afterEach } from 'bun:test';
 
-import { ClassroomPosts } from '#/components/classroom/ClassroomPosts';
 import { ClassroomTeachingPlanPage } from '#/components/classroom/ClassroomTeachingPlanPage';
+import { TeachingPlanLink } from '#/components/classroom/TeachingPlanLink';
 
 import { useDom } from '../../../helpers/dom';
 
@@ -33,15 +30,6 @@ export const PLAN: TeachingPlan = {
     ],
     complementary_references: []
 };
-export const POSTS: ClassroomPost[] = [
-    {
-        id: 'news:1',
-        type: 'news',
-        title: 'Aviso da turma',
-        attachments: [],
-        is_read: false
-    }
-];
 
 function createPlanRouter() {
     const root = createRootRoute();
@@ -56,67 +44,21 @@ function createPlanRouter() {
 
 export function useTeachingPlan() {
     const dom = useDom();
-    const state = {
-        client: new QueryClient(),
-        router: createPlanRouter(),
-        plans: {} as Record<string, TeachingPlan | null>,
-        failPlan: false,
-        failPosts: false,
-        requests: [] as Request[],
-        pendingPlan: undefined as Promise<void> | undefined,
-        pendingPosts: undefined as Promise<void> | undefined
-    };
-    let middleware: Middleware;
-    beforeEach(() => {
-        state.router = createPlanRouter();
-        state.client = new QueryClient({
-            defaultOptions: { queries: { retry: false, staleTime: Infinity } }
-        });
-        state.plans = { AAA: PLAN, BBB: null };
-        state.failPlan = false;
-        state.failPosts = false;
-        state.requests = [];
-        state.pendingPlan = undefined;
-        state.pendingPosts = undefined;
-        middleware = {
-            onRequest: async ({ request }) => {
-                state.requests.push(request);
-                const path = new URL(request.url).pathname;
-                if (path.endsWith('/teaching-plan')) {
-                    await state.pendingPlan;
-                    if (state.failPlan)
-                        return Response.json({ detail: 'Indisponível' }, { status: 502 });
-                    const id = path.split('/').at(-2) ?? '';
-                    return Response.json(state.plans[id] ?? null);
-                }
-                await state.pendingPosts;
-                return state.failPosts
-                    ? Response.json({ detail: 'Indisponível' }, { status: 502 })
-                    : Response.json(POSTS);
-            }
-        };
-        apiClient.use(middleware);
-    });
-    afterEach(() => {
-        dom.testing.cleanup();
-        state.client.clear();
-        apiClient.eject(middleware);
-    });
-    const render = (id = 'AAA', posts = false) =>
+    afterEach(() => dom.testing.cleanup());
+    const render = (children: React.ReactNode) =>
         dom.testing.render(
-            <QueryClientProvider client={state.client}>
-                <RouterContextProvider router={state.router}>
-                    {posts ? (
-                        <ClassroomPosts key={id} id={id} />
-                    ) : (
-                        <ClassroomTeachingPlanPage
-                            key={id}
-                            id={id}
-                            subjectName="Matemática Discreta 2"
-                        />
-                    )}
-                </RouterContextProvider>
-            </QueryClientProvider>
+            <RouterContextProvider router={createPlanRouter()}>{children}</RouterContextProvider>
         );
-    return { state, dom, render };
+    return {
+        dom,
+        renderPage: (plan = PLAN) =>
+            render(
+                <ClassroomTeachingPlanPage
+                    id="AAA"
+                    subjectName="Matemática Discreta 2"
+                    plan={plan}
+                />
+            ),
+        renderLink: () => render(<TeachingPlanLink id="AAA" />)
+    };
 }

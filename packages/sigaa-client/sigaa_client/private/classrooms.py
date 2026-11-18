@@ -62,7 +62,7 @@ from ..utils.parsing import (
 )
 from .posts import _parse_assessments, _parse_dashboard_posts, _parse_topics
 from .session import Session
-from .statistics_chart import _legend_percentages
+from .statistics_chart import legend_percentages
 from .teaching_plan import _parse_teaching_plan
 
 CLASSROOM_ID_FIELD = "frontEndIdTurma"
@@ -440,7 +440,7 @@ def _chart_source(soup: BeautifulSoup) -> str:
 
 
 def _parse_statistics(chart: bytes) -> tuple[StatisticsShare, ...]:
-    shares = _legend_percentages(chart)
+    shares = legend_percentages(chart)
     if len(shares) != len(SITUATIONS):
         raise SigaaParseError(
             f"A legenda do gráfico trouxe {len(shares)} situações, "

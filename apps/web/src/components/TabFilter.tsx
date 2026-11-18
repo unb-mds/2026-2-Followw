@@ -1,5 +1,5 @@
 import { m } from 'motion/react';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useId } from 'react';
 
 import { Button } from '#/components/ui/button';
 import { spring } from '#/lib/motion';
@@ -24,46 +24,16 @@ export function TabFilter<T extends string>({
     size,
     className
 }: TabFilterProps<T>) {
-    const ref = useRef<HTMLFieldSetElement>(null);
-    const [indicator, setIndicator] = useState<{ x: number; width: number } | null>(null);
-    useLayoutEffect(() => {
-        const group = ref.current;
-        if (!group) return undefined;
-        const measure = () => {
-            const selected =
-                group.querySelectorAll('button')[options.findIndex((option) => option === value)];
-            const next = selected ? { x: selected.offsetLeft, width: selected.offsetWidth } : null;
-            setIndicator((previous) =>
-                previous?.x === next?.x && previous?.width === next?.width ? previous : next
-            );
-        };
-        measure();
-        const observer = new ResizeObserver(measure);
-        observer.observe(group);
-        for (const button of group.querySelectorAll('button')) observer.observe(button);
-        return () => observer.disconnect();
-    }, [value, options]);
+    const id = useId();
     return (
-        <fieldset
-            ref={ref}
+        <m.fieldset
+            layoutScroll
             className={cn(
-                'relative isolate flex min-w-0 items-center gap-1 overflow-x-auto py-1 max-md:no-scrollbar',
+                'flex min-w-0 items-center gap-1 overflow-x-auto py-1 max-md:no-scrollbar',
                 className
             )}
             aria-label={label}
         >
-            {indicator && (
-                <m.span
-                    aria-hidden="true"
-                    className={cn(
-                        'pointer-events-none absolute inset-y-1 left-0 bg-secondary',
-                        size === 'sm' ? 'rounded-md' : 'rounded-lg'
-                    )}
-                    initial={false}
-                    animate={indicator}
-                    transition={spring}
-                />
-            )}
             {options.map((option) => (
                 <Button
                     key={option}
@@ -71,14 +41,19 @@ export function TabFilter<T extends string>({
                     size={size}
                     aria-pressed={option === value}
                     onClick={() => onChange(option)}
-                    className={cn(
-                        'relative shrink-0 aria-pressed:text-secondary-foreground aria-pressed:hover:bg-transparent',
-                        !indicator && 'aria-pressed:bg-secondary'
-                    )}
+                    className="relative isolate shrink-0 aria-pressed:text-secondary-foreground aria-pressed:hover:bg-transparent"
                 >
+                    {option === value && (
+                        <m.span
+                            layoutId={id}
+                            aria-hidden="true"
+                            className="absolute inset-0 -z-10 rounded-[inherit] bg-secondary"
+                            transition={spring}
+                        />
+                    )}
                     {labels?.[option] ?? option}
                 </Button>
             ))}
-        </fieldset>
+        </m.fieldset>
     );
 }

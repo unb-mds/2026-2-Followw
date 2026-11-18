@@ -115,9 +115,8 @@ describe('postagens da turma com a API', () => {
         });
         middleware = {
             onRequest: ({ request }) => {
-                const path = decodeURIComponent(new URL(request.url).pathname);
-                if (path.endsWith('/teaching-plan')) return Response.json(null);
                 requests.push(request);
+                const path = decodeURIComponent(new URL(request.url).pathname);
                 if (path.endsWith('/posts/news:1')) {
                     return failDetail
                         ? Response.json({ detail: 'Indisponível' }, { status: 502 })
@@ -224,11 +223,6 @@ describe('postagens da turma com a API', () => {
     test('mantém postagens salvas quando a atualização falha e pede revalidação à API', async () => {
         client.setQueryData(classroomPostsQueryOptions('AAA').queryKey, posts);
         const page = renderPosts();
-        await testing.waitFor(() =>
-            expect(page.getByRole('button', { name: 'Atualizar' }).hasAttribute('disabled')).toBe(
-                false
-            )
-        );
         failList = true;
         testing.fireEvent.click(page.getByRole('button', { name: 'Atualizar' }));
         expect(

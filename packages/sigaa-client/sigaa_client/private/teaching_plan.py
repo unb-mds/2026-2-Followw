@@ -65,7 +65,7 @@ def _field(table: Tag, label: str) -> str | None:
             and clean_text(header) == label
             and isinstance(cell, Tag)
         ):
-            return to_markdown(BeautifulSoup(cell.decode_contents(), "lxml"))
+            return to_markdown(cell)
     raise SigaaParseError(f"Campo `{label}` não encontrado no plano de ensino.")
 
 

@@ -17,7 +17,11 @@ from sqlalchemy import select, update
 
 from api.db.models import Classroom, ClassroomParticipant, User
 from api.modules.auth.account import sync_account
-from api.modules.classrooms.service import sync_members, sync_statistics
+from api.modules.classrooms.service import (
+    sync_members,
+    sync_statistics,
+    sync_teaching_plan,
+)
 from api.sync.engine import Step
 from api.sync.queue import JOBS_URL, encode_job
 
@@ -123,7 +127,7 @@ def test_login_sincroniza_cada_turma_em_um_job(client, conta, qstash):
     client.post("/auth/sigaa", json=LOGIN)
 
     conta_job, *turmas = qstash.jobs()
-    atual = (Step.of(sync_members),)
+    atual = (Step.of(sync_members), Step.of(sync_teaching_plan))
     antiga = (Step.of(sync_members), Step.of(sync_statistics))
     assert (conta_job.classroom_id, conta_job.steps) == (None, (Step.of(sync_account),))
     assert sorted((job.classroom_id, job.steps) for job in turmas) == [

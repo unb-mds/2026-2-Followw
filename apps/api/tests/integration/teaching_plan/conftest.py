@@ -1,5 +1,3 @@
-from unittest.mock import AsyncMock
-
 import pytest
 from sigaa_client import Classroom, Subject
 
@@ -18,7 +16,7 @@ def teaching_sigaa(stub_sigaa):
             subject=Subject(code="FGA0108", name="MATEMÁTICA DISCRETA 2"),
         )
     ]
-    stub_sigaa.classrooms.get_classroom_teaching_plan = AsyncMock(return_value=PLAN)
+    stub_sigaa.classrooms.get_classroom_teaching_plan.return_value = PLAN
     return stub_sigaa
 
 

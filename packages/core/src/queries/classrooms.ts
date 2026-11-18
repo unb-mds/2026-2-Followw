@@ -5,7 +5,6 @@ import type { components } from './schema.gen.ts';
 import { api } from './api.ts';
 import { apiClient } from './client.ts';
 import { weekLessonsQueryOptions } from './lessons.ts';
-import { serialQuery } from './serial.ts';
 
 export type Classroom = components['schemas']['ParticipantClassroom'];
 export type ClassroomPost = components['schemas']['ClassroomPostView'];
@@ -22,33 +21,25 @@ export const allClassroomsQueryOptions = api.queryOptions('get', '/classrooms', 
     params: { query: { semester: 'all' } }
 });
 
-export const classroomPostsQueryOptions = (id: string, type?: PostType) => {
-    const options = api.queryOptions('get', '/classrooms/{classroom_id}/posts', {
+export const classroomPostsQueryOptions = (id: string, type?: PostType) =>
+    api.queryOptions('get', '/classrooms/{classroom_id}/posts', {
         params: { path: { classroom_id: id }, ...(type ? { query: { type } } : {}) }
     });
-    return { ...options, queryFn: serialQuery(options.queryFn) };
-};
 
-export const classroomTeachingPlanQueryOptions = (id: string) => {
-    const options = api.queryOptions('get', '/classrooms/{classroom_id}/teaching-plan', {
+export const classroomTeachingPlanQueryOptions = (id: string) =>
+    api.queryOptions('get', '/classrooms/{classroom_id}/teaching-plan', {
         params: { path: { classroom_id: id } }
     });
-    return { ...options, queryFn: serialQuery(options.queryFn) };
-};
 
-export const classroomPostDetailQueryOptions = (id: string, postId: string) => {
-    const options = api.queryOptions('get', '/classrooms/{classroom_id}/posts/{post_id}', {
+export const classroomPostDetailQueryOptions = (id: string, postId: string) =>
+    api.queryOptions('get', '/classrooms/{classroom_id}/posts/{post_id}', {
         params: { path: { classroom_id: id, post_id: postId } }
     });
-    return { ...options, queryFn: serialQuery(options.queryFn) };
-};
 
-export const classroomFrequencyQueryOptions = (id: string) => {
-    const options = api.queryOptions('get', '/classrooms/{classroom_id}/frequency', {
+export const classroomFrequencyQueryOptions = (id: string) =>
+    api.queryOptions('get', '/classrooms/{classroom_id}/frequency', {
         params: { path: { classroom_id: id } }
     });
-    return { ...options, queryFn: serialQuery(options.queryFn) };
-};
 
 export type ClassroomFrequency = components['schemas']['ClassroomFrequencyView'];
 export type Lesson = components['schemas']['Lesson'];
@@ -75,16 +66,12 @@ export function useMarkLessons(id: string) {
     });
 }
 
-export const classroomMembersQueryOptions = (id: string) => {
-    const options = api.queryOptions('get', '/classrooms/{classroom_id}/members', {
+export const classroomMembersQueryOptions = (id: string) =>
+    api.queryOptions('get', '/classrooms/{classroom_id}/members', {
         params: { path: { classroom_id: id } }
     });
-    return { ...options, queryFn: serialQuery(options.queryFn) };
-};
 
-export const classroomStatisticsQueryOptions = (id: string) => {
-    const options = api.queryOptions('get', '/classrooms/{classroom_id}/statistics', {
+export const classroomStatisticsQueryOptions = (id: string) =>
+    api.queryOptions('get', '/classrooms/{classroom_id}/statistics', {
         params: { path: { classroom_id: id } }
     });
-    return { ...options, queryFn: serialQuery(options.queryFn) };
-};

@@ -20,7 +20,6 @@ from api.modules.classrooms.service import (
     ClassroomServiceDep,
     ParticipantClassroom,
 )
-from api.modules.classrooms.teaching_plan import TeachingPlanServiceDep
 
 router = APIRouter()
 
@@ -57,7 +56,7 @@ def _unique_lessons(marks: list[LessonMark]) -> list[LessonMark]:
     "/{classroom_id}/teaching-plan",
     response_model=ClassroomTeachingPlan | None,
     summary="Consultar plano de ensino da turma",
-    description="Metodologia, avaliação, atendimento, cronograma e referências. Textos formatados em Markdown; null quando o SIGAA informa que não há plano cadastrado.",
+    description="Metodologia, avaliação, atendimento, cronograma e referências. Textos formatados em Markdown; null quando o SIGAA informa que não há plano cadastrado. Lido uma vez por turma, sem revalidação.",
     responses={
         **CLASSROOM_ERRORS,
         503: {"description": "Cache em atualização."},
@@ -65,9 +64,9 @@ def _unique_lessons(marks: list[LessonMark]) -> list[LessonMark]:
     },
 )
 async def get_classroom_teaching_plan(
-    service: TeachingPlanServiceDep, classroom_id: ClassroomId
+    service: ClassroomServiceDep, classroom_id: ClassroomId
 ) -> ClassroomTeachingPlan | None:
-    return await service.get_plan(classroom_id)
+    return await service.get_teaching_plan(classroom_id)
 
 
 @router.get(

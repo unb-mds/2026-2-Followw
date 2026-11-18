@@ -3,11 +3,11 @@ import { describe, expect, test } from 'bun:test';
 import { PLAN, useTeachingPlan } from './helpers';
 
 describe('conteúdo do plano de ensino', () => {
-    const { state, render } = useTeachingPlan();
+    const { renderPage } = useTeachingPlan();
 
-    test('mostra o conteúdo diretamente em artigo, sem Accordion', async () => {
-        const page = render();
-        expect(await page.findByRole('article', { name: 'Plano de ensino' })).toBeDefined();
+    test('mostra o conteúdo diretamente em artigo, sem Accordion', () => {
+        const page = renderPage();
+        expect(page.getByRole('article', { name: 'Plano de ensino' })).toBeDefined();
         expect(page.queryByRole('button', { name: 'Plano de ensino' })).toBeNull();
         expect(page.getByText('práticas').tagName).toBe('STRONG');
         expect(page.getByRole('link', { name: 'Leitura' }).getAttribute('rel')).toContain(
@@ -18,12 +18,10 @@ describe('conteúdo do plano de ensino', () => {
         expect(page.getByText('Tema').tagName).toBe('TH');
         expect(page.queryByRole('heading', { name: 'Horário de atendimento' })).toBeNull();
         expect(page.queryByRole('heading', { name: 'Referências complementares' })).toBeNull();
-        expect(state.requests.filter((r) => r.url.endsWith('/teaching-plan'))).toHaveLength(1);
     });
 
-    test('mantém datas locais, ordem e referências repetidas nas duas apresentações', async () => {
-        const page = render();
-        await page.findByRole('article', { name: 'Plano de ensino' });
+    test('mantém datas locais, ordem e referências repetidas nas duas apresentações', () => {
+        const page = renderPage();
         const desktop = page.getByRole('table', { name: 'Cronograma de aulas' });
         const mobile = page.getByRole('list', { name: 'Cronograma de aulas' });
         for (const view of [desktop, mobile]) {
@@ -39,18 +37,16 @@ describe('conteúdo do plano de ensino', () => {
             expect(view.textContent?.match(/Introdução à Álgebra\./g)).toHaveLength(2);
     });
 
-    test('omite seções e campos sem conteúdo sem acrescentar informações', async () => {
-        state.plans.AAA = {
+    test('omite seções e campos sem conteúdo sem acrescentar informações', () => {
+        const page = renderPage({
             ...PLAN,
             methodology: null,
             assessment_procedures: null,
             schedule: [],
             assessments: [],
             basic_references: [{ material_type: null, description: 'Livro indicado.' }]
-        };
-        const page = render();
-        await page.findByRole('article', { name: 'Plano de ensino' });
-        expect(await page.findByRole('heading', { name: 'Referências básicas' })).toBeDefined();
+        });
+        expect(page.getByRole('heading', { name: 'Referências básicas' })).toBeDefined();
         for (const title of [
             'Metodologia',
             'Critérios de avaliação',

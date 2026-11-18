@@ -5,7 +5,8 @@ import type { AnyRoute } from '@tanstack/react-router';
 export function fakeQueryClient(respond: (queryKey: QueryKey) => unknown) {
     const client = {
         getQueryData: () => undefined,
-        query: async ({ queryKey }: { queryKey: QueryKey }) => respond(queryKey)
+        query: async ({ queryKey }: { queryKey: QueryKey }) => respond(queryKey),
+        invalidateQueries: async () => {}
     };
     // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- fake parcial
     return client as unknown as QueryClient;

@@ -51,7 +51,7 @@ export interface paths {
         };
         /**
          * Consultar plano de ensino da turma
-         * @description Metodologia, avaliação, atendimento, cronograma e referências. Textos formatados em Markdown; null quando o SIGAA informa que não há plano cadastrado.
+         * @description Metodologia, avaliação, atendimento, cronograma e referências. Textos formatados em Markdown; null quando o SIGAA informa que não há plano cadastrado. Lido uma vez por turma, sem revalidação.
          */
         get: operations["get_classroom_teaching_plan_classrooms__classroom_id__teaching_plan_get"];
         put?: never;
@@ -1187,6 +1187,8 @@ export interface components {
             subject: components["schemas"]["ParticipantSubject"];
             grade?: components["schemas"]["Grade"] | null;
             status?: components["schemas"]["ClassroomStatus"] | null;
+            /** Has Teaching Plan */
+            has_teaching_plan?: boolean | null;
         };
         /** ParticipantSubject */
         ParticipantSubject: {

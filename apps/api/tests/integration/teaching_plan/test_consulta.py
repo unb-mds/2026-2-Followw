@@ -1,7 +1,7 @@
 import pytest
 from sigaa_client import SigaaParseError
 
-from .helpers import CREDENTIALS, PATH, PLAN
+from .helpers import PATH, PLAN
 
 
 @pytest.mark.parametrize("classroom_id", ["AAA", "123"])
@@ -49,18 +49,6 @@ def test_erro_de_parsing_e_propagado_como_502(logged, teaching_sigaa):
         "Layout mudou"
     )
     assert logged.get(PATH).status_code == 502
-
-
-def test_login_nao_busca_planos(client, teaching_sigaa):
-    response = client.post(
-        "/auth/sigaa",
-        json={
-            "registration": CREDENTIALS.registration,
-            "password": CREDENTIALS.password.get_secret_value(),
-        },
-    )
-    assert response.status_code == 200
-    teaching_sigaa.classrooms.get_classroom_teaching_plan.assert_not_awaited()
 
 
 def test_openapi_documenta_plano_opcional_e_erros(api):
