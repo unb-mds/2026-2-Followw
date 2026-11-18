@@ -38,6 +38,9 @@ tests/                  # unit/ (sem Docker) e integration/<feature>/
   do sync do login. A tarefa (`(ctx: Context[alvo]) -> None`) busca no SIGAA e grava; o alvo é a
   conta (`None`), uma turma (`OwnLink`) ou um item dela (`Item`). Tarefa nova entra em `TASKS`. Rota
   com cache ganha o `Cache-Control` pelo service; GET sem cache usa `NoStore`.
+  A validade de cada dado vem de uma função `*_freshness` do service.
+- **Regras de negócio** configuráveis (TTL, tolerância, limite, congelar, quem pode o quê) ficam
+  numa constante ou função nomeada do módulo, nunca como literal no `load`, no router ou na query.
 - **Jobs.** Nada roda após a resposta: o que venceu vira job no QStash (um por turma e um da conta),
   com a credencial cifrada e sessão própria do SIGAA, com logout no fim. Nunca use a sessão do
   usuário num job. Falha da origem tem uma única retentativa.

@@ -3,6 +3,8 @@ import type { Components } from 'react-markdown';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+import { cn } from '#/lib/shadcn';
+
 const components: Components = {
     img: ({ src, alt, title }) =>
         src ? <img src={src} alt={alt} title={title} /> : <span>{alt}</span>,
@@ -21,9 +23,15 @@ const components: Components = {
     }
 };
 
-export function Markdown({ children }: { children: string }) {
+/** `article` para páginas de leitura; o padrão cabe em cards e diálogos. */
+export function Markdown({ children, article = false }: { children: string; article?: boolean }) {
     return (
-        <div className="markdown text-sm leading-relaxed wrap-break-word text-muted-foreground">
+        <div
+            className={cn(
+                'markdown wrap-break-word',
+                article ? 'article' : 'text-sm leading-relaxed text-foreground'
+            )}
+        >
             <ReactMarkdown skipHtml remarkPlugins={[remarkGfm]} components={components}>
                 {children}
             </ReactMarkdown>

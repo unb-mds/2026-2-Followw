@@ -41,6 +41,7 @@ def test_login_e_listagem_retornam_apenas_turmas_atuais(client, classrooms_sigaa
             "professors": [],
             "vacancies": None,
             "occupied": None,
+            "has_teaching_plan": None,
         }
     ]
     # Só a sessão do usuário segue aberta: cada job encerrou a sua.
@@ -291,6 +292,7 @@ def test_historico_preserva_campos_das_turmas_atuais(client, classrooms_sigaa, c
         "professors": [],
         "vacancies": None,
         "occupied": None,
+        "has_teaching_plan": None,
     }
 
 

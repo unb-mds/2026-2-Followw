@@ -19,7 +19,7 @@ from sqlalchemy import (
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, column_property, mapped_column, relationship
 
 from api.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 from api.db.enums import ClassroomRole, ClassroomStatus, LessonStatus, UserLevel
@@ -232,6 +232,14 @@ class Classroom(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         JSONB, deferred=True
     )
     statistics_synced_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
+    # Sem plano no SIGAA é SQL NULL, não JSON `null`.
+    teaching_plan: Mapped[dict[str, object] | None] = mapped_column(
+        JSONB(none_as_null=True), deferred=True
+    )
+    has_teaching_plan: Mapped[bool] = column_property(teaching_plan.column.is_not(None))
+    teaching_plan_synced_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True)
     )
     # As aulas pelo horário e calendário são criadas uma vez, no sync de um aluno.

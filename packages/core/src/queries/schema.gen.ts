@@ -42,6 +42,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/classrooms/{classroom_id}/teaching-plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Consultar plano de ensino da turma
+         * @description Metodologia, avaliação, atendimento, cronograma e referências.
+         */
+        get: operations["get_classroom_teaching_plan_classrooms__classroom_id__teaching_plan_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/classrooms/{classroom_id}/posts": {
         parameters: {
             query?: never;
@@ -790,6 +810,23 @@ export interface components {
          * @enum {string}
          */
         ClassroomStatus: "cursando" | "trancado" | "concluido" | "pending_enrollment" | "denied";
+        /** ClassroomTeachingPlan */
+        ClassroomTeachingPlan: {
+            /** Methodology */
+            methodology: string | null;
+            /** Assessment Procedures */
+            assessment_procedures: string | null;
+            /** Office Hours */
+            office_hours: string | null;
+            /** Schedule */
+            schedule: components["schemas"]["TeachingPlanScheduleEntry"][];
+            /** Assessments */
+            assessments: components["schemas"]["TeachingPlanAssessment"][];
+            /** Basic References */
+            basic_references: components["schemas"]["TeachingPlanReference"][];
+            /** Complementary References */
+            complementary_references: components["schemas"]["TeachingPlanReference"][];
+        };
         /** CourseCurriculum */
         CourseCurriculum: {
             /** Sigaa Id */
@@ -1150,6 +1187,8 @@ export interface components {
             subject: components["schemas"]["ParticipantSubject"];
             grade?: components["schemas"]["Grade"] | null;
             status?: components["schemas"]["ClassroomStatus"] | null;
+            /** Has Teaching Plan */
+            has_teaching_plan?: boolean | null;
         };
         /** ParticipantSubject */
         ParticipantSubject: {
@@ -1455,6 +1494,38 @@ export interface components {
              */
             name: string | null;
         };
+        /** TeachingPlanAssessment */
+        TeachingPlanAssessment: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Description */
+            description: string | null;
+        };
+        /** TeachingPlanReference */
+        TeachingPlanReference: {
+            /** Material Type */
+            material_type: string | null;
+            /** Description */
+            description: string | null;
+        };
+        /** TeachingPlanScheduleEntry */
+        TeachingPlanScheduleEntry: {
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            /**
+             * End Date
+             * Format: date
+             */
+            end_date: string;
+            /** Description */
+            description: string | null;
+        };
         /**
          * UnitRef
          * @description Unidade acadêmica: `id` do SIGAA e sigla em `code`.
@@ -1668,6 +1739,76 @@ export interface operations {
             };
             /** @description SIGAA indisponível. */
             502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_classroom_teaching_plan_classrooms__classroom_id__teaching_plan_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description `no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente). */
+                "Cache-Control"?: string | null;
+            };
+            path: {
+                /** @description Classroom.id ou Classroom.sigaa_id. */
+                classroom_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassroomTeachingPlan"] | null;
+                };
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Turma não encontrada entre as turmas do usuário. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description SIGAA indisponível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Cache em atualização. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Plano ainda não disponível no cache. */
+            504: {
                 headers: {
                     [name: string]: unknown;
                 };

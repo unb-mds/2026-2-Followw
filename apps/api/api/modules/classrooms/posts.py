@@ -34,6 +34,23 @@ def posts_freshness(link: OwnLink, synced_at: datetime | None) -> Freshness:
     return freshness(synced_at, POSTS_LIST_TTL if link.row.current else None)
 
 
+def dashboard_freshness(synced_at: datetime | None) -> Freshness:
+    return freshness(synced_at, DASHBOARD_TTL)
+
+
+def is_assessment(post_id: str) -> bool:
+    return post_id.startswith("assessment:")
+
+
+def post_detail_freshness(
+    link: OwnLink, post_id: str, synced_at: datetime | None
+) -> Freshness:
+    # Avaliações mudam de data e seguem a validade da lista; o resto não muda.
+    if is_assessment(post_id):
+        return posts_freshness(link, synced_at)
+    return Freshness.FRESH
+
+
 class ClassroomNews(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -158,7 +175,7 @@ class ClassroomPostsService:
         items, dashboard_synced_at = await self._sync.db.read(load)
         updating = (
             any(link.row.current for link in links)
-            and freshness(dashboard_synced_at, DASHBOARD_TTL) is Freshness.STALE
+            and dashboard_freshness(dashboard_synced_at) is Freshness.STALE
         )
         if updating:
             self._sync.schedule(sync_dashboard_posts, None)
@@ -209,7 +226,9 @@ class ClassroomPostsService:
             if item is None or item.content_synced_at is None:
                 return None
             return Cached(
-                await view(session, item), item.content_synced_at, Freshness.FRESH
+                await view(session, item),
+                item.content_synced_at,
+                post_detail_freshness(link, post_id, item.content_synced_at),
             )
 
         if post_id.startswith("news:"):
@@ -218,8 +237,7 @@ class ClassroomPostsService:
                 sync_news_content, Item(link, news_id), load_news, immutable=True
             )
 
-        # Avaliações mudam de data e seguem a validade da lista; o resto não muda.
-        assessment = post_id.startswith("assessment:")
+        assessment = is_assessment(post_id)
 
         async def load(session: AsyncSession) -> Cached[ClassroomPostView] | None:
             classroom = await ClassroomRepository(session).get(link.row.classroom_id)
@@ -228,13 +246,16 @@ class ClassroomPostsService:
             item = await PostsRepository(session).get(link.row.classroom_id, post_id)
             if item is None:
                 raise HTTPException(404, "Classroom post not found")
-            if assessment:
-                synced_at = classroom.posts_synced_at
-                status = posts_freshness(link, synced_at)
-            else:
-                synced_at = item.content_synced_at or classroom.posts_synced_at
-                status = Freshness.FRESH
-            return Cached(await view(session, item), synced_at, status)
+            synced_at = (
+                classroom.posts_synced_at
+                if assessment
+                else item.content_synced_at or classroom.posts_synced_at
+            )
+            return Cached(
+                await view(session, item),
+                synced_at,
+                post_detail_freshness(link, post_id, synced_at),
+            )
 
         return await self._sync.resolve(
             sync_posts, link, load, immutable=not assessment

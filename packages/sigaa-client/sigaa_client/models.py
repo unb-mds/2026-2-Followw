@@ -234,6 +234,40 @@ class Grade(str, enum.Enum):
         return self in (Grade.SS, Grade.MS, Grade.MM)
 
 
+class TeachingPlanScheduleEntry(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    start_date: date
+    end_date: date
+    description: str | None
+
+
+class TeachingPlanAssessment(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    date: date
+    description: str | None
+
+
+class TeachingPlanReference(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    material_type: str | None
+    description: str | None
+
+
+class ClassroomTeachingPlan(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    methodology: str | None
+    assessment_procedures: str | None
+    office_hours: str | None
+    schedule: tuple[TeachingPlanScheduleEntry, ...]
+    assessments: tuple[TeachingPlanAssessment, ...]
+    basic_references: tuple[TeachingPlanReference, ...]
+    complementary_references: tuple[TeachingPlanReference, ...]
+
+
 class ClassroomGrade(BaseModel):
     """O relatório de notas identifica a disciplina pelo código e semestre."""
 

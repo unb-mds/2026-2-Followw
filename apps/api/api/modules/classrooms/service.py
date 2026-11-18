@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict
 from sigaa_client import (
     Classroom,
     ClassroomNotFound,
+    ClassroomTeachingPlan,
     Grade,
     StatisticsShare,
 )
@@ -62,6 +63,11 @@ def statistics_freshness(synced_at: datetime | None) -> Freshness:
     return freshness(synced_at, None)
 
 
+def teaching_plan_freshness(synced_at: datetime | None) -> Freshness:
+    # Só `no-cache` revalida: o plano não vence por tempo.
+    return freshness(synced_at, None)
+
+
 def grades_freshness(synced_at: datetime | None) -> Freshness:
     # Não congela: a menção pode chegar ao relatório depois da consolidação.
     return freshness(synced_at, DETAILS_TTL)
@@ -78,6 +84,12 @@ def stale_classroom_tasks(link: OwnLink) -> list[Task[OwnLink]]:
         and statistics_freshness(classroom.statistics_synced_at) is Freshness.STALE
     ):
         stale.append(sync_statistics)
+    if (
+        link.row.current
+        and teaching_plan_freshness(classroom.teaching_plan_synced_at)
+        is Freshness.STALE
+    ):
+        stale.append(sync_teaching_plan)
     return stale
 
 
@@ -114,6 +126,16 @@ async def sync_statistics(ctx: Context[OwnLink]) -> None:
     await ctx.sync.db.write(
         lambda session: ClassroomRepository(session).save_statistics(
             link.row.classroom_id, shares, datetime.now(UTC)
+        )
+    )
+
+
+async def sync_teaching_plan(ctx: Context[OwnLink]) -> None:
+    link = ctx.target
+    plan = await ctx.client.classrooms.get_classroom_teaching_plan(link.front_end_id)
+    await ctx.sync.db.write(
+        lambda session: ClassroomRepository(session).save_teaching_plan(
+            link.row.classroom_id, plan, datetime.now(UTC)
         )
     )
 
@@ -159,6 +181,8 @@ class ParticipantClassroom(Classroom, ClassroomOffer):
     subject: ParticipantSubject
     grade: Grade | None = None
     status: ClassroomStatus | None = None
+    # `None` enquanto o plano não foi lido no SIGAA.
+    has_teaching_plan: bool | None = None
 
 
 class ClassroomService:
@@ -250,6 +274,30 @@ class ClassroomService:
 
         return await self._sync.resolve(sync_statistics, link, load)
 
+    async def get_teaching_plan(
+        self, classroom_id: str
+    ) -> ClassroomTeachingPlan | None:
+        link = await self.get_link(classroom_id)
+
+        async def load(
+            session: AsyncSession,
+        ) -> Cached[ClassroomTeachingPlan | None] | None:
+            classroom = await ClassroomRepository(session).get_teaching_plan(
+                link.row.classroom_id
+            )
+            if classroom is None or classroom.teaching_plan_synced_at is None:
+                return None
+            plan = classroom.teaching_plan
+            return Cached(
+                ClassroomTeachingPlan.model_validate(plan)
+                if plan is not None
+                else None,
+                classroom.teaching_plan_synced_at,
+                teaching_plan_freshness(classroom.teaching_plan_synced_at),
+            )
+
+        return await self._sync.resolve(sync_teaching_plan, link, load)
+
     async def get_link(self, classroom_id: str) -> OwnLink:
         """O vínculo pelo `Classroom.id` ou pelo `sigaa_id` da turma."""
         find = partial(find_link, self._sync.registration, classroom_id)
@@ -321,6 +369,9 @@ def to_classroom(
         professors=professor_refs(classroom.professors),
         vacancies=classroom.vacancies,
         occupied=classroom.occupied,
+        has_teaching_plan=classroom.has_teaching_plan
+        if classroom.teaching_plan_synced_at is not None
+        else None,
     )
 
 

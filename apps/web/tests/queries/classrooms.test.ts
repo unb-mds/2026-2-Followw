@@ -6,6 +6,7 @@ import {
     classroomMembersQueryOptions,
     classroomPostDetailQueryOptions,
     classroomPostsQueryOptions,
+    classroomTeachingPlanQueryOptions,
     useMarkLessons
 } from '@followw/core/queries/classrooms.ts';
 import { apiClient } from '@followw/core/queries/client.ts';
@@ -23,12 +24,13 @@ describe('queries de turma', () => {
         });
     });
 
-    test('isola postagens, frequência e participantes pelo ID da turma', () => {
+    test('isola postagens, plano, frequência e participantes pelo ID da turma', () => {
         const first = 'TURMA-1';
         const second = 'TURMA-2';
 
         for (const query of [
             classroomPostsQueryOptions,
+            classroomTeachingPlanQueryOptions,
             classroomFrequencyQueryOptions,
             classroomMembersQueryOptions
         ]) {

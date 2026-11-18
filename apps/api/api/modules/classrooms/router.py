@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Path, Query, Response
 from pydantic import AfterValidator, BaseModel, Field
-from sigaa_client import PostType, StatisticsShare
+from sigaa_client import ClassroomTeachingPlan, PostType, StatisticsShare
 
 from api.cache import NoStore, no_store
 from api.db.enums import LessonStatus
@@ -50,6 +50,23 @@ def _unique_lessons(marks: list[LessonMark]) -> list[LessonMark]:
     if len({mark.lesson_id for mark in marks}) < len(marks):
         raise ValueError("Aula repetida.")
     return marks
+
+
+@router.get(
+    "/{classroom_id}/teaching-plan",
+    response_model=ClassroomTeachingPlan | None,
+    summary="Consultar plano de ensino da turma",
+    description="Metodologia, avaliação, atendimento, cronograma e referências.",
+    responses={
+        **CLASSROOM_ERRORS,
+        503: {"description": "Cache em atualização."},
+        504: {"description": "Plano ainda não disponível no cache."},
+    },
+)
+async def get_classroom_teaching_plan(
+    service: ClassroomServiceDep, classroom_id: ClassroomId
+) -> ClassroomTeachingPlan | None:
+    return await service.get_teaching_plan(classroom_id)
 
 
 @router.get(
