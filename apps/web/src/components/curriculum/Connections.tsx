@@ -36,8 +36,6 @@ export function Connections({
             className="pointer-events-none absolute inset-0"
             width={geometry.width}
             height={geometry.height}
-            // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- SVG tem semântica própria de imagem vetorial.
-            role="img"
             aria-label="Pré-requisitos e correquisitos, coloridos por matéria de destino; correquisitos com duas pontas, verticais no mesmo semestre. Alternativas detalhadas nos cartões."
         >
             <defs>
