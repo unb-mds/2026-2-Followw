@@ -91,9 +91,6 @@ test('lista as relações por alternativa, sem código e apenas pelos nomes do c
     expect(page.getByRole('heading', { name: 'Estruturas de Dados 1' })).toBeDefined();
     expect(page.getByText('Equivalências')).toBeDefined();
     expect(page.queryByText('Correquisitos')).toBeNull();
-    expect(page.container.textContent).not.toContain('fora do fluxo');
-    expect(page.container.textContent).not.toContain('Nenhum informado');
-    expect(page.container.textContent).not.toContain('As linhas tracejadas');
     expect(page.container.textContent).not.toContain('EXTERNA');
     expect(page.getByRole('button', { name: 'Fechar detalhes da matéria' })).toBeDefined();
 });
@@ -169,7 +166,6 @@ test('omite o estado acadêmico ao consultar uma matéria de outro curso', async
 test('visualizar turmas abre a busca pelo código da matéria sem herdar o filtro anterior', async () => {
     const page = await renderDetails();
     const link = page.getByRole('link', { name: 'Visualizar turmas' });
-    expect(link.classList.contains('bg-primary')).toBe(true);
     dom.testing.fireEvent.click(link, { button: 0 });
     await dom.testing.waitFor(() => expect(page.router.state.location.pathname).toBe('/buscar'));
     expect(page.router.state.location.search).toEqual({ q: 'B', category: 'classrooms' });

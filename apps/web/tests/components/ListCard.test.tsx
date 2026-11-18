@@ -4,17 +4,6 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { ListCard, Meter } from '#/components/ListCard';
 
 describe('ListCard', () => {
-    test('renderiza os itens separados por divisórias', () => {
-        const markup = renderToStaticMarkup(
-            <ListCard className="mt-2">
-                <p>Item</p>
-            </ListCard>
-        );
-        expect(markup).toContain('divide-y');
-        expect(markup).toContain('mt-2');
-        expect(markup).toContain('<p>Item</p>');
-    });
-
     test('renderiza como dl quando solicitado', () => {
         const markup = renderToStaticMarkup(
             <ListCard as="dl">

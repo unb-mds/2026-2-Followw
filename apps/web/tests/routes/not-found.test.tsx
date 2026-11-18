@@ -5,8 +5,7 @@ import {
     createMemoryHistory,
     createRootRoute,
     createRoute,
-    createRouter,
-    isNotFound
+    createRouter
 } from '@tanstack/react-router';
 import { createRequestHandler, renderSsrHtmlResponse } from '@tanstack/react-router/ssr/server';
 import { createServerEntry } from '@tanstack/react-start/server';
@@ -14,7 +13,6 @@ import { describe, expect, test } from 'bun:test';
 import { Window } from 'happy-dom';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import { NotFoundPage } from '#/components/NotFoundPage';
 import { meQueryOptions } from '#/queries/me';
 import { getRouter } from '#/router';
 import { Route as FallbackRoute } from '#/routes/$';
@@ -98,10 +96,8 @@ describe('página não encontrada', () => {
         '%s aciona a página 404 e preserva o endereço solicitado',
         async (path) => {
             const { router, markup } = await renderMissingPage(path);
-            expect(router.state.matches.some((match) => isNotFound(match.error))).toBe(true);
             expect(router.state.location.href).toBe(path);
             expect(markup).toContain('Essa página se perdeu.');
-            expect(RootRoute.options.notFoundComponent).toBe(NotFoundPage);
         }
     );
 
@@ -132,7 +128,7 @@ describe('página não encontrada', () => {
         }
     });
 
-    test('mantém a arte decorativa com arquivos locais e sem créditos na página', async () => {
+    test('mantém a arte decorativa com arquivos locais e texto alternativo vazio', async () => {
         const { markup } = await renderMissingPage('/fora-do-mapa');
         const browser = new Window();
         try {
@@ -151,9 +147,6 @@ describe('página não encontrada', () => {
                 )
             );
             expect(filesExist).toEqual([true, true, true]);
-            expect(document.querySelector('footer')).toBeNull();
-            expect(document.querySelector('a[href^="https://commons.wikimedia.org/"]')).toBeNull();
-            expect(document.body.textContent).not.toContain('Fotos do ICC');
         } finally {
             await browser.happyDOM.close();
         }

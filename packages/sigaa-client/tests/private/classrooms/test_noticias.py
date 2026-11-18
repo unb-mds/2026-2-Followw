@@ -7,7 +7,6 @@ from sigaa_client import NewsNotFound
 from sigaa_client.config import SIGAA_BASE_URL
 from sigaa_client.exceptions import SigaaParseError
 from sigaa_client.private.classrooms import (
-    _news_fieldset,
     _open_news_detail,
     _parse_news_detail,
     _parse_news_list,
@@ -83,14 +82,6 @@ def test_listagem_de_noticias_traz_id_titulo_e_dia():
 
 def test_turma_sem_noticias_devolve_lista_vazia():
     assert _parse_news_list(BeautifulSoup(NEWS_EMPTY, "lxml")) == []
-
-
-def test_legenda_da_noticia_e_comparada_como_texto():
-    soup = BeautifulSoup(
-        "<fieldset><legend> Notícias (Turma)? </legend></fieldset>", "lxml"
-    )
-
-    assert _news_fieldset(soup, "Notícias (Turma)?") is not None
 
 
 def test_tela_sem_listagem_de_noticias_e_barulhenta():

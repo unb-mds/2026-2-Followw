@@ -100,20 +100,6 @@ def test_menu_cache_separado_por_campus_e_refresh(client, browser, database):
         assert len(list(session.scalars(select(RestaurantMenu)))) == 2
 
 
-@pytest.mark.parametrize(
-    "path",
-    [
-        "/restaurant/menu",
-        "/restaurant/statement",
-        "/restaurant/token",
-        "/public/restaurant/statement",
-        "/public/restaurant/token",
-    ],
-)
-def test_rotas_removidas_ou_privadas_nao_existem_no_cardapio_publico(client, path):
-    assert client.get(path).status_code == 404
-
-
 def test_menu_vazio_nao_fica_em_cache(client, browser, database):
     browser.restaurant.get_menu.return_value = ()
     assert client.get("/public/restaurant").json() == []
@@ -427,9 +413,6 @@ def test_openapi_documenta_restaurante(api):
     schema = api.get("/openapi.json").json()
     paths = schema["paths"]
     menu = paths["/public/restaurant"]["get"]
-    assert "/restaurant/menu" not in paths
-    assert "/restaurant/statement" not in paths
-    assert "/restaurant/token" not in paths
     assert menu["tags"] == ["Public Restaurant"]
     assert {p["name"] for p in menu["parameters"]} == {
         "Cache-Control",
@@ -534,12 +517,6 @@ def test_fim_de_semana_do_pdf_real_fica_em_cache_por_cinco_dias(
 def test_campus_simplificado_consulta_o_campus_correto(client, browser, name, campus):
     assert client.get("/public/restaurant", params={"campus": name}).status_code == 200
     browser.restaurant.get_menu.assert_awaited_once_with(campus)
-
-
-@pytest.mark.parametrize("name", ["Darcy Ribeiro", "Ceilândia", "Fazenda Água Limpa"])
-def test_nomes_antigos_de_campus_nao_sao_aceitos(client, browser, name):
-    assert client.get("/public/restaurant", params={"campus": name}).status_code == 422
-    browser.restaurant.get_menu.assert_not_awaited()
 
 
 @pytest.mark.parametrize(

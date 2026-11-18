@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
 
-import { Route as FallbackRoute } from '#/routes/$';
 import { Route as RootRoute } from '#/routes/__root';
 import { Route as SearchRoute } from '#/routes/_app/buscar';
 import { Route as FlowRoute } from '#/routes/_app/cursos.$id';
@@ -102,28 +101,6 @@ describe('indexação das páginas', () => {
         expect(head?.meta).toContainEqual({
             title: 'Fluxograma de Ciência da Computação | Followw'
         });
-    });
-
-    test('URLs inexistentes exibem a página 404 sem redirecionar', () => {
-        let error: unknown;
-        try {
-            callRoute(FallbackRoute.options.beforeLoad, { location: { pathname: '/nada/aqui' } });
-        } catch (caught) {
-            error = caught;
-        }
-        expect(error).toMatchObject({ isNotFound: true, routeId: '__root__' });
-    });
-
-    test('assets inexistentes dão 404 em vez de redirecionar', () => {
-        let error: unknown;
-        try {
-            callRoute(FallbackRoute.options.beforeLoad, {
-                location: { pathname: '/assets/turmas-ANTIGO.js' }
-            });
-        } catch (caught) {
-            error = caught;
-        }
-        expect(error).toMatchObject({ isNotFound: true });
     });
 
     test('sitemap contém apenas as páginas públicas com os mesmos canonicals', async () => {

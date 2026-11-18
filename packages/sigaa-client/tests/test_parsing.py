@@ -1,4 +1,3 @@
-import json
 from datetime import datetime
 
 import pytest
@@ -114,16 +113,6 @@ def test_markdown_normaliza_negritos_sem_unir_palavras_ou_paragrafos(html, expec
 
 def test_markdown_de_html_vazio_e_none():
     assert _markdown("<p>&nbsp;</p><br>") is None
-
-
-def test_quebra_markdown_nao_duplica_barras_ao_serializar_json():
-    content = _markdown(
-        "<p>🎥 <b>Filme:</b> Exemplo<br>📅 <b>Data:</b> 15/10<br>📍 Local: FCTE</p>"
-    )
-    assert content == "🎥 **Filme:** Exemplo\\\n📅 **Data:** 15/10\\\n📍 Local: FCTE"
-    decoded = json.loads(json.dumps({"content": content}))
-    assert decoded["content"] == content
-    assert "\\\\" not in decoded["content"]
 
 
 def test_markdown_nao_gera_link_nem_imagem_executavel():

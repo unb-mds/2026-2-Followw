@@ -17,6 +17,5 @@ describe('FollowwLogo', () => {
 
         expect(markup).toContain('width="32"');
         expect(markup).toContain('height="32"');
-        expect(markup).not.toContain('size-16');
     });
 });

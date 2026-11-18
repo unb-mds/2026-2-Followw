@@ -1,14 +1,15 @@
 from datetime import date
-from unittest.mock import AsyncMock
 
+import httpx
 import pytest
 from bs4 import BeautifulSoup
 
-from sigaa_client import Classroom, SessionRenewed, SigaaParseError, Subject
+from sigaa_client import SessionRenewed, SigaaParseError
+from sigaa_client.config import CLASSROOMS_PATH
 from sigaa_client.private.classrooms import Classrooms
 from sigaa_client.private.teaching_plan import _parse_teaching_plan
 
-from ...fakes import NewsSession
+from ...fakes import HISTORY_FORM
 
 PLAN = """
 <table class="listagem"><caption>Metodologia de Ensino e Avaliação</caption>
@@ -45,7 +46,7 @@ Plano de Ensino</a>
 <input name="javax.faces.ViewState" value="estado-atual"/>
 </form>
 """
-CONTEXT = """<script>var nomeTurma = "<div>Turma: FGA0108 - MATEMÁTICA DISCRETA 2 (2026.2 - T02)</div>";</script>"""
+CONTEXT = """<script>var nomeTurma = "<div>Turma: FGA0146 - ESTRUTURAS DE DADOS 1 (2026.2 - T01)</div>";</script>"""
 
 
 def parse(page=PLAN):
@@ -117,61 +118,49 @@ def test_tela_inesperada_nao_e_confundida_com_plano_ausente(page):
         parse(page)
 
 
-@pytest.mark.parametrize("page", [PLAN, MISSING])
-async def test_plano_abre_pelo_menu_com_viewstate_e_confere_contexto(page):
-    session = NewsSession(page + CONTEXT, home=HOME)
-    resource = Classrooms(session)
-    resource._enter_classroom = AsyncMock(
-        return_value=Classroom(
-            id="AAA",
-            number="02",
-            semester="2026.2",
-            current=True,
-            subject=Subject(code="FGA0108", name="MATEMÁTICA DISCRETA 2"),
+class PlanSession:
+    def __init__(self, *screens):
+        self.screens = iter(screens)
+        self.in_classroom = False
+
+    async def get(self, url, **kwargs):
+        if url == CLASSROOMS_PATH:
+            return httpx.Response(200, text=HISTORY_FORM)
+        assert self.in_classroom
+        return httpx.Response(200, text=HOME)
+
+    async def post(self, url, data, **kwargs):
+        if data.get("frontEndIdTurma") == "AAA":
+            self.in_classroom = True
+            return httpx.Response(200)
+        assert self.in_classroom
+        assert data["javax.faces.ViewState"] == "estado-atual"
+        assert data["formMenu:plano99"] == "formMenu:plano99"
+        self.in_classroom = False
+        page = next(self.screens)
+        if isinstance(page, SessionRenewed):
+            raise page
+        return httpx.Response(200, text=page)
+
+
+async def test_plano_ausente_na_turma_solicitada():
+    assert (
+        await Classrooms(PlanSession(MISSING + CONTEXT)).get_classroom_teaching_plan(
+            "AAA"
         )
+        is None
     )
-    result = await resource.get_classroom_teaching_plan("AAA")
-    assert result == parse(page)
-    resource._enter_classroom.assert_awaited_once_with("AAA", allow_renewal=True)
-    assert session.payloads == [
-        {
-            "formMenu": "formMenu",
-            "formMenu:plano99": "formMenu:plano99",
-            "javax.faces.ViewState": "estado-atual",
-        }
-    ]
 
 
-async def test_contexto_trocado_e_reaberto_antes_de_retornar_ausencia():
-    session = NewsSession(
-        MISSING + CONTEXT.replace("T02", "T03"), PLAN + CONTEXT, home=HOME
-    )
-    resource = Classrooms(session)
-    resource._enter_classroom = AsyncMock(
-        return_value=Classroom(
-            id="AAA",
-            number="02",
-            semester="2026.2",
-            current=True,
-            subject=Subject(code="FGA0108", name="MATEMÁTICA DISCRETA 2"),
-        )
-    )
-    assert await resource.get_classroom_teaching_plan("AAA") == parse()
-    assert resource._enter_classroom.await_count == 2
-
-
-async def test_sessao_renovada_reabre_turma_e_menu():
-    session = NewsSession(PLAN + CONTEXT, home=HOME)
-    resource = Classrooms(session)
-    classroom = Classroom(
-        id="AAA",
-        number="02",
-        semester="2026.2",
-        current=True,
-        subject=Subject(code="FGA0108", name="MATEMÁTICA DISCRETA 2"),
-    )
-    resource._enter_classroom = AsyncMock(side_effect=[SessionRenewed(), classroom])
-    assert await resource.get_classroom_teaching_plan("AAA") == parse()
-    assert resource._enter_classroom.call_args_list[-1].kwargs == {
-        "allow_renewal": False
-    }
+@pytest.mark.parametrize(
+    "screens",
+    [
+        (PLAN + CONTEXT,),
+        (MISSING + CONTEXT.replace("T01", "T03"), PLAN + CONTEXT),
+        (SessionRenewed(), PLAN + CONTEXT),
+    ],
+    ids=["menu", "contexto_trocado", "sessao_renovada"],
+)
+async def test_le_o_plano_da_turma_pelo_menu(screens):
+    plan = await Classrooms(PlanSession(*screens)).get_classroom_teaching_plan("AAA")
+    assert plan.office_hours == "A combinar."

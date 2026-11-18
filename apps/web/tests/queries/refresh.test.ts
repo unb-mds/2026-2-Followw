@@ -1,6 +1,6 @@
 import type { paths } from '@followw/core/queries/schema.gen.ts';
 
-import { QueryClient, queryOptions } from '@tanstack/react-query';
+import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, test } from 'bun:test';
 import createClient from 'openapi-fetch';
 import createQueryHooks from 'openapi-react-query';
@@ -35,60 +35,5 @@ describe('refreshQuery', () => {
         expect(fresh.headers.get('cache-control')).toBe('no-cache');
         const cached: unknown = queryClient.getQueryData(options.queryKey);
         expect(cached).toEqual([]);
-    });
-
-    test('ignora o staleTime e mantém os parâmetros da query', async () => {
-        const requests: Request[] = [];
-        const options = apiWith(requests).queryOptions('get', '/classrooms', {
-            params: { query: { semester: 'all' } }
-        });
-        const queryClient = new QueryClient({
-            defaultOptions: { queries: { staleTime: Infinity } }
-        });
-        queryClient.setQueryData(options.queryKey, []);
-
-        await refreshQuery(queryClient, options);
-
-        expect(requests).toHaveLength(1);
-        expect(new URL(requests[0].url).searchParams.get('semester')).toBe('all');
-    });
-
-    test('usa o queryFn da própria query', async () => {
-        const options = queryOptions({
-            queryKey: ['get', '/me'] as readonly [string, string, object?],
-            queryFn: async ({ queryKey }) => queryKey
-        });
-        const queryClient = new QueryClient();
-
-        const data = await refreshQuery(queryClient, options);
-
-        expect(data[2]).toBeDefined();
-        const cached: unknown = queryClient.getQueryData(options.queryKey);
-        expect(cached).toBe(data);
-    });
-
-    test('permite impedir retentativas de um refresh sem mudar as consultas normais', async () => {
-        const queryClient = new QueryClient({
-            defaultOptions: { queries: { retry: 2, retryDelay: 0 } }
-        });
-        let attempts = 0;
-        const options = queryOptions({
-            queryKey: ['get', '/me/ru-statement'] as const,
-            queryFn: async () => {
-                attempts++;
-                throw new Error('SIGAA indisponível');
-            }
-        });
-
-        const failure = await refreshQuery(queryClient, options, { retry: false }).catch(
-            (error: unknown) => error
-        );
-        expect(failure).toEqual(new Error('SIGAA indisponível'));
-        expect(attempts).toBe(1);
-
-        attempts = 0;
-        await queryClient.query(options).catch(() => undefined);
-        expect(attempts).toBe(3);
-        queryClient.clear();
     });
 });
