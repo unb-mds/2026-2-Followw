@@ -52,7 +52,10 @@ class SearchService:
     ) -> SearchResult:
         searches: dict[SearchType, Callable[[], Awaitable[Any]]] = {
             "subjects": lambda: self._subjects.search(
-                q if schedule is None else None, unit=unit, sync=sync, schedule=schedule
+                q if schedule is None else None,
+                unit=unit,
+                sync=sync,
+                schedules=(schedule,) if schedule else (),
             ),
             "courses": lambda: self._courses.list_courses(
                 q, unit, 1, COURSES_PAGE_SIZE

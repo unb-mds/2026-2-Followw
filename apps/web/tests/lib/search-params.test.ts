@@ -21,6 +21,10 @@ describe('parâmetros da busca', () => {
 
     test('restaura a query e os filtros tipados da URL', () => {
         expect(loadSearchParams('?q=calculo&category=courses')).toEqual({
+            days: '',
+            start: '',
+            unit: '',
+            hours: null,
             q: 'calculo',
             category: 'courses'
         });
@@ -28,6 +32,10 @@ describe('parâmetros da busca', () => {
 
     test('filtros ausentes ou inválidos usam os padrões', () => {
         expect(loadSearchParams('?category=Eletiva')).toEqual({
+            days: '',
+            start: '',
+            unit: '',
+            hours: null,
             q: '',
             category: 'all'
         });

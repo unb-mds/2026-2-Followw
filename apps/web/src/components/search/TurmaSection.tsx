@@ -4,7 +4,7 @@ import { m } from 'motion/react';
 import { useState, type ReactNode } from 'react';
 
 import { repeat, SectionHeaderSkeleton } from '#/components/LoadingSkeleton';
-import { LazyTurmaItem, TurmaItem } from '#/components/search/TurmaItem';
+import { TurmaItem } from '#/components/search/TurmaItem';
 import { Accordion } from '#/components/ui/accordion';
 import { Button } from '#/components/ui/button';
 import { Skeleton } from '#/components/ui/skeleton';
@@ -18,8 +18,7 @@ export function TurmaSection({
     taken,
     onOpenDetails,
     currentPeriod,
-    footer,
-    deferClassrooms = false
+    footer
 }: {
     currentPeriod?: number | null;
     title?: string;
@@ -27,12 +26,10 @@ export function TurmaSection({
     taken?: Set<string> | null;
     onOpenDetails?: () => void;
     footer?: (subject: CatalogSubject) => ReactNode;
-    deferClassrooms?: boolean;
 }) {
     const [limit, setLimit] = useState(PAGE_SIZE);
     const entrance = useEntrance();
     if (subjects.length === 0) return null;
-    const Item = deferClassrooms ? LazyTurmaItem : TurmaItem;
 
     return (
         <section className="flex flex-col gap-3">
@@ -46,7 +43,7 @@ export function TurmaSection({
             )}
             <Accordion multiple className="gap-2" render={<m.div {...entrance} />}>
                 {subjects.slice(0, limit).map((subject, index) => (
-                    <Item
+                    <TurmaItem
                         key={subject.code}
                         animation={<m.div custom={index % PAGE_SIZE} variants={rise} />}
                         subject={subject}

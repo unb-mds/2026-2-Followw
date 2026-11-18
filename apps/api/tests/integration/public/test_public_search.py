@@ -273,6 +273,46 @@ def test_com_login_busca_prioriza_obrigatorias_e_optativas_da_matriz(
             ("MAT0002", "free"),
             ("MAT0010", "free"),
         ]
+    with database.begin() as session:
+        session.get(Subject, "MAT0025").hours = 60
+        session.get(Subject, "MAT0002").hours = 60
+        session.add(
+            Classroom(
+                subject_code="MAT0025",
+                number="02",
+                semester="2026.2",
+                schedule="2M3",
+                vacancies=30,
+                occupied=30,
+            )
+        )
+        session.add(
+            Classroom(
+                subject_code="MAT0025", number="03", semester="2026.2", schedule="24M3"
+            )
+        )
+    for params, expected in [
+        ({"electives": "true"}, ["MAT0025", "MAT0002", "MAT0010"]),
+        (
+            {
+                "electives": "true",
+                "q": "matematica",
+                "days": "0",
+                "start": "10:00",
+                "unit": "673",
+                "hours": 60,
+            },
+            ["MAT0025", "MAT0002"],
+        ),
+        ({"electives": "true", "days": "02"}, ["MAT0025"]),
+    ]:
+        response = client.get("/public/subjects", params=params)
+        assert response.status_code == 200
+        results = response.json()
+        assert [s["code"] for s in results] == expected
+        assert all(c["number"] != "02" for s in results for c in s["classrooms"])
+        if params.get("days") == "0":
+            assert all(c["number"] == "01" for s in results for c in s["classrooms"])
     stub_sigaa.profile.get_profile.assert_not_awaited()
 
 

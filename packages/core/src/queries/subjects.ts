@@ -60,6 +60,9 @@ export function searchText(q: string, previous: string | null = null): string | 
     return text.length >= SEARCH_MIN_LENGTH || isScheduleSearch(text) ? text : previous;
 }
 
+export const subjectUnitsQueryOptions = api.queryOptions('get', '/public/classrooms/units');
+export const subjectWorkloadsQueryOptions = api.queryOptions('get', '/public/subjects/workloads');
+
 export const subjectsQueryOptions = (query: SubjectsQuery) =>
     api.queryOptions('get', '/public/subjects', { params: { query } });
 

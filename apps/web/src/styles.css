@@ -48,10 +48,6 @@
             width: min(45vw, 48rem, 100vw - 39.625rem);
         }
     }
-
-    .weekly-columns {
-        grid-template-columns: 3.25rem repeat(6, minmax(0, 1fr));
-    }
 }
 
 @theme inline {

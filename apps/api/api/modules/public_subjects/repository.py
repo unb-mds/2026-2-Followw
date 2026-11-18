@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from uuid import UUID
 
 from sqlalchemy import ColumnElement, and_, exists, func, literal_column, or_, select
@@ -48,6 +49,15 @@ class SubjectCatalogRepository:
 
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+
+    async def workloads(self) -> list[int]:
+        hours = await self._session.scalars(
+            select(Subject.hours)
+            .where(Subject.hours > 0)
+            .distinct()
+            .order_by(Subject.hours)
+        )
+        return [value for value in hours if value is not None]
 
     async def classroom_professors(
         self, code: str, semester: str, number: str
@@ -167,7 +177,9 @@ class SubjectCatalogRepository:
         codes: set[str] | None = None,
         unit_id: int | None = None,
         semester: str | None = None,
-        schedule: ScheduleSearch | None = None,
+        schedules: Sequence[ScheduleSearch] = (),
+        hours: int | None = None,
+        exclude_required: set[str] | None = None,
     ) -> list[Subject]:
         """Cada componente com as turmas de `semester` (o mais recente gravado, se omitido)."""
         semester = semester or await self.latest_semester()
@@ -183,21 +195,38 @@ class SubjectCatalogRepository:
         classrooms = Subject.classrooms
         if semester is not None:
             classrooms = classrooms.and_(Classroom.semester == semester)
-        if schedule is not None:
-            schedules = await self._session.scalars(
+        if hours is not None:
+            query = query.where(Subject.hours == hours)
+        offer_conditions = [Classroom.semester == semester]
+        if exclude_required is not None:
+            query = query.where(Subject.code.not_in(exclude_required))
+            offer_conditions.append(
+                and_(
+                    or_(Classroom.vacancies.is_(None), Classroom.vacancies > 0),
+                    or_(
+                        Classroom.occupied.is_(None),
+                        Classroom.vacancies.is_(None),
+                        Classroom.occupied < Classroom.vacancies,
+                    ),
+                )
+            )
+        if schedules:
+            stored_schedules = await self._session.scalars(
                 select(Classroom.schedule)
                 .where(Classroom.semester == semester, Classroom.schedule.is_not(None))
                 .distinct()
             )
             matching = [
-                value for value in schedules if value and schedule.matches(value)
+                value
+                for value in stored_schedules
+                if value and all(s.matches(value) for s in schedules)
             ]
             if not matching:
                 return []
-            match = Classroom.schedule.in_(matching)
-            query = query.where(
-                Subject.classrooms.any(and_(Classroom.semester == semester, match))
-            )
+            offer_conditions.append(Classroom.schedule.in_(matching))
+        if schedules or exclude_required is not None or hours is not None:
+            match = and_(*offer_conditions)
+            query = query.where(Subject.classrooms.any(match))
             classrooms = classrooms.and_(match)
         return list(
             await self._session.scalars(query.options(selectinload(classrooms)))

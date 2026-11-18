@@ -18,7 +18,7 @@ _QUERY = re.compile(
 
 @dataclass(frozen=True)
 class StartTimeSearch:
-    start: time
+    start: time | None
     weekdays: frozenset[int]
 
     def matches(self, schedule: str) -> bool:
@@ -26,7 +26,8 @@ class StartTimeSearch:
         starts = {
             weekday
             for weekday, periods in sessions.items()
-            if any(period.start == self.start for period in periods)
+            if self.start is None
+            or any(period.start == self.start for period in periods)
         }
         if not self.weekdays:
             return bool(starts)

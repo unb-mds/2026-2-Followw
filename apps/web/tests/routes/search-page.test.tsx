@@ -139,6 +139,7 @@ beforeAll(async () => {
         HTMLInputElement: browser.HTMLInputElement,
         Element: browser.Element,
         Node: browser.Node,
+        NodeFilter: browser.NodeFilter,
         DocumentFragment: browser.DocumentFragment,
         MutationObserver: browser.MutationObserver,
         ResizeObserver: browser.ResizeObserver,
@@ -179,7 +180,6 @@ describe('página de busca com estado na URL', () => {
     let requests: URL[];
     let updates: UrlUpdateEvent[];
     let recommended: unknown[];
-    let curriculum: Pick<components['schemas']['CourseCurriculum'], 'periods' | 'complementary'>;
     let electiveOffer: components['schemas']['CatalogSubject'][];
     let scheduleResults: Map<string, components['schemas']['CatalogSubject'][]>;
     let courses: unknown[];
@@ -193,7 +193,6 @@ describe('página de busca com estado na URL', () => {
         requests = [];
         updates = [];
         recommended = [];
-        curriculum = { periods: [], complementary: [] };
         electiveOffer = [];
         scheduleResults = new Map();
         courses = [];
@@ -239,7 +238,6 @@ describe('página de busca com estado na URL', () => {
                 }
                 if (url.pathname.endsWith('/public/professors'))
                     return Response.json(paged(q ? matching : professors, page));
-                if (url.pathname.endsWith('/curriculum')) return Response.json(curriculum);
                 if (url.pathname.endsWith('/public/search')) {
                     const result = {
                         subjects: (q && scheduleResults.get(q)) || subjects,
@@ -258,10 +256,14 @@ describe('página de busca com estado na URL', () => {
                 }
                 if (url.pathname.endsWith('/public/subjects') && !url.search)
                     return Response.json(recommended);
-                if (url.pathname.endsWith('/public/subjects') && url.searchParams.has('code'))
-                    return Response.json(
-                        electiveOffer.filter(({ code }) => code === url.searchParams.get('code'))
-                    );
+                if (url.pathname.endsWith('/public/classrooms/units'))
+                    return Response.json([
+                        { id: 673, code: 'FCTE', name: 'Engenharias' },
+                        { id: 518, code: 'FCE', name: 'Ceilândia' }
+                    ]);
+                if (url.pathname.endsWith('/public/subjects/workloads'))
+                    return Response.json([30, 60, 90]);
+                if (url.searchParams.has('electives')) return Response.json(electiveOffer);
                 return Response.json(subjects);
             }
         };
@@ -655,57 +657,53 @@ describe('página de busca com estado na URL', () => {
         expect(requests).toHaveLength(0);
     });
 
-    test('aba Optativas lista toda a matriz de ingresso e busca por nome e código', async () => {
-        client.setQueryData(meQueryOptions.queryKey, electiveStudent);
-        curriculum = {
-            periods: [
-                {
-                    period: 0,
-                    subjects: [
-                        { code: 'FIS0123', name: 'FÍSICA APLICADA', hours: 60 },
-                        ...Array.from({ length: 25 }, (_, index) => ({
-                            code: `MAT${1000 + index}`
-                        }))
-                    ]
-                },
-                { period: 1, subjects: [{ code: 'MAT0023', name: 'CÁLCULO 1' }] }
-            ],
-            complementary: [{ code: 'EXT0001', name: 'EXTENSÃO' }]
-        };
-        const page = renderPage('?category=electives');
-        await page.findByRole('button', { name: /Física Aplicada/ });
-        expect(page.getByText('26 resultados')).toBeDefined();
-        expect(page.queryByText('MAT0023')).toBeNull();
-        expect(page.queryByText('EXT0001')).toBeNull();
-        testing.fireEvent.click(page.getByRole('button', { name: 'Mostrar mais' }));
-        expect(page.getByRole('button', { name: /MAT1024/ })).toBeDefined();
-
-        testing.fireEvent.change(searchbox(page), { target: { value: 'fisica fis0123' } });
-        await page.findByText('1 resultado');
-        expect(page.getByText('Física Aplicada')).toBeDefined();
-        expect(page.queryByText('MAT1024')).toBeNull();
-        testing.fireEvent.change(searchbox(page), { target: { value: 'mat0023' } });
-        await page.findByText('Nenhuma optativa encontrada para esta busca.');
-        expect(requests.map((url) => url.pathname + url.search)).toEqual([
-            '/api/public/courses/42/curriculum?entry_semester=2024.1'
-        ]);
+    test('restaura o departamento da URL e permite trocar pela sigla', async () => {
+        const page = renderPage('?category=classrooms&unit=518');
+        testing.fireEvent.click(page.getByRole('button', { name: 'Filtros de matérias ativos' }));
+        const field = await page.findByRole('combobox', { name: 'Departamento' });
+        await page.findByDisplayValue('FCE · Ceilândia');
+        testing.fireEvent.input(field, { inputType: 'insertText', target: { value: 'fct' } });
+        testing.fireEvent.click(await page.findByRole('option', { name: 'FCTE · Engenharias' }));
+        await testing.waitFor(() => expect(requests.at(-1)?.searchParams.get('unit')).toBe('673'));
+        testing.fireEvent.click(page.getByRole('button', { name: 'Limpar departamento' }));
+        await page.findByRole('button', { name: 'Filtros de matérias' });
     });
 
-    test('busca por horário em Optativas exibe apenas matérias da matriz', async () => {
-        client.setQueryData(meQueryOptions.queryKey, electiveStudent);
-        curriculum.periods = [{ period: 0, subjects: [{ code: 'FIS0123' }] }];
-        const classrooms = [{ number: '01', semester: '2026.2', schedule: '2M34', professors: [] }];
-        scheduleResults.set('segunda 10', [
-            { code: 'FIS0123', name: 'Física Aplicada', classrooms },
-            { code: 'MAT0023', name: 'Cálculo 1', classrooms }
-        ]);
-        const page = renderPage('?category=electives&q=segunda+10');
-        testing.fireEvent.click(await page.findByRole('button', { name: /Física Aplicada/ }));
-        expect(page.queryByText('Cálculo 1')).toBeNull();
-        expect(
-            await page.findByRole('button', { name: 'Adicionar à grade: FIS0123, turma 01' })
-        ).toBeDefined();
-        expect(requests).toHaveLength(2);
+    test('funil combina dia, início, departamento e carga horária com a busca', async () => {
+        const page = renderPage('?q=calculo');
+        testing.fireEvent.click(await page.findByRole('button', { name: 'Filtros de matérias' }));
+        testing.fireEvent.click(await page.findByRole('button', { name: 'Seg' }));
+        testing.fireEvent.click(page.getByRole('button', { name: 'Qua' }));
+        testing.fireEvent.change(page.getByLabelText('Hora de início'), {
+            target: { value: '10:00' }
+        });
+        const department = await page.findByRole('combobox', { name: 'Departamento' });
+        await testing.waitFor(() => expect(department.hasAttribute('disabled')).toBe(false));
+        testing.fireEvent.input(department, {
+            inputType: 'insertText',
+            target: { value: 'engen' }
+        });
+        const option = await page.findByRole('option', { name: /FCTE/ });
+        expect(page.queryByRole('option', { name: /Ceilândia/ })).toBeNull();
+        testing.fireEvent.click(option);
+        expect(page.getByRole('combobox', { name: 'Hora de início' })).toBeDefined();
+        expect(page.getByRole('option', { name: '08:55' })).toBeDefined();
+        expect(page.queryByRole('option', { name: '08:30' })).toBeNull();
+        expect(await page.findByRole('option', { name: '60 h' })).toBeDefined();
+        testing.fireEvent.change(page.getByLabelText('Carga horária (horas)'), {
+            target: { value: '60' }
+        });
+        await testing.waitFor(() =>
+            expect(Object.fromEntries(requests.at(-1)!.searchParams)).toEqual({
+                q: 'calculo',
+                days: '02',
+                start: '10:00',
+                unit: '673',
+                hours: '60'
+            })
+        );
+        testing.fireEvent.click(page.getByRole('button', { name: 'Limpar filtros de matérias' }));
+        await page.findByRole('button', { name: 'Filtros de matérias' });
     });
 
     test.each([
@@ -748,9 +746,9 @@ describe('página de busca com estado na URL', () => {
             }
         ]);
         const subjects = [approved, failed, current];
-        curriculum.periods = [{ period: 0, subjects }];
         const classrooms = [{ number: '01', semester: '2026.2', schedule: '2M34', professors: [] }];
         const results = subjects.map(({ code, name }) => ({ code, name, classrooms }));
+        electiveOffer = results;
         scheduleResults.set('segunda 10', results);
         client.setQueryData(searchQueryOptions('matematica', ['subjects']).queryKey, {
             subjects: results,
@@ -765,18 +763,13 @@ describe('página de busca com estado na URL', () => {
         expect(page.queryByRole('button', { name: /MAT3000/ })).toBeNull();
     });
 
-    test('abre as turmas sob demanda e adiciona uma optativa à grade na mesma aba', async () => {
+    test('adiciona um módulo livre ofertado à grade pela aba Optativas', async () => {
         client.setQueryData(meQueryOptions.queryKey, electiveStudent);
-        curriculum.periods = [
-            {
-                period: 0,
-                subjects: [{ code: 'FIS0123', name: 'FÍSICA APLICADA' }, { code: 'MAT1000' }]
-            }
-        ];
         electiveOffer = [
             {
                 code: 'FIS0123',
-                name: 'FÍSICA APLICADA',
+                name: 'Física Aplicada',
+                kind: 'free',
                 classrooms: [
                     { number: '01', semester: '2026.2', schedule: '24M12', professors: [] }
                 ]
@@ -784,7 +777,7 @@ describe('página de busca com estado na URL', () => {
         ];
         const page = renderPage('?category=electives');
         const physics = await page.findByRole('button', { name: /Física Aplicada/ });
-        expect(physics.textContent).toContain('Ver turmas');
+        expect(physics.textContent).toContain('Módulo livre');
         expect(requests).toHaveLength(1);
         testing.fireEvent.click(physics);
         expect(await page.findByRole('button', { name: 'Detalhes da turma 01' })).toBeDefined();
@@ -798,13 +791,6 @@ describe('página de busca com estado na URL', () => {
         expect(page.getByRole('button', { name: 'Optativas' }).getAttribute('aria-pressed')).toBe(
             'true'
         );
-
-        testing.fireEvent.click(page.getByRole('button', { name: /MAT1000/ }));
-        await page.findByText('Nenhuma turma disponível.');
-        expect(requests.slice(1).map((url) => url.search)).toEqual([
-            '?code=FIS0123',
-            '?code=MAT1000'
-        ]);
     });
 
     test('cada aba mostra apenas a categoria escolhida e preserva o texto da busca', async () => {

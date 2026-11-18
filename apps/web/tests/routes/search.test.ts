@@ -144,7 +144,7 @@ describe('loader das categorias da busca', () => {
         }
     );
 
-    test('categoria Optativas pré-carrega o histórico e a matriz do semestre de ingresso', async () => {
+    test('categoria Optativas pré-carrega o histórico e as ofertas filtradas', async () => {
         expect(
             await loadWith(
                 { registration: '1', unit: null, course: { id: 42 }, entry_semester: '2024.1' },
@@ -153,11 +153,7 @@ describe('loader das categorias da busca', () => {
         ).toEqual([
             ['get', '/me'],
             ['get', '/classrooms', { params: { query: { semester: 'all' } } }],
-            [
-                'get',
-                '/public/courses/{course_id}/curriculum',
-                { params: { path: { course_id: 42 }, query: { entry_semester: '2024.1' } } }
-            ]
+            ['get', '/public/subjects', { params: { query: { q: 'fisica', electives: true } } }]
         ]);
     });
 

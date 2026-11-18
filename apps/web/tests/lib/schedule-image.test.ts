@@ -59,7 +59,7 @@ describe('exportação da grade em PNG', () => {
         for (const text of [
             'Minha grade · 2026.2',
             'Seg',
-            'Sáb',
+            'Sex',
             '14:00–14:55',
             '14:55–15:50',
             'FGA0108',
@@ -71,6 +71,7 @@ describe('exportação da grade em PNG', () => {
             'followw.app'
         ])
             expect(texts).toContain(text);
+        expect(texts).not.toContain('Sáb');
         expect(texts).not.toContain('Semestre 2026.2');
     });
 

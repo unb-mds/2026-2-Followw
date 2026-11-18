@@ -1,30 +1,41 @@
-import { subjectsQueryOptions, withClassrooms } from '@followw/core/queries/subjects.ts';
-import { keepPreviousData, noop, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ApiError } from '@followw/core/queries/errors.ts';
+import {
+    type SubjectsQuery,
+    subjectsQueryOptions,
+    withClassrooms
+} from '@followw/core/queries/subjects.ts';
+import { noop, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { QueryState } from '#/components/QueryState';
 import { TurmaSection, TurmaSectionSkeleton } from '#/components/search/TurmaSection';
 import { refreshQuery } from '#/queries/refresh';
 
-/** Matérias da unidade, listadas sem texto de busca. */
 export function SubjectResults({
-    unit,
+    query,
+    title,
     currentPeriod,
     taken
 }: {
-    unit: string;
+    query: SubjectsQuery;
+    title: string;
     currentPeriod: number | null;
     taken: Set<string> | null;
 }) {
     const client = useQueryClient();
-    const options = subjectsQueryOptions({ unit });
-    const result = useQuery({ ...options, placeholderData: keepPreviousData });
+    const options = subjectsQueryOptions(query);
+    const result = useQuery(options);
+    const error: unknown = result.error;
     const refresh = () => void refreshQuery(client, options).catch(noop);
     return (
         <div aria-busy={result.isFetching} className="flex flex-col gap-5">
             <QueryState
                 query={result}
                 loading="Buscando matérias..."
-                error="Não foi possível buscar as matérias."
+                error={
+                    query.electives && error instanceof ApiError && error.isNotFound
+                        ? 'Matriz curricular não encontrada para identificar as optativas e os módulos livres.'
+                        : 'Não foi possível buscar as matérias.'
+                }
                 stale="Não foi possível atualizar as matérias. Exibindo os dados salvos."
                 skeleton={<TurmaSectionSkeleton title />}
             >
@@ -33,8 +44,8 @@ export function SubjectResults({
                     return (
                         <>
                             <TurmaSection
-                                key={unit}
-                                title={`Matérias da ${unit}`}
+                                key={JSON.stringify(query)}
+                                title={title}
                                 subjects={subjects}
                                 currentPeriod={currentPeriod}
                                 taken={taken}

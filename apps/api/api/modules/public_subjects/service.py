@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import Annotated, Literal
 
 from fastapi import Depends, HTTPException, status
@@ -76,6 +77,11 @@ class PublicSubjectService:
     def __init__(self, db: DatabaseDep) -> None:
         self._db = db
 
+    async def workloads(self) -> list[int]:
+        return await self._db.read(
+            lambda session: SubjectCatalogRepository(session).workloads()
+        )
+
     async def search(
         self,
         q: str | None = None,
@@ -84,17 +90,34 @@ class PublicSubjectService:
         unit: int | str | None = None,
         semester: str | None = None,
         sync: Sync | None = None,
-        schedule: ScheduleSearch | None = None,
+        schedules: Sequence[ScheduleSearch] = (),
+        hours: int | None = None,
+        electives: bool = False,
     ) -> list[CatalogSubject]:
         registration = sync.registration if sync else None
-        if q is None and code is None and unit is None and schedule is None:
+        if (
+            q is None
+            and code is None
+            and unit is None
+            and not schedules
+            and hours is None
+            and not electives
+        ):
             if sync is None:
                 raise _invalid("Informe `q`, `code` ou `unit`.")
             ranking = await RecommendationService(sync).recommend()
             return await self._db.read(lambda session: _recommended(session, ranking))
         return await self._db.read(
             lambda session: _search(
-                session, q, code, unit, semester, registration, schedule
+                session,
+                q,
+                code,
+                unit,
+                semester,
+                registration,
+                schedules,
+                hours,
+                electives,
             )
         )
 
@@ -106,21 +129,32 @@ async def _search(
     unit: int | str | None,
     semester: str | None,
     registration: str | None,
-    schedule: ScheduleSearch | None,
+    schedules: Sequence[ScheduleSearch],
+    hours: int | None,
+    electives: bool,
 ) -> list[CatalogSubject]:
     repository = SubjectCatalogRepository(session)
     unit_id = await find_unit_id(session, unit)
     semester = semester or await repository.latest_semester()
+    curriculum = None
+    if registration is not None:
+        curriculum = await RecommendationRepository(session).curriculum(registration)
+    required = None
+    if electives:
+        if curriculum is None:
+            raise HTTPException(404, "Matriz curricular do aluno não encontrada.")
+        required = {
+            code for code in curriculum if subject_kind(curriculum, code) == "mandatory"
+        }
     subjects = await repository.list_subjects(
         q=q,
         code=code,
         unit_id=unit_id,
         semester=semester,
-        schedule=schedule,
+        schedules=schedules,
+        hours=hours,
+        exclude_required=required,
     )
-    curriculum = None
-    if registration is not None:
-        curriculum = await RecommendationRepository(session).curriculum(registration)
     results = await _catalog(session, curriculum, subjects, semester)
     if curriculum is not None:
         results.sort(key=lambda subject: _CURRICULUM_PRIORITY[subject.kind])

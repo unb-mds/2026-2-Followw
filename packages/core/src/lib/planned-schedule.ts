@@ -47,10 +47,14 @@ export const GRID_DAYS = WEEKDAYS_SHORT.slice(1).map((label, index) => ({
     weekday: index + 1
 }));
 
+export function visibleGridDays(times: { weekday: number }[]) {
+    return times.some(({ weekday }) => weekday === 6) ? GRID_DAYS : GRID_DAYS.slice(0, -1);
+}
+
 export interface GridRow {
     start: string;
     end: string;
-    /** Uma célula por dia de `GRID_DAYS`; a grade não aceita choques. */
+    /** Uma célula por dia visível do semestre; a grade não aceita choques. */
     cells: (PlannedClass | undefined)[];
 }
 
@@ -58,22 +62,23 @@ export interface GridRow {
 export function weeklyGrid(items: PlannedClass[]) {
     return groupBySemester(items).map(([semester, classes]) => {
         const timed = classes.map((item) => ({ item, times: parseSchedule(item.schedule) }));
-        const rows = visibleSlots(timed.flatMap(({ times }) => times)).map(
-            ([start, end]): GridRow => ({
-                start,
-                end,
-                cells: GRID_DAYS.map(
-                    ({ weekday }) =>
-                        timed.find(({ times }) =>
-                            times.some((time) => overlaps(time, { weekday, start, end }))
-                        )?.item
-                )
-            })
-        );
+        const allTimes = timed.flatMap((entry) => entry.times);
+        const days = visibleGridDays(allTimes);
+        const rows = visibleSlots(allTimes).map(([start, end]): GridRow => ({
+            start,
+            end,
+            cells: days.map(
+                ({ weekday }) =>
+                    timed.find(({ times }) =>
+                        times.some((time) => overlaps(time, { weekday, start, end }))
+                    )?.item
+            )
+        }));
         return {
             semester,
             classes,
             hours: totalHours(classes),
+            days,
             rows,
             unscheduled: timed.filter(({ times }) => times.length === 0).map(({ item }) => item)
         };

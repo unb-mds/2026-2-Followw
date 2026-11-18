@@ -68,6 +68,14 @@ def _search(client, **params):
     return response.json()
 
 
+def test_lista_cargas_horarias_distintas_em_ordem(catalog, database):
+    with database.begin() as session:
+        session.add(Subject(code="FGA0004", name="OUTRA MATÉRIA", hours=60))
+    response = catalog.get("/public/subjects/workloads")
+    assert response.status_code == 200
+    assert response.json() == [60, 90]
+
+
 @pytest.mark.parametrize(
     "q,expected",
     [
@@ -261,7 +269,17 @@ def test_filtros_invalidos_sao_422(catalog, subtests):
 
 @pytest.mark.parametrize(
     "params",
-    [{"q": " "}, {"code": "0003"}, {"unit": ""}, {"semester": "2026-2"}],
+    [
+        {"q": " "},
+        {"code": "0003"},
+        {"unit": ""},
+        {"semester": "2026-2"},
+        {"days": "07"},
+        {"start": "25:00"},
+        {"hours": 0},
+        {"hours": 32768},
+        {"timetable": "segunda banana"},
+    ],
 )
 def test_validacao_de_parametros(catalog, params):
     assert catalog.get("/public/subjects", params=params).status_code == 422
@@ -370,9 +388,14 @@ def test_openapi_so_tem_os_filtros_do_banco(api):
         "code",
         "unit",
         "semester",
+        "days",
+        "start",
+        "hours",
+        "electives",
+        "timetable",
         "Cache-Control",
     }
-    assert set(operation["responses"]) == {"200", "401", "422", "502", "503"}
+    assert set(operation["responses"]) == {"200", "401", "404", "422", "502", "503"}
 
 
 def test_desbloqueia_lista_dependentes_diretos_com_turmas_no_semestre(

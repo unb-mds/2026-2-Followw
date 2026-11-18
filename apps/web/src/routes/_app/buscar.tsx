@@ -1,5 +1,6 @@
 import type { SearchCategory } from '@followw/core/lib/search-categories.ts';
 import type { UserProfile } from '@followw/core/queries/me.ts';
+import type { SubjectsQuery } from '@followw/core/queries/subjects.ts';
 
 import { getCurrentSemester } from '@followw/core/calendar.ts';
 import {
@@ -10,7 +11,6 @@ import {
     showsSubjects
 } from '@followw/core/lib/search-categories.ts';
 import { allClassroomsQueryOptions } from '@followw/core/queries/classrooms.ts';
-import { curriculumQueryOptions } from '@followw/core/queries/curriculum.ts';
 import { internshipsQueryOptions } from '@followw/core/queries/internships.ts';
 import { loadQuery } from '@followw/core/queries/load.ts';
 import { meQueryOptions } from '@followw/core/queries/me.ts';
@@ -44,10 +44,10 @@ import {
     type CatalogCategory,
     catalogQueryOptions
 } from '#/components/search/CatalogResults';
-import { ElectiveResults } from '#/components/search/ElectiveResults';
 import { InternshipResults } from '#/components/search/InternshipSection';
 import { RecommendationsSection } from '#/components/search/RecommendationsSection';
 import { SearchResults } from '#/components/search/SearchResults';
+import { SubjectFilters } from '#/components/search/SubjectFilters';
 import { SubjectResults } from '#/components/search/SubjectResults';
 import { SearchPill } from '#/components/SearchPill';
 import { TabFilter } from '#/components/TabFilter';
@@ -61,7 +61,8 @@ type SearchView =
     | { kind: 'search'; text: string }
     | { kind: 'schedule'; text: string }
     | { kind: 'unit'; unit: string }
-    | { kind: 'electives'; text: string | null; schedule: boolean }
+    | { kind: 'filtered'; query: SubjectsQuery }
+    | { kind: 'elective-login' }
     | { kind: 'internships'; text: string | null };
 
 /** Sem texto, as abas com matérias mostram as recomendações ou a unidade do aluno, e as demais o catálogo. */
@@ -69,10 +70,27 @@ function searchView(
     category: SearchCategory,
     q: string,
     text: string | null,
-    user: UserProfile | null
+    user: UserProfile | null,
+    filters: Pick<Awaited<ReturnType<typeof loadSearchParams>>, 'unit' | 'days' | 'hours' | 'start'>
 ): SearchView | null {
     const schedule = text !== null && isScheduleSearch(text);
-    if (category === 'electives') return { kind: 'electives', text, schedule };
+    const { days, start, unit, hours } = filters;
+    const electives = category === 'electives';
+    if (electives && !user) return { kind: 'elective-login' };
+    if (electives || (showsSubjects(category) && (days || start || unit || hours))) {
+        return {
+            kind: 'filtered',
+            query: {
+                q: schedule ? undefined : (text ?? undefined),
+                timetable: schedule ? text : undefined,
+                electives: electives || undefined,
+                days: days || undefined,
+                start: start || undefined,
+                unit: unit || undefined,
+                hours: hours ?? undefined
+            }
+        };
+    }
     const name = text && text.length >= SEARCH_MIN_LENGTH ? text : null;
     if (category === 'internships') return { kind: 'internships', text: name };
     const subjects = showsSubjects(category);
@@ -80,8 +98,7 @@ function searchView(
     if (subjects && text && schedule) return { kind: 'schedule', text };
     if (name) return { kind: 'search', text: name };
     if (category === 'courses' || category === 'professors') return { kind: 'catalog', category };
-    const unit = user?.unit?.code;
-    return subjects && unit ? { kind: 'unit', unit } : null;
+    return subjects && user?.unit?.code ? { kind: 'unit', unit: user.unit.code } : null;
 }
 
 export const Route = createFileRoute('/_app/buscar')({
@@ -91,8 +108,8 @@ export const Route = createFileRoute('/_app/buscar')({
     shouldReload: ({ cause }) => cause !== 'stay',
     loader: async ({ context: { queryClient }, location }) => {
         const user = await loadQuery(queryClient, meQueryOptions);
-        const { q, category } = loadSearchParams(location.searchStr);
-        const view = searchView(category, q, searchText(q), user);
+        const { q, category, ...filters } = loadSearchParams(location.searchStr);
+        const view = searchView(category, q, searchText(q), user, filters);
         const results = Promise.all([
             (showsSubjects(category) || category === 'electives') &&
                 user &&
@@ -103,11 +120,7 @@ export const Route = createFileRoute('/_app/buscar')({
                 loadQuery(queryClient, searchQueryOptions(view.text, searchTypes[category])).catch(
                     noop
                 ),
-            (view?.kind === 'schedule' ||
-                (view?.kind === 'electives' &&
-                    view.schedule &&
-                    user?.course &&
-                    user.entry_semester)) &&
+            view?.kind === 'schedule' &&
                 view.text &&
                 loadQuery(queryClient, searchQueryOptions(view.text, searchTypes.classrooms)).catch(
                     noop
@@ -119,13 +132,8 @@ export const Route = createFileRoute('/_app/buscar')({
                 ).catch(noop),
             view?.kind === 'unit' &&
                 loadQuery(queryClient, subjectsQueryOptions({ unit: view.unit })).catch(noop),
-            view?.kind === 'electives' &&
-                user?.course &&
-                user.entry_semester &&
-                loadQuery(
-                    queryClient,
-                    curriculumQueryOptions(user.course.id, user.entry_semester)
-                ).catch(noop),
+            view?.kind === 'filtered' &&
+                loadQuery(queryClient, subjectsQueryOptions(view.query)).catch(noop),
             view?.kind === 'internships' &&
                 user &&
                 loadQuery(queryClient, internshipsQueryOptions).catch(noop)
@@ -158,7 +166,7 @@ const searchLabels: Partial<Record<SearchCategory, string>> = {
 
 function BuscarPage() {
     const { data: user } = useSuspenseQuery(meQueryOptions);
-    const [{ q, category }, setSearch] = useSearchState();
+    const [{ q, category, ...filters }, setSearch] = useSearchState();
     const subjects = showsSubjects(category);
     const currentPeriod = currentCurriculumPeriod(
         user?.entry_semester,
@@ -170,7 +178,7 @@ function BuscarPage() {
         const timer = setTimeout(() => setText((previous) => searchText(q, previous)), 300);
         return () => clearTimeout(timer);
     }, [q]);
-    const view = searchView(category, q, text, user);
+    const view = searchView(category, q, text, user, filters);
     const searchLabel = searchLabels[category] ?? 'Busque por matéria, curso ou professor';
     const { data: history } = useQuery({
         ...allClassroomsQueryOptions,
@@ -207,8 +215,9 @@ function BuscarPage() {
                         maxLength={SEARCH_MAX_LENGTH}
                         placeholder={`${searchLabel}...`}
                         aria-label={searchLabel}
-                        className="h-11 bg-card pl-10 text-sm lg:h-14 lg:rounded-full lg:border-transparent lg:bg-transparent lg:pl-12 lg:dark:bg-transparent"
+                        className="h-11 bg-card pr-12 pl-10 text-sm lg:h-14 lg:rounded-full lg:border-transparent lg:bg-transparent lg:pl-12 lg:dark:bg-transparent"
                     />
+                    {(subjects || category === 'electives') && <SubjectFilters />}
                 </m.div>
             </m.div>
             <TabFilter
@@ -268,15 +277,28 @@ function BuscarPage() {
                 )}
                 {view?.kind === 'catalog' && <CatalogResults category={view.category} />}
                 {view?.kind === 'unit' && (
-                    <SubjectResults unit={view.unit} currentPeriod={currentPeriod} taken={taken} />
-                )}
-                {view?.kind === 'electives' && (
-                    <ElectiveResults
-                        user={user}
-                        text={view.text}
-                        schedule={view.schedule}
+                    <SubjectResults
+                        query={{ unit: view.unit }}
+                        title={`Matérias da ${view.unit}`}
+                        currentPeriod={currentPeriod}
                         taken={taken}
                     />
+                )}
+                {view?.kind === 'filtered' && (
+                    <SubjectResults
+                        query={view.query}
+                        title={view.query.electives ? 'Optativas e módulos livres' : 'Matérias'}
+                        currentPeriod={currentPeriod}
+                        taken={taken}
+                    />
+                )}
+                {view?.kind === 'elective-login' && (
+                    <p>
+                        <Link className="font-bold text-primary" to="/login">
+                            Entre na sua conta
+                        </Link>{' '}
+                        para ver as optativas e os módulos livres do seu curso.
+                    </p>
                 )}
                 {view?.kind === 'internships' &&
                     (user ? (
