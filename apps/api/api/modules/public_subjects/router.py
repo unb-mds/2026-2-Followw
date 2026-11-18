@@ -57,7 +57,9 @@ async def subject_statistics(
     summary="Buscar matérias com suas turmas",
     description="Matérias e ofertas do catálogo do Followw. Sem filtros de busca, retorna recomendações para o aluno autenticado.",
     responses={
-        404: {"description": "Matriz curricular não encontrada ao buscar optativas."},
+        404: {
+            "description": "Matriz curricular não encontrada ao filtrar pelo tipo de matéria."
+        },
         401: {"description": "Sessão inválida ao buscar recomendações."},
         422: {
             "description": "Filtros inválidos ou dados insuficientes para recomendar matérias."
@@ -97,9 +99,10 @@ async def search_subjects(
     hours: Annotated[int | None, Query(gt=0, le=32767)] = None,
     electives: Annotated[
         bool,
-        Query(
-            description="Optativas e módulos livres com oferta disponível na matriz do aluno."
-        ),
+        Query(description="Optativas com oferta disponível na matriz do aluno."),
+    ] = False,
+    free_modules: Annotated[
+        bool, Query(description="Módulos livres com oferta disponível para o aluno.")
     ] = False,
     timetable: Annotated[
         str | None, Query(min_length=1, max_length=32), AfterValidator(_valid_schedule)
@@ -130,6 +133,7 @@ async def search_subjects(
         sync=sync,
         hours=hours,
         electives=electives,
+        free_modules=free_modules,
         schedules=schedules,
     )
     no_store(response)

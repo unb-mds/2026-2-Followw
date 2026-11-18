@@ -18,15 +18,18 @@ import { useSearchState } from '#/lib/search-params';
 const selectClass = 'mt-1 h-9 w-full rounded-md border bg-background px-2';
 type Department = components['schemas']['UnitRef'];
 const departmentLabel = ({ code, name }: Department) => (code ? `${code} · ${name}` : name);
-const weekdays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+const weekdays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 export function SubjectFilters() {
-    const [{ days, start, unit, hours }, setSearch] = useSearchState();
+    const [{ days, start, unit, hours, electives, freeModules, hideConflicts }, setSearch] =
+        useSearchState();
     const [open, setOpen] = useState(false);
     const units = useQuery({ ...subjectUnitsQueryOptions, enabled: open });
     const workloads = useQuery({ ...subjectWorkloadsQueryOptions, enabled: open });
     const departments = units.data ?? [];
-    const active = Boolean(days || start || unit || hours);
+    const active = Boolean(
+        days || start || unit || hours || electives || freeModules || hideConflicts
+    );
     return (
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger
@@ -69,6 +72,32 @@ export function SubjectFilters() {
                         })}
                     </div>
                 </fieldset>
+                <div className="flex flex-wrap gap-1">
+                    <Button
+                        size="sm"
+                        variant={electives ? 'default' : 'outline'}
+                        aria-pressed={electives}
+                        onClick={() => void setSearch({ electives: !electives })}
+                    >
+                        Optativas
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant={freeModules ? 'default' : 'outline'}
+                        aria-pressed={freeModules}
+                        onClick={() => void setSearch({ freeModules: !freeModules })}
+                    >
+                        Módulos livres
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant={hideConflicts ? 'default' : 'outline'}
+                        aria-pressed={hideConflicts}
+                        onClick={() => void setSearch({ hideConflicts: !hideConflicts })}
+                    >
+                        Ocultar conflitos de horário
+                    </Button>
+                </div>
                 <label htmlFor="subject-start">
                     Hora de início
                     <select
@@ -176,7 +205,15 @@ export function SubjectFilters() {
                     <Button
                         variant="outline"
                         onClick={() =>
-                            void setSearch({ days: null, start: null, unit: null, hours: null })
+                            void setSearch({
+                                days: null,
+                                start: null,
+                                unit: null,
+                                hours: null,
+                                electives: null,
+                                freeModules: null,
+                                hideConflicts: null
+                            })
                         }
                     >
                         Limpar filtros de matérias

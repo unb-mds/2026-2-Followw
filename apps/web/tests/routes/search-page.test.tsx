@@ -37,6 +37,12 @@ const paged = <T,>(items: T[], page = 1) => ({
     page,
     page_size: 25
 });
+const turma = (number: string, schedule: string) => ({
+    number,
+    schedule,
+    semester: '2026.2',
+    professors: []
+});
 const noProfessors = paged([]);
 const makeProfessor = (siape: number, name: string) => ({
     siape,
@@ -263,7 +269,8 @@ describe('página de busca com estado na URL', () => {
                     ]);
                 if (url.pathname.endsWith('/public/subjects/workloads'))
                     return Response.json([30, 60, 90]);
-                if (url.searchParams.has('electives')) return Response.json(electiveOffer);
+                if (url.searchParams.has('electives') || url.searchParams.has('free_modules'))
+                    return Response.json(electiveOffer);
                 return Response.json(subjects);
             }
         };
@@ -640,7 +647,7 @@ describe('página de busca com estado na URL', () => {
     test('abas de categoria aparecem para visitantes', () => {
         const page = renderPage('?q=calculo');
         expect(page.getByRole('group', { name: 'Categoria da busca' })).toBeDefined();
-        for (const name of ['Todos', 'Turmas', 'Optativas', 'Cursos', 'Docentes', 'Estágios']) {
+        for (const name of ['Todos', 'Turmas', 'Cursos', 'Docentes', 'Estágios']) {
             expect(page.getByRole('button', { name })).toBeDefined();
         }
         expect(page.getByRole('button', { name: 'Todos' }).getAttribute('aria-pressed')).toBe(
@@ -649,8 +656,8 @@ describe('página de busca com estado na URL', () => {
         expect(page.queryByRole('button', { name: 'Obrigatórias' })).toBeNull();
     });
 
-    test('aba Optativas solicita login ao visitante sem consultar uma matriz', () => {
-        const page = renderPage('?category=electives');
+    test('filtro de optativas solicita login ao visitante sem consultar uma matriz', () => {
+        const page = renderPage('?electives=true');
         expect(page.getByRole('link', { name: 'Entre na sua conta' }).getAttribute('href')).toBe(
             '/login'
         );
@@ -667,6 +674,48 @@ describe('página de busca com estado na URL', () => {
         await testing.waitFor(() => expect(requests.at(-1)?.searchParams.get('unit')).toBe('673'));
         testing.fireEvent.click(page.getByRole('button', { name: 'Limpar departamento' }));
         await page.findByRole('button', { name: 'Filtros de matérias' });
+    });
+
+    test('oculta conflitos ao montar a grade e mantém a regra ao pesquisar outra matéria', async () => {
+        const base = { code: 'MAT0001', name: 'Base', classrooms: [turma('01', '24M12')] };
+        const parcial = {
+            code: 'MAT0002',
+            name: 'Parcial',
+            classrooms: [turma('01', '4M2'), turma('02', '4M3')]
+        };
+        const bloqueada = { code: 'MAT0003', name: 'Bloqueada', classrooms: [turma('01', '2M1')] };
+        scheduleResults.set('lista', [base, parcial, bloqueada]);
+        scheduleResults.set('bloqueada', [bloqueada]);
+        const page = renderPage('?q=lista&category=classrooms');
+        testing.fireEvent.click(await page.findByRole('button', { name: 'Filtros de matérias' }));
+        testing.fireEvent.click(
+            await page.findByRole('button', { name: 'Ocultar conflitos de horário' })
+        );
+        testing.fireEvent.click(
+            await page.findByRole('button', { name: 'Filtros de matérias ativos' })
+        );
+        await page.findByText('3 resultados');
+        testing.fireEvent.click(page.getByRole('button', { name: /MAT0001/ }));
+        testing.fireEvent.click(
+            await page.findByRole('button', { name: 'Adicionar à grade: MAT0001, turma 01' })
+        );
+        await page.findByText('2 resultados');
+        expect(page.queryByText('Bloqueada')).toBeNull();
+        testing.fireEvent.click(page.getByRole('button', { name: /Parcial/ }));
+        expect(
+            page.queryByRole('button', { name: 'Adicionar à grade: MAT0002, turma 01' })
+        ).toBeNull();
+        expect(
+            page.getByRole('button', { name: 'Adicionar à grade: MAT0002, turma 02' })
+        ).toBeDefined();
+        testing.fireEvent.change(searchbox(page), { target: { value: 'bloqueada' } });
+        await page.findByText('Nenhuma matéria encontrada. Tente mudar a busca.');
+        expect(page.queryByText('Bloqueada')).toBeNull();
+        testing.fireEvent.click(page.getByRole('button', { name: 'Filtros de matérias ativos' }));
+        const toggle = await page.findByRole('button', { name: 'Ocultar conflitos de horário' });
+        expect(toggle.getAttribute('aria-pressed')).toBe('true');
+        testing.fireEvent.click(toggle);
+        await page.findByText('Bloqueada');
     });
 
     test('funil combina dia, início, departamento e carga horária com a busca', async () => {
@@ -709,8 +758,8 @@ describe('página de busca com estado na URL', () => {
     test.each([
         '?q=matematica&category=classrooms',
         '?q=segunda+10',
-        '?category=electives',
-        '?q=segunda+10&category=electives'
+        '?electives=true',
+        '?q=segunda+10&electives=true'
     ])('oculta matérias aprovadas e em andamento, e mantém as reprovadas em %s', async (params) => {
         client.setQueryData(meQueryOptions.queryKey, electiveStudent);
         const approved = { code: 'MAT1000', name: 'Matemática Aprovada' };
@@ -763,7 +812,7 @@ describe('página de busca com estado na URL', () => {
         expect(page.queryByRole('button', { name: /MAT3000/ })).toBeNull();
     });
 
-    test('adiciona um módulo livre ofertado à grade pela aba Optativas', async () => {
+    test('adiciona um módulo livre ofertado à grade pelo filtro de módulos livres', async () => {
         client.setQueryData(meQueryOptions.queryKey, electiveStudent);
         electiveOffer = [
             {
@@ -775,10 +824,36 @@ describe('página de busca com estado na URL', () => {
                 ]
             }
         ];
-        const page = renderPage('?category=electives');
+        const page = renderPage('?category=classrooms');
+        expect(page.queryByRole('button', { name: 'Optativas' })).toBeNull();
+        testing.fireEvent.click(page.getByRole('button', { name: 'Filtros de matérias' }));
+        const toggle = await page.findByRole('button', { name: 'Módulos livres' });
+        expect(toggle.getAttribute('aria-pressed')).toBe('false');
+        expect(page.queryByRole('button', { name: 'Dom' })).toBeNull();
+        const optional = page.getByRole('button', { name: 'Optativas' });
+        testing.fireEvent.click(optional);
+        await testing.waitFor(() =>
+            expect(requests.at(-1)?.searchParams.get('electives')).toBe('true')
+        );
+        expect(toggle.getAttribute('aria-pressed')).toBe('false');
+        testing.fireEvent.click(toggle);
+        await testing.waitFor(() => {
+            expect(requests.at(-1)?.searchParams.get('electives')).toBe('true');
+            expect(requests.at(-1)?.searchParams.get('free_modules')).toBe('true');
+        });
+        testing.fireEvent.click(optional);
+        await testing.waitFor(() => expect(optional.getAttribute('aria-pressed')).toBe('false'));
+        expect(toggle.getAttribute('aria-pressed')).toBe('true');
+        testing.fireEvent.click(page.getByRole('button', { name: 'Filtros de matérias ativos' }));
         const physics = await page.findByRole('button', { name: /Física Aplicada/ });
         expect(physics.textContent).toContain('Módulo livre');
-        expect(requests).toHaveLength(1);
+        expect(
+            requests.some(
+                (url) =>
+                    url.searchParams.get('free_modules') === 'true' &&
+                    !url.searchParams.has('electives')
+            )
+        ).toBe(true);
         testing.fireEvent.click(physics);
         expect(await page.findByRole('button', { name: 'Detalhes da turma 01' })).toBeDefined();
         expect(physics.textContent).toContain('1 turma');
@@ -788,9 +863,7 @@ describe('página de busca com estado na URL', () => {
         expect(page.getByRole('toolbar', { name: 'Turmas selecionadas' }).textContent).toContain(
             '1 turma'
         );
-        expect(page.getByRole('button', { name: 'Optativas' }).getAttribute('aria-pressed')).toBe(
-            'true'
-        );
+        expect(page.getByRole('button', { name: 'Filtros de matérias ativos' })).toBeDefined();
     });
 
     test('cada aba mostra apenas a categoria escolhida e preserva o texto da busca', async () => {

@@ -21,6 +21,9 @@ describe('parâmetros da busca', () => {
 
     test('restaura a query e os filtros tipados da URL', () => {
         expect(loadSearchParams('?q=calculo&category=courses')).toEqual({
+            hideConflicts: false,
+            electives: false,
+            freeModules: false,
             days: '',
             start: '',
             unit: '',
@@ -32,6 +35,9 @@ describe('parâmetros da busca', () => {
 
     test('filtros ausentes ou inválidos usam os padrões', () => {
         expect(loadSearchParams('?category=Eletiva')).toEqual({
+            hideConflicts: false,
+            electives: false,
+            freeModules: false,
             days: '',
             start: '',
             unit: '',

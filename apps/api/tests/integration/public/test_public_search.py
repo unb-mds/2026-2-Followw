@@ -292,10 +292,16 @@ def test_com_login_busca_prioriza_obrigatorias_e_optativas_da_matriz(
             )
         )
     for params, expected in [
-        ({"electives": "true"}, ["MAT0025", "MAT0002", "MAT0010"]),
+        ({"electives": "true"}, ["MAT0025"]),
+        ({"free_modules": "true"}, ["MAT0002", "MAT0010"]),
+        (
+            {"electives": "true", "free_modules": "true"},
+            ["MAT0025", "MAT0002", "MAT0010"],
+        ),
         (
             {
                 "electives": "true",
+                "free_modules": "true",
                 "q": "matematica",
                 "days": "0",
                 "start": "10:00",

@@ -144,11 +144,11 @@ describe('loader das categorias da busca', () => {
         }
     );
 
-    test('categoria Optativas pré-carrega o histórico e as ofertas filtradas', async () => {
+    test('filtro de optativas pré-carrega o histórico e as ofertas filtradas', async () => {
         expect(
             await loadWith(
                 { registration: '1', unit: null, course: { id: 42 }, entry_semester: '2024.1' },
-                '?q=fisica&category=electives'
+                '?q=fisica&electives=true'
             )
         ).toEqual([
             ['get', '/me'],

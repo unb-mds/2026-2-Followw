@@ -39,6 +39,7 @@ import { useDesktop } from '#/components/DesktopContext';
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
 import { SchedulePreview } from '#/components/schedule/SchedulePreview';
+import { usePlannedSchedule } from '#/components/schedule/usePlannedSchedule';
 import {
     CatalogResults,
     type CatalogCategory,
@@ -71,19 +72,23 @@ function searchView(
     q: string,
     text: string | null,
     user: UserProfile | null,
-    filters: Pick<Awaited<ReturnType<typeof loadSearchParams>>, 'unit' | 'days' | 'hours' | 'start'>
+    filters: Pick<
+        Awaited<ReturnType<typeof loadSearchParams>>,
+        'unit' | 'days' | 'hours' | 'start' | 'electives' | 'freeModules'
+    >
 ): SearchView | null {
     const schedule = text !== null && isScheduleSearch(text);
-    const { days, start, unit, hours } = filters;
-    const electives = category === 'electives';
-    if (electives && !user) return { kind: 'elective-login' };
-    if (electives || (showsSubjects(category) && (days || start || unit || hours))) {
+    const { days, start, unit, hours, electives, freeModules } = filters;
+    const subjects = showsSubjects(category);
+    if (subjects && (electives || freeModules) && !user) return { kind: 'elective-login' };
+    if (subjects && (electives || freeModules || days || start || unit || hours)) {
         return {
             kind: 'filtered',
             query: {
                 q: schedule ? undefined : (text ?? undefined),
                 timetable: schedule ? text : undefined,
                 electives: electives || undefined,
+                free_modules: freeModules || undefined,
                 days: days || undefined,
                 start: start || undefined,
                 unit: unit || undefined,
@@ -93,7 +98,6 @@ function searchView(
     }
     const name = text && text.length >= SEARCH_MIN_LENGTH ? text : null;
     if (category === 'internships') return { kind: 'internships', text: name };
-    const subjects = showsSubjects(category);
     if (subjects && showRecommendations(user, { q })) return { kind: 'recommendations' };
     if (subjects && text && schedule) return { kind: 'schedule', text };
     if (name) return { kind: 'search', text: name };
@@ -111,7 +115,7 @@ export const Route = createFileRoute('/_app/buscar')({
         const { q, category, ...filters } = loadSearchParams(location.searchStr);
         const view = searchView(category, q, searchText(q), user, filters);
         const results = Promise.all([
-            (showsSubjects(category) || category === 'electives') &&
+            showsSubjects(category) &&
                 user &&
                 loadQuery(queryClient, allClassroomsQueryOptions).catch(noop),
             view?.kind === 'recommendations' &&
@@ -160,13 +164,14 @@ const fieldContent: Variants = {
 const searchLabels: Partial<Record<SearchCategory, string>> = {
     all: 'Busque por matéria, horário, curso ou professor',
     classrooms: 'Busque por matéria ou horário',
-    electives: 'Busque por optativa ou horário',
     internships: 'Busque por estágio'
 };
 
 function BuscarPage() {
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const [{ q, category, ...filters }, setSearch] = useSearchState();
+    const { items } = usePlannedSchedule();
+    const planned = filters.hideConflicts ? items : undefined;
     const subjects = showsSubjects(category);
     const currentPeriod = currentCurriculumPeriod(
         user?.entry_semester,
@@ -179,10 +184,16 @@ function BuscarPage() {
         return () => clearTimeout(timer);
     }, [q]);
     const view = searchView(category, q, text, user, filters);
-    const searchLabel = searchLabels[category] ?? 'Busque por matéria, curso ou professor';
+    const subjectTitle = [filters.electives && 'Optativas', filters.freeModules && 'Módulos livres']
+        .filter(Boolean)
+        .join(' e ');
+    const searchLabel =
+        subjects && subjectTitle
+            ? 'Busque por matéria ou horário'
+            : (searchLabels[category] ?? 'Busque por matéria, curso ou professor');
     const { data: history } = useQuery({
         ...allClassroomsQueryOptions,
-        enabled: Boolean(user) && (subjects || category === 'electives')
+        enabled: Boolean(user) && subjects
     });
     const completed = user?.completed_subjects;
     const taken = useMemo(
@@ -217,7 +228,7 @@ function BuscarPage() {
                         aria-label={searchLabel}
                         className="h-11 bg-card pr-12 pl-10 text-sm lg:h-14 lg:rounded-full lg:border-transparent lg:bg-transparent lg:pl-12 lg:dark:bg-transparent"
                     />
-                    {(subjects || category === 'electives') && <SubjectFilters />}
+                    {subjects && <SubjectFilters />}
                 </m.div>
             </m.div>
             <TabFilter
@@ -239,7 +250,7 @@ function BuscarPage() {
                         também pode usar um código do SIGAA, como 24M34.
                     </p>
                 )}
-                {subjects && !user && text && (
+                {subjects && !user && text && view?.kind !== 'elective-login' && (
                     <p className="text-sm text-muted-foreground">
                         <Link className="font-bold text-primary hover:underline" to="/login">
                             Entre na sua conta
@@ -248,7 +259,11 @@ function BuscarPage() {
                     </p>
                 )}
                 {view?.kind === 'recommendations' && (
-                    <RecommendationsSection currentPeriod={currentPeriod} taken={taken} />
+                    <RecommendationsSection
+                        currentPeriod={currentPeriod}
+                        taken={taken}
+                        planned={planned}
+                    />
                 )}
                 {view?.kind === 'search' && (
                     <SearchResults
@@ -258,6 +273,7 @@ function BuscarPage() {
                         empty={searchEmptyMessages[category]}
                         currentPeriod={currentPeriod}
                         taken={taken}
+                        planned={planned}
                         onShowCategory={
                             category === 'all'
                                 ? (value) => void setSearch({ category: value })
@@ -273,6 +289,7 @@ function BuscarPage() {
                         empty="Nenhuma turma corresponde ao horário pesquisado."
                         currentPeriod={currentPeriod}
                         taken={taken}
+                        planned={planned}
                     />
                 )}
                 {view?.kind === 'catalog' && <CatalogResults category={view.category} />}
@@ -282,14 +299,16 @@ function BuscarPage() {
                         title={`Matérias da ${view.unit}`}
                         currentPeriod={currentPeriod}
                         taken={taken}
+                        planned={planned}
                     />
                 )}
                 {view?.kind === 'filtered' && (
                     <SubjectResults
                         query={view.query}
-                        title={view.query.electives ? 'Optativas e módulos livres' : 'Matérias'}
+                        title={subjectTitle || 'Matérias'}
                         currentPeriod={currentPeriod}
                         taken={taken}
+                        planned={planned}
                     />
                 )}
                 {view?.kind === 'elective-login' && (
@@ -297,7 +316,7 @@ function BuscarPage() {
                         <Link className="font-bold text-primary" to="/login">
                             Entre na sua conta
                         </Link>{' '}
-                        para ver as optativas e os módulos livres do seu curso.
+                        para filtrar as matérias pela matriz do seu curso.
                     </p>
                 )}
                 {view?.kind === 'internships' &&

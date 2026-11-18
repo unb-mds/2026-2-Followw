@@ -179,7 +179,8 @@ class SubjectCatalogRepository:
         semester: str | None = None,
         schedules: Sequence[ScheduleSearch] = (),
         hours: int | None = None,
-        exclude_required: set[str] | None = None,
+        excluded_codes: set[str] | None = None,
+        available_only: bool = False,
     ) -> list[Subject]:
         """Cada componente com as turmas de `semester` (o mais recente gravado, se omitido)."""
         semester = semester or await self.latest_semester()
@@ -198,8 +199,9 @@ class SubjectCatalogRepository:
         if hours is not None:
             query = query.where(Subject.hours == hours)
         offer_conditions = [Classroom.semester == semester]
-        if exclude_required is not None:
-            query = query.where(Subject.code.not_in(exclude_required))
+        if excluded_codes:
+            query = query.where(Subject.code.not_in(excluded_codes))
+        if available_only:
             offer_conditions.append(
                 and_(
                     or_(Classroom.vacancies.is_(None), Classroom.vacancies > 0),
@@ -224,7 +226,7 @@ class SubjectCatalogRepository:
             if not matching:
                 return []
             offer_conditions.append(Classroom.schedule.in_(matching))
-        if schedules or exclude_required is not None or hours is not None:
+        if schedules or available_only or hours is not None:
             match = and_(*offer_conditions)
             query = query.where(Subject.classrooms.any(match))
             classrooms = classrooms.and_(match)

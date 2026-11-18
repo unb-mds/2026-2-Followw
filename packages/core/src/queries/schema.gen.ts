@@ -2964,8 +2964,10 @@ export interface operations {
                 days?: string | null;
                 start?: string | null;
                 hours?: number | null;
-                /** @description Optativas e módulos livres com oferta disponível na matriz do aluno. */
+                /** @description Optativas com oferta disponível na matriz do aluno. */
                 electives?: boolean;
+                /** @description Módulos livres com oferta disponível para o aluno. */
+                free_modules?: boolean;
                 timetable?: string | null;
                 /** @description Semestre das turmas. */
                 semester?: string | null;
@@ -2995,7 +2997,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Matriz curricular não encontrada ao buscar optativas. */
+            /** @description Matriz curricular não encontrada ao filtrar pelo tipo de matéria. */
             404: {
                 headers: {
                     [name: string]: unknown;

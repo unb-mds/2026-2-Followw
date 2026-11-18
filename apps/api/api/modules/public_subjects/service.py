@@ -93,6 +93,7 @@ class PublicSubjectService:
         schedules: Sequence[ScheduleSearch] = (),
         hours: int | None = None,
         electives: bool = False,
+        free_modules: bool = False,
     ) -> list[CatalogSubject]:
         registration = sync.registration if sync else None
         if (
@@ -101,6 +102,7 @@ class PublicSubjectService:
             and unit is None
             and not schedules
             and hours is None
+            and not free_modules
             and not electives
         ):
             if sync is None:
@@ -118,6 +120,7 @@ class PublicSubjectService:
                 schedules,
                 hours,
                 electives,
+                free_modules,
             )
         )
 
@@ -132,6 +135,7 @@ async def _search(
     schedules: Sequence[ScheduleSearch],
     hours: int | None,
     electives: bool,
+    free_modules: bool,
 ) -> list[CatalogSubject]:
     repository = SubjectCatalogRepository(session)
     unit_id = await find_unit_id(session, unit)
@@ -139,13 +143,17 @@ async def _search(
     curriculum = None
     if registration is not None:
         curriculum = await RecommendationRepository(session).curriculum(registration)
-    required = None
-    if electives:
+    included = excluded = None
+    if electives or free_modules:
         if curriculum is None:
             raise HTTPException(404, "Matriz curricular do aluno não encontrada.")
-        required = {
-            code for code in curriculum if subject_kind(curriculum, code) == "mandatory"
+        optional = {
+            code for code in curriculum if subject_kind(curriculum, code) == "optional"
         }
+        if free_modules:
+            excluded = curriculum.keys() - optional if electives else set(curriculum)
+        else:
+            included = optional
     subjects = await repository.list_subjects(
         q=q,
         code=code,
@@ -153,7 +161,9 @@ async def _search(
         semester=semester,
         schedules=schedules,
         hours=hours,
-        exclude_required=required,
+        codes=included,
+        excluded_codes=excluded,
+        available_only=electives or free_modules,
     )
     results = await _catalog(session, curriculum, subjects, semester)
     if curriculum is not None:

@@ -392,6 +392,7 @@ def test_openapi_so_tem_os_filtros_do_banco(api):
         "start",
         "hours",
         "electives",
+        "free_modules",
         "timetable",
         "Cache-Control",
     }

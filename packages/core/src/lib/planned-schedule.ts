@@ -15,6 +15,20 @@ export const classKey = ({ code, semester, number }: PlannedClass) =>
 const totalHours = (items: PlannedClass[]) =>
     items.reduce((total, item) => total + (item.hours ?? 0), 0);
 
+/** Compara as ofertas com os horários da grade, sem contar a turma contra ela mesma. */
+export function scheduleConflictFinder(items: readonly PlannedClass[]) {
+    const scheduled = items.map((item) => ({ item, times: parseSchedule(item.schedule) }));
+    return (code: string, classroom: SubjectClassroom) => {
+        const times = parseSchedule(classroom.schedule);
+        return scheduled.find(
+            ({ item, times: existing }) =>
+                item.semester === classroom.semester &&
+                (item.code !== code || item.number !== classroom.number) &&
+                existing.some((slot) => times.some((time) => overlaps(time, slot)))
+        )?.item;
+    };
+}
+
 /** Por que a turma não entra na grade: matéria repetida, choque de horário ou carga máxima. */
 export function addError(
     items: PlannedClass[],
@@ -26,12 +40,7 @@ export function addError(
     if (repeated) {
         return `${item.name} (${item.code}) já está na grade do semestre ${item.semester}, na turma ${repeated.number}.`;
     }
-    const times = parseSchedule(item.schedule);
-    const clash = semester.find((entry) =>
-        parseSchedule(entry.schedule).some((existing) =>
-            times.some((time) => overlaps(time, existing))
-        )
-    );
+    const clash = scheduleConflictFinder(semester)(item.code, item);
     if (clash) {
         return `O horário de ${item.name} (${item.code}) conflita com ${clash.name} (${clash.code}), turma ${clash.number}.`;
     }

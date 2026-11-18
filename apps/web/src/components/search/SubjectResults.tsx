@@ -1,3 +1,5 @@
+import type { PlannedClass } from '@followw/core/lib/planned-schedule.ts';
+
 import { ApiError } from '@followw/core/queries/errors.ts';
 import {
     type SubjectsQuery,
@@ -14,11 +16,13 @@ export function SubjectResults({
     query,
     title,
     currentPeriod,
+    planned,
     taken
 }: {
     query: SubjectsQuery;
     title: string;
     currentPeriod: number | null;
+    planned?: readonly PlannedClass[];
     taken: Set<string> | null;
 }) {
     const client = useQueryClient();
@@ -32,7 +36,9 @@ export function SubjectResults({
                 query={result}
                 loading="Buscando matérias..."
                 error={
-                    query.electives && error instanceof ApiError && error.isNotFound
+                    (query.electives || query.free_modules) &&
+                    error instanceof ApiError &&
+                    error.isNotFound
                         ? 'Matriz curricular não encontrada para identificar as optativas e os módulos livres.'
                         : 'Não foi possível buscar as matérias.'
                 }
@@ -40,7 +46,7 @@ export function SubjectResults({
                 skeleton={<TurmaSectionSkeleton title />}
             >
                 {(data) => {
-                    const subjects = withClassrooms(data, taken);
+                    const subjects = withClassrooms(data, taken, planned);
                     return (
                         <>
                             <TurmaSection

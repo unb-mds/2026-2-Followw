@@ -1,6 +1,8 @@
+import type { PlannedClass } from '../lib/planned-schedule.ts';
 import type { Classroom } from './classrooms.ts';
 import type { components, operations } from './schema.gen.ts';
 
+import { scheduleConflictFinder } from '../lib/planned-schedule.ts';
 import { api } from './api.ts';
 import { finalGrade } from './classrooms.ts';
 
@@ -126,8 +128,23 @@ export function withoutTakenSubjects<T extends { code: string }>(
     return taken ? subjects.filter(({ code }) => !taken.has(code)) : subjects;
 }
 
-export const withClassrooms = (subjects: CatalogSubject[], taken?: ReadonlySet<string> | null) =>
-    withoutTakenSubjects(subjects, taken).filter((subject) => subject.classrooms.length > 0);
+export function withClassrooms(
+    subjects: CatalogSubject[],
+    taken?: ReadonlySet<string> | null,
+    planned?: readonly PlannedClass[]
+) {
+    const offered = withoutTakenSubjects(subjects, taken).filter(
+        (subject) => subject.classrooms.length > 0
+    );
+    if (!planned?.length) return offered;
+    const conflict = scheduleConflictFinder(planned);
+    return offered.flatMap((subject) => {
+        const classrooms = subject.classrooms.filter(
+            (classroom) => !conflict(subject.code, classroom)
+        );
+        return classrooms.length ? [{ ...subject, classrooms }] : [];
+    });
+}
 
 export function currentCurriculumPeriod(
     entry: string | null | undefined,

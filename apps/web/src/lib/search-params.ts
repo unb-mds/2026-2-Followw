@@ -5,11 +5,15 @@ import {
     createLoader,
     createStandardSchemaV1,
     parseAsInteger,
+    parseAsBoolean,
     parseAsString,
     parseAsStringLiteral
 } from 'nuqs/server';
 
 export const searchParsers = {
+    hideConflicts: parseAsBoolean.withDefault(false),
+    freeModules: parseAsBoolean.withDefault(false),
+    electives: parseAsBoolean.withDefault(false),
     days: parseAsString.withDefault(''),
     start: parseAsString.withDefault(''),
     unit: parseAsString.withDefault(''),
