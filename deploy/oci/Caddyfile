@@ -1,0 +1,25 @@
+(api_proxy) {
+	request_body {
+		max_size 4500000
+	}
+	reverse_proxy api:8000
+}
+
+followw.app {
+	handle_path /api/* {
+		import api_proxy
+	}
+
+	handle {
+		encode /assets/* zstd gzip
+		reverse_proxy web:3000
+	}
+}
+
+api.followw.app {
+	import api_proxy
+}
+
+www.followw.app {
+	redir https://followw.app{uri} permanent
+}

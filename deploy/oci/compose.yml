@@ -1,0 +1,105 @@
+name: followw
+
+x-logging: &logging
+  driver: local
+
+x-api: &api
+  image: followw-api
+  build:
+    context: ../..
+    dockerfile: deploy/oci/Dockerfile
+    target: api
+  logging: *logging
+  environment: &api-env
+    ENVIRONMENT: production
+    JWT_SECRET_KEY: ${JWT_SECRET_KEY:?defina JWT_SECRET_KEY}
+    RATE_LIMIT_SECRET_KEY: ${RATE_LIMIT_SECRET_KEY:?defina RATE_LIMIT_SECRET_KEY}
+    PUBLIC_URL: https://api.followw.app
+    QSTASH_TOKEN: ${QSTASH_TOKEN:?defina QSTASH_TOKEN}
+    QSTASH_CURRENT_SIGNING_KEY: ${QSTASH_CURRENT_SIGNING_KEY:?defina QSTASH_CURRENT_SIGNING_KEY}
+    QSTASH_NEXT_SIGNING_KEY: ${QSTASH_NEXT_SIGNING_KEY:?defina QSTASH_NEXT_SIGNING_KEY}
+    UPSTASH_REDIS_REST_URL: ${UPSTASH_REDIS_REST_URL:?defina UPSTASH_REDIS_REST_URL}
+    UPSTASH_REDIS_REST_TOKEN: ${UPSTASH_REDIS_REST_TOKEN:?defina UPSTASH_REDIS_REST_TOKEN}
+
+services:
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      POSTGRES_DB: followw
+      POSTGRES_USER: followw
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
+    volumes:
+      - postgres-followw:/var/lib/postgresql
+    healthcheck:
+      test: [CMD, pg_isready, -h, 127.0.0.1, -U, followw, -d, followw]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  db-prepare:
+    image: postgres:18
+    logging: *logging
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:?defina POSTGRES_APP_PASSWORD}
+    command: [psql, -X, -h, db, -U, followw, -d, followw, --single-transaction, -v, ON_ERROR_STOP=1, -f, /prepare.sql]
+    volumes:
+      - ./prepare.sql:/prepare.sql:ro
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db-init:
+    <<: *api
+    command: [db-init]
+    environment:
+      <<: *api-env
+      DATABASE_URL: postgresql+asyncpg://followw:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@db/followw
+    depends_on:
+      db-prepare:
+        condition: service_completed_successfully
+
+  api:
+    <<: *api
+    restart: unless-stopped
+    environment:
+      <<: *api-env
+      DATABASE_URL: postgresql+asyncpg://followw_app:${POSTGRES_APP_PASSWORD:?defina POSTGRES_APP_PASSWORD}@db/followw
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+
+  web:
+    build:
+      context: ../..
+      dockerfile: deploy/oci/Dockerfile
+      target: web
+      args:
+        VITE_POSTHOG_KEY: ${VITE_POSTHOG_KEY:-}
+        VITE_POSTHOG_HOST: ${VITE_POSTHOG_HOST:-https://us.i.posthog.com}
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      FOLLOWW_SSR_API_ORIGIN: http://api:8000
+      FOLLOWW_TRUST_PROXY: '1'
+      RATE_LIMIT_SECRET_KEY: ${RATE_LIMIT_SECRET_KEY:?defina RATE_LIMIT_SECRET_KEY}
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    logging: *logging
+    ports:
+      - '0.0.0.0:80:80/tcp'
+      - '0.0.0.0:443:443/tcp'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - certificados-followw:/data
+    depends_on:
+      - api
+      - web
+
+volumes:
+  postgres-followw:
+  certificados-followw:

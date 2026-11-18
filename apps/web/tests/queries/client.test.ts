@@ -3,9 +3,17 @@ import { ApiError, toApiError } from '@followw/core/queries/errors.ts';
 import { afterAll, afterEach, beforeAll, describe, expect, mock, spyOn, test } from 'bun:test';
 
 // Requisição recebida pelo SSR; `null` simula o código fora de uma requisição.
-let ssr: { url: string; cookie?: string; ip?: string; setCookie?: string[] } | null = null;
+let ssr: {
+    url: string;
+    cookie?: string;
+    ip?: string;
+    forwardedProto?: string;
+    setCookie?: string[];
+} | null = null;
 const originalSecret = process.env.RATE_LIMIT_SECRET_KEY;
 const originalVercel = process.env.VERCEL;
+const originalApiOrigin = process.env.FOLLOWW_SSR_API_ORIGIN;
+const originalTrustedProxy = process.env.FOLLOWW_TRUST_PROXY;
 let originalServer: typeof import('@tanstack/react-start/server');
 
 function inRequest() {
@@ -23,9 +31,16 @@ beforeAll(async () => {
             const headers = new Headers();
             if (incoming.cookie) headers.set('cookie', incoming.cookie);
             if (incoming.ip) headers.set('x-vercel-forwarded-for', incoming.ip);
+            if (incoming.forwardedProto) headers.set('x-forwarded-proto', incoming.forwardedProto);
             return new Request(incoming.url, { headers });
         },
-        getRequestUrl: () => new URL(inRequest().url),
+        getRequestUrl: (options?: { xForwardedProto?: boolean }) => {
+            const { url, forwardedProto } = inRequest();
+            const result = new URL(url);
+            if (forwardedProto && options?.xForwardedProto !== false)
+                result.protocol = forwardedProto;
+            return result;
+        },
         setResponseHeader: (name: string, value: string[]) => {
             if (name === 'set-cookie') inRequest().setCookie = value;
         }
@@ -42,6 +57,10 @@ afterEach(() => {
     else process.env.RATE_LIMIT_SECRET_KEY = originalSecret;
     if (originalVercel === undefined) delete process.env.VERCEL;
     else process.env.VERCEL = originalVercel;
+    if (originalApiOrigin === undefined) delete process.env.FOLLOWW_SSR_API_ORIGIN;
+    else process.env.FOLLOWW_SSR_API_ORIGIN = originalApiOrigin;
+    if (originalTrustedProxy === undefined) delete process.env.FOLLOWW_TRUST_PROXY;
+    else process.env.FOLLOWW_TRUST_PROXY = originalTrustedProxy;
 });
 
 async function getMe(response: () => Response = () => Response.json(null)) {
@@ -63,12 +82,30 @@ describe('cliente da API', () => {
     });
 
     test('no SSR usa a origem e o cookie da requisição recebida', async () => {
-        ssr = { url: 'https://followw.app/turmas?semestre=2026.2', cookie: 'access=abc' };
+        delete process.env.FOLLOWW_SSR_API_ORIGIN;
+        delete process.env.FOLLOWW_TRUST_PROXY;
+        ssr = {
+            url: 'http://followw.app/turmas?semestre=2026.2',
+            forwardedProto: 'https',
+            cookie: 'access=abc'
+        };
 
         const request = await getMe();
 
         expect(request.url).toBe('https://followw.app/api/me');
         expect(request.headers.get('cookie')).toBe('access=abc');
+    });
+
+    test('no SSR usa a API interna sem o prefixo do proxy e preserva o cookie', async () => {
+        process.env.FOLLOWW_SSR_API_ORIGIN = 'http://api:8000';
+        process.env.FOLLOWW_TRUST_PROXY = '1';
+        ssr = { url: 'http://followw.app/turmas', forwardedProto: 'https', cookie: 'access=abc' };
+
+        const request = await getMe();
+
+        expect(request.url).toBe('http://api:8000/me');
+        expect(request.headers.get('cookie')).toBe('access=abc');
+        expect(request.headers.get('x-forwarded-proto')).toBe('https');
     });
 
     test('falha ao assinar o IP não descarta o cookie do SSR', async () => {
