@@ -48,7 +48,7 @@ export function WeeklySchedule({
     return (
         <section aria-label={label} className="min-w-0">
             {segments.length > 0 && (
-                <div className="weekly-scroll max-h-144 overflow-auto overscroll-contain rounded-xl border">
+                <div className="weekly-scroll max-h-144 overflow-auto overscroll-x-contain rounded-xl border">
                     <div className="min-w-md">
                         <div
                             style={columns}
