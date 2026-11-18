@@ -1,0 +1,15 @@
+oracle.followw.app {
+	header X-Robots-Tag noindex
+
+	handle_path /api/* {
+		request_body {
+			max_size 4500000
+		}
+		reverse_proxy api:8000
+	}
+
+	handle {
+		encode /assets/* zstd gzip
+		reverse_proxy web:3000
+	}
+}

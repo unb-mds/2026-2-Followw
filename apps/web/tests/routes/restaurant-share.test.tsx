@@ -39,6 +39,8 @@ const EMPTY = { date: null, meal: null, campus: null };
 const handler = ({ request }: { request: Request }) => restaurantShareResponse(request);
 const originalSecret = process.env.RATE_LIMIT_SECRET_KEY;
 const originalVercel = process.env.VERCEL;
+const originalApiOrigin = process.env.FOLLOWW_SSR_API_ORIGIN;
+const originalTrustedProxy = process.env.FOLLOWW_TRUST_PROXY;
 let fetchSpy: ReturnType<typeof spyOn<typeof globalThis, 'fetch'>> | undefined;
 afterEach(() => {
     fetchSpy?.mockRestore();
@@ -46,6 +48,10 @@ afterEach(() => {
     else process.env.RATE_LIMIT_SECRET_KEY = originalSecret;
     if (originalVercel === undefined) delete process.env.VERCEL;
     else process.env.VERCEL = originalVercel;
+    if (originalApiOrigin === undefined) delete process.env.FOLLOWW_SSR_API_ORIGIN;
+    else process.env.FOLLOWW_SSR_API_ORIGIN = originalApiOrigin;
+    if (originalTrustedProxy === undefined) delete process.env.FOLLOWW_TRUST_PROXY;
+    else process.env.FOLLOWW_TRUST_PROXY = originalTrustedProxy;
 });
 
 beforeAll(async () => {
@@ -68,8 +74,9 @@ function mockMenu(status = 200, published = true) {
             init?: Parameters<typeof globalThis.fetch>[1]
         ) => {
             if (
-                new URL(input instanceof Request ? input.url : String(input)).pathname !==
-                '/api/public/restaurant'
+                !['/api/public/restaurant', '/public/restaurant'].includes(
+                    new URL(input instanceof Request ? input.url : String(input)).pathname
+                )
             ) {
                 return originalFetch(input, init);
             }
@@ -117,6 +124,24 @@ describe('compartilhamento do cardápio', () => {
         const headers = new Headers(init?.headers);
         expect(headers.get('x-followw-client')).toEndWith(':203.0.113.1');
         expect(headers.get('x-followw-client-signature')).toHaveLength(64);
+        expect(headers.get('cookie')).toBeNull();
+    });
+
+    test('prévia consulta a API interna com o protocolo do proxy e sem cookies', async () => {
+        process.env.FOLLOWW_SSR_API_ORIGIN = 'http://api:8000';
+        process.env.FOLLOWW_TRUST_PROXY = '1';
+        mockMenu();
+        const request = new Request('http://followw.app/share/ru.png', {
+            headers: { 'x-forwarded-proto': 'https', cookie: 'refresh_token=secret' }
+        });
+
+        expect(await loadSharedMenu(request, selection)).toEqual(sections);
+        const [url, init] = fetchSpy!.mock.calls.at(-1)!;
+        expect(url instanceof URL ? url.href : null).toBe(
+            'http://api:8000/public/restaurant?campus=Gama&start_date=2026-10-19&end_date=2026-10-19'
+        );
+        const headers = new Headers(init?.headers);
+        expect(headers.get('x-forwarded-proto')).toBe('https');
         expect(headers.get('cookie')).toBeNull();
     });
     test('o Router valida os parâmetros vindos da URL', () => {

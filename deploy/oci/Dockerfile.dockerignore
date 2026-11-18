@@ -1,0 +1,8 @@
+**/.env*
+**/.git
+**/.venv
+**/node_modules
+**/.output
+**/.vercel
+**/__pycache__
+**/.pytest_cache

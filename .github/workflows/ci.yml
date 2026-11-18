@@ -42,3 +42,57 @@ jobs:
       - run: bun run check
       - run: bun run test
       - run: bun run build
+
+  oci:
+    name: Implantação OCI
+    runs-on: ubuntu-24.04-arm
+    defaults:
+      run:
+        working-directory: deploy/oci
+        shell: bash
+    env:
+      CADDYFILE: ./Caddyfile.smoke
+      PUBLIC_URL: https://oracle.followw.app/api
+      CORS_ORIGINS: '["https://oracle.followw.app"]'
+      POSTGRES_PASSWORD: smoke-db-admin
+      POSTGRES_APP_PASSWORD: smoke-db-app
+      JWT_SECRET_KEY: segredo-de-sessao-somente-do-teste
+      OAUTH_SECRET_KEY: segredo-de-oauth-exclusivo-do-teste
+      RATE_LIMIT_SECRET_KEY: segredo-de-limite-somente-do-teste
+      QSTASH_TOKEN: smoke
+      QSTASH_CURRENT_SIGNING_KEY: smoke
+      QSTASH_NEXT_SIGNING_KEY: smoke
+      UPSTASH_REDIS_REST_URL: http://127.0.0.1:1
+      UPSTASH_REDIS_REST_TOKEN: smoke
+    steps:
+      - uses: actions/checkout@v7
+      - name: Subir com HTTPS local
+        run: |
+          { printf '{\n\tlocal_certs\n}\n\n'; cat Caddyfile.preview; } > Caddyfile.smoke
+          docker compose up -d --build
+          timeout 30s bash -c '
+            until docker compose exec -T caddy cat /data/caddy/pki/authorities/local/root.crt; do
+              sleep 1
+            done
+          ' > "$RUNNER_TEMP/caddy.crt"
+      - name: Ler matéria semeada pelo proxy e abrir o frontend
+        run: |
+          curl --fail --silent --show-error --retry 12 --retry-connrefused \
+            --cacert "$RUNNER_TEMP/caddy.crt" --resolve oracle.followw.app:443:127.0.0.1 \
+            'https://oracle.followw.app/api/public/subjects?code=MAT0025' \
+            | jq -e 'any(.[]; .code == "MAT0025")'
+          curl --fail --silent --show-error --cacert "$RUNNER_TEMP/caddy.crt" \
+            --resolve oracle.followw.app:443:127.0.0.1 https://oracle.followw.app/login \
+            -D - -o /dev/null | grep -qi '^x-robots-tag: noindex'
+          curl --fail --silent --show-error --cacert "$RUNNER_TEMP/caddy.crt" \
+            --resolve oracle.followw.app:443:127.0.0.1 https://oracle.followw.app/api/openapi.json \
+            | jq -e '.info.title == "Followw UnB API"'
+      - name: Conferir privilégios da conta da API
+        run: |
+          test "$(docker compose exec -T -e PGPASSWORD="$POSTGRES_APP_PASSWORD" db \
+            psql -X -h db -U followw_app -d followw -Atc \
+            "SELECT has_schema_privilege(current_user, 'public', 'CREATE'), has_table_privilege(current_user, 'public.subjects', 'INSERT')")" = 'f|t'
+      - if: failure()
+        run: docker compose logs
+      - if: always()
+        run: docker compose down -v
