@@ -154,8 +154,9 @@ tópico só existe se informado pela origem.
 Notícias da lista trazem título e dia; use `get_classroom_news` com o `sigaa_id` para texto e
 anexos.
 
-`await client.classrooms.download_classroom_material(classroom_id, material.id)` baixa um arquivo
-dos tópicos da Principal e retorna `MaterialFile` com `content`, `filename` e `content_type`.
+`async with client.classrooms.download_classroom_material(classroom_id, material.id) as file`
+abre um arquivo dos tópicos da Principal. `file.content` entrega os bytes em blocos dentro desse
+contexto. O nome e o tipo estão em `file.filename` e `file.content_type`.
 O ID opaco da postagem identifica o arquivo dentro do tópico, inclusive com nomes repetidos.
 A turma e o formulário são reabertos a cada download e após renovação de sessão. Ausência do
 arquivo levanta `MaterialNotFound`; página de erro ou destino não autorizado, `SigaaParseError`.

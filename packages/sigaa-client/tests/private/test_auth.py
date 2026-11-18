@@ -10,7 +10,7 @@ from sigaa_client import (
     SigaaClient,
     SigaaParseError,
 )
-from sigaa_client.config import CLASSROOMS_PATH, DASHBOARD_PATH
+from sigaa_client.config import CAS_LOGIN_URL, CLASSROOMS_PATH, DASHBOARD_PATH
 
 from ..fakes import (
     CREDENTIALS,
@@ -92,6 +92,44 @@ async def test_relogin_aceita_callback_assincrono():
         await client._session.get(DASHBOARD_PATH)
 
     assert renovados == ["app14~TOKEN1"]
+
+
+async def test_parametro_com_rota_de_login_em_redirecionamento_nao_renova_sessao():
+    sigaa = FakeSigaa()
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        if request.url.path == CLASSROOMS_PATH:
+            return httpx.Response(
+                302,
+                headers={"location": f"{DASHBOARD_PATH}?voltar=/sigaa/verTelaLogin.do"},
+            )
+        return sigaa(request)
+
+    async with SigaaClient(
+        session_token="vivo", transport=httpx.MockTransport(handle)
+    ) as client:
+        response = await client._session.get(
+            CLASSROOMS_PATH, follow_redirects=False, allow_redirect_response=True
+        )
+    assert response.status_code == 302
+
+
+async def test_redirecionamento_para_login_do_cas_com_jsessionid_renova_sessao():
+    sigaa = FakeSigaa()
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        if request.url.path == CLASSROOMS_PATH:
+            return httpx.Response(
+                302, headers={"location": f"{CAS_LOGIN_URL};jsessionid=ABC?service=x"}
+            )
+        return sigaa(request)
+
+    async with SigaaClient(
+        CREDENTIALS, session_token="morto", transport=httpx.MockTransport(handle)
+    ) as client:
+        with pytest.raises(SessionRenewed):
+            await client._session.post(CLASSROOMS_PATH, follow_redirects=False)
+    assert sigaa.logins == 1
 
 
 async def test_credenciais_invalidas():

@@ -5,7 +5,6 @@ from pydantic import SecretStr
 from sigaa_client import (
     ClassroomNotFound,
     Credentials,
-    MaterialFile,
     MaterialNotFound,
     SigaaParseError,
 )
@@ -26,13 +25,13 @@ CREDENTIALS = Credentials(registration="251000000", password=SecretStr("senha"))
     ],
 )
 def test_download_preserva_arquivo_cookies_e_nao_usa_cache(
-    material_api, cookies, kind, content, name
+    material_api, material_payload, cookies, kind, content, name
 ):
     api, service, sigaa = material_api
     api.cookies.update(cookies(refresh=CREDENTIALS))
-    sigaa.classrooms.download_classroom_material.return_value = MaterialFile(
-        content=content, filename=name, content_type=kind
-    )
+    material_payload.content = content
+    material_payload.filename = name
+    material_payload.content_type = kind
     for _ in range(2):
         response = api.post(PATH)
         assert response.status_code == 200
@@ -43,13 +42,13 @@ def test_download_preserva_arquivo_cookies_e_nao_usa_cache(
             == f"attachment; filename*=UTF-8''{quote(name, safe='')}"
         )
         assert response.headers["cache-control"] == "no-store"
-        assert int(response.headers["content-length"]) == len(content)
+        assert "content-length" not in response.headers
         assert response.headers["x-content-type-options"] == "nosniff"
         assert ACCESS_COOKIE_NAME in response.cookies
         assert REFRESH_COOKIE_NAME in response.cookies
     service.get_link.assert_awaited_with("123")
-    sigaa.classrooms.download_classroom_material.assert_awaited_with("AAA", POST_ID)
-    assert sigaa.classrooms.download_classroom_material.await_count == 2
+    sigaa.classrooms.download_classroom_material.assert_called_with("AAA", POST_ID)
+    assert sigaa.classrooms.download_classroom_material.call_count == 2
 
 
 def test_sem_login_nao_consulta_nem_baixa(material_api):
@@ -65,7 +64,7 @@ def test_turma_sem_acesso_nao_abre_cliente_de_download(material_api, cookies):
     service.get_link.side_effect = ClassroomNotFound()
     assert api.post(PATH).status_code == 404
     sigaa.created.assert_not_called()
-    sigaa.classrooms.download_classroom_material.assert_not_awaited()
+    sigaa.classrooms.download_classroom_material.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -88,7 +87,7 @@ def test_valida_id_do_material_na_fronteira(material_api, cookies, subtests):
             assert (
                 api.post(f"/classrooms/123/posts/{post_id}/download").status_code == 422
             )
-    sigaa.classrooms.download_classroom_material.assert_not_awaited()
+    sigaa.classrooms.download_classroom_material.assert_not_called()
 
 
 def test_openapi_documenta_download_autenticado_com_tipo_variavel(api):

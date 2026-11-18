@@ -1,8 +1,9 @@
 import asyncio
 import inspect
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
 from typing import Any
-from urllib.parse import urlencode, urljoin, urlsplit
+from urllib.parse import urlencode, urljoin
 
 import httpx
 from bs4 import BeautifulSoup
@@ -32,11 +33,9 @@ _CAS_ERROR_SELECTOR = "#errors"
 _CAS_INVALID_CREDENTIALS = "credenciais invalidas"
 
 # Telas para onde o SIGAA joga quem chega sem sessão válida.
-_UNAUTHENTICATED_PATHS = (
-    "/sso-server/login",
-    "/sigaa/logar.do",
-    "/sigaa/verTelaLogin.do",
-)
+_CAS_LOGIN = httpx.URL(CAS_LOGIN_URL)
+_SIGAA_LOGIN_HOSTS = (httpx.URL(SIGAA_BASE_URL).host, httpx.URL(CAS_SERVICE_URL).host)
+_SIGAA_LOGIN_PATHS = ("/sigaa/logar.do", "/sigaa/verTelaLogin.do")
 
 
 class Session:
@@ -87,10 +86,7 @@ class Session:
                 response.raise_for_status()
             return response
 
-        if not allow_renewal:
-            raise SessionExpired("Sessão expirou novamente durante a recuperação.")
-
-        await self._renew(stale_token=stale_token)
+        await self._restore(stale_token, allow_renewal)
         # POSTs e leituras que dependem da turma aberta perdem seu estado no relogin.
         if method.upper() not in ("GET", "HEAD") or not retry_on_renewal:
             raise SessionRenewed("Refaça a operação com o estado da nova sessão.")
@@ -104,6 +100,23 @@ class Session:
 
         response.raise_for_status()
         return response
+
+    @asynccontextmanager
+    async def stream(
+        self, method: str, url: str, *, allow_renewal: bool, **kwargs: Any
+    ) -> AsyncIterator[httpx.Response]:
+        stale_token = await self.authenticate()
+        async with self._http.stream(
+            method, url, follow_redirects=False, **kwargs
+        ) as response:
+            if not _is_unauthenticated(response):
+                if not response.is_redirect:
+                    response.raise_for_status()
+                yield response
+                return
+
+        await self._restore(stale_token, allow_renewal)
+        raise SessionRenewed("Refaça a operação com o estado da nova sessão.")
 
     async def get(self, url: str, **kwargs: Any) -> httpx.Response:
         return await self.request("GET", url, **kwargs)
@@ -120,6 +133,11 @@ class Session:
         finally:
             self._token = None
             self._http.cookies.clear()
+
+    async def _restore(self, stale_token: str, allow_renewal: bool) -> None:
+        if not allow_renewal:
+            raise SessionExpired("Sessão expirou novamente durante a recuperação.")
+        await self._renew(stale_token=stale_token)
 
     async def _renew(self, stale_token: str | None) -> str:
         async with self._lock:
@@ -155,7 +173,7 @@ class Session:
         response = await self._http.post(action, data=payload)
         response.raise_for_status()
 
-        if CAS_BASE_URL in str(response.url):
+        if response.url.host == _CAS_LOGIN.host:
             raise _cas_error(response.text)
         # O CAS aceitou a senha: se o SIGAA não abriu a sessão, a falha é dele.
         if _is_unauthenticated(response):
@@ -198,15 +216,11 @@ class Session:
 
 
 def _is_unauthenticated(response: httpx.Response) -> bool:
-    url = str(response.url)
-    if response.is_redirect:
-        target = urljoin(url, response.headers.get("location", ""))
-        if urlsplit(target).hostname in (
-            urlsplit(SIGAA_BASE_URL).hostname,
-            urlsplit(CAS_BASE_URL).hostname,
-        ):
-            url = target
-    return any(path in url for path in _UNAUTHENTICATED_PATHS)
+    url = (response.next_request or response.request).url
+    path = url.path.partition(";jsessionid=")[0]
+    if url.host == _CAS_LOGIN.host:
+        return path == _CAS_LOGIN.path
+    return url.host in _SIGAA_LOGIN_HOSTS and path in _SIGAA_LOGIN_PATHS
 
 
 def _cas_error(html: str) -> AuthenticationFailed | SigaaParseError:

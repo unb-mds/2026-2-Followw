@@ -149,7 +149,19 @@ export function ClassroomPosts({ id }: { id: string }) {
                                         (post.type === 'news' ? (
                                             <PostDetail classroomId={id} postId={post.id} />
                                         ) : (
-                                            <PostContent classroomId={id} post={post} />
+                                            <PostContent
+                                                classroomId={id}
+                                                post={post}
+                                                materials={
+                                                    post.type === 'topic'
+                                                        ? posts.data.filter(
+                                                              (item) =>
+                                                                  item.type === 'material' &&
+                                                                  item.topic_id === post.id
+                                                          )
+                                                        : []
+                                                }
+                                            />
                                         ))}
                                 </AccordionContent>
                             </AccordionItem>
@@ -184,7 +196,15 @@ function PostDetail({ classroomId, postId }: { classroomId: string; postId: stri
     );
 }
 
-function PostContent({ classroomId, post }: { classroomId: string; post: ClassroomPost }) {
+function PostContent({
+    classroomId,
+    post,
+    materials
+}: {
+    classroomId: string;
+    post: ClassroomPost;
+    materials?: ClassroomPost[];
+}) {
     const url = postLink(post.url);
     const attachments = post.attachments.flatMap((attachment) => {
         const href = postLink(attachment.url);
@@ -232,7 +252,17 @@ function PostContent({ classroomId, post }: { classroomId: string; post: Classro
                     Publicada em {postDateLabel(post)}
                 </p>
             )}
-            {post.type === 'topic' && !post.content && (
+            {materials && materials.length > 0 && (
+                <ul aria-label="Materiais do tópico" className="flex flex-col gap-3">
+                    {materials.map((material) => (
+                        <li key={material.id} className="flex flex-col gap-2">
+                            <p className="text-sm font-medium">{material.title}</p>
+                            <PostContent classroomId={classroomId} post={material} />
+                        </li>
+                    ))}
+                </ul>
+            )}
+            {post.type === 'topic' && !post.content && !materials?.length && (
                 <p className="text-sm text-muted-foreground">
                     Nenhuma descrição publicada para este tópico.
                 </p>

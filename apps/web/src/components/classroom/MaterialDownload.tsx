@@ -1,4 +1,5 @@
 import { useOnline } from '@followw/core/lib/online.ts';
+import { ApiError } from '@followw/core/queries/errors.ts';
 import { Download } from 'lucide-react';
 
 import { Button } from '#/components/ui/button';
@@ -8,6 +9,7 @@ import { useDownloadMaterial } from '#/queries/materials';
 export function MaterialDownload({ classroomId, postId }: { classroomId: string; postId: string }) {
     const download = useDownloadMaterial(classroomId, postId);
     const online = useOnline();
+    const missing = download.error instanceof ApiError && download.error.isNotFound;
     return (
         <div className="flex flex-col items-start gap-2">
             <Button
@@ -26,7 +28,9 @@ export function MaterialDownload({ classroomId, postId }: { classroomId: string;
             </Button>
             {download.isError && (
                 <p role="alert" className="text-sm text-destructive">
-                    Não foi possível baixar o arquivo. Tente novamente.
+                    {missing
+                        ? 'Arquivo não encontrado. Atualize as postagens para conferir os materiais do tópico.'
+                        : 'Não foi possível baixar o arquivo. Tente novamente.'}
                 </p>
             )}
             {!online && (

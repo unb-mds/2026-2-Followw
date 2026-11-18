@@ -3,6 +3,7 @@ import type { Middleware } from 'openapi-fetch';
 
 import { classroomPostsQueryOptions } from '@followw/core/queries/classrooms.ts';
 import { apiClient } from '@followw/core/queries/client.ts';
+import { ApiError } from '@followw/core/queries/errors.ts';
 import { QueryClient, QueryClientProvider, environmentManager } from '@tanstack/react-query';
 import {
     afterAll,
@@ -114,7 +115,7 @@ describe('postagens da turma com a API', () => {
     let list: ClassroomPost[];
     let failList: boolean;
     let failDetail: boolean;
-    let failDownload: boolean;
+    let downloadErrorStatus: number | null;
     let releaseDownload: (() => void) | undefined;
     let save: ReturnType<typeof spyOn<typeof downloads, 'saveFile'>>;
 
@@ -123,7 +124,7 @@ describe('postagens da turma com a API', () => {
         list = posts;
         failList = false;
         failDetail = false;
-        failDownload = false;
+        downloadErrorStatus = null;
         releaseDownload = undefined;
         save = spyOn(downloads, 'saveFile').mockImplementation(() => {});
         client = new QueryClient({
@@ -134,8 +135,8 @@ describe('postagens da turma com a API', () => {
                 requests.push(request);
                 const path = decodeURIComponent(new URL(request.url).pathname);
                 if (path.endsWith('/download')) {
-                    if (failDownload)
-                        return Response.json({ detail: 'Indisponível' }, { status: 502 });
+                    if (downloadErrorStatus)
+                        throw new ApiError(downloadErrorStatus, 'Indisponível');
                     await new Promise<void>((resolve) => {
                         releaseDownload = resolve;
                     });
@@ -247,15 +248,58 @@ describe('postagens da turma com a API', () => {
         expect(requests.filter((request) => request.method === 'POST')).toHaveLength(2);
     });
 
+    test('baixa anexos e abre referências do próprio tópico no filtro de tópicos', async () => {
+        list = [
+            ...posts,
+            {
+                ...posts[2],
+                id: 'material:' + 'e'.repeat(64),
+                topic_id: 'topic:outro',
+                title: 'Outro.pdf'
+            }
+        ];
+        const page = renderPosts();
+        testing.fireEvent.click(await page.findByRole('button', { name: 'Tópicos de aula' }));
+        testing.fireEvent.click(await page.findByRole('button', { name: /Sistemas de numeração/ }));
+        const materials = testing.within(
+            await page.findByRole('list', { name: 'Materiais do tópico' })
+        );
+        expect(materials.getByText('Slides.pdf')).toBeDefined();
+        expect(materials.queryByText('Outro.pdf')).toBeNull();
+        expect(materials.getByRole('link', { name: 'Acessar material' }).getAttribute('href')).toBe(
+            'https://example.org/aula'
+        );
+        testing.fireEvent.click(materials.getByRole('button', { name: 'Baixar' }));
+        await testing.waitFor(() => expect(releaseDownload).toBeDefined());
+        await testing.act(async () => {
+            releaseDownload?.();
+        });
+        await testing.waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+        const paths = requests
+            .filter((request) => request.method === 'POST')
+            .map((request) => decodeURIComponent(new URL(request.url).pathname));
+        expect(paths).toEqual([`/api/classrooms/AAA/posts/${posts[2].id}/download`]);
+    });
+
+    test('orienta a atualizar as postagens quando o anexo não é mais encontrado', async () => {
+        downloadErrorStatus = 404;
+        const page = renderPosts();
+        testing.fireEvent.click(await page.findByRole('button', { name: /Slides.pdf/ }));
+        testing.fireEvent.click(await page.findByRole('button', { name: 'Baixar' }));
+        expect((await page.findByRole('alert')).textContent).toContain('Atualize as postagens');
+        expect(page.getByRole('button', { name: 'Atualizar' })).toBeDefined();
+        expect(save).not.toHaveBeenCalled();
+    });
+
     test('erro de download aparece no item e permite tentar novamente', async () => {
-        failDownload = true;
+        downloadErrorStatus = 502;
         const page = renderPosts();
         testing.fireEvent.click(await page.findByRole('button', { name: /Slides.pdf/ }));
         testing.fireEvent.click(await page.findByRole('button', { name: 'Baixar' }));
         expect((await page.findByRole('alert')).textContent).toContain('Não foi possível baixar');
         expect(page.getByRole('button', { name: 'Baixar' }).hasAttribute('disabled')).toBe(false);
         expect(save).not.toHaveBeenCalled();
-        failDownload = false;
+        downloadErrorStatus = null;
         testing.fireEvent.click(page.getByRole('button', { name: 'Baixar' }));
         await testing.waitFor(() => expect(releaseDownload).toBeDefined());
         await testing.act(async () => {

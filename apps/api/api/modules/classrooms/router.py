@@ -1,10 +1,12 @@
+from collections.abc import AsyncIterator
 from typing import Annotated, Literal
 from urllib.parse import quote
 from uuid import UUID
 
-from fastapi import APIRouter, Path, Query, Response
+from fastapi import APIRouter, Depends, Path, Query, Response
+from fastapi.responses import StreamingResponse
 from pydantic import AfterValidator, BaseModel, Field
-from sigaa_client import ClassroomTeachingPlan, PostType, StatisticsShare
+from sigaa_client import ClassroomTeachingPlan, MaterialFile, PostType, StatisticsShare
 
 from api.cache import NoStore, no_store
 from api.db.enums import LessonStatus
@@ -43,6 +45,20 @@ MaterialId = Annotated[
 ]
 
 
+async def _open_material(
+    service: ClassroomServiceDep,
+    connection: SigaaConnectionDep,
+    classroom_id: ClassroomId,
+    post_id: MaterialId,
+) -> AsyncIterator[MaterialFile]:
+    link = await service.get_link(classroom_id)
+    client = await connection.client()
+    async with client.classrooms.download_classroom_material(
+        link.front_end_id, post_id
+    ) as file:
+        yield file
+
+
 @router.post(
     "/{classroom_id}/posts/{post_id}/download",
     response_class=Response,
@@ -63,18 +79,10 @@ MaterialId = Annotated[
     dependencies=[NoStore],
 )
 async def download_classroom_material(
-    service: ClassroomServiceDep,
-    connection: SigaaConnectionDep,
     response: Response,
-    classroom_id: ClassroomId,
-    post_id: MaterialId,
+    file: Annotated[MaterialFile, Depends(_open_material)],
 ) -> Response:
-    link = await service.get_link(classroom_id)
-    client = await connection.client()
-    file = await client.classrooms.download_classroom_material(
-        link.front_end_id, post_id
-    )
-    download = Response(
+    download = StreamingResponse(
         content=file.content,
         headers={
             "Content-Type": file.content_type,

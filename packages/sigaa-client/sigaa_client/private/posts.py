@@ -38,11 +38,21 @@ def _topic_identity(topic: Tag) -> tuple[str, str, str, str]:
     return f"topic:{_fingerprint(match.group(0))}", title.strip(), start, end
 
 
-def _material_links(topic: Tag) -> Iterable[tuple[Tag, Tag]]:
+def _material_links(
+    topic: Tag,
+) -> Iterable[tuple[Tag, Tag, dict[str, str], str | None]]:
     for item in topic.select(".item"):
         anchor = item.find("a")
-        if isinstance(anchor, Tag):
-            yield item, anchor
+        if not isinstance(anchor, Tag):
+            continue
+        href = str(anchor.get("href") or "").strip()
+        try:
+            url = urljoin(SIGAA_BASE_URL, href) if href and href != "#" else None
+            if url and urlsplit(url).scheme not in ("http", "https"):
+                url = None
+        except ValueError:
+            url = None
+        yield item, anchor, link_params(anchor), url
 
 
 def _material_id(topic_id: str, source_id: str) -> str:
@@ -72,16 +82,8 @@ def _parse_topics(soup: BeautifulSoup) -> list[ClassroomPost]:
                 content=to_markdown(content) if content is not None else None,
             )
         )
-        for item, anchor in _material_links(topic):
+        for item, anchor, params, url in _material_links(topic):
             name = clean_text(anchor)
-            params = link_params(anchor)
-            href = str(anchor.get("href") or "").strip()
-            url = urljoin(SIGAA_BASE_URL, href)
-            url = (
-                url
-                if href and href != "#" and urlsplit(url).scheme in ("https", "http")
-                else None
-            )
             source_id = params.get("id") or url
             if not name or source_id is None:
                 raise SigaaParseError("Material do tópico sem título ou identificador.")

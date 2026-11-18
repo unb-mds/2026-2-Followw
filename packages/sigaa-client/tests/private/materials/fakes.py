@@ -1,6 +1,7 @@
 import httpx
 from bs4 import BeautifulSoup
 
+from sigaa_client import SigaaClient
 from sigaa_client.config import CLASSROOM_HOME_PATH, CLASSROOMS_PATH
 from sigaa_client.private.posts import _parse_topics
 
@@ -46,6 +47,19 @@ def topics(state: int = 1) -> str:
 
 POSTS = _parse_topics(BeautifulSoup(topics(), "lxml"))
 MATERIAL_IDS = [post.id for post in POSTS if post.sigaa_id]
+
+
+async def read_material(
+    client: SigaaClient, material_id: str, classroom_id: str = "AAA"
+) -> tuple[bytes, str, str]:
+    async with client.classrooms.download_classroom_material(
+        classroom_id, material_id
+    ) as file:
+        return (
+            b"".join([chunk async for chunk in file.content]),
+            file.filename,
+            file.content_type,
+        )
 
 
 class MaterialSigaa(FakeSigaa):
@@ -102,6 +116,9 @@ class MaterialSigaa(FakeSigaa):
                 return httpx.Response(
                     200,
                     content=command.rsplit(":", 1)[-1].encode(),
-                    headers={"content-type": "application/octet-stream"},
+                    headers={
+                        "content-type": "application/octet-stream",
+                        "content-disposition": "attachment",
+                    },
                 )
         return response

@@ -1,4 +1,5 @@
 import enum
+from collections.abc import AsyncIterator
 from datetime import date, datetime
 from decimal import Decimal
 from functools import cached_property
@@ -104,9 +105,9 @@ class Curriculum(CurriculumSummary):
 
 
 class MaterialFile(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
 
-    content: bytes
+    content: AsyncIterator[bytes]
     filename: str
     content_type: str
 

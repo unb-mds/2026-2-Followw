@@ -1,6 +1,7 @@
 import asyncio
 import re
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import AsyncExitStack, asynccontextmanager
 from functools import partial
 from urllib.parse import urljoin
 
@@ -210,22 +211,27 @@ class Classrooms:
 
         return await self._in_classroom(classroom_id, read)
 
+    @asynccontextmanager
     async def download_classroom_material(
         self, classroom_id: str, material_id: str
-    ) -> MaterialFile:
-        async def download(expected: Classroom, allow_renewal: bool) -> MaterialFile:
-            page = await _open_topics(self._session, allow_renewal)
-            _assert_context(page, expected)
-            return await download_material(
-                self._session, page, material_id, allow_renewal
-            )
+    ) -> AsyncIterator[MaterialFile]:
+        async with AsyncExitStack() as stack:
 
-        return await self._in_classroom(classroom_id, download)
+            async def download(
+                expected: Classroom, allow_renewal: bool
+            ) -> MaterialFile:
+                page = await _open_topics(self._session, allow_renewal)
+                _assert_context(page, expected)
+                return await stack.enter_async_context(
+                    download_material(self._session, page, material_id, allow_renewal)
+                )
+
+            yield await self._in_classroom(classroom_id, download)
 
     async def _in_classroom[T](
         self, classroom_id: str, operation: Callable[[Classroom, bool], Awaitable[T]]
     ) -> T:
-        # Mantém o contexto até terminar a leitura ou o download.
+        # Protege a leitura e o início do download, que usam o contexto da turma.
         async with self._context_lock:
             renewed = False
             for attempt in range(_SCREEN_ATTEMPTS):
