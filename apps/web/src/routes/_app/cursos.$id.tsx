@@ -21,14 +21,16 @@ import { useFlowSearch, validateFlowSearch } from '#/lib/curriculum/navigation';
 import { useWidth } from '#/lib/width';
 import { meQueryOptions } from '#/queries/me';
 
-/** O curso do aluno usa o ingresso dele; outro curso, a matriz vigente no semestre atual. */
 function flowTarget(user: UserProfile | null | undefined, courseId: number) {
     const semester = getCurrentSemester()?.semester;
     const ownCourse = courseId === user?.course?.id;
+    const officialCode = ownCourse ? user?.official_curriculum_code : null;
     return {
         ownCourse,
         loggedIn: Boolean(user),
-        entrySemester: ownCourse ? user?.entry_semester : semester,
+        curriculumId: ownCourse ? user?.curriculum_sigaa_id : null,
+        officialCode,
+        entrySemester: ownCourse ? (officialCode ? null : user?.entry_semester) : semester,
         currentPeriod: ownCourse ? currentCurriculumPeriod(user?.entry_semester, semester) : null
     };
 }
@@ -48,16 +50,18 @@ export const Route = createFileRoute('/_app/cursos/$id')({
     },
     loader: async ({ context: { queryClient }, params: { id: courseId } }) => {
         const user = await loadQuery(queryClient, meQueryOptions);
-        const { ownCourse, loggedIn, entrySemester } = flowTarget(user, courseId);
+        const { ownCourse, loggedIn, entrySemester, curriculumId } = flowTarget(user, courseId);
+        const hasMatrix = Boolean(entrySemester || curriculumId);
         const [course] = await Promise.all([
             ownCourse
                 ? user?.course
                 : loadQuery(queryClient, courseQueryOptions(courseId)).catch(noop),
-            entrySemester &&
-                loadQuery(queryClient, curriculumQueryOptions(courseId, entrySemester)).catch(noop),
-            loggedIn &&
-                entrySemester &&
-                loadQuery(queryClient, allClassroomsQueryOptions).catch(noop)
+            hasMatrix &&
+                loadQuery(
+                    queryClient,
+                    curriculumQueryOptions(courseId, entrySemester, curriculumId)
+                ).catch(noop),
+            loggedIn && hasMatrix && loadQuery(queryClient, allClassroomsQueryOptions).catch(noop)
         ]);
         return { courseName: course?.name };
     },
@@ -96,7 +100,8 @@ function FlowPage() {
     const [{ subject }] = useFlowSearch();
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const { id: courseId } = Route.useParams();
-    const { ownCourse, loggedIn, entrySemester, currentPeriod } = flowTarget(user, courseId);
+    const { ownCourse, loggedIn, entrySemester, curriculumId, officialCode, currentPeriod } =
+        flowTarget(user, courseId);
     const listed = useQuery({ ...courseQueryOptions(courseId), enabled: !ownCourse });
     const unlisted = listed.error instanceof ApiError && listed.error.isNotFound;
     const course = ownCourse ? user?.course : listed.data;
@@ -104,7 +109,13 @@ function FlowPage() {
         <div ref={ref} className="flex min-h-0 flex-1 flex-col">
             <div className="shrink-0 px-4 pb-5 lg:px-6">
                 <FlowHeader />
-                {course && <CourseSummary course={course} entrySemester={entrySemester} />}
+                {course && (
+                    <CourseSummary
+                        course={course}
+                        entrySemester={entrySemester}
+                        curriculumId={curriculumId}
+                    />
+                )}
             </div>
             {!ownCourse && listed.isPending ? (
                 <LoadingText className="p-4">Carregando curso...</LoadingText>
@@ -117,16 +128,19 @@ function FlowPage() {
                 </div>
             ) : !course ? (
                 <p className="p-4">Curso não encontrado no catálogo.</p>
-            ) : !entrySemester ? (
+            ) : !entrySemester && !curriculumId ? (
                 <p className="p-4">
-                    Semestre de referência indisponível. Não foi possível identificar a matriz deste
-                    curso.
+                    {officialCode
+                        ? `A matriz ${officialCode} consta no histórico, mas está indisponível no catálogo.`
+                        : 'Semestre de referência indisponível. Não foi possível identificar a matriz deste curso.'}
                 </p>
             ) : (
                 <CurriculumView
                     key={course.id}
                     courseId={course.id}
                     entrySemester={entrySemester}
+                    curriculumId={curriculumId}
+                    completedSubjects={ownCourse ? user?.completed_subjects : null}
                     currentPeriod={currentPeriod}
                     selected={subject ?? undefined}
                     ownCourse={ownCourse}

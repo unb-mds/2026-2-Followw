@@ -7,9 +7,11 @@ from ..exceptions import (
     SessionRenewed,
     SigaaParseError,
 )
+from ..models import AcademicTranscript
 from ..utils.jsf import build_menu_action, read_viewstate
 from ..utils.parsing import clean_text, lookup_key
 from .session import Session
+from .transcript import parse_transcript
 
 _MENU_FORM_ID = "menu:form_menu_discente"
 _STUDENT_CARD_MENU_ACTION = (
@@ -36,6 +38,10 @@ class Documents:
         return await _download_pdf(
             self._session, _TRANSCRIPT_MENU_ACTION, "do histórico acadêmico"
         )
+
+    async def get_transcript(self) -> AcademicTranscript:
+        """Matriz e componentes cumpridos segundo o histórico acadêmico."""
+        return parse_transcript(await self.get_transcript_pdf())
 
 
 async def download_student_card_pdf(session: Session) -> bytes:

@@ -1,4 +1,5 @@
 from collections import defaultdict
+from collections.abc import Set as AbstractSet
 from typing import Literal
 from uuid import UUID
 
@@ -67,6 +68,19 @@ def satisfies(rules: Rules, approved: set[str]) -> bool:
     return not rules or any(
         all(normalize(code) in approved for code in group) for group in rules
     )
+
+
+def equivalent_codes(
+    catalog: dict[str, CatalogSubject], completed: set[str]
+) -> set[str]:
+    return {
+        code
+        for code, subject in catalog.items()
+        if any(
+            group and satisfies([group], completed)
+            for group in subject.equivalences or []
+        )
+    }
 
 
 def select_curriculum(
@@ -201,6 +215,7 @@ def rank(
     enrolled: set[str],
     unresolved: set[str],
     unit_id: int | None,
+    recognized_equivalences: AbstractSet[str] = frozenset(),
 ) -> list[Recommendation]:
     """As ofertadas que o aluno pode cursar, da mais à menos prioritária.
 
@@ -208,11 +223,7 @@ def rank(
     Fora da matriz é módulo livre, então sem matriz nada é recomendado.
     """
     assumed = completed | enrolled | unresolved
-    done = assumed | {
-        code
-        for code, subject in catalog.items()
-        if subject.equivalences and satisfies(subject.equivalences, assumed)
-    }
+    done = assumed | recognized_equivalences | equivalent_codes(catalog, assumed)
     target = target_period(curriculum, done, enrolled)
     dependents = dependency_graph(
         {

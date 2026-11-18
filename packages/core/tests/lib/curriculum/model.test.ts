@@ -118,9 +118,17 @@ describe('matriz e estados acadêmicos', () => {
     });
     test('equivalência aprovada conclui a matéria e em curso a marca como em curso', () => {
         const b = model.byCode.get('B')!;
-        expect(academicState([classroom('E', 'concluido', 'MS')], 4)(b)).toBe('completed');
+        expect(academicState([classroom('E', 'concluido', 'MS')], 4)(b)).toBe('equivalence');
         expect(academicState([classroom('E', 'cursando')], 4)(b)).toBe('enrolled');
         expect(academicState([classroom('E', 'concluido', 'SR')], 4)(b)).toBe('overdue');
+    });
+    test('mostra aproveitamento, equivalência e dispensa mesmo sem turmas', () => {
+        const state = academicState(undefined, 4, {
+            A: 'credit',
+            C: 'waived',
+            B: 'equivalence'
+        });
+        expect(model.subjects.map(state)).toEqual(['credit', 'waived', 'equivalence', 'unknown']);
     });
     test('sem histórico o estado é desconhecido; sem período não inventa atraso', () => {
         expect(model.subjects.map(academicState(undefined, 4))).toEqual([

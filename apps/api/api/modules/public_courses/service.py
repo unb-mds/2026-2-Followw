@@ -115,7 +115,7 @@ class PublicCourseService:
     async def get_curriculum(
         self,
         course_id: int,
-        entry_semester: str,
+        entry_semester: str | None,
         curriculum_sigaa_id: int | None = None,
     ) -> CourseCurriculum:
         return await self._db.read(
@@ -165,16 +165,22 @@ def _course(course: Course) -> PublicCourse:
 async def _load(
     session: AsyncSession,
     course_id: int,
-    entry_semester: str,
+    entry_semester: str | None,
     curriculum_sigaa_id: int | None,
 ) -> CourseCurriculum:
     repository = PublicCourseRepository(session)
-    if await repository.get_course(course_id) is None:
-        raise HTTPException(404, "Curso não encontrado.")
-    options = in_force(await repository.list_curricula(course_id), entry_semester)
-    if not options:
-        raise HTTPException(404, "Curso sem currículos ativos cadastrados.")
-    selected = _select(options, curriculum_sigaa_id)
+    if entry_semester is None:
+        assert curriculum_sigaa_id is not None
+        selected = await repository.get_curriculum(course_id, curriculum_sigaa_id)
+        if selected is None:
+            raise HTTPException(404, "Matriz não cadastrada para este curso.")
+    else:
+        if await repository.get_course(course_id) is None:
+            raise HTTPException(404, "Curso não encontrado.")
+        options = in_force(await repository.list_curricula(course_id), entry_semester)
+        if not options:
+            raise HTTPException(404, "Curso sem currículos ativos cadastrados.")
+        selected = _select(options, curriculum_sigaa_id)
     components = await repository.list_components(selected.id)
     catalog = SubjectCatalogRepository(session)
     codes = requirement_codes(subject for _, subject in components if subject)
@@ -194,7 +200,7 @@ async def _load(
     return CourseCurriculum(
         **CurriculumOption.model_validate(selected).model_dump(),
         course_id=course_id,
-        entry_semester=entry_semester,
+        entry_semester=entry_semester or selected.valid_from,
         periods=[
             CurriculumPeriod(period=period, subjects=items)
             for period, items in sorted(periods.items())

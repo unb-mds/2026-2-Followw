@@ -8,8 +8,12 @@ import { SubjectDetails } from '#/components/curriculum/SubjectDetails';
 import { Dialog, DialogContent, DialogTrigger } from '#/components/ui/dialog';
 import { cn } from '#/lib/shadcn';
 
+const completedStyle = 'border-success/30 bg-success/10 text-foreground';
 const stateStyles: Record<AcademicState, string> = {
-    completed: 'border-success/30 bg-success/10 text-foreground',
+    completed: completedStyle,
+    credit: completedStyle,
+    waived: completedStyle,
+    equivalence: completedStyle,
     enrolled: 'border-info/30 bg-info/10 text-foreground',
     overdue: 'border-destructive/30 bg-destructive/10 text-foreground',
     pending: 'border-border bg-muted text-foreground',
@@ -53,7 +57,11 @@ export function SubjectCard({
                 )}
                 aria-label={`${subject.code}, ${name}${state ? `, ${stateLabels[state]}` : ''}${selected ? ', matéria selecionada' : ''}. Ver requisitos`}
             >
-                <span className="text-xs text-muted-foreground">{subject.code}</span>
+                <span className="truncate text-xs text-muted-foreground">
+                    {subject.code}
+                    {(state === 'credit' || state === 'waived' || state === 'equivalence') &&
+                        ` · ${stateLabels[state]}`}
+                </span>
                 <span
                     title={name}
                     className={cn(

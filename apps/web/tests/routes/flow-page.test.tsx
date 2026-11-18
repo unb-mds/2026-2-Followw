@@ -507,7 +507,7 @@ describe('fluxograma integrado', () => {
     test('falha de histórico mantém matriz e estado desconhecido', async () => {
         client.removeQueries({ queryKey: allClassroomsQueryOptions.queryKey });
         const page = await renderPage();
-        await page.findByText(/Histórico indisponível. Os estados/);
+        await page.findByText('Não foi possível carregar as turmas cursadas.');
         await page.findByRole('button', { name: /A, Base, Histórico indisponível/ });
         expect(page.queryByRole('list', { name: 'Legenda dos estados acadêmicos' })).toBeNull();
     });

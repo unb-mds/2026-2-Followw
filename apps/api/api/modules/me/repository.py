@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from sigaa_client import UserProfile
+from sigaa_client import AcademicTranscript, UserProfile
 from sqlalchemy import delete, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,6 +8,7 @@ from api.db.courses import course_ids
 from api.db.enums import UserLevel
 from api.db.models import ClassroomParticipant, Course, User
 from api.modules.classrooms.post_reading import PostReadingRepository
+from api.modules.me.transcript import TranscriptRepository
 from api.modules.public_courses.repository import PublicCourseRepository
 from api.modules.recommendations.ranking import CurriculumInfo, select_curriculum
 
@@ -50,6 +51,7 @@ class UserRepository:
         login: str | None = None,
         *,
         replace_photo: bool = False,
+        transcript: AcademicTranscript | None = None,
     ) -> User:
         """Grava o perfil na conta do `login`, assumindo o usuário sombra da matrícula."""
         login = login or profile.registration
@@ -75,6 +77,7 @@ class UserRepository:
             user = User()
             self._session.add(user)
 
+        changed_registration = user.registration != profile.registration
         user.registration = profile.registration
         if login != profile.registration:
             user.old_registration = login
@@ -88,7 +91,8 @@ class UserRepository:
         pair = (profile.course, profile.unit)
         shift = profile.shift.value if profile.shift else None
         course_id = (await course_ids(self._session, [pair], shift)).get(pair)
-        if course_id != user.course_id:
+        changed_enrollment = changed_registration or course_id != user.course_id
+        if changed_enrollment:
             user.curriculum_id = None
         user.course_id = course_id
         user.entry_semester = profile.entry_semester
@@ -98,7 +102,20 @@ class UserRepository:
         user.mp = profile.mp
         user.level = UserLevel(profile.level.value)
         user.profile_synced_at = synced_at
-        await self._infer_curriculum(user)
+        await self._session.flush()
+
+        transcripts = TranscriptRepository(self._session)
+        if changed_enrollment:
+            await transcripts.clear(user.id)
+        if transcript is not None:
+            await transcripts.save(user.id, transcript)
+            official = transcript.curriculum_code
+        else:
+            official = await transcripts.curriculum_code(user.id)
+        if official is not None:
+            user.curriculum_id = await transcripts.match_curriculum(course_id, official)
+        else:
+            await self._infer_curriculum(user)
         await self._session.flush()
 
         return user

@@ -93,6 +93,19 @@ test('consulta a matriz do curso exibido sem reaproveitar a de outro curso', asy
     expect(page.queryByText('Bacharelado')).toBeNull();
 });
 
+test('exibe a matriz oficial pelo id sem depender do semestre de ingresso', () => {
+    client.setQueryData(curriculumQueryOptions(course.id, null, 3).queryKey, {
+        ...matrix,
+        sigaa_id: 3,
+        code: '8000/-2'
+    });
+    const page = renderSummary({ course, curriculumId: 3 });
+    expect(page.getByText('FCTE').parentElement?.textContent).toBe(
+        'FCTE · Matriz 8000/-2 - 2024.1'
+    );
+    expect(requests).toEqual([]);
+});
+
 test('sem semestre nem catálogo exibe apenas o que está disponível', async () => {
     client.removeQueries({ queryKey: courseQueryOptions(course.id).queryKey });
     const page = renderSummary({ course: { ...course, shift: null } });

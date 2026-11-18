@@ -16,6 +16,7 @@ from api.modules.classrooms.service import (
 )
 from api.modules.me.profile import profile_freshness, sync_profile
 from api.modules.me.repository import UserRepository
+from api.modules.me.transcript import TranscriptRepository
 from api.modules.recommendations.ranking import (
     Component,
     Recommendation,
@@ -154,6 +155,9 @@ async def _rank(
         for link in links
         if link.row.grade and link.row.grade.approved
     }
+    transcript = await TranscriptRepository(session).completed(student.user_id)
+    recognized = {code for code, kind in transcript.items() if kind == "equivalence"}
+    completed.update(transcript.keys() - recognized)
     enrolled = {
         normalize(link.row.classroom.subject_code)
         for link in links
@@ -178,11 +182,13 @@ async def _rank(
         offered=offered & catalog.keys(),
         curriculum=curriculum,
         completed=completed,
-        enrolled=enrolled - completed,
+        enrolled=enrolled - completed - recognized,
         unresolved={
             normalize(link.row.classroom.subject_code)
             for link in links
             if link.row.grade is None and link.row.status not in _WITHOUT_ATTEMPT
-        },
+        }
+        - recognized,
         unit_id=student.unit_id,
+        recognized_equivalences=recognized,
     )

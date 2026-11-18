@@ -202,7 +202,11 @@ function BuscarPage() {
                     </p>
                 )}
                 {view?.kind === 'recommendations' && (
-                    <RecommendationsSection currentPeriod={currentPeriod} taken={taken} />
+                    <RecommendationsSection
+                        currentPeriod={currentPeriod}
+                        taken={taken}
+                        completedSubjects={user?.completed_subjects}
+                    />
                 )}
                 {view?.kind === 'search' && (
                     <SearchResults

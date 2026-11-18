@@ -8,9 +8,13 @@ from pypdf import PdfReader
 from ..exceptions import SigaaParseError
 
 
-def extract_text(pdf: bytes) -> str:
+def extract_text(pdf: bytes, *, layout: bool = False) -> str:
     try:
-        return "\n".join(page.extract_text() for page in PdfReader(BytesIO(pdf)).pages)
+        mode = "layout" if layout else "plain"
+        return "\n".join(
+            page.extract_text(extraction_mode=mode)
+            for page in PdfReader(BytesIO(pdf)).pages
+        )
     except Exception as error:
         raise SigaaParseError("PDF do SIGAA não pôde ser lido.") from error
 

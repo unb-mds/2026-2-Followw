@@ -62,7 +62,7 @@ class CatalogSubject(UserSubject, DisplayedRequirements):
     corequisites: CatalogRequirements | None = None
     equivalences: CatalogRequirements | None = None
     classrooms: list[SubjectClassroom]
-    # Tipo na matriz estimada de quem está logado; nulo sem login ou sem matriz.
+    # Tipo na matriz de quem está logado; nulo sem login ou sem matriz.
     kind: Literal["mandatory", "optional", "free"] | None = None
     unlocks: list[SubjectReference] = Field(default_factory=list)
     curriculum_period: int | None = None

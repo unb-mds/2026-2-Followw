@@ -3,7 +3,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
-from sigaa_client import FrequencyStatus, Grade, PostType
+from sigaa_client import FrequencyStatus, Grade, PostType, TranscriptCompletion
 from sqlalchemy import (
     ColumnElement,
     DateTime,
@@ -11,6 +11,7 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     SmallInteger,
+    String,
     Text,
     UniqueConstraint,
     func,
@@ -126,7 +127,7 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     email: Mapped[str | None] = mapped_column()
     bio: Mapped[str | None] = mapped_column(Text)
     course_id: Mapped[int | None] = mapped_column(ForeignKey("courses.id"))
-    # Matriz estimada no sync do perfil; só zera se o curso mudar.
+    # Matriz do histórico; estimada pelo ingresso enquanto não há histórico.
     curriculum_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("curricula.id", ondelete="SET NULL")
     )
@@ -205,6 +206,27 @@ class Subject(Base, TimestampMixin):
         return func.jsonb_path_query_array(
             cls.equivalences, literal_column("'$[*][*]'"), type_=JSONB
         )
+
+
+class UserTranscript(Base, TimestampMixin):
+    __tablename__ = "user_transcripts"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    curriculum_code: Mapped[str] = mapped_column()
+
+
+class UserCompletedSubject(Base, TimestampMixin):
+    __tablename__ = "user_completed_subjects"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_transcripts.user_id", ondelete="CASCADE"), primary_key=True
+    )
+    subject_code: Mapped[str] = mapped_column(
+        ForeignKey("subjects.code", ondelete="CASCADE"), primary_key=True
+    )
+    kind: Mapped[TranscriptCompletion] = mapped_column(String)
 
 
 class Classroom(Base, UUIDPrimaryKeyMixin, TimestampMixin):

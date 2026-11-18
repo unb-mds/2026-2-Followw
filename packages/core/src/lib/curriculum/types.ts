@@ -1,6 +1,18 @@
 import type { CurriculumSubject } from '../../queries/curriculum.ts';
+import type { components } from '../../queries/schema.gen.ts';
 
-export type AcademicState = 'completed' | 'enrolled' | 'overdue' | 'pending' | 'unknown';
+export type CompletedSubjects = NonNullable<
+    components['schemas']['UserProfile']['completed_subjects']
+>;
+export type AcademicState =
+    | 'completed'
+    | 'credit'
+    | 'waived'
+    | 'equivalence'
+    | 'enrolled'
+    | 'overdue'
+    | 'pending'
+    | 'unknown';
 export type FlowSubject = CurriculumSubject & { name: string; period: number };
 export interface FlowEdge {
     id: string;
