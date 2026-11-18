@@ -17,7 +17,7 @@ import {
     campusOf,
     menuQueryOptions
 } from '@followw/core/queries/restaurant.ts';
-import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import { environmentManager, noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Link, useLocation, useNavigate } from '@tanstack/react-router';
 import {
     Apple,
@@ -137,7 +137,8 @@ export const Route = createFileRoute('/_app/ru')({
         const user = await loadQuery(queryClient, meQueryOptions);
         const defaults = restaurantDefaults(campusOf(user?.unit?.code), now);
         const selection = restaurantSelection(search, defaults);
-        await loadQuery(queryClient, menuQueryOptions(selection)).catch(noop);
+        const menu = loadQuery(queryClient, menuQueryOptions(selection)).catch(noop);
+        if (!user || environmentManager.isServer()) await menu;
         return { today: now.date, defaults };
     },
     head: ({ loaderData, match }) => {

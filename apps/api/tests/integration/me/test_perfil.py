@@ -118,6 +118,26 @@ def test_me_sem_campos_opcionais_retorna_null(client, sigaa, cookies):
         assert response.json()[field] is None
 
 
+@pytest.mark.parametrize(
+    ("image", "expected"),
+    [
+        ('<img src="/sigaa/img/no_picture.png"/>', None),
+        ("", f"{SIGAA_BASE_URL}/arquivos/foto.jpg"),
+    ],
+    ids=["sem foto confirmada", "imagem ausente no HTML"],
+)
+def test_revalida_foto_do_perfil(client, sigaa, cookies, image, expected):
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+    sigaa.profile = PERFIL
+    assert client.get("/me").json()["photo"] == f"{SIGAA_BASE_URL}/arquivos/foto.jpg"
+
+    sigaa.profile = PERFIL.replace('<img src="/arquivos/foto.jpg" />', image)
+    refreshed = client.get("/me", headers=NO_CACHE)
+    assert refreshed.status_code == 200
+    assert refreshed.json()["photo"] == expected
+    assert client.get("/me").json()["photo"] == expected
+
+
 def test_me_traz_componentes_da_matriz_vinculada_mesmo_com_vigencia_mais_recente(
     client, sigaa, database
 ):

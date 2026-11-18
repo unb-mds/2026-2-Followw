@@ -1,9 +1,11 @@
 import re
+from datetime import UTC, datetime
 
+import httpx
 from bs4 import BeautifulSoup, Tag
 
 from ..config import DASHBOARD_PATH
-from ..exceptions import SigaaParseError
+from ..exceptions import ProfileReadFailedAfterEdit, SessionExpired, SigaaParseError
 from ..models import CurriculumWorkload, UserLevel, UserProfile
 from ..utils.parsing import (
     clean_text,
@@ -51,8 +53,20 @@ class Profile:
             photo=photo,
             remove_photo=remove_photo,
         )
-        profile = await self.get_profile()
-        return profile.model_copy(update={"photo": saved_photo, "bio": saved_bio})
+        confirmed_at = datetime.now(UTC)
+        try:
+            profile = await self.get_profile()
+        except (SigaaParseError, SessionExpired, httpx.HTTPError) as error:
+            raise ProfileReadFailedAfterEdit(
+                photo=saved_photo, bio=saved_bio, confirmed_at=confirmed_at
+            ) from error
+        return profile.model_copy(
+            update={
+                "photo": saved_photo,
+                "photo_absence_confirmed": saved_photo is None,
+                "bio": saved_bio,
+            }
+        )
 
     async def get_profile(self) -> UserProfile:
         page = await self._session.get(DASHBOARD_PATH)
@@ -68,10 +82,14 @@ class Profile:
         if unit is None:
             raise SigaaParseError(f"Curso `{raw_course}` não traz a unidade.")
 
+        image = card.select_one(".foto img[src]")
+        source = str(image["src"]).strip() if image is not None else ""
+        photo = photo_url(source)
         return UserProfile(
             name=_name(card),
             registration=_required(fields, "matrícula"),
-            photo=_photo(card),
+            photo=photo,
+            photo_absence_confirmed=bool(source) and photo is None,
             bio=_bio(card),
             unit=unit,
             course=course,
@@ -117,13 +135,6 @@ def _bio(card: Tag) -> str | None:
         return None
     text = clean_text(info).removeprefix(_name(card)).strip()
     return text or None
-
-
-def _photo(card: Tag) -> str | None:
-    photo = card.select_one(".foto img")
-    if photo is None:
-        return None
-    return photo_url(str(photo.get("src") or ""))
 
 
 def _integralization(card: Tag) -> int | None:

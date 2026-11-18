@@ -1,14 +1,11 @@
 from datetime import UTC, datetime
 
-import httpx
-from sigaa_client import SigaaError
+from sigaa_client import ProfileReadFailedAfterEdit
 
 from api.db.main import Database
 from api.modules.me.profile import UserProfile, _to_profile
 from api.modules.me.repository import UserRepository
 from api.sigaa import SigaaConnection
-
-_REMOTE_ERRORS = (SigaaError, httpx.HTTPError)
 
 
 async def edit_profile(
@@ -22,6 +19,19 @@ async def edit_profile(
     fresh = SigaaConnection(connection.credentials)
     try:
         client = await fresh.client()
+        registration = connection.registration
+        cached = await db.read(
+            lambda session: UserRepository(session).get_by_registration(registration)
+        )
+        if cached is None or cached.profile_synced_at is None:
+            started_at = datetime.now(UTC)
+            initial = await client.profile.get_profile()
+            await db.write(
+                lambda session: UserRepository(session).save_profile(
+                    initial, started_at, login=registration
+                )
+            )
+
         try:
             profile = await client.profile.update_profile(
                 password=connection.credentials.password.get_secret_value(),
@@ -29,23 +39,24 @@ async def edit_profile(
                 photo=photo,
                 remove_photo=remove_photo,
             )
-        except _REMOTE_ERRORS as original_error:
-            try:
-                current = await client.profile.get_profile()
-            except _REMOTE_ERRORS:
-                raise original_error from None
+        except ProfileReadFailedAfterEdit as error:
+            confirmed = error
 
-            existing = await db.read(
-                lambda s: UserRepository(s).get_by_registration(connection.registration)
-            )
-            old_photo = existing.photo if existing else None
-            photo_applied = (remove_photo and current.photo is None) or (
-                photo is not None and current.photo != old_photo
-            )
-            bio_applied = bio is not None and current.bio == bio
-            if not (photo_applied or bio_applied):
-                raise original_error from None
-            profile = current
+            async def save_confirmed(session):
+                user = await UserRepository(session).save_cached_profile_edit(
+                    registration,
+                    confirmed.confirmed_at,
+                    photo=confirmed.photo,
+                    bio=confirmed.bio,
+                    update_photo=photo is not None or remove_photo,
+                    update_bio=bio is not None,
+                )
+                return await _to_profile(session, user) if user is not None else None
+
+            saved = await db.write(save_confirmed)
+            if saved is None:
+                raise
+            return saved
 
         synced_at = datetime.now(UTC)
 
@@ -53,8 +64,7 @@ async def edit_profile(
             user = await UserRepository(session).save_profile(
                 profile,
                 synced_at,
-                login=connection.registration,
-                replace_photo=remove_photo or photo is not None,
+                login=registration,
             )
             await session.refresh(user, ["course", "curriculum"])
             return await _to_profile(session, user)

@@ -165,3 +165,9 @@ com uma única turma do portal vem sem turma.
 autenticada. Omita `bio` para preservá-la ou passe `""` para limpá-la. Para remover a foto, use
 `remove_photo=True` sem enviar os outros campos. O chamador valida o JPEG antes do envio. O client
 relê o formulário para confirmar a gravação e não repete o POST em caso de falha.
+
+`photo_absence_confirmed` indica que o SIGAA exibiu o avatar padrão. Se a imagem estiver ausente
+no HTML, o valor fica `False` e uma foto já conhecida pode ser preservada.
+
+Se o formulário confirmar a edição e a leitura posterior do painel falhar,
+`ProfileReadFailedAfterEdit` carrega a foto e a bio confirmadas.

@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup, Tag
 from ..config import DASHBOARD_PATH, PORTAL_PATH, PROFILE_EDIT_PATH, SIGAA_BASE_URL
 from ..exceptions import SigaaParseError
 from ..utils.jsf import build_submit, link_params, read_viewstate
-from ..utils.parsing import photo_url
+from ..utils.parsing import clean_text, photo_url
 from .session import Session
 
 _BIO = "descricaoPessoal"
@@ -55,17 +55,6 @@ def _payload(form: Tag, password: str, bio: str) -> dict[str, str]:
     return payload
 
 
-def _confirmed(html: str) -> bool:
-    soup = BeautifulSoup(html, "lxml")
-    notices = soup.select(
-        "#painel-erros ul.info li, #painel-erros .info, .mensagem-sucesso, ul.info li"
-    )
-    return any(
-        _SUCCESS in item.get_text() or "sucesso" in item.get_text().lower()
-        for item in notices
-    )
-
-
 async def _post(
     session: Session, payload: dict[str, str], photo: bytes | None
 ) -> httpx.Response:
@@ -82,27 +71,32 @@ async def _post(
 
 async def _confirm(session: Session, response: httpx.Response) -> bool:
     if response.is_redirect:
-        raw_target = response.headers.get("location", "")
-        target = urljoin(SIGAA_BASE_URL, raw_target)
-        path = urlsplit(target).path
-        if path in {DASHBOARD_PATH, PORTAL_PATH, PROFILE_EDIT_PATH}:
-            response = await session.get(path)
-        else:
+        target = urlsplit(
+            urljoin(str(response.url), response.headers.get("location", ""))
+        )
+        path = target.path
+        if (
+            path not in {DASHBOARD_PATH, PORTAL_PATH, PROFILE_EDIT_PATH}
+            or target._replace(query="", fragment="").geturl() != SIGAA_BASE_URL + path
+        ):
             raise SigaaParseError("Redirecionamento inesperado após editar perfil.")
-    error_node = BeautifulSoup(response.text, "lxml").select_one(
-        ".erros, .erro, .errors, #painel-erros ul.erros"
-    )
+        response = await session.get(path)
+    soup = BeautifulSoup(response.text, "lxml")
+    error_node = soup.select_one(".erros, .erro, .errors")
     if error_node:
-        detail = error_node.get_text(strip=True)
+        detail = clean_text(error_node)
         raise SigaaParseError(
             f"O SIGAA recusou a alteração do perfil: {detail}"
             if detail
             else "O SIGAA recusou a alteração do perfil."
         )
-    return _confirmed(response.text)
+    return any(
+        clean_text(item) == _SUCCESS
+        for item in soup.select("#painel-erros .info, ul.info li, .mensagem-sucesso")
+    )
 
 
-async def _remove_photo(session: Session, form: Tag, password: str, bio: str) -> None:
+async def _stage_removal(session: Session, form: Tag, password: str, bio: str) -> Tag:
     link = form.find("a", id="btnExcluirFoto")
     params = link_params(link) if isinstance(link, Tag) else {}
     if set(params) != {"btnExcluirFoto", "idFotoRemovida"}:
@@ -118,12 +112,7 @@ async def _remove_photo(session: Session, form: Tag, password: str, bio: str) ->
     staged = _form(response.text)
     if _photo(staged) is not None:
         raise SigaaParseError("O SIGAA não confirmou a remoção da foto.")
-    saved = await _post(session, _payload(staged, password, bio), None)
-    if not await _confirm(session, saved):
-        raise SigaaParseError(
-            "O SIGAA não confirmou a remoção da foto; "
-            "releia o perfil antes de tentar novamente."
-        )
+    return staged
 
 
 async def update_profile(
@@ -142,30 +131,51 @@ async def update_profile(
     if remove_photo:
         if previous_photo is None:
             return None, original_bio or None
-        await _remove_photo(session, form, password, original_bio)
-        return None, original_bio or None
-    elif photo is not None or bio is not None:
-        target_bio = original_bio if bio is None else bio
-        payload = _payload(form, password, target_bio)
-        response = await _post(session, payload, photo)
-        confirmed = await _confirm(session, response)
+        form = await _stage_removal(session, form, password, original_bio)
+    elif photo is None and bio is None:
+        return previous_photo, original_bio or None
+
+    payload = _payload(form, password, original_bio if bio is None else bio)
+    delivery_error = None
+    try:
+        confirmed = await _confirm(session, await _post(session, payload, photo))
+    except (
+        httpx.ReadTimeout,
+        httpx.ReadError,
+        httpx.RemoteProtocolError,
+        httpx.HTTPStatusError,
+    ) as error:
+        if (
+            isinstance(error, httpx.HTTPStatusError)
+            and error.response.status_code < 500
+        ):
+            raise
+        # O POST pode ter gravado mesmo sem uma resposta utilizável.
+        delivery_error = error
+        confirmed = False
+
+    try:
         current = await _read(session)
         current_photo = _photo(current)
         saved_bio = current.find("textarea", attrs={"name": _BIO}).get_text()
-        photo_changed = photo is not None and current_photo != previous_photo
-        bio_changed = bio is not None and saved_bio == bio
-        if not (confirmed or photo_changed or bio_changed):
-            raise SigaaParseError(
-                "O SIGAA não confirmou a atualização do perfil; "
-                "releia o perfil antes de tentar novamente."
-            )
-        return current_photo, saved_bio or None
-    else:
-        return previous_photo, original_bio or None
+    except SigaaParseError, httpx.HTTPError:
+        if delivery_error is not None:
+            raise delivery_error from None
+        raise
 
-    current = await _read(session)
-    current_photo = _photo(current)
-    if remove_photo and current_photo is not None:
+    if remove_photo:
+        photo_ok = current_photo is None
+    else:
+        photo_ok = photo is None or (
+            current_photo is not None and (confirmed or current_photo != previous_photo)
+        )
+    if photo_ok and (bio is None or saved_bio == bio):
+        return current_photo, saved_bio or None
+    if delivery_error is not None:
+        raise delivery_error
+    if remove_photo:
         raise SigaaParseError("O SIGAA não confirmou a remoção da foto.")
-    saved_bio = current.find("textarea", attrs={"name": _BIO}).get_text()
-    return current_photo, saved_bio or None
+    raise SigaaParseError(
+        "O SIGAA não confirmou a atualização do perfil; "
+        "releia o perfil antes de tentar novamente."
+    )
