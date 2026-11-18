@@ -7,12 +7,12 @@ import createQueryHooks from 'openapi-react-query';
 
 import { refreshQuery } from '#/queries/refresh.ts';
 
-function apiWith(requests: Request[]) {
+function apiWith(requests: Request[], response = Response.json([])) {
     const client = createClient<paths>({
         baseUrl: 'http://api.test',
         fetch: async (request) => {
             requests.push(request);
-            return Response.json([]);
+            return response.clone();
         }
     });
     return createQueryHooks(client);
@@ -35,5 +35,23 @@ describe('refreshQuery', () => {
         expect(fresh.headers.get('cache-control')).toBe('no-cache');
         const cached: unknown = queryClient.getQueryData(options.queryKey);
         expect(cached).toEqual([]);
+    });
+
+    test('não repete a requisição do extrato quando o refresh desativa retentativas', async () => {
+        const requests: Request[] = [];
+        const error = { detail: 'SIGAA indisponível' };
+        const options = apiWith(requests, Response.json(error, { status: 503 })).queryOptions(
+            'get',
+            '/me/ru-statement'
+        );
+        const client = new QueryClient({
+            defaultOptions: { queries: { retry: 2, retryDelay: 0 } }
+        });
+
+        const failure = await refreshQuery(client, options, { retry: false }).catch(
+            (reason: unknown) => reason
+        );
+        expect(failure).toEqual(error);
+        expect(requests).toHaveLength(1);
     });
 });

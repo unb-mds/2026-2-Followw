@@ -4,12 +4,12 @@ import httpx
 import pytest
 from bs4 import BeautifulSoup
 
-from sigaa_client import SessionRenewed, SigaaParseError
-from sigaa_client.config import CLASSROOMS_PATH
+from sigaa_client import SessionExpired, SessionRenewed, SigaaClient, SigaaParseError
+from sigaa_client.config import CLASSROOM_HOME_PATH, CLASSROOMS_PATH
 from sigaa_client.private.classrooms import Classrooms
 from sigaa_client.private.teaching_plan import _parse_teaching_plan
 
-from ...fakes import HISTORY_FORM
+from ...fakes import CREDENTIALS, HISTORY_FORM, FakeSigaa
 
 PLAN = """
 <table class="listagem"><caption>Metodologia de Ensino e Avaliação</caption>
@@ -164,3 +164,25 @@ async def test_plano_ausente_na_turma_solicitada():
 async def test_le_o_plano_da_turma_pelo_menu(screens):
     plan = await Classrooms(PlanSession(*screens)).get_classroom_teaching_plan("AAA")
     assert plan.office_hours == "A combinar."
+
+
+async def test_segunda_expiracao_ao_abrir_o_plano_encerra_a_consulta():
+    sigaa = FakeSigaa()
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        if request.url.path == CLASSROOMS_PATH:
+            return httpx.Response(200, text=HISTORY_FORM)
+        if request.url.path == CLASSROOM_HOME_PATH:
+            if request.method == "GET":
+                return httpx.Response(200, text=HOME)
+            return httpx.Response(302, headers={"location": "/sigaa/verTelaLogin.do"})
+        return sigaa(request)
+
+    async with SigaaClient(
+        CREDENTIALS, transport=httpx.MockTransport(handle)
+    ) as client:
+        await client.authenticate()
+        initial_logins = sigaa.logins
+        with pytest.raises(SessionExpired):
+            await client.classrooms.get_classroom_teaching_plan("AAA")
+    assert sigaa.logins == initial_logins + 1

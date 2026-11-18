@@ -4,15 +4,13 @@ import { cn } from '#/lib/shadcn';
 
 export function ListCard({
     as = 'div',
-    className,
     children
 }: {
     as?: 'div' | 'dl';
-    className?: string;
     children: React.ReactNode;
 }) {
     return (
-        <Card as={as} size="sm" className={cn('gap-0 divide-y divide-border px-3 py-0', className)}>
+        <Card as={as} size="sm" className="gap-0 divide-y divide-border px-3 py-0">
             {children}
         </Card>
     );

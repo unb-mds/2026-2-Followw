@@ -11,11 +11,4 @@ describe('FollowwLogo', () => {
         expect(markup).toContain(`src="data:image/svg+xml,${encodeURIComponent(favicon)}"`);
         expect(markup).toContain('alt="Logo Followw"');
     });
-
-    test('preserva a proporção quadrada ao receber um tamanho', () => {
-        const markup = renderToStaticMarkup(<FollowwLogo size={32} />);
-
-        expect(markup).toContain('width="32"');
-        expect(markup).toContain('height="32"');
-    });
 });

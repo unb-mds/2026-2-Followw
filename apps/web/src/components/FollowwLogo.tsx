@@ -5,18 +5,8 @@ const src = `data:image/svg+xml,${encodeURIComponent(logo)}`;
 
 interface FollowwLogoProps {
     className?: string;
-    size?: number;
 }
 
-export const FollowwLogo: React.FC<FollowwLogoProps> = ({
-    size,
-    className = size === undefined ? 'size-16' : undefined
-}) => (
-    <img
-        src={src}
-        alt="Logo Followw"
-        width={size}
-        height={size}
-        className={cn('object-contain', className)}
-    />
+export const FollowwLogo: React.FC<FollowwLogoProps> = ({ className = 'size-16' }) => (
+    <img src={src} alt="Logo Followw" className={cn('object-contain', className)} />
 );
