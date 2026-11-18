@@ -113,8 +113,16 @@ def institutional_email(email: str | None) -> str | None:
 
 
 def to_markdown(node: Tag) -> str | None:
-    """HTML do editor do SIGAA -> markdown, sem estilos, `&nbsp;` nem parágrafos vazios."""
-    copy = BeautifulSoup(str(node), "lxml")
+    """O conteúdo de `node` em markdown, sem estilos, `&nbsp;` nem parágrafos vazios."""
+    copy = BeautifulSoup(node.decode_contents(), "lxml")
+    # O editor fragmenta um mesmo negrito em tags adjacentes.
+    for span in copy.find_all("span"):
+        span.unwrap()
+    for bold in copy.find_all(["strong", "b"]):
+        previous = bold.previous_sibling
+        if isinstance(previous, Tag) and previous.name in {"strong", "b"}:
+            previous.extend(bold.contents)
+            bold.decompose()
     for tag in copy.find_all(href=True):
         href = _safe_url(str(tag["href"]))
         if href is None:

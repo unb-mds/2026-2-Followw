@@ -188,6 +188,11 @@
         @apply bg-background font-sans text-foreground;
     }
 }
+.article {
+    /* Texto longo de leitura, no tom de um post de blog. */
+    @apply text-base leading-7 text-foreground;
+}
+
 .markdown {
     & > * + * {
         @apply mt-3;

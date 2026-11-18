@@ -298,7 +298,7 @@ describe('fluxograma integrado', () => {
         );
         document.body.append(container);
         expect(container.textContent).toContain('Preparando fluxo');
-        expect(container.querySelector('svg[role="img"]')).toBeNull();
+        expect(container.querySelector('svg[aria-label^="Pré-requisitos"]')).toBeNull();
         const router = makeRouter('/cursos/42?subject=A');
         router.ssr = { manifest: undefined };
         await router.load();
@@ -311,7 +311,7 @@ describe('fluxograma integrado', () => {
         );
         await page.findByRole('button', { name: /A, Base, Em curso/ });
         expect(errors).toEqual([]);
-        expect(container.querySelectorAll('svg[role="img"]')).toHaveLength(1);
+        expect(container.querySelectorAll('svg[aria-label^="Pré-requisitos"]')).toHaveLength(1);
     });
     test('acesso direto volta para busca sem depender do histórico', async () => {
         const page = await renderPage();

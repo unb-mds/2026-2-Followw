@@ -126,6 +126,15 @@ a unidade já registrada é mantida. A falha de um componente não derruba a col
 `uv run python packages/sigaa-client/scripts/collect_subjects.py`. Depois execute `uv run db-init`
 em `apps/api/` para carregar o catálogo no banco local.
 
+### Plano de ensino
+
+`await client.classrooms.get_classroom_teaching_plan(classroom_id)` retorna
+`ClassroomTeachingPlan` ou `None` quando o SIGAA informa que a turma não possui plano.
+Metodologia, procedimentos de avaliação e atendimento vêm em Markdown; cronograma,
+avaliações e referências preservam a ordem e as repetições da tela. Datas usam `date`,
+textos vazios são `None` e coleções vazias são tuplas. O relatório do programa do componente
+é outra tela e não faz parte desse resultado.
+
 ### Posts da turma
 
 `await client.classrooms.list_classroom_posts(classroom_id)` reúne notícias, tópicos de aula,

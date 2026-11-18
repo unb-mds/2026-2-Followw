@@ -23,6 +23,7 @@ import { Route as AppCursosIdRouteImport } from './routes/_app/cursos.$id'
 import { Route as AppPerfilSimuladorRouteImport } from './routes/_app/perfil_.simulador'
 import { Route as AppProfessoresSiapeRouteImport } from './routes/_app/professores_.$siape'
 import { Route as AppTurmasIdRouteImport } from './routes/_app/turmas_.$id'
+import { Route as TurmasIdPlanoDeEnsinoRouteImport } from './routes/turmas_.$id_.plano-de-ensino'
 
 const SplatRoute = SplatRouteImport.update({
   id: '/$',
@@ -93,6 +94,11 @@ const AppTurmasIdRoute = AppTurmasIdRouteImport.update({
   path: '/turmas/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const TurmasIdPlanoDeEnsinoRoute = TurmasIdPlanoDeEnsinoRouteImport.update({
+  id: '/turmas_/$id_/plano-de-ensino',
+  path: '/turmas/$id/plano-de-ensino',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/$': typeof SplatRoute
@@ -108,6 +114,7 @@ export interface FileRoutesByFullPath {
   '/perfil/simulador': typeof AppPerfilSimuladorRoute
   '/professores/$siape': typeof AppProfessoresSiapeRoute
   '/turmas/$id': typeof AppTurmasIdRoute
+  '/turmas/$id/plano-de-ensino': typeof TurmasIdPlanoDeEnsinoRoute
 }
 export interface FileRoutesByTo {
   '/$': typeof SplatRoute
@@ -123,6 +130,7 @@ export interface FileRoutesByTo {
   '/perfil/simulador': typeof AppPerfilSimuladorRoute
   '/professores/$siape': typeof AppProfessoresSiapeRoute
   '/turmas/$id': typeof AppTurmasIdRoute
+  '/turmas/$id/plano-de-ensino': typeof TurmasIdPlanoDeEnsinoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -140,6 +148,7 @@ export interface FileRoutesById {
   '/_app/perfil_/simulador': typeof AppPerfilSimuladorRoute
   '/_app/professores_/$siape': typeof AppProfessoresSiapeRoute
   '/_app/turmas_/$id': typeof AppTurmasIdRoute
+  '/turmas_/$id_/plano-de-ensino': typeof TurmasIdPlanoDeEnsinoRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -157,6 +166,7 @@ export interface FileRouteTypes {
     | '/perfil/simulador'
     | '/professores/$siape'
     | '/turmas/$id'
+    | '/turmas/$id/plano-de-ensino'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/$'
@@ -172,6 +182,7 @@ export interface FileRouteTypes {
     | '/perfil/simulador'
     | '/professores/$siape'
     | '/turmas/$id'
+    | '/turmas/$id/plano-de-ensino'
   id:
     | '__root__'
     | '/$'
@@ -188,6 +199,7 @@ export interface FileRouteTypes {
     | '/_app/perfil_/simulador'
     | '/_app/professores_/$siape'
     | '/_app/turmas_/$id'
+    | '/turmas_/$id_/plano-de-ensino'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -196,6 +208,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
   ShareRuDotpngRoute: typeof ShareRuDotpngRoute
+  TurmasIdPlanoDeEnsinoRoute: typeof TurmasIdPlanoDeEnsinoRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -298,6 +311,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTurmasIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/turmas_/$id_/plano-de-ensino': {
+      id: '/turmas_/$id_/plano-de-ensino'
+      path: '/turmas/$id/plano-de-ensino'
+      fullPath: '/turmas/$id/plano-de-ensino'
+      preLoaderRoute: typeof TurmasIdPlanoDeEnsinoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -333,6 +353,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   PrivacidadeRoute: PrivacidadeRoute,
   ShareRuDotpngRoute: ShareRuDotpngRoute,
+  TurmasIdPlanoDeEnsinoRoute: TurmasIdPlanoDeEnsinoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

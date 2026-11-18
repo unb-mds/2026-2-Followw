@@ -109,6 +109,11 @@ class ClassroomRepository:
             Classroom, classroom_id, options=[undefer(Classroom.statistics)]
         )
 
+    async def get_teaching_plan(self, classroom_id: UUID) -> Classroom | None:
+        return await self._session.get(
+            Classroom, classroom_id, options=[undefer(Classroom.teaching_plan)]
+        )
+
     async def get_by_front_end_id(
         self, user_id: UUID, front_end_id: str
     ) -> OwnLink | None:
@@ -288,6 +293,19 @@ class ClassroomRepository:
         classroom = await self._session.get_one(Classroom, classroom_id)
         classroom.statistics = [share.model_dump(mode="json") for share in shares]
         classroom.statistics_synced_at = synced_at
+        await self._session.flush()
+
+    async def save_teaching_plan(
+        self,
+        classroom_id: UUID,
+        plan: sigaa_client.ClassroomTeachingPlan | None,
+        synced_at: datetime,
+    ) -> None:
+        classroom = await self._session.get_one(Classroom, classroom_id)
+        classroom.teaching_plan = (
+            plan.model_dump(mode="json") if plan is not None else None
+        )
+        classroom.teaching_plan_synced_at = synced_at
         await self._session.flush()
 
     async def _own(self, *where: ColumnElement[bool]) -> OwnLink | None:

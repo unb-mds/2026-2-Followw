@@ -158,7 +158,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/ClassroomPost"
+                    "$ref": "#/components/schemas/ClassroomPostView"
                   },
                   "title": "Response Get Classroom Posts Classrooms  Classroom Id  Posts Get"
                 }
@@ -250,7 +250,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ClassroomPost"
+                  "$ref": "#/components/schemas/ClassroomPostView"
                 }
               }
             }
@@ -269,6 +269,158 @@
           },
           "504": {
             "description": "Post ainda não disponível no cache."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/classrooms/{classroom_id}/posts/{post_id}/read": {
+      "put": {
+        "tags": [
+          "Classrooms"
+        ],
+        "summary": "Confirmar a leitura de uma postagem",
+        "description": "Operação individual, idempotente e sem corpo. Consultar ou atualizar uma postagem não altera sua leitura.",
+        "operationId": "mark_post_read_classrooms__classroom_id__posts__post_id__read_put",
+        "parameters": [
+          {
+            "name": "classroom_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Classroom.id ou Classroom.sigaa_id.",
+              "title": "Classroom Id"
+            },
+            "description": "Classroom.id ou Classroom.sigaa_id."
+          },
+          {
+            "name": "post_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^(news:[1-9][0-9]*|assessment:[1-9][0-9]*|topic:[a-f0-9]{64}|material:[a-f0-9]{64})$",
+              "description": "ID do post na listagem da turma.",
+              "title": "Post Id"
+            },
+            "description": "ID do post na listagem da turma."
+          },
+          {
+            "name": "Cache-Control",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente).",
+              "title": "Cache-Control"
+            },
+            "description": "`no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente)."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Credenciais ausentes ou inválidas."
+          },
+          "502": {
+            "description": "SIGAA indisponível."
+          },
+          "404": {
+            "description": "Turma ou post não encontrado."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Classrooms"
+        ],
+        "summary": "Marcar uma postagem como não lida",
+        "description": "Remove somente a leitura do usuário autenticado; repetir a operação não altera o resultado.",
+        "operationId": "mark_post_unread_classrooms__classroom_id__posts__post_id__read_delete",
+        "parameters": [
+          {
+            "name": "classroom_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Classroom.id ou Classroom.sigaa_id.",
+              "title": "Classroom Id"
+            },
+            "description": "Classroom.id ou Classroom.sigaa_id."
+          },
+          {
+            "name": "post_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^(news:[1-9][0-9]*|assessment:[1-9][0-9]*|topic:[a-f0-9]{64}|material:[a-f0-9]{64})$",
+              "description": "ID do post na listagem da turma.",
+              "title": "Post Id"
+            },
+            "description": "ID do post na listagem da turma."
+          },
+          {
+            "name": "Cache-Control",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente).",
+              "title": "Cache-Control"
+            },
+            "description": "`no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente)."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Credenciais ausentes ou inválidas."
+          },
+          "502": {
+            "description": "SIGAA indisponível."
+          },
+          "404": {
+            "description": "Turma ou post não encontrado."
           },
           "422": {
             "description": "Validation Error",
@@ -1800,6 +1952,74 @@
         }
       }
     },
+    "/lessons": {
+      "get": {
+        "tags": [
+          "Lessons"
+        ],
+        "summary": "Consultar aulas da semana",
+        "description": "Domingo a sábado da semana atual, com a situação do aluno em cada aula das turmas atuais.",
+        "operationId": "get_week_lessons_lessons_get",
+        "parameters": [
+          {
+            "name": "Cache-Control",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente).",
+              "title": "Cache-Control"
+            },
+            "description": "`no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LessonDay"
+                  },
+                  "title": "Response Get Week Lessons Lessons Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciais ausentes ou inválidas."
+          },
+          "502": {
+            "description": "SIGAA indisponível."
+          },
+          "404": {
+            "description": "Turma não encontrada entre as turmas do usuário."
+          },
+          "503": {
+            "description": "Cache em atualização."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/me": {
       "get": {
         "tags": [
@@ -2086,6 +2306,121 @@
           },
           "413": {
             "description": "A foto enviada deve ter até 4 MB."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/internships": {
+      "get": {
+        "tags": [
+          "Me"
+        ],
+        "summary": "Listar e buscar ofertas de estágio",
+        "description": "Lista as ofertas de estágio disponíveis no mural do SIGAA. As vagas do curso do aluno vêm primeiro, seguidas pelas demais.",
+        "operationId": "list_internships_me_internships_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Termo para filtrar ofertas de estágio pelo título.",
+              "title": "Q"
+            },
+            "description": "Termo para filtrar ofertas de estágio pelo título."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InternshipItem"
+                  },
+                  "title": "Response List Internships Me Internships Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciais ausentes ou inválidas."
+          },
+          "502": {
+            "description": "SIGAA indisponível."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/internships/{reference}": {
+      "get": {
+        "tags": [
+          "Me"
+        ],
+        "summary": "Consultar detalhes de uma oferta de estágio",
+        "description": "Abre os dados completos da vaga a partir da referência obtida no mural.",
+        "operationId": "get_internship_me_internships__reference__get",
+        "parameters": [
+          {
+            "name": "reference",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Reference"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternshipDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciais ausentes ou inválidas."
+          },
+          "502": {
+            "description": "SIGAA indisponível."
+          },
+          "404": {
+            "description": "Oferta de estágio não encontrada ou mural alterado."
           },
           "422": {
             "description": "Validation Error",
@@ -2544,7 +2879,7 @@
             "$ref": "#/components/schemas/ParticipantClassroom"
           },
           "post": {
-            "$ref": "#/components/schemas/ClassroomPost"
+            "$ref": "#/components/schemas/ClassroomPostView"
           }
         },
         "type": "object",
@@ -2554,7 +2889,7 @@
         ],
         "title": "ClassroomNews"
       },
-      "ClassroomPost": {
+      "ClassroomPostView": {
         "properties": {
           "id": {
             "type": "string",
@@ -2700,15 +3035,21 @@
             "type": "array",
             "title": "Attachments",
             "default": []
+          },
+          "is_read": {
+            "type": "boolean",
+            "title": "Is Read",
+            "description": "O usuário confirmou a leitura da postagem."
           }
         },
         "type": "object",
         "required": [
           "id",
           "type",
-          "title"
+          "title",
+          "is_read"
         ],
-        "title": "ClassroomPost"
+        "title": "ClassroomPostView"
       },
       "ClassroomProgress": {
         "properties": {
@@ -3028,35 +3369,6 @@
         ],
         "title": "CurriculumSubject"
       },
-      "CurriculumWorkload": {
-        "properties": {
-          "total": {
-            "type": "integer",
-            "title": "Total"
-          },
-          "pending_mandatory": {
-            "type": "integer",
-            "title": "Pending Mandatory"
-          },
-          "pending_optional": {
-            "type": "integer",
-            "title": "Pending Optional"
-          },
-          "pending_complementary": {
-            "type": "integer",
-            "title": "Pending Complementary"
-          }
-        },
-        "type": "object",
-        "required": [
-          "total",
-          "pending_mandatory",
-          "pending_optional",
-          "pending_complementary"
-        ],
-        "title": "CurriculumWorkload",
-        "description": "Carga horária do currículo e o que falta integralizar, em horas."
-      },
       "DailyMenu": {
         "properties": {
           "date": {
@@ -3243,6 +3555,269 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "InternshipAttachment": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "url"
+        ],
+        "title": "InternshipAttachment"
+      },
+      "InternshipCourse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          },
+          "degree": {
+            "type": "string",
+            "title": "Degree"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "unit",
+          "degree"
+        ],
+        "title": "InternshipCourse"
+      },
+      "InternshipDetail": {
+        "properties": {
+          "sigaa_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sigaa Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "vacancies": {
+            "type": "integer",
+            "title": "Vacancies"
+          },
+          "stipend": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stipend"
+          },
+          "transport_allowance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InternshipTransportAllowance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "published_from": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Published From"
+          },
+          "published_until": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Published Until"
+          },
+          "sigaa_enrollment": {
+            "type": "boolean",
+            "title": "Sigaa Enrollment"
+          },
+          "attachment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InternshipAttachment"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "grantor": {
+            "$ref": "#/components/schemas/InternshipGrantor"
+          },
+          "courses": {
+            "items": {
+              "$ref": "#/components/schemas/InternshipCourse"
+            },
+            "type": "array",
+            "title": "Courses"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "reference": {
+            "type": "string",
+            "title": "Reference"
+          },
+          "is_my_course": {
+            "type": "boolean",
+            "title": "Is My Course"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "vacancies",
+          "stipend",
+          "transport_allowance",
+          "published_from",
+          "published_until",
+          "sigaa_enrollment",
+          "attachment",
+          "grantor",
+          "courses",
+          "description",
+          "reference",
+          "is_my_course"
+        ],
+        "title": "InternshipDetail",
+        "description": "Detalhes completos de uma oferta de estágio."
+      },
+      "InternshipGrantor": {
+        "properties": {
+          "agreement_type": {
+            "type": "string",
+            "title": "Agreement Type"
+          },
+          "cnpj": {
+            "type": "string",
+            "title": "Cnpj"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "responsibles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Responsibles"
+          }
+        },
+        "type": "object",
+        "required": [
+          "agreement_type",
+          "cnpj",
+          "name",
+          "responsibles"
+        ],
+        "title": "InternshipGrantor"
+      },
+      "InternshipItem": {
+        "properties": {
+          "reference": {
+            "type": "string",
+            "title": "Reference"
+          },
+          "sigaa_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sigaa Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "vacancies": {
+            "type": "integer",
+            "title": "Vacancies"
+          },
+          "stipend": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stipend"
+          },
+          "published_until": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Published Until"
+          },
+          "is_my_course": {
+            "type": "boolean",
+            "title": "Is My Course"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reference",
+          "title",
+          "vacancies",
+          "stipend",
+          "published_until",
+          "is_my_course"
+        ],
+        "title": "InternshipItem",
+        "description": "Resumo de uma vaga de estágio no mural."
+      },
+      "InternshipTransportAllowance": {
+        "properties": {
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period"
+          }
+        },
+        "type": "object",
+        "required": [
+          "amount",
+          "period"
+        ],
+        "title": "InternshipTransportAllowance"
+      },
       "LatestNewsFeed": {
         "properties": {
           "items": {
@@ -3324,6 +3899,69 @@
         ],
         "title": "Lesson",
         "description": "Uma aula; sem horário quando o SIGAA a publicou numa turma sem horário."
+      },
+      "LessonClassroom": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "subject": {
+            "$ref": "#/components/schemas/UserSubject"
+          },
+          "room": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Room"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "subject",
+          "room"
+        ],
+        "title": "LessonClassroom"
+      },
+      "LessonDay": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "no_class_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "No Class Reason"
+          },
+          "lessons": {
+            "items": {
+              "$ref": "#/components/schemas/WeekLesson"
+            },
+            "type": "array",
+            "title": "Lessons"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "no_class_reason",
+          "lessons"
+        ],
+        "title": "LessonDay"
       },
       "LessonMark": {
         "properties": {
@@ -3526,7 +4164,7 @@
             "default": false
           },
           "subject": {
-            "$ref": "#/components/schemas/UserSubject"
+            "$ref": "#/components/schemas/ParticipantSubject"
           },
           "grade": {
             "anyOf": [
@@ -3558,6 +4196,61 @@
         ],
         "title": "ParticipantClassroom",
         "description": "A turma com a menção do usuário, `None` enquanto não lançada ou sincronizada."
+      },
+      "ParticipantSubject": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "hours": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hours"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UnitRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "mandatory",
+                  "optional",
+                  "free"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "name"
+        ],
+        "title": "ParticipantSubject"
       },
       "PostType": {
         "type": "string",
@@ -4622,6 +5315,20 @@
             ],
             "title": "Entry Semester"
           },
+          "curriculum_subject_codes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Curriculum Subject Codes"
+          },
           "integralization": {
             "anyOf": [
               {
@@ -4636,7 +5343,7 @@
           "workload": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/CurriculumWorkload"
+                "$ref": "#/components/schemas/Workload"
               },
               {
                 "type": "null"
@@ -4815,6 +5522,121 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "WeekLesson": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "start_time": {
+            "type": "string",
+            "format": "time",
+            "title": "Start Time"
+          },
+          "end_time": {
+            "type": "string",
+            "format": "time",
+            "title": "End Time"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LessonStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "marked": {
+            "type": "boolean",
+            "title": "Marked"
+          },
+          "scheduled": {
+            "type": "boolean",
+            "title": "Scheduled"
+          },
+          "classroom": {
+            "$ref": "#/components/schemas/LessonClassroom"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "start_time",
+          "end_time",
+          "status",
+          "marked",
+          "scheduled",
+          "classroom"
+        ],
+        "title": "WeekLesson"
+      },
+      "Workload": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "pending_mandatory": {
+            "type": "integer",
+            "title": "Pending Mandatory"
+          },
+          "pending_optional": {
+            "type": "integer",
+            "title": "Pending Optional"
+          },
+          "pending_complementary": {
+            "type": "integer",
+            "title": "Pending Complementary"
+          },
+          "mandatory": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mandatory"
+          },
+          "optional": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Optional"
+          },
+          "complementary": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Complementary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "pending_mandatory",
+          "pending_optional",
+          "pending_complementary",
+          "mandatory",
+          "optional",
+          "complementary"
+        ],
+        "title": "Workload"
       }
     }
   },
@@ -4826,6 +5648,10 @@
     {
       "name": "Classrooms",
       "description": "Turmas, participantes, frequência e resultados acadêmicos."
+    },
+    {
+      "name": "Lessons",
+      "description": "Aulas da semana com a situação do aluno."
     },
     {
       "name": "Me",
@@ -4883,6 +5709,7 @@
       "tags": [
         "Auth",
         "Classrooms",
+        "Lessons",
         "Me",
         "Posts"
       ]

@@ -8,12 +8,11 @@ from PIL import Image
 from sigaa_client import StudentSituation
 from sigaa_client.exceptions import SigaaParseError
 from sigaa_client.private.classrooms import (
-    _GLYPHS,
     _chart_source,
-    _legend_percentages,
     _open_statistics,
     _parse_statistics,
 )
+from sigaa_client.private.statistics_chart import _GLYPHS, legend_percentages
 
 from ...fakes import FakeSession
 
@@ -129,13 +128,13 @@ async def test_estatisticas_abre_pelo_postback_do_menu():
 def test_le_as_porcentagens_na_ordem_da_legenda():
     png = _render_legend(["(56.8%)", "(33.3%)", "(0.0%)", "(9.9%)"])
 
-    assert _legend_percentages(png) == (56.8, 33.3, 0.0, 9.9)
+    assert legend_percentages(png) == (56.8, 33.3, 0.0, 9.9)
 
 
 def test_le_item_que_ocupa_a_linha_inteira():
     png = _render_legend(["(100.0%)"], columns=1)
 
-    assert _legend_percentages(png) == (100.0,)
+    assert legend_percentages(png) == (100.0,)
 
 
 def test_item_sem_porcentagem_e_barulhento():
@@ -150,7 +149,7 @@ def test_item_sem_porcentagem_e_barulhento():
     image.save(buffer, format="PNG")
 
     with pytest.raises(SigaaParseError):
-        _legend_percentages(buffer.getvalue())
+        legend_percentages(buffer.getvalue())
 
 
 def test_imagem_sem_legenda_e_barulhenta():
@@ -158,4 +157,4 @@ def test_imagem_sem_legenda_e_barulhenta():
     Image.new("RGB", (650, 400), (192, 192, 192)).save(buffer, format="PNG")
 
     with pytest.raises(SigaaParseError):
-        _legend_percentages(buffer.getvalue())
+        legend_percentages(buffer.getvalue())

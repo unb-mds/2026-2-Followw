@@ -19,6 +19,7 @@ import { ClassroomPosts } from '#/components/classroom/ClassroomPosts';
 import { ClassroomStatistics } from '#/components/classroom/ClassroomStatistics';
 import { ClassroomSummary } from '#/components/classroom/ClassroomSummary';
 import { FrequencyContent } from '#/components/classroom/FrequencyContent';
+import { TeachingPlanLink } from '#/components/classroom/TeachingPlanLink';
 import {
     ErrorCard,
     ErrorState,
@@ -129,6 +130,8 @@ function ClassroomPage() {
                         onValueChange={(value: ClassroomTab) => void setSearch({ tab: value })}
                         className="mt-5 min-w-0 gap-4 lg:mt-0"
                     >
+                        {/* Sem leitura do plano ainda, a página dele consulta o SIGAA. */}
+                        {classroom.has_teaching_plan !== false && <TeachingPlanLink id={id} />}
                         <TabsList
                             variant="line"
                             className="grid w-full grid-cols-3 border-b border-border group-data-horizontal/tabs:h-auto"
