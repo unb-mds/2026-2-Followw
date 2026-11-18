@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api import academic_calendar
-from api.cache import freshness
+from api.cache import Freshness, freshness
 from api.db.enums import LessonStatus
 from api.db.models import OwnLink
 from api.modules.classrooms.lessons import (
@@ -24,6 +24,10 @@ from api.modules.classrooms.service import (
     to_classroom,
 )
 from api.sync import Cached, Context, SyncDep
+
+
+def frequency_freshness(link: OwnLink, synced_at: datetime | None) -> Freshness:
+    return freshness(synced_at, details_ttl(link))
 
 
 async def sync_frequency(ctx: Context[OwnLink]) -> None:
@@ -114,7 +118,7 @@ class FrequencyService:
             if saved is None:
                 return None
             summary, synced_at = saved
-            return Cached(summary, synced_at, freshness(synced_at, details_ttl(link)))
+            return Cached(summary, synced_at, frequency_freshness(link, synced_at))
 
         return await self._sync.resolve(sync_frequency, link, load)
 

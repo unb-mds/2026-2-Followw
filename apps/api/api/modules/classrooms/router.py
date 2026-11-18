@@ -56,7 +56,7 @@ def _unique_lessons(marks: list[LessonMark]) -> list[LessonMark]:
     "/{classroom_id}/teaching-plan",
     response_model=ClassroomTeachingPlan | None,
     summary="Consultar plano de ensino da turma",
-    description="Metodologia, avaliação, atendimento, cronograma e referências. Textos formatados em Markdown; null quando o SIGAA informa que não há plano cadastrado. Lido uma vez por turma, sem revalidação.",
+    description="Metodologia, avaliação, atendimento, cronograma e referências.",
     responses={
         **CLASSROOM_ERRORS,
         503: {"description": "Cache em atualização."},

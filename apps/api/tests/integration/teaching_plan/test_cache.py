@@ -28,7 +28,7 @@ def test_cache_de_plano_ou_ausencia_e_compartilhado_pelos_identificadores(
 
 
 @pytest.mark.parametrize("plan", [PLAN, None])
-def test_plano_ou_ausencia_nunca_revalida(
+def test_plano_ou_ausencia_nao_vence_por_tempo(
     logged, teaching_sigaa, database, qstash, plan
 ):
     fetch = teaching_sigaa.classrooms.get_classroom_teaching_plan
@@ -39,12 +39,22 @@ def test_plano_ou_ausencia_nunca_revalida(
         classroom.teaching_plan_synced_at = datetime.now(UTC) - timedelta(days=365)
         session.commit()
     fetch.return_value = PLAN.model_copy(update={"office_hours": "Às terças."})
-    for headers in ({}, {"Cache-Control": "no-cache"}, {"Cache-Control": "max-age=0"}):
-        response = logged.get(PATH, headers=headers)
-        assert response.status_code == 200
-        assert response.json() == first.json()
+    response = logged.get(PATH)
+    assert response.status_code == 200
+    assert response.json() == first.json()
     fetch.assert_awaited_once()
     assert qstash.published == []
+
+
+def test_no_cache_revalida_o_plano_ausente(logged, teaching_sigaa):
+    fetch = teaching_sigaa.classrooms.get_classroom_teaching_plan
+    fetch.return_value = None
+    assert logged.get(PATH).json() is None
+    fetch.return_value = PLAN
+    response = logged.get(PATH, headers={"Cache-Control": "no-cache"})
+    assert response.status_code == 200
+    assert response.json() == PLAN.model_dump(mode="json")
+    assert fetch.await_count == 2
 
 
 def test_falha_na_primeira_leitura_nao_grava_cache(logged, teaching_sigaa):

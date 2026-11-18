@@ -63,6 +63,11 @@ def statistics_freshness(synced_at: datetime | None) -> Freshness:
     return freshness(synced_at, None)
 
 
+def teaching_plan_freshness(synced_at: datetime | None) -> Freshness:
+    # Só `no-cache` revalida: o plano não vence por tempo.
+    return freshness(synced_at, None)
+
+
 def grades_freshness(synced_at: datetime | None) -> Freshness:
     # Não congela: a menção pode chegar ao relatório depois da consolidação.
     return freshness(synced_at, DETAILS_TTL)
@@ -79,7 +84,11 @@ def stale_classroom_tasks(link: OwnLink) -> list[Task[OwnLink]]:
         and statistics_freshness(classroom.statistics_synced_at) is Freshness.STALE
     ):
         stale.append(sync_statistics)
-    if link.row.current and classroom.teaching_plan_synced_at is None:
+    if (
+        link.row.current
+        and teaching_plan_freshness(classroom.teaching_plan_synced_at)
+        is Freshness.STALE
+    ):
         stale.append(sync_teaching_plan)
     return stale
 
@@ -268,7 +277,6 @@ class ClassroomService:
     async def get_teaching_plan(
         self, classroom_id: str
     ) -> ClassroomTeachingPlan | None:
-        """Lido uma vez por turma: nem `no-cache` revalida."""
         link = await self.get_link(classroom_id)
 
         async def load(
@@ -285,7 +293,7 @@ class ClassroomService:
                 if plan is not None
                 else None,
                 classroom.teaching_plan_synced_at,
-                Freshness.FROZEN,
+                teaching_plan_freshness(classroom.teaching_plan_synced_at),
             )
 
         return await self._sync.resolve(sync_teaching_plan, link, load)

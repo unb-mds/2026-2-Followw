@@ -8,12 +8,12 @@ from fastapi import Depends
 from pydantic import BaseModel, ConfigDict
 
 from api import academic_calendar
-from api.cache import Freshness, freshness
+from api.cache import Freshness
 from api.db.enums import ClassroomRole, LessonStatus
 from api.db.models import OwnLink
-from api.modules.classrooms.frequency import sync_frequency
+from api.modules.classrooms.frequency import frequency_freshness, sync_frequency
 from api.modules.classrooms.repository import FrequencyRepository
-from api.modules.classrooms.service import ClassroomServiceDep, details_ttl
+from api.modules.classrooms.service import ClassroomServiceDep
 from api.schemas import UserSubject
 from api.sync import SyncDep
 
@@ -113,7 +113,7 @@ def _student(link: OwnLink) -> bool:
 
 def _frequency_stale(link: OwnLink) -> bool:
     synced_at = link.row.frequency_synced_at
-    return freshness(synced_at, details_ttl(link)) is Freshness.STALE
+    return frequency_freshness(link, synced_at) is Freshness.STALE
 
 
 def _classroom(link: OwnLink) -> LessonClassroom:

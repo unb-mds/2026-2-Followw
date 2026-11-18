@@ -38,6 +38,11 @@ class Ranking(NamedTuple):
     curriculum: dict[str, Component]
 
 
+def past_grades_freshness() -> Freshness:
+    # Sem turma atual não há menção nova a esperar.
+    return Freshness.FROZEN
+
+
 class Student(NamedTuple):
     user_id: UUID
     unit_id: int | None
@@ -90,7 +95,9 @@ class RecommendationService:
                 if not current:
                     if user is None or user.classrooms_synced_at is None:
                         return None
-                    return Cached(True, user.classrooms_synced_at, Freshness.FROZEN)
+                    return Cached(
+                        True, user.classrooms_synced_at, past_grades_freshness()
+                    )
                 if user is None or user.grades_synced_at is None:
                     return None
                 return Cached(
