@@ -43,15 +43,13 @@ def _pdf(*pages):
     return output.getvalue()
 
 
-async def test_le_matriz_e_componentes_cumpridos_em_multiplas_paginas(monkeypatch):
+async def test_le_componentes_cump_em_multiplas_paginas(monkeypatch):
     pdf = _pdf(
         [
             "Matrícula: 251000000",
-            "Currículo: 100/-2 - 2024.1",
             "Componentes Curriculares Cursados/Cursando",
             "2024.1 * MAT0001 Álgebra 60 01 80,0 MM APR",
             "-- # MAT0002 Geometria 60 -- -- -- CUMP",
-            "2024.2 MAT0001 Álgebra 60 01 20,0 SR REPF",
             "2024.2 MAT0003 Cálculo 60 01 80,0 -- MATR",
         ],
         [
@@ -59,27 +57,27 @@ async def test_le_matriz_e_componentes_cumpridos_em_multiplas_paginas(monkeypatc
             "MAT0004 Estatística 60 -- -- -- DISP",
             "MAT0005 Lógica 60 -- -- -- CUMP",
             "Legenda",
-            "Componentes Curriculares Obrigatórios Pendentes: 1",
-            "MAT0006 MATÉRIA PENDENTE 60h",
-            "Equivalências:",
-            "Cumpriu MAT0005 - LÓGICA (60h) através de",
-            "MAT0001 - ÁLGEBRA (60h)",
-            "Observações:",
-            "Cumpriu MAT0006 - PENDENTE através de MAT0001 em uma simulação.",
+            "MAT0006 Fora da tabela 60 -- -- -- CUMP",
         ],
     )
     monkeypatch.setattr(Documents, "get_transcript_pdf", AsyncMock(return_value=pdf))
 
-    result = await Documents(AsyncMock()).get_transcript()
+    result = await Documents(AsyncMock()).get_completed_subjects("251000000")
 
-    assert result.registration == "251000000"
-    assert result.curriculum_code == "100/-2"
-    assert result.completed == {
-        "MAT0001": "approved",
-        "MAT0002": "credit",
-        "MAT0004": "waived",
-        "MAT0005": "equivalence",
-    }
+    assert result == {"MAT0002", "MAT0005"}
+
+
+async def test_rejeita_historico_de_outra_matricula(monkeypatch):
+    pdf = _pdf(
+        [
+            "Matrícula: 251000000",
+            "Componentes Curriculares Cursados/Cursando",
+            "-- # MAT0002 Geometria 60 -- -- -- CUMP",
+        ]
+    )
+    monkeypatch.setattr(Documents, "get_transcript_pdf", AsyncMock(return_value=pdf))
+    with pytest.raises(SigaaParseError, match="não confere"):
+        await Documents(AsyncMock()).get_completed_subjects("999999999")
 
 
 async def test_rejeita_pdf_sem_estrutura_do_historico(monkeypatch):
@@ -89,4 +87,4 @@ async def test_rejeita_pdf_sem_estrutura_do_historico(monkeypatch):
         AsyncMock(return_value=_pdf(["Outro documento"])),
     )
     with pytest.raises(SigaaParseError, match="histórico acadêmico"):
-        await Documents(AsyncMock()).get_transcript()
+        await Documents(AsyncMock()).get_completed_subjects("251000000")

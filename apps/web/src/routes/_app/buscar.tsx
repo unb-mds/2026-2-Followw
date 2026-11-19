@@ -19,12 +19,13 @@ import {
 } from '@followw/core/queries/recommendations.ts';
 import { searchQueryOptions } from '@followw/core/queries/search.ts';
 import {
-    takenCodes,
+    approvedCodes,
     currentCurriculumPeriod,
     SEARCH_MAX_LENGTH,
     SEARCH_MIN_LENGTH,
     searchText,
-    subjectsQueryOptions
+    subjectsQueryOptions,
+    takenCodes
 } from '@followw/core/queries/subjects.ts';
 import { environmentManager, noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
@@ -146,7 +147,11 @@ function BuscarPage() {
         ...allClassroomsQueryOptions,
         enabled: subjects && Boolean(user)
     });
-    const taken = useMemo(() => (history ? takenCodes(history) : null), [history]);
+    const completed = user?.completed_subjects;
+    const taken = useMemo(
+        () => (history ? takenCodes(history, approvedCodes(history, completed)) : null),
+        [history, completed]
+    );
     const desktop = useDesktop();
     const entrance = useEntrance();
     return (
@@ -202,11 +207,7 @@ function BuscarPage() {
                     </p>
                 )}
                 {view?.kind === 'recommendations' && (
-                    <RecommendationsSection
-                        currentPeriod={currentPeriod}
-                        taken={taken}
-                        completedSubjects={user?.completed_subjects}
-                    />
+                    <RecommendationsSection currentPeriod={currentPeriod} taken={taken} />
                 )}
                 {view?.kind === 'search' && (
                     <SearchResults

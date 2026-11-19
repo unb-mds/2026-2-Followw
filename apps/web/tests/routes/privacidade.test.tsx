@@ -57,6 +57,12 @@ describe('privacidade e termos', () => {
         }
     );
 
+    test('o botão de voltar mostra apenas "Voltar"', async () => {
+        const markup = await renderPage('/privacidade');
+        expect(markup).toMatch(/<\/svg>Voltar<\/a>/);
+        expect(markup).not.toContain('Voltar ao login');
+    });
+
     test('explica retenção, credenciais, análise de uso e exclusão sem prometer bloqueio de novas coletas', async () => {
         const markup = await renderPage('/privacidade');
         expect(markup).toContain('prazo automático de exclusão');

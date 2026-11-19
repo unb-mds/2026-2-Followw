@@ -1,15 +1,13 @@
 from collections import defaultdict
-from collections.abc import Set as AbstractSet
 from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from api.modules.public_courses.service import in_force, revision
+from api.modules.public_courses.service import by_shift, in_force, revision
 from api.schemas import normalize
 
 _KIND_ORDER = {"required": 0, "optional": 1, "complementary": 2}
-_SHIFTS = {"DIURNO": "D", "NOTURNO": "N"}
 type Rules = list[list[str]] | None
 
 
@@ -70,29 +68,11 @@ def satisfies(rules: Rules, approved: set[str]) -> bool:
     )
 
 
-def equivalent_codes(
-    catalog: dict[str, CatalogSubject], completed: set[str]
-) -> set[str]:
-    return {
-        code
-        for code, subject in catalog.items()
-        if any(
-            group and satisfies([group], completed)
-            for group in subject.equivalences or []
-        )
-    }
-
-
 def select_curriculum(
     options: list[CurriculumInfo], entry: str, shift: str | None
 ) -> CurriculumInfo | None:
     """A matriz vigente no semestre de entrada, do turno do curso."""
-    shift = _SHIFTS.get(shift, shift)
-    if shift:
-        options = [c for c in options if c.shift == shift] or [
-            c for c in options if c.shift is None
-        ]
-    return max(in_force(options, entry), key=revision, default=None)
+    return max(in_force(by_shift(options, shift), entry), key=revision, default=None)
 
 
 def components_by_code(components: list[Component]) -> dict[str, Component]:
@@ -215,7 +195,6 @@ def rank(
     enrolled: set[str],
     unresolved: set[str],
     unit_id: int | None,
-    recognized_equivalences: AbstractSet[str] = frozenset(),
 ) -> list[Recommendation]:
     """As ofertadas que o aluno pode cursar, da mais à menos prioritária.
 
@@ -223,7 +202,14 @@ def rank(
     Fora da matriz é módulo livre, então sem matriz nada é recomendado.
     """
     assumed = completed | enrolled | unresolved
-    done = assumed | recognized_equivalences | equivalent_codes(catalog, assumed)
+    done = assumed | {
+        code
+        for code, subject in catalog.items()
+        if any(
+            group and satisfies([group], assumed)
+            for group in subject.equivalences or []
+        )
+    }
     target = target_period(curriculum, done, enrolled)
     dependents = dependency_graph(
         {

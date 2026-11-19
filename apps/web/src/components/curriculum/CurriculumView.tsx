@@ -1,5 +1,3 @@
-import type { CompletedSubjects } from '@followw/core/lib/curriculum/types.ts';
-
 import {
     academicState,
     initialMobilePeriod,
@@ -11,7 +9,6 @@ import { ApiError } from '@followw/core/queries/errors.ts';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
-import { CompletedCredits } from '#/components/curriculum/CompletedCredits';
 import { DesktopDiagram, MobileDiagram } from '#/components/curriculum/Diagram';
 import { LoadingText } from '#/components/LoadingText';
 import { QueryState } from '#/components/QueryState';
@@ -19,7 +16,6 @@ import { QueryState } from '#/components/QueryState';
 export function CurriculumView({
     courseId,
     entrySemester,
-    curriculumId,
     completedSubjects,
     currentPeriod,
     selected,
@@ -28,9 +24,8 @@ export function CurriculumView({
     desktop
 }: {
     courseId: number;
-    entrySemester?: string | null;
-    curriculumId?: number | null;
-    completedSubjects?: CompletedSubjects | null;
+    entrySemester: string;
+    completedSubjects?: string[];
     currentPeriod: number | null;
     selected?: string;
     ownCourse: boolean;
@@ -38,7 +33,7 @@ export function CurriculumView({
     // nulo até medir a tela, para o SSR não escolher um diagrama
     desktop: boolean | null;
 }) {
-    const matrix = useQuery(curriculumQueryOptions(courseId, entrySemester, curriculumId));
+    const matrix = useQuery(curriculumQueryOptions(courseId, entrySemester));
     const history = useQuery({ ...allClassroomsQueryOptions, enabled: loggedIn });
     const state = useMemo(
         () =>
@@ -68,8 +63,8 @@ export function CurriculumView({
                 {model && loggedIn && (
                     <QueryState
                         query={history}
-                        loading="Carregando turmas cursadas..."
-                        error="Não foi possível carregar as turmas cursadas."
+                        loading="Carregando histórico; estados acadêmicos ainda indisponíveis..."
+                        error="Histórico indisponível. Os estados acadêmicos não puderam ser determinados."
                         stale="Não foi possível atualizar o histórico. Exibindo os estados salvos."
                     />
                 )}
@@ -80,9 +75,6 @@ export function CurriculumView({
                     <output>
                         A matéria {selected} não pertence aos períodos exibidos desta matriz.
                     </output>
-                )}
-                {model && (
-                    <CompletedCredits completedSubjects={completedSubjects} shown={model.byCode} />
                 )}
                 {model && model.subjects.length === 0 && (
                     <p>Nenhuma disciplina nos períodos regulares desta matriz.</p>
@@ -97,7 +89,7 @@ export function CurriculumView({
                     <DesktopDiagram model={model} selected={selected} state={state} />
                 ) : (
                     <MobileDiagram
-                        key={`${courseId}:${matrix.data?.sigaa_id}:${selected}:${initialPeriod}`}
+                        key={`${courseId}:${entrySemester}:${selected}:${initialPeriod}`}
                         model={model}
                         selected={selected}
                         state={state}

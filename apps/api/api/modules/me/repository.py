@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from sigaa_client import AcademicTranscript, UserProfile
+from sigaa_client import UserProfile
 from sqlalchemy import delete, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -51,7 +51,6 @@ class UserRepository:
         login: str | None = None,
         *,
         replace_photo: bool = False,
-        transcript: AcademicTranscript | None = None,
     ) -> User:
         """Grava o perfil na conta do `login`, assumindo o usuário sombra da matrícula."""
         login = login or profile.registration
@@ -94,6 +93,7 @@ class UserRepository:
         changed_enrollment = changed_registration or course_id != user.course_id
         if changed_enrollment:
             user.curriculum_id = None
+            user.transcript_synced_at = None
         user.course_id = course_id
         user.entry_semester = profile.entry_semester
         user.integralization = profile.integralization
@@ -102,21 +102,10 @@ class UserRepository:
         user.mp = profile.mp
         user.level = UserLevel(profile.level.value)
         user.profile_synced_at = synced_at
+        await self._infer_curriculum(user)
         await self._session.flush()
-
-        transcripts = TranscriptRepository(self._session)
         if changed_enrollment:
-            await transcripts.clear(user.id)
-        if transcript is not None:
-            await transcripts.save(user.id, transcript)
-            official = transcript.curriculum_code
-        else:
-            official = await transcripts.curriculum_code(user.id)
-        if official is not None:
-            user.curriculum_id = await transcripts.match_curriculum(course_id, official)
-        else:
-            await self._infer_curriculum(user)
-        await self._session.flush()
+            await TranscriptRepository(self._session).clear(user.id)
 
         return user
 

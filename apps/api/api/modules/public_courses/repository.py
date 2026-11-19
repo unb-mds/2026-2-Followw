@@ -39,13 +39,6 @@ class PublicCourseRepository:
             )
         )
 
-    async def get_curriculum(self, course_id: int, sigaa_id: int) -> Curriculum | None:
-        return await self._session.scalar(
-            select(Curriculum).where(
-                Curriculum.course_id == course_id, Curriculum.sigaa_id == sigaa_id
-            )
-        )
-
     async def list_components(
         self, curriculum_id: uuid.UUID
     ) -> list[tuple[CurriculumComponent, Subject | None]]:

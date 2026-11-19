@@ -349,7 +349,9 @@ def stub_sigaa(monkeypatch):
         logout=AsyncMock(),
         aclose=AsyncMock(),
         documents=SimpleNamespace(
-            get_transcript=AsyncMock(side_effect=DocumentUnavailable("Sem histórico")),
+            get_completed_subjects=AsyncMock(
+                side_effect=DocumentUnavailable("Sem histórico")
+            ),
         ),
         profile=SimpleNamespace(
             get_profile=AsyncMock(

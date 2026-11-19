@@ -1,21 +1,12 @@
 import type { Classroom } from '../../queries/classrooms.ts';
 import type { CourseCurriculum } from '../../queries/curriculum.ts';
-import type {
-    AcademicState,
-    CompletedSubjects,
-    CurriculumModel,
-    FlowEdge,
-    FlowSubject
-} from './types.ts';
+import type { AcademicState, CurriculumModel, FlowEdge, FlowSubject } from './types.ts';
 
 import { approvedCodes, covered, takenCodes } from '../../queries/subjects.ts';
 import { curriculumEdges, unlockedSubjects } from './relations.ts';
 
 export const stateLabels: Record<AcademicState, string> = {
     completed: 'Concluída',
-    credit: 'Aproveitamento',
-    waived: 'Dispensa',
-    equivalence: 'Equivalência',
     enrolled: 'Em curso',
     overdue: 'Atrasada',
     pending: 'Pendente',
@@ -54,15 +45,12 @@ export function normalizeCurriculum(curriculum: CourseCurriculum): CurriculumMod
 export function academicState(
     history: Classroom[] | undefined,
     currentPeriod: number | null,
-    completed?: CompletedSubjects | null
+    completed: readonly string[] | undefined
 ): (subject: FlowSubject) => AcademicState {
-    const approved = approvedCodes(history ?? []);
+    const approved = approvedCodes(history ?? [], completed);
     const taken = takenCodes(history ?? [], approved);
     return (subject) => {
-        const kind = completed?.[subject.code];
-        if (kind) return kind === 'approved' ? 'completed' : kind;
-        if (approved.has(subject.code)) return 'completed';
-        if (covered(approved, subject)) return 'equivalence';
+        if (covered(approved, subject)) return 'completed';
         if (!history) return 'unknown';
         if (covered(taken, subject)) return 'enrolled';
         if (currentPeriod !== null && subject.period <= currentPeriod) return 'overdue';

@@ -13,42 +13,30 @@ import {
     frequencyTone
 } from '@followw/core/lib/classroom-details.ts';
 import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
-import { CalendarDays, CircleCheck, CircleDashed, CircleSlash, CircleX, List } from 'lucide-react';
+import { CalendarDays, List } from 'lucide-react';
 import { useRef, useState } from 'react';
 
 import { LessonCalendar } from '#/components/classroom/LessonCalendar';
+import {
+    LESSON_VIEW,
+    LessonMenuContent,
+    selectable,
+    type MarkLessons
+} from '#/components/classroom/LessonMenu';
 import { ListCard, Meter } from '#/components/ListCard';
 import { SelectionBar } from '#/components/SelectionBar';
 import { Button } from '#/components/ui/button';
 import { Card } from '#/components/ui/card';
 import { Checkbox } from '#/components/ui/checkbox';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger
-} from '#/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuTrigger } from '#/components/ui/dropdown-menu';
 import { ToggleGroup, ToggleGroupItem } from '#/components/ui/toggle-group';
 import { cn } from '#/lib/shadcn';
-
-export type MarkLessons = (lessons: Lesson[], status: LessonMarkStatus | null) => void;
 
 const FREQUENCY_TONE = {
     ok: undefined,
     warning: 'text-warning',
     danger: 'text-destructive'
 } as const;
-
-const LESSON_VIEW = {
-    presente: { icon: CircleCheck, color: 'text-primary', name: 'Presença' },
-    falta: { icon: CircleX, color: 'text-destructive', name: 'Falta' },
-    nao_registrada: { icon: CircleDashed, color: 'text-muted-foreground', name: 'Não registrada' },
-    cancelada: { icon: CircleSlash, color: 'text-muted-foreground', name: 'Aula cancelada' }
-} as const;
-
-// Marcações que o aluno pode dar a uma aula sem chamada no SIGAA.
-const MARKS: LessonMarkStatus[] = ['presente', 'falta', 'cancelada'];
 
 // Aviso no fim da lista de aulas enquanto a frequência não está toda registrada.
 const FREQUENCY_NOTICE: Partial<Record<ClassroomFrequency['frequency_status'], string>> = {
@@ -145,7 +133,7 @@ export function FrequencyContent({
                     )}
                     {view === 'calendar' && lessons.length > 0 ? (
                         <div className="flex flex-col gap-2">
-                            <LessonCalendar lessons={lessons} />
+                            <LessonCalendar lessons={lessons} onMark={onMark} pending={pending} />
                             {notice && (
                                 <p className="px-1 text-center text-sm text-muted-foreground">
                                     {notice}
@@ -301,8 +289,6 @@ function LessonsProgress({ data }: { data: ClassroomFrequency }) {
     );
 }
 
-const selectable = (lesson: Lesson) => !lesson.marked && lesson.status === 'nao_registrada';
-
 function LessonRow({
     lesson,
     onMark,
@@ -347,7 +333,7 @@ function LessonRow({
                     >
                         <view.icon className={cn('size-4', view.color)} aria-hidden />
                     </DropdownMenuTrigger>
-                    <LessonMenuContent lesson={lesson} onMark={onMark} />
+                    <LessonMenuContent lessons={[lesson]} onMark={onMark} />
                 </DropdownMenu>
             ) : (
                 <view.icon className={cn('size-4 shrink-0', view.color)} aria-hidden />
@@ -429,45 +415,8 @@ function SelectableLesson({
                     className="rounded-full"
                 />
             </span>
-            <LessonMenuContent lesson={lesson} onMark={onMark} anchor={anchor} />
+            <LessonMenuContent lessons={[lesson]} onMark={onMark} anchor={anchor} />
         </DropdownMenu>
-    );
-}
-
-function LessonMenuContent({
-    lesson,
-    onMark,
-    anchor
-}: {
-    lesson: Lesson;
-    onMark: MarkLessons;
-    anchor?: React.RefObject<Element | null>;
-}) {
-    return (
-        <DropdownMenuContent className="w-44" anchor={anchor}>
-            {MARKS.map((mark) => {
-                const option = LESSON_VIEW[mark];
-                return (
-                    <DropdownMenuItem
-                        key={mark}
-                        disabled={lesson.marked && lesson.status === mark}
-                        onClick={() => onMark([lesson], mark)}
-                    >
-                        <option.icon className={option.color} />
-                        {option.name}
-                    </DropdownMenuItem>
-                );
-            })}
-            {lesson.marked && (
-                <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => onMark([lesson], null)}>
-                        <CircleDashed />
-                        Remover marcação
-                    </DropdownMenuItem>
-                </>
-            )}
-        </DropdownMenuContent>
     );
 }
 

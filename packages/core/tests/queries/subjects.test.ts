@@ -107,15 +107,21 @@ describe('pré-requisitos', () => {
         expect(covered(null, { code: 'B', equivalences })).toBe(false);
     });
     test('aprovado só com SS, MS ou MM em turma encerrada', () => {
-        const approved = approvedCodes([
-            history('A', 'SS'),
-            history('B', 'MM'),
-            history('C', 'MI'),
-            history('D', 'SR'),
-            history('E', 'SS', true),
-            history('F', null)
-        ]);
+        const approved = approvedCodes(
+            [
+                history('A', 'SS'),
+                history('B', 'MM'),
+                history('C', 'MI'),
+                history('D', 'SR'),
+                history('E', 'SS', true),
+                history('F', null)
+            ],
+            undefined
+        );
         expect([...approved]).toEqual(['A', 'B']);
+    });
+    test('aprovadas incluem as cumpridas no histórico do perfil', () => {
+        expect([...approvedCodes([history('A', 'SS')], ['B'])].toSorted()).toEqual(['A', 'B']);
     });
 
     test('mostra nomes resolvidos e mantém códigos sem relacionamento', () => {

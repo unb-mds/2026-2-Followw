@@ -108,10 +108,10 @@ ausente representado por `None`. Extrato sem saldo levanta `SigaaParseError`.
 retorna os bytes do PDF original da carteirinha estudantil.
 `client.restaurant.get_restaurant_credentials()` usa esse mesmo download para extrair o token do QR
 code e a validade, sem persistir o arquivo. `client.documents.get_transcript_pdf()` baixa o PDF
-original do histórico acadêmico. `client.documents.get_transcript()` extrai do histórico da
-graduação a matrícula, o código da matriz e os componentes aprovados, aproveitados, dispensados ou
-reconhecidos por equivalência. Quando o SIGAA recusa emitir o documento (ex.: perfil sem foto), esses
-métodos levantam `DocumentUnavailable` com o motivo informado (`MissingProfilePhoto` quando falta foto).
+original do histórico acadêmico, e `client.documents.get_completed_subjects(registration)` extrai dele os
+códigos com situação CUMP e levanta `SigaaParseError` se o histórico for de outra matrícula. Quando o SIGAA recusa emitir o documento (ex.: perfil sem foto), esses métodos
+levantam `DocumentUnavailable` com o motivo informado por ele (`MissingProfilePhoto` quando falta
+foto).
 
 `collect_subjects.py` monta `data/subjects.csv` com os componentes citados nos outros CSVs de
 `data/` (turmas, matrizes, docentes e requisitos). Cada código vem do catálogo público ou, se

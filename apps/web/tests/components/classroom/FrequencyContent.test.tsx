@@ -4,7 +4,7 @@ import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { afterEach, describe, expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import type { MarkLessons } from '#/components/classroom/FrequencyContent';
+import type { MarkLessons } from '#/components/classroom/LessonMenu';
 
 import { FrequencyContent, lessonRuns } from '#/components/classroom/FrequencyContent';
 
@@ -197,6 +197,27 @@ describe('marcação das aulas', () => {
         expect(calendar.getAttribute('aria-pressed')).toBe('true');
         expect(page.queryByRole('checkbox')).toBeNull();
         expect(page.getByRole('grid')).toBeTruthy();
+    });
+
+    test('dia do calendário com aula marcável vira gatilho do menu de marcação', () => {
+        const { fireEvent } = dom.testing;
+        const { page } = renderMarking();
+        fireEvent.click(page.getByRole('button', { name: 'Calendário' }));
+
+        const trigger = page.getByRole('button', { name: 'Marcar aulas de 8 de outubro' });
+        expect(trigger.getAttribute('aria-haspopup')).toBe('menu');
+        expect(page.container.querySelector('td[data-day="2026-10-08"] button')).toBe(trigger);
+    });
+
+    test('dia do calendário sem aula marcável não abre menu', () => {
+        const { fireEvent } = dom.testing;
+        const { page } = renderMarking({
+            ...data,
+            lessons: [lesson('2026-10-08', { status: 'presente' })]
+        });
+        fireEvent.click(page.getByRole('button', { name: 'Calendário' }));
+
+        expect(page.container.querySelector('td[data-day="2026-10-08"] button')).toBeNull();
     });
 
     test('seleciona aulas e marca todas de uma vez pela barra', async () => {

@@ -144,17 +144,6 @@ class RestaurantCredentials(BaseModel):
     valid_until: date
 
 
-type TranscriptCompletion = Literal["approved", "credit", "waived", "equivalence"]
-
-
-class AcademicTranscript(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    registration: str
-    curriculum_code: str
-    completed: dict[str, TranscriptCompletion]
-
-
 class CurriculumWorkload(BaseModel):
     """Carga horária do currículo e o que falta integralizar, em horas."""
 

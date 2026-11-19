@@ -9,7 +9,6 @@ from sigaa_client import (
     CurriculumWorkload,
     DocumentUnavailable,
     SigaaParseError,
-    TranscriptCompletion,
     UserLevel,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,7 +17,6 @@ from api.cache import Freshness, freshness
 from api.db.models import User
 from api.modules.me.repository import UserRepository
 from api.modules.me.transcript import TranscriptRepository
-from api.modules.recommendations.ranking import equivalent_codes
 from api.modules.recommendations.repository import RecommendationRepository
 from api.schemas import CourseRef, UnitRef, course_ref, unit_ref
 from api.sync import Cached, Context, SyncDep
@@ -47,10 +45,9 @@ class UserProfile(BaseModel):
     unit: UnitRef | None
     course: CourseRef | None
     entry_semester: str | None
-    curriculum_sigaa_id: int | None = None
-    official_curriculum_code: str | None = None
     curriculum_subject_codes: list[str] | None = None
-    completed_subjects: dict[str, TranscriptCompletion] | None = None
+    # Componentes CUMP do histórico, além das aprovações nas turmas.
+    completed_subjects: list[str] = []
     integralization: int | None
     workload: Workload | None
     # Carga horária máxima por período da matriz do aluno, em horas.
@@ -67,26 +64,22 @@ def profile_freshness(synced_at: datetime | None) -> Freshness:
 async def sync_profile(ctx: Context[None]) -> None:
     started_at = datetime.now(UTC)
     profile = await ctx.client.profile.get_profile()
-    transcript = None
-    if profile.level == UserLevel.GRADUACAO:
-        try:
-            document = await ctx.client.documents.get_transcript()
-            if document.registration == profile.registration:
-                transcript = document
-            else:
-                logger.warning(
-                    "Matrícula do histórico não confere com o perfil do SIGAA."
-                )
-        except DocumentUnavailable:
-            pass
-        except (HTTPError, SigaaParseError) as error:
-            logger.warning(
-                "Histórico acadêmico do SIGAA indisponível (%s).", type(error).__name__
-            )
-    await ctx.sync.db.write(
+    user = await ctx.sync.db.write(
         lambda session: UserRepository(session).save_profile(
-            profile, started_at, login=ctx.sync.registration, transcript=transcript
+            profile, started_at, login=ctx.sync.registration
         )
+    )
+    if profile.level != UserLevel.GRADUACAO or user.transcript_synced_at is not None:
+        return
+    try:
+        codes = await ctx.client.documents.get_completed_subjects(profile.registration)
+    except DocumentUnavailable:
+        return
+    except (HTTPError, SigaaParseError) as error:
+        logger.warning("Histórico acadêmico indisponível (%s).", type(error).__name__)
+        return
+    await ctx.sync.db.write(
+        lambda session: TranscriptRepository(session).save(user.id, codes, started_at)
     )
 
 
@@ -111,23 +104,11 @@ class ProfileService:
 
 async def _to_profile(session: AsyncSession, user: User) -> UserProfile:
     assert user.registration and user.level
-    transcripts = TranscriptRepository(session)
-    official = await transcripts.curriculum_code(user.id)
-    repository = RecommendationRepository(session)
     codes = (
-        sorted(await repository.components(user.curriculum_id))
+        sorted(await RecommendationRepository(session).components(user.curriculum_id))
         if user.curriculum_id is not None
         else None
     )
-    completed = None
-    if official is not None and codes is not None:
-        direct = await transcripts.completed(user.id)
-        completed = {code: direct[code] for code in codes if code in direct}
-        if direct:
-            catalog = await repository.catalog(set(codes) - direct.keys())
-            evidence = {code for code, kind in direct.items() if kind != "equivalence"}
-            for code in sorted(equivalent_codes(catalog, evidence)):
-                completed[code] = "equivalence"
     return UserProfile(
         name=user.name,
         registration=user.registration,
@@ -137,10 +118,10 @@ async def _to_profile(session: AsyncSession, user: User) -> UserProfile:
         unit=unit_ref(user.course.unit) if user.course else None,
         course=course_ref(user.course),
         entry_semester=user.entry_semester,
-        curriculum_sigaa_id=user.curriculum.sigaa_id if user.curriculum else None,
-        official_curriculum_code=official,
         curriculum_subject_codes=codes,
-        completed_subjects=completed,
+        completed_subjects=sorted(
+            await TranscriptRepository(session).completed(user.id)
+        ),
         integralization=user.integralization,
         workload=_workload(user),
         period_max_workload=user.curriculum.period_max_workload

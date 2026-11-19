@@ -13,7 +13,6 @@ from .exceptions import (
     SigaaSearchError,
 )
 from .models import (
-    AcademicTranscript,
     AttendanceEntry,
     AttendanceStatus,
     AttendanceSummary,
@@ -65,7 +64,6 @@ from .models import (
     TeachingPlanAssessment,
     TeachingPlanReference,
     TeachingPlanScheduleEntry,
-    TranscriptCompletion,
     Unit,
     UserLevel,
     UserProfile,
@@ -74,7 +72,6 @@ from .public.units import resolve_unit
 from .utils.parsing import institutional_email, lookup_key
 
 __all__ = [
-    "AcademicTranscript",
     "AttendanceEntry",
     "AttendanceStatus",
     "AttendanceSummary",
@@ -139,7 +136,6 @@ __all__ = [
     "TeachingPlanAssessment",
     "TeachingPlanReference",
     "TeachingPlanScheduleEntry",
-    "TranscriptCompletion",
     "Unit",
     "UserLevel",
     "UserProfile",

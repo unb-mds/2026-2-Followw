@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Path, Query
+from fastapi import APIRouter, Path, Query
 
 from api.cache import NoStore
 from api.modules.public_courses.service import (
@@ -59,7 +59,7 @@ async def get_course(
 @router.get(
     "/{course_id}/curriculum",
     response_model=CourseCurriculum,
-    summary="Consultar currículo do curso pelo ingresso ou pelo ID da matriz",
+    summary="Consultar currículo do curso pelo ingresso",
     description="Matérias agrupadas por período, com optativas no período 0 e complementares em lista própria.",
     responses={
         404: {
@@ -78,20 +78,18 @@ async def get_curriculum(
         ),
     ],
     entry_semester: Annotated[
-        str | None,
+        str,
         Query(
             pattern=r"^[0-9]{4}\.[0-9]$",
             description="Semestre de ingresso.",
         ),
-    ] = None,
+    ],
     curriculum_sigaa_id: Annotated[
         int | None,
         Query(
             gt=0,
-            description="ID da matriz no SIGAA. Sem semestre, consulta a matriz pelo ID diretamente.",
+            description="ID da matriz no SIGAA, entre as de mesma vigência.",
         ),
     ] = None,
 ) -> CourseCurriculum:
-    if entry_semester is None and curriculum_sigaa_id is None:
-        raise HTTPException(422, "Informe o semestre de ingresso ou o ID da matriz.")
     return await service.get_curriculum(course_id, entry_semester, curriculum_sigaa_id)

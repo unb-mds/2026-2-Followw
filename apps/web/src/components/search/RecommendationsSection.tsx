@@ -1,4 +1,3 @@
-import type { CompletedSubjects } from '@followw/core/lib/curriculum/types.ts';
 import type { CatalogSubject } from '@followw/core/queries/subjects.ts';
 
 import { reasonLabel, recommendationsQueryOptions } from '@followw/core/queries/recommendations.ts';
@@ -6,7 +5,6 @@ import { withClassrooms } from '@followw/core/queries/subjects.ts';
 import { noop, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, CircleHelp } from 'lucide-react';
 
-import { CompletedCredits } from '#/components/curriculum/CompletedCredits';
 import { ErrorCard } from '#/components/ErrorState';
 import { LoadingText } from '#/components/LoadingText';
 import { TurmaSection } from '#/components/search/TurmaSection';
@@ -63,12 +61,10 @@ function WhyDialog(subject: CatalogSubject) {
 
 export function RecommendationsSection({
     currentPeriod,
-    taken,
-    completedSubjects
+    taken
 }: {
     currentPeriod?: number | null;
     taken?: Set<string> | null;
-    completedSubjects?: CompletedSubjects | null;
 }) {
     const client = useQueryClient();
     const query = useQuery(recommendationsQueryOptions);
@@ -89,7 +85,6 @@ export function RecommendationsSection({
                 />
             ) : subjects ? (
                 <>
-                    <CompletedCredits completedSubjects={completedSubjects} />
                     {query.isError && (
                         <ErrorCard
                             message="Não foi possível atualizar suas recomendações. Exibindo a última consulta."

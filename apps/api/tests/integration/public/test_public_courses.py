@@ -576,12 +576,29 @@ def test_id_escolhido_deve_pertencer_as_opcoes_do_curso_e_ingresso(catalog, want
     assert _get(catalog, curriculum_sigaa_id=wanted).status_code == 404
 
 
-def test_id_sem_ingresso_consulta_matrizes_de_outras_vigencias_e_inativas(catalog):
-    for wanted in (101, 401):
-        response = catalog.get(URL, params={"curriculum_sigaa_id": wanted})
-        assert response.status_code == 200
-        assert response.json()["sigaa_id"] == wanted
-    assert catalog.get(URL, params={"curriculum_sigaa_id": 501}).status_code == 404
+def test_matriz_do_turno_do_curso_tem_prioridade_na_mesma_vigencia(client, database):
+    with database.begin() as session:
+        session.add(
+            Course(id=90, sigaa_id=900, name="NOTURNO", shift="NOTURNO", unit_id=673)
+        )
+        session.flush()
+        for sigaa_id, code, shift in ((9001, "X/1", "N"), (9002, "X/9", "D")):
+            session.add(
+                Curriculum(
+                    course_id=90,
+                    sigaa_id=sigaa_id,
+                    code=code,
+                    valid_from="2024.2",
+                    created_year=2024,
+                    active=True,
+                    shift=shift,
+                    matrix="M",
+                )
+            )
+    response = client.get(
+        "/public/courses/90/curriculum", params={"entry_semester": "2026.1"}
+    )
+    assert response.json()["sigaa_id"] == 9001
 
 
 @pytest.mark.parametrize("course", [79, 999, 414924])
@@ -624,6 +641,7 @@ def test_openapi_documenta_selecao(api):
     assert set(operation["responses"]) == {"200", "404", "422"}
     assert {item["name"] for item in operation["parameters"] if item["required"]} == {
         "course_id",
+        "entry_semester",
     }
 
 

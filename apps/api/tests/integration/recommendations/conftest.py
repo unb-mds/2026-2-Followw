@@ -41,10 +41,15 @@ def ranked(scene, async_database):
 def assign(scene, async_database):
     """Sincroniza o perfil, que infere a matriz pelo semestre de entrada."""
 
-    async def run(entry="2025.1", course="ENGENHARIA DE SOFTWARE"):
+    async def run(
+        entry="2025.1",
+        course="ENGENHARIA DE SOFTWARE",
+        registration="251000000",
+        login=None,
+    ):
         profile = SigaaUserProfile(
             name="Aluno",
-            registration="251000000",
+            registration=registration,
             photo=None,
             bio=None,
             unit="FCTE",
@@ -58,7 +63,7 @@ def assign(scene, async_database):
             level=SigaaUserLevel.GRADUACAO,
         )
         async with async_database() as session:
-            await UserRepository(session).save_profile(profile, NOW)
+            await UserRepository(session).save_profile(profile, NOW, login)
             await session.commit()
 
     return run

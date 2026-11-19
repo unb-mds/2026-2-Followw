@@ -11,16 +11,12 @@ import { useMemo } from 'react';
 export interface CourseSummaryProps {
     course: Pick<PublicCourse, 'id' | 'name' | 'shift'>;
     entrySemester?: string | null;
-    curriculumId?: number | null;
 }
 
 /** Erros e carregamento ficam com a página; aqui só o que já estiver em cache. */
-export function CourseSummary({ course, entrySemester, curriculumId }: CourseSummaryProps) {
+export function CourseSummary({ course, entrySemester }: CourseSummaryProps) {
     const listed = useQuery(courseQueryOptions(course.id));
-    const matrix = useQuery({
-        ...curriculumQueryOptions(course.id, entrySemester, curriculumId),
-        enabled: Boolean(entrySemester || curriculumId)
-    });
+    const matrix = useQuery(curriculumQueryOptions(course.id, entrySemester));
     const unit = listed.data?.unit;
     const curriculum = matrix.data;
     const shift = course.shift ?? (curriculum?.shift && shiftLabels[curriculum.shift]);

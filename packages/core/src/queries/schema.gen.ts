@@ -319,7 +319,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Consultar currículo do curso pelo ingresso ou pelo ID da matriz
+         * Consultar currículo do curso pelo ingresso
          * @description Matérias agrupadas por período, com optativas no período 0 e complementares em lista própria.
          */
         get: operations["get_curriculum_public_courses__course_id__curriculum_get"];
@@ -1526,8 +1526,6 @@ export interface components {
             /** Description */
             description: string | null;
         };
-        /** @enum {string} */
-        TranscriptCompletion: "approved" | "credit" | "waived" | "equivalence";
         /**
          * UnitRef
          * @description Unidade acadêmica: `id` do SIGAA e sigla em `code`.
@@ -1564,16 +1562,10 @@ export interface components {
             course: components["schemas"]["CourseRef"] | null;
             /** Entry Semester */
             entry_semester: string | null;
-            /** Curriculum Sigaa Id */
-            curriculum_sigaa_id?: number | null;
-            /** Official Curriculum Code */
-            official_curriculum_code?: string | null;
             /** Curriculum Subject Codes */
             curriculum_subject_codes?: string[] | null;
             /** Completed Subjects */
-            completed_subjects?: {
-                [key: string]: components["schemas"]["TranscriptCompletion"];
-            } | null;
+            completed_subjects?: string[];
             /** Integralization */
             integralization: number | null;
             workload: components["schemas"]["Workload"] | null;
@@ -2607,10 +2599,10 @@ export interface operations {
     };
     get_curriculum_public_courses__course_id__curriculum_get: {
         parameters: {
-            query?: {
+            query: {
                 /** @description Semestre de ingresso. */
-                entry_semester?: string | null;
-                /** @description ID da matriz no SIGAA. Sem semestre, consulta a matriz pelo ID diretamente. */
+                entry_semester: string;
+                /** @description ID da matriz no SIGAA, entre as de mesma vigência. */
                 curriculum_sigaa_id?: number | null;
             };
             header?: never;
