@@ -68,6 +68,21 @@ def _search(client, **params):
     return response.json()
 
 
+def test_faixa_180_mais_inclui_os_limites_e_preserva_a_carga_exata(catalog, database):
+    with database.begin() as session:
+        for hours in [165, 180, 240, 960, 975]:
+            code = f"MAT{hours:04d}"
+            session.add(Subject(code=code, name=code, hours=hours))
+            session.flush()
+            session.add(Classroom(subject_code=code, number="01", semester="2026.2"))
+    assert [subject["hours"] for subject in _search(catalog, hours="180+")] == [
+        180,
+        240,
+        960,
+    ]
+    assert [subject["hours"] for subject in _search(catalog, hours=165)] == [165]
+
+
 def test_lista_cargas_horarias_distintas_em_ordem(catalog, database):
     with database.begin() as session:
         session.add(Subject(code="FGA0004", name="OUTRA MATÉRIA", hours=60))

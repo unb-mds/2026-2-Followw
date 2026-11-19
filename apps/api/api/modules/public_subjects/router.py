@@ -6,6 +6,7 @@ from pydantic import AfterValidator
 
 from api.cache import no_store
 from api.modules.public_classrooms.code import ClassroomCode
+from api.modules.public_subjects.repository import WorkloadFilter
 from api.modules.public_subjects.schedule_search import (
     ScheduleSearch,
     StartTimeSearch,
@@ -96,7 +97,12 @@ async def search_subjects(
     start: Annotated[
         str | None, Query(pattern=r"^(?:[01][0-9]|2[0-3]):[0-5][0-9]$")
     ] = None,
-    hours: Annotated[int | None, Query(gt=0, le=32767)] = None,
+    hours: Annotated[
+        WorkloadFilter | None,
+        Query(
+            description="Carga horária exata ou 180+ para a faixa inclusiva de 180 a 960 horas."
+        ),
+    ] = None,
     electives: Annotated[
         bool,
         Query(description="Optativas com oferta disponível na matriz do aluno."),

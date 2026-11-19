@@ -1697,6 +1697,7 @@ export interface components {
             /** Complementary */
             complementary: number | null;
         };
+        WorkloadFilter: number | "180+";
     };
     responses: never;
     parameters: never;
@@ -2963,7 +2964,8 @@ export interface operations {
                 /** @description Dias exatos, de segunda (0) a domingo (6). */
                 days?: string | null;
                 start?: string | null;
-                hours?: number | null;
+                /** @description Carga horária exata ou 180+ para a faixa inclusiva de 180 a 960 horas. */
+                hours?: components["schemas"]["WorkloadFilter"] | null;
                 /** @description Optativas com oferta disponível na matriz do aluno. */
                 electives?: boolean;
                 /** @description Módulos livres com oferta disponível para o aluno. */

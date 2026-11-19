@@ -47,6 +47,13 @@ describe('parâmetros da busca', () => {
         });
     });
 
+    test('restaura a faixa de 180 horas ao abrir a URL da busca', () => {
+        const url = createSerializer(searchParsers)({ hours: '180+' });
+        expect(loadSearchParams(url).hours).toBe('180+');
+        expect(loadSearchParams('?hours=240').hours).toBe('180+');
+        expect(loadSearchParams('?hours=165').hours).toBe(165);
+    });
+
     test('limpar consulta e filtros remove os parâmetros', () => {
         const serialize = createSerializer(searchParsers);
         expect(serialize({ q: '', category: 'all' })).toBe('');

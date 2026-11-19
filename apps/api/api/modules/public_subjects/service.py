@@ -8,7 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.db.main import DatabaseDep
 from api.db.models import Subject
 from api.db.units import find_unit_id
-from api.modules.public_subjects.repository import SubjectCatalogRepository
+from api.modules.public_subjects.repository import (
+    SubjectCatalogRepository,
+    WorkloadFilter,
+)
 from api.modules.public_subjects.schedule_search import ScheduleSearch
 from api.modules.recommendations.ranking import (
     Component,
@@ -91,7 +94,7 @@ class PublicSubjectService:
         semester: str | None = None,
         sync: Sync | None = None,
         schedules: Sequence[ScheduleSearch] = (),
-        hours: int | None = None,
+        hours: WorkloadFilter | None = None,
         electives: bool = False,
         free_modules: bool = False,
     ) -> list[CatalogSubject]:
@@ -133,7 +136,7 @@ async def _search(
     semester: str | None,
     registration: str | None,
     schedules: Sequence[ScheduleSearch],
-    hours: int | None,
+    hours: WorkloadFilter | None,
     electives: bool,
     free_modules: bool,
 ) -> list[CatalogSubject]:

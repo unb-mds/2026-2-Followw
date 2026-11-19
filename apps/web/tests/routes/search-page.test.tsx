@@ -268,7 +268,7 @@ describe('página de busca com estado na URL', () => {
                         { id: 518, code: 'FCE', name: 'Ceilândia' }
                     ]);
                 if (url.pathname.endsWith('/public/subjects/workloads'))
-                    return Response.json([30, 60, 90]);
+                    return Response.json([30, 60, 90, 180, 240, 960]);
                 if (url.searchParams.has('electives') || url.searchParams.has('free_modules'))
                     return Response.json(electiveOffer);
                 return Response.json(subjects);
@@ -738,7 +738,7 @@ describe('página de busca com estado na URL', () => {
         expect(page.getByRole('combobox', { name: 'Hora de início' })).toBeDefined();
         expect(page.getByRole('option', { name: '08:55' })).toBeDefined();
         expect(page.queryByRole('option', { name: '08:30' })).toBeNull();
-        expect(await page.findByRole('option', { name: '60 h' })).toBeDefined();
+        expect(await page.findByRole('option', { name: '60h' })).toBeDefined();
         testing.fireEvent.change(page.getByLabelText('Carga horária (horas)'), {
             target: { value: '60' }
         });
@@ -751,6 +751,15 @@ describe('página de busca com estado na URL', () => {
                 hours: '60'
             })
         );
+        expect(page.getByRole('option', { name: '180h+' })).toBeDefined();
+        expect(page.queryByRole('option', { name: /^180h$/ })).toBeNull();
+        expect(page.queryByRole('option', { name: '960h' })).toBeNull();
+        testing.fireEvent.change(page.getByLabelText('Carga horária (horas)'), {
+            target: { value: '180+' }
+        });
+        await testing.waitFor(() =>
+            expect(requests.at(-1)?.searchParams.get('hours')).toBe('180+')
+        );
         testing.fireEvent.click(page.getByRole('button', { name: 'Limpar filtros de matérias' }));
         await page.findByRole('button', { name: 'Filtros de matérias' });
     });
@@ -760,7 +769,7 @@ describe('página de busca com estado na URL', () => {
         '?q=segunda+10',
         '?electives=true',
         '?q=segunda+10&electives=true'
-    ])('oculta matérias aprovadas e em andamento, e mantém as reprovadas em %s', async (params) => {
+    ])('exibe matérias aprovadas, em andamento e reprovadas em %s', async (params) => {
         client.setQueryData(meQueryOptions.queryKey, electiveStudent);
         const approved = { code: 'MAT1000', name: 'Matemática Aprovada' };
         const failed = { code: 'MAT2000', name: 'Matemática a Refazer' };
@@ -806,10 +815,10 @@ describe('página de busca com estado na URL', () => {
         });
 
         const page = renderPage(params);
-        expect(await page.findByText('1 resultado')).toBeDefined();
-        expect(page.queryByRole('button', { name: /MAT1000/ })).toBeNull();
+        expect(await page.findByText('3 resultados')).toBeDefined();
+        expect(page.getByRole('button', { name: /MAT1000/ })).toBeDefined();
         expect(page.getByRole('button', { name: /MAT2000/ })).toBeDefined();
-        expect(page.queryByRole('button', { name: /MAT3000/ })).toBeNull();
+        expect(page.getByRole('button', { name: /MAT3000/ })).toBeDefined();
     });
 
     test('adiciona um módulo livre ofertado à grade pelo filtro de módulos livres', async () => {

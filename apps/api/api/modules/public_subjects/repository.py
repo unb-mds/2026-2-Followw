@@ -1,6 +1,8 @@
 from collections.abc import Sequence
+from typing import Annotated, Literal
 from uuid import UUID
 
+from pydantic import Field
 from sqlalchemy import ColumnElement, and_, exists, func, literal_column, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, selectinload, undefer
@@ -8,6 +10,8 @@ from sqlalchemy.orm import aliased, selectinload, undefer
 from api.db.models import Classroom, ClassroomProfessor, Professor, Subject
 from api.db.search import all_terms, contains_term
 from api.modules.public_subjects.schedule_search import ScheduleSearch
+
+type WorkloadFilter = Annotated[int, Field(gt=0, le=32767)] | Literal["180+"]
 
 
 def _matches_query(q: str, semester: str | None) -> ColumnElement[bool]:
@@ -178,7 +182,7 @@ class SubjectCatalogRepository:
         unit_id: int | None = None,
         semester: str | None = None,
         schedules: Sequence[ScheduleSearch] = (),
-        hours: int | None = None,
+        hours: WorkloadFilter | None = None,
         excluded_codes: set[str] | None = None,
         available_only: bool = False,
     ) -> list[Subject]:
@@ -196,7 +200,9 @@ class SubjectCatalogRepository:
         classrooms = Subject.classrooms
         if semester is not None:
             classrooms = classrooms.and_(Classroom.semester == semester)
-        if hours is not None:
+        if hours == "180+":
+            query = query.where(Subject.hours.between(180, 960))
+        elif hours is not None:
             query = query.where(Subject.hours == hours)
         offer_conditions = [Classroom.semester == semester]
         if excluded_codes:

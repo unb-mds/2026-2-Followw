@@ -4,11 +4,22 @@ import { useQueryStates } from 'nuqs';
 import {
     createLoader,
     createStandardSchemaV1,
-    parseAsInteger,
+    createParser,
     parseAsBoolean,
     parseAsString,
     parseAsStringLiteral
 } from 'nuqs/server';
+
+export const workloadFilter = createParser<number | '180+'>({
+    parse(value) {
+        if (value === '180+') return value;
+        if (!/^[1-9]\d*$/.test(value)) return null;
+        const hours = Number(value);
+        if (hours > 960) return null;
+        return hours >= 180 ? '180+' : hours;
+    },
+    serialize: String
+});
 
 export const searchParsers = {
     hideConflicts: parseAsBoolean.withDefault(false),
@@ -17,7 +28,7 @@ export const searchParsers = {
     days: parseAsString.withDefault(''),
     start: parseAsString.withDefault(''),
     unit: parseAsString.withDefault(''),
-    hours: parseAsInteger,
+    hours: workloadFilter,
     q: parseAsString.withDefault(''),
     category: parseAsStringLiteral(SEARCH_CATEGORIES).withDefault('all')
 };

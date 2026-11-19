@@ -121,21 +121,8 @@ export function seats({ vacancies, occupied }: SubjectClassroom): Seats | null {
     };
 }
 
-export function withoutTakenSubjects<T extends { code: string }>(
-    subjects: T[],
-    taken?: ReadonlySet<string> | null
-): T[] {
-    return taken ? subjects.filter(({ code }) => !taken.has(code)) : subjects;
-}
-
-export function withClassrooms(
-    subjects: CatalogSubject[],
-    taken?: ReadonlySet<string> | null,
-    planned?: readonly PlannedClass[]
-) {
-    const offered = withoutTakenSubjects(subjects, taken).filter(
-        (subject) => subject.classrooms.length > 0
-    );
+export function withClassrooms(subjects: CatalogSubject[], planned?: readonly PlannedClass[]) {
+    const offered = subjects.filter((subject) => subject.classrooms.length > 0);
     if (!planned?.length) return offered;
     const conflict = scheduleConflictFinder(planned);
     return offered.flatMap((subject) => {

@@ -13,7 +13,7 @@ import { useState } from 'react';
 import { Button } from '#/components/ui/button';
 import { Input } from '#/components/ui/input';
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '#/components/ui/popover';
-import { useSearchState } from '#/lib/search-params';
+import { useSearchState, workloadFilter } from '#/lib/search-params';
 
 const selectClass = 'mt-1 h-9 w-full rounded-md border bg-background px-2';
 type Department = components['schemas']['UnitRef'];
@@ -182,18 +182,23 @@ export function SubjectFilters() {
                         disabled={workloads.isPending || workloads.isLoadingError}
                         onChange={(e) =>
                             void setSearch({
-                                hours: e.target.value ? Number(e.target.value) : null
+                                hours: workloadFilter.parse(e.target.value)
                             })
                         }
                     >
                         <option value="">
                             {workloads.isPending ? 'Carregando…' : 'Qualquer carga horária'}
                         </option>
-                        {workloads.data?.map((value) => (
-                            <option key={value} value={value}>
-                                {value} h
-                            </option>
-                        ))}
+                        {workloads.data
+                            ?.filter((value) => value < 180)
+                            .map((value) => (
+                                <option key={value} value={value}>
+                                    {value}h
+                                </option>
+                            ))}
+                        {workloads.data?.some((value) => value >= 180 && value <= 960) && (
+                            <option value="180+">180h+</option>
+                        )}
                     </select>
                 </label>
                 {workloads.isError && (

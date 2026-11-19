@@ -46,7 +46,7 @@ export function SubjectResults({
                 skeleton={<TurmaSectionSkeleton title />}
             >
                 {(data) => {
-                    const subjects = withClassrooms(data, taken, planned);
+                    const subjects = withClassrooms(data, planned);
                     return (
                         <>
                             <TurmaSection

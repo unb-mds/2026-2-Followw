@@ -72,7 +72,7 @@ export function SearchResults({
         });
     const refresh = () => void refreshQuery(client, options).catch(noop);
     const { courses, professors, subjects } = result.data ?? {};
-    const offered = withClassrooms(subjects ?? [], taken, planned);
+    const offered = withClassrooms(subjects ?? [], planned);
     const found = courses?.items.length || professors?.items.length || offered.length;
     return (
         <div
