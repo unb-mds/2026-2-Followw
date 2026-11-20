@@ -15,27 +15,27 @@ import {
 } from '@followw/core/lib/classroom-details.ts';
 import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { Portal } from '@rn-primitives/portal';
-import { CircleCheck, CircleDashed, CircleSlash, CircleX } from 'lucide-react-native';
+import { CalendarDays, List } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { View } from 'react-native';
 
+import { LessonCalendar } from '@/components/classroom/LessonCalendar';
+import {
+    LESSON_VIEW,
+    LessonMenuContent,
+    selectable,
+    type MarkLessons
+} from '@/components/classroom/LessonMenu';
 import { ListCard, Meter } from '@/components/ListCard';
 import { SelectionBar } from '@/components/SelectionBar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
+import { ToggleGroup, ToggleGroupIcon, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
-
-export type MarkLessons = (lessons: Lesson[], status: LessonMarkStatus | null) => void;
 
 const FREQUENCY_TONE = {
     ok: undefined,
@@ -43,23 +43,11 @@ const FREQUENCY_TONE = {
     danger: 'text-destructive'
 } as const;
 
-const LESSON_VIEW = {
-    presente: { icon: CircleCheck, color: 'text-primary', name: 'Presença' },
-    falta: { icon: CircleX, color: 'text-destructive', name: 'Falta' },
-    nao_registrada: { icon: CircleDashed, color: 'text-muted-foreground', name: 'Não registrada' },
-    cancelada: { icon: CircleSlash, color: 'text-muted-foreground', name: 'Aula cancelada' }
-} as const;
-
-// Marcações que o aluno pode dar a uma aula sem chamada no SIGAA.
-const MARKS: LessonMarkStatus[] = ['presente', 'falta', 'cancelada'];
-
 // Aviso no fim da lista de aulas enquanto a frequência não está toda registrada.
 const FREQUENCY_NOTICE: Partial<Record<ClassroomFrequency['frequency_status'], string>> = {
     nao_registrada: 'A frequência ainda não foi lançada pelo professor.',
     parcialmente_registrada: 'Algumas aulas ainda não tiveram a frequência registrada.'
 };
-
-const selectable = (lesson: Lesson) => !lesson.marked && lesson.status === 'nao_registrada';
 
 export function FrequencyContent({
     data,
@@ -73,6 +61,7 @@ export function FrequencyContent({
     const { totals, lessons } = data;
     const notice = FREQUENCY_NOTICE[data.frequency_status];
     const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
+    const [view, setView] = useState<'list' | 'calendar'>('list');
     // a aula some da seleção quando deixa de ser selecionável (marcada ou registrada)
     const selected = lessons.filter((lesson) => selectable(lesson) && selectedIds.has(lesson.id));
 
@@ -101,42 +90,80 @@ export function FrequencyContent({
             {(lessons.length > 0 || notice) && (
                 <View>
                     {lessons.length > 0 && (
-                        <View className="mb-2 flex-row items-center justify-between gap-2 px-1">
+                        <View className="mb-2 flex-row items-center gap-2 px-1">
                             <Text role="heading" aria-level={3} className="text-sm font-semibold">
                                 Aulas{' '}
                                 <Text className="text-sm font-normal text-muted-foreground">
                                     {lessons.length}
                                 </Text>
                             </Text>
-                            {marked.length > 0 && (
+                            {marked.length > 0 && view === 'list' && (
                                 <Button
                                     variant="ghost"
                                     size="xs"
                                     disabled={pending}
+                                    className="ml-auto"
                                     onPress={() => onMark(marked, null)}
                                 >
                                     <Text className="text-muted-foreground">Limpar marcações</Text>
                                 </Button>
                             )}
+                            <ToggleGroup
+                                type="single"
+                                accessibilityLabel="Visualização das aulas"
+                                size="sm"
+                                variant="outline"
+                                value={view}
+                                onValueChange={(next) => {
+                                    if (!next) return;
+                                    setView(next === 'calendar' ? 'calendar' : 'list');
+                                    setSelectedIds(new Set());
+                                }}
+                                className={
+                                    marked.length > 0 && view === 'list' ? undefined : 'ml-auto'
+                                }
+                            >
+                                <ToggleGroupItem value="list" accessibilityLabel="Lista" isFirst>
+                                    <ToggleGroupIcon as={List} />
+                                </ToggleGroupItem>
+                                <ToggleGroupItem
+                                    value="calendar"
+                                    accessibilityLabel="Calendário"
+                                    isLast
+                                >
+                                    <ToggleGroupIcon as={CalendarDays} />
+                                </ToggleGroupItem>
+                            </ToggleGroup>
                         </View>
                     )}
-                    <ListCard>
-                        {lessons.map((lesson) => (
-                            <LessonRow
-                                key={lesson.id}
-                                lesson={lesson}
-                                onMark={onMark}
-                                pending={pending}
-                                selected={selectedIds.has(lesson.id)}
-                                onSelect={(checked) => toggle(lesson, checked)}
-                            />
-                        ))}
-                        {notice && (
-                            <Text className="py-2.5 text-center text-sm text-muted-foreground">
-                                {notice}
-                            </Text>
-                        )}
-                    </ListCard>
+                    {view === 'calendar' && lessons.length > 0 ? (
+                        <View className="gap-2">
+                            <LessonCalendar lessons={lessons} onMark={onMark} pending={pending} />
+                            {notice && (
+                                <Text className="px-1 text-center text-sm text-muted-foreground">
+                                    {notice}
+                                </Text>
+                            )}
+                        </View>
+                    ) : (
+                        <ListCard>
+                            {lessons.map((lesson) => (
+                                <LessonRow
+                                    key={lesson.id}
+                                    lesson={lesson}
+                                    onMark={onMark}
+                                    pending={pending}
+                                    selected={selectedIds.has(lesson.id)}
+                                    onSelect={(checked) => toggle(lesson, checked)}
+                                />
+                            ))}
+                            {notice && (
+                                <Text className="py-2.5 text-center text-sm text-muted-foreground">
+                                    {notice}
+                                </Text>
+                            )}
+                        </ListCard>
+                    )}
                 </View>
             )}
             {selected.length > 0 && (
@@ -330,7 +357,7 @@ function LessonRow({
                     >
                         <Icon as={view.icon} className={cn('size-4', view.color)} />
                     </DropdownMenuTrigger>
-                    <LessonMenuContent lesson={lesson} onMark={onMark} />
+                    <LessonMenuContent lessons={[lesson]} onMark={onMark} />
                 </DropdownMenu>
             ) : (
                 <Icon as={view.icon} className={cn('size-4 shrink-0', view.color)} />
@@ -383,37 +410,8 @@ function SelectableLesson({
                     />
                 </View>
             </DropdownMenuTrigger>
-            <LessonMenuContent lesson={lesson} onMark={onMark} />
+            <LessonMenuContent lessons={[lesson]} onMark={onMark} />
         </DropdownMenu>
-    );
-}
-
-function LessonMenuContent({ lesson, onMark }: { lesson: Lesson; onMark: MarkLessons }) {
-    return (
-        <DropdownMenuContent className="w-44">
-            {MARKS.map((mark) => {
-                const option = LESSON_VIEW[mark];
-                return (
-                    <DropdownMenuItem
-                        key={mark}
-                        disabled={lesson.marked && lesson.status === mark}
-                        onPress={() => onMark([lesson], mark)}
-                    >
-                        <Icon as={option.icon} className={cn('size-4', option.color)} />
-                        <Text>{option.name}</Text>
-                    </DropdownMenuItem>
-                );
-            })}
-            {lesson.marked && (
-                <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onPress={() => onMark([lesson], null)}>
-                        <Icon as={CircleDashed} className="size-4 text-popover-foreground" />
-                        <Text>Remover marcação</Text>
-                    </DropdownMenuItem>
-                </>
-            )}
-        </DropdownMenuContent>
     );
 }
 

@@ -15,13 +15,3 @@ export const selectable = (lesson: Lesson) => !lesson.marked && lesson.status ==
 
 /** Aulas que o aluno pode marcar: sem chamada ou já marcadas por ele. */
 export const markable = (lesson: Lesson) => selectable(lesson) || lesson.marked;
-
-/** Situações das aulas de cada dia, em ordem cronológica. */
-export function lessonsByDay(lessons: Lesson[]) {
-    const days = new Map<string, Lesson[]>();
-    for (const lesson of lessons.toReversed()) {
-        const key = lesson.occurred_on.slice(0, 10);
-        days.set(key, [...(days.get(key) ?? []), lesson]);
-    }
-    return days;
-}

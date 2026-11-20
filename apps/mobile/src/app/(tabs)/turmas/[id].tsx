@@ -25,10 +25,10 @@ import { ClassroomPosts } from '@/components/classroom/ClassroomPosts';
 import { ClassroomStatistics } from '@/components/classroom/ClassroomStatistics';
 import { ClassroomSummary } from '@/components/classroom/ClassroomSummary';
 import { FrequencyContent } from '@/components/classroom/FrequencyContent';
+import { TeachingPlanLink } from '@/components/classroom/TeachingPlanLink';
 import { ErrorCard, SIGAA_DOWN_MESSAGE, StaleDataNotice } from '@/components/ErrorState';
 import { BackHeader } from '@/components/HeaderBar';
 import { LoginPromptCard } from '@/components/home/LoginPromptCard';
-import { ListCard } from '@/components/ListCard';
 import { LoadingText } from '@/components/LoadingText';
 import { openLink } from '@/components/Markdown';
 import { PersonPhoto } from '@/components/PersonPhoto';
@@ -100,6 +100,8 @@ export default function ClassroomScreen() {
                         onValueChange={(value) => router.setParams({ tab: value })}
                         className="mt-5 gap-4"
                     >
+                        {/* sem leitura do plano ainda, a página dele consulta o SIGAA */}
+                        {classroom.has_teaching_plan !== false && <TeachingPlanLink id={id} />}
                         <TabsList
                             variant="line"
                             accessibilityLabel="Detalhes da turma"
@@ -255,7 +257,7 @@ function MemberGroup({
     return (
         <View>
             <GroupTitle title={title} count={count} />
-            <ListCard>{children}</ListCard>
+            <View className="gap-3">{children}</View>
         </View>
     );
 }
@@ -276,7 +278,7 @@ function ProfessorRow({ professor }: { professor: Professor }) {
                         onPress={() =>
                             router.push({ pathname: '/professores/[siape]', params: { siape } })
                         }
-                        className="text-sm font-medium"
+                        className="text-base font-medium"
                     >
                         {name}
                     </Text>
@@ -312,27 +314,29 @@ function PersonRow({
     email?: string | null;
 }) {
     return (
-        <View className="flex-row items-center gap-3 py-2.5">
-            <PersonPhoto src={photo} />
-            <View className="min-w-0 flex-1">
-                <Text numberOfLines={1} className="text-sm font-medium text-foreground">
-                    {name}
-                </Text>
-                {details && (
-                    <Text numberOfLines={1} className="text-xs text-muted-foreground">
-                        {details}
+        <Card>
+            <CardContent className="flex-row items-center gap-4">
+                <PersonPhoto src={photo} size="md" />
+                <View className="min-w-0 flex-1 gap-1">
+                    <Text numberOfLines={1} className="text-base font-medium text-foreground">
+                        {name}
                     </Text>
-                )}
-                {email && (
-                    <Text
-                        accessibilityRole="link"
-                        onPress={() => openLink(mailto(email))}
-                        className="text-xs text-primary"
-                    >
-                        {email}
-                    </Text>
-                )}
-            </View>
-        </View>
+                    {details && (
+                        <Text numberOfLines={1} className="text-sm text-muted-foreground">
+                            {details}
+                        </Text>
+                    )}
+                    {email && (
+                        <Text
+                            accessibilityRole="link"
+                            onPress={() => openLink(mailto(email))}
+                            className="text-sm text-primary"
+                        >
+                            {email}
+                        </Text>
+                    )}
+                </View>
+            </CardContent>
+        </Card>
     );
 }

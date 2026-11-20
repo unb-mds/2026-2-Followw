@@ -15,6 +15,7 @@ import { ErrorCard, SIGAA_DOWN_MESSAGE, StaleDataNotice } from '@/components/Err
 import { ListCard } from '@/components/ListCard';
 import { LoadingText } from '@/components/LoadingText';
 import { Markdown, openLink } from '@/components/Markdown';
+import { TabFilter } from '@/components/TabFilter';
 import {
     Accordion,
     AccordionContent,
@@ -27,13 +28,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 
-const filters: { type: PostType | 'all'; label: string }[] = [
-    { type: 'all', label: 'Todas' },
-    { type: 'news', label: 'Notícias' },
-    { type: 'topic', label: 'Tópicos de aula' },
-    { type: 'material', label: 'Materiais' },
-    { type: 'assessment', label: 'Avaliações' }
-];
+const filters = ['all', 'news', 'topic', 'material', 'assessment'] as const;
+const filterLabels: Record<(typeof filters)[number], string> = {
+    all: 'Todas',
+    news: 'Notícias',
+    topic: 'Tópicos de aula',
+    material: 'Materiais',
+    assessment: 'Avaliações'
+};
 
 export function ClassroomPosts({ id }: { id: string }) {
     const queryClient = useQueryClient();
@@ -58,29 +60,23 @@ export function ClassroomPosts({ id }: { id: string }) {
 
     return (
         <View accessibilityLabel="Postagens da turma" className="flex-col gap-3">
-            <View className="flex-row flex-wrap items-center justify-between gap-2">
-                <View
-                    accessibilityLabel="Filtrar postagens por tipo"
-                    className="min-w-0 flex-row flex-wrap gap-1"
-                >
-                    {filters.map((filter) => (
-                        <Button
-                            key={filter.type}
-                            size="sm"
-                            variant={type === filter.type ? 'secondary' : 'ghost'}
-                            accessibilityState={{ selected: type === filter.type }}
-                            onPress={() => {
-                                setType(filter.type);
-                                setOpenedId(null);
-                            }}
-                        >
-                            <Text>{filter.label}</Text>
-                        </Button>
-                    ))}
-                </View>
+            <View className="flex-row items-center justify-between gap-2">
+                <TabFilter
+                    label="Filtrar postagens por tipo"
+                    size="sm"
+                    value={type}
+                    options={filters}
+                    labels={filterLabels}
+                    onChange={(next) => {
+                        setType(next);
+                        setOpenedId(null);
+                    }}
+                    className="shrink"
+                />
                 <Button
                     variant="ghost"
-                    size="sm"
+                    size="icon-sm"
+                    accessibilityLabel="Atualizar"
                     disabled={posts.isFetching}
                     onPress={() => {
                         const openedNews = posts.data.find(
@@ -100,7 +96,6 @@ export function ClassroomPosts({ id }: { id: string }) {
                     }}
                 >
                     <Icon as={RefreshCw} className="size-4" />
-                    <Text>Atualizar</Text>
                 </Button>
             </View>
             {posts.isError && <StaleDataNotice subject="as postagens" />}

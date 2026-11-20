@@ -2,11 +2,12 @@ import type { Lesson } from '@followw/core/queries/classrooms.ts';
 import type { DayProps } from 'react-day-picker';
 
 import { getHoliday } from '@followw/core/calendar.ts';
+import { lessonsByDay } from '@followw/core/lib/classroom-details.ts';
 import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { createContext, use, useMemo } from 'react';
 import { ptBR } from 'react-day-picker/locale';
 
-import { lessonsByDay, markable, type MarkLessons } from '#/components/classroom/lesson-utils';
+import { markable, type MarkLessons } from '#/components/classroom/lesson-utils';
 import { LessonMenuContent } from '#/components/classroom/LessonMenu';
 import { Calendar } from '#/components/ui/calendar';
 import { Card } from '#/components/ui/card';
