@@ -23,7 +23,8 @@ import {
     SEARCH_MIN_LENGTH,
     searchText,
     subjectsQueryOptions,
-    takenCodes
+    takenCodes,
+    approvedCodes
 } from '@followw/core/queries/subjects.ts';
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -105,7 +106,12 @@ export default function SearchScreen() {
     }, [q]);
     const view = searchView(category, q, text, user);
     const history = useQuery({ ...allClassroomsQueryOptions, enabled: subjects && Boolean(user) });
-    const taken = useMemo(() => (history.data ? takenCodes(history.data) : null), [history.data]);
+    const completed = user?.completed_subjects;
+    const taken = useMemo(
+        () =>
+            history.data ? takenCodes(history.data, approvedCodes(history.data, completed)) : null,
+        [history.data, completed]
+    );
 
     return (
         <View className="relative flex-1 bg-background">

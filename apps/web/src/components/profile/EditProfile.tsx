@@ -1,6 +1,7 @@
 import { useOnline } from '@followw/core/lib/online.ts';
 import { MAX_PROFILE_BIO_LENGTH, truncateProfileBio } from '@followw/core/lib/profile.ts';
 import { ApiError } from '@followw/core/queries/errors.ts';
+import { useUpdateSettings } from '@followw/core/queries/settings.ts';
 import { ChevronRight, ImagePlus, Pencil, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -23,7 +24,6 @@ import { PersonPhoto } from '#/components/ui/person-photo';
 import { Textarea } from '#/components/ui/textarea';
 import { toast } from '#/components/ui/toast';
 import { useEditProfile } from '#/queries/profile-edit';
-import { useUpdateSettings } from '#/queries/settings';
 
 const MAX_ORIGINAL_PHOTO_MB = 4;
 const PHOTO_EXTENSIONS = /\.(jpe?g|png)$/i;
