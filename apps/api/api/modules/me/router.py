@@ -16,6 +16,7 @@ from starlette.datastructures import UploadFile as MultipartFile
 
 from api.cache import CacheControl, NoStore
 from api.db.main import DatabaseDep
+from api.downloads import attachment
 from api.errors import SIGAA_ERRORS
 from api.modules.me.edit import edit_profile
 from api.modules.me.internships import (
@@ -103,7 +104,7 @@ async def get_token(client: SigaaClientDep) -> RestaurantCredentials:
 )
 async def get_student_card(client: SigaaClientDep, response: Response) -> Response:
     pdf = await client.documents.get_student_card_pdf()
-    return _document_download(pdf, "carteirinha.pdf", response)
+    return attachment(pdf, "carteirinha.pdf", "application/pdf", response)
 
 
 @router.post(
@@ -115,17 +116,7 @@ async def get_student_card(client: SigaaClientDep, response: Response) -> Respon
 )
 async def get_transcript(client: SigaaClientDep, response: Response) -> Response:
     pdf = await client.documents.get_transcript_pdf()
-    return _document_download(pdf, "historico.pdf", response)
-
-
-def _document_download(content: bytes, filename: str, response: Response) -> Response:
-    download = Response(
-        content=content,
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
-    download.raw_headers.extend(response.raw_headers)
-    return download
+    return attachment(pdf, "historico.pdf", "application/pdf", response)
 
 
 @router.get(

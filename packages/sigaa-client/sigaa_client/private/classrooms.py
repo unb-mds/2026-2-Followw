@@ -61,7 +61,7 @@ from ..utils.parsing import (
     to_markdown,
     visible_text,
 )
-from .classroom_navigation import _open_menu, _open_topics
+from .classroom_navigation import open_menu, open_topics
 from .materials import download_material
 from .posts import _parse_assessments, _parse_dashboard_posts, _parse_topics
 from .session import Session
@@ -187,7 +187,7 @@ class Classrooms:
         return _parse_news_list(BeautifulSoup(page, "lxml"))
 
     async def list_classroom_posts(self, classroom_id: str) -> list[ClassroomPost]:
-        page = await self._read_screen(classroom_id, _open_topics)
+        page = await self._read_screen(classroom_id, open_topics)
         posts = _parse_topics(BeautifulSoup(page, "lxml"))
         page = await self._read_screen(classroom_id, _open_assessments)
         posts.extend(_parse_assessments(BeautifulSoup(page, "lxml")))
@@ -220,7 +220,7 @@ class Classrooms:
             async def download(
                 expected: Classroom, allow_renewal: bool
             ) -> MaterialFile:
-                page = await _open_topics(self._session, allow_renewal)
+                page = await open_topics(self._session, allow_renewal)
                 _assert_context(page, expected)
                 return await stack.enter_async_context(
                     download_material(self._session, page, material_id, allow_renewal)
@@ -295,11 +295,11 @@ async def _open_participants(session: Session, allow_renewal: bool) -> str:
 
 
 async def _open_frequency(session: Session, allow_renewal: bool) -> str:
-    return await _open_menu(session, FREQUENCY_MENU_LABEL, allow_renewal)
+    return await open_menu(session, FREQUENCY_MENU_LABEL, allow_renewal)
 
 
 async def _open_teaching_plan(session: Session, allow_renewal: bool) -> str:
-    return await _open_menu(session, TEACHING_PLAN_MENU_LABEL, allow_renewal)
+    return await open_menu(session, TEACHING_PLAN_MENU_LABEL, allow_renewal)
 
 
 async def _open_grades(session: Session, allow_renewal: bool) -> str:
@@ -313,15 +313,15 @@ async def _open_grades(session: Session, allow_renewal: bool) -> str:
 
 
 async def _open_statistics(session: Session, allow_renewal: bool) -> str:
-    return await _open_menu(session, STATISTICS_MENU_LABEL, allow_renewal)
+    return await open_menu(session, STATISTICS_MENU_LABEL, allow_renewal)
 
 
 async def _open_news(session: Session, allow_renewal: bool) -> str:
-    return await _open_menu(session, NEWS_MENU_LABEL, allow_renewal)
+    return await open_menu(session, NEWS_MENU_LABEL, allow_renewal)
 
 
 async def _open_assessments(session: Session, allow_renewal: bool) -> str:
-    return await _open_menu(session, ASSESSMENTS_MENU_LABEL, allow_renewal)
+    return await open_menu(session, ASSESSMENTS_MENU_LABEL, allow_renewal)
 
 
 async def _open_news_detail(news_id: int, session: Session, allow_renewal: bool) -> str:

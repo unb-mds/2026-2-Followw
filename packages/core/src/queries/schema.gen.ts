@@ -802,6 +802,7 @@ export interface components {
             time_label?: string | null;
             /** Url */
             url?: string | null;
+            material_kind?: components["schemas"]["MaterialKind"] | null;
             /**
              * Attachments
              * @default []
@@ -1147,6 +1148,11 @@ export interface components {
          * @enum {string}
          */
         LessonStatus: "presente" | "falta" | "nao_registrada" | "cancelada";
+        /**
+         * MaterialKind
+         * @enum {string}
+         */
+        MaterialKind: "file" | "link" | "action";
         /** MenuSection */
         MenuSection: {
             key?: components["schemas"]["MenuSectionKey"] | null;

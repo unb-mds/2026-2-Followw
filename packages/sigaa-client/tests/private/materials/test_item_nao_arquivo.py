@@ -1,7 +1,7 @@
 import pytest
 from bs4 import BeautifulSoup
 
-from sigaa_client import MaterialNotFound, SigaaClient
+from sigaa_client import MaterialKind, MaterialNotFound, SigaaClient
 from sigaa_client.private.posts import _parse_topics
 
 from ...fakes import CREDENTIALS
@@ -21,11 +21,18 @@ def com_tarefa(monkeypatch):
     )
 
 
-def test_item_com_acao_propria_vira_link_para_o_sigaa(com_tarefa):
-    _, task, file, *_ = _parse_topics(BeautifulSoup(fakes.topics(1), "lxml"))
-    assert task.url == "https://sigaa.unb.br/sigaa/ava/index.jsf"
-    assert task.sigaa_id == "101"
-    assert file.url is None
+def test_item_com_acao_propria_e_marcado_como_acao(com_tarefa):
+    _, task, file, link, *_ = _parse_topics(BeautifulSoup(fakes.topics(1), "lxml"))
+    assert (task.material_kind, task.url, task.sigaa_id) == (
+        MaterialKind.ACTION,
+        None,
+        "101",
+    )
+    assert (file.material_kind, file.url) == (MaterialKind.FILE, None)
+    assert (link.material_kind, link.url) == (
+        MaterialKind.LINK,
+        "https://example.org",
+    )
 
 
 async def test_item_com_acao_propria_nao_dispara_postback(com_tarefa):

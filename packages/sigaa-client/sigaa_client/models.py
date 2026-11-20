@@ -1,5 +1,6 @@
 import enum
 from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
 from functools import cached_property
@@ -104,8 +105,9 @@ class Curriculum(CurriculumSummary):
     complementary: tuple[str, ...] = ()
 
 
-class MaterialFile(BaseModel):
-    model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
+@dataclass(frozen=True, slots=True)
+class MaterialFile:
+    """Arquivo aberto: `content` só pode ser lido dentro do contexto do download."""
 
     content: AsyncIterator[bytes]
     filename: str
@@ -575,6 +577,12 @@ class PostType(str, enum.Enum):
     ASSESSMENT = "assessment"
 
 
+class MaterialKind(str, enum.Enum):
+    FILE = "file"
+    LINK = "link"
+    ACTION = "action"
+
+
 class ClassroomPost(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -592,6 +600,7 @@ class ClassroomPost(BaseModel):
     starts_at: datetime | None = None
     time_label: str | None = None
     url: str | None = None
+    material_kind: MaterialKind | None = None
     attachments: tuple[NewsAttachment, ...] = ()
 
     @classmethod

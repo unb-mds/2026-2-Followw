@@ -194,8 +194,11 @@ class Sync:
             raise HTTPException(
                 status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail="Not cached"
             )
-        client = await self._sigaa.client()
-        await run_task(task, Context(client, self, target, refresh))
+        await run_task(task, Context(await self.client(), self, target, refresh))
+
+    async def client(self) -> SigaaClient:
+        """O client desta conexão, para o que não passa pelo cache (ex.: downloads)."""
+        return await self._sigaa.client()
 
     def schedule[T: Target](self, task: Task[T], target: T) -> None:
         """Junta a tarefa ao job da turma do alvo (ou ao da conta, sem turma)."""

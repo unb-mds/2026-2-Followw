@@ -1,6 +1,6 @@
 import asyncio
 import inspect
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable, Collection
 from contextlib import asynccontextmanager
 from typing import Any
 from urllib.parse import urlencode, urljoin
@@ -36,6 +36,8 @@ _CAS_INVALID_CREDENTIALS = "credenciais invalidas"
 _CAS_LOGIN = httpx.URL(CAS_LOGIN_URL)
 _SIGAA_LOGIN_HOSTS = (httpx.URL(SIGAA_BASE_URL).host, httpx.URL(CAS_SERVICE_URL).host)
 _SIGAA_LOGIN_PATHS = ("/sigaa/logar.do", "/sigaa/verTelaLogin.do")
+
+_MAX_STREAM_REDIRECTS = 5
 
 
 class Session:
@@ -103,20 +105,33 @@ class Session:
 
     @asynccontextmanager
     async def stream(
-        self, method: str, url: str, *, allow_renewal: bool, **kwargs: Any
+        self,
+        method: str,
+        url: str,
+        *,
+        allowed_hosts: Collection[str],
+        allow_renewal: bool,
+        **kwargs: Any,
     ) -> AsyncIterator[httpx.Response]:
+        """Segue redirecionamentos só para `allowed_hosts`, validando cada destino."""
         stale_token = await self.authenticate()
-        async with self._http.stream(
-            method, url, follow_redirects=False, **kwargs
-        ) as response:
-            if not _is_unauthenticated(response):
-                if not response.is_redirect:
+        request = self._http.build_request(method, url, **kwargs)
+        for _ in range(_MAX_STREAM_REDIRECTS + 1):
+            response = await self._http.send(
+                request, stream=True, follow_redirects=False
+            )
+            try:
+                if not _is_unauthenticated(response) and not response.is_redirect:
                     response.raise_for_status()
-                yield response
-                return
-
-        await self._restore(stale_token, allow_renewal)
-        raise SessionRenewed("Refaça a operação com o estado da nova sessão.")
+                    yield response
+                    return
+            finally:
+                await response.aclose()
+            if _is_unauthenticated(response):
+                await self._restore(stale_token, allow_renewal)
+                raise SessionRenewed("Refaça a operação com o estado da nova sessão.")
+            request = _redirect(response, allowed_hosts)
+        raise SigaaParseError("Resposta excedeu o limite de redirecionamentos.")
 
     async def get(self, url: str, **kwargs: Any) -> httpx.Response:
         return await self.request("GET", url, **kwargs)
@@ -221,6 +236,26 @@ def _is_unauthenticated(response: httpx.Response) -> bool:
     if url.host == _CAS_LOGIN.host:
         return path == _CAS_LOGIN.path
     return url.host in _SIGAA_LOGIN_HOSTS and path in _SIGAA_LOGIN_PATHS
+
+
+def _redirect(
+    response: httpx.Response, allowed_hosts: Collection[str]
+) -> httpx.Request:
+    request = response.next_request
+    if request is None:
+        raise SigaaParseError("Redirecionamento sem destino.")
+    # 307/308 após POST reenviariam o formulário para outro servidor.
+    if request.method != "GET":
+        raise SigaaParseError("Redirecionamento incompatível com o método.")
+    url = request.url
+    if (
+        url.scheme != "https"
+        or url.host not in allowed_hosts
+        or url.port is not None
+        or url.userinfo
+    ):
+        raise SigaaParseError(f"Destino de redirecionamento não permitido: {url.host}.")
+    return request
 
 
 def _cas_error(html: str) -> AuthenticationFailed | SigaaParseError:

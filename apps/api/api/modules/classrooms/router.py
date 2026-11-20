@@ -1,15 +1,14 @@
 from collections.abc import AsyncIterator
 from typing import Annotated, Literal
-from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Path, Query, Response
-from fastapi.responses import StreamingResponse
 from pydantic import AfterValidator, BaseModel, Field
 from sigaa_client import ClassroomTeachingPlan, MaterialFile, PostType, StatisticsShare
 
 from api.cache import NoStore, no_store
 from api.db.enums import LessonStatus
+from api.downloads import attachment
 from api.errors import SIGAA_ERRORS
 from api.modules.classrooms.frequency import (
     ClassroomFrequencyResult,
@@ -23,7 +22,6 @@ from api.modules.classrooms.service import (
     ClassroomServiceDep,
     ParticipantClassroom,
 )
-from api.sigaa import SigaaConnectionDep
 
 router = APIRouter()
 
@@ -46,16 +44,10 @@ MaterialId = Annotated[
 
 
 async def _open_material(
-    service: ClassroomServiceDep,
-    connection: SigaaConnectionDep,
-    classroom_id: ClassroomId,
-    post_id: MaterialId,
+    service: ClassroomServiceDep, classroom_id: ClassroomId, post_id: MaterialId
 ) -> AsyncIterator[MaterialFile]:
-    link = await service.get_link(classroom_id)
-    client = await connection.client()
-    async with client.classrooms.download_classroom_material(
-        link.front_end_id, post_id
-    ) as file:
+    # Com yield, erros saem antes dos headers e o stream fecha após a resposta.
+    async with service.open_material(classroom_id, post_id) as file:
         yield file
 
 
@@ -76,22 +68,13 @@ async def _open_material(
             "description": "Arquivo original; Content-Type e Content-Disposition identificam seu tipo e nome.",
         },
     },
-    dependencies=[NoStore],
 )
 async def download_classroom_material(
     response: Response,
     file: Annotated[MaterialFile, Depends(_open_material)],
 ) -> Response:
-    download = StreamingResponse(
-        content=file.content,
-        headers={
-            "Content-Type": file.content_type,
-            "Content-Disposition": f"attachment; filename*=UTF-8''{quote(file.filename, safe='')}",
-            "X-Content-Type-Options": "nosniff",
-        },
-    )
-    download.raw_headers.extend(response.raw_headers)
-    return download
+    no_store(response)
+    return attachment(file.content, file.filename, file.content_type, response)
 
 
 class LessonMark(BaseModel):

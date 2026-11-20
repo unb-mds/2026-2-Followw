@@ -1,3 +1,5 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from functools import partial
 from typing import Annotated, Literal
@@ -9,6 +11,7 @@ from sigaa_client import (
     ClassroomNotFound,
     ClassroomTeachingPlan,
     Grade,
+    MaterialFile,
     StatisticsShare,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -297,6 +300,18 @@ class ClassroomService:
             )
 
         return await self._sync.resolve(sync_teaching_plan, link, load)
+
+    @asynccontextmanager
+    async def open_material(
+        self, classroom_id: str, material_id: str
+    ) -> AsyncIterator[MaterialFile]:
+        """Abre o arquivo direto do SIGAA: o conteúdo nunca passa pelo cache."""
+        link = await self.get_link(classroom_id)
+        client = await self._sync.client()
+        async with client.classrooms.download_classroom_material(
+            link.front_end_id, material_id
+        ) as file:
+            yield file
 
     async def get_link(self, classroom_id: str) -> OwnLink:
         """O vínculo pelo `Classroom.id` ou pelo `sigaa_id` da turma."""

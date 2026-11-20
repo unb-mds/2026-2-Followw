@@ -18,11 +18,11 @@ def material_payload():
 
 
 @pytest.fixture
-def material_api(api, stub_sigaa, material_payload):
+def material_api(api, stub_sigaa, material_payload, monkeypatch):
     service = SimpleNamespace(
         get_link=AsyncMock(return_value=SimpleNamespace(front_end_id="AAA"))
     )
-    api.app.dependency_overrides[ClassroomService] = lambda: service
+    monkeypatch.setattr(ClassroomService, "get_link", service.get_link)
 
     @asynccontextmanager
     async def open_material(*_):

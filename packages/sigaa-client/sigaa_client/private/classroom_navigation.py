@@ -12,7 +12,7 @@ TOPICS_LIST_BUTTON = "formAcoesTurma:visualizarAulasEmLista"
 TOPICS_LIST_LINK = "formAcoesTurma:linkExibirEmLista"
 
 
-async def _open_menu(session: Session, label: str, allow_renewal: bool) -> str:
+async def open_menu(session: Session, label: str, allow_renewal: bool) -> str:
     """Essas telas só abrem pelo item do menu da turma — GET direto dá erro."""
     response = await session.get(
         CLASSROOM_HOME_PATH, retry_on_renewal=False, allow_renewal=allow_renewal
@@ -31,8 +31,8 @@ async def _open_menu(session: Session, label: str, allow_renewal: bool) -> str:
     return response.text
 
 
-async def _open_topics(session: Session, allow_renewal: bool) -> str:
-    page = await _open_menu(session, CLASSROOM_MAIN_MENU_LABEL, allow_renewal)
+async def open_topics(session: Session, allow_renewal: bool) -> str:
+    page = await open_menu(session, CLASSROOM_MAIN_MENU_LABEL, allow_renewal)
     soup = BeautifulSoup(page, "lxml")
     button = soup.find(id=TOPICS_LIST_BUTTON)
     if button is None:

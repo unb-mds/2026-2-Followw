@@ -301,6 +301,7 @@ def _to_post(
         starts_at=item.starts_at,
         time_label=item.time_label,
         url=item.url,
+        material_kind=item.material_kind,
         attachments=tuple(item.attachments) if include_content else (),
     )
 

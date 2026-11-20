@@ -46,6 +46,7 @@ const posts: ClassroomPost[] = [
         type: 'material',
         title: 'Slides.pdf',
         topic_id: topic.id,
+        material_kind: 'file',
         attachments: [],
         is_read: false
     },
@@ -55,6 +56,7 @@ const posts: ClassroomPost[] = [
         title: 'Leitura online',
         topic_id: topic.id,
         url: 'https://example.org/aula',
+        material_kind: 'link',
         attachments: [],
         is_read: false
     },
@@ -203,11 +205,18 @@ describe('postagens da turma com a API', () => {
     });
 
     test('filtra materiais sem perder o vínculo com o tópico ou fazer novas consultas', async () => {
+        list = [
+            ...posts,
+            { ...posts[2], id: 'material:tarefa', title: 'Enviar tarefa', material_kind: 'action' }
+        ];
         const page = renderPosts();
         await page.findByRole('button', { name: /Slides.pdf/ });
         testing.fireEvent.click(page.getByRole('button', { name: 'Materiais' }));
         expect(page.queryByRole('button', { name: /Bem-vindos à turma/ })).toBeNull();
-        expect(page.getAllByText('Tópico: Sistemas de numeração')).toHaveLength(2);
+        expect(page.getAllByText('Tópico: Sistemas de numeração')).toHaveLength(3);
+        testing.fireEvent.click(page.getByRole('button', { name: /Enviar tarefa/ }));
+        expect(await page.findByRole('link', { name: 'Abrir SIGAA' })).toBeDefined();
+        expect(page.queryByRole('button', { name: 'Baixar' })).toBeNull();
         testing.fireEvent.click(page.getByRole('button', { name: /Slides.pdf/ }));
         expect(await page.findByRole('button', { name: 'Baixar' })).toBeDefined();
         expect(page.queryByRole('link', { name: 'Acessar material' })).toBeNull();
