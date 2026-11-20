@@ -1,88 +1,61 @@
 import re
 from collections.abc import Iterable
-from hashlib import sha256
-from urllib.parse import urljoin, urlsplit
 
 from bs4 import BeautifulSoup, Tag
 
-from ..config import SIGAA_BASE_URL
 from ..exceptions import SigaaParseError
 from ..models import Classroom, ClassroomPost, DashboardPost, PostType
 from ..utils.jsf import link_params
 from ..utils.parsing import clean_text, parse_datetime, to_markdown
+from .topics import TOPICS_FORM_ID, read_topics
 
 UPDATES_ID = "atualizacoes-turma"
 ACTIVITIES_ID = "avaliacao-portal"
 CLASSROOM_SIGAA_ID_FIELD = "idTurma"
 ACTIVITY_TYPES = {"Avaliação": PostType.ASSESSMENT}
 
-_TOPIC_DATES_RE = re.compile(
-    r"^(.*?)\s*\((\d{2}/\d{2}/\d{4})\s*-\s*(\d{2}/\d{2}/\d{4})\)"
-)
 _CLOCK_RE = re.compile(r"^\d{2}:\d{2}$")
 _DAY_RE = re.compile(r"(\d{2}/\d{2}/\d{4})")
 # As "Últimas Atualizações" misturam notícias com outros avisos da turma.
 _NEWS_UPDATE_RE = re.compile(r"^Nova Notícia:\s*(.+)$")
 
 
-def _fingerprint(value: str) -> str:
-    return sha256(value.encode()).hexdigest()
-
-
 def _parse_topics(soup: BeautifulSoup) -> list[ClassroomPost]:
-    form = soup.find("form", id="formAva")
+    form = soup.find("form", id=TOPICS_FORM_ID)
     if not isinstance(form, Tag):
-        raise SigaaParseError("Página principal da turma sem formAva.")
+        raise SigaaParseError(f"Página principal da turma sem {TOPICS_FORM_ID}.")
     posts = []
-    for topic in form.select(".topico-aula"):
-        heading = topic.select_one(".titulo")
-        match = _TOPIC_DATES_RE.match(clean_text(heading)) if heading else None
-        if match is None or not match.group(1).strip():
-            raise SigaaParseError("Tópico de aula sem título ou período reconhecível.")
-        title, start, end = match.groups()
-        # A lista não expõe o ID do tópico; nunca use o índice instável do JSF.
-        topic_id = f"topic:{_fingerprint(match.group(0))}"
-        body = topic.select_one(".conteudotopico")
+    for topic in read_topics(form):
+        body = topic.tag.select_one(".conteudotopico")
         content = BeautifulSoup(str(body), "lxml") if body else None
         if content is not None:
             for item in content.select(".item, script, .drag_indicator"):
                 item.decompose()
         posts.append(
             ClassroomPost(
-                id=topic_id,
+                id=topic.id,
                 type=PostType.TOPIC,
-                title=title.strip(),
-                starts_on=parse_datetime(start, "%d/%m/%Y", "do tópico").date(),
-                ends_on=parse_datetime(end, "%d/%m/%Y", "do tópico").date(),
+                title=topic.title,
+                starts_on=topic.starts_on,
+                ends_on=topic.ends_on,
                 content=to_markdown(content) if content is not None else None,
             )
         )
-        for item in topic.select(".item"):
-            anchor = item.find("a")
-            if not isinstance(anchor, Tag):
-                continue
-            name = clean_text(anchor)
-            params = link_params(anchor)
-            href = str(anchor.get("href") or "").strip()
-            url = urljoin(SIGAA_BASE_URL, href)
-            url = (
-                url
-                if href and href != "#" and urlsplit(url).scheme in ("https", "http")
-                else None
-            )
-            source_id = params.get("id") or url
-            if not name or source_id is None:
+        for material in topic.materials:
+            name = clean_text(material.anchor)
+            if not name or material.id is None:
                 raise SigaaParseError("Material do tópico sem título ou identificador.")
-            description = item.select_one(".descricao-item")
+            description = material.item.select_one(".descricao-item")
             posts.append(
                 ClassroomPost(
-                    id=f"material:{_fingerprint(topic_id + ':' + source_id)}",
+                    id=material.id,
                     type=PostType.MATERIAL,
-                    sigaa_id=params.get("id"),
-                    topic_id=topic_id,
+                    sigaa_id=material.params.get("id"),
+                    topic_id=topic.id,
                     title=name,
                     content=to_markdown(description) if description else None,
-                    url=url,
+                    url=material.url,
+                    material_kind=material.kind,
                 )
             )
     if not posts and "não criou nenhum tópico" not in clean_text(form).lower():

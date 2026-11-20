@@ -4,6 +4,7 @@ import pytest
 from sigaa_client import (
     ClassroomNotFound,
     ClassroomPost,
+    MaterialKind,
     NewsNotFound,
     PostType,
     SigaaParseError,
@@ -134,6 +135,7 @@ def test_posts_unificam_categorias_e_material_referencia_topico(
         title="Aula.pdf",
         topic_id=topic.id,
         sigaa_id="ARQUIVO123",
+        material_kind=MaterialKind.FILE,
     )
     assessment = ClassroomPost(
         id="assessment:1",

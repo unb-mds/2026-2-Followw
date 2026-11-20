@@ -1,12 +1,14 @@
+from collections.abc import AsyncIterator
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Path, Query, Response
+from fastapi import APIRouter, Depends, Path, Query, Response
 from pydantic import AfterValidator, BaseModel, Field
-from sigaa_client import ClassroomTeachingPlan, PostType, StatisticsShare
+from sigaa_client import ClassroomTeachingPlan, MaterialFile, PostType, StatisticsShare
 
 from api.cache import NoStore, no_store
 from api.db.enums import LessonStatus
+from api.downloads import attachment
 from api.errors import SIGAA_ERRORS
 from api.modules.classrooms.frequency import (
     ClassroomFrequencyResult,
@@ -35,6 +37,44 @@ PostId = Annotated[
         description="ID do post na listagem da turma.",
     ),
 ]
+MaterialId = Annotated[
+    str,
+    Path(pattern=r"^material:[a-f0-9]{64}$", description="ID do material na turma."),
+]
+
+
+async def _open_material(
+    service: ClassroomServiceDep, classroom_id: ClassroomId, post_id: MaterialId
+) -> AsyncIterator[MaterialFile]:
+    # Com yield, erros saem antes dos headers e o stream fecha após a resposta.
+    async with service.open_material(classroom_id, post_id) as file:
+        yield file
+
+
+@router.post(
+    "/{classroom_id}/posts/{post_id}/download",
+    response_class=Response,
+    summary="Baixar um arquivo dos tópicos da turma",
+    description="Busca o arquivo na Principal do SIGAA com a sessão do aluno, sem armazenar seu conteúdo.",
+    responses={
+        **CLASSROOM_ERRORS,
+        404: {"description": "Turma ou arquivo não encontrado."},
+        200: {
+            "content": {
+                "application/octet-stream": {
+                    "schema": {"type": "string", "format": "binary"}
+                }
+            },
+            "description": "Arquivo original; Content-Type e Content-Disposition identificam seu tipo e nome.",
+        },
+    },
+)
+async def download_classroom_material(
+    response: Response,
+    file: Annotated[MaterialFile, Depends(_open_material)],
+) -> Response:
+    no_store(response)
+    return attachment(file.content, file.filename, file.content_type, response)
 
 
 class LessonMark(BaseModel):

@@ -3,7 +3,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
-from sigaa_client import FrequencyStatus, Grade, PostType
+from sigaa_client import FrequencyStatus, Grade, MaterialKind, PostType
 from sqlalchemy import (
     ColumnElement,
     DateTime,
@@ -415,6 +415,9 @@ class ClassroomPosts(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     starts_at: Mapped[datetime | None] = mapped_column()
     time_label: Mapped[str | None] = mapped_column()
     url: Mapped[str | None] = mapped_column()
+    material_kind: Mapped[MaterialKind | None] = mapped_column(
+        _enum(MaterialKind, "material_kind")
+    )
     content: Mapped[str | None] = mapped_column(Text)
     attachments: Mapped[list[dict[str, str]]] = mapped_column(JSONB, default=list)
     content_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

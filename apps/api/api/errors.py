@@ -9,6 +9,7 @@ from sigaa_client import (
     ClassroomNotFound,
     DocumentUnavailable,
     InternshipNotFound,
+    MaterialNotFound,
     MissingProfilePhoto,
     NewsNotFound,
     SigaaError,
@@ -53,6 +54,7 @@ EXCEPTION_HANDLERS: dict[type[Exception], Handler] = {
     ClassroomNotFound: _error(404, "Classroom not found"),
     InternshipNotFound: _error(404, "Internship not found"),
     NewsNotFound: _error(404, "News not found"),
+    MaterialNotFound: _error(404, "Material not found"),
     SigaaSearchError: _error(422),
     UnitNotFound: _error(422),
     MissingProfilePhoto: _error(

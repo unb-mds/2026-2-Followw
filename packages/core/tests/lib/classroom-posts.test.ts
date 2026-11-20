@@ -2,7 +2,12 @@ import { describe, expect, test } from 'bun:test';
 
 import type { ClassroomPost } from '../../src/queries/classrooms.ts';
 
-import { postDateLabel, postLink, postTypeLabels } from '../../src/lib/classroom-posts.ts';
+import {
+    groupTopics,
+    postDateLabel,
+    postLink,
+    postTypeLabels
+} from '../../src/lib/classroom-posts.ts';
 
 const post: ClassroomPost = {
     id: 'topic:abc',
@@ -62,5 +67,26 @@ describe('postagens da turma', () => {
         );
         for (const url of [null, undefined, '', '#', 'javascript:alert(1)', 'data:text/html,teste'])
             expect(postLink(url)).toBeNull();
+    });
+
+    test('agrupa materiais pelo tópico, na ordem da lista', () => {
+        const material = (id: string, topic_id?: string): ClassroomPost => ({
+            ...post,
+            id,
+            type: 'material',
+            topic_id
+        });
+        const outro = { ...post, id: 'topic:outro' };
+        const posts = [
+            material('m1', post.id),
+            post,
+            outro,
+            material('m2'),
+            material('m3', post.id)
+        ];
+        const { topics, materials } = groupTopics(posts);
+        expect([...topics.keys()]).toEqual([post.id, outro.id]);
+        expect(materials.get(post.id)?.map((item) => item.id)).toEqual(['m1', 'm3']);
+        expect(materials.has(outro.id)).toBe(false);
     });
 });

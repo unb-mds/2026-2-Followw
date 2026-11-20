@@ -1,6 +1,11 @@
 import type { ClassroomPost, PostType } from '@followw/core/queries/classrooms.ts';
 
-import { postDateLabel, postLink, postTypeLabels } from '@followw/core/lib/classroom-posts.ts';
+import {
+    groupTopics,
+    postDateLabel,
+    postLink,
+    postTypeLabels
+} from '@followw/core/lib/classroom-posts.ts';
 import {
     classroomPostDetailQueryOptions,
     classroomPostsQueryOptions
@@ -10,6 +15,7 @@ import { RefreshCw } from 'lucide-react';
 import { m } from 'motion/react';
 import { useState } from 'react';
 
+import { MaterialDownload } from '#/components/classroom/MaterialDownload';
 import { ErrorCard, SIGAA_DOWN_MESSAGE, StaleDataNotice } from '#/components/ErrorState';
 import { ListCard } from '#/components/ListCard';
 import { LoadingText } from '#/components/LoadingText';
@@ -55,9 +61,7 @@ export function ClassroomPosts({ id }: { id: string }) {
         return <ErrorCard message={SIGAA_DOWN_MESSAGE} onRetry={() => posts.refetch()} />;
 
     const visible = posts.data.filter((post) => type === 'all' || post.type === type);
-    const topics = new Map(
-        posts.data.filter((post) => post.type === 'topic').map((post) => [post.id, post])
-    );
+    const { topics, materials } = groupTopics(posts.data);
 
     return (
         <section aria-label="Postagens da turma" className="flex flex-col gap-3">
@@ -144,12 +148,13 @@ export function ClassroomPosts({ id }: { id: string }) {
                                     </span>
                                 </AccordionTrigger>
                                 <AccordionContent className="pb-3">
-                                    {openedId === post.id &&
-                                        (post.type === 'news' ? (
-                                            <PostDetail classroomId={id} postId={post.id} />
-                                        ) : (
-                                            <PostContent post={post} />
-                                        ))}
+                                    {openedId === post.id && (
+                                        <PostBody
+                                            classroomId={id}
+                                            post={post}
+                                            materials={materials.get(post.id) ?? []}
+                                        />
+                                    )}
                                 </AccordionContent>
                             </AccordionItem>
                         ))}
@@ -170,6 +175,52 @@ function PostsMessage({ children }: { children: React.ReactNode }) {
     );
 }
 
+function PostBody({
+    classroomId,
+    post,
+    materials
+}: {
+    classroomId: string;
+    post: ClassroomPost;
+    materials: ClassroomPost[];
+}) {
+    if (post.type === 'news') return <PostDetail classroomId={classroomId} postId={post.id} />;
+    if (post.type === 'topic')
+        return <TopicContent classroomId={classroomId} topic={post} materials={materials} />;
+    return <PostContent classroomId={classroomId} post={post} />;
+}
+
+function TopicContent({
+    classroomId,
+    topic,
+    materials
+}: {
+    classroomId: string;
+    topic: ClassroomPost;
+    materials: ClassroomPost[];
+}) {
+    return (
+        <div className="flex flex-col gap-3">
+            {topic.content && <Markdown>{topic.content}</Markdown>}
+            {materials.length > 0 && (
+                <ul aria-label="Materiais do tópico" className="flex flex-col gap-3">
+                    {materials.map((material) => (
+                        <li key={material.id} className="flex flex-col gap-2">
+                            <p className="text-sm font-medium">{material.title}</p>
+                            <PostContent classroomId={classroomId} post={material} />
+                        </li>
+                    ))}
+                </ul>
+            )}
+            {!topic.content && materials.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                    Nenhuma descrição publicada para este tópico.
+                </p>
+            )}
+        </div>
+    );
+}
+
 function PostDetail({ classroomId, postId }: { classroomId: string; postId: string }) {
     const detail = useQuery(classroomPostDetailQueryOptions(classroomId, postId));
     if (detail.isPending) return <LoadingText>Carregando postagem...</LoadingText>;
@@ -178,12 +229,12 @@ function PostDetail({ classroomId, postId }: { classroomId: string; postId: stri
     return (
         <>
             {detail.isError && <StaleDataNotice subject="esta postagem" className="mb-3" />}
-            <PostContent post={detail.data} />
+            <PostContent classroomId={classroomId} post={detail.data} />
         </>
     );
 }
 
-function PostContent({ post }: { post: ClassroomPost }) {
+function PostContent({ classroomId, post }: { classroomId: string; post: ClassroomPost }) {
     const url = postLink(post.url);
     const attachments = post.attachments.flatMap((attachment) => {
         const href = postLink(attachment.url);
@@ -207,7 +258,10 @@ function PostContent({ post }: { post: ClassroomPost }) {
                     {post.type === 'material' ? 'Acessar material' : 'Abrir link'}
                 </a>
             )}
-            {post.type === 'material' && !url && (
+            {post.material_kind === 'file' && (
+                <MaterialDownload classroomId={classroomId} postId={post.id} />
+            )}
+            {post.material_kind === 'action' && (
                 <div className="flex flex-col gap-2">
                     <p className="text-sm text-muted-foreground">
                         Este material está disponível na página da turma no SIGAA.
@@ -241,11 +295,6 @@ function PostContent({ post }: { post: ClassroomPost }) {
             {post.type === 'news' && postDateLabel(post) && (
                 <p className="text-xs text-muted-foreground tabular-nums">
                     Publicada em {postDateLabel(post)}
-                </p>
-            )}
-            {post.type === 'topic' && !post.content && (
-                <p className="text-sm text-muted-foreground">
-                    Nenhuma descrição publicada para este tópico.
                 </p>
             )}
             {post.type === 'news' && !post.content && attachments.length === 0 && (

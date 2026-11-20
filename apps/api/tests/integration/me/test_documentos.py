@@ -40,8 +40,9 @@ def test_download_documento_preserva_conteudo_cookies_e_nao_usa_cache(
         assert response.headers["content-type"] == "application/pdf"
         assert (
             response.headers["content-disposition"]
-            == f'attachment; filename="{filename}"'
+            == f"attachment; filename*=UTF-8''{filename}"
         )
+        assert response.headers["x-content-type-options"] == "nosniff"
         assert response.headers["cache-control"] == "no-store"
         assert int(response.headers["content-length"]) == len(response.content)
         assert ACCESS_COOKIE_NAME in response.cookies
