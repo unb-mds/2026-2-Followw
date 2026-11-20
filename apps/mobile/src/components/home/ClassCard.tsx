@@ -14,18 +14,18 @@ import { cn } from '@/lib/utils';
 export interface ClassCardProps {
     title: string;
     compact?: boolean;
-    code?: string;
     time: string;
     location?: string;
     professors?: string[];
-    classNumber?: string;
     grade?: Classroom['grade'];
-    status?: 'in_progress' | 'next' | 'pending' | 'normal' | 'warning';
+    status?: 'in_progress' | 'next' | 'pending' | 'normal' | 'warning' | 'cancelled';
     statusText?: string;
     onLocationClick?: () => void;
     onClick?: () => void;
     indicator?: React.ReactNode;
     action?: React.ReactNode;
+    // sem a moldura do card, para listar dentro de outro card
+    plain?: boolean;
 }
 
 const STATUS = {
@@ -47,24 +47,29 @@ const STATUS = {
         className: 'bg-warning/10',
         textClassName: 'text-warning'
     },
-    warning: { label: 'Atenção', variant: 'destructive', className: '', textClassName: '' }
+    warning: { label: 'Atenção', variant: 'destructive', className: '', textClassName: '' },
+    cancelled: {
+        label: 'Cancelada',
+        variant: 'secondary',
+        className: '',
+        textClassName: 'text-muted-foreground'
+    }
 } as const;
 
 export function ClassCard({
     title,
     compact = false,
-    code,
     time,
     location,
     professors,
-    classNumber,
     grade,
     status = 'normal',
     statusText,
     onLocationClick,
     onClick,
     indicator,
-    action
+    action,
+    plain = false
 }: ClassCardProps) {
     const statusInfo = status === 'normal' ? undefined : STATUS[status];
     const active = status === 'in_progress';
@@ -78,7 +83,10 @@ export function ClassCard({
                     role="heading"
                     aria-level={3}
                     numberOfLines={compact ? 1 : 2}
-                    className="min-w-0 flex-1 text-sm leading-snug font-semibold"
+                    className={cn(
+                        'min-w-0 flex-1 text-sm leading-snug font-semibold',
+                        status === 'cancelled' && 'text-muted-foreground line-through'
+                    )}
                 >
                     {title}
                 </Text>
@@ -112,50 +120,55 @@ export function ClassCard({
         </View>
     );
 
+    const content = (
+        <>
+            <View className="flex-row items-center gap-2">
+                <Text className="min-w-0 text-xs font-semibold text-primary">{time}</Text>
+                {statusInfo && (
+                    <Badge
+                        variant={statusInfo.variant}
+                        className={cn('px-1.5 py-0', statusInfo.className)}
+                    >
+                        {active && <View className="size-1.5 rounded-full bg-primary" />}
+                        <Text className={cn('text-xs', statusInfo.textClassName)}>
+                            {statusText || statusInfo.label}
+                        </Text>
+                    </Badge>
+                )}
+            </View>
+            {action ? (
+                <View className="flex-row items-center justify-between gap-2">
+                    <View className="min-w-0 flex-1">{body}</View>
+                    <View className="shrink-0">{action}</View>
+                </View>
+            ) : (
+                body
+            )}
+        </>
+    );
+
     return (
         <Pressable
             disabled={!onClick}
             onPress={onClick}
             accessibilityRole={onClick ? 'button' : undefined}
             accessibilityLabel={onClick ? title : undefined}
-            className="active:opacity-70"
+            className={plain ? 'active:bg-primary/5' : 'active:opacity-70'}
         >
-            <Card
-                size="sm"
-                className={cn(
-                    'gap-1 px-3',
-                    active && 'border-primary/30 bg-primary/5',
-                    compact && 'gap-0.5 py-2'
-                )}
-            >
-                <View className="flex-row items-center gap-2">
-                    <Text className="min-w-0 text-xs font-semibold text-primary">{time}</Text>
-                    {statusInfo && (
-                        <Badge
-                            variant={statusInfo.variant}
-                            className={cn('px-1.5 py-0', statusInfo.className)}
-                        >
-                            {active && <View className="size-1.5 rounded-full bg-primary" />}
-                            <Text className={cn('text-xs', statusInfo.textClassName)}>
-                                {statusText || statusInfo.label}
-                            </Text>
-                        </Badge>
+            {plain ? (
+                <View className="gap-1 py-3 pr-3 pl-4">{content}</View>
+            ) : (
+                <Card
+                    size="sm"
+                    className={cn(
+                        'gap-1 px-3',
+                        active && 'border-primary/30 bg-primary/5',
+                        compact && 'gap-0.5 py-2'
                     )}
-                    {code && (
-                        <Text className="ml-auto shrink-0 text-xs font-medium tracking-wide text-muted-foreground">
-                            {[code, classNumber && `T${classNumber}`].filter(Boolean).join(' · ')}
-                        </Text>
-                    )}
-                </View>
-                {action ? (
-                    <View className="flex-row items-center justify-between gap-2">
-                        <View className="min-w-0 flex-1">{body}</View>
-                        <View className="shrink-0">{action}</View>
-                    </View>
-                ) : (
-                    body
-                )}
-            </Card>
+                >
+                    {content}
+                </Card>
+            )}
         </Pressable>
     );
 }
