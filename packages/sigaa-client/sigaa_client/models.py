@@ -161,6 +161,7 @@ class UserProfile(BaseModel):
     name: str
     registration: str
     photo: str | None
+    photo_absence_confirmed: bool = False
     email: str | None = None
     bio: str | None
     unit: str

@@ -168,7 +168,9 @@ def test_edicao_grava_cache_remove_foto_e_preserva_nome_local(
         client.patch("/me/settings", json={"displayName": "Nome local"}).status_code
         == 200
     )
-    updated = original.model_copy(update={"photo": None})
+    updated = original.model_copy(
+        update={"photo": None, "photo_absence_confirmed": True}
+    )
     stub_sigaa.profile.update_profile = AsyncMock(return_value=updated)
     response = client.patch(
         "/me/profile",
@@ -185,6 +187,37 @@ def test_edicao_grava_cache_remove_foto_e_preserva_nome_local(
     assert client.get("/me").json()["photo"] is None
     assert client.get("/me/settings").json()["displayName"] == "Nome local"
     stub_sigaa.logout.assert_awaited()
+
+
+def test_falha_antes_do_upload_nao_confirma_pelo_cache_desatualizado(
+    client, cookies, stub_sigaa
+):
+    from httpx import ReadTimeout
+    from sigaa_client import Credentials
+
+    credentials = Credentials(registration="251000000", password="senha-teste")
+    client.cookies.update(cookies(access="tok", refresh=credentials))
+    cached = stub_sigaa.profile.get_profile.return_value.model_copy(
+        update={"photo": "https://arquivos.unb.br/antiga.jpg"}
+    )
+    stub_sigaa.profile.get_profile.return_value = cached
+    assert client.get("/me").json()["photo"] == cached.photo
+    stub_sigaa.profile.get_profile.return_value = cached.model_copy(
+        update={"photo": "https://arquivos.unb.br/alterada-fora-do-followw.jpg"}
+    )
+    stub_sigaa.profile.update_profile = AsyncMock(
+        side_effect=ReadTimeout("GET do formulário")
+    )
+    output = BytesIO()
+    Image.new("RGB", (20, 20)).save(output, format="PNG")
+    response = client.patch(
+        "/me/profile",
+        data={"photo_action": "replace"},
+        files={"photo": ("foto.png", output.getvalue(), "image/png")},
+        headers={"origin": "https://followw.app"},
+    )
+    assert response.status_code == 502
+    assert client.get("/me").json()["photo"] == cached.photo
 
 
 async def test_sync_antigo_nao_sobrescreve_edicao_recente(async_database, stub_sigaa):
@@ -204,13 +237,17 @@ async def test_sync_antigo_nao_sobrescreve_edicao_recente(async_database, stub_s
                 }
             ),
             now,
-            replace_photo=True,
         )
         await session.commit()
         await repo.save_profile(
-            profile.model_copy(update={"bio": "Bio antiga", "photo": None}),
+            profile.model_copy(
+                update={
+                    "bio": "Bio antiga",
+                    "photo": None,
+                    "photo_absence_confirmed": True,
+                }
+            ),
             now - timedelta(seconds=10),
-            replace_photo=True,
         )
         await session.commit()
     async with async_database() as session:
