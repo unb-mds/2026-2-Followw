@@ -88,6 +88,7 @@ export default function CourseFlowScreen() {
             key={course.id}
             courseId={course.id}
             entrySemester={entrySemester}
+            completedSubjects={user?.completed_subjects}
             currentPeriod={currentPeriod}
             selected={selected}
             ownCourse={ownCourse}

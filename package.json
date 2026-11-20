@@ -10,11 +10,12 @@
         "dev": "bun run --parallel dev:api dev:web",
         "dev:api": "uv run api",
         "dev:web": "bun run --filter web dev",
+        "dev:mobile": "bun run --filter mobile start",
         "build": "bun run --filter web build",
         "check": "bun run --filter \"*\" check",
         "test": "bun run --filter \"*\" test",
-        "fmt": "oxfmt apps/web packages/core package.json bunfig.toml .oxfmtrc.json .oxlintrc.json && uv run ruff format .",
-        "lint": "oxlint apps/web packages/core --fix && uv run ruff check --fix .",
+        "fmt": "oxfmt apps/web apps/mobile packages/core package.json bunfig.toml .oxfmtrc.json .oxlintrc.json && uv run ruff format .",
+        "lint": "oxlint apps/web apps/mobile packages/core --fix && uv run ruff check --fix .",
         "generate-api": "bun run --filter @followw/core generate-api"
     },
     "devDependencies": {
