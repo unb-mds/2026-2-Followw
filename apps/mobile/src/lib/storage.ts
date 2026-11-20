@@ -5,11 +5,12 @@ export const cacheStorage = createMMKV({ id: 'query-cache' });
 
 export const STORAGE_KEYS = {
     THEME: 'theme',
-    SCHEDULE: 'schedule'
+    SCHEDULE: 'schedule',
+    ACADEMIC_SIMULATION: 'academic-simulation'
 } as const;
 
 // dados da conta, apagados ao trocar de sessão
-const ACCOUNT_KEYS: string[] = [STORAGE_KEYS.SCHEDULE];
+const ACCOUNT_KEYS: string[] = [STORAGE_KEYS.SCHEDULE, STORAGE_KEYS.ACADEMIC_SIMULATION];
 const stores = new Map<string, { clear: () => void }>();
 
 function read<T>(key: string, empty: T): T {

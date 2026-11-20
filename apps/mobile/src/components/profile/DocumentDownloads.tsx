@@ -1,23 +1,22 @@
 import { studentDocuments, type StudentDocument } from '@followw/core/lib/documents.ts';
 import { useOnline } from '@followw/core/lib/online.ts';
 import { Download, GraduationCap, IdCard } from 'lucide-react-native';
-import { Fragment, useState } from 'react';
+import { useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
-import { Separator } from '@/components/ui/separator';
 import { Text } from '@/components/ui/text';
 import { useColor } from '@/lib/colors';
 import { cn } from '@/lib/utils';
 import { documentFailureMessage, shareDocument } from '@/queries/documents';
 
 const documents = [
-    { document: 'student-card', icon: IdCard },
-    { document: 'transcript', icon: GraduationCap }
-] satisfies { document: StudentDocument; icon: typeof IdCard }[];
+    { document: 'student-card', icon: IdCard, shortLabel: 'Carteirinha' },
+    { document: 'transcript', icon: GraduationCap, shortLabel: 'Histórico' }
+] satisfies { document: StudentDocument; icon: typeof IdCard; shortLabel: string }[];
 
-/** Linhas (com divisória acima) para baixar a carteirinha e o histórico (PDF aberto na folha de compartilhamento). */
+/** Cards para baixar a carteirinha e o histórico (PDF aberto na folha de compartilhamento). */
 export function DocumentDownloads() {
     const [pending, setPending] = useState<StudentDocument | null>(null);
     const [failure, setFailure] = useState<{ document: StudentDocument; message: string } | null>(
@@ -39,20 +38,22 @@ export function DocumentDownloads() {
     }
 
     return (
-        <>
-            {documents.map(({ document, icon }) => {
-                const { label } = studentDocuments[document];
-                const isPending = pending === document;
-                const message = failure?.document === document ? failure.message : null;
-                return (
-                    <Fragment key={document}>
-                        <Separator />
-                        <View className="min-h-12 flex-row items-center gap-3 py-2.5">
-                            <View className="size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+        <View className="gap-3">
+            <View className="flex-row gap-3">
+                {documents.map(({ document, icon, shortLabel }) => {
+                    const { label } = studentDocuments[document];
+                    const isPending = pending === document;
+                    const message = failure?.document === document ? failure.message : null;
+                    return (
+                        <View
+                            key={document}
+                            className="min-w-0 flex-1 flex-row items-center gap-2 rounded-2xl border border-border bg-card p-2 shadow-sm shadow-black/5"
+                        >
+                            <View className="size-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
                                 <Icon as={icon} className="size-4 text-primary" />
                             </View>
                             <View className="min-w-0 flex-1">
-                                <Text>{label}</Text>
+                                <Text className="text-sm">{shortLabel}</Text>
                                 {(isPending || message) && (
                                     <Text
                                         role={message ? 'alert' : undefined}
@@ -68,6 +69,7 @@ export function DocumentDownloads() {
                             <Button
                                 size="icon-sm"
                                 variant="ghost"
+                                className="size-9"
                                 disabled={!online || pending !== null}
                                 accessibilityLabel={`Baixar ${label.toLowerCase()}`}
                                 accessibilityState={{ busy: isPending }}
@@ -80,17 +82,14 @@ export function DocumentDownloads() {
                                 )}
                             </Button>
                         </View>
-                    </Fragment>
-                );
-            })}
+                    );
+                })}
+            </View>
             {!online && (
-                <>
-                    <Separator />
-                    <Text role="status" className="py-2 text-xs text-muted-foreground">
-                        Conecte-se à internet para baixar os documentos.
-                    </Text>
-                </>
+                <Text role="status" className="py-2 text-xs text-muted-foreground">
+                    Conecte-se à internet para baixar os documentos.
+                </Text>
             )}
-        </>
+        </View>
     );
 }

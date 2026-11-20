@@ -5,18 +5,20 @@ import { Image, View } from 'react-native';
 import { Icon } from '@/components/ui/icon';
 import { cn } from '@/lib/utils';
 
-const WIDTHS = { sm: 'w-9', lg: 'w-20', xl: 'w-28' };
+const WIDTHS = { sm: 'w-9', md: 'w-14', lg: 'w-20', xl: 'w-28' };
 
 /** Foto 3x4 da pessoa, com ícone quando não há foto ou ela falha ao carregar. */
 export function PersonPhoto({
     src,
-    size = 'sm'
+    size = 'sm',
+    className: extra
 }: {
     src?: string | null;
     size?: keyof typeof WIDTHS;
+    className?: string;
 }) {
     const [failedSrc, setFailedSrc] = useState<string | null>(null);
-    const className = cn('aspect-[3/4] shrink-0 overflow-hidden rounded-lg', WIDTHS[size]);
+    const className = cn('aspect-[3/4] shrink-0 overflow-hidden rounded-lg', WIDTHS[size], extra);
 
     if (src && failedSrc !== src) {
         return (

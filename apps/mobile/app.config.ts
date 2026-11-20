@@ -30,6 +30,15 @@ const config: ExpoConfig = {
         'expo-localization',
         'expo-sharing',
         [
+            'expo-image-picker',
+            {
+                photosPermission:
+                    'O Followw acessa suas fotos para trocar a foto de perfil no SIGAA.',
+                cameraPermission: false,
+                microphonePermission: false
+            }
+        ],
+        [
             'expo-splash-screen',
             {
                 backgroundColor: '#ffffff',
