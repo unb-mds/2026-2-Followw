@@ -8,6 +8,7 @@ from api.db.courses import course_ids
 from api.db.enums import UserLevel
 from api.db.models import ClassroomParticipant, Course, User
 from api.modules.classrooms.post_reading import PostReadingRepository
+from api.modules.me.transcript import TranscriptRepository
 from api.modules.public_courses.repository import PublicCourseRepository
 from api.modules.recommendations.ranking import CurriculumInfo, select_curriculum
 
@@ -75,6 +76,7 @@ class UserRepository:
             user = User()
             self._session.add(user)
 
+        changed_registration = user.registration != profile.registration
         user.registration = profile.registration
         if login != profile.registration:
             user.old_registration = login
@@ -88,8 +90,10 @@ class UserRepository:
         pair = (profile.course, profile.unit)
         shift = profile.shift.value if profile.shift else None
         course_id = (await course_ids(self._session, [pair], shift)).get(pair)
-        if course_id != user.course_id:
+        changed_enrollment = changed_registration or course_id != user.course_id
+        if changed_enrollment:
             user.curriculum_id = None
+            user.transcript_synced_at = None
         user.course_id = course_id
         user.entry_semester = profile.entry_semester
         user.integralization = profile.integralization
@@ -100,6 +104,8 @@ class UserRepository:
         user.profile_synced_at = synced_at
         await self._infer_curriculum(user)
         await self._session.flush()
+        if changed_enrollment:
+            await TranscriptRepository(self._session).clear(user.id)
 
         return user
 

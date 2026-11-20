@@ -112,32 +112,41 @@ describe('matriz e estados acadêmicos', () => {
                 classroom('A', 'cursando'),
                 classroom('C', 'cursando')
             ],
-            2
+            2,
+            []
         );
         expect(model.subjects.map(state)).toEqual(['completed', 'enrolled', 'overdue', 'pending']);
     });
     test('equivalência aprovada conclui a matéria e em curso a marca como em curso', () => {
         const b = model.byCode.get('B')!;
-        expect(academicState([classroom('E', 'concluido', 'MS')], 4)(b)).toBe('completed');
-        expect(academicState([classroom('E', 'cursando')], 4)(b)).toBe('enrolled');
-        expect(academicState([classroom('E', 'concluido', 'SR')], 4)(b)).toBe('overdue');
+        expect(academicState([classroom('E', 'concluido', 'MS')], 4, [])(b)).toBe('completed');
+        expect(academicState([classroom('E', 'cursando')], 4, [])(b)).toBe('enrolled');
+        expect(academicState([classroom('E', 'concluido', 'SR')], 4, [])(b)).toBe('overdue');
+    });
+    test('matéria cumprida no histórico do perfil aparece como concluída', () => {
+        const state = academicState([], 2, ['A', 'E']);
+        expect(model.subjects.map(state)).toEqual(['completed', 'overdue', 'completed', 'pending']);
+    });
+    test('sem turmas, as cumpridas do perfil seguem concluídas e o resto é desconhecido', () => {
+        const state = academicState(undefined, 2, ['A']);
+        expect(model.subjects.map(state)).toEqual(['completed', 'unknown', 'unknown', 'unknown']);
     });
     test('sem histórico o estado é desconhecido; sem período não inventa atraso', () => {
-        expect(model.subjects.map(academicState(undefined, 4))).toEqual([
+        expect(model.subjects.map(academicState(undefined, 4, []))).toEqual([
             'unknown',
             'unknown',
             'unknown',
             'unknown'
         ]);
-        expect(model.subjects.map(academicState([], null))).toEqual([
+        expect(model.subjects.map(academicState([], null, []))).toEqual([
             'pending',
             'pending',
             'pending',
             'pending'
         ]);
-        expect(academicState([classroom('A', 'concluido', 'MI')], 1)(model.byCode.get('A')!)).toBe(
-            'overdue'
-        );
+        expect(
+            academicState([classroom('A', 'concluido', 'MI')], 1, [])(model.byCode.get('A')!)
+        ).toBe('overdue');
     });
     test('abre mobile no período atual do curso do aluno e no primeiro para outros cursos', () => {
         expect(initialMobilePeriod(model.periods, true, 2)).toBe(2);

@@ -342,12 +342,17 @@ def stub_sigaa(monkeypatch):
     from types import SimpleNamespace
     from unittest.mock import AsyncMock, Mock
 
-    from sigaa_client import UserLevel, UserProfile
+    from sigaa_client import DocumentUnavailable, UserLevel, UserProfile
 
     client = SimpleNamespace(
         authenticate=AsyncMock(return_value="app14~STUB"),
         logout=AsyncMock(),
         aclose=AsyncMock(),
+        documents=SimpleNamespace(
+            get_completed_subjects=AsyncMock(
+                side_effect=DocumentUnavailable("Sem histórico")
+            ),
+        ),
         profile=SimpleNamespace(
             get_profile=AsyncMock(
                 return_value=UserProfile(

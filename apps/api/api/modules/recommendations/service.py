@@ -16,6 +16,7 @@ from api.modules.classrooms.service import (
 )
 from api.modules.me.profile import profile_freshness, sync_profile
 from api.modules.me.repository import UserRepository
+from api.modules.me.transcript import TranscriptRepository
 from api.modules.recommendations.ranking import (
     Component,
     Recommendation,
@@ -161,6 +162,7 @@ async def _rank(
         for link in links
         if link.row.grade and link.row.grade.approved
     }
+    completed |= await TranscriptRepository(session).completed(student.user_id)
     enrolled = {
         normalize(link.row.classroom.subject_code)
         for link in links

@@ -16,10 +16,7 @@ export interface CourseSummaryProps {
 /** Erros e carregamento ficam com a página; aqui só o que já estiver em cache. */
 export function CourseSummary({ course, entrySemester }: CourseSummaryProps) {
     const listed = useQuery(courseQueryOptions(course.id));
-    const matrix = useQuery({
-        ...curriculumQueryOptions(course.id, entrySemester ?? ''),
-        enabled: Boolean(entrySemester)
-    });
+    const matrix = useQuery(curriculumQueryOptions(course.id, entrySemester));
     const unit = listed.data?.unit;
     const curriculum = matrix.data;
     const shift = course.shift ?? (curriculum?.shift && shiftLabels[curriculum.shift]);

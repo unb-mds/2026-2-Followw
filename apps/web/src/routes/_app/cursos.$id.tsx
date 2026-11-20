@@ -127,6 +127,7 @@ function FlowPage() {
                     key={course.id}
                     courseId={course.id}
                     entrySemester={entrySemester}
+                    completedSubjects={user?.completed_subjects}
                     currentPeriod={currentPeriod}
                     selected={subject ?? undefined}
                     ownCourse={ownCourse}

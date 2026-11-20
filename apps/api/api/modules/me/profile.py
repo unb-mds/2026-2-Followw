@@ -1,19 +1,28 @@
+import logging
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import Depends
+from httpx import HTTPError
 from pydantic import BaseModel, ConfigDict
-from sigaa_client import CurriculumWorkload, UserLevel
+from sigaa_client import (
+    CurriculumWorkload,
+    DocumentUnavailable,
+    SigaaParseError,
+    UserLevel,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.cache import Freshness, freshness
 from api.db.models import User
 from api.modules.me.repository import UserRepository
+from api.modules.me.transcript import TranscriptRepository
 from api.modules.recommendations.repository import RecommendationRepository
 from api.schemas import CourseRef, UnitRef, course_ref, unit_ref
 from api.sync import Cached, Context, SyncDep
 
 PROFILE_TTL = timedelta(hours=12)
+logger = logging.getLogger(__name__)
 
 
 class Workload(CurriculumWorkload):
@@ -37,6 +46,8 @@ class UserProfile(BaseModel):
     course: CourseRef | None
     entry_semester: str | None
     curriculum_subject_codes: list[str] | None = None
+    # Componentes CUMP do histórico, além das aprovações nas turmas.
+    completed_subjects: list[str] = []
     integralization: int | None
     workload: Workload | None
     # Carga horária máxima por período da matriz do aluno, em horas.
@@ -53,10 +64,22 @@ def profile_freshness(synced_at: datetime | None) -> Freshness:
 async def sync_profile(ctx: Context[None]) -> None:
     started_at = datetime.now(UTC)
     profile = await ctx.client.profile.get_profile()
-    await ctx.sync.db.write(
+    user = await ctx.sync.db.write(
         lambda session: UserRepository(session).save_profile(
             profile, started_at, login=ctx.sync.registration
         )
+    )
+    if profile.level != UserLevel.GRADUACAO or user.transcript_synced_at is not None:
+        return
+    try:
+        codes = await ctx.client.documents.get_completed_subjects(profile.registration)
+    except DocumentUnavailable:
+        return
+    except (HTTPError, SigaaParseError) as error:
+        logger.warning("Histórico acadêmico indisponível (%s).", type(error).__name__)
+        return
+    await ctx.sync.db.write(
+        lambda session: TranscriptRepository(session).save(user.id, codes, started_at)
     )
 
 
@@ -96,6 +119,9 @@ async def _to_profile(session: AsyncSession, user: User) -> UserProfile:
         course=course_ref(user.course),
         entry_semester=user.entry_semester,
         curriculum_subject_codes=codes,
+        completed_subjects=sorted(
+            await TranscriptRepository(session).completed(user.id)
+        ),
         integralization=user.integralization,
         workload=_workload(user),
         period_max_workload=user.curriculum.period_max_workload

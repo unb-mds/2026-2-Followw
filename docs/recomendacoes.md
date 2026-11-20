@@ -39,12 +39,17 @@ repetir, desde que não exista outra aprovação, matrícula em andamento ou ten
 Para o ranking, toda tentativa sem menção presume aprovação: satisfaz pré/correquisitos e conta como
 concluída no fluxo, inclusive após a consolidação. Essa inferência não altera a menção armazenada.
 
+Componentes com situação CUMP no histórico acadêmico do SIGAA também contam como aprovados. O
+histórico é lido uma vez por matrícula e curso (`users.transcript_synced_at`), e falhas de leitura
+são tentadas de novo no próximo sync do perfil. Os códigos ficam em `user_completed_subjects` e
+chegam ao front em `completed_subjects` do `/me`. O histórico de outra matrícula é descartado.
+
 A matriz é inferida só pelo semestre de entrada do perfil (`entry_semester`), com curso e turno do
 perfil armazenado: vale a vigência mais recente até a entrada; se a entrada preceder todas, a mais
 antiga. Revisão do código e ID SIGAA desempatam, e matriz de turno oposto nunca é escolhida. O turno
 vem do curso resolvido pelo sync, não de uma confirmação adicional. A inferência roda no sync do
-perfil e é gravada em `users.curriculum_id` só enquanto nula, sem revalidação; trocar de curso a
-zera. Sem entrada ou sem matriz elegível, o usuário fica sem matriz e a recomendação responde como
+perfil e é gravada em `users.curriculum_id` só enquanto nula, sem revalidação; trocar de curso ou
+de matrícula a zera. A consulta pública da matriz por ingresso aplica o mesmo filtro de turno. Sem entrada ou sem matriz elegível, o usuário fica sem matriz e a recomendação responde como
 para visitante (422).
 
 O período alvo é a mediana inferior dos períodos obrigatórios em andamento + 1. Sem eles, é o
@@ -95,8 +100,8 @@ As fontes seguem SWR, `FRESH`/`FROZEN` e diretivas de entrada `Cache-Control`. `
 fontes não congeladas. A resposta sempre usa `Cache-Control: no-store`.
 
 Sessão inválida: 401. Sem filtros, visitante, usuário fora da graduação ou sem matriz: 422. Falhas
-de fontes seguem os handlers existentes (502/503/504). Sem oferta ou candidatas: lista vazia. O
-histórico não inclui todas as dispensas/aproveitamentos. O resultado não é uma grade pronta nem
+de fontes seguem os handlers existentes (502/503/504). Sem oferta ou candidatas: lista vazia. Dispensas
+(DISP) e equivalências do histórico ainda não são lidas. O resultado não é uma grade pronta nem
 autorização de matrícula.
 
 ## Validação local

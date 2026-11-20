@@ -24,6 +24,7 @@ from api.schemas import (
 )
 
 _REVISION_RE = re.compile(r"/(-?\d+)$")
+_SHIFTS = {"DIURNO": "D", "NOTURNO": "N"}
 
 COURSES_PAGE_SIZE = 25
 
@@ -169,9 +170,11 @@ async def _load(
     curriculum_sigaa_id: int | None,
 ) -> CourseCurriculum:
     repository = PublicCourseRepository(session)
-    if await repository.get_course(course_id) is None:
+    course = await repository.get_course(course_id)
+    if course is None:
         raise HTTPException(404, "Curso não encontrado.")
-    options = in_force(await repository.list_curricula(course_id), entry_semester)
+    curricula = by_shift(await repository.list_curricula(course_id), course.shift)
+    options = in_force(curricula, entry_semester)
     if not options:
         raise HTTPException(404, "Curso sem currículos ativos cadastrados.")
     selected = _select(options, curriculum_sigaa_id)
@@ -218,6 +221,18 @@ class Versioned(Protocol):
     sigaa_id: int
     code: str
     valid_from: str
+    shift: str | None
+
+
+def by_shift[T: Versioned](curricula: Iterable[T], shift: str | None) -> list[T]:
+    """As matrizes do turno do curso, ou as sem turno quando não há nenhuma."""
+    curricula = list(curricula)
+    shift = _SHIFTS.get(shift, shift) if shift else None
+    if not shift:
+        return curricula
+    return [c for c in curricula if c.shift == shift] or [
+        c for c in curricula if c.shift is None
+    ]
 
 
 def in_force[T: Versioned](curricula: Iterable[T], entry_semester: str) -> list[T]:

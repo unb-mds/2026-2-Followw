@@ -4,11 +4,10 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from api.modules.public_courses.service import in_force, revision
+from api.modules.public_courses.service import by_shift, in_force, revision
 from api.schemas import normalize
 
 _KIND_ORDER = {"required": 0, "optional": 1, "complementary": 2}
-_SHIFTS = {"DIURNO": "D", "NOTURNO": "N"}
 type Rules = list[list[str]] | None
 
 
@@ -73,12 +72,7 @@ def select_curriculum(
     options: list[CurriculumInfo], entry: str, shift: str | None
 ) -> CurriculumInfo | None:
     """A matriz vigente no semestre de entrada, do turno do curso."""
-    shift = _SHIFTS.get(shift, shift)
-    if shift:
-        options = [c for c in options if c.shift == shift] or [
-            c for c in options if c.shift is None
-        ]
-    return max(in_force(options, entry), key=revision, default=None)
+    return max(in_force(by_shift(options, shift), entry), key=revision, default=None)
 
 
 def components_by_code(components: list[Component]) -> dict[str, Component]:
@@ -211,7 +205,10 @@ def rank(
     done = assumed | {
         code
         for code, subject in catalog.items()
-        if subject.equivalences and satisfies(subject.equivalences, assumed)
+        if any(
+            group and satisfies([group], assumed)
+            for group in subject.equivalences or []
+        )
     }
     target = target_period(curriculum, done, enrolled)
     dependents = dependency_graph(

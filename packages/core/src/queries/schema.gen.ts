@@ -1564,6 +1564,8 @@ export interface components {
             entry_semester: string | null;
             /** Curriculum Subject Codes */
             curriculum_subject_codes?: string[] | null;
+            /** Completed Subjects */
+            completed_subjects?: string[];
             /** Integralization */
             integralization: number | null;
             workload: components["schemas"]["Workload"] | null;

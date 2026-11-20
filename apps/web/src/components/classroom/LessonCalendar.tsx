@@ -3,11 +3,13 @@ import type { DayProps } from 'react-day-picker';
 
 import { getHoliday } from '@followw/core/calendar.ts';
 import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
-import { createContext, use } from 'react';
+import { createContext, use, useMemo } from 'react';
 import { ptBR } from 'react-day-picker/locale';
 
+import { LessonMenuContent, markable, type MarkLessons } from '#/components/classroom/LessonMenu';
 import { Calendar } from '#/components/ui/calendar';
 import { Card } from '#/components/ui/card';
+import { DropdownMenu, DropdownMenuTrigger } from '#/components/ui/dropdown-menu';
 import { cn } from '#/lib/shadcn';
 
 type Status = Lesson['status'];
@@ -25,7 +27,17 @@ const STATUS_NAME: Record<Status, string> = {
     cancelada: 'aula cancelada'
 };
 
-const DaysContext = createContext<Map<string, Lesson[]>>(new Map());
+interface CalendarState {
+    days: Map<string, Lesson[]>;
+    onMark: MarkLessons;
+    pending: boolean;
+}
+
+const CalendarContext = createContext<CalendarState>({
+    days: new Map(),
+    onMark: () => {},
+    pending: false
+});
 
 const LEGEND = { presente: 'Presença', falta: 'Falta', nao_registrada: 'Não registrada' };
 
@@ -50,42 +62,68 @@ const isoOf = (date: Date) =>
     `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
 function LessonDay({ day, modifiers, children, className, ...props }: DayProps) {
-    const lessons = use(DaysContext).get(day.isoDate) ?? [];
+    const { days, onMark, pending } = use(CalendarContext);
+    const lessons = days.get(day.isoDate) ?? [];
+    const editable = lessons.filter(markable);
     const cancelled = lessons.length > 0 && lessons.every((l) => l.status === 'cancelada');
+    const cellClass = cn(
+        'flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-(--cell-radius) text-sm tabular-nums',
+        modifiers.today && 'bg-muted font-semibold',
+        getHoliday(day.isoDate)
+            ? 'text-destructive'
+            : lessons.length === 0 && 'text-muted-foreground',
+        cancelled && 'line-through'
+    );
+    const content = (
+        <>
+            {children}
+            <span aria-hidden="true" className="flex h-1.5 gap-0.5">
+                {lessons.map(
+                    (lesson) =>
+                        DOT_COLOR[lesson.status] && (
+                            <span
+                                key={lesson.id}
+                                className={cn('size-1.5 rounded-full', DOT_COLOR[lesson.status])}
+                            />
+                        )
+                )}
+            </span>
+        </>
+    );
     return (
         <td {...props} className={cn(className, 'p-0.5')}>
-            <div
-                className={cn(
-                    'flex aspect-square flex-col items-center justify-center gap-1 rounded-(--cell-radius) text-sm tabular-nums',
-                    modifiers.today && 'bg-muted font-semibold',
-                    getHoliday(day.isoDate)
-                        ? 'text-destructive'
-                        : lessons.length === 0 && 'text-muted-foreground',
-                    cancelled && 'line-through'
-                )}
-            >
-                {children}
-                <span aria-hidden="true" className="flex h-1.5 gap-0.5">
-                    {lessons.map(
-                        (lesson) =>
-                            DOT_COLOR[lesson.status] && (
-                                <span
-                                    key={lesson.id}
-                                    className={cn(
-                                        'size-1.5 rounded-full',
-                                        DOT_COLOR[lesson.status]
-                                    )}
-                                />
-                            )
-                    )}
-                </span>
-            </div>
+            {editable.length > 0 ? (
+                <DropdownMenu>
+                    <DropdownMenuTrigger
+                        aria-label={`Marcar aulas de ${dayLabel.format(day.date)}`}
+                        disabled={pending}
+                        className={cn(
+                            cellClass,
+                            'cursor-pointer hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50'
+                        )}
+                    >
+                        {content}
+                    </DropdownMenuTrigger>
+                    <LessonMenuContent lessons={editable} onMark={onMark} />
+                </DropdownMenu>
+            ) : (
+                <div className={cellClass}>{content}</div>
+            )}
         </td>
     );
 }
 
-export function LessonCalendar({ lessons }: { lessons: Lesson[] }) {
-    const days = lessonsByDay(lessons);
+export function LessonCalendar({
+    lessons,
+    onMark,
+    pending
+}: {
+    lessons: Lesson[];
+    onMark: MarkLessons;
+    pending: boolean;
+}) {
+    const days = useMemo(() => lessonsByDay(lessons), [lessons]);
+    const state = useMemo(() => ({ days, onMark, pending }), [days, onMark, pending]);
     const dates = [...days.keys()].toSorted();
     const today = toDate(nowInBrasilia().date);
     const start = dates[0] ? toDate(dates[0]) : today;
@@ -95,7 +133,7 @@ export function LessonCalendar({ lessons }: { lessons: Lesson[] }) {
     const month = today < start ? start : today > end ? end : today;
 
     return (
-        <DaysContext value={days}>
+        <CalendarContext value={state}>
             <Card size="sm" className="items-center px-3">
                 <Calendar
                     locale={ptBR}
@@ -132,6 +170,6 @@ export function LessonCalendar({ lessons }: { lessons: Lesson[] }) {
                     ))}
                 </ul>
             </Card>
-        </DaysContext>
+        </CalendarContext>
     );
 }

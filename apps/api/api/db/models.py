@@ -130,6 +130,10 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     curriculum_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("curricula.id", ondelete="SET NULL")
     )
+    # Histórico lido uma vez por matrícula e curso; nulo pede nova leitura.
+    transcript_synced_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
     entry_semester: Mapped[str | None] = mapped_column()
     integralization: Mapped[int | None] = mapped_column(SmallInteger)
     workload: Mapped[dict[str, int] | None] = mapped_column(JSONB)
@@ -205,6 +209,19 @@ class Subject(Base, TimestampMixin):
         return func.jsonb_path_query_array(
             cls.equivalences, literal_column("'$[*][*]'"), type_=JSONB
         )
+
+
+class UserCompletedSubject(Base, TimestampMixin):
+    """Componente com situação CUMP no histórico acadêmico."""
+
+    __tablename__ = "user_completed_subjects"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    subject_code: Mapped[str] = mapped_column(
+        ForeignKey("subjects.code", ondelete="CASCADE"), primary_key=True
+    )
 
 
 class Classroom(Base, UUIDPrimaryKeyMixin, TimestampMixin):

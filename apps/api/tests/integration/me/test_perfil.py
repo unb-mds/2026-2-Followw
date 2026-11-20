@@ -45,6 +45,7 @@ def test_login_seguido_de_me_responde_do_cache(client, sigaa):
         "course": {"id": ANY, "name": "ENGENHARIA DE SOFTWARE", "shift": None},
         "entry_semester": "2025.1",
         "curriculum_subject_codes": None,
+        "completed_subjects": [],
         "integralization": 35,
         "workload": {
             "total": 3525,
@@ -65,7 +66,8 @@ def test_login_seguido_de_me_responde_do_cache(client, sigaa):
     assert client.get("/me").json()["ira"] == 3.9524
     assert client.get("/me", headers=NO_CACHE).json()["ira"] == 4.0
     assert client.get("/me").json()["ira"] == 4.0
-    assert sigaa.profile_requests == requests_before + 1
+    # O fake não emite histórico: o sync tenta ler de novo pelo portal.
+    assert sigaa.profile_requests == requests_before + 2
     # Só a sessão do usuário segue aberta: a do sync da conta foi encerrada.
     assert sigaa.logins - sigaa.logouts == 1
 

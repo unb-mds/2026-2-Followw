@@ -16,6 +16,7 @@ import { QueryState } from '#/components/QueryState';
 export function CurriculumView({
     courseId,
     entrySemester,
+    completedSubjects,
     currentPeriod,
     selected,
     ownCourse,
@@ -24,6 +25,7 @@ export function CurriculumView({
 }: {
     courseId: number;
     entrySemester: string;
+    completedSubjects?: string[];
     currentPeriod: number | null;
     selected?: string;
     ownCourse: boolean;
@@ -34,8 +36,9 @@ export function CurriculumView({
     const matrix = useQuery(curriculumQueryOptions(courseId, entrySemester));
     const history = useQuery({ ...allClassroomsQueryOptions, enabled: loggedIn });
     const state = useMemo(
-        () => (loggedIn ? academicState(history.data, currentPeriod) : undefined),
-        [history.data, currentPeriod, loggedIn]
+        () =>
+            loggedIn ? academicState(history.data, currentPeriod, completedSubjects) : undefined,
+        [history.data, currentPeriod, completedSubjects, loggedIn]
     );
     const model = useMemo(
         () => (matrix.data ? normalizeCurriculum(matrix.data) : null),

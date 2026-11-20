@@ -138,6 +138,12 @@ def test_equivalencias_respeitam_grupos_direcao_e_nao_inferem_transitividade(sce
     assert codes(scene.get()) == ["C", "E", "F"]
 
 
+def test_grupo_de_equivalencia_vazio_nao_conclui_a_materia(scene):
+    scene.subject("A", equivalences=[[]])
+    scene.subject("B", equivalences=[[], ["MISSING"]])
+    assert set(codes(scene.get())) == {"A", "B"}
+
+
 def test_equivalencia_sem_resultado_exclui_repeticao_e_libera_requisito(
     scene, monkeypatch
 ):
