@@ -121,34 +121,34 @@ export function RestaurantAccount({
     );
 
     return (
-        <View accessibilityLabel="Minha conta" className="mt-4 gap-3">
-            <View className="flex-row items-center justify-between px-1">
-                <Text
-                    role="heading"
-                    aria-level={2}
-                    className="text-lg font-extrabold text-foreground"
-                >
-                    Minha conta
-                </Text>
-                <Button
-                    variant="ghost"
-                    size="xs"
-                    onPress={() => void refresh()}
-                    disabled={refreshDisabled}
-                >
-                    {refreshing ? (
-                        <ActivityIndicator size="small" color={primary} />
-                    ) : (
-                        <Icon as={RefreshCw} className="size-4 text-primary" />
-                    )}
-                    <Text className="text-primary">
-                        {refreshing ? 'Atualizando...' : 'Atualizar'}
+        <Card accessibilityLabel="Minha conta" className="mt-4">
+            <CardContent className="gap-5">
+                <View className="flex-row items-center justify-between">
+                    <Text
+                        role="heading"
+                        aria-level={2}
+                        className="text-lg font-bold text-foreground"
+                    >
+                        Minha conta
                     </Text>
-                </Button>
-            </View>
+                    <Button
+                        variant="ghost"
+                        size="xs"
+                        onPress={() => void refresh()}
+                        disabled={refreshDisabled}
+                    >
+                        {refreshing ? (
+                            <ActivityIndicator size="small" color={primary} />
+                        ) : (
+                            <Icon as={RefreshCw} className="size-4 text-primary" />
+                        )}
+                        <Text className="text-primary">
+                            {refreshing ? 'Atualizando...' : 'Atualizar'}
+                        </Text>
+                    </Button>
+                </View>
 
-            <Card>
-                <CardContent>
+                <View>
                     <View
                         className={cn(
                             'flex-row items-center justify-between gap-2',
@@ -158,9 +158,7 @@ export function RestaurantAccount({
                         {loadingStatement ? (
                             statementStatus
                         ) : (
-                            <Text className="text-xs font-semibold text-muted-foreground">
-                                Saldo disponível
-                            </Text>
+                            <Text className="text-sm text-muted-foreground">Saldo disponível</Text>
                         )}
                         {!statement.data && cardDrawer}
                     </View>
@@ -168,9 +166,9 @@ export function RestaurantAccount({
                         <StatementDetails statement={statement.data} action={cardDrawer} />
                     )}
                     {!loadingStatement && statementStatus}
-                </CardContent>
-            </Card>
-        </View>
+                </View>
+            </CardContent>
+        </Card>
     );
 }
 
@@ -192,12 +190,11 @@ function StudentCardDrawer({
         <Drawer showSwipeHandle open={open} onOpenChange={setOpen}>
             <DrawerTrigger asChild>
                 <Button
-                    variant="outline"
-                    size="icon-sm"
-                    className="size-10 rounded-xl"
+                    size="icon"
+                    className="size-14 rounded-2xl bg-foreground active:bg-foreground/90"
                     accessibilityLabel="Ver QR code da carteirinha"
                 >
-                    <Icon as={QrCode} className="size-6" />
+                    <Icon as={QrCode} className="size-6 text-background" />
                 </Button>
             </DrawerTrigger>
             <DrawerContent className="mx-auto max-w-lg">
@@ -251,22 +248,20 @@ export function StatementDetails({
                         insufficient && 'text-destructive'
                     )}
                 >
-                    {statement.balance == null
-                        ? 'Saldo não informado'
-                        : currency.format(Number(statement.balance))}
+                    {currency.format(Number(statement.balance))}
                 </Text>
                 {action}
             </View>
             <Accordion type="single" collapsible>
-                <View className="mt-4 border-t border-border pt-3">
+                <View className="mt-5 border-t border-border pt-4">
                     <AccordionItem value="statement" className="border-b-0">
-                        <AccordionTrigger className="mb-2 py-0">
-                            <Text className="text-primary">Extrato do RU</Text>
+                        <AccordionTrigger className="mb-3 py-0">
+                            <Text>Extrato do RU</Text>
                         </AccordionTrigger>
                         <AccordionContent className="pb-0">
                             {entries.length === 0 ? (
                                 <Text className="mt-3 text-sm text-muted-foreground">
-                                    Nenhuma movimentação no extrato.
+                                    Nenhuma movimentação recente.
                                 </Text>
                             ) : (
                                 <ScrollView
