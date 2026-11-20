@@ -10,7 +10,9 @@ export function isDoubleTap(previous: number | null, now: number) {
 
 export function activeNavIndex(pathname: string) {
     return NAV_HREFS.findIndex(
-        (href) => href === pathname || (href === '/turmas' && pathname.startsWith('/turmas/'))
+        (href) =>
+            href === pathname ||
+            ((href === '/turmas' || href === '/perfil') && pathname.startsWith(`${href}/`))
     );
 }
 
