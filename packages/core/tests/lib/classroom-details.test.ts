@@ -12,7 +12,8 @@ import {
     formatRelativeDays,
     frequencyTone,
     groupBySemester,
-    lessonRuns
+    lessonRuns,
+    lessonsByDay
 } from '../../src/lib/classroom-details.ts';
 
 describe('detalhes da turma', () => {
@@ -126,5 +127,18 @@ describe('classroomTab', () => {
         expect(classroomTab('statistics', true)).toBe('frequency');
         expect(classroomTab('frequency', false)).toBe('statistics');
         expect(classroomTab('posts', false)).toBe('posts');
+    });
+});
+
+describe('lessonsByDay', () => {
+    test('agrupa as aulas por dia em ordem cronológica', () => {
+        const days = lessonsByDay([
+            { ...lesson('2026-10-09', 'cancelada'), id: 'c' },
+            { ...lesson('2026-10-07', 'nao_registrada'), id: 'n' },
+            { ...lesson('2026-10-05', 'falta'), id: 'f' },
+            { ...lesson('2026-10-05', 'presente'), id: 'p' }
+        ]);
+        expect([...days.keys()]).toEqual(['2026-10-05', '2026-10-07', '2026-10-09']);
+        expect(days.get('2026-10-05')!.map((item) => item.status)).toEqual(['presente', 'falta']);
     });
 });

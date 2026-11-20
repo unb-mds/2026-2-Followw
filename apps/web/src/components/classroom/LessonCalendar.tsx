@@ -2,6 +2,7 @@ import type { Lesson } from '@followw/core/queries/classrooms.ts';
 import type { DayProps } from 'react-day-picker';
 
 import { getHoliday } from '@followw/core/calendar.ts';
+import { lessonsByDay } from '@followw/core/lib/classroom-details.ts';
 import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { createContext, use, useMemo } from 'react';
 import { ptBR } from 'react-day-picker/locale';
@@ -42,16 +43,6 @@ const CalendarContext = createContext<CalendarState>({
 const LEGEND = { presente: 'Presença', falta: 'Falta', nao_registrada: 'Não registrada' };
 
 const dayLabel = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'long' });
-
-/** Situações das aulas de cada dia, em ordem cronológica. */
-export function lessonsByDay(lessons: Lesson[]) {
-    const days = new Map<string, Lesson[]>();
-    for (const lesson of lessons.toReversed()) {
-        const key = lesson.occurred_on.slice(0, 10);
-        days.set(key, [...(days.get(key) ?? []), lesson]);
-    }
-    return days;
-}
 
 const toDate = (iso: string) => {
     const [year, month, day] = iso.split('-').map(Number);

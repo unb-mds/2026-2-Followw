@@ -10,6 +10,7 @@ interface TabFilterProps<T extends string> {
     options: readonly T[];
     labels?: Partial<Record<T, string>>;
     onChange: (value: T) => void;
+    size?: 'default' | 'sm';
     className?: string;
 }
 
@@ -20,6 +21,7 @@ export function TabFilter<T extends string>({
     options,
     labels,
     onChange,
+    size,
     className
 }: TabFilterProps<T>) {
     return (
@@ -27,13 +29,14 @@ export function TabFilter<T extends string>({
             horizontal
             showsHorizontalScrollIndicator={false}
             accessibilityLabel={label}
-            className={cn('grow-0', className)}
+            className={cn('min-w-0 grow-0', className)}
             contentContainerClassName="flex-row items-center gap-1 py-1"
         >
             {options.map((option) => (
                 <Button
                     key={option}
                     variant={option === value ? 'secondary' : 'ghost'}
+                    size={size}
                     accessibilityState={{ selected: option === value }}
                     onPress={() => onChange(option)}
                     className="shrink-0"

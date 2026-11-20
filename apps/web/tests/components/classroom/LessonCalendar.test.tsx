@@ -3,7 +3,7 @@ import type { Lesson } from '@followw/core/queries/classrooms.ts';
 import { describe, expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import { LessonCalendar, lessonsByDay } from '#/components/classroom/LessonCalendar';
+import { LessonCalendar } from '#/components/classroom/LessonCalendar';
 
 const lesson = (occurred_on: string, status: Lesson['status'], start_time = '08:00'): Lesson => ({
     id: `${occurred_on}:${start_time}`,
@@ -24,12 +24,6 @@ const lessons = [
 ];
 
 describe('LessonCalendar', () => {
-    test('agrupa as aulas por dia em ordem cronológica', () => {
-        const days = lessonsByDay(lessons);
-        expect([...days.keys()]).toEqual(['2026-10-05', '2026-10-07', '2026-10-09']);
-        expect(days.get('2026-10-05')!.map((item) => item.status)).toEqual(['presente', 'falta']);
-    });
-
     test('marca cada aula com uma bolinha da cor da situação', () => {
         const markup = renderToStaticMarkup(
             <LessonCalendar lessons={lessons} onMark={() => {}} pending={false} />

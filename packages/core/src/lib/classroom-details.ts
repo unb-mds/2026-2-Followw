@@ -79,3 +79,13 @@ export function lessonRuns(lessons: Lesson[]): LessonRun[] {
     }
     return runs;
 }
+
+/** Situações das aulas de cada dia, em ordem cronológica. */
+export function lessonsByDay(lessons: Lesson[]) {
+    const days = new Map<string, Lesson[]>();
+    for (const lesson of lessons.toReversed()) {
+        const key = lesson.occurred_on.slice(0, 10);
+        days.set(key, [...(days.get(key) ?? []), lesson]);
+    }
+    return days;
+}
