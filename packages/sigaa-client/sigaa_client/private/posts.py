@@ -1,16 +1,18 @@
 import re
+from collections import Counter
 from collections.abc import Iterable
 from hashlib import sha256
 from urllib.parse import urljoin, urlsplit
 
 from bs4 import BeautifulSoup, Tag
 
-from ..config import SIGAA_BASE_URL
+from ..config import CLASSROOM_HOME_PATH, SIGAA_BASE_URL
 from ..exceptions import SigaaParseError
 from ..models import Classroom, ClassroomPost, DashboardPost, PostType
 from ..utils.jsf import link_params
 from ..utils.parsing import clean_text, parse_datetime, to_markdown
 
+TOPICS_FORM_ID = "formAva"
 UPDATES_ID = "atualizacoes-turma"
 ACTIVITIES_ID = "avaliacao-portal"
 CLASSROOM_SIGAA_ID_FIELD = "idTurma"
@@ -55,14 +57,31 @@ def _material_links(
         yield item, anchor, link_params(anchor), url
 
 
-def _material_id(topic_id: str, source_id: str) -> str:
-    return f"material:{_fingerprint(topic_id + ':' + source_id)}"
+def _is_file_link(anchor: Tag) -> bool:
+    # O link do arquivo é anônimo no JSF; ações como enviar tarefa trazem `id` próprio.
+    return not anchor.get("id")
+
+
+def _material_entries(
+    topic_id: str, topic: Tag
+) -> Iterable[tuple[Tag, Tag, dict[str, str], str | None, str | None]]:
+    """Itens do tópico com o ID do material; repetições do mesmo item ganham `#n`."""
+    seen: Counter[str] = Counter()
+    for item, anchor, params, url in _material_links(topic):
+        source_id = params.get("id") or url
+        material_id = None
+        if source_id is not None:
+            occurrence = seen[source_id]
+            seen[source_id] += 1
+            suffix = f"#{occurrence}" if occurrence else ""
+            material_id = f"material:{_fingerprint(f'{topic_id}:{source_id}{suffix}')}"
+        yield item, anchor, params, url, material_id
 
 
 def _parse_topics(soup: BeautifulSoup) -> list[ClassroomPost]:
-    form = soup.find("form", id="formAva")
+    form = soup.find("form", id=TOPICS_FORM_ID)
     if not isinstance(form, Tag):
-        raise SigaaParseError("Página principal da turma sem formAva.")
+        raise SigaaParseError(f"Página principal da turma sem {TOPICS_FORM_ID}.")
     posts = []
     for topic in form.select(".topico-aula"):
         # A lista não expõe o ID do tópico; nunca use o índice instável do JSF.
@@ -82,15 +101,18 @@ def _parse_topics(soup: BeautifulSoup) -> list[ClassroomPost]:
                 content=to_markdown(content) if content is not None else None,
             )
         )
-        for item, anchor, params, url in _material_links(topic):
+        for item, anchor, params, url, material_id in _material_entries(
+            topic_id, topic
+        ):
             name = clean_text(anchor)
-            source_id = params.get("id") or url
-            if not name or source_id is None:
+            if not name or material_id is None:
                 raise SigaaParseError("Material do tópico sem título ou identificador.")
+            if url is None and not _is_file_link(anchor):
+                url = urljoin(SIGAA_BASE_URL, CLASSROOM_HOME_PATH)
             description = item.select_one(".descricao-item")
             posts.append(
                 ClassroomPost(
-                    id=_material_id(topic_id, source_id),
+                    id=material_id,
                     type=PostType.MATERIAL,
                     sigaa_id=params.get("id"),
                     topic_id=topic_id,

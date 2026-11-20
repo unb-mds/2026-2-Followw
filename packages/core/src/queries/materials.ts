@@ -9,5 +9,13 @@ export async function getMaterialDownload(classroomId: string, postId: string) {
     const disposition = response.headers.get('content-disposition');
     const encoded = disposition?.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
     if (!encoded) throw new Error('O arquivo recebido não informa seu nome.');
-    return { blob: data, filename: decodeURIComponent(encoded) };
+    return { blob: data, filename: decodeFilename(encoded) };
+}
+
+function decodeFilename(encoded: string) {
+    try {
+        return decodeURIComponent(encoded);
+    } catch {
+        return encoded;
+    }
 }

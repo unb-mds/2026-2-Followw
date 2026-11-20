@@ -11,7 +11,7 @@ from ..exceptions import MaterialNotFound, SigaaParseError
 from ..models import MaterialFile
 from ..utils.jsf import build_postback, read_form, read_viewstate
 from ..utils.parsing import clean_text
-from .posts import _material_id, _material_links, _topic_identity
+from .posts import TOPICS_FORM_ID, _is_file_link, _material_entries, _topic_identity
 from .session import Session
 
 _MAX_REDIRECTS = 5
@@ -23,17 +23,12 @@ async def download_material(
     session: Session, page: str, material_id: str, allow_renewal: bool
 ) -> AsyncIterator[MaterialFile]:
     soup = BeautifulSoup(page, "lxml")
-    form = read_form(soup, "formAva")
+    form = read_form(soup, TOPICS_FORM_ID)
     links = []
     for topic in form.select(".topico-aula"):
         topic_id, *_ = _topic_identity(topic)
-        for _, anchor, params, url in _material_links(topic):
-            source_id = params.get("id")
-            if (
-                url is None
-                and source_id
-                and _material_id(topic_id, source_id) == material_id
-            ):
+        for _, anchor, params, url, found_id in _material_entries(topic_id, topic):
+            if found_id == material_id and url is None and _is_file_link(anchor):
                 links.append((anchor, params))
     if not links:
         raise MaterialNotFound("Arquivo não encontrado nos tópicos da turma.")

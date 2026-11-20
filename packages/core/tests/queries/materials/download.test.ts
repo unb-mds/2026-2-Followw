@@ -47,6 +47,15 @@ test('cada clique faz nova requisição sem cache de arquivo', async () => {
     expect(requests).toHaveLength(2);
 });
 
+test('nome com codificação malformada é mantido como veio', async () => {
+    response = () =>
+        new Response('arquivo', {
+            headers: { 'content-disposition': "attachment; filename*=UTF-8''100%.txt" }
+        });
+    const file = await getMaterialDownload('AAA', 'material:' + 'a'.repeat(64));
+    expect(file.filename).toBe('100%.txt');
+});
+
 test('rejeita corpo vazio ou nome ausente', async () => {
     response = () => new Response('');
     expect(
