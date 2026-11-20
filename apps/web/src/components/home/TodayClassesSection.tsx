@@ -1,6 +1,7 @@
 import type { ScheduledClass, Day } from '@followw/core/lib/schedule.ts';
 import type { WeekLesson } from '@followw/core/queries/lessons.ts';
 
+import { dayTimeline } from '@followw/core/lib/day-timeline.ts';
 import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { useNavigate } from '@tanstack/react-router';
 import { m } from 'motion/react';
@@ -12,7 +13,6 @@ import { ClassProgress } from '#/components/home/ClassProgress';
 import { LoginPromptCard } from '#/components/home/LoginPromptCard';
 import { SectionHeader } from '#/components/SectionHeader';
 import { Card } from '#/components/ui/card';
-import { dayTimeline } from '#/lib/day-timeline';
 import { rise, useEntrance } from '#/lib/motion';
 import { cn } from '#/lib/shadcn';
 

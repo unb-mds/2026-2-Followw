@@ -1,16 +1,20 @@
-import { getNoClassReason } from '@followw/core/calendar.ts';
-import { classesOn, nowInBrasilia, weekDays } from '@followw/core/lib/schedule.ts';
-import { classroomsQueryOptions } from '@followw/core/queries/classrooms.ts';
+import { lessonsOn, nowInBrasilia, weekDays } from '@followw/core/lib/schedule.ts';
+import { weekLessonsQueryOptions } from '@followw/core/queries/lessons.ts';
 import { meQueryOptions } from '@followw/core/queries/me.ts';
 import { latestNewsQueryOptions } from '@followw/core/queries/posts.ts';
 import { refreshQuery } from '@followw/core/queries/refresh.ts';
-import { campusOf, menuQueryOptions } from '@followw/core/queries/restaurant.ts';
+import {
+    campusOf,
+    useMenuPreview,
+    weeklyMenuQueryOptions
+} from '@followw/core/queries/restaurant.ts';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
+import { BackToTodayBar } from '@/components/BackToTodayBar';
 import { HeaderBar, HeaderToggle } from '@/components/HeaderBar';
-import { LatestNewsSection } from '@/components/home/LatestNewsSection';
+import { NewsNotifications } from '@/components/home/NewsNotifications';
 import { PublicInfoSection } from '@/components/home/PublicInfoSection';
 import { TodayClassesSection } from '@/components/home/TodayClassesSection';
 import { Screen } from '@/components/Screen';
@@ -49,65 +53,71 @@ export default function HomeScreen() {
 
     const me = useQuery(meQueryOptions);
     const user = me.data;
-    const classroomsQuery = useQuery({ ...classroomsQueryOptions, enabled: Boolean(user) });
-    const menuOptions = menuQueryOptions({ date: selectedDay.date, user });
-    const menu = useQuery(menuOptions);
-
-    const noClassReason = getNoClassReason(selectedDay.date);
-    const classes = noClassReason
-        ? []
-        : classesOn(
-              classroomsQuery.data ?? [],
-              selectedDay.weekday,
-              isToday ? now.time : undefined
-          );
+    const lessons = useQuery({ ...weekLessonsQueryOptions, enabled: Boolean(user) });
+    const campus = campusOf(user?.unit?.code);
+    const preview = useMenuPreview({ campus, date: selectedDay.date, now });
+    const selected = lessons.data?.find((item) => item.date === selectedDay.date);
+    const classes = lessonsOn(
+        selected?.lessons ?? [],
+        selectedDay.weekday,
+        isToday ? now.time : undefined
+    );
 
     return (
-        <Screen
-            header={
-                <HeaderBar>
-                    <HeaderToggle
-                        open={weekOpen}
-                        onToggle={() => setWeekOpen((open) => !open)}
-                        title={weekOpen ? 'Ocultar seletor de dias' : 'Exibir dias da semana'}
-                    >
-                        {label}
-                    </HeaderToggle>
-                </HeaderBar>
-            }
-            onRefreshData={(queryClient) =>
-                Promise.all([
-                    refreshQuery(queryClient, meQueryOptions),
-                    refreshQuery(queryClient, menuOptions),
-                    user && refreshQuery(queryClient, classroomsQueryOptions),
-                    user && refreshQuery(queryClient, latestNewsQueryOptions)
-                ])
-            }
-        >
-            {weekOpen && (
-                <WeekDayPicker
-                    days={days}
-                    selectedDate={selectedDay.date}
-                    onSelect={(day) => setPicked(day.date === now.date ? null : day.date)}
-                />
-            )}
+        <View className="flex-1">
+            <Screen
+                header={
+                    <HeaderBar actions={user && <NewsNotifications />}>
+                        <HeaderToggle
+                            open={weekOpen}
+                            onToggle={() => setWeekOpen((open) => !open)}
+                            title={weekOpen ? 'Ocultar seletor de dias' : 'Exibir dias da semana'}
+                        >
+                            {label}
+                        </HeaderToggle>
+                    </HeaderBar>
+                }
+                onRefreshData={(queryClient) =>
+                    Promise.all([
+                        refreshQuery(queryClient, meQueryOptions),
+                        refreshQuery(
+                            queryClient,
+                            weeklyMenuQueryOptions({ campus, date: selectedDay.date })
+                        ),
+                        user && refreshQuery(queryClient, weekLessonsQueryOptions),
+                        user && refreshQuery(queryClient, latestNewsQueryOptions)
+                    ])
+                }
+            >
+                {weekOpen && (
+                    <WeekDayPicker
+                        days={days}
+                        selectedDate={selectedDay.date}
+                        onSelect={(day) => setPicked(day.date === now.date ? null : day.date)}
+                    />
+                )}
 
-            <View className="flex-col gap-6">
-                <TodayClassesSection
-                    loggedIn={Boolean(user)}
-                    noClassReason={noClassReason}
-                    isLoadingError={classroomsQuery.isLoadingError}
-                    onRetry={() => void classroomsQuery.refetch()}
-                    classes={classes}
-                />
-                <PublicInfoSection
-                    campus={campusOf(user?.unit?.code)}
-                    menu={menu.data?.[0]}
-                    isLoading={menu.isPending}
-                    day={label}
-                />
-                {user && <LatestNewsSection />}
-            </View>
-        </Screen>
+                <View className="flex-col gap-6">
+                    <TodayClassesSection
+                        loggedIn={Boolean(user)}
+                        noClassReason={selected?.no_class_reason ?? undefined}
+                        isLoadingError={lessons.isLoadingError}
+                        onRetry={() => void lessons.refetch()}
+                        classes={classes}
+                        date={selectedDay.date}
+                        now={now}
+                    />
+                    <PublicInfoSection
+                        campus={campus}
+                        menus={preview.menus}
+                        isLoading={preview.isLoading}
+                        day={label}
+                        date={selectedDay.date}
+                        now={now}
+                    />
+                </View>
+            </Screen>
+            <BackToTodayBar open={!isToday} onBack={() => setPicked(null)} />
+        </View>
     );
 }

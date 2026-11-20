@@ -68,14 +68,13 @@ function Classrooms() {
         return <ErrorCard message={SIGAA_DOWN_MESSAGE} onRetry={() => void refetch()} />;
 
     return (
-        <>
+        <View className="gap-2">
             {groups.length > 0 && (
                 <TabFilter
                     label="Escolher semestre"
                     value={semester}
                     options={groups.map(([name]) => name)}
                     onChange={setSelected}
-                    className="mb-2"
                 />
             )}
             <View className="flex-col gap-2">
@@ -83,14 +82,12 @@ function Classrooms() {
                     <ClassCard
                         key={classroom.id}
                         title={classroom.subject.name}
-                        code={classroom.subject.code}
                         time={describeSchedule(classroom.schedule) ?? 'Horário a definir'}
                         location={
                             classroom.current
                                 ? (classroom.room ?? 'Local não informado')
                                 : undefined
                         }
-                        classNumber={classroom.number}
                         grade={finalGrade(classroom)}
                         status={classroom.status === 'pending_enrollment' ? 'pending' : 'normal'}
                         onClick={() =>
@@ -112,6 +109,6 @@ function Classrooms() {
                     </CardContent>
                 </Card>
             )}
-        </>
+        </View>
     );
 }

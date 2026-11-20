@@ -68,9 +68,15 @@ export function SchedulePreview() {
                         <WeeklyTable key={semester.semester} grid={semester} maxHours={maxHours} />
                     ))}
                     {items.length === 0 ? (
-                        <Text className="text-muted-foreground">
-                            Adicione turmas nos resultados da busca para montar sua grade.
-                        </Text>
+                        <View className="min-h-56 items-center justify-center gap-3 py-8">
+                            <View className="size-10 items-center justify-center rounded-xl bg-primary/10">
+                                <Icon as={CalendarDays} className="size-5 text-primary" />
+                            </View>
+                            <Text className="text-sm font-medium">Monte sua grade</Text>
+                            <Text className="max-w-56 text-center text-xs leading-relaxed text-muted-foreground">
+                                Abra uma matéria e use o botão + para adicionar uma turma.
+                            </Text>
+                        </View>
                     ) : (
                         <View className="gap-2">
                             {items.map((item) => (
@@ -78,8 +84,6 @@ export function SchedulePreview() {
                                     key={classKey(item)}
                                     compact
                                     title={item.name}
-                                    code={item.code}
-                                    classNumber={item.number}
                                     time={describeSchedule(item.schedule) ?? 'Horário a definir'}
                                     location={item.room ?? undefined}
                                     professors={item.professors.map(({ name }) => name)}
@@ -97,18 +101,20 @@ export function SchedulePreview() {
                             ))}
                         </View>
                     )}
-                    <Button
-                        variant="outline"
-                        disabled={items.length === 0 || exporting}
-                        onPress={() => {
-                            setExportError(false);
-                            setExporting(true);
-                        }}
-                    >
-                        <Icon as={Download} className="size-4" />
-                        <Text>{exporting ? 'Gerando imagem...' : 'Baixar imagem'}</Text>
-                    </Button>
-                    {exportError && (
+                    {items.length > 0 && (
+                        <Button
+                            variant="outline"
+                            disabled={exporting}
+                            onPress={() => {
+                                setExportError(false);
+                                setExporting(true);
+                            }}
+                        >
+                            <Icon as={Download} className="size-4" />
+                            <Text>{exporting ? 'Gerando imagem...' : 'Baixar imagem'}</Text>
+                        </Button>
+                    )}
+                    {exportError && items.length > 0 && (
                         <Text role="alert" className="text-sm text-destructive">
                             Não foi possível baixar a grade. Tente novamente.
                         </Text>

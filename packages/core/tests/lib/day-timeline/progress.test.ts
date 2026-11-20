@@ -1,7 +1,7 @@
-import { classesOn, nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { describe, expect, test } from 'bun:test';
 
-import { classProgress, dayTimeline } from '#/lib/day-timeline';
+import { classProgress, dayTimeline } from '../../../src/lib/day-timeline.ts';
+import { classesOn, nowInBrasilia } from '../../../src/lib/schedule.ts';
 
 const date = '2026-11-10';
 const now = (time: string) => ({ date, weekday: 2, time });
