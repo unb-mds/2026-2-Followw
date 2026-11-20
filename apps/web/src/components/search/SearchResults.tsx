@@ -98,7 +98,7 @@ export function SearchResults({
                                 />
                             )}
                             <TurmaSection
-                                title="Matérias"
+                                title="Turmas"
                                 subjects={offered}
                                 currentPeriod={currentPeriod}
                                 taken={taken}

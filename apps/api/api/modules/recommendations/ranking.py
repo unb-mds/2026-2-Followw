@@ -1,11 +1,12 @@
 from collections import defaultdict
+from collections.abc import Container
 from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
 from api.modules.public_courses.service import by_shift, in_force, revision
-from api.schemas import normalize
+from api.schemas import groups_within, normalize
 
 _KIND_ORDER = {"required": 0, "optional": 1, "complementary": 2}
 type Rules = list[list[str]] | None
@@ -66,6 +67,25 @@ def satisfies(rules: Rules, approved: set[str]) -> bool:
     return not rules or any(
         all(normalize(code) in approved for code in group) for group in rules
     )
+
+
+def scoped_rules(rules: Rules, scope: Container[str]) -> Rules:
+    """Só os grupos com todos os códigos em `scope`; sem nenhum, as regras originais."""
+    return (rules and groups_within(rules, scope)) or rules
+
+
+def scoped_catalog(
+    catalog: dict[str, CatalogSubject], scope: Container[str]
+) -> dict[str, CatalogSubject]:
+    return {
+        code: subject.model_copy(
+            update={
+                "prerequisites": scoped_rules(subject.prerequisites, scope),
+                "corequisites": scoped_rules(subject.corequisites, scope),
+            }
+        )
+        for code, subject in catalog.items()
+    }
 
 
 def select_curriculum(
@@ -201,6 +221,7 @@ def rank(
     Para o próximo semestre, em andamento e sem menção contam como concluídas.
     Fora da matriz é módulo livre, então sem matriz nada é recomendado.
     """
+    catalog = scoped_catalog(catalog, curriculum.keys() | completed)
     assumed = completed | enrolled | unresolved
     done = assumed | {
         code

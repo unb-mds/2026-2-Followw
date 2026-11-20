@@ -139,19 +139,21 @@ def _curriculum_requirements(
     ) or _requirements_within(requirements, names, offered)
 
 
+def groups_within(requirements: Requirements, codes: Container[str]) -> Requirements:
+    """Grupos não vazios cujos códigos estão todos em `codes` (normalizados)."""
+    return [
+        group
+        for group in requirements
+        if group and all(normalize(code) in codes for code in group)
+    ]
+
+
 def _requirements_within(
     requirements: Requirements | None, names: dict[str, str], codes: Container[str]
 ) -> CatalogRequirements | None:
     if requirements is None:
         return None
-    return named_requirements(
-        [
-            group
-            for group in requirements
-            if group and all(normalize(code) in codes for code in group)
-        ],
-        names,
-    )
+    return named_requirements(groups_within(requirements, codes), names)
 
 
 def requirement_codes(subjects: Iterable[Subject]) -> set[str]:

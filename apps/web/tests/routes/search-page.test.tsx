@@ -291,7 +291,7 @@ describe('página de busca com estado na URL', () => {
         const page = renderPage('?q=calculo');
         await page.findByText('Cálculo 1');
         const course = page.getByRole('heading', { name: 'Cálculo Aplicado' });
-        const subjects = page.getByRole('heading', { name: /^Matérias$/ });
+        const subjects = page.getByRole('heading', { name: /^Turmas$/ });
         expect(
             course.compareDocumentPosition(subjects) & Node.DOCUMENT_POSITION_FOLLOWING
         ).toBeTruthy();
@@ -559,7 +559,7 @@ describe('página de busca com estado na URL', () => {
     test('abas de categoria aparecem para visitantes e substituem os tipos de matéria', () => {
         const page = renderPage('?q=calculo');
         expect(page.getByRole('group', { name: 'Categoria da busca' })).toBeDefined();
-        for (const name of ['Todos', 'Matérias', 'Cursos', 'Docentes']) {
+        for (const name of ['Todos', 'Turmas', 'Cursos', 'Docentes']) {
             expect(page.getByRole('button', { name })).toBeDefined();
         }
         expect(page.getByRole('button', { name: 'Todos' }).getAttribute('aria-pressed')).toBe(
@@ -585,7 +585,7 @@ describe('página de busca com estado na URL', () => {
         await page.findByRole('heading', { name: 'Docentes' });
         await page.findByText('Cálculo 1');
         expect(page.getByRole('heading', { name: 'Estudos Carlos Silva' })).toBeDefined();
-        testing.fireEvent.click(tab('Matérias'));
+        testing.fireEvent.click(tab('Turmas'));
         await testing.waitFor(() =>
             expect(page.queryByRole('heading', { name: 'Docentes' })).toBeNull()
         );
@@ -639,7 +639,7 @@ describe('página de busca com estado na URL', () => {
         expect(
             page
                 .getByRole('button', {
-                    name: { classrooms: 'Matérias', courses: 'Cursos', professors: 'Docentes' }[
+                    name: { classrooms: 'Turmas', courses: 'Cursos', professors: 'Docentes' }[
                         category
                     ]
                 })
@@ -659,7 +659,7 @@ describe('página de busca com estado na URL', () => {
         }
     );
 
-    test('aba Matérias sem resultados informa ausência de matérias', async () => {
+    test('aba Turmas sem resultados informa ausência de matérias', async () => {
         client.setQueryData(searchQueryOptions('nada', ['subjects']).queryKey, {
             subjects: [],
             courses: null,
@@ -695,7 +695,7 @@ describe('página de busca com estado na URL', () => {
         const page = renderPage();
         await page.findByText('Cálculo 1');
         expect(page.getByText('Cálculo 9')).toBeDefined();
-        testing.fireEvent.click(page.getByRole('button', { name: 'Matérias' }));
+        testing.fireEvent.click(page.getByRole('button', { name: 'Turmas' }));
         await page.findByRole('region', { name: 'Matérias recomendadas' });
         testing.fireEvent.click(page.getByRole('button', { name: 'Cursos' }));
         await testing.waitFor(() =>
