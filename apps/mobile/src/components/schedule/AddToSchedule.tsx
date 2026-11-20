@@ -1,6 +1,6 @@
 import type { CatalogSubject, SubjectClassroom } from '@followw/core/queries/subjects.ts';
 
-import { Plus, X } from 'lucide-react-native';
+import { Plus } from 'lucide-react-native';
 
 import { usePlannedSchedule } from '@/components/schedule/usePlannedSchedule';
 import { Button } from '@/components/ui/button';
@@ -32,10 +32,7 @@ export function AddToSchedule({
             accessibilityLabel={`${selected ? 'Remover da' : 'Adicionar à'} grade: ${subject.code}, turma ${classroom.number}`}
             onPress={() => toggle(item)}
         >
-            <Icon
-                as={selected ? X : Plus}
-                className={selected ? 'text-destructive' : 'text-primary'}
-            />
+            <Icon as={Plus} className={selected ? 'rotate-45 text-destructive' : 'text-primary'} />
         </Button>
     );
 }

@@ -54,7 +54,7 @@ export default function PrivacyScreen() {
                     className="flex-row items-center gap-2 self-start"
                 >
                     <Icon as={ArrowLeft} className="size-4 text-primary" />
-                    <Text className="text-sm text-primary">Voltar ao login</Text>
+                    <Text className="text-sm text-primary">Voltar</Text>
                 </Pressable>
                 <View className="flex-row items-center gap-3">
                     <FollowwLogo size={40} />
@@ -187,7 +187,7 @@ export default function PrivacyScreen() {
 function Topic({ title, children }: { title: string; children: React.ReactNode }) {
     return (
         <View className="gap-2">
-            <Text role="heading" aria-level={3} className="text-sm leading-6 font-semibold">
+            <Text role="heading" aria-level={3} className="text-base leading-7 font-semibold">
                 {title}
             </Text>
             {children}
@@ -196,7 +196,7 @@ function Topic({ title, children }: { title: string; children: React.ReactNode }
 }
 
 function Body({ children }: { children: React.ReactNode }) {
-    return <Text className="text-sm leading-6 text-muted-foreground">{children}</Text>;
+    return <Text className="text-base leading-7 text-foreground">{children}</Text>;
 }
 
 function MailLink({ email }: { email: string }) {

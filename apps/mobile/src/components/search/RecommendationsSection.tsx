@@ -80,7 +80,7 @@ export function RecommendationsSection({
     return (
         <View accessibilityLabel="Matérias recomendadas" className="gap-3">
             {query.isPending ? (
-                <LoadingText>Buscando recomendações...</LoadingText>
+                <LoadingText className="justify-center">Buscando recomendações...</LoadingText>
             ) : query.isLoadingError ? (
                 <ErrorCard
                     message="Não foi possível carregar suas recomendações."

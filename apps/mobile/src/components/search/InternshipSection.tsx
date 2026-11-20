@@ -2,13 +2,16 @@ import type { InternshipItem } from '@followw/core/queries/internships.ts';
 
 import { filterInternships, internshipsQueryOptions } from '@followw/core/queries/internships.ts';
 import { useQuery } from '@tanstack/react-query';
+import { ArrowRight } from 'lucide-react-native';
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { QueryState } from '@/components/QueryState';
 import { InternshipCard } from '@/components/search/InternshipCard';
 import { InternshipDetailDialog } from '@/components/search/InternshipDetailDialog';
+import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
+import { cn } from '@/lib/utils';
 
 const GROUPS = [
     { label: 'Seu curso', mine: true },
@@ -21,9 +24,15 @@ function countLabel(count: number) {
 
 export function InternshipSection({
     internships,
+    title,
+    previewLimit,
+    onShowAll,
     emptyMessage
 }: {
     internships: InternshipItem[];
+    title?: string;
+    previewLimit?: number;
+    onShowAll?: () => void;
     emptyMessage?: string;
 }) {
     const [selected, setSelected] = useState<InternshipItem | null>(null);
@@ -36,23 +45,57 @@ export function InternshipSection({
         );
     }
 
+    const items = previewLimit ? internships.slice(0, previewLimit) : internships;
+    const hasMore = previewLimit ? internships.length > previewLimit : false;
+
     return (
         <View className="gap-4">
+            {title && (
+                <View className="flex-row items-baseline justify-between gap-3">
+                    <View className="flex-row items-baseline gap-2">
+                        <Text
+                            role="heading"
+                            aria-level={2}
+                            className="text-base font-bold text-foreground"
+                        >
+                            {title}
+                        </Text>
+                        <Text className="shrink-0 text-xs text-muted-foreground">
+                            {countLabel(internships.length)}
+                        </Text>
+                    </View>
+                    {onShowAll && hasMore && (
+                        <Pressable
+                            accessibilityRole="button"
+                            hitSlop={8}
+                            onPress={onShowAll}
+                            className="flex-row items-center gap-1 active:opacity-70"
+                        >
+                            <Text className="text-xs font-semibold text-primary">Ver todas</Text>
+                            <Icon as={ArrowRight} className="size-3 text-primary" />
+                        </Pressable>
+                    )}
+                </View>
+            )}
             {GROUPS.map(({ label, mine }) => {
-                const visible = internships.filter((item) => item.is_my_course === mine);
+                const visible = items.filter((item) => item.is_my_course === mine);
                 if (visible.length === 0) return null;
+                const total = internships.filter((item) => item.is_my_course === mine).length;
                 return (
                     <View key={label} className="gap-2.5">
                         <View className="flex-row items-baseline gap-2">
                             <Text
                                 role="heading"
-                                aria-level={2}
-                                className="text-base font-bold text-foreground"
+                                aria-level={title ? 3 : 2}
+                                className={cn(
+                                    'text-foreground',
+                                    title ? 'text-sm font-semibold' : 'text-base font-bold'
+                                )}
                             >
                                 {label}
                             </Text>
                             <Text className="text-xs text-muted-foreground">
-                                {countLabel(visible.length)}
+                                {countLabel(total)}
                             </Text>
                         </View>
                         {visible.map((internship) => (
