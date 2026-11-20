@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { View } from 'react-native';
 
+import { LoadingText } from '@/components/LoadingText';
 import { StatisticsChart } from '@/components/StatisticsChart';
 import { TabFilter } from '@/components/TabFilter';
 import { Button } from '@/components/ui/button';
@@ -29,7 +30,7 @@ export function SubjectStatistics({
         <View className="gap-3 rounded-xl border border-border p-4">
             <Text className="text-sm font-semibold">Estatísticas anteriores</Text>
             {query.isPending && (
-                <Text className="text-sm text-muted-foreground">Carregando estatísticas…</Text>
+                <LoadingText className="justify-center">Carregando estatísticas...</LoadingText>
             )}
             {query.isError && (
                 <View className="items-start gap-2">
