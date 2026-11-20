@@ -13,7 +13,14 @@ import { clearAccountStorage, clearPersistedCache } from '@/lib/storage';
 // todo o cache é apagado no logout; só o /me fica a cargo de quem chama
 const isAccountQuery = ({ queryKey: [, path] }: Query) => path !== '/me';
 
+let sessionRefresh: AbortController | undefined;
+// por matrícula: trocar de conta também renova
+let refreshedRegistration: string | undefined;
+
 function clearUserData(queryClient: QueryClient) {
+    // a renovação da conta anterior não pode devolver tokens depois da troca
+    sessionRefresh?.abort();
+    refreshedRegistration = undefined;
     clearAccountStorage();
     queryClient.removeQueries({ predicate: isAccountQuery });
     clearPersistedCache();
@@ -46,6 +53,10 @@ export function useLogin() {
     const queryClient = useQueryClient();
     const analytics = useAnalytics();
     return api.useMutation('post', '/auth/sigaa', {
+        onMutate: async () => {
+            sessionRefresh?.abort();
+            await queryClient.cancelQueries();
+        },
         onSuccess: async () => {
             try {
                 await startSession(queryClient);
@@ -70,9 +81,6 @@ export function useLogout(onLoggedOut?: () => void) {
     });
 }
 
-// por matrícula: trocar de conta também renova
-let refreshedRegistration: string | undefined;
-
 export function useSessionRefresh() {
     const queryClient = useQueryClient();
     const { data: user } = useQuery(meQueryOptions);
@@ -81,8 +89,16 @@ export function useSessionRefresh() {
     useEffect(() => {
         if (!user || isConnected === false || refreshedRegistration === user.registration) return;
         refreshedRegistration = user.registration;
-        apiClient.POST('/auth/sigaa/refresh').catch((error: unknown) => {
-            if (error instanceof ApiError && error.isUnauthorized) clearSession(queryClient);
-        });
+        const controller = new AbortController();
+        sessionRefresh = controller;
+        apiClient
+            .POST('/auth/sigaa/refresh', { signal: controller.signal })
+            .catch((error: unknown) => {
+                if (!controller.signal.aborted && error instanceof ApiError && error.isUnauthorized)
+                    clearSession(queryClient);
+            })
+            .finally(() => {
+                if (sessionRefresh === controller) sessionRefresh = undefined;
+            });
     }, [user, isConnected, queryClient]);
 }
