@@ -10,6 +10,7 @@ import {
     showsSubjects
 } from '@followw/core/lib/search-categories.ts';
 import { allClassroomsQueryOptions } from '@followw/core/queries/classrooms.ts';
+import { internshipsQueryOptions } from '@followw/core/queries/internships.ts';
 import { meQueryOptions } from '@followw/core/queries/me.ts';
 import {
     recommendationsQueryOptions,
@@ -28,7 +29,7 @@ import {
 } from '@followw/core/queries/subjects.ts';
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Search } from 'lucide-react-native';
+import { Briefcase, Search } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 
@@ -40,10 +41,12 @@ import {
     type CatalogCategory,
     catalogQueryOptions
 } from '@/components/search/CatalogResults';
+import { InternshipResults } from '@/components/search/InternshipSection';
 import { RecommendationsSection } from '@/components/search/RecommendationsSection';
 import { SearchResults } from '@/components/search/SearchResults';
 import { SubjectResults } from '@/components/search/SubjectResults';
 import { TabFilter } from '@/components/TabFilter';
+import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
@@ -54,7 +57,8 @@ type SearchView =
     | { kind: 'recommendations' }
     | { kind: 'catalog'; category: CatalogCategory }
     | { kind: 'search'; text: string }
-    | { kind: 'unit'; unit: string };
+    | { kind: 'unit'; unit: string }
+    | { kind: 'internships'; text: string | null };
 
 /** Sem texto, as abas com matérias mostram as recomendações ou a unidade do aluno, e as demais o catálogo. */
 function searchView(
@@ -63,6 +67,7 @@ function searchView(
     text: string | null,
     user: UserProfile | null | undefined
 ): SearchView | null {
+    if (category === 'internships') return { kind: 'internships', text };
     const subjects = showsSubjects(category);
     if (subjects && user && showRecommendations(user, { q })) return { kind: 'recommendations' };
     if (text) return { kind: 'search', text };
@@ -105,6 +110,10 @@ export default function SearchScreen() {
         return () => clearTimeout(timer);
     }, [q]);
     const view = searchView(category, q, text, user);
+    const searchLabel =
+        category === 'internships'
+            ? 'Busque por estágio'
+            : 'Busque por matéria, curso ou professor';
     const history = useQuery({ ...allClassroomsQueryOptions, enabled: subjects && Boolean(user) });
     const completed = user?.completed_subjects;
     const taken = useMemo(
@@ -137,6 +146,8 @@ export default function SearchScreen() {
                             : refreshQuery(queryClient, catalogQueryOptions.professors);
                     if (view?.kind === 'unit')
                         return refreshQuery(queryClient, subjectsQueryOptions({ unit: view.unit }));
+                    if (view?.kind === 'internships' && user)
+                        return refreshQuery(queryClient, internshipsQueryOptions);
                     return refreshQuery(queryClient, meQueryOptions);
                 }}
             >
@@ -155,8 +166,8 @@ export default function SearchScreen() {
                         autoCapitalize="none"
                         autoCorrect={false}
                         clearButtonMode="while-editing"
-                        placeholder="Busque por matéria, curso ou professor..."
-                        aria-label="Busque por matéria, curso ou professor"
+                        placeholder={`${searchLabel}...`}
+                        aria-label={searchLabel}
                         className="h-11 bg-card pl-10 text-sm"
                     />
                 </View>
@@ -205,6 +216,34 @@ export default function SearchScreen() {
                             taken={taken}
                         />
                     )}
+                    {view?.kind === 'internships' &&
+                        (user ? (
+                            <InternshipResults text={view.text} />
+                        ) : (
+                            !me.isPending && (
+                                <View className="items-center justify-center gap-3 rounded-2xl border border-border bg-card p-8">
+                                    <View className="size-12 items-center justify-center rounded-2xl bg-primary/10">
+                                        <Icon as={Briefcase} className="size-6 text-primary" />
+                                    </View>
+                                    <View className="max-w-sm items-center gap-1">
+                                        <Text
+                                            role="heading"
+                                            aria-level={3}
+                                            className="text-base font-semibold"
+                                        >
+                                            Ofertas de Estágio do SIGAA
+                                        </Text>
+                                        <Text className="text-center text-sm text-muted-foreground">
+                                            Entre na sua conta para consultar as vagas de estágio
+                                            abertas para o seu curso e para a UnB.
+                                        </Text>
+                                    </View>
+                                    <Button className="mt-2" onPress={() => router.push('/login')}>
+                                        <Text>Entrar na sua conta</Text>
+                                    </Button>
+                                </View>
+                            )
+                        ))}
                 </View>
             </Screen>
             <SchedulePreview />
