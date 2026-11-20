@@ -5,9 +5,11 @@ from api.modules.recommendations.ranking import (
     Component,
     chain_length,
     components_by_code,
-    curriculum_rules,
+    dependency_graph,
     descendants,
     eligible,
+    scoped_catalog,
+    scoped_rules,
     target_period,
 )
 
@@ -51,20 +53,19 @@ def test_cadeias_toleram_pre_requisitos_ciclicos():
     assert descendants("A", graph) == {"B", "C"}
 
 
-def test_regras_do_curriculo_filtram_codigos_fora_da_matriz():
+def test_regras_no_escopo_descartam_codigos_fora_da_matriz():
     rules = [["FGA0138"], ["FGA0313"]]
-    matrix = {"FGA0312", "FGA0313", "FGA0314"}
-    assert curriculum_rules(rules, matrix) == [["FGA0313"]]
+    scope = {"FGA0312", "FGA0313", "FGA0314"}
+    assert scoped_rules(rules, scope) == [["FGA0313"]]
 
 
-def test_regras_do_curriculo_mantem_originais_quando_nenhuma_opcao_esta_na_matriz():
-    rules = [["EXT0001"]]
-    matrix = {"FGA0312"}
-    assert curriculum_rules(rules, matrix) == [["EXT0001"]]
+def test_regras_no_escopo_mantem_originais_quando_nenhuma_opcao_esta_nele():
+    assert scoped_rules([["EXT0001"]], {"FGA0312"}) == [["EXT0001"]]
+    assert scoped_rules(None, {"FGA0312"}) is None
 
 
-def test_materia_com_pre_requisito_legado_nao_e_elegivel_sem_requisito_da_matriz():
-    catalog = {
+def _legacy_catalog():
+    return {
         "FGA0314": CatalogSubject(
             code="FGA0314",
             hours=60,
@@ -73,9 +74,19 @@ def test_materia_com_pre_requisito_legado_nao_e_elegivel_sem_requisito_da_matriz
             corequisites=None,
         )
     }
-    matrix = {"FGA0313", "FGA0314"}
-    assert eligible(catalog, {"FGA0314"}, {"FGA0138"}, matrix) == set()
-    assert eligible(catalog, {"FGA0314"}, {"FGA0313"}, matrix) == {"FGA0314"}
-    assert eligible(
-        catalog, {"FGA0314"}, {"FGA0138"}, matrix, completed={"FGA0138"}
-    ) == {"FGA0314"}
+
+
+def test_materia_com_pre_requisito_legado_nao_e_elegivel_sem_requisito_da_matriz():
+    catalog = scoped_catalog(_legacy_catalog(), {"FGA0313", "FGA0314"})
+    assert eligible(catalog, {"FGA0314"}, {"FGA0138"}) == set()
+    assert eligible(catalog, {"FGA0314"}, {"FGA0313"}) == {"FGA0314"}
+
+
+def test_pre_requisito_legado_ja_cumprido_continua_valendo():
+    catalog = scoped_catalog(_legacy_catalog(), {"FGA0313", "FGA0314", "FGA0138"})
+    assert eligible(catalog, {"FGA0314"}, {"FGA0138"}) == {"FGA0314"}
+
+
+def test_grafo_de_dependencias_ignora_pre_requisito_legado():
+    pending = scoped_catalog(_legacy_catalog(), {"FGA0313", "FGA0314"})
+    assert dependency_graph(pending) == {"FGA0313": {"FGA0314"}}

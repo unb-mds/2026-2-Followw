@@ -431,6 +431,36 @@ def test_desbloqueia_nao_duplica_materia_com_mesmo_nome_quando_apenas_uma_tem_of
     assert item["unlocks"] == [{"code": "FGA0315", "name": "QUALIDADE DE SOFTWARE 1"}]
 
 
+def test_desbloqueia_usa_o_semestre_pedido(catalog, database):
+    with database.begin() as session:
+        session.add_all(
+            [
+                Subject(code="DEP1", name="Dependente um", prerequisites=[["FGA0003"]]),
+                Subject(
+                    code="DEP2", name="Dependente dois", prerequisites=[["FGA0003"]]
+                ),
+                Classroom(subject_code="DEP1", number="01", semester="2026.1"),
+                Classroom(subject_code="DEP2", number="01", semester="2026.2"),
+            ]
+        )
+    (antigo,) = _search(catalog, code="FGA0003", semester="2026.1")
+    (recente,) = _search(catalog, code="FGA0003")
+    assert [item["code"] for item in antigo["unlocks"]] == ["DEP1"]
+    assert [item["code"] for item in recente["unlocks"]] == ["DEP2"]
+
+
+def test_desbloqueia_vazio_sem_turmas_gravadas(client, database):
+    with database.begin() as session:
+        session.add_all(
+            [
+                Subject(code="FGA0003", name="COMPILAÇÃO", unit_id=673),
+                Subject(code="DEP1", name="Dependente", prerequisites=[["FGA0003"]]),
+            ]
+        )
+
+    assert _search(client, code="FGA0003")[0]["unlocks"] == []
+
+
 @pytest.mark.parametrize("query", ["OLD0001", " old0001 "])
 def test_codigo_nao_expande_para_outros_codigos_de_mesmo_nome(catalog, database, query):
     with database.begin() as session:

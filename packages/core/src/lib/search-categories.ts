@@ -11,7 +11,7 @@ export type SearchCategory = (typeof SEARCH_CATEGORIES)[number];
 
 export const searchCategoryLabels: Record<SearchCategory, string> = {
     all: 'Todos',
-    classrooms: 'Matérias',
+    classrooms: 'Turmas',
     courses: 'Cursos',
     professors: 'Docentes',
     internships: 'Estágios'
