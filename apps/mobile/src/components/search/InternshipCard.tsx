@@ -1,0 +1,72 @@
+import type { InternshipItem } from '@followw/core/queries/internships.ts';
+
+import { titleCase } from '@followw/core/lib/profile.ts';
+import { Briefcase, Calendar, Users } from 'lucide-react-native';
+import { Pressable, View } from 'react-native';
+
+import { Icon } from '@/components/ui/icon';
+import { Text } from '@/components/ui/text';
+
+export function formatCurrency(value: string | number | null | undefined): string | null {
+    if (!value) return null;
+    const num = typeof value === 'string' ? parseFloat(value) : value;
+    if (isNaN(num) || num === 0) return null;
+    return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+export function formatDate(isoString: string): string {
+    const [year, month, day] = isoString.slice(0, 10).split('-');
+    return day && month && year ? `${day}/${month}/${year}` : isoString;
+}
+
+export function InternshipCard({
+    internship,
+    onPress
+}: {
+    internship: InternshipItem;
+    onPress: () => void;
+}) {
+    const stipend = formatCurrency(internship.stipend);
+    return (
+        <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={titleCase(internship.title)}
+            onPress={onPress}
+            className="gap-3 rounded-2xl border border-border bg-card p-4 active:border-primary/40 active:bg-primary/5"
+        >
+            <View className="flex-row items-center gap-2">
+                <View className="size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                    <Icon as={Briefcase} className="size-5 text-primary" />
+                </View>
+                <Text
+                    role="heading"
+                    aria-level={3}
+                    className="min-w-0 flex-1 text-sm leading-snug font-semibold"
+                >
+                    {titleCase(internship.title)}
+                </Text>
+            </View>
+            <View className="flex-row flex-wrap items-center gap-x-4 gap-y-2">
+                <Text className="text-xs font-medium text-foreground">
+                    {stipend ? (
+                        <Text className="text-xs font-medium text-primary">{stipend}</Text>
+                    ) : (
+                        'Bolsa a combinar'
+                    )}
+                </Text>
+                <View className="flex-row items-center gap-1">
+                    <Icon as={Users} className="size-3.5 text-muted-foreground" />
+                    <Text className="text-xs text-muted-foreground">
+                        {internship.vacancies} {internship.vacancies === 1 ? 'vaga' : 'vagas'}
+                    </Text>
+                </View>
+                <View className="flex-row items-center gap-1">
+                    <Icon as={Calendar} className="size-3.5 text-muted-foreground" />
+                    <Text className="text-xs text-muted-foreground">
+                        Inscrições até {formatDate(internship.published_until)}
+                    </Text>
+                </View>
+            </View>
+        </Pressable>
+    );
+}
