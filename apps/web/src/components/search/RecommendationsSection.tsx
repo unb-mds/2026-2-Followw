@@ -1,3 +1,4 @@
+import type { PlannedClass } from '@followw/core/lib/planned-schedule.ts';
 import type { CatalogSubject } from '@followw/core/queries/subjects.ts';
 
 import { reasonLabel, recommendationsQueryOptions } from '@followw/core/queries/recommendations.ts';
@@ -61,15 +62,17 @@ function WhyDialog(subject: CatalogSubject) {
 
 export function RecommendationsSection({
     currentPeriod,
+    planned,
     taken
 }: {
     currentPeriod?: number | null;
+    planned?: readonly PlannedClass[];
     taken?: Set<string> | null;
 }) {
     const client = useQueryClient();
     const query = useQuery(recommendationsQueryOptions);
     const refresh = () => void refreshQuery(client, recommendationsQueryOptions).catch(noop);
-    const subjects = query.data && withClassrooms(query.data);
+    const subjects = query.data && withClassrooms(query.data, planned);
     return (
         <section
             aria-label="Matérias recomendadas"

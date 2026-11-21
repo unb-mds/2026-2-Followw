@@ -422,6 +422,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/public/subjects/workloads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Listar cargas horárias das matérias do catálogo */
+        get: operations["subject_workloads_public_subjects_workloads_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/public/subjects/{code}/statistics": {
         parameters: {
             query?: never;
@@ -1680,6 +1697,7 @@ export interface components {
             /** Complementary */
             complementary: number | null;
         };
+        WorkloadFilter: number | "180+";
     };
     responses: never;
     parameters: never;
@@ -2880,6 +2898,26 @@ export interface operations {
             };
         };
     };
+    subject_workloads_public_subjects_workloads_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": number[];
+                };
+            };
+        };
+    };
     subject_statistics_public_subjects__code__statistics_get: {
         parameters: {
             query: {
@@ -2923,6 +2961,16 @@ export interface operations {
                 code?: string | null;
                 /** @description ID ou sigla da unidade responsável. */
                 unit?: number | string | null;
+                /** @description Dias exatos, de segunda (0) a domingo (6). */
+                days?: string | null;
+                start?: string | null;
+                /** @description Carga horária exata ou 180+ para a faixa inclusiva de 180 a 960 horas. */
+                hours?: components["schemas"]["WorkloadFilter"] | null;
+                /** @description Optativas com oferta disponível na matriz do aluno. */
+                electives?: boolean;
+                /** @description Módulos livres com oferta disponível para o aluno. */
+                free_modules?: boolean;
+                timetable?: string | null;
                 /** @description Semestre das turmas. */
                 semester?: string | null;
             };
@@ -2946,6 +2994,13 @@ export interface operations {
             };
             /** @description Sessão inválida ao buscar recomendações. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Matriz curricular não encontrada ao filtrar pelo tipo de matéria. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -1,6 +1,8 @@
+import type { PlannedClass } from '../lib/planned-schedule.ts';
 import type { Classroom } from './classrooms.ts';
 import type { components, operations } from './schema.gen.ts';
 
+import { scheduleConflictFinder } from '../lib/planned-schedule.ts';
 import { api } from './api.ts';
 import { finalGrade } from './classrooms.ts';
 
@@ -39,13 +41,29 @@ export function displayedRequirements(subject: RequirementFields) {
 export const SEARCH_MIN_LENGTH = 3;
 export const SEARCH_MAX_LENGTH = 32;
 const APPROVED = new Set(['SS', 'MS', 'MM']);
+const WEEKDAY =
+    '(?:seg(?:unda)?|ter(?:ca)?|qua(?:rta)?|qui(?:nta)?|sex(?:ta)?|sab(?:ado)?|dom(?:ingo)?)(?:-feira)?';
+const DAY_SEPARATOR = '(?:\\s*,\\s*(?:e\\s+)?|\\s+(?:e\\s+)?)';
+const SCHEDULE_SEARCH = new RegExp(
+    `^(?:${WEEKDAY}(?:${DAY_SEPARATOR}${WEEKDAY})*\\s+)?(?:[01]?[0-9]|2[0-3])(?::[0-5][0-9]|h)?$`
+);
+const SCHEDULE_CODE = /^[1-7]+(?:m[1-5]+|t[1-6]+|n[1-4]+)$/;
+
+export function isScheduleSearch(text: string): boolean {
+    const query = text.trim().toLowerCase().normalize('NFKD').replace(/\p{M}/gu, '');
+    return SCHEDULE_SEARCH.test(query) || SCHEDULE_CODE.test(query);
+}
 
 /** Texto válido da busca; fora dos limites mantém o anterior. */
 export function searchText(q: string, previous: string | null = null): string | null {
     const text = q.trim();
     if (!text) return null;
-    return text.length < SEARCH_MIN_LENGTH || text.length > SEARCH_MAX_LENGTH ? previous : text;
+    if (text.length > SEARCH_MAX_LENGTH) return previous;
+    return text.length >= SEARCH_MIN_LENGTH || isScheduleSearch(text) ? text : previous;
 }
+
+export const subjectUnitsQueryOptions = api.queryOptions('get', '/public/classrooms/units');
+export const subjectWorkloadsQueryOptions = api.queryOptions('get', '/public/subjects/workloads');
 
 export const subjectsQueryOptions = (query: SubjectsQuery) =>
     api.queryOptions('get', '/public/subjects', { params: { query } });
@@ -103,8 +121,17 @@ export function seats({ vacancies, occupied }: SubjectClassroom): Seats | null {
     };
 }
 
-export const withClassrooms = (subjects: CatalogSubject[]) =>
-    subjects.filter((subject) => subject.classrooms.length > 0);
+export function withClassrooms(subjects: CatalogSubject[], planned?: readonly PlannedClass[]) {
+    const offered = subjects.filter((subject) => subject.classrooms.length > 0);
+    if (!planned?.length) return offered;
+    const conflict = scheduleConflictFinder(planned);
+    return offered.flatMap((subject) => {
+        const classrooms = subject.classrooms.filter(
+            (classroom) => !conflict(subject.code, classroom)
+        );
+        return classrooms.length ? [{ ...subject, classrooms }] : [];
+    });
+}
 
 export function currentCurriculumPeriod(
     entry: string | null | undefined,

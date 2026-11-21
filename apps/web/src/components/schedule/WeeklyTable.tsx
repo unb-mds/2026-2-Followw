@@ -1,11 +1,11 @@
 import type { GridSemester } from '@followw/core/lib/planned-schedule.ts';
 
-import { classKey, GRID_DAYS } from '@followw/core/lib/planned-schedule.ts';
+import { classKey } from '@followw/core/lib/planned-schedule.ts';
 
 import { cn } from '#/lib/shadcn';
 
 export function WeeklyTable({
-    grid: { semester, hours, rows, unscheduled },
+    grid: { semester, hours, days, rows, unscheduled },
     maxHours
 }: {
     grid: GridSemester;
@@ -36,7 +36,7 @@ export function WeeklyTable({
                                 <th scope="col" className="w-24 p-2">
                                     Horários
                                 </th>
-                                {GRID_DAYS.map(({ label }) => (
+                                {days.map(({ label }) => (
                                     <th key={label} scope="col" className="p-2">
                                         {label}
                                     </th>
@@ -54,7 +54,7 @@ export function WeeklyTable({
                                     </th>
                                     {cells.map((entry, index) => (
                                         <td
-                                            key={GRID_DAYS[index].label}
+                                            key={days[index].label}
                                             className={cn(
                                                 'border-l p-2 align-middle',
                                                 entry && 'bg-primary/5 text-primary'

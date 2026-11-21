@@ -7,8 +7,10 @@ import { callRoute, fakeQueryClient, runLoader } from '../helpers/route';
 
 interface User {
     registration: string;
-    unit: { id: number; code: string | null; name: string };
+    unit: { id: number; code: string | null; name: string } | null;
     level?: string;
+    course?: { id: number };
+    entry_semester?: string;
 }
 
 const loadWith = async (user: User | null, searchStr = '') => {
@@ -130,6 +132,31 @@ describe('recomendações somente na busca', () => {
 });
 
 describe('loader das categorias da busca', () => {
+    test.each(['10', 'segunda 10', 'segunda e quarta 10h', '24M34'])(
+        'pré-carrega somente as matérias para %s',
+        async (q) => {
+            const keys = await loadWith(null, `?q=${encodeURIComponent(q)}`);
+            expect(keys.at(-1)).toEqual([
+                'get',
+                '/public/search',
+                { params: { query: { q, type: ['subjects'] } } }
+            ]);
+        }
+    );
+
+    test('filtro de optativas pré-carrega o histórico e as ofertas filtradas', async () => {
+        expect(
+            await loadWith(
+                { registration: '1', unit: null, course: { id: 42 }, entry_semester: '2024.1' },
+                '?q=fisica&electives=true'
+            )
+        ).toEqual([
+            ['get', '/me'],
+            ['get', '/classrooms', { params: { query: { semester: 'all' } } }],
+            ['get', '/public/subjects', { params: { query: { q: 'fisica', electives: true } } }]
+        ]);
+    });
+
     test.each([
         ['classrooms', ['/me', '/classrooms', '/public/search'], ['subjects']],
         ['all', ['/me', '/classrooms', '/public/search'], undefined],

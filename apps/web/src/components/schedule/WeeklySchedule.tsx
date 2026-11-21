@@ -1,4 +1,4 @@
-import { GRID_DAYS } from '@followw/core/lib/planned-schedule.ts';
+import { visibleGridDays } from '@followw/core/lib/planned-schedule.ts';
 import { parseSchedule } from '@followw/core/lib/schedule.ts';
 import { useMemo } from 'react';
 
@@ -38,6 +38,8 @@ export function WeeklySchedule({
             ),
         [entries]
     );
+    const days = visibleGridDays(times);
+    const columns = { gridTemplateColumns: `3.25rem repeat(${days.length}, minmax(0, 1fr))` };
     const segments = weeklyTimeline(times);
     const ticks = timeTicks(segments);
     const last = segments.at(-1);
@@ -46,19 +48,22 @@ export function WeeklySchedule({
     return (
         <section aria-label={label} className="min-w-0">
             {segments.length > 0 && (
-                <div className="weekly-scroll max-h-144 overflow-auto overscroll-contain rounded-xl border">
+                <div className="weekly-scroll max-h-144 overflow-auto overscroll-x-contain rounded-xl border">
                     <div className="min-w-md">
-                        <div className="weekly-columns sticky top-0 z-20 grid border-b border-foreground/10 bg-muted text-center text-xs">
+                        <div
+                            style={columns}
+                            className="sticky top-0 z-20 grid border-b border-foreground/10 bg-muted text-center text-xs"
+                        >
                             <span className="py-3 pr-3 text-right text-muted-foreground">Hora</span>
-                            {GRID_DAYS.map(({ label: day }) => (
+                            {days.map(({ label: day }) => (
                                 <span key={day} className="py-3 font-semibold text-foreground">
                                     {day}
                                 </span>
                             ))}
                         </div>
                         <div
-                            className="weekly-columns relative grid"
-                            style={{ height: height + TIMELINE_INSET * 2 }}
+                            className="relative grid"
+                            style={{ ...columns, height: height + TIMELINE_INSET * 2 }}
                         >
                             <div className="relative border-r border-foreground/10 bg-muted/50">
                                 {ticks.map(({ minute, top }) => (
@@ -71,7 +76,7 @@ export function WeeklySchedule({
                                     </span>
                                 ))}
                             </div>
-                            {GRID_DAYS.map(({ weekday, label: day }) => (
+                            {days.map(({ weekday, label: day }) => (
                                 <div key={weekday} className="relative">
                                     {dayLanes(times.filter((time) => time.weekday === weekday)).map(
                                         ({ entry, start, end, lane, lanes }) => {

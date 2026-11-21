@@ -37,6 +37,12 @@ const paged = <T,>(items: T[], page = 1) => ({
     page,
     page_size: 25
 });
+const turma = (number: string, schedule: string) => ({
+    number,
+    schedule,
+    semester: '2026.2',
+    professors: []
+});
 const noProfessors = paged([]);
 const makeProfessor = (siape: number, name: string) => ({
     siape,
@@ -54,6 +60,21 @@ const makeCourse = (index: number, name = `ENGENHARIA CIVIL ${index}`) => ({
     shift: 'DIURNO',
     unit: { id: 1, code: 'ENG', name: 'ENGENHARIA' }
 });
+const electiveStudent: components['schemas']['UserProfile'] = {
+    name: 'Discente',
+    registration: '1',
+    photo: null,
+    bio: null,
+    unit: null,
+    course: makeCourse(42),
+    entry_semester: '2024.1',
+    integralization: null,
+    workload: null,
+    period_max_workload: null,
+    ira: null,
+    mp: null,
+    level: 'Graduação'
+};
 
 // Os detalhes da turma carregam as estatísticas anteriores.
 const noStatistics: components['schemas']['SubjectStatistics'] = {
@@ -124,6 +145,7 @@ beforeAll(async () => {
         HTMLInputElement: browser.HTMLInputElement,
         Element: browser.Element,
         Node: browser.Node,
+        NodeFilter: browser.NodeFilter,
         DocumentFragment: browser.DocumentFragment,
         MutationObserver: browser.MutationObserver,
         ResizeObserver: browser.ResizeObserver,
@@ -164,6 +186,8 @@ describe('página de busca com estado na URL', () => {
     let requests: URL[];
     let updates: UrlUpdateEvent[];
     let recommended: unknown[];
+    let electiveOffer: components['schemas']['CatalogSubject'][];
+    let scheduleResults: Map<string, components['schemas']['CatalogSubject'][]>;
     let courses: unknown[];
     let professors: unknown[];
     let failPage: number | null;
@@ -175,12 +199,15 @@ describe('página de busca com estado na URL', () => {
         requests = [];
         updates = [];
         recommended = [];
+        electiveOffer = [];
+        scheduleResults = new Map();
         courses = [];
         professors = carlos;
         client = new QueryClient({
             defaultOptions: { queries: { retry: false, staleTime: Infinity } }
         });
         client.setQueryData(meQueryOptions.queryKey, null);
+        client.setQueryData(allClassroomsQueryOptions.queryKey, []);
         const subjects = [
             {
                 code: 'MAT0023',
@@ -219,7 +246,7 @@ describe('página de busca com estado na URL', () => {
                     return Response.json(paged(q ? matching : professors, page));
                 if (url.pathname.endsWith('/public/search')) {
                     const result = {
-                        subjects,
+                        subjects: (q && scheduleResults.get(q)) || subjects,
                         courses: paged(courses),
                         professors: paged(matching)
                     };
@@ -235,6 +262,15 @@ describe('página de busca com estado na URL', () => {
                 }
                 if (url.pathname.endsWith('/public/subjects') && !url.search)
                     return Response.json(recommended);
+                if (url.pathname.endsWith('/public/classrooms/units'))
+                    return Response.json([
+                        { id: 673, code: 'FCTE', name: 'Engenharias' },
+                        { id: 518, code: 'FCE', name: 'Ceilândia' }
+                    ]);
+                if (url.pathname.endsWith('/public/subjects/workloads'))
+                    return Response.json([30, 60, 90, 180, 240, 960]);
+                if (url.searchParams.has('electives') || url.searchParams.has('free_modules'))
+                    return Response.json(electiveOffer);
                 return Response.json(subjects);
             }
         };
@@ -277,6 +313,56 @@ describe('página de busca com estado na URL', () => {
         expect(requests[0].searchParams.get('q')).toBe('calculo');
     });
 
+    test('trocar de segunda 10h para segunda e quarta 10h consulta apenas matérias', async () => {
+        const physics = {
+            code: 'FIS0123',
+            name: 'Física Aplicada',
+            classrooms: [{ number: '01', semester: '2026.2', schedule: '2M34', professors: [] }]
+        };
+        scheduleResults.set('segunda 10h', [physics]);
+        scheduleResults.set('segunda e quarta 10h', [
+            {
+                code: 'MAT0023',
+                name: 'Cálculo 1',
+                classrooms: [
+                    { number: '01', semester: '2026.2', schedule: '24M34', professors: [] }
+                ]
+            }
+        ]);
+        const page = renderPage('?q=segunda+10h');
+        await page.findByText('Física Aplicada');
+        testing.fireEvent.change(searchbox(page), { target: { value: 'segunda e quarta 10h' } });
+        await testing.waitFor(() => expect(requests).toHaveLength(2));
+        const subject = await page.findByRole('button', { name: /Cálculo 1/ });
+        expect(page.queryByText('Física Aplicada')).toBeNull();
+        testing.fireEvent.click(subject);
+        expect(await page.findByText('Seg, Qua · 10:00–11:50')).toBeDefined();
+        expect(requests.map((url) => url.searchParams.get('q'))).toEqual([
+            'segunda 10h',
+            'segunda e quarta 10h'
+        ]);
+        expect(requests.every((url) => url.searchParams.get('type') === 'subjects')).toBe(true);
+    });
+
+    test('digitar um código SIGAA mostra as turmas com o horário correspondente', async () => {
+        scheduleResults.set('24M34', [
+            {
+                code: 'FIS0123',
+                name: 'Física Aplicada',
+                classrooms: [
+                    { number: '01', semester: '2026.2', schedule: '24M34', professors: [] }
+                ]
+            }
+        ]);
+        const page = renderPage();
+        expect(page.getByText(/código do SIGAA, como 24M34/)).toBeDefined();
+        testing.fireEvent.change(searchbox(page), { target: { value: '24M34' } });
+        testing.fireEvent.click(await page.findByRole('button', { name: /Física Aplicada/ }));
+        expect(await page.findByText('Seg, Qua · 10:00–11:50')).toBeDefined();
+        expect(requests[0].searchParams.get('q')).toBe('24M34');
+        expect(requests[0].searchParams.get('type')).toBe('subjects');
+    });
+
     test('exibe cursos antes das turmas com nome, graduação, turno e unidade', async () => {
         courses = [
             {
@@ -297,7 +383,9 @@ describe('página de busca com estado na URL', () => {
         ).toBeTruthy();
         expect(page.getByText('Graduação · Diurno')).toBeDefined();
         expect(page.getByText('Departamento de Matemática')).toBeDefined();
-        expect(searchbox(page).placeholder).toBe('Busque por matéria, curso ou professor...');
+        expect(searchbox(page).placeholder).toBe(
+            'Busque por matéria, horário, curso ou professor...'
+        );
     });
 
     test.each([1, 25])('aba Cursos lista %i cursos sem oferecer mais páginas', async (total) => {
@@ -397,7 +485,7 @@ describe('página de busca com estado na URL', () => {
         const section = testing.within(await page.findByRole('region', { name: 'Cursos' }));
         expect(section.getByText('30 cursos')).toBeDefined();
         expect(section.getAllByRole('link')).toHaveLength(25);
-        expect(page.queryByText(/Digite de 3 a 32/)).toBeNull();
+        expect(page.queryByText(/Para buscar pelo início da aula/)).toBeNull();
         testing.fireEvent.click(
             section.getByRole('button', { name: 'Ver mais cursos (5 restantes)' })
         );
@@ -496,7 +584,7 @@ describe('página de busca com estado na URL', () => {
         testing.fireEvent.change(searchbox(page), { target: { value: 'ca' } });
         await testing.act(() => new Promise((resolve) => setTimeout(resolve, 350)));
         expect(page.getByText('Cálculo 1')).toBeDefined();
-        expect(page.queryByText(/Digite de 3 a 32/)).toBeNull();
+        expect(page.queryByText(/Para buscar pelo início da aula/)).toBeNull();
         expect(requests.filter((r) => r.pathname.endsWith('/public/search'))).toHaveLength(1);
     });
 
@@ -556,17 +644,235 @@ describe('página de busca com estado na URL', () => {
         expect(page.getByRole('table').textContent).toContain('MAT0023');
     });
 
-    test('abas de categoria aparecem para visitantes e substituem os tipos de matéria', () => {
+    test('abas de categoria aparecem para visitantes', () => {
         const page = renderPage('?q=calculo');
         expect(page.getByRole('group', { name: 'Categoria da busca' })).toBeDefined();
-        for (const name of ['Todos', 'Turmas', 'Cursos', 'Docentes']) {
+        for (const name of ['Todos', 'Turmas', 'Cursos', 'Docentes', 'Estágios']) {
             expect(page.getByRole('button', { name })).toBeDefined();
         }
         expect(page.getByRole('button', { name: 'Todos' }).getAttribute('aria-pressed')).toBe(
             'true'
         );
         expect(page.queryByRole('button', { name: 'Obrigatórias' })).toBeNull();
+    });
+
+    test('filtro de optativas solicita login ao visitante sem consultar uma matriz', () => {
+        const page = renderPage('?electives=true');
+        expect(page.getByRole('link', { name: 'Entre na sua conta' }).getAttribute('href')).toBe(
+            '/login'
+        );
+        expect(requests).toHaveLength(0);
+    });
+
+    test('restaura o departamento da URL e permite trocar pela sigla', async () => {
+        const page = renderPage('?category=classrooms&unit=518');
+        testing.fireEvent.click(page.getByRole('button', { name: 'Filtros de matérias ativos' }));
+        const field = await page.findByRole('combobox', { name: 'Departamento' });
+        await page.findByDisplayValue('FCE · Ceilândia');
+        testing.fireEvent.input(field, { inputType: 'insertText', target: { value: 'fct' } });
+        testing.fireEvent.click(await page.findByRole('option', { name: 'FCTE · Engenharias' }));
+        await testing.waitFor(() => expect(requests.at(-1)?.searchParams.get('unit')).toBe('673'));
+        testing.fireEvent.click(page.getByRole('button', { name: 'Limpar departamento' }));
+        await page.findByRole('button', { name: 'Filtros de matérias' });
+    });
+
+    test('oculta conflitos ao montar a grade e mantém a regra ao pesquisar outra matéria', async () => {
+        const base = { code: 'MAT0001', name: 'Base', classrooms: [turma('01', '24M12')] };
+        const parcial = {
+            code: 'MAT0002',
+            name: 'Parcial',
+            classrooms: [turma('01', '4M2'), turma('02', '4M3')]
+        };
+        const bloqueada = { code: 'MAT0003', name: 'Bloqueada', classrooms: [turma('01', '2M1')] };
+        scheduleResults.set('lista', [base, parcial, bloqueada]);
+        scheduleResults.set('bloqueada', [bloqueada]);
+        const page = renderPage('?q=lista&category=classrooms');
+        testing.fireEvent.click(await page.findByRole('button', { name: 'Filtros de matérias' }));
+        testing.fireEvent.click(
+            await page.findByRole('button', { name: 'Ocultar conflitos de horário' })
+        );
+        testing.fireEvent.click(
+            await page.findByRole('button', { name: 'Filtros de matérias ativos' })
+        );
+        await page.findByText('3 resultados');
+        testing.fireEvent.click(page.getByRole('button', { name: /MAT0001/ }));
+        testing.fireEvent.click(
+            await page.findByRole('button', { name: 'Adicionar à grade: MAT0001, turma 01' })
+        );
+        await page.findByText('2 resultados');
+        expect(page.queryByText('Bloqueada')).toBeNull();
+        testing.fireEvent.click(page.getByRole('button', { name: /Parcial/ }));
+        expect(
+            page.queryByRole('button', { name: 'Adicionar à grade: MAT0002, turma 01' })
+        ).toBeNull();
+        expect(
+            page.getByRole('button', { name: 'Adicionar à grade: MAT0002, turma 02' })
+        ).toBeDefined();
+        testing.fireEvent.change(searchbox(page), { target: { value: 'bloqueada' } });
+        await page.findByText('Nenhuma matéria encontrada. Tente mudar a busca.');
+        expect(page.queryByText('Bloqueada')).toBeNull();
+        testing.fireEvent.click(page.getByRole('button', { name: 'Filtros de matérias ativos' }));
+        const toggle = await page.findByRole('button', { name: 'Ocultar conflitos de horário' });
+        expect(toggle.getAttribute('aria-pressed')).toBe('true');
+        testing.fireEvent.click(toggle);
+        await page.findByText('Bloqueada');
+    });
+
+    test('funil combina dia, início, departamento e carga horária com a busca', async () => {
+        const page = renderPage('?q=calculo');
+        testing.fireEvent.click(await page.findByRole('button', { name: 'Filtros de matérias' }));
+        testing.fireEvent.click(await page.findByRole('button', { name: 'Seg' }));
+        testing.fireEvent.click(page.getByRole('button', { name: 'Qua' }));
+        testing.fireEvent.change(page.getByLabelText('Hora de início'), {
+            target: { value: '10:00' }
+        });
+        const department = await page.findByRole('combobox', { name: 'Departamento' });
+        await testing.waitFor(() => expect(department.hasAttribute('disabled')).toBe(false));
+        testing.fireEvent.input(department, {
+            inputType: 'insertText',
+            target: { value: 'engen' }
+        });
+        const option = await page.findByRole('option', { name: /FCTE/ });
+        expect(page.queryByRole('option', { name: /Ceilândia/ })).toBeNull();
+        testing.fireEvent.click(option);
+        expect(page.getByRole('combobox', { name: 'Hora de início' })).toBeDefined();
+        expect(page.getByRole('option', { name: '08:55' })).toBeDefined();
+        expect(page.queryByRole('option', { name: '08:30' })).toBeNull();
+        expect(await page.findByRole('option', { name: '60h' })).toBeDefined();
+        testing.fireEvent.change(page.getByLabelText('Carga horária (horas)'), {
+            target: { value: '60' }
+        });
+        await testing.waitFor(() =>
+            expect(Object.fromEntries(requests.at(-1)!.searchParams)).toEqual({
+                q: 'calculo',
+                days: '02',
+                start: '10:00',
+                unit: '673',
+                hours: '60'
+            })
+        );
+        expect(page.getByRole('option', { name: '180h+' })).toBeDefined();
+        expect(page.queryByRole('option', { name: /^180h$/ })).toBeNull();
+        expect(page.queryByRole('option', { name: '960h' })).toBeNull();
+        testing.fireEvent.change(page.getByLabelText('Carga horária (horas)'), {
+            target: { value: '180+' }
+        });
+        await testing.waitFor(() =>
+            expect(requests.at(-1)?.searchParams.get('hours')).toBe('180+')
+        );
+        testing.fireEvent.click(page.getByRole('button', { name: 'Limpar filtros de matérias' }));
+        await page.findByRole('button', { name: 'Filtros de matérias' });
+    });
+
+    test.each([
+        '?q=matematica&category=classrooms',
+        '?q=segunda+10',
+        '?electives=true',
+        '?q=segunda+10&electives=true'
+    ])('exibe matérias aprovadas, em andamento e reprovadas em %s', async (params) => {
+        client.setQueryData(meQueryOptions.queryKey, electiveStudent);
+        const approved = { code: 'MAT1000', name: 'Matemática Aprovada' };
+        const failed = { code: 'MAT2000', name: 'Matemática a Refazer' };
+        const current = { code: 'MAT3000', name: 'Matemática em Andamento' };
+        client.setQueryData(allClassroomsQueryOptions.queryKey, [
+            {
+                id: 'a',
+                number: '01',
+                semester: '2026.1',
+                current: false,
+                subject: approved,
+                grade: 'MS',
+                professors: []
+            },
+            {
+                id: 'b',
+                number: '01',
+                semester: '2026.1',
+                current: false,
+                subject: failed,
+                grade: 'MI',
+                professors: []
+            },
+            {
+                id: 'c',
+                number: '01',
+                semester: '2026.2',
+                current: true,
+                subject: current,
+                status: 'cursando',
+                professors: []
+            }
+        ]);
+        const subjects = [approved, failed, current];
+        const classrooms = [{ number: '01', semester: '2026.2', schedule: '2M34', professors: [] }];
+        const results = subjects.map(({ code, name }) => ({ code, name, classrooms }));
+        electiveOffer = results;
+        scheduleResults.set('segunda 10', results);
+        client.setQueryData(searchQueryOptions('matematica', ['subjects']).queryKey, {
+            subjects: results,
+            professors: null,
+            courses: null
+        });
+
+        const page = renderPage(params);
+        expect(await page.findByText('3 resultados')).toBeDefined();
+        expect(page.getByRole('button', { name: /MAT1000/ })).toBeDefined();
+        expect(page.getByRole('button', { name: /MAT2000/ })).toBeDefined();
+        expect(page.getByRole('button', { name: /MAT3000/ })).toBeDefined();
+    });
+
+    test('adiciona um módulo livre ofertado à grade pelo filtro de módulos livres', async () => {
+        client.setQueryData(meQueryOptions.queryKey, electiveStudent);
+        electiveOffer = [
+            {
+                code: 'FIS0123',
+                name: 'Física Aplicada',
+                kind: 'free',
+                classrooms: [
+                    { number: '01', semester: '2026.2', schedule: '24M12', professors: [] }
+                ]
+            }
+        ];
+        const page = renderPage('?category=classrooms');
         expect(page.queryByRole('button', { name: 'Optativas' })).toBeNull();
+        testing.fireEvent.click(page.getByRole('button', { name: 'Filtros de matérias' }));
+        const toggle = await page.findByRole('button', { name: 'Módulos livres' });
+        expect(toggle.getAttribute('aria-pressed')).toBe('false');
+        expect(page.queryByRole('button', { name: 'Dom' })).toBeNull();
+        const optional = page.getByRole('button', { name: 'Optativas' });
+        testing.fireEvent.click(optional);
+        await testing.waitFor(() =>
+            expect(requests.at(-1)?.searchParams.get('electives')).toBe('true')
+        );
+        expect(toggle.getAttribute('aria-pressed')).toBe('false');
+        testing.fireEvent.click(toggle);
+        await testing.waitFor(() => {
+            expect(requests.at(-1)?.searchParams.get('electives')).toBe('true');
+            expect(requests.at(-1)?.searchParams.get('free_modules')).toBe('true');
+        });
+        testing.fireEvent.click(optional);
+        await testing.waitFor(() => expect(optional.getAttribute('aria-pressed')).toBe('false'));
+        expect(toggle.getAttribute('aria-pressed')).toBe('true');
+        testing.fireEvent.click(page.getByRole('button', { name: 'Filtros de matérias ativos' }));
+        const physics = await page.findByRole('button', { name: /Física Aplicada/ });
+        expect(physics.textContent).toContain('Módulo livre');
+        expect(
+            requests.some(
+                (url) =>
+                    url.searchParams.get('free_modules') === 'true' &&
+                    !url.searchParams.has('electives')
+            )
+        ).toBe(true);
+        testing.fireEvent.click(physics);
+        expect(await page.findByRole('button', { name: 'Detalhes da turma 01' })).toBeDefined();
+        expect(physics.textContent).toContain('1 turma');
+        testing.fireEvent.click(
+            page.getByRole('button', { name: 'Adicionar à grade: FIS0123, turma 01' })
+        );
+        expect(page.getByRole('toolbar', { name: 'Turmas selecionadas' }).textContent).toContain(
+            '1 turma'
+        );
+        expect(page.getByRole('button', { name: 'Filtros de matérias ativos' })).toBeDefined();
     });
 
     test('cada aba mostra apenas a categoria escolhida e preserva o texto da busca', async () => {
@@ -686,7 +992,6 @@ describe('página de busca com estado na URL', () => {
             level: 'Graduação'
         };
         client.setQueryData(meQueryOptions.queryKey, user);
-        client.setQueryData(allClassroomsQueryOptions.queryKey, []);
         const classrooms = [{ number: '01', semester: '2026.2', professors: [] }];
         recommended = [
             { code: 'MAT0025', name: 'Cálculo 1', kind: 'mandatory', classrooms },

@@ -21,6 +21,13 @@ describe('parâmetros da busca', () => {
 
     test('restaura a query e os filtros tipados da URL', () => {
         expect(loadSearchParams('?q=calculo&category=courses')).toEqual({
+            hideConflicts: false,
+            electives: false,
+            freeModules: false,
+            days: '',
+            start: '',
+            unit: '',
+            hours: null,
             q: 'calculo',
             category: 'courses'
         });
@@ -28,9 +35,23 @@ describe('parâmetros da busca', () => {
 
     test('filtros ausentes ou inválidos usam os padrões', () => {
         expect(loadSearchParams('?category=Eletiva')).toEqual({
+            hideConflicts: false,
+            electives: false,
+            freeModules: false,
+            days: '',
+            start: '',
+            unit: '',
+            hours: null,
             q: '',
             category: 'all'
         });
+    });
+
+    test('restaura a faixa de 180 horas ao abrir a URL da busca', () => {
+        const url = createSerializer(searchParsers)({ hours: '180+' });
+        expect(loadSearchParams(url).hours).toBe('180+');
+        expect(loadSearchParams('?hours=240').hours).toBe('180+');
+        expect(loadSearchParams('?hours=165').hours).toBe(165);
     });
 
     test('limpar consulta e filtros remove os parâmetros', () => {

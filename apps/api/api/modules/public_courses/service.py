@@ -182,9 +182,13 @@ async def _load(
     catalog = SubjectCatalogRepository(session)
     codes = requirement_codes(subject for _, subject in components if subject)
     names = await catalog.subject_names(codes)
-    offered = {
-        normalize(code) for code in await catalog.offered_subject_codes(codes, None)
+    electives = {
+        component.subject_code
+        for component, _ in components
+        if component.kind == "optional"
     }
+    classroom_counts = await catalog.latest_classroom_counts(codes | electives)
+    offered = {normalize(code) for code in codes.intersection(classroom_counts)}
     matrix = {normalize(component.subject_code) for component, _ in components}
     periods: dict[int, list[CurriculumSubject]] = {0: []}
     complementary = []
@@ -194,6 +198,7 @@ async def _load(
             complementary.append(item)
         else:
             periods.setdefault(component.period, []).append(item)
+    periods[0].sort(key=lambda subject: -classroom_counts.get(subject.code, 0))
     return CourseCurriculum(
         **CurriculumOption.model_validate(selected).model_dump(),
         course_id=course_id,

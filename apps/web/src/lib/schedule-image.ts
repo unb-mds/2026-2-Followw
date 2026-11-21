@@ -1,6 +1,5 @@
 import type { GridSemester, PlannedClass } from '@followw/core/lib/planned-schedule.ts';
 
-import { GRID_DAYS } from '@followw/core/lib/planned-schedule.ts';
 import { describeSchedule } from '@followw/core/lib/schedule.ts';
 
 import { compactGridRows } from '#/lib/weekly-timeline';
@@ -10,8 +9,6 @@ const PADDING = 40;
 const CONTENT = WIDTH - PADDING * 2;
 const TITLE_HEIGHT = 64;
 const ROW_HEIGHT = 64;
-const DAYS = ['Horários', ...GRID_DAYS.map(({ label }) => label)];
-const COLUMN_WIDTH = CONTENT / DAYS.length;
 const CARD_GAP = 12;
 const SECTION_GAP = 40;
 const FOOTER_HEIGHT = 64;
@@ -72,7 +69,7 @@ export async function createSchedulePng(sections: GridSemester[]): Promise<Blob>
     ctx.textBaseline = 'middle';
 
     let y = PADDING;
-    for (const { semester, classes, rows } of compact) {
+    for (const { semester, classes, rows, days } of compact) {
         ctx.textAlign = 'left';
         ctx.fillStyle = color('--foreground');
         font(30, 700);
@@ -80,6 +77,8 @@ export async function createSchedulePng(sections: GridSemester[]): Promise<Blob>
         y += TITLE_HEIGHT;
 
         if (rows.length) {
+            const labels = ['Horários', ...days.map(({ label }) => label)];
+            const columnWidth = CONTENT / labels.length;
             const tableHeight = (rows.length + 1) * ROW_HEIGHT;
             ctx.save();
             roundRect(PADDING, y, CONTENT, tableHeight, 12);
@@ -89,8 +88,8 @@ export async function createSchedulePng(sections: GridSemester[]): Promise<Blob>
             ctx.fillStyle = color(header.text);
             ctx.textAlign = 'center';
             font(18, 700);
-            DAYS.forEach((day, column) =>
-                ctx.fillText(day, PADDING + COLUMN_WIDTH * (column + 0.5), y + ROW_HEIGHT / 2)
+            labels.forEach((day, column) =>
+                ctx.fillText(day, PADDING + columnWidth * (column + 0.5), y + ROW_HEIGHT / 2)
             );
             let rowY = y + ROW_HEIGHT;
             for (const { start, end, cells, omitted } of rows) {
@@ -107,13 +106,13 @@ export async function createSchedulePng(sections: GridSemester[]): Promise<Blob>
                     rowY += ROW_HEIGHT;
                     continue;
                 }
-                for (let column = 0; column < DAYS.length; column++) {
-                    const x = PADDING + column * COLUMN_WIDTH;
-                    const center = x + COLUMN_WIDTH / 2;
+                for (let column = 0; column < labels.length; column++) {
+                    const x = PADDING + column * columnWidth;
+                    const center = x + columnWidth / 2;
                     ctx.fillStyle = color(column === 0 ? '--muted' : '--card');
-                    ctx.fillRect(x, rowY, COLUMN_WIDTH, ROW_HEIGHT);
+                    ctx.fillRect(x, rowY, columnWidth, ROW_HEIGHT);
                     ctx.strokeStyle = color('--border');
-                    ctx.strokeRect(x, rowY, COLUMN_WIDTH, ROW_HEIGHT);
+                    ctx.strokeRect(x, rowY, columnWidth, ROW_HEIGHT);
                     if (column === 0) {
                         ctx.fillStyle = color('--foreground');
                         font(16, 500);
@@ -129,7 +128,7 @@ export async function createSchedulePng(sections: GridSemester[]): Promise<Blob>
                     }
                     ctx.fillStyle = color('--primary');
                     ctx.globalAlpha = 0.05;
-                    ctx.fillRect(x, rowY, COLUMN_WIDTH, ROW_HEIGHT);
+                    ctx.fillRect(x, rowY, columnWidth, ROW_HEIGHT);
                     ctx.globalAlpha = 1;
                     font(16, 700);
                     ctx.fillText(entry.code, center, rowY + 22);

@@ -1,3 +1,4 @@
+import type { PlannedClass } from '@followw/core/lib/planned-schedule.ts';
 import type { SearchResult, SearchType } from '@followw/core/queries/search.ts';
 
 import { searchTypes } from '@followw/core/lib/search-categories.ts';
@@ -24,6 +25,7 @@ export function SearchResults({
     types,
     empty,
     currentPeriod,
+    planned,
     taken,
     onShowCategory
 }: {
@@ -31,6 +33,7 @@ export function SearchResults({
     types: SearchType[] | undefined;
     empty: string;
     currentPeriod: number | null;
+    planned?: readonly PlannedClass[];
     taken: Set<string> | null;
     // na aba Todos, cursos, docentes e estágios viram prévias que levam à aba própria
     onShowCategory?: (category: 'courses' | 'professors' | 'internships') => void;
@@ -69,7 +72,7 @@ export function SearchResults({
         });
     const refresh = () => void refreshQuery(client, options).catch(noop);
     const { courses, professors, subjects } = result.data ?? {};
-    const offered = withClassrooms(subjects ?? []);
+    const offered = withClassrooms(subjects ?? [], planned);
     const found = courses?.items.length || professors?.items.length || offered.length;
     return (
         <div
