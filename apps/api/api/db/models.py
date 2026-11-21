@@ -3,7 +3,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
-from sigaa_client import FrequencyStatus, Grade, PostType
+from sigaa_client import FrequencyStatus, Grade, MaterialKind, PostType
 from sqlalchemy import (
     ColumnElement,
     DateTime,
@@ -130,6 +130,10 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     curriculum_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("curricula.id", ondelete="SET NULL")
     )
+    # Histórico lido uma vez por matrícula e curso; nulo pede nova leitura.
+    transcript_synced_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
     entry_semester: Mapped[str | None] = mapped_column()
     integralization: Mapped[int | None] = mapped_column(SmallInteger)
     workload: Mapped[dict[str, int] | None] = mapped_column(JSONB)
@@ -205,6 +209,19 @@ class Subject(Base, TimestampMixin):
         return func.jsonb_path_query_array(
             cls.equivalences, literal_column("'$[*][*]'"), type_=JSONB
         )
+
+
+class UserCompletedSubject(Base, TimestampMixin):
+    """Componente com situação CUMP no histórico acadêmico."""
+
+    __tablename__ = "user_completed_subjects"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    subject_code: Mapped[str] = mapped_column(
+        ForeignKey("subjects.code", ondelete="CASCADE"), primary_key=True
+    )
 
 
 class Classroom(Base, UUIDPrimaryKeyMixin, TimestampMixin):
@@ -398,6 +415,9 @@ class ClassroomPosts(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     starts_at: Mapped[datetime | None] = mapped_column()
     time_label: Mapped[str | None] = mapped_column()
     url: Mapped[str | None] = mapped_column()
+    material_kind: Mapped[MaterialKind | None] = mapped_column(
+        _enum(MaterialKind, "material_kind")
+    )
     content: Mapped[str | None] = mapped_column(Text)
     attachments: Mapped[list[dict[str, str]]] = mapped_column(JSONB, default=list)
     content_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

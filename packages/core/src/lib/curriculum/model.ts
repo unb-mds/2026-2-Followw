@@ -44,13 +44,14 @@ export function normalizeCurriculum(curriculum: CourseCurriculum): CurriculumMod
 
 export function academicState(
     history: Classroom[] | undefined,
-    currentPeriod: number | null
+    currentPeriod: number | null,
+    completed: readonly string[] | undefined
 ): (subject: FlowSubject) => AcademicState {
-    if (!history) return () => 'unknown';
-    const approved = approvedCodes(history);
-    const taken = takenCodes(history, approved);
+    const approved = approvedCodes(history ?? [], completed);
+    const taken = takenCodes(history ?? [], approved);
     return (subject) => {
         if (covered(approved, subject)) return 'completed';
+        if (!history) return 'unknown';
         if (covered(taken, subject)) return 'enrolled';
         if (currentPeriod !== null && subject.period <= currentPeriod) return 'overdue';
         return 'pending';

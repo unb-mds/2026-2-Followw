@@ -8,25 +8,33 @@ from api.db.courses import course_ids
 from api.db.enums import UserLevel
 from api.db.models import ClassroomParticipant, Course, User
 from api.modules.classrooms.post_reading import PostReadingRepository
+from api.modules.me.transcript import TranscriptRepository
 from api.modules.public_courses.repository import PublicCourseRepository
 from api.modules.recommendations.ranking import CurriculumInfo, select_curriculum
 
 MAX_PROFILE_BIO_LENGTH = 1024
 
 
+def _normalize_bio(bio: str | None) -> str | None:
+    return bio and bio.replace("\r\n", "\n")[:MAX_PROFILE_BIO_LENGTH]
+
+
 class UserRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def get_by_registration(self, registration: str) -> User | None:
-        return await self._session.scalar(
-            select(User).where(
-                or_(
-                    User.registration == registration,
-                    User.old_registration == registration,
-                )
+    async def get_by_registration(
+        self, registration: str, *, for_update: bool = False
+    ) -> User | None:
+        statement = select(User).where(
+            or_(
+                User.registration == registration,
+                User.old_registration == registration,
             )
         )
+        if for_update:
+            statement = statement.with_for_update(of=User)
+        return await self._session.scalar(statement)
 
     async def register(self, registration: str) -> None:
         user = await self.get_by_registration(registration)
@@ -48,16 +56,10 @@ class UserRepository:
         profile: UserProfile,
         synced_at: datetime,
         login: str | None = None,
-        *,
-        replace_photo: bool = False,
     ) -> User:
         """Grava o perfil na conta do `login`, assumindo o usuário sombra da matrícula."""
         login = login or profile.registration
-        account = await self._session.scalar(
-            select(User)
-            .where(or_(User.registration == login, User.old_registration == login))
-            .with_for_update(of=User)
-        )
+        account = await self.get_by_registration(login, for_update=True)
         if (
             account is not None
             and account.profile_synced_at
@@ -75,21 +77,22 @@ class UserRepository:
             user = User()
             self._session.add(user)
 
+        changed_registration = user.registration != profile.registration
         user.registration = profile.registration
         if login != profile.registration:
             user.old_registration = login
         user.name = profile.name
-        if replace_photo or profile.photo is not None:
+        if profile.photo is not None or profile.photo_absence_confirmed:
             user.photo = profile.photo
         user.email = profile.email or user.email
-        user.bio = (
-            profile.bio and profile.bio.replace("\r\n", "\n")[:MAX_PROFILE_BIO_LENGTH]
-        )
+        user.bio = _normalize_bio(profile.bio)
         pair = (profile.course, profile.unit)
         shift = profile.shift.value if profile.shift else None
         course_id = (await course_ids(self._session, [pair], shift)).get(pair)
-        if course_id != user.course_id:
+        changed_enrollment = changed_registration or course_id != user.course_id
+        if changed_enrollment:
             user.curriculum_id = None
+            user.transcript_synced_at = None
         user.course_id = course_id
         user.entry_semester = profile.entry_semester
         user.integralization = profile.integralization
@@ -100,7 +103,30 @@ class UserRepository:
         user.profile_synced_at = synced_at
         await self._infer_curriculum(user)
         await self._session.flush()
+        if changed_enrollment:
+            await TranscriptRepository(self._session).clear(user.id)
 
+        return user
+
+    async def save_cached_profile_edit(
+        self,
+        registration: str,
+        confirmed_at: datetime,
+        *,
+        photo: str | None,
+        bio: str | None,
+        update_photo: bool,
+        update_bio: bool,
+    ) -> User | None:
+        user = await self.get_by_registration(registration, for_update=True)
+        if user is None or user.profile_synced_at is None:
+            return None
+        if user.profile_synced_at <= confirmed_at:
+            if update_photo:
+                user.photo = photo
+            if update_bio:
+                user.bio = _normalize_bio(bio)
+            user.profile_synced_at = confirmed_at
         return user
 
     async def get_settings(self, registration: str) -> dict[str, object]:

@@ -278,11 +278,14 @@ async def test_remocao_exclui_e_grava_o_perfil_a_partir_da_resposta():
     async with SigaaClient(
         session_token="tok", transport=httpx.MockTransport(handle)
     ) as client:
-        await client.profile.update_profile(password="segredo", remove_photo=True)
+        profile = await client.profile.update_profile(
+            password="segredo", remove_photo=True
+        )
     assert len(posts) == 2
+    assert profile.photo is None
 
 
-async def test_remocao_sem_mensagem_ao_gravar_nao_confirma_sucesso():
+async def test_remocao_sem_mensagem_e_com_foto_ainda_presente_falha():
     page = _form_com_foto()
     staged = page.replace("/arquivos/antiga.jpg", "/sigaa/img/no_picture.png")
 

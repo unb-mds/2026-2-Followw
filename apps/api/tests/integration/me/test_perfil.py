@@ -45,6 +45,7 @@ def test_login_seguido_de_me_responde_do_cache(client, sigaa):
         "course": {"id": ANY, "name": "ENGENHARIA DE SOFTWARE", "shift": None},
         "entry_semester": "2025.1",
         "curriculum_subject_codes": None,
+        "completed_subjects": [],
         "integralization": 35,
         "workload": {
             "total": 3525,
@@ -65,7 +66,8 @@ def test_login_seguido_de_me_responde_do_cache(client, sigaa):
     assert client.get("/me").json()["ira"] == 3.9524
     assert client.get("/me", headers=NO_CACHE).json()["ira"] == 4.0
     assert client.get("/me").json()["ira"] == 4.0
-    assert sigaa.profile_requests == requests_before + 1
+    # O fake não emite histórico: o sync tenta ler de novo pelo portal.
+    assert sigaa.profile_requests == requests_before + 2
     # Só a sessão do usuário segue aberta: a do sync da conta foi encerrada.
     assert sigaa.logins - sigaa.logouts == 1
 
@@ -114,6 +116,26 @@ def test_me_sem_campos_opcionais_retorna_null(client, sigaa, cookies):
         "mp",
     ):
         assert response.json()[field] is None
+
+
+@pytest.mark.parametrize(
+    ("image", "expected"),
+    [
+        ('<img src="/sigaa/img/no_picture.png"/>', None),
+        ("", f"{SIGAA_BASE_URL}/arquivos/foto.jpg"),
+    ],
+    ids=["sem foto confirmada", "imagem ausente no HTML"],
+)
+def test_revalida_foto_do_perfil(client, sigaa, cookies, image, expected):
+    client.cookies.update(cookies(refresh=CREDENCIAIS))
+    sigaa.profile = PERFIL
+    assert client.get("/me").json()["photo"] == f"{SIGAA_BASE_URL}/arquivos/foto.jpg"
+
+    sigaa.profile = PERFIL.replace('<img src="/arquivos/foto.jpg" />', image)
+    refreshed = client.get("/me", headers=NO_CACHE)
+    assert refreshed.status_code == 200
+    assert refreshed.json()["photo"] == expected
+    assert client.get("/me").json()["photo"] == expected
 
 
 def test_me_traz_componentes_da_matriz_vinculada_mesmo_com_vigencia_mais_recente(

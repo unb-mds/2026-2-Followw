@@ -640,6 +640,7 @@ class PostsRepository:
         cached.starts_at = post.starts_at
         cached.time_label = post.time_label
         cached.url = post.url
+        cached.material_kind = post.material_kind
         cached.content = post.content
         cached.attachments = [
             attachment.model_dump(mode="json") for attachment in post.attachments

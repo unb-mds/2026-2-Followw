@@ -96,10 +96,14 @@ class SubjectCatalogRepository:
             ).all()
         )
 
+    async def latest_semester(self) -> str | None:
+        return await self._session.scalar(select(func.max(Classroom.semester)))
+
     async def unlocked_subjects(
-        self, codes: set[str]
+        self, codes: set[str], semester: str | None
     ) -> dict[str, list[tuple[str, str]]]:
-        if not codes:
+        """Dependentes diretos com turma em `semester`; sem semestre, nenhum."""
+        if not codes or semester is None:
             return {}
         prerequisite = func.jsonb_array_elements_text(
             func.jsonb_path_query_array(
@@ -112,6 +116,12 @@ class SubjectCatalogRepository:
                 Subject.prerequisites.is_not(None),
                 prerequisite.in_(codes),
                 prerequisite != Subject.code,
+                select(Classroom.id)
+                .where(
+                    Classroom.subject_code == Subject.code,
+                    Classroom.semester == semester,
+                )
+                .exists(),
             )
             .distinct()
             .order_by(Subject.name, Subject.code)
@@ -126,9 +136,7 @@ class SubjectCatalogRepository:
     ) -> set[str]:
         if not codes:
             return set()
-        semester = semester or await self._session.scalar(
-            select(func.max(Classroom.semester))
-        )
+        semester = semester or await self.latest_semester()
         return set(
             await self._session.scalars(
                 select(Classroom.subject_code)
@@ -149,9 +157,7 @@ class SubjectCatalogRepository:
         semester: str | None = None,
     ) -> list[Subject]:
         """Cada componente com as turmas de `semester` (o mais recente gravado, se omitido)."""
-        semester = semester or await self._session.scalar(
-            select(func.max(Classroom.semester))
-        )
+        semester = semester or await self.latest_semester()
         query = select(Subject).order_by(Subject.code)
         if code is not None:
             query = query.where(Subject.code == code)

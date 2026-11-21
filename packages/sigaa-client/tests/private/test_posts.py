@@ -13,7 +13,8 @@ from sigaa_client import (
     SigaaParseError,
 )
 from sigaa_client.config import CLASSROOMS_PATH
-from sigaa_client.private.classrooms import Classrooms, _open_topics
+from sigaa_client.private.classroom_navigation import open_topics
+from sigaa_client.private.classrooms import Classrooms
 from sigaa_client.private.posts import _parse_assessments, _parse_topics
 
 from ..fakes import HISTORY_FORM
@@ -156,7 +157,7 @@ async def test_principal_paginada_e_aberta_em_lista_por_postback_com_viewstate_n
         httpx.Response(200, text=paginated),
         httpx.Response(200, text=TOPICS),
     ]
-    assert await _open_topics(session, True) == TOPICS
+    assert await open_topics(session, True) == TOPICS
     payload = session.post.call_args_list[1].kwargs["data"]
     assert payload["javax.faces.ViewState"] == "segundo"
     assert "formAcoesTurma:linkExibirEmLista" in payload

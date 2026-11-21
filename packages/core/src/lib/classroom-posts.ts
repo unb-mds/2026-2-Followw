@@ -31,3 +31,18 @@ export function postLink(url: string | null | undefined) {
         return null;
     }
 }
+
+/** Tópicos por ID e os materiais de cada um, na ordem da lista. */
+export function groupTopics(posts: ClassroomPost[]) {
+    const topics = new Map<string, ClassroomPost>();
+    const materials = new Map<string, ClassroomPost[]>();
+    for (const post of posts) {
+        if (post.type === 'topic') topics.set(post.id, post);
+        else if (post.type === 'material' && post.topic_id) {
+            const list = materials.get(post.topic_id);
+            if (list) list.push(post);
+            else materials.set(post.topic_id, [post]);
+        }
+    }
+    return { topics, materials };
+}

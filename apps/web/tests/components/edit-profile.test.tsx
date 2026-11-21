@@ -30,8 +30,10 @@ let middleware: Middleware;
 let requests: Request[];
 let failName: boolean;
 let failBio: boolean;
-let bioError: ApiError;
+let bioError: Error;
+let freshBio: string;
 let gate: Promise<void> | null;
+let refreshGate: Promise<void> | null;
 let toasts: ReturnType<typeof spyOn>;
 beforeEach(async () => {
     const { toast } = await import('#/components/ui/toast');
@@ -43,12 +45,18 @@ beforeEach(async () => {
     failName = false;
     failBio = false;
     bioError = new ApiError(502, 'falha');
+    freshBio = user.bio ?? '';
     gate = null;
+    refreshGate = null;
     toasts = spyOn(toast, 'add');
     middleware = {
         onRequest: async ({ request }) => {
             requests.push(request.clone());
             await gate;
+            if (request.method === 'GET') {
+                await refreshGate;
+                return Response.json({ ...user, bio: freshBio });
+            }
             if (request.url.endsWith('/settings')) {
                 if (failName) throw new ApiError(502, 'falha');
                 return Response.json({ displayName: null });
@@ -159,10 +167,11 @@ test('falha da bio após remoção repete somente a bio', async () => {
     expect(removal.get('photo_action')).toBe('remove');
     expect(removal.has('bio')).toBe(false);
     expect((await requests[1].formData()).get('photo_action')).toBe('keep');
+    await dom.testing.waitFor(() => expect(requests[2]?.method).toBe('GET'));
     failBio = false;
     dom.testing.fireEvent.click(page.getByRole('button', { name: 'Salvar alterações' }));
-    await dom.testing.waitFor(() => expect(requests).toHaveLength(4));
-    const retry = await requests[2].formData();
+    await dom.testing.waitFor(() => expect(requests).toHaveLength(5));
+    const retry = await requests[3].formData();
     expect(retry.get('photo_action')).toBe('keep');
     expect(retry.get('bio')).toBe('Nova bio');
 });
@@ -288,6 +297,7 @@ test('validação recusada pela api mostra a mensagem do servidor', async () => 
     dom.testing.fireEvent.change(page.getByLabelText('Bio'), { target: { value: 'Nova bio' } });
     dom.testing.fireEvent.click(page.getByRole('button', { name: 'Salvar alterações' }));
     await page.findByText('A bio deve ter até 1024 caracteres.');
+    expect(requests.map(({ method }) => method)).toEqual(['PATCH']);
 });
 test('foto que não carrega mostra o avatar e não o texto alternativo', async () => {
     await open();
@@ -319,6 +329,42 @@ test('avisa por toast quando o salvamento falha', async () => {
             'Não foi possível confirmar a alteração no SIGAA. Confira o perfil antes de tentar novamente.'
     });
 });
+
+test('revalida o perfil sem cache quando a resposta da gravação se perde', async () => {
+    failBio = true;
+    bioError = new TypeError('Conexão interrompida');
+    freshBio = 'Nova bio';
+    const page = await open();
+    dom.testing.fireEvent.change(page.getByLabelText('Bio'), { target: { value: freshBio } });
+    dom.testing.fireEvent.click(page.getByRole('button', { name: 'Salvar alterações' }));
+
+    await page.findByText(/Não foi possível confirmar a alteração no SIGAA/);
+    await dom.testing.waitFor(() => {
+        expect(client.getQueryData(meQueryOptions.queryKey)?.bio).toBe('Nova bio');
+    });
+    expect(requests.map(({ method }) => method)).toEqual(['PATCH', 'GET']);
+    const [, refresh] = requests;
+    expect(refresh.headers.get('Cache-Control') === 'no-cache' || refresh.cache === 'reload').toBe(
+        true
+    );
+});
+
+test('mostra o erro e libera Cancelar antes de terminar a revalidação', async () => {
+    failBio = true;
+    const refresh = Promise.withResolvers<void>();
+    refreshGate = refresh.promise;
+    const page = await open();
+    dom.testing.fireEvent.change(page.getByLabelText('Bio'), { target: { value: 'Nova bio' } });
+    dom.testing.fireEvent.click(page.getByRole('button', { name: 'Salvar alterações' }));
+    try {
+        await page.findByText(/Não foi possível confirmar a alteração no SIGAA/);
+        expect(page.getByRole('button', { name: 'Cancelar' }).hasAttribute('disabled')).toBe(false);
+        expect(client.getQueryState(meQueryOptions.queryKey)?.fetchStatus).toBe('fetching');
+    } finally {
+        await dom.testing.act(async () => refresh.resolve());
+    }
+});
+
 test('salvamento em andamento mantém Cancelar desativado e conclui com toast', async () => {
     const release = Promise.withResolvers<void>();
     gate = release.promise;

@@ -10,6 +10,7 @@ from ..exceptions import (
 from ..utils.jsf import build_menu_action, read_viewstate
 from ..utils.parsing import clean_text, lookup_key
 from .session import Session
+from .transcript import parse_completed_subjects
 
 _MENU_FORM_ID = "menu:form_menu_discente"
 _STUDENT_CARD_MENU_ACTION = (
@@ -36,6 +37,10 @@ class Documents:
         return await _download_pdf(
             self._session, _TRANSCRIPT_MENU_ACTION, "do histórico acadêmico"
         )
+
+    async def get_completed_subjects(self, registration: str) -> set[str]:
+        """Códigos CUMP do histórico; levanta `SigaaParseError` se for de outra matrícula."""
+        return parse_completed_subjects(await self.get_transcript_pdf(), registration)
 
 
 async def download_student_card_pdf(session: Session) -> bytes:

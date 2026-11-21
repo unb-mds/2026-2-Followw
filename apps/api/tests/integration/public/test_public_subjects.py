@@ -375,7 +375,7 @@ def test_openapi_so_tem_os_filtros_do_banco(api):
     assert set(operation["responses"]) == {"200", "401", "422", "502", "503"}
 
 
-def test_desbloqueia_lista_dependentes_diretos_sem_duplicar_nem_exigir_oferta(
+def test_desbloqueia_lista_dependentes_diretos_com_turmas_no_semestre(
     catalog, database
 ):
     with database.begin() as session:
@@ -389,8 +389,15 @@ def test_desbloqueia_lista_dependentes_diretos_sem_duplicar_nem_exigir_oferta(
                 Subject(
                     code="DEP2", name="Dependente dois", prerequisites=[["FGA0003"]]
                 ),
+                Subject(
+                    code="DEP3",
+                    name="Dependente sem oferta",
+                    prerequisites=[["FGA0003"]],
+                ),
                 Subject(code="INDIRETA", name="Indireta", prerequisites=[["DEP1"]]),
                 Subject(code="CORREQ", name="Correquisito", corequisites=[["FGA0003"]]),
+                Classroom(subject_code="DEP1", number="01", semester="2026.2"),
+                Classroom(subject_code="DEP2", number="01", semester="2026.2"),
             ]
         )
     (item,) = _search(catalog, code="FGA0003")
@@ -399,6 +406,59 @@ def test_desbloqueia_lista_dependentes_diretos_sem_duplicar_nem_exigir_oferta(
         {"code": "DEP1", "name": "Dependente um"},
     ]
     assert _search(catalog, code="XYZ0001")[0]["unlocks"] == []
+
+
+def test_desbloqueia_nao_duplica_materia_com_mesmo_nome_quando_apenas_uma_tem_oferta(
+    catalog, database
+):
+    with database.begin() as session:
+        session.add_all(
+            [
+                Subject(
+                    code="FGA0278",
+                    name="QUALIDADE DE SOFTWARE 1",
+                    prerequisites=[["FGA0003"]],
+                ),
+                Subject(
+                    code="FGA0315",
+                    name="QUALIDADE DE SOFTWARE 1",
+                    prerequisites=[["FGA0003"]],
+                ),
+                Classroom(subject_code="FGA0315", number="01", semester="2026.2"),
+            ]
+        )
+    (item,) = _search(catalog, code="FGA0003")
+    assert item["unlocks"] == [{"code": "FGA0315", "name": "QUALIDADE DE SOFTWARE 1"}]
+
+
+def test_desbloqueia_usa_o_semestre_pedido(catalog, database):
+    with database.begin() as session:
+        session.add_all(
+            [
+                Subject(code="DEP1", name="Dependente um", prerequisites=[["FGA0003"]]),
+                Subject(
+                    code="DEP2", name="Dependente dois", prerequisites=[["FGA0003"]]
+                ),
+                Classroom(subject_code="DEP1", number="01", semester="2026.1"),
+                Classroom(subject_code="DEP2", number="01", semester="2026.2"),
+            ]
+        )
+    (antigo,) = _search(catalog, code="FGA0003", semester="2026.1")
+    (recente,) = _search(catalog, code="FGA0003")
+    assert [item["code"] for item in antigo["unlocks"]] == ["DEP1"]
+    assert [item["code"] for item in recente["unlocks"]] == ["DEP2"]
+
+
+def test_desbloqueia_vazio_sem_turmas_gravadas(client, database):
+    with database.begin() as session:
+        session.add_all(
+            [
+                Subject(code="FGA0003", name="COMPILAÇÃO", unit_id=673),
+                Subject(code="DEP1", name="Dependente", prerequisites=[["FGA0003"]]),
+            ]
+        )
+
+    assert _search(client, code="FGA0003")[0]["unlocks"] == []
 
 
 @pytest.mark.parametrize("query", ["OLD0001", " old0001 "])

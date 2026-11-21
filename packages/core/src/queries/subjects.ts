@@ -50,13 +50,17 @@ export function searchText(q: string, previous: string | null = null): string | 
 export const subjectsQueryOptions = (query: SubjectsQuery) =>
     api.queryOptions('get', '/public/subjects', { params: { query } });
 
-export function approvedCodes(history: Classroom[]): Set<string> {
-    return new Set(
-        history.filter((c) => APPROVED.has(finalGrade(c) ?? '')).map((c) => c.subject.code)
-    );
+/** Aprovadas nas turmas mais as cumpridas (CUMP) no histórico do perfil. */
+export function approvedCodes(
+    history: Classroom[],
+    completed: readonly string[] | undefined
+): Set<string> {
+    const approved = new Set(completed);
+    for (const c of history) if (APPROVED.has(finalGrade(c) ?? '')) approved.add(c.subject.code);
+    return approved;
 }
 
-export function takenCodes(history: Classroom[], approved = approvedCodes(history)): Set<string> {
+export function takenCodes(history: Classroom[], approved: Set<string>): Set<string> {
     const taken = new Set(approved);
     for (const c of history) if (c.status === 'cursando') taken.add(c.subject.code);
     return taken;

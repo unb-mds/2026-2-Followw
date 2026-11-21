@@ -3,6 +3,7 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { ArrowLeft } from 'lucide-react';
 
 import { FollowwLogo } from '#/components/FollowwLogo';
+import { useGoBack } from '#/components/useGoBack';
 
 export const Route = createFileRoute('/privacidade')({
     head: () => ({ meta: [{ title: 'Privacidade e termos | Followw' }] }),
@@ -10,16 +11,18 @@ export const Route = createFileRoute('/privacidade')({
 });
 
 function PrivacyPage() {
+    const goBack = useGoBack();
     return (
         <main className="min-h-dvh bg-background px-6 py-10 text-foreground">
             <div className="mx-auto flex max-w-2xl flex-col gap-10">
                 <header className="flex flex-col gap-6">
                     <Link
                         to="/login"
+                        onClick={goBack}
                         className="flex w-fit items-center gap-2 text-sm text-primary underline-offset-4 hover:underline"
                     >
                         <ArrowLeft className="size-4" aria-hidden="true" />
-                        Voltar ao login
+                        Voltar
                     </Link>
                     <div className="flex items-center gap-3">
                         <FollowwLogo className="size-10" />

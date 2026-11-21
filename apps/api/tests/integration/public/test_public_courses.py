@@ -576,6 +576,31 @@ def test_id_escolhido_deve_pertencer_as_opcoes_do_curso_e_ingresso(catalog, want
     assert _get(catalog, curriculum_sigaa_id=wanted).status_code == 404
 
 
+def test_matriz_do_turno_do_curso_tem_prioridade_na_mesma_vigencia(client, database):
+    with database.begin() as session:
+        session.add(
+            Course(id=90, sigaa_id=900, name="NOTURNO", shift="NOTURNO", unit_id=673)
+        )
+        session.flush()
+        for sigaa_id, code, shift in ((9001, "X/1", "N"), (9002, "X/9", "D")):
+            session.add(
+                Curriculum(
+                    course_id=90,
+                    sigaa_id=sigaa_id,
+                    code=code,
+                    valid_from="2024.2",
+                    created_year=2024,
+                    active=True,
+                    shift=shift,
+                    matrix="M",
+                )
+            )
+    response = client.get(
+        "/public/courses/90/curriculum", params={"entry_semester": "2026.1"}
+    )
+    assert response.json()["sigaa_id"] == 9001
+
+
 @pytest.mark.parametrize("course", [79, 999, 414924])
 def test_curso_sem_matriz_ou_inexistente_retorna_404(catalog, course):
     assert (

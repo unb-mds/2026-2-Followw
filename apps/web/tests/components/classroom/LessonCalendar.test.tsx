@@ -31,7 +31,9 @@ describe('LessonCalendar', () => {
     });
 
     test('marca cada aula com uma bolinha da cor da situação', () => {
-        const markup = renderToStaticMarkup(<LessonCalendar lessons={lessons} />);
+        const markup = renderToStaticMarkup(
+            <LessonCalendar lessons={lessons} onMark={() => {}} pending={false} />
+        );
         const day = (iso: string) =>
             markup.match(new RegExp(`data-day="${iso}"[^>]*>(.*?)</td>`))![1];
 
@@ -45,7 +47,9 @@ describe('LessonCalendar', () => {
     });
 
     test('pinta de vermelho o número dos feriados', () => {
-        const markup = renderToStaticMarkup(<LessonCalendar lessons={lessons} />);
+        const markup = renderToStaticMarkup(
+            <LessonCalendar lessons={lessons} onMark={() => {}} pending={false} />
+        );
         const cell = (iso: string) =>
             markup.match(new RegExp(`<td[^>]*data-day="${iso}"[^>]*>.*?</td>`))![0];
 

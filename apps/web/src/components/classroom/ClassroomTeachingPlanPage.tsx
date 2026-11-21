@@ -5,6 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 
 import { ClassroomTeachingPlan } from '#/components/classroom/ClassroomTeachingPlan';
 import { FollowwLogo } from '#/components/FollowwLogo';
+import { useGoBack } from '#/components/useGoBack';
 
 export function ClassroomTeachingPlanPage({
     classroom,
@@ -13,6 +14,7 @@ export function ClassroomTeachingPlanPage({
     classroom: Classroom;
     plan: TeachingPlan;
 }) {
+    const goBack = useGoBack();
     return (
         <main className="min-h-dvh bg-background px-6 py-10 text-foreground">
             <div className="mx-auto flex max-w-2xl flex-col gap-12">
@@ -20,6 +22,7 @@ export function ClassroomTeachingPlanPage({
                     <Link
                         to="/turmas/$id"
                         params={{ id: classroom.id }}
+                        onClick={goBack}
                         className="flex w-fit items-center gap-2 text-sm text-primary underline-offset-4 hover:underline"
                     >
                         <ArrowLeft className="size-4" aria-hidden />

@@ -108,9 +108,10 @@ ausente representado por `None`. Extrato sem saldo levanta `SigaaParseError`.
 retorna os bytes do PDF original da carteirinha estudantil.
 `client.restaurant.get_restaurant_credentials()` usa esse mesmo download para extrair o token do QR
 code e a validade, sem persistir o arquivo. `client.documents.get_transcript_pdf()` baixa o PDF
-original do histórico acadêmico. Quando o SIGAA recusa emitir o documento (ex.: perfil sem foto), os
-três levantam `DocumentUnavailable` com o motivo informado por ele (`MissingProfilePhoto` quando
-falta foto).
+original do histórico acadêmico, e `client.documents.get_completed_subjects(registration)` extrai dele os
+códigos com situação CUMP e levanta `SigaaParseError` se o histórico for de outra matrícula. Quando o SIGAA recusa emitir o documento (ex.: perfil sem foto), esses métodos
+levantam `DocumentUnavailable` com o motivo informado por ele (`MissingProfilePhoto` quando falta
+foto).
 
 `collect_subjects.py` monta `data/subjects.csv` com os componentes citados nos outros CSVs de
 `data/` (turmas, matrizes, docentes e requisitos). Cada código vem do catálogo público ou, se
@@ -146,12 +147,22 @@ Tópicos expõem `starts_on`, `ends_on` e texto em Markdown. Como a lista do SIG
 a chave do tópico deriva do título e período; editar esses campos produz outra chave. Materiais
 preservam o identificador de origem em `sigaa_id`; `url` só é preenchida quando há um link HTTP
 direto. Arquivos que exigem postback não recebem URLs fictícias, e seus bytes não são armazenados.
+`material_kind` (`MaterialKind`) diz o que o material é: `file` (baixável pelo download abaixo),
+`link` (em `url`) ou `action` (ação do SIGAA, como enviar tarefa, só disponível lá).
 Avaliações preservam data e horário (`starts_at` quando preciso, `time_label` para textos como “Hora
 da aula”), sem notas individuais nem datas de publicação inventadas. O vínculo da avaliação ao
 tópico só existe se informado pela origem.
 
 Notícias da lista trazem título e dia; use `get_classroom_news` com o `sigaa_id` para texto e
 anexos.
+
+`async with client.classrooms.download_classroom_material(classroom_id, material.id) as file`
+abre um material `file` dos tópicos da Principal. `file.content` entrega os bytes em blocos dentro desse
+contexto. O nome e o tipo estão em `file.filename` e `file.content_type`.
+O ID opaco da postagem identifica o arquivo dentro do tópico, inclusive com nomes repetidos.
+A turma e o formulário são reabertos a cada download e após renovação de sessão. Ausência do
+arquivo levanta `MaterialNotFound`; página de erro ou destino não autorizado, `SigaaParseError`.
+Links externos continuam em `url`; a tela Materiais → Arquivos e o ZIP não são consultados.
 
 `await client.classrooms.list_dashboard_posts()` lê a home do SIGAA e devolve `DashboardPost`: as
 notícias das "Últimas Atualizações" e as avaliações de "Minhas atividades". A home não traz IDs,
@@ -164,3 +175,9 @@ com uma única turma do portal vem sem turma.
 autenticada. Omita `bio` para preservá-la ou passe `""` para limpá-la. Para remover a foto, use
 `remove_photo=True` sem enviar os outros campos. O chamador valida o JPEG antes do envio. O client
 relê o formulário para confirmar a gravação e não repete o POST em caso de falha.
+
+`photo_absence_confirmed` indica que o SIGAA exibiu o avatar padrão. Se a imagem estiver ausente
+no HTML, o valor fica `False` e uma foto já conhecida pode ser preservada.
+
+Se o formulário confirmar a edição e a leitura posterior do painel falhar,
+`ProfileReadFailedAfterEdit` carrega a foto e a bio confirmadas.

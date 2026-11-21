@@ -3,12 +3,23 @@ import type { Middleware } from 'openapi-fetch';
 
 import { classroomPostsQueryOptions } from '@followw/core/queries/classrooms.ts';
 import { apiClient } from '@followw/core/queries/client.ts';
+import { ApiError } from '@followw/core/queries/errors.ts';
 import { QueryClient, QueryClientProvider, environmentManager } from '@tanstack/react-query';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
+import {
+    afterAll,
+    afterEach,
+    beforeAll,
+    beforeEach,
+    describe,
+    expect,
+    test,
+    spyOn
+} from 'bun:test';
 import { Window } from 'happy-dom';
 
 import { ClassroomPosts } from '#/components/classroom/ClassroomPosts';
 import { SIGAA_DOWN_MESSAGE } from '#/components/ErrorState';
+import * as downloads from '#/lib/download';
 
 const topic: ClassroomPost = {
     id: 'topic:' + 'a'.repeat(64),
@@ -35,6 +46,7 @@ const posts: ClassroomPost[] = [
         type: 'material',
         title: 'Slides.pdf',
         topic_id: topic.id,
+        material_kind: 'file',
         attachments: [],
         is_read: false
     },
@@ -44,6 +56,7 @@ const posts: ClassroomPost[] = [
         title: 'Leitura online',
         topic_id: topic.id,
         url: 'https://example.org/aula',
+        material_kind: 'link',
         attachments: [],
         is_read: false
     },
@@ -104,19 +117,39 @@ describe('postagens da turma com a API', () => {
     let list: ClassroomPost[];
     let failList: boolean;
     let failDetail: boolean;
+    let downloadErrorStatus: number | null;
+    let releaseDownload: (() => void) | undefined;
+    let save: ReturnType<typeof spyOn<typeof downloads, 'saveFile'>>;
 
     beforeEach(() => {
         requests = [];
         list = posts;
         failList = false;
         failDetail = false;
+        downloadErrorStatus = null;
+        releaseDownload = undefined;
+        save = spyOn(downloads, 'saveFile').mockImplementation(() => {});
         client = new QueryClient({
             defaultOptions: { queries: { retry: false, staleTime: Infinity } }
         });
         middleware = {
-            onRequest: ({ request }) => {
+            onRequest: async ({ request }) => {
                 requests.push(request);
                 const path = decodeURIComponent(new URL(request.url).pathname);
+                if (path.endsWith('/download')) {
+                    if (downloadErrorStatus)
+                        throw new ApiError(downloadErrorStatus, 'Indisponível');
+                    await new Promise<void>((resolve) => {
+                        releaseDownload = resolve;
+                    });
+                    const second = path.includes('d'.repeat(64));
+                    return new Response(second ? 'segundo arquivo' : 'primeiro arquivo', {
+                        headers: {
+                            'content-type': 'application/pdf',
+                            'content-disposition': "attachment; filename*=UTF-8''Notas.pdf"
+                        }
+                    });
+                }
                 if (path.endsWith('/posts/news:1')) {
                     return failDetail
                         ? Response.json({ detail: 'Indisponível' }, { status: 502 })
@@ -143,6 +176,7 @@ describe('postagens da turma com a API', () => {
         testing.cleanup();
         client.clear();
         apiClient.eject(middleware);
+        save.mockRestore();
     });
 
     const renderPosts = () =>
@@ -171,23 +205,117 @@ describe('postagens da turma com a API', () => {
     });
 
     test('filtra materiais sem perder o vínculo com o tópico ou fazer novas consultas', async () => {
+        list = [
+            ...posts,
+            { ...posts[2], id: 'material:tarefa', title: 'Enviar tarefa', material_kind: 'action' }
+        ];
         const page = renderPosts();
         await page.findByRole('button', { name: /Slides.pdf/ });
         testing.fireEvent.click(page.getByRole('button', { name: 'Materiais' }));
         expect(page.queryByRole('button', { name: /Bem-vindos à turma/ })).toBeNull();
-        expect(page.getAllByText('Tópico: Sistemas de numeração')).toHaveLength(2);
+        expect(page.getAllByText('Tópico: Sistemas de numeração')).toHaveLength(3);
+        testing.fireEvent.click(page.getByRole('button', { name: /Enviar tarefa/ }));
+        expect(await page.findByRole('link', { name: 'Abrir SIGAA' })).toBeDefined();
+        expect(page.queryByRole('button', { name: 'Baixar' })).toBeNull();
         testing.fireEvent.click(page.getByRole('button', { name: /Slides.pdf/ }));
-        expect(
-            await page.findByText('Este material está disponível na página da turma no SIGAA.')
-        ).toBeDefined();
+        expect(await page.findByRole('button', { name: 'Baixar' })).toBeDefined();
         expect(page.queryByRole('link', { name: 'Acessar material' })).toBeNull();
-        expect(page.getByRole('link', { name: 'Abrir SIGAA' }).getAttribute('href')).toBe(
-            'https://sigaa.unb.br/sigaa/'
-        );
+        expect(page.queryByRole('link', { name: 'Abrir SIGAA' })).toBeNull();
         testing.fireEvent.click(page.getByRole('button', { name: /Leitura online/ }));
         const link = await page.findByRole('link', { name: 'Acessar material' });
         expect(link.getAttribute('href')).toBe('https://example.org/aula');
         expect(requests).toHaveLength(1);
+    });
+
+    test('cada postagem homônima baixa seu próprio arquivo e mostra progresso', async () => {
+        list = [
+            { ...posts[2], title: 'Notas.pdf' },
+            { ...posts[2], id: 'material:' + 'd'.repeat(64), title: 'Notas.pdf' }
+        ];
+        const page = renderPosts();
+        const items = await page.findAllByRole('button', { name: /Notas.pdf/ });
+        const baixar = async (index: number) => {
+            releaseDownload = undefined;
+            testing.fireEvent.click(items[index]);
+            testing.fireEvent.click(await page.findByRole('button', { name: 'Baixar' }));
+            const pending = await page.findByRole('button', { name: 'Baixando...' });
+            expect(pending.hasAttribute('disabled')).toBe(true);
+            await testing.waitFor(() => expect(releaseDownload).toBeDefined());
+            await testing.act(async () => {
+                releaseDownload?.();
+            });
+            await testing.waitFor(() => expect(save).toHaveBeenCalledTimes(index + 1));
+        };
+        await baixar(0);
+        await baixar(1);
+        const [first, second] = save.mock.calls;
+        expect(await first[0].text()).toBe('primeiro arquivo');
+        expect(await second[0].text()).toBe('segundo arquivo');
+        expect(first[0].type).toBe('application/pdf');
+        expect(first[1]).toBe('Notas.pdf');
+        expect(second[1]).toBe('Notas.pdf');
+        expect(requests.filter((request) => request.method === 'POST')).toHaveLength(2);
+    });
+
+    test('baixa anexos e abre referências do próprio tópico no filtro de tópicos', async () => {
+        list = [
+            ...posts,
+            {
+                ...posts[2],
+                id: 'material:' + 'e'.repeat(64),
+                topic_id: 'topic:outro',
+                title: 'Outro.pdf'
+            }
+        ];
+        const page = renderPosts();
+        testing.fireEvent.click(await page.findByRole('button', { name: 'Tópicos de aula' }));
+        testing.fireEvent.click(await page.findByRole('button', { name: /Sistemas de numeração/ }));
+        const materials = testing.within(
+            await page.findByRole('list', { name: 'Materiais do tópico' })
+        );
+        expect(materials.getByText('Slides.pdf')).toBeDefined();
+        expect(materials.queryByText('Outro.pdf')).toBeNull();
+        expect(materials.getByRole('link', { name: 'Acessar material' }).getAttribute('href')).toBe(
+            'https://example.org/aula'
+        );
+        testing.fireEvent.click(materials.getByRole('button', { name: 'Baixar' }));
+        await testing.waitFor(() => expect(releaseDownload).toBeDefined());
+        await testing.act(async () => {
+            releaseDownload?.();
+        });
+        await testing.waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+        const paths = requests
+            .filter((request) => request.method === 'POST')
+            .map((request) => decodeURIComponent(new URL(request.url).pathname));
+        expect(paths).toEqual([`/api/classrooms/AAA/posts/${posts[2].id}/download`]);
+    });
+
+    test('orienta a atualizar as postagens quando o anexo não é mais encontrado', async () => {
+        downloadErrorStatus = 404;
+        const page = renderPosts();
+        testing.fireEvent.click(await page.findByRole('button', { name: /Slides.pdf/ }));
+        testing.fireEvent.click(await page.findByRole('button', { name: 'Baixar' }));
+        expect((await page.findByRole('alert')).textContent).toContain('Atualize as postagens');
+        expect(page.getByRole('button', { name: 'Atualizar' })).toBeDefined();
+        expect(save).not.toHaveBeenCalled();
+    });
+
+    test('erro de download aparece no item e permite tentar novamente', async () => {
+        downloadErrorStatus = 502;
+        const page = renderPosts();
+        testing.fireEvent.click(await page.findByRole('button', { name: /Slides.pdf/ }));
+        testing.fireEvent.click(await page.findByRole('button', { name: 'Baixar' }));
+        expect((await page.findByRole('alert')).textContent).toContain('Não foi possível baixar');
+        expect(page.getByRole('button', { name: 'Baixar' }).hasAttribute('disabled')).toBe(false);
+        expect(save).not.toHaveBeenCalled();
+        downloadErrorStatus = null;
+        testing.fireEvent.click(page.getByRole('button', { name: 'Baixar' }));
+        await testing.waitFor(() => expect(releaseDownload).toBeDefined());
+        await testing.act(async () => {
+            releaseDownload?.();
+        });
+        await testing.waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+        expect(page.queryByRole('alert')).toBeNull();
     });
 
     test('abre texto do tópico e agenda de avaliação sem inventar horários ou buscar detalhes', async () => {

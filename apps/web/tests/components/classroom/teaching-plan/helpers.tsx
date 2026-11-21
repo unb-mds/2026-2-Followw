@@ -44,28 +44,28 @@ export const CLASSROOM: Classroom = {
     has_teaching_plan: true
 };
 
-function createPlanRouter() {
+export function createPlanRouter(initialEntries = ['/turmas/AAA/plano-de-ensino']) {
     const root = createRootRoute();
     return createRouter({
         routeTree: root.addChildren([
             createRoute({ getParentRoute: () => root, path: '/turmas/$id' }),
             createRoute({ getParentRoute: () => root, path: '/turmas/$id/plano-de-ensino' })
         ]),
-        history: createMemoryHistory({ initialEntries: ['/turmas/AAA/plano-de-ensino'] })
+        history: createMemoryHistory({ initialEntries })
     });
 }
 
 export function useTeachingPlan() {
     const dom = useDom();
     afterEach(() => dom.testing.cleanup());
-    const render = (children: React.ReactNode) =>
+    const render = (children: React.ReactNode, router = createPlanRouter()) =>
         dom.testing.render(
-            <RouterContextProvider router={createPlanRouter()}>{children}</RouterContextProvider>
+            <RouterContextProvider router={router}>{children}</RouterContextProvider>
         );
     return {
         dom,
-        renderPage: (plan = PLAN) =>
-            render(<ClassroomTeachingPlanPage classroom={CLASSROOM} plan={plan} />),
+        renderPage: (plan = PLAN, router?: ReturnType<typeof createPlanRouter>) =>
+            render(<ClassroomTeachingPlanPage classroom={CLASSROOM} plan={plan} />, router),
         renderLink: () => render(<TeachingPlanLink id="AAA" />)
     };
 }
