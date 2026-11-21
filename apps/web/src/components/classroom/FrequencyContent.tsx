@@ -18,6 +18,7 @@ import { useRef, useState } from 'react';
 
 import { LessonCalendar } from '#/components/classroom/LessonCalendar';
 import { ListCard, Meter } from '#/components/ListCard';
+import { repeat } from '#/components/LoadingSkeleton';
 import { SelectionBar } from '#/components/SelectionBar';
 import { Button } from '#/components/ui/button';
 import { Card } from '#/components/ui/card';
@@ -29,6 +30,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger
 } from '#/components/ui/dropdown-menu';
+import { Skeleton } from '#/components/ui/skeleton';
 import { ToggleGroup, ToggleGroupItem } from '#/components/ui/toggle-group';
 import { cn } from '#/lib/shadcn';
 
@@ -492,5 +494,42 @@ function Stat({
                 {value}
             </dd>
         </div>
+    );
+}
+
+export function FrequencySummarySkeleton() {
+    return (
+        <Card size="sm" className="gap-0 divide-y divide-border py-0">
+            <div className="grid grid-cols-3 divide-x divide-border">
+                {repeat(3, () => (
+                    <div className="flex flex-col gap-2 px-3 py-3">
+                        <Skeleton className="h-3 w-16" />
+                        <Skeleton className="h-7 w-12" />
+                    </div>
+                ))}
+            </div>
+            <div className="flex flex-col gap-2 px-3 py-3">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-2 w-full" />
+            </div>
+        </Card>
+    );
+}
+
+export function FrequencyContentSkeleton() {
+    return (
+        <>
+            <FrequencySummarySkeleton />
+            <Skeleton className="mt-2 h-5 w-24" />
+            <ListCard>
+                {repeat(6, () => (
+                    <div className="flex items-center gap-2 py-2.5">
+                        <Skeleton className="size-4 shrink-0 rounded-full" />
+                        <Skeleton className="h-4 w-1/3" />
+                        <Skeleton className="ml-auto h-6 w-20 rounded-full" />
+                    </div>
+                ))}
+            </ListCard>
+        </>
     );
 }

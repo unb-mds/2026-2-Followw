@@ -10,9 +10,9 @@ import { useState } from 'react';
 import { useDesktop } from '#/components/DesktopContext';
 import { ErrorCard, ErrorState, SIGAA_DOWN_MESSAGE } from '#/components/ErrorState';
 import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
-import { ClassCard } from '#/components/home/ClassCard';
+import { ClassCard, ClassCardSkeleton } from '#/components/home/ClassCard';
 import { LoginPromptCard } from '#/components/home/LoginPromptCard';
-import { LoadingText } from '#/components/LoadingText';
+import { LoadingSkeleton, repeat } from '#/components/LoadingSkeleton';
 import { WeeklySchedule } from '#/components/schedule/WeeklySchedule';
 import { TabFilter } from '#/components/TabFilter';
 import { Card, CardContent } from '#/components/ui/card';
@@ -129,16 +129,20 @@ function Classrooms() {
                     </aside>
                 )}
             </div>
-            {(isPending || classrooms.length === 0) && (
-                <Card>
-                    <CardContent className="text-center text-sm text-muted-foreground">
-                        {isPending ? (
-                            <LoadingText>Carregando turmas...</LoadingText>
-                        ) : (
-                            'Nenhuma turma encontrada.'
-                        )}
-                    </CardContent>
-                </Card>
+            {isPending ? (
+                <LoadingSkeleton label="Carregando turmas..." className="gap-2 lg:gap-4">
+                    {repeat(5, () => (
+                        <ClassCardSkeleton />
+                    ))}
+                </LoadingSkeleton>
+            ) : (
+                classrooms.length === 0 && (
+                    <Card>
+                        <CardContent className="text-center text-sm text-muted-foreground">
+                            Nenhuma turma encontrada.
+                        </CardContent>
+                    </Card>
+                )
             )}
         </div>
     );

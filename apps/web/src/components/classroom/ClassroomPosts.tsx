@@ -12,7 +12,7 @@ import { useState } from 'react';
 
 import { ErrorCard, SIGAA_DOWN_MESSAGE, StaleDataNotice } from '#/components/ErrorState';
 import { ListCard } from '#/components/ListCard';
-import { LoadingText } from '#/components/LoadingText';
+import { LinesSkeleton, LoadingSkeleton, repeat } from '#/components/LoadingSkeleton';
 import { TabFilter } from '#/components/TabFilter';
 import {
     Accordion,
@@ -23,6 +23,7 @@ import {
 import { Badge } from '#/components/ui/badge';
 import { Button } from '#/components/ui/button';
 import { Card, CardContent } from '#/components/ui/card';
+import { Skeleton } from '#/components/ui/skeleton';
 import { Markdown } from '#/lib/markdown';
 import { rise, useEntrance } from '#/lib/motion';
 import { cn } from '#/lib/shadcn';
@@ -47,9 +48,21 @@ export function ClassroomPosts({ id }: { id: string }) {
 
     if (posts.isPending)
         return (
-            <PostsMessage>
-                <LoadingText>Carregando postagens...</LoadingText>
-            </PostsMessage>
+            <LoadingSkeleton label="Carregando postagens...">
+                <div className="flex gap-2">
+                    {repeat(4, () => (
+                        <Skeleton className="h-7 w-20 rounded-full" />
+                    ))}
+                </div>
+                <ListCard>
+                    {repeat(5, () => (
+                        <LinesSkeleton
+                            lines={['h-5 w-24 rounded-full', 'w-3/4']}
+                            className="py-3"
+                        />
+                    ))}
+                </ListCard>
+            </LoadingSkeleton>
         );
     if (posts.isLoadingError)
         return <ErrorCard message={SIGAA_DOWN_MESSAGE} onRetry={() => posts.refetch()} />;
@@ -172,7 +185,12 @@ function PostsMessage({ children }: { children: React.ReactNode }) {
 
 function PostDetail({ classroomId, postId }: { classroomId: string; postId: string }) {
     const detail = useQuery(classroomPostDetailQueryOptions(classroomId, postId));
-    if (detail.isPending) return <LoadingText>Carregando postagem...</LoadingText>;
+    if (detail.isPending)
+        return (
+            <LoadingSkeleton label="Carregando postagem...">
+                <LinesSkeleton lines={['w-full', 'w-full', 'w-2/3']} />
+            </LoadingSkeleton>
+        );
     if (detail.isLoadingError)
         return <ErrorCard message={SIGAA_DOWN_MESSAGE} onRetry={() => detail.refetch()} />;
     return (

@@ -4,10 +4,14 @@ import {
 } from '@followw/core/queries/classrooms.ts';
 import { type UseQueryResult, useQuery } from '@tanstack/react-query';
 
-import { FrequencySummary } from '#/components/classroom/FrequencyContent';
+import {
+    FrequencySummary,
+    FrequencySummarySkeleton
+} from '#/components/classroom/FrequencyContent';
 import { ErrorCard, SIGAA_DOWN_MESSAGE, StaleDataNotice } from '#/components/ErrorState';
-import { LoadingText } from '#/components/LoadingText';
+import { LoadingSkeleton } from '#/components/LoadingSkeleton';
 import { StatisticsChart } from '#/components/StatisticsChart';
+import { StatisticsChartSkeleton } from '#/components/StatisticsChartSkeleton';
 import { Card, CardContent } from '#/components/ui/card';
 
 export function ClassroomStatistics({ id }: { id: string }) {
@@ -20,6 +24,13 @@ export function ClassroomStatistics({ id }: { id: string }) {
                 title="Resultados da turma"
                 subject="as estatísticas"
                 query={statistics}
+                skeleton={
+                    <Card size="sm">
+                        <CardContent>
+                            <StatisticsChartSkeleton />
+                        </CardContent>
+                    </Card>
+                }
             >
                 {(shares) => (
                     <Card size="sm">
@@ -38,7 +49,12 @@ export function ClassroomStatistics({ id }: { id: string }) {
                     </Card>
                 )}
             </StatisticsSection>
-            <StatisticsSection title="Sua frequência" subject="a frequência" query={frequency}>
+            <StatisticsSection
+                title="Sua frequência"
+                subject="a frequência"
+                query={frequency}
+                skeleton={<FrequencySummarySkeleton />}
+            >
                 {(data) => <FrequencySummary data={data} />}
             </StatisticsSection>
         </div>
@@ -49,22 +65,20 @@ function StatisticsSection<T>({
     title,
     subject,
     query,
+    skeleton,
     children
 }: {
     title: string;
     subject: string;
     query: UseQueryResult<T, unknown>;
+    skeleton: React.ReactNode;
     children: (data: T) => React.ReactNode;
 }) {
     return (
         <section>
             <h3 className="mb-2 px-1 text-sm font-semibold">{title}</h3>
             {query.isPending ? (
-                <Card size="sm">
-                    <CardContent>
-                        <LoadingText>Carregando {subject}…</LoadingText>
-                    </CardContent>
-                </Card>
+                <LoadingSkeleton label={`Carregando ${subject}…`}>{skeleton}</LoadingSkeleton>
             ) : query.isLoadingError ? (
                 <ErrorCard message={SIGAA_DOWN_MESSAGE} onRetry={() => query.refetch()} />
             ) : (

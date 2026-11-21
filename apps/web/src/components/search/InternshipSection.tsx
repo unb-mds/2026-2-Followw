@@ -5,10 +5,12 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowRight } from 'lucide-react';
 import { useState } from 'react';
 
+import { CardSkeleton, repeat, SectionHeaderSkeleton } from '#/components/LoadingSkeleton';
 import { QueryState } from '#/components/QueryState';
 import { InternshipCard } from '#/components/search/InternshipCard';
 import { InternshipDetailDialog } from '#/components/search/InternshipDetailDialog';
 import { Button } from '#/components/ui/button';
+import { Skeleton } from '#/components/ui/skeleton';
 import { cn } from '#/lib/shadcn';
 
 const GROUPS = [
@@ -121,7 +123,7 @@ export function InternshipResults({ text }: { text: string | null }) {
                 loading="Carregando ofertas de estágio..."
                 error="Não foi possível carregar as ofertas de estágio."
                 stale="Não foi possível atualizar as vagas. Exibindo os dados salvos."
-                className="justify-center"
+                skeleton={<InternshipSectionSkeleton count={5} />}
             >
                 {(data) => (
                     <InternshipSection
@@ -134,6 +136,24 @@ export function InternshipResults({ text }: { text: string | null }) {
                     />
                 )}
             </QueryState>
+        </div>
+    );
+}
+
+export function InternshipSectionSkeleton({ title, count }: { title?: boolean; count: number }) {
+    return (
+        <div className="flex flex-col gap-4">
+            {title && <SectionHeaderSkeleton />}
+            <div className="flex flex-col gap-2.5">
+                <Skeleton className="h-5 w-32" />
+                {repeat(count, () => (
+                    <CardSkeleton
+                        media="size-9 rounded-xl"
+                        lines={['w-2/3', 'h-3 w-1/2']}
+                        className="items-start border ring-0"
+                    />
+                ))}
+            </div>
         </div>
     );
 }

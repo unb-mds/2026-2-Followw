@@ -3,6 +3,7 @@ import type { UseQueryResult } from '@tanstack/react-query';
 import { useOnline } from '@followw/core/lib/online.ts';
 
 import { ErrorCard } from '#/components/ErrorState';
+import { LoadingSkeleton } from '#/components/LoadingSkeleton';
 import { LoadingText } from '#/components/LoadingText';
 
 interface QueryStateProps<T, E> {
@@ -11,6 +12,8 @@ interface QueryStateProps<T, E> {
     error: string;
     // falha ao atualizar com dados salvos; offline o aviso de conexão já cobre
     stale: string;
+    // esboço do resultado; sem ele, o layout é incerto e fica o spinner
+    skeleton?: React.ReactNode;
     className?: string;
     children?: (data: T) => React.ReactNode;
 }
@@ -21,11 +24,17 @@ export function QueryState<T, E>({
     loading,
     error,
     stale,
+    skeleton,
     className,
     children
 }: QueryStateProps<T, E>) {
     const online = useOnline();
-    if (query.isPending) return <LoadingText className={className}>{loading}</LoadingText>;
+    if (query.isPending)
+        return skeleton ? (
+            <LoadingSkeleton label={loading}>{skeleton}</LoadingSkeleton>
+        ) : (
+            <LoadingText className={className}>{loading}</LoadingText>
+        );
     if (query.isLoadingError) return <ErrorCard message={error} onRetry={() => query.refetch()} />;
     return (
         <>

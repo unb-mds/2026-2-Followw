@@ -2,7 +2,7 @@ import { subjectsQueryOptions, withClassrooms } from '@followw/core/queries/subj
 import { keepPreviousData, noop, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { QueryState } from '#/components/QueryState';
-import { TurmaSection } from '#/components/search/TurmaSection';
+import { TurmaSection, TurmaSectionSkeleton } from '#/components/search/TurmaSection';
 import { refreshQuery } from '#/queries/refresh';
 
 /** Matérias da unidade, listadas sem texto de busca. */
@@ -26,7 +26,7 @@ export function SubjectResults({
                 loading="Buscando matérias..."
                 error="Não foi possível buscar as matérias."
                 stale="Não foi possível atualizar as matérias. Exibindo os dados salvos."
-                className="justify-center"
+                skeleton={<TurmaSectionSkeleton title />}
             >
                 {(data) => {
                     const subjects = withClassrooms(data);

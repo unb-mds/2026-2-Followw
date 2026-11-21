@@ -9,6 +9,7 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Briefcase, Building2, Download, GraduationCap, Users, Wallet } from 'lucide-react';
 
+import { LinesSkeleton, LoadingSkeleton, repeat } from '#/components/LoadingSkeleton';
 import { formatCurrency, formatDate } from '#/components/search/InternshipCard';
 import { Badge } from '#/components/ui/badge';
 import { Button } from '#/components/ui/button';
@@ -19,7 +20,6 @@ import {
     DialogHeader,
     DialogTitle
 } from '#/components/ui/dialog';
-import { Spinner } from '#/components/ui/spinner';
 import { Markdown } from '#/lib/markdown';
 
 export function InternshipDetailView({ detail }: { detail: InternshipDetail }) {
@@ -178,10 +178,14 @@ export function InternshipDetailDialog({
                         <DialogDescription>
                             Inscrições até {summary && formatDate(summary.published_until)}
                         </DialogDescription>
-                        <output className="flex items-center gap-2 text-muted-foreground">
-                            <Spinner />
-                            Carregando detalhes da vaga...
-                        </output>
+                        <LoadingSkeleton
+                            label="Carregando detalhes da vaga..."
+                            className="mt-4 gap-6"
+                        >
+                            {repeat(3, () => (
+                                <LinesSkeleton lines={['h-5 w-1/3', 'w-full', 'w-full', 'w-2/3']} />
+                            ))}
+                        </LoadingSkeleton>
                     </DialogHeader>
                 ) : missing || !detail ? (
                     <div className="py-8 text-center">

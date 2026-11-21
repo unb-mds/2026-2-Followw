@@ -6,8 +6,8 @@ import { noop, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, CircleHelp } from 'lucide-react';
 
 import { ErrorCard } from '#/components/ErrorState';
-import { LoadingText } from '#/components/LoadingText';
-import { TurmaSection } from '#/components/search/TurmaSection';
+import { LoadingSkeleton } from '#/components/LoadingSkeleton';
+import { TurmaSection, TurmaSectionSkeleton } from '#/components/search/TurmaSection';
 import { Badge } from '#/components/ui/badge';
 import { Button } from '#/components/ui/button';
 import {
@@ -77,7 +77,9 @@ export function RecommendationsSection({
             aria-busy={query.isFetching}
         >
             {query.isPending ? (
-                <LoadingText className="justify-center">Buscando recomendações...</LoadingText>
+                <LoadingSkeleton label="Buscando recomendações...">
+                    <TurmaSectionSkeleton />
+                </LoadingSkeleton>
             ) : query.isLoadingError ? (
                 <ErrorCard
                     message="Não foi possível carregar suas recomendações."

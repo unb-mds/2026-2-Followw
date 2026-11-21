@@ -7,7 +7,7 @@ import { CAMPUS_LABELS } from '@followw/core/queries/restaurant.ts';
 import { Link } from '@tanstack/react-router';
 import { Coffee, Soup, UtensilsCrossed } from 'lucide-react';
 
-import { LoadingText } from '#/components/LoadingText';
+import { LinesSkeleton, LoadingSkeleton } from '#/components/LoadingSkeleton';
 import { SectionHeader } from '#/components/SectionHeader';
 import { Card } from '#/components/ui/card';
 
@@ -56,9 +56,15 @@ export const PublicInfoSection: React.FC<PublicInfoSectionProps> = ({
                     </span>
                 </div>
                 {isLoading && published.length === 0 ? (
-                    <p className="pointer-events-none relative text-xs text-muted-foreground">
-                        <LoadingText>Carregando cardápio...</LoadingText>
-                    </p>
+                    <LoadingSkeleton label="Carregando cardápio..." className="pointer-events-none">
+                        <LinesSkeleton
+                            lines={
+                                isToday
+                                    ? ['h-3 w-1/2', 'h-8 w-3/4']
+                                    : ['w-full', 'w-full', 'w-full']
+                            }
+                        />
+                    </LoadingSkeleton>
                 ) : isToday ? (
                     <NextMeal meal={next} today={now.date} />
                 ) : published.length > 0 ? (
