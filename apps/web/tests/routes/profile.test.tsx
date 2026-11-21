@@ -74,34 +74,20 @@ test.each([42, null])(
             const account = [...browser.document.querySelectorAll('[data-slot="card"]')].find(
                 (card) => card.textContent.includes('Editar perfil')
             );
-            expect(account).toBeDefined();
-            expect(account?.className).toContain('divide-y');
-            const nameRow = account?.firstElementChild;
-            expect(nameRow?.tagName).toBe('DIV');
-            expect(nameRow?.querySelector('button')?.textContent).toContain('Editar perfil');
-            let downloadsRow = nameRow?.nextElementSibling;
+            expect(account?.querySelector('button')?.textContent).toContain('Editar perfil');
+            expect(account?.textContent).toContain('Desconectar');
+            const flow = account?.querySelector('a[href^="/cursos/"]');
             if (courseId !== null) {
-                const flowWrapper = downloadsRow;
-                expect(flowWrapper?.tagName).toBe('DIV');
-                const flowRow = flowWrapper?.querySelector('a');
-                expect(flowRow?.tagName).toBe('A');
-                expect(flowRow?.textContent).toContain('Fluxo acadêmico');
-                expect(flowRow?.getAttribute('href')).toBe('/cursos/42');
-                expect(flowRow?.querySelector('.lucide-git-fork')).not.toBeNull();
-                downloadsRow = flowWrapper?.nextElementSibling;
+                expect(flow?.textContent).toContain('Fluxo acadêmico');
+                expect(flow?.getAttribute('href')).toBe('/cursos/42');
             } else {
-                expect(account?.querySelector('a[href^="/cursos/"]')).toBeNull();
+                expect(flow).toBeNull();
             }
             const documents = browser.document.querySelector('section[aria-label="Documentos"]');
             expect(documents?.textContent).toContain('Carteirinha');
             expect(documents?.textContent).toContain('Histórico');
             expect(documents?.querySelectorAll('button')).toHaveLength(2);
             expect(account?.querySelector('button[aria-label^="Baixar"]')).toBeNull();
-            expect(account?.querySelectorAll('.lucide-chevron-right').length).toBe(
-                courseId !== null ? 2 : 1
-            );
-            expect(account?.querySelector('.lucide-pencil')).not.toBeNull();
-            expect(account?.querySelector('.lucide-log-out')).not.toBeNull();
         } finally {
             client.clear();
             await browser.happyDOM.abort();

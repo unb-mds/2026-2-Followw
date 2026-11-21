@@ -8,6 +8,7 @@ import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 
 import type { Grade } from '#/lib/academic-simulation';
 
+import { repeat } from '#/components/LoadingSkeleton';
 import { Button } from '#/components/ui/button';
 import { Card } from '#/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '#/components/ui/chart';
@@ -18,6 +19,7 @@ import {
     SelectTrigger,
     SelectValue
 } from '#/components/ui/select';
+import { Skeleton } from '#/components/ui/skeleton';
 import {
     gradeWeights,
     isFreeModule,
@@ -243,6 +245,35 @@ export function AcademicSimulator({
                     )}
                 </Card>
             </section>
+        </div>
+    );
+}
+
+export function AcademicSimulatorSkeleton() {
+    return (
+        <div className="my-4 flex flex-col gap-4">
+            <Card className="gap-3 px-4">
+                <div className="grid grid-cols-2 gap-4">
+                    {repeat(2, () => (
+                        <div className="flex flex-col gap-2">
+                            <Skeleton className="h-4 w-10" />
+                            <Skeleton className="h-8 w-16" />
+                        </div>
+                    ))}
+                </div>
+                <Skeleton className="h-9 w-36" />
+            </Card>
+            <div className="flex flex-col gap-2">
+                <Skeleton className="mx-1 h-4 w-40" />
+                <Card className="gap-0 divide-y divide-border py-0">
+                    {repeat(5, () => (
+                        <div className="flex min-h-14 items-center justify-between gap-3 px-4 py-2">
+                            <Skeleton className="h-4 w-1/2" />
+                            <Skeleton className="h-9 w-20" />
+                        </div>
+                    ))}
+                </Card>
+            </div>
         </div>
     );
 }

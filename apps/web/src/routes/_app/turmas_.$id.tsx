@@ -18,7 +18,10 @@ import { useQueryStates } from 'nuqs';
 import { ClassroomPosts } from '#/components/classroom/ClassroomPosts';
 import { ClassroomStatistics } from '#/components/classroom/ClassroomStatistics';
 import { ClassroomSummary } from '#/components/classroom/ClassroomSummary';
-import { FrequencyContent } from '#/components/classroom/FrequencyContent';
+import {
+    FrequencyContent,
+    FrequencyContentSkeleton
+} from '#/components/classroom/FrequencyContent';
 import { TeachingPlanLink } from '#/components/classroom/TeachingPlanLink';
 import {
     ErrorCard,
@@ -28,9 +31,10 @@ import {
 } from '#/components/ErrorState';
 import { BackHeader } from '#/components/HeaderBar';
 import { LoginPromptCard } from '#/components/home/LoginPromptCard';
-import { LoadingText } from '#/components/LoadingText';
+import { CardSkeleton, LoadingSkeleton, repeat } from '#/components/LoadingSkeleton';
 import { Card, CardContent } from '#/components/ui/card';
 import { PersonPhoto } from '#/components/ui/person-photo';
+import { Skeleton } from '#/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
 import {
     CLASSROOM_TABS,
@@ -114,9 +118,7 @@ function ClassroomPage() {
             ) : classrooms.isLoadingError ? (
                 <ErrorCard message={SIGAA_DOWN_MESSAGE} onRetry={() => classrooms.refetch()} />
             ) : classrooms.isPending ? (
-                <InformationCard>
-                    <LoadingText>Carregando turma...</LoadingText>
-                </InformationCard>
+                <ClassroomSkeleton />
             ) : !classroom ? (
                 <InformationCard>Turma não encontrada.</InformationCard>
             ) : (
@@ -164,11 +166,49 @@ function ClassroomPage() {
     );
 }
 
-function TabLoading() {
+function ClassroomSkeleton() {
     return (
-        <InformationCard>
-            <LoadingText>Carregando informações...</LoadingText>
-        </InformationCard>
+        <LoadingSkeleton
+            label="Carregando turma..."
+            className="classroom-detail-columns gap-0 lg:grid lg:items-start lg:gap-10"
+        >
+            <div className="flex flex-col gap-2">
+                <Skeleton className="h-3 w-48" />
+                <Skeleton className="h-7 w-3/4" />
+                <div className="mt-2 flex flex-col gap-2">
+                    {repeat(3, () => (
+                        <Skeleton className="h-4 w-40" />
+                    ))}
+                </div>
+            </div>
+            <div className="mt-5 flex flex-col gap-4 lg:mt-0">
+                <Skeleton className="h-10 w-full" />
+                {repeat(4, () => (
+                    <CardSkeleton lines={['h-3 w-1/3', 'w-3/4', 'w-1/2']} className="p-3" />
+                ))}
+            </div>
+        </LoadingSkeleton>
+    );
+}
+
+function MembersSkeleton() {
+    return (
+        <LoadingSkeleton label="Carregando participantes..." className="gap-4">
+            {repeat(2, () => (
+                <div className="flex flex-col gap-2">
+                    <Skeleton className="h-5 w-32" />
+                    <div className="grid gap-3 lg:grid-cols-2 lg:gap-4">
+                        {repeat(4, () => (
+                            <CardSkeleton
+                                media="aspect-3/4 w-14 rounded-lg"
+                                lines={['h-5 w-2/3', 'w-1/2', 'w-3/4']}
+                                className="gap-4"
+                            />
+                        ))}
+                    </div>
+                </div>
+            ))}
+        </LoadingSkeleton>
     );
 }
 
@@ -190,7 +230,12 @@ function FrequencyTab({ id }: { id: string }) {
     const frequency = useQuery(classroomFrequencyQueryOptions(id));
     const markLessons = useMarkLessons(id);
 
-    if (frequency.isPending) return <TabLoading />;
+    if (frequency.isPending)
+        return (
+            <LoadingSkeleton label="Carregando frequência..." className="gap-2">
+                <FrequencyContentSkeleton />
+            </LoadingSkeleton>
+        );
     if (frequency.isLoadingError) return <TabError onRetry={() => frequency.refetch()} />;
 
     return (
@@ -223,7 +268,7 @@ function GroupTitle({ title, count }: { title: string; count: number }) {
 function MembersTab({ id }: { id: string }) {
     const members = useQuery(classroomMembersQueryOptions(id));
 
-    if (members.isPending) return <TabLoading />;
+    if (members.isPending) return <MembersSkeleton />;
     if (members.isLoadingError) return <TabError onRetry={() => members.refetch()} />;
     const { professors, monitors, students } = members.data;
     if (professors.length + monitors.length + students.length === 0)

@@ -12,9 +12,12 @@ from sigaa_client import (
     PostType,
     SigaaParseError,
 )
+from sigaa_client.config import CLASSROOMS_PATH
 from sigaa_client.private.classroom_navigation import open_topics
 from sigaa_client.private.classrooms import Classrooms
 from sigaa_client.private.posts import _parse_assessments, _parse_topics
+
+from ..fakes import HISTORY_FORM
 
 TOPICS = """
 <form id="formAva">
@@ -161,21 +164,38 @@ async def test_principal_paginada_e_aberta_em_lista_por_postback_com_viewstate_n
     assert "formAcoesTurma:visualizarAulasEmLista" not in payload
 
 
-async def test_listagem_unificada_usa_leitura_com_contexto_para_cada_tela():
-    resource = Classrooms(AsyncMock())
-    resource._read_screen = AsyncMock(side_effect=[TOPICS, ASSESSMENTS])
-    resource.list_classroom_news = AsyncMock(
-        return_value=[News(id=1, title="Aviso", published_on=date(2026, 10, 15))]
-    )
-    posts = await resource.list_classroom_posts("AAA")
+MENU = """<form id="formMenu" action="/sigaa/ava/index.jsf">
+<a onclick="jsfcljs(f,{'principal':'principal'},'')">Principal</a>
+<a onclick="jsfcljs(f,{'avaliacoes':'avaliacoes'},'')">Avaliações</a>
+<a onclick="jsfcljs(f,{'noticias':'noticias'},'')">Notícias</a>
+<input name="javax.faces.ViewState" value="estado"></form>"""
+NEWS = """<fieldset><legend>Notícias</legend><table class="listing"><tbody>
+<tr><td>Bem-vindos</td><td>10/08/2026</td>
+<td><a onclick="jsfcljs(f,{'id':'23433316'},'')">Ver</a></td></tr>
+</tbody></table></fieldset>"""
+CONTEXT = """<script>var nomeTurma = "<div>Turma: FGA0146 - ESTRUTURAS DE DADOS 1 (2026.2 - T01)</div>";</script>"""
+
+
+SCREENS = {"principal": TOPICS, "avaliacoes": ASSESSMENTS, "noticias": NEWS}
+
+
+class ClassroomSession:
+    async def get(self, url, **_):
+        return httpx.Response(
+            200, text=HISTORY_FORM if url == CLASSROOMS_PATH else MENU
+        )
+
+    async def post(self, url, data, **_):
+        screen = next((html for key, html in SCREENS.items() if key in data), None)
+        return httpx.Response(200, text="" if screen is None else screen + CONTEXT)
+
+
+async def test_posts_da_turma_reunem_topicos_avaliacoes_e_noticias():
+    posts = await Classrooms(ClassroomSession()).list_classroom_posts("AAA")
+
     assert {post.type for post in posts} == set(PostType)
-    assert [call.args[0] for call in resource._read_screen.call_args_list] == [
-        "AAA",
-        "AAA",
-    ]
-    resource.list_classroom_news.assert_awaited_once_with("AAA")
     assert posts[-1] == ClassroomPost.from_news(
-        resource.list_classroom_news.return_value[0]
+        News(id=23433316, title="Bem-vindos", published_on=date(2026, 8, 10))
     )
 
 

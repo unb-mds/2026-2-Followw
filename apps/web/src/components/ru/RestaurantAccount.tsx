@@ -17,7 +17,7 @@ import { QrCode, RefreshCw } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useEffect, useRef, useState } from 'react';
 
-import { LoadingText } from '#/components/LoadingText';
+import { LoadingSkeleton } from '#/components/LoadingSkeleton';
 import {
     Accordion,
     AccordionContent,
@@ -36,6 +36,7 @@ import {
     DrawerTitle,
     DrawerTrigger
 } from '#/components/ui/drawer';
+import { Skeleton } from '#/components/ui/skeleton';
 import { Spinner } from '#/components/ui/spinner';
 import { cn } from '#/lib/shadcn';
 import { documentRefusal } from '#/queries/documents';
@@ -110,7 +111,6 @@ export function RestaurantAccount({
         />
     );
 
-    // o carregamento ocupa o lugar do rótulo do saldo
     const loadingStatement = statement.isPending && !statement.data;
     const statementStatus = (
         <AccountStatus
@@ -144,25 +144,22 @@ export function RestaurantAccount({
                 </div>
 
                 <div>
-                    <div
-                        className={cn(
-                            'flex items-center justify-between gap-2',
-                            !loadingStatement && 'mb-2'
-                        )}
-                    >
+                    <div className="mb-2 flex items-center justify-between gap-2">
                         {loadingStatement ? (
-                            statementStatus
+                            <Skeleton className="h-5 w-28" />
                         ) : (
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                 Saldo disponível
                             </div>
                         )}
-                        {!statement.data && cardDrawer}
+                        {!statement.data && !loadingStatement && cardDrawer}
                     </div>
-                    {statement.data && (
+                    {statement.data ? (
                         <StatementDetails statement={statement.data} action={cardDrawer} />
+                    ) : (
+                        loadingStatement && <StatementSkeleton action={cardDrawer} />
                     )}
-                    {!loadingStatement && statementStatus}
+                    {statementStatus}
                 </div>
             </CardContent>
         </Card>
@@ -205,6 +202,16 @@ function StudentCardDrawer({
                 </DrawerHeader>
                 <div className="overflow-y-auto p-4">
                     {credentials.data && <StudentCard credentials={credentials.data} />}
+                    {credentials.isPending && !credentials.data && (
+                        <LoadingSkeleton
+                            label="Carregando carteirinha..."
+                            className="mt-4 items-center gap-2"
+                        >
+                            <Skeleton className="size-64 max-w-full" />
+                            <Skeleton className="h-4 w-56" />
+                            <Skeleton className="h-3 w-32" />
+                        </LoadingSkeleton>
+                    )}
                     <AccountStatus
                         query={credentials}
                         hasData={Boolean(credentials.data)}
@@ -290,6 +297,22 @@ export function StatementDetails({
     );
 }
 
+function StatementSkeleton({ action }: { action: React.ReactNode }) {
+    return (
+        <>
+            <div className="flex items-center justify-between gap-3">
+                <LoadingSkeleton label="Carregando saldo e extrato...">
+                    <Skeleton className="h-10 w-40" />
+                </LoadingSkeleton>
+                {action}
+            </div>
+            <div className="mt-5 border-t border-border pt-4">
+                <Skeleton className="mb-3 h-5 w-28" />
+            </div>
+        </>
+    );
+}
+
 export function StudentCard({
     credentials,
     date = nowInBrasilia().date
@@ -354,7 +377,6 @@ function AccountStatus({
 
     return (
         <div className="text-xs text-muted-foreground" aria-live="polite">
-            {query.isPending && !hasData && <LoadingText>Carregando {label}...</LoadingText>}
             {showError && (
                 <p className="text-destructive">
                     {failure ?? failureMessage}{' '}

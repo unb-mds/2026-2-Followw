@@ -10,7 +10,10 @@ import { Fragment } from 'react';
 
 import { QueryState } from '#/components/QueryState';
 import { CourseSection } from '#/components/search/CourseSection';
-import { InternshipSection } from '#/components/search/InternshipSection';
+import {
+    InternshipSection,
+    InternshipSectionSkeleton
+} from '#/components/search/InternshipSection';
 import { ProfessorSection } from '#/components/search/ProfessorSection';
 import { TurmaSection } from '#/components/search/TurmaSection';
 import { refreshQuery } from '#/queries/refresh';
@@ -114,6 +117,7 @@ export function SearchResults({
                     loading="Carregando ofertas de estágio..."
                     error="Não foi possível carregar as ofertas de estágio."
                     stale="Não foi possível atualizar as vagas. Exibindo os dados salvos."
+                    skeleton={<InternshipSectionSkeleton title count={3} />}
                 >
                     {(data) => (
                         <InternshipSection

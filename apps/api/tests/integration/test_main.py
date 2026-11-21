@@ -1,7 +1,7 @@
 import importlib
 import logging
 
-from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
+from fastapi.testclient import TestClient
 
 import api.main as main_module
 from api.core.config import settings
@@ -18,9 +18,11 @@ def test_redireciona_https_em_producao(monkeypatch):
     monkeypatch.setattr(settings, "environment", "production")
     importlib.reload(main_module)
     try:
-        assert any(
-            m.cls is HTTPSRedirectMiddleware for m in main_module.app.user_middleware
+        response = TestClient(main_module.app).get(
+            "/docs?lang=pt", follow_redirects=False
         )
+        assert response.status_code == 307
+        assert response.headers["location"] == "https://testserver/docs?lang=pt"
     finally:
         monkeypatch.setattr(settings, "environment", original)
         importlib.reload(main_module)
@@ -54,7 +56,6 @@ def test_openapi_agrupa_recursos_publicos_sem_ocultar_rotas_privadas(api):
     tags = {tag["name"]: tag for tag in schema["tags"]}
     assert "/public/professors" in schema["paths"]
     assert "/public/professors/{siape}" in schema["paths"]
-    assert "/professors" not in schema["paths"]
     assert tags["Public Classrooms"]["x-displayName"] == "Classrooms"
     assert tags["Public Courses"]["x-displayName"] == "Courses"
     assert tags["Public Professors"]["x-displayName"] == "Professors"

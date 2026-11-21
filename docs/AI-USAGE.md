@@ -85,6 +85,7 @@ membro do time e quais resultados eles trouxeram.
     usadas por todo o time.
     - codebase-design: Uso geral
     - grilling: Uso geral
+    - prune-tests: Destilação da suíte de testes, também usada como régua para novos testes
     - scalar-docs: Kauã e Samuel
     - security-audit: Eliabe e Diego
     - thermo-nuclear-code-quality-review: Eliabe

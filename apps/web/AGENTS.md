@@ -29,6 +29,10 @@ bun generate-api           # gera o schema em packages/core a partir de localhos
 - Cores só pelo `@theme` de `src/styles.css`, nunca hex solto. Sem valores arbitrários
   (`text-[13px]`): use a escala do Tailwind, preferencialmente valores pares.
 - Prefira flex + gap ao space- do tailwind.
+- Carregamento de conteúdo usa `Skeleton` (`#/components/ui/skeleton`) imitando o layout do
+  resultado, dentro de `LoadingSkeleton` (`#/components/LoadingSkeleton`) para anunciar o rótulo.
+  `LoadingText` (spinner) só onde o layout do resultado é incerto (rota genérica, busca mista,
+  fluxograma) e em botões de ação.
 - Testes em `tests/` espelhando `src/`.
 - Arquivos `*.gen.ts` são gerados: nunca edite à mão.
 

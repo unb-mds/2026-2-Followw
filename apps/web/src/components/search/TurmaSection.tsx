@@ -4,6 +4,7 @@ import { covered } from '@followw/core/queries/subjects.ts';
 import { m } from 'motion/react';
 import { useState, type ReactNode } from 'react';
 
+import { repeat, SectionHeaderSkeleton } from '#/components/LoadingSkeleton';
 import { SubjectSummary } from '#/components/search/SubjectSummary';
 import { TurmaCard } from '#/components/search/TurmaCard';
 import {
@@ -13,6 +14,7 @@ import {
     AccordionTrigger
 } from '#/components/ui/accordion';
 import { Button } from '#/components/ui/button';
+import { Skeleton } from '#/components/ui/skeleton';
 import { rise, useEntrance } from '#/lib/motion';
 
 const PAGE_SIZE = 25;
@@ -90,5 +92,24 @@ export function TurmaSection({
                 </Button>
             )}
         </section>
+    );
+}
+
+export function TurmaSectionSkeleton({ title = false }: { title?: boolean }) {
+    return (
+        <div className="flex flex-col gap-3">
+            {title && <SectionHeaderSkeleton />}
+            <div className="flex flex-col gap-2">
+                {repeat(5, () => (
+                    <div className="flex items-center gap-3 rounded-2xl border bg-card px-3 py-3 lg:px-5 lg:py-4">
+                        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                            <Skeleton className="h-3 w-16" />
+                            <Skeleton className="h-4 w-3/4 lg:h-6" />
+                        </div>
+                        <Skeleton className="h-3 w-12 shrink-0" />
+                    </div>
+                ))}
+            </div>
+        </div>
     );
 }

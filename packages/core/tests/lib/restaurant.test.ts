@@ -110,7 +110,7 @@ describe('groupSalads', () => {
 
     test('com uma salada só mantém as seções', () => {
         const sections = [section('salad_2'), section('fruit')];
-        expect(groupSalads(sections)).toBe(sections);
+        expect(groupSalads(sections)).toEqual(sections);
     });
 });
 

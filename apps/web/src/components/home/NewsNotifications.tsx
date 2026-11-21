@@ -11,7 +11,7 @@ import { useSyncExternalStore } from 'react';
 import ReactMarkdown from 'react-markdown';
 
 import { ErrorCard, SIGAA_DOWN_MESSAGE, StaleDataNotice } from '#/components/ErrorState';
-import { LoadingText } from '#/components/LoadingText';
+import { LinesSkeleton, LoadingSkeleton, repeat } from '#/components/LoadingSkeleton';
 import { Button } from '#/components/ui/button';
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '#/components/ui/popover';
 import { STORAGE_KEYS, storedValue } from '#/lib/local-storage';
@@ -73,9 +73,14 @@ function NewsList() {
 
     if (feed.isPending)
         return (
-            <NewsMessage>
-                <LoadingText>Carregando notícias...</LoadingText>
-            </NewsMessage>
+            <LoadingSkeleton
+                label="Carregando notícias..."
+                className="gap-0 divide-y divide-border"
+            >
+                {repeat(4, () => (
+                    <LinesSkeleton lines={['h-3 w-1/2', 'w-3/4', 'w-full']} className="px-4 py-3" />
+                ))}
+            </LoadingSkeleton>
         );
     if (feed.isLoadingError)
         return (

@@ -47,7 +47,7 @@ import { BackToTodayBar } from '#/components/BackToTodayBar';
 import { useDesktop } from '#/components/DesktopContext';
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderTitle, HeaderToggle } from '#/components/HeaderBar';
-import { LoadingText } from '#/components/LoadingText';
+import { LinesSkeleton, LoadingSkeleton, repeat } from '#/components/LoadingSkeleton';
 import { usePageState } from '#/components/PageState';
 import { ShareButton } from '#/components/ShareButton';
 import { Button, buttonVariants } from '#/components/ui/button';
@@ -64,6 +64,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
 import { WeekDayPicker } from '#/components/WeekDayPicker';
 import { rise, slide, SlideSwitch, useEntrance, useSlideDirection } from '#/lib/motion';
 import {
+    isDefaultSelection,
     restaurantDefaults,
     restaurantPageHead,
     restaurantSearchParsers,
@@ -217,11 +218,8 @@ function useMenuSelection() {
 function RUPage() {
     const desktop = useDesktop();
     const { today } = Route.useLoaderData();
-    const {
-        selection: { date: selectedDate, meal: selectedMeal, campus },
-        select,
-        defaults
-    } = useMenuSelection();
+    const { selection, select, defaults } = useMenuSelection();
+    const { date: selectedDate, meal: selectedMeal, campus } = selection;
     const [filtersOpen] = useFiltersOpen();
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const cardRequested = useLocation({ select: (location) => location.state.studentCard });
@@ -368,9 +366,10 @@ function RUPage() {
                     >
                         {sections.length > 0 ? (
                             <MealDetails sections={sections} cascade={!menuDirection} />
+                        ) : isPending ? (
+                            <MenuSkeleton />
                         ) : (
                             <div className="my-auto px-1 text-center text-sm text-muted-foreground">
-                                {isPending && <LoadingText>Carregando cardápio...</LoadingText>}
                                 {isLoadingError && (
                                     <>
                                         {failureMessage}{' '}
@@ -384,7 +383,7 @@ function RUPage() {
                                         </Button>
                                     </>
                                 )}
-                                {!isPending && !isLoadingError && (
+                                {!isLoadingError && (
                                     <div className="flex flex-col items-center gap-3 py-4">
                                         <div className="flex size-12 items-center justify-center rounded-full bg-muted">
                                             <UtensilsCrossed
@@ -400,7 +399,7 @@ function RUPage() {
                                                 Ainda não há pratos divulgados para esta refeição.
                                             </p>
                                         </div>
-                                        {selectedDate !== today && (
+                                        {!isDefaultSelection(selection, defaults) && (
                                             <Link
                                                 to="/ru"
                                                 search={{}}
@@ -445,6 +444,31 @@ function RUPage() {
                 onBack={() => select({ date: defaults.date })}
             />
         </div>
+    );
+}
+
+function MenuSkeleton() {
+    return (
+        <LoadingSkeleton label="Carregando cardápio..." className="lg:gap-4">
+            <Card className="lg:py-6">
+                <CardContent className="flex flex-col gap-4 lg:gap-6">
+                    <LinesSkeleton lines={['h-3 w-24', 'h-7 w-2/3 lg:h-9']} />
+                    <div className="flex flex-col gap-3 border-t border-border pt-4 lg:flex-row lg:gap-6 lg:pt-6">
+                        {repeat(2, () => (
+                            <LinesSkeleton lines={['h-3 w-1/3', 'w-2/3']} />
+                        ))}
+                    </div>
+                </CardContent>
+            </Card>
+            <div className="grid gap-3 sm:grid-cols-2 lg:gap-4">
+                {repeat(4, () => (
+                    <LinesSkeleton
+                        lines={['h-3 w-1/3', 'w-3/4', 'w-1/2']}
+                        className="gap-3 rounded-2xl bg-card p-4 shadow-card ring-1 ring-foreground/8 lg:p-5"
+                    />
+                ))}
+            </div>
+        </LoadingSkeleton>
     );
 }
 

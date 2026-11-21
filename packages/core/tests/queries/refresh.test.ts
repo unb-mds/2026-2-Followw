@@ -52,16 +52,16 @@ describe('refreshQuery', () => {
         expect(new URL(requests[0].url).searchParams.get('semester')).toBe('all');
     });
 
-    test('usa o queryFn da própria query', async () => {
+    test('atualiza o cache com o resultado da consulta personalizada', async () => {
         const options = queryOptions({
             queryKey: ['get', '/me'] as readonly [string, string, object?],
-            queryFn: async ({ queryKey }) => queryKey
+            queryFn: async () => 'perfil atualizado'
         });
         const queryClient = new QueryClient();
 
         const data = await refreshQuery(queryClient, options);
 
-        expect(data[2]).toBeDefined();
+        expect(data).toBe('perfil atualizado');
         const cached: unknown = queryClient.getQueryData(options.queryKey);
         expect(cached).toBe(data);
     });

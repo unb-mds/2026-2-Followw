@@ -8,8 +8,11 @@ import type { UserProfile } from '#/queries/me';
 
 import { ErrorCard, ErrorState, StaleDataNotice } from '#/components/ErrorState';
 import { BackHeader } from '#/components/HeaderBar';
-import { LoadingText } from '#/components/LoadingText';
-import { AcademicSimulator } from '#/components/profile/AcademicSimulator';
+import { LoadingSkeleton } from '#/components/LoadingSkeleton';
+import {
+    AcademicSimulator,
+    AcademicSimulatorSkeleton
+} from '#/components/profile/AcademicSimulator';
 import { meQueryOptions } from '#/queries/me';
 
 export const Route = createFileRoute('/_app/perfil_/simulador')({
@@ -44,7 +47,12 @@ function SimulatorData({ user }: { user: UserProfile }) {
             />
         );
     }
-    if (classrooms.isPending) return <LoadingText>Carregando disciplinas...</LoadingText>;
+    if (classrooms.isPending)
+        return (
+            <LoadingSkeleton label="Carregando disciplinas...">
+                <AcademicSimulatorSkeleton />
+            </LoadingSkeleton>
+        );
 
     const current =
         getCurrentSemester()?.semester ??

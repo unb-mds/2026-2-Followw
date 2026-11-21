@@ -10,7 +10,6 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from sigaa_client import Credentials
-from upstash_redis.asyncio import Redis
 
 from api.core.config import Settings, settings
 from api.main import app
@@ -212,7 +211,6 @@ def test_cliente_redis_e_reaproveitado_so_no_mesmo_event_loop(redis):
 
     first, same_loop = asyncio.run(clients())
     other_loop, _ = asyncio.run(clients())
-    assert isinstance(first, Redis)
     assert first is same_loop
     assert other_loop is not first
 

@@ -119,6 +119,25 @@ class FakeSession:
         return httpx.Response(200, text=self.result)
 
 
+HISTORY = """
+<html><body><table class="listagem">
+  <tr><td class="periodo" colspan="6">2026.2</td></tr>
+  <tr>
+    <td>FGA0146 - ESTRUTURAS DE DADOS 1</td><td align="center">01</td>
+    <td align="right">60h</td><td>35M5  35T1 (10/08/2026 - 14/12/2026)</td>
+    <td><a href="#" title="Acessar Turma Virtual"
+      onclick="jsfcljs(x,{'form:link':'form:link','frontEndIdTurma':'AAA','inciadoPelaBusca':'true'},'');"
+    ><img/></a></td>
+  </tr>
+</table></body></html>
+"""
+
+HISTORY_FORM = HISTORY.replace(
+    "<body>",
+    '<body><form name="form"><input name="javax.faces.ViewState" value="j1"/>',
+).replace("</body>", "</form></body>")
+
+
 class SharedSession:
     """Entra na turma pedida, mas a tela sai na turma em que outro uso da sessão a deixou."""
 

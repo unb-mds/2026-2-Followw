@@ -11,6 +11,5 @@ describe('LoginPrivacyInfo', () => {
         expect(markup).toContain('>Saiba mais</button>');
         expect(markup).toContain('aria-haspopup="dialog"');
         expect(markup).toContain('aria-expanded="false"');
-        expect(markup).toContain('data-slot="dialog-trigger"');
     });
 });

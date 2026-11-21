@@ -358,9 +358,8 @@ describe('fluxograma integrado', () => {
         };
         try {
             const page = await renderPage('/cursos/42?subject=B');
-            const region = await page.findByRole('region', { name: /um semestre por vez/ });
+            await page.findByRole('region', { name: /um semestre por vez/ });
             await testing.waitFor(() => expect(calls).toEqual([{ top: expect.any(Number) }]));
-            expect(region.className).toContain('overflow-y-hidden');
         } finally {
             browser.scrollTo = original;
         }

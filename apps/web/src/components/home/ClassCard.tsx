@@ -7,6 +7,7 @@ import { GradeText } from '#/components/classroom/GradeText';
 import { Badge } from '#/components/ui/badge';
 import { Button } from '#/components/ui/button';
 import { Card } from '#/components/ui/card';
+import { Skeleton } from '#/components/ui/skeleton';
 import { snappy } from '#/lib/motion';
 import { cn } from '#/lib/shadcn';
 
@@ -167,3 +168,13 @@ export const ClassCard: React.FC<ClassCardProps> = ({
         </m.div>
     );
 };
+
+export function ClassCardSkeleton() {
+    return (
+        <Card size="sm" className="gap-2 px-3 lg:gap-3 lg:px-6 lg:py-4">
+            <Skeleton className="h-5 w-3/4" />
+            <Skeleton className="h-3 w-1/2" />
+            <Skeleton className="h-3 w-1/3" />
+        </Card>
+    );
+}

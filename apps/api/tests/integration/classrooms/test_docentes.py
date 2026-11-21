@@ -1,7 +1,7 @@
 from sigaa_client import ClassroomRole
 
 from api.db.models import Professor
-from api.db.professors import SeenProfessor, _complete, save_professors
+from api.db.professors import SeenProfessor, save_professors
 
 from .helpers import (
     _contar,
@@ -130,36 +130,30 @@ async def test_docente_nao_completa_email_pessoal_da_turma(async_database, usuar
         assert institucional.email == "j@unb.br"
 
 
-def test_complete_professores_rejeita_email_nao_institucional():
-    professor = Professor(siape=1, name="DOCENTE")
-    seen_pessoal = SeenProfessor(name="DOCENTE", email="docente@gmail.com")
-    _complete(professor, seen_pessoal)
-    assert professor.email is None
+async def test_email_pessoal_do_catalogo_publico_nao_e_trocado_pelo_da_turma(
+    async_database,
+):
+    async with async_database() as session:
+        session.add(Professor(siape=1, name="DOCENTE", email="docente@gmail.com"))
+        await session.commit()
 
-    seen_institucional = SeenProfessor(name="DOCENTE", email="docente@unb.br")
-    _complete(professor, seen_institucional)
-    assert professor.email == "docente@unb.br"
+        (achado,) = await save_professors(
+            session, [SeenProfessor(name="DOCENTE", email="docente@unb.br")]
+        )
 
-    seen_subdominio = SeenProfessor(name="DOCENTE", email="docente@mat.unb.br")
-    professor_sub = Professor(siape=2, name="DOCENTE 2")
-    _complete(professor_sub, seen_subdominio)
-    assert professor_sub.email == "docente@mat.unb.br"
+    assert achado.email == "docente@gmail.com"
 
 
-def test_complete_preserva_email_pessoal_vindo_do_catalogo_publico():
-    professor = Professor(siape=1, name="DOCENTE", email="docente@gmail.com")
+async def test_id_pessoa_de_docente_fora_do_catalogo_nao_e_trocado(async_database):
+    async with async_database() as session:
+        session.add(Professor(name="DOCENTE", person_id=10))
+        await session.commit()
 
-    _complete(professor, SeenProfessor(name="DOCENTE", email="docente@unb.br"))
+        (achado,) = await save_professors(
+            session, [SeenProfessor(name="DOCENTE", person_id=20)]
+        )
 
-    assert professor.email == "docente@gmail.com"
-
-
-def test_complete_nao_troca_person_id_de_docente_fora_do_catalogo():
-    professor = Professor(name="DOCENTE", person_id=10)
-
-    _complete(professor, SeenProfessor(name="DOCENTE", person_id=20))
-
-    assert professor.person_id == 10
+    assert achado.person_id == 10
 
 
 async def test_docente_repetido_na_listagem_vira_um_so(async_database, usuarios):

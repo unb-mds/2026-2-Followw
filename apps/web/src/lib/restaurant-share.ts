@@ -75,6 +75,11 @@ export function restaurantSelection(
     };
 }
 
+export const isDefaultSelection = (selection: RestaurantSelection, defaults: RestaurantSelection) =>
+    selection.date === defaults.date &&
+    selection.meal === defaults.meal &&
+    selection.campus === defaults.campus;
+
 export function restaurantSharePath(selection: RestaurantSelection, path = '/ru') {
     const params = new URLSearchParams({
         date: selection.date,

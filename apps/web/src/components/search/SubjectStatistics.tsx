@@ -4,9 +4,11 @@ import { subjectStatisticsQueryOptions } from '@followw/core/queries/subject-sta
 import { useQuery } from '@tanstack/react-query';
 import { lazy, Suspense, useState } from 'react';
 
-import { LoadingText } from '#/components/LoadingText';
+import { LoadingSkeleton, repeat } from '#/components/LoadingSkeleton';
+import { StatisticsChartSkeleton } from '#/components/StatisticsChartSkeleton';
 import { TabFilter } from '#/components/TabFilter';
 import { Button } from '#/components/ui/button';
+import { Skeleton } from '#/components/ui/skeleton';
 
 const StatisticsChart = lazy(() =>
     import('#/components/StatisticsChart').then((module) => ({ default: module.StatisticsChart }))
@@ -34,7 +36,14 @@ export function SubjectStatistics({
         >
             <h3 className="text-sm font-semibold">Estatísticas anteriores</h3>
             {query.isPending ? (
-                <LoadingText className="justify-center">Carregando estatísticas...</LoadingText>
+                <LoadingSkeleton label="Carregando estatísticas...">
+                    <div className="flex gap-2">
+                        {repeat(3, () => (
+                            <Skeleton className="h-8 w-24 rounded-full" />
+                        ))}
+                    </div>
+                    <StatisticsChartSkeleton />
+                </LoadingSkeleton>
             ) : null}
             {query.isError ? (
                 <div className="flex flex-col items-start gap-2">
@@ -67,7 +76,13 @@ export function SubjectStatistics({
                         onChange={setSelected}
                     />
                     {period ? (
-                        <Suspense fallback={<LoadingText>Carregando gráfico...</LoadingText>}>
+                        <Suspense
+                            fallback={
+                                <LoadingSkeleton label="Carregando gráfico...">
+                                    <StatisticsChartSkeleton />
+                                </LoadingSkeleton>
+                            }
+                        >
                             <StatisticsChart
                                 data={period.shares}
                                 label={`Situação dos discentes · ${period.semester ?? 'Média geral'}`}

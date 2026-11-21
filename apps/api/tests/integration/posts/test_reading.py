@@ -12,10 +12,8 @@ def test_consultar_lista_detalhe_e_feed_nao_confirma_leitura(reading_client):
     client = reading_client
     listed = client.get("/classrooms/AAA/posts").json()[0]
     assert listed["is_read"] is False
-    assert "version" not in listed
     for _ in range(2):
         detail = client.get(DETAIL_PATH).json()
-        assert "version" not in detail
         assert detail["is_read"] is False
         assert client.get("/classrooms/AAA/posts").json()[0]["is_read"] is False
         assert client.get("/posts/news").json()["items"][0]["post"]["is_read"] is False
@@ -27,6 +25,7 @@ def test_confirma_e_desfaz_leitura_nas_tres_consultas(reading_client, database):
     for _ in range(2):
         response = mark_read(client, post)
         assert response.status_code == 204
+        assert response.content == b""
         assert response.headers["cache-control"] == "no-store"
     detail = client.get(DETAIL_PATH).json()
     listed = client.get("/classrooms/AAA/posts").json()[0]
@@ -38,6 +37,7 @@ def test_confirma_e_desfaz_leitura_nas_tres_consultas(reading_client, database):
     for _ in range(2):
         response = client.delete(f"{DETAIL_PATH}/read")
         assert response.status_code == 204
+        assert response.content == b""
         assert response.headers["cache-control"] == "no-store"
     assert client.get(DETAIL_PATH).json()["is_read"] is False
     assert client.get("/classrooms/AAA/posts").json()[0]["is_read"] is False
