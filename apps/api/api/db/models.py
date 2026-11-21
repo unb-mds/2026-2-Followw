@@ -27,6 +27,25 @@ from api.db.enums import ClassroomRole, ClassroomStatus, LessonStatus, UserLevel
 type Requirements = list[list[str]]
 
 
+class OAuthGrant(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "oauth_grants"
+
+    registration: Mapped[str] = mapped_column(index=True)
+    client_id: Mapped[str]
+    scopes: Mapped[list[str]] = mapped_column(JSONB)
+    salt: Mapped[bytes]
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    key_thumbprint: Mapped[str | None]
+
+
+class OAuthProof(Base):
+    __tablename__ = "oauth_proofs"
+
+    key_thumbprint: Mapped[str] = mapped_column(primary_key=True)
+    jti: Mapped[str] = mapped_column(primary_key=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+
 def _enum(enum: type, name: str) -> SAEnum:
     return SAEnum(enum, name=name, values_callable=lambda e: [m.value for m in e])
 

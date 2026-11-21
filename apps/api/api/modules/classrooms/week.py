@@ -14,6 +14,7 @@ from api.db.models import OwnLink
 from api.modules.classrooms.frequency import frequency_freshness, sync_frequency
 from api.modules.classrooms.repository import FrequencyRepository
 from api.modules.classrooms.service import ClassroomServiceDep
+from api.modules.oauth.scopes import Scope
 from api.schemas import UserSubject
 from api.sync import SyncDep
 
@@ -55,13 +56,14 @@ class WeekLessonsService:
         self._classrooms = classrooms
 
     async def week(self) -> list[LessonDay]:
-        """Domingo a sábado da semana atual; a frequência vencida só é agendada."""
+        """Domingo a sábado, com a situação do aluno quando autorizada."""
         links = [
             link for link in await self._classrooms.list_links() if link.row.current
         ]
-        for link in links:
-            if _student(link) and _frequency_stale(link):
-                self._sync.schedule(sync_frequency, link)
+        if self._sync.scopes is None or Scope.FREQUENCY in self._sync.scopes:
+            for link in links:
+                if _student(link) and _frequency_stale(link):
+                    await self._sync.refresh_stale(sync_frequency, link)
 
         today = academic_calendar.today()
         sunday = today - timedelta(days=(today.weekday() + 1) % 7)

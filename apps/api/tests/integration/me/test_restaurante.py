@@ -37,7 +37,7 @@ def test_dados_privados_sem_banco_fila_ou_cache(
     def banco_proibido():
         pytest.fail("Dados privados do RU não devem usar banco")
 
-    client.app.dependency_overrides[get_sessionmaker] = banco_proibido
+    client.app.dependency_overrides[get_sessionmaker] = lambda: banco_proibido
     client.cookies.update(cookies(refresh=CREDENCIAIS))
     response = client.get(f"/me/ru-{path}")
     assert response.status_code == 200
@@ -184,7 +184,7 @@ def test_refresh_do_extrato_fecha_client_e_sessao_mesmo_em_falha(
     def banco_proibido():
         pytest.fail("Refresh do RU não deve usar banco")
 
-    client.app.dependency_overrides[get_sessionmaker] = banco_proibido
+    client.app.dependency_overrides[get_sessionmaker] = lambda: banco_proibido
     client.cookies.update(cookies(access=access, refresh=CREDENCIAIS))
     restaurant.get_restaurant_statement.side_effect = error
 

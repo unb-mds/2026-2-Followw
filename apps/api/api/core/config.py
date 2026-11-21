@@ -1,4 +1,4 @@
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,6 +14,7 @@ class Settings(BaseSettings):
 
     # Deriva as chaves que cifram os cookies (JWE) e os jobs.
     jwt_secret_key: str = Field(min_length=32)
+    oauth_secret_key: str = Field(min_length=32)
     access_token_expire_minutes: int = 40
     refresh_token_expire_minutes: int = 60 * 24 * 14  # 14 days
 
@@ -40,6 +41,14 @@ class Settings(BaseSettings):
     rate_limit_registration_window_seconds: int = Field(default=600, gt=0)
     # Assina o IP original que o SSR encaminha; sem ele, o encaminhamento é ignorado.
     rate_limit_secret_key: str | None = Field(default=None, min_length=32)
+
+    @model_validator(mode="after")
+    def _distinct_oauth_key(self):
+        if self.oauth_secret_key == self.jwt_secret_key:
+            raise ValueError(
+                "OAUTH_SECRET_KEY precisa ser diferente de JWT_SECRET_KEY."
+            )
+        return self
 
     @field_validator("rate_limit_secret_key", mode="before")
     @classmethod

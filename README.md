@@ -80,7 +80,7 @@ na raiz do repositório, salvo quando indicado.
     cp .env.example .env
     ```
 
-    O comando abaixo gera uma chave aleatória. Execute-o duas vezes e preencha `JWT_SECRET_KEY` e
+    Execute o comando três vezes e preencha `JWT_SECRET_KEY`, `OAUTH_SECRET_KEY` e
     `RATE_LIMIT_SECRET_KEY` no `.env`, cada uma com um valor diferente:
 
     ```sh

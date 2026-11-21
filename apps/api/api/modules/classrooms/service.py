@@ -23,6 +23,7 @@ from api.db.models import ClassroomParticipant, OwnLink, User
 from api.modules.classrooms.repository import ClassroomRepository
 from api.modules.me.profile import sync_profile
 from api.modules.me.repository import UserRepository
+from api.modules.oauth.scopes import Scope, insufficient_scope
 from api.modules.recommendations.ranking import Component, subject_kind
 from api.modules.recommendations.repository import RecommendationRepository
 from api.schemas import (
@@ -195,8 +196,7 @@ class ClassroomService:
     async def list_classrooms(
         self, semester: str | None = None
     ) -> list[ParticipantClassroom]:
-        """A menção sai do cache: quem a revalida é o sync do login."""
-        links = await self.list_links(semester)
+        links = await self.list_links(semester, include_grades=True)
         curriculum = await self.curriculum()
         return [to_classroom(link, curriculum) for link in links]
 
@@ -208,21 +208,41 @@ class ClassroomService:
             )
         )
 
-    async def list_links(self, semester: str | None = None) -> list[OwnLink]:
+    async def list_links(
+        self, semester: str | None = None, *, include_grades: bool = False
+    ) -> list[OwnLink]:
         """Os vínculos da lista de turmas, na ordem em que ela é exibida."""
 
-        async def load(session: AsyncSession) -> Cached[list[OwnLink]] | None:
+        async def load(
+            session: AsyncSession, *, grades: bool = False
+        ) -> Cached[list[OwnLink]] | None:
             user = await _user(self._sync.registration, session)
-            if user is None or user.classrooms_synced_at is None:
+            if user is None:
+                return None
+            synced_at = user.grades_synced_at if grades else user.classrooms_synced_at
+            if synced_at is None:
                 return None
             return Cached(
                 await ClassroomRepository(session).list_by_user_id(user.id),
-                user.classrooms_synced_at,
-                classrooms_freshness(user.classrooms_synced_at),
+                synced_at,
+                grades_freshness(synced_at)
+                if grades
+                else classrooms_freshness(synced_at),
             )
 
+        current_only = (
+            self._sync.scopes is not None and Scope.HISTORY not in self._sync.scopes
+        )
+        if semester == "all" and current_only:
+            raise insufficient_scope()
         links = await self._sync.resolve(sync_classrooms, None, load)
+        if include_grades and self._sync.scopes and Scope.GRADES in self._sync.scopes:
+            links = await self._sync.resolve(
+                sync_grades, None, partial(load, grades=True)
+            )
         selected = [link for link in links if _in_semester(link, semester)]
+        if current_only and any(not link.row.current for link in selected):
+            raise insufficient_scope()
         selected.sort(
             key=lambda link: (
                 link.row.classroom.subject.name,
@@ -321,12 +341,19 @@ class ClassroomService:
             # Turma nova ainda fora do cache: relê a lista antes de recusar.
             await self._sync.perform(sync_classrooms, None)
             link, _ = await self._sync.db.read(find)
-        elif classrooms_freshness(synced_at) is Freshness.STALE:
-            # A lista é o que dá acesso à turma: vencida, revalida como a listagem.
-            self._sync.schedule(sync_classrooms, None)
+        elif classrooms_freshness(
+            synced_at
+        ) is Freshness.STALE and await self._sync.refresh_stale(sync_classrooms, None):
+            link, _ = await self._sync.db.read(find)
         if link is None:
             raise ClassroomNotFound(f"Turma `{classroom_id}` não é do usuário.")
 
+        if (
+            not link.row.current
+            and self._sync.scopes is not None
+            and Scope.HISTORY not in self._sync.scopes
+        ):
+            raise insufficient_scope()
         return link
 
 

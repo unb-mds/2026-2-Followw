@@ -24,9 +24,11 @@ tests/                  # unit/ (sem Docker) e integration/<feature>/
 - **Módulos.** Uma pasta por feature com `router`, registrado em `api/main.py`. Rotas sem login vão
   em `modules/public_<feature>` (prefixo `/public/<feature>`). Tag nova entra em `x-tagGroups`
   (`custom_openapi`), senão some do `/docs`.
-- **Sessão.** Sem tabela: token e credenciais vivem em cookies `httponly` cifrados (JWE), renovados
+- **Sessão web.** Token e credenciais vivem em cookies `httponly` cifrados (JWE), renovados
   só quando a requisição vai ao SIGAA. Use `SigaaConnectionDep` (abre o client sob demanda),
   `SigaaClientDep` (rotas sem cache) ou `SigaaPublicClientDep` (sem login).
+- **OAuth.** Declare o escopo das rotas delegáveis com `openapi_extra=oauth(Scope...)`. Confira
+  também os campos da resposta, inclusive em objetos aninhados. O aceite é validado antes do cache.
 - **Validação** de parâmetros e corpo é feita **sempre** pelo Pydantic no router (tipos, `Field`,
   `StringConstraints` e, para regras entre campos, um modelo de query com `model_validator`). O
   service recebe valores já normalizados e só valida o que depende de banco, login ou SIGAA.

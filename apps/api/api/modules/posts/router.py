@@ -4,6 +4,8 @@ from sigaa_client import DashboardPost
 from api.cache import NoStore
 from api.errors import SIGAA_ERRORS
 from api.modules.classrooms.posts import ClassroomPostsServiceDep, LatestNewsFeed
+from api.modules.oauth.scopes import Scope, oauth
+from api.modules.oauth.views import OAuthViewDep
 from api.sigaa import SigaaClientDep
 
 router = APIRouter()
@@ -11,17 +13,19 @@ router = APIRouter()
 
 @router.get(
     "/news",
+    openapi_extra=oauth(Scope.POSTS),
     response_model=LatestNewsFeed,
     summary="Consultar notícias recentes das turmas atuais",
     description="Até cinco notícias. updating indica atualização pendente; texto e anexos completos ficam no detalhe do post.",
     responses=SIGAA_ERRORS,
 )
-async def get_latest_news(service: ClassroomPostsServiceDep) -> LatestNewsFeed:
-    return await service.latest_news()
+async def get_latest_news(service: ClassroomPostsServiceDep, view: OAuthViewDep):
+    return view.news(await service.latest_news())
 
 
 @router.get(
     "",
+    openapi_extra=oauth(Scope.POSTS),
     response_model=list[DashboardPost],
     summary="Consultar posts da home do SIGAA",
     description="Notícias e avaliações das turmas atuais. Consulte os detalhes em /classrooms/{classroom_sigaa_id}/posts.",

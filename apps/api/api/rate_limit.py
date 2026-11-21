@@ -62,6 +62,10 @@ def _quota(method: str, path: str) -> tuple[str, int]:
     return {
         ("PATCH", "/me/profile"): ("profile-edit", 10),
         ("POST", "/auth/sigaa"): ("login", settings.rate_limit_login_requests),
+        ("POST", "/oauth/token"): (
+            "oauth-refresh",
+            settings.rate_limit_refresh_requests,
+        ),
         ("POST", "/auth/sigaa/refresh"): (
             "refresh",
             settings.rate_limit_refresh_requests,

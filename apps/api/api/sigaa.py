@@ -12,7 +12,10 @@ from api.cookies import (
     set_access_cookie,
     set_refresh_cookie,
 )
+from api.db.main import DatabaseDep
 from api.logger import operation
+from api.modules.oauth.scopes import Scope, insufficient_scope
+from api.modules.oauth.tokens import InvalidToken, read_access
 
 
 class SigaaConnection:
@@ -28,8 +31,10 @@ class SigaaConnection:
         session_token: str | None = None,
         *,
         response: Response | None = None,
+        scopes: frozenset[Scope] | None = None,
     ) -> None:
         self.credentials = credentials
+        self.scopes = scopes
         self._session_token = session_token
         self._response = response
         self._client: SigaaClient | None = None
@@ -81,18 +86,43 @@ class SigaaConnection:
 
 
 async def get_optional_sigaa_connection(
-    request: Request, response: Response
+    request: Request, response: Response, db: DatabaseDep
 ) -> AsyncGenerator[SigaaConnection | None]:
-    credentials = read_refresh_cookie(request)
-    if credentials is None:
-        yield None
-        return
-
-    connection = SigaaConnection(
-        credentials,
-        read_access_cookie(request, credentials.registration),
-        response=response,
-    )
+    if "authorization" in request.headers:
+        route = request.scope["route"]
+        if request.url.path.removeprefix("/api").startswith("/public/"):
+            yield None
+            return
+        scheme, _, token = request.headers["authorization"].partition(" ")
+        if scheme.lower() != "bearer" or not token:
+            raise HTTPException(
+                401, "Bearer token esperado.", headers={"WWW-Authenticate": "Bearer"}
+            )
+        try:
+            access = await read_access(db, token)
+        except InvalidToken:
+            raise HTTPException(
+                401,
+                "Token inválido ou expirado.",
+                headers={"WWW-Authenticate": 'Bearer error="invalid_token"'},
+            ) from None
+        required = (route.openapi_extra or {}).get("x-oauth-scope")
+        if required not in access.scopes:
+            raise insufficient_scope()
+        request.state.oauth_scopes = access.scopes
+        connection = SigaaConnection(
+            access.credentials, access.session_token, scopes=access.scopes
+        )
+    else:
+        credentials = read_refresh_cookie(request)
+        if credentials is None:
+            yield None
+            return
+        connection = SigaaConnection(
+            credentials,
+            read_access_cookie(request, credentials.registration),
+            response=response,
+        )
     try:
         yield connection
     finally:

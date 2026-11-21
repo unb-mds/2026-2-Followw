@@ -4,7 +4,7 @@ from typing import Annotated
 
 from fastapi import Depends
 from httpx import HTTPError
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sigaa_client import (
     CurriculumWorkload,
     DocumentUnavailable,
@@ -47,7 +47,7 @@ class UserProfile(BaseModel):
     entry_semester: str | None
     curriculum_subject_codes: list[str] | None = None
     # Componentes CUMP do histórico, além das aprovações nas turmas.
-    completed_subjects: list[str] = []
+    completed_subjects: list[str] = Field(default_factory=list)
     integralization: int | None
     workload: Workload | None
     # Carga horária máxima por período da matriz do aluno, em horas.
@@ -69,7 +69,11 @@ async def sync_profile(ctx: Context[None]) -> None:
             profile, started_at, login=ctx.sync.registration
         )
     )
-    if profile.level != UserLevel.GRADUACAO or user.transcript_synced_at is not None:
+    if (
+        ctx.sync.scopes is not None
+        or profile.level != UserLevel.GRADUACAO
+        or user.transcript_synced_at is not None
+    ):
         return
     try:
         codes = await ctx.client.documents.get_completed_subjects(profile.registration)

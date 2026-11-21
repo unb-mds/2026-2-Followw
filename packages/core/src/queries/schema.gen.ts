@@ -42,6 +42,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/oauth/token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Renovar o acesso OAuth de uma instalação com DPoP */
+        post: operations["refresh_oauth_token_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/classrooms/{classroom_id}/posts/{post_id}/download": {
         parameters: {
             query?: never;
@@ -1352,6 +1369,21 @@ export interface components {
         };
         /** @enum {string} */
         ReasonCode: "required" | "target_period" | "overdue" | "same_unit" | "chain_length" | "chain_width" | "hours";
+        /** RefreshGrant */
+        RefreshGrant: {
+            /**
+             * Grant Type
+             * @constant
+             */
+            grant_type: "refresh_token";
+            /** Client Id */
+            client_id: string;
+            /**
+             * Refresh Token
+             * Format: password
+             */
+            refresh_token: string;
+        };
         /** RestaurantCredentials */
         RestaurantCredentials: {
             /** Token */
@@ -1552,6 +1584,21 @@ export interface components {
             /** Description */
             description: string | null;
         };
+        /** TokenResponse */
+        TokenResponse: {
+            /** Access Token */
+            access_token: string;
+            /**
+             * Token Type
+             * @default Bearer
+             * @constant
+             */
+            token_type: "Bearer";
+            /** Expires In */
+            expires_in: number;
+            /** Scope */
+            scope: string;
+        };
         /**
          * UnitRef
          * @description Unidade acadêmica: `id` do SIGAA e sigla em `code`.
@@ -1590,8 +1637,11 @@ export interface components {
             entry_semester: string | null;
             /** Curriculum Subject Codes */
             curriculum_subject_codes?: string[] | null;
-            /** Completed Subjects */
-            completed_subjects?: string[];
+            /**
+             * Completed Subjects
+             * @default []
+             */
+            completed_subjects: string[];
             /** Integralization */
             integralization: number | null;
             workload: components["schemas"]["Workload"] | null;
@@ -1774,6 +1824,48 @@ export interface operations {
             };
         };
     };
+    refresh_oauth_token_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                dpop?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/x-www-form-urlencoded": components["schemas"]["RefreshGrant"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenResponse"];
+                };
+            };
+            /** @description Refresh ou prova DPoP inválidos. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     download_classroom_material_classrooms__classroom_id__posts__post_id__download_post: {
         parameters: {
             query?: never;
@@ -1802,6 +1894,13 @@ export interface operations {
             };
             /** @description Credenciais ausentes ou inválidas. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1858,6 +1957,13 @@ export interface operations {
             };
             /** @description Credenciais ausentes ou inválidas. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1936,6 +2042,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Turma não encontrada entre as turmas do usuário. */
             404: {
                 headers: {
@@ -2003,6 +2116,13 @@ export interface operations {
             };
             /** @description Credenciais ausentes ou inválidas. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2078,6 +2198,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Turma ou post não encontrado. */
             404: {
                 headers: {
@@ -2129,6 +2256,13 @@ export interface operations {
             };
             /** @description Credenciais ausentes ou inválidas. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2190,6 +2324,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2231,6 +2372,13 @@ export interface operations {
             };
             /** @description Credenciais ausentes ou inválidas. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2294,6 +2442,13 @@ export interface operations {
             };
             /** @description Credenciais ausentes ou inválidas. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2364,6 +2519,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Turma ou aula não encontrada. */
             404: {
                 headers: {
@@ -2427,6 +2589,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Turma não encontrada entre as turmas do usuário. */
             404: {
                 headers: {
@@ -2478,6 +2647,13 @@ export interface operations {
             };
             /** @description Credenciais ausentes ou inválidas. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3002,6 +3178,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Turma não encontrada entre as turmas do usuário. */
             404: {
                 headers: {
@@ -3062,6 +3245,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3100,6 +3290,13 @@ export interface operations {
             };
             /** @description Credenciais ausentes ou inválidas. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3216,6 +3413,13 @@ export interface operations {
             };
             /** @description Credenciais ausentes ou inválidas. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3347,6 +3551,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description A foto enviada deve ter até 4 MB. */
             413: {
                 headers: {
@@ -3400,6 +3611,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3440,6 +3658,13 @@ export interface operations {
             };
             /** @description Credenciais ausentes ou inválidas. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3498,6 +3723,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3536,6 +3768,13 @@ export interface operations {
             };
             /** @description Credenciais ausentes ou inválidas. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

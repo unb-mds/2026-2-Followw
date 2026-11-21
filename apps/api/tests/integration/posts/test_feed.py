@@ -107,7 +107,7 @@ def test_feed_geral_sempre_consulta_sigaa_sem_banco_ou_fila(
     def banco_proibido():
         pytest.fail("O feed geral não deve abrir o banco")
 
-    client.app.dependency_overrides[get_sessionmaker] = banco_proibido
+    client.app.dependency_overrides[get_sessionmaker] = lambda: banco_proibido
     client.cookies.update(cookies(refresh=CREDENTIALS))
     fetch = posts_sigaa.classrooms.list_dashboard_posts
     first = client.get("/posts")

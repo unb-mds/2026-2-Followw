@@ -20,7 +20,9 @@ class ProfileUploadGuard:
             return await self.app(scope, receive, send)
         headers = dict(scope["headers"])
         origin = headers.get(b"origin", b"").decode("latin1")
-        if origin not in settings.cors_origins:
+        if origin not in settings.cors_origins and not headers.get(
+            b"authorization", b""
+        ).lower().startswith(b"bearer "):
             return await JSONResponse(
                 {"detail": "Origem não autorizada."}, status_code=403
             )(scope, receive, send)

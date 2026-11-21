@@ -22,6 +22,8 @@ from api.modules.classrooms.service import (
     ClassroomServiceDep,
     ParticipantClassroom,
 )
+from api.modules.oauth.scopes import Scope, oauth
+from api.modules.oauth.views import OAuthViewDep
 
 router = APIRouter()
 
@@ -53,6 +55,7 @@ async def _open_material(
 
 @router.post(
     "/{classroom_id}/posts/{post_id}/download",
+    openapi_extra=oauth(Scope.POSTS),
     response_class=Response,
     summary="Baixar um arquivo dos tópicos da turma",
     description="Busca o arquivo na Principal do SIGAA com a sessão do aluno, sem armazenar seu conteúdo.",
@@ -94,6 +97,7 @@ def _unique_lessons(marks: list[LessonMark]) -> list[LessonMark]:
 
 @router.get(
     "/{classroom_id}/teaching-plan",
+    openapi_extra=oauth(Scope.CLASSROOMS),
     response_model=ClassroomTeachingPlan | None,
     summary="Consultar plano de ensino da turma",
     description="Metodologia, avaliação, atendimento, cronograma e referências.",
@@ -111,6 +115,7 @@ async def get_classroom_teaching_plan(
 
 @router.get(
     "/{classroom_id}/posts",
+    openapi_extra=oauth(Scope.POSTS),
     response_model=list[ClassroomPostView],
     summary="Consultar posts de uma turma",
     description="Notícias, tópicos, materiais e avaliações. Materiais se vinculam ao tópico por topic_id; texto e anexos das notícias ficam no detalhe.",
@@ -134,6 +139,7 @@ async def get_classroom_posts(
 
 @router.get(
     "/{classroom_id}/posts/{post_id}",
+    openapi_extra=oauth(Scope.POSTS),
     response_model=ClassroomPostView,
     summary="Consultar um post da turma",
     description="Notícias incluem texto em Markdown e anexos; avaliações não incluem notas individuais.",
@@ -154,6 +160,7 @@ async def get_classroom_post(
 
 @router.put(
     "/{classroom_id}/posts/{post_id}/read",
+    openapi_extra=oauth(Scope.POST_MARKS),
     status_code=204,
     summary="Confirmar a leitura de uma postagem",
     description="Operação individual, idempotente e sem corpo. Consultar ou atualizar uma postagem não altera sua leitura.",
@@ -174,6 +181,7 @@ async def mark_post_read(
 
 @router.delete(
     "/{classroom_id}/posts/{post_id}/read",
+    openapi_extra=oauth(Scope.POST_MARKS),
     status_code=204,
     summary="Marcar uma postagem como não lida",
     description="Remove somente a leitura do usuário autenticado; repetir a operação não altera o resultado.",
@@ -194,12 +202,15 @@ async def mark_post_unread(
 
 @router.get(
     "",
+    openapi_extra=oauth(Scope.CLASSROOMS),
     response_model=list[ParticipantClassroom],
     summary="Listar turmas do usuário",
+    description="Com OAuth, semestres anteriores exigem classrooms:history. A menção individual exige grades:read.",
     responses=SIGAA_ERRORS,
 )
 async def get_classrooms(
     service: ClassroomServiceDep,
+    view: OAuthViewDep,
     semester: Annotated[
         str | None,
         Query(
@@ -207,24 +218,27 @@ async def get_classrooms(
             description="Semestre das turmas; 'all' inclui todo o histórico.",
         ),
     ] = None,
-) -> list[ParticipantClassroom]:
-    return await service.list_classrooms(semester)
+) -> list[ParticipantClassroom] | Response:
+    return view.classrooms(await service.list_classrooms(semester))
 
 
 @router.get(
     "/frequency",
+    openapi_extra=oauth(Scope.FREQUENCY),
     response_model=list[ClassroomFrequencyResult],
     summary="Consultar frequência das turmas atuais",
     responses={**CLASSROOM_ERRORS, 503: {"description": "Cache em atualização."}},
 )
 async def get_current_frequencies(
     service: FrequencyServiceDep,
-) -> list[ClassroomFrequencyResult]:
-    return await service.list_frequencies()
+    view: OAuthViewDep,
+):
+    return view.frequencies(await service.list_frequencies())
 
 
 @router.get(
     "/{classroom_id}/frequency",
+    openapi_extra=oauth(Scope.FREQUENCY),
     response_model=ClassroomFrequencyView,
     summary="Consultar frequência e andamento de uma turma",
     description="Aulas em ordem da mais recente para a mais antiga. Os totais incluem as marcações do aluno.",
@@ -239,6 +253,7 @@ async def get_classroom_frequency(
 
 @router.patch(
     "/{classroom_id}/frequency/lessons",
+    openapi_extra=oauth(Scope.FREQUENCY_WRITE),
     status_code=204,
     summary="Marcar presença, falta ou aula cancelada",
     description="Aplica todas as marcações ou nenhuma. A chamada do SIGAA substitui as marcações pessoais; status null remove uma marcação pessoal.",
@@ -261,6 +276,7 @@ async def mark_lessons(
 
 @router.get(
     "/{classroom_id}/members",
+    openapi_extra=oauth(Scope.MEMBERS),
     response_model=ClassroomMembers,
     summary="Listar participantes da turma",
     responses=CLASSROOM_ERRORS,
@@ -274,6 +290,7 @@ async def get_classroom_members(
 
 @router.get(
     "/{classroom_id}/statistics",
+    openapi_extra=oauth(Scope.CLASSROOMS),
     response_model=list[StatisticsShare],
     summary="Consultar resultados da turma",
     description="Percentuais por situação dos alunos da turma encerrada.",

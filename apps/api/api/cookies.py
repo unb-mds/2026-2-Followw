@@ -70,13 +70,21 @@ def clear_cookies(response: Response) -> None:
 def encrypt_cookie(name: str, claims: dict) -> str:
     if not isinstance(claims.get("exp"), int):
         raise TypeError("claims precisam de um `exp` inteiro")
-    return jwt.encode(_JWE_HEADER, claims, _key(name), registry=_JWE_REGISTRY)
+    return encrypt_claims(claims, _key(name))
+
+
+def encrypt_claims(claims: dict, key: OctKey) -> str:
+    return jwt.encode(_JWE_HEADER, claims, key, registry=_JWE_REGISTRY)
+
+
+def decrypt_claims(token: str, key: OctKey) -> dict:
+    return jwt.decode(token, key, registry=_JWE_REGISTRY).claims
 
 
 def decrypt_cookie(name: str, token: str) -> dict | None:
     """Claims do cookie, ou `None` se ele não foi cifrado por nós ou expirou."""
     try:
-        claims = jwt.decode(token, _key(name), registry=_JWE_REGISTRY).claims
+        claims = decrypt_claims(token, _key(name))
         _CLAIMS.validate(claims)
     except JoseError, ValueError, TypeError:
         return None
@@ -94,8 +102,12 @@ def derive_key(info: str) -> bytes:
 
 @cache
 def _hkdf(secret: str, info: str) -> bytes:
+    return derive_secret(secret, info, salt=None)
+
+
+def derive_secret(secret: str, info: str, salt: bytes | None) -> bytes:
     return HKDF(
-        algorithm=hashes.SHA256(), length=32, salt=None, info=info.encode()
+        algorithm=hashes.SHA256(), length=32, salt=salt, info=info.encode()
     ).derive(secret.encode())
 
 

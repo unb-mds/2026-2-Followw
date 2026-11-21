@@ -5,8 +5,8 @@
 O Followw UnB reúne dados dos sistemas da UnB, principalmente o SIGAA, em uma API independente e um
 front-end, com cache para agilizar consultas.
 
-O login usa a conta do SIGAA via CAS da UnB, sem conta própria do Followw. A sessão vive em cookies
-cifrados no cliente; as requisições são stateless e a sessão não é persistida no servidor.
+O login usa a conta do SIGAA via CAS da UnB. A sessão do front vive em cookies cifrados.
+Para terceiros, a API valida o token OAuth e a autorização no banco antes de consultar dados.
 
 ## Estrutura
 

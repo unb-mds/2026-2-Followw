@@ -35,10 +35,11 @@ def _error(status_code: int, detail: str | None = None) -> Handler:
     return handle
 
 
-async def _authentication_failed(_: Request, __: Exception) -> JSONResponse:
+async def _authentication_failed(request: Request, __: Exception) -> JSONResponse:
     # A senha não vale mais: a sessão guardada nos cookies também não.
     response = JSONResponse({"detail": "Invalid credentials"}, status_code=401)
-    clear_cookies(response)
+    if "authorization" not in request.headers:
+        clear_cookies(response)
     return response
 
 

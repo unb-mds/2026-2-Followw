@@ -15,8 +15,8 @@ Universidade de Brasília (UnB), agregando em uma experiência unificada e perfo
 **SIGAA**, **Restaurante Universitário (RU)**, calendários e editais.
 
 O sistema não possui contas proprietárias: a autenticação é delegada ao **Centro de Autenticação da
-UnB** e toda requisição para o SIGAA é _stateless_, com credenciais cifradas no cliente e
-sincronização assíncrona inteligente.
+UnB**. A sessão web usa cookies cifrados. Requisições OAuth validam a autorização no banco e
+podem recuperar a sessão SIGAA na própria chamada.
 
 ---
 
