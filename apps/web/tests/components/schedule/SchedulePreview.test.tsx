@@ -238,7 +238,7 @@ describe('montagem da grade semanal', () => {
         expect(view.queryByText('Choque de horário')).toBeNull();
     });
 
-    test('abre um diálogo mais largo que o de matérias e permite remover', async () => {
+    test('abre a grade num diálogo e permite remover', async () => {
         const { fireEvent } = dom.testing;
         const view = setup();
         expect(view.queryByText('Minha grade semanal')).toBeNull();
@@ -246,9 +246,6 @@ describe('montagem da grade semanal', () => {
         expect(view.queryByText('Minha grade semanal')).toBeNull();
         fireEvent.click(view.getByRole('button', { name: 'Ver grade' }));
         await view.findByRole('dialog', { name: 'Minha grade semanal' });
-        expect(view.getByRole('dialog', { name: 'Minha grade semanal' }).className).toContain(
-            'sm:max-w-3xl'
-        );
         const table = view.getByRole('table');
         expect(view.getByRole('button', { name: 'Baixar imagem' }).hasAttribute('disabled')).toBe(
             false

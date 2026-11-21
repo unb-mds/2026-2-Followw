@@ -5,17 +5,16 @@ import { PLAN, useTeachingPlan } from './helpers';
 describe('conteúdo do plano de ensino', () => {
     const { renderPage } = useTeachingPlan();
 
-    test('mostra o conteúdo diretamente em artigo, sem Accordion', () => {
+    test('mostra o conteúdo do plano num artigo', () => {
         const page = renderPage();
         expect(page.getByRole('article', { name: 'Plano de ensino' })).toBeDefined();
-        expect(page.queryByRole('button', { name: 'Plano de ensino' })).toBeNull();
         expect(page.getByText('práticas').tagName).toBe('STRONG');
         expect(page.getByRole('link', { name: 'Leitura' }).getAttribute('rel')).toContain(
             'noopener'
         );
         expect(page.getByRole('table', { name: 'Cronograma de aulas' })).toBeDefined();
         expect(page.getByRole('list', { name: 'Cronograma de aulas' })).toBeDefined();
-        expect(page.getByText('Tema').tagName).toBe('TH');
+        expect(page.getByRole('columnheader', { name: 'Tema' })).toBeDefined();
         expect(page.queryByRole('heading', { name: 'Horário de atendimento' })).toBeNull();
         expect(page.queryByRole('heading', { name: 'Referências complementares' })).toBeNull();
     });

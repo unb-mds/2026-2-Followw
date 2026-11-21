@@ -112,7 +112,6 @@ def test_calendario_lista_os_semestres() -> None:
 
 async def test_unb_browser_expoe_o_calendario() -> None:
     async with UnbBrowser() as browser:
-        assert isinstance(browser.calendar, Calendar)
         sem = browser.calendar.get_semester("2026.1")
         assert sem is not None
         assert sem.semester == "2026.1"

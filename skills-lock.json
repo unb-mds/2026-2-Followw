@@ -1,24 +1,31 @@
 {
-  "version": 1,
+  "version": 2,
   "skills": {
     "codebase-design": {
       "source": "mattpocock/skills",
       "sourceType": "github",
       "skillPath": "skills/engineering/codebase-design/SKILL.md",
-      "computedHash": "b2888e4f4e8c0af3bfd557575a64b905c44e6248c3101d72077816882b3a92b9"
+      "computedHash": "721a6a709001482b70d4ecd3a7880a84ec158170236b999b1f14a8a321e20059"
     },
     "grilling": {
       "source": "mattpocock/skills",
       "sourceType": "github",
       "skillPath": "skills/productivity/grilling/SKILL.md",
-      "computedHash": "ef1641a2047b71b60f1942cd35efb47d3afc9d584dff5a0b01f8c7db923aaa08"
+      "computedHash": ""
+    },
+    "prune-tests": {
+      "source": "caldoai/skills",
+      "commit": "d5b68dace378219890d821adb3685538e2c69b04",
+      "sourceType": "github",
+      "skillPath": "skills/prune-tests/SKILL.md",
+      "computedHash": "d9c413b8b2f2dc24992a580109a731cd766f33661d1495cdf08522f464760fd5"
     },
     "thermo-nuclear-code-quality-review": {
       "source": "cursor/plugins",
       "ref": "main",
       "sourceType": "github",
       "skillPath": "cursor-team-kit/skills/thermo-nuclear-code-quality-review/SKILL.md",
-      "computedHash": "9052b01b46b1d8dbf94c45f9313ec1983443f9a460e83d49cdc7fe0f640ca476"
+      "computedHash": "705eb32106f0fec9c9e9b4afccb6156f17f6e8829368e54cd5b53f10e4374340"
     }
   }
 }
