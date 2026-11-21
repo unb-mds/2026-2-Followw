@@ -109,7 +109,8 @@ retorna os bytes do PDF original da carteirinha estudantil.
 `client.restaurant.get_restaurant_credentials()` usa esse mesmo download para extrair o token do QR
 code e a validade, sem persistir o arquivo. `client.documents.get_transcript_pdf()` baixa o PDF
 original do histórico acadêmico, e `client.documents.get_completed_subjects(registration)` extrai dele os
-códigos com situação CUMP e levanta `SigaaParseError` se o histórico for de outra matrícula. Quando o SIGAA recusa emitir o documento (ex.: perfil sem foto), esses métodos
+códigos com situação APR ou CUMP e levanta `SigaaParseError` se o histórico for de outra matrícula.
+Quando o SIGAA recusa emitir o documento (ex.: perfil sem foto), esses métodos
 levantam `DocumentUnavailable` com o motivo informado por ele (`MissingProfilePhoto` quando falta
 foto).
 

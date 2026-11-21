@@ -46,7 +46,7 @@ class UserProfile(BaseModel):
     course: CourseRef | None
     entry_semester: str | None
     curriculum_subject_codes: list[str] | None = None
-    # Componentes CUMP do histórico, além das aprovações nas turmas.
+    # Componentes aprovados ou cumpridos no histórico acadêmico.
     completed_subjects: list[str] = []
     integralization: int | None
     workload: Workload | None
@@ -69,7 +69,10 @@ async def sync_profile(ctx: Context[None]) -> None:
             profile, started_at, login=ctx.sync.registration
         )
     )
-    if profile.level != UserLevel.GRADUACAO or user.transcript_synced_at is not None:
+    if (
+        profile.level != UserLevel.GRADUACAO
+        or profile_freshness(user.transcript_synced_at) is Freshness.FRESH
+    ):
         return
     try:
         codes = await ctx.client.documents.get_completed_subjects(profile.registration)
@@ -78,9 +81,21 @@ async def sync_profile(ctx: Context[None]) -> None:
     except (HTTPError, SigaaParseError) as error:
         logger.warning("Histórico acadêmico indisponível (%s).", type(error).__name__)
         return
-    await ctx.sync.db.write(
-        lambda session: TranscriptRepository(session).save(user.id, codes, started_at)
-    )
+
+    async def save_transcript(session: AsyncSession) -> None:
+        current = await UserRepository(session).get_by_registration(
+            profile.registration, for_update=True
+        )
+        if (
+            current is not None
+            and current.id == user.id
+            and current.registration == profile.registration
+            and current.course_id == user.course_id
+            and profile_freshness(current.transcript_synced_at) is Freshness.STALE
+        ):
+            await TranscriptRepository(session).save(user.id, codes, started_at)
+
+    await ctx.sync.db.write(save_transcript)
 
 
 class ProfileService:

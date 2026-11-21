@@ -1,8 +1,11 @@
+from datetime import timedelta
+
 from sigaa_client import DocumentUnavailable, SigaaParseError
 
 from api.db.models import User
+from api.modules.me.profile import PROFILE_TTL
 
-from .helpers import codes
+from .helpers import NOW, codes
 
 REFRESH = {"Cache-Control": "no-cache"}
 
@@ -24,7 +27,7 @@ def test_cumpridas_saem_das_recomendacoes_e_satisfazem_requisitos(scene, stub_si
     assert codes(scene.get()) == ["POSTERIOR"]
 
 
-def test_historico_e_lido_uma_unica_vez(scene, stub_sigaa):
+def test_historico_recente_e_reutilizado(scene, stub_sigaa):
     scene.subject("A")
     read = stub_sigaa.documents.get_completed_subjects
     read.side_effect = None
@@ -34,6 +37,23 @@ def test_historico_e_lido_uma_unica_vez(scene, stub_sigaa):
     read.return_value = set()
     assert _me(scene)["completed_subjects"] == ["A"]
     assert read.await_count == 1
+
+
+def test_recomendacoes_atualizam_historico_vencido(scene, stub_sigaa):
+    scene.subject("ANTIGA")
+    scene.subject("APROVADA")
+    scene.subject("PENDENTE", prerequisites=[["APROVADA"]])
+    read = stub_sigaa.documents.get_completed_subjects
+    read.side_effect = None
+    read.return_value = {"ANTIGA"}
+    assert _me(scene)["completed_subjects"] == ["ANTIGA"]
+    assert codes(scene.get()) == ["APROVADA"]
+
+    scene.user(transcript_synced_at=NOW - PROFILE_TTL - timedelta(seconds=1))
+    read.return_value = {"ANTIGA", "APROVADA"}
+
+    assert codes(scene.get(headers=REFRESH)) == ["PENDENTE"]
+    assert read.await_count == 2
 
 
 def test_historico_indisponivel_e_tentado_de_novo(scene, stub_sigaa):

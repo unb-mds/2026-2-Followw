@@ -50,7 +50,7 @@ export function searchText(q: string, previous: string | null = null): string | 
 export const subjectsQueryOptions = (query: SubjectsQuery) =>
     api.queryOptions('get', '/public/subjects', { params: { query } });
 
-/** Aprovadas nas turmas mais as cumpridas (CUMP) no histórico do perfil. */
+/** Aprovadas nas turmas mais as aprovadas ou cumpridas no histórico do perfil. */
 export function approvedCodes(
     history: Classroom[],
     completed: readonly string[] | undefined
