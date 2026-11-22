@@ -60,6 +60,9 @@ async def refresh(
     response.headers.update(headers)
     return TokenResponse(
         access_token=pair.access_token,
-        expires_in=settings.access_token_expire_minutes * 60,
+        expires_in=min(
+            settings.access_token_expire_minutes, settings.refresh_token_expire_minutes
+        )
+        * 60,
         scope=" ".join(pair.scopes),
     )

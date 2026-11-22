@@ -170,7 +170,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Listar turmas do usuário */
+        /**
+         * Listar turmas do usuário
+         * @description Com OAuth, semestres anteriores exigem classrooms:history. A menção individual exige grades:read.
+         */
         get: operations["get_classrooms_classrooms_get"];
         put?: never;
         post?: never;
@@ -488,7 +491,7 @@ export interface paths {
         };
         /**
          * Consultar aulas da semana
-         * @description Domingo a sábado da semana atual, com a situação do aluno em cada aula das turmas atuais.
+         * @description Domingo a sábado da semana atual. Com OAuth, status e marked só aparecem com frequency:read.
          */
         get: operations["get_week_lessons_lessons_get"];
         put?: never;
@@ -506,7 +509,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Consultar perfil do usuário */
+        /**
+         * Consultar perfil do usuário
+         * @description Com OAuth, retorna nome, matrícula, foto e curso. grades:read acrescenta IRA e MP.
+         */
         get: operations["get_me_me_get"];
         put?: never;
         post?: never;
@@ -620,7 +626,7 @@ export interface paths {
         head?: never;
         /**
          * Atualizar foto ou bio no SIGAA
-         * @description Omita a bio para preservá-la ou envie uma string vazia para limpá-la. A remoção da foto deve ser feita em uma requisição separada. Para substituir, envie um único JPEG ou PNG de até 4 MB.
+         * @description Omita a bio para preservá-la ou envie uma string vazia para limpá-la. A remoção da foto deve ser feita em uma requisição separada. Para substituir, envie um único JPEG ou PNG de até 4 MB. Com OAuth, a resposta segue os escopos de leitura do perfil.
          */
         patch: operations["update_profile_me_profile_patch"];
         trace?: never;
@@ -1637,11 +1643,8 @@ export interface components {
             entry_semester: string | null;
             /** Curriculum Subject Codes */
             curriculum_subject_codes?: string[] | null;
-            /**
-             * Completed Subjects
-             * @default []
-             */
-            completed_subjects: string[];
+            /** Completed Subjects */
+            completed_subjects?: string[];
             /** Integralization */
             integralization: number | null;
             workload: components["schemas"]["Workload"] | null;

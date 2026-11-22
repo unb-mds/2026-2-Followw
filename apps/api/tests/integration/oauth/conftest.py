@@ -15,7 +15,7 @@ def db(async_database):
 
 @pytest.fixture
 def emitir(db):
-    def issue(*scopes, client_id="agenda", proof=None):
+    def issue(*scopes, client_id="agenda", proof=None, confidential=None):
         return asyncio.run(
             issue_tokens(
                 db,
@@ -24,7 +24,9 @@ def emitir(db):
                 credentials=Credentials(registration="251000000", password="senha123"),
                 session_token="app14~SESSAO-EXPIRADA",
                 proof=proof,
-                authenticated_client=proof is None,
+                authenticated_client=proof is None
+                if confidential is None
+                else confidential,
             )
         )
 

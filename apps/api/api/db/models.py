@@ -32,6 +32,7 @@ class OAuthGrant(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     registration: Mapped[str] = mapped_column(index=True)
     client_id: Mapped[str]
+    confidential: Mapped[bool]
     scopes: Mapped[list[str]] = mapped_column(JSONB)
     salt: Mapped[bytes]
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

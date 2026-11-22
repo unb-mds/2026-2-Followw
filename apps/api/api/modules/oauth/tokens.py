@@ -89,6 +89,7 @@ async def issue_tokens(
         grant = OAuthGrant(
             id=uuid4(),
             client_id=client_id,
+            confidential=authenticated_client,
             registration=credentials.registration,
             scopes=scopes,
             expires_at=_deadline(),
@@ -156,12 +157,12 @@ async def renew_access(
         grant, login = await _open(session, refresh_token, "refresh")
         if grant.client_id != client_id:
             raise InvalidToken("Token de outra aplicação.")
+        if grant.confidential and not authenticated_client:
+            raise InvalidToken("A aplicação precisa se autenticar.")
         if grant.key_thumbprint is not None:
             if proof is None or proof.thumbprint != grant.key_thumbprint:
                 raise InvalidProof("Prova da instalação exigida.")
             await proof.consume(session)
-        elif not authenticated_client:
-            raise InvalidToken("A aplicação precisa se autenticar.")
         grant.expires_at = _deadline()
         return TokenPair(
             grant.id, _access(grant, login, None), refresh_token, tuple(grant.scopes)

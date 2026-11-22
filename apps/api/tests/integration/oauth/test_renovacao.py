@@ -104,3 +104,42 @@ def test_credenciais_nao_sao_gravadas_e_cada_concessao_tem_seu_salt(emitir, data
                 for v in ("senha123", pair.refresh_token, pair.access_token)
             )
             assert "senha123" not in pair.access_token + pair.refresh_token
+
+
+def test_prova_de_instalacao_nao_substitui_autenticacao_de_cliente_confidencial(
+    client, emitir
+):
+    key = ECKey.generate_key("P-256")
+    pair = emitir(proof=Proof.verify(_prova(key), ENDPOINT), confidential=True)
+    response = client.post(
+        "/oauth/token",
+        data={
+            "grant_type": "refresh_token",
+            "client_id": "agenda",
+            "refresh_token": pair.refresh_token,
+        },
+        headers={"DPoP": _prova(key)},
+    )
+    assert response.status_code == 400
+    assert response.json() == {"error": "invalid_grant"}
+
+
+def test_renovacao_informa_prazo_real_quando_concessao_vence_antes_do_access(
+    client, emitir, monkeypatch
+):
+    from api.core.config import settings
+
+    monkeypatch.setattr(settings, "refresh_token_expire_minutes", 1)
+    key = ECKey.generate_key("P-256")
+    pair = emitir(proof=Proof.verify(_prova(key), ENDPOINT))
+    response = client.post(
+        "/oauth/token",
+        data={
+            "grant_type": "refresh_token",
+            "client_id": "agenda",
+            "refresh_token": pair.refresh_token,
+        },
+        headers={"DPoP": _prova(key)},
+    )
+    assert response.status_code == 200
+    assert response.json()["expires_in"] == 60
