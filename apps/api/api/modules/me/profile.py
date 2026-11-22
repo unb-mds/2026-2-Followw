@@ -17,6 +17,7 @@ from api.cache import Freshness, freshness
 from api.db.models import User
 from api.modules.me.repository import UserRepository
 from api.modules.me.transcript import TranscriptRepository
+from api.modules.oauth.scopes import Scope
 from api.modules.recommendations.repository import RecommendationRepository
 from api.schemas import CourseRef, UnitRef, course_ref, unit_ref
 from api.sync import Cached, Context, SyncDep
@@ -32,18 +33,26 @@ class Workload(CurriculumWorkload):
     complementary: int | None
 
 
-class UserProfile(BaseModel):
-    """Perfil acadêmico do usuário."""
-
+class BasicProfile(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     name: str
     registration: str
     photo: str | None
+    course: CourseRef | None
+
+
+class AcademicProfile(BasicProfile):
+    ira: float | None
+    mp: float | None
+
+
+class UserProfile(AcademicProfile):
+    """Perfil acadêmico do usuário."""
+
     email: str | None = None
     bio: str | None
     unit: UnitRef | None
-    course: CourseRef | None
     entry_semester: str | None
     curriculum_subject_codes: list[str] | None = None
     # Componentes CUMP do histórico, além das aprovações nas turmas.
@@ -52,13 +61,21 @@ class UserProfile(BaseModel):
     workload: Workload | None
     # Carga horária máxima por período da matriz do aluno, em horas.
     period_max_workload: int | None
-    ira: float | None
-    mp: float | None
     level: UserLevel
 
 
-def profile_freshness(synced_at: datetime | None) -> Freshness:
-    return freshness(synced_at, PROFILE_TTL)
+ProfileResponse = UserProfile | AcademicProfile | BasicProfile
+
+
+def profile_freshness(user: User, *, include_transcript: bool = True) -> Freshness:
+    if (
+        include_transcript
+        and user.level == UserLevel.GRADUACAO
+        and user.transcript_synced_at is None
+        and freshness(user.transcript_checked_at, PROFILE_TTL) is Freshness.STALE
+    ):
+        return Freshness.STALE
+    return freshness(user.profile_synced_at, PROFILE_TTL)
 
 
 async def sync_profile(ctx: Context[None]) -> None:
@@ -71,19 +88,22 @@ async def sync_profile(ctx: Context[None]) -> None:
     )
     if (
         ctx.sync.scopes is not None
+        or user.profile_synced_at != started_at
         or profile.level != UserLevel.GRADUACAO
         or user.transcript_synced_at is not None
     ):
         return
+    codes = None
     try:
         codes = await ctx.client.documents.get_completed_subjects(profile.registration)
     except DocumentUnavailable:
-        return
+        pass
     except (HTTPError, SigaaParseError) as error:
         logger.warning("Histórico acadêmico indisponível (%s).", type(error).__name__)
-        return
     await ctx.sync.db.write(
-        lambda session: TranscriptRepository(session).save(user.id, codes, started_at)
+        lambda session: TranscriptRepository(session).record_check(
+            user, codes, started_at
+        )
     )
 
 
@@ -91,36 +111,46 @@ class ProfileService:
     def __init__(self, sync: SyncDep) -> None:
         self._sync = sync
 
-    async def get_profile(self) -> UserProfile:
-        async def load(session: AsyncSession) -> Cached[UserProfile] | None:
+    async def get_profile(self) -> ProfileResponse:
+        async def load(session: AsyncSession) -> Cached[ProfileResponse] | None:
             users = UserRepository(session)
             user = await users.get_by_registration(self._sync.registration)
             if user is None or user.profile_synced_at is None:
                 return None
             return Cached(
-                await _to_profile(session, user),
+                await profile_view(session, user, self._sync.scopes),
                 user.profile_synced_at,
-                profile_freshness(user.profile_synced_at),
+                profile_freshness(user, include_transcript=self._sync.scopes is None),
             )
 
         return await self._sync.resolve(sync_profile, None, load)
 
 
-async def _to_profile(session: AsyncSession, user: User) -> UserProfile:
+async def profile_view(
+    session: AsyncSession, user: User, scopes: frozenset[Scope] | None
+) -> ProfileResponse:
     assert user.registration and user.level
+    basic = BasicProfile(
+        name=user.name,
+        registration=user.registration,
+        photo=user.photo,
+        course=course_ref(user.course),
+    )
+    if scopes is not None and Scope.GRADES not in scopes:
+        return basic
+    academic = AcademicProfile(**basic.model_dump(), ira=user.ira, mp=user.mp)
+    if scopes is not None:
+        return academic
     codes = (
         sorted(await RecommendationRepository(session).components(user.curriculum_id))
         if user.curriculum_id is not None
         else None
     )
     return UserProfile(
-        name=user.name,
-        registration=user.registration,
-        photo=user.photo,
+        **academic.model_dump(),
         email=user.email,
         bio=user.bio,
         unit=unit_ref(user.course.unit) if user.course else None,
-        course=course_ref(user.course),
         entry_semester=user.entry_semester,
         curriculum_subject_codes=codes,
         completed_subjects=sorted(
@@ -131,8 +161,6 @@ async def _to_profile(session: AsyncSession, user: User) -> UserProfile:
         period_max_workload=user.curriculum.period_max_workload
         if user.curriculum
         else None,
-        ira=user.ira,
-        mp=user.mp,
         level=UserLevel(user.level.value),
     )
 

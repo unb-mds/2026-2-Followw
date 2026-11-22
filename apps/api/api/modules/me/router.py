@@ -25,7 +25,7 @@ from api.modules.me.internships import (
     filter_internships,
 )
 from api.modules.me.photo import MAX_PHOTO_BYTES, normalize_photo
-from api.modules.me.profile import ProfileServiceDep, UserProfile
+from api.modules.me.profile import ProfileResponse, ProfileServiceDep
 from api.modules.me.repository import MAX_PROFILE_BIO_LENGTH
 from api.modules.me.settings import (
     UserSettings,
@@ -34,7 +34,6 @@ from api.modules.me.settings import (
     save_settings,
 )
 from api.modules.oauth.scopes import Scope, oauth
-from api.modules.oauth.views import OAuthViewDep
 from api.rate_limit import limit_profile_edits
 from api.sigaa import SigaaClientDep, SigaaConnection, SigaaConnectionDep
 
@@ -56,13 +55,13 @@ _PDF_RESPONSES = {
 @router.get(
     "",
     openapi_extra=oauth(Scope.PROFILE),
-    response_model=UserProfile,
+    response_model=ProfileResponse,
     summary="Consultar perfil do usuário",
     description="Com OAuth, retorna nome, matrícula, foto e curso. grades:read acrescenta IRA e MP.",
     responses=SIGAA_ERRORS,
 )
-async def get_me(service: ProfileServiceDep, view: OAuthViewDep):
-    return view.profile(await service.get_profile())
+async def get_me(service: ProfileServiceDep):
+    return await service.get_profile()
 
 
 @router.get(
@@ -153,7 +152,7 @@ async def update_settings(
 @router.patch(
     "/profile",
     openapi_extra=oauth(Scope.PROFILE_WRITE),
-    response_model=UserProfile,
+    response_model=ProfileResponse,
     summary="Atualizar foto ou bio no SIGAA",
     description=(
         "Omita a bio para preservá-la ou envie uma string vazia para limpá-la. "
@@ -168,13 +167,12 @@ async def update_settings(
 )
 async def update_profile(
     request: Request,
-    view: OAuthViewDep,
     photo_action: Annotated[Literal["keep", "replace", "remove"], Form()],
     connection: SigaaConnectionDep,
     db: DatabaseDep,
     bio: Annotated[str | None, Form()] = None,
     photo: Annotated[UploadFile | None, File()] = None,
-) -> UserProfile | Response:
+) -> ProfileResponse:
     form = await request.form()
     if len(form.getlist("photo")) > 1 or any(
         name != "photo" and isinstance(value, MultipartFile)
@@ -203,10 +201,9 @@ async def update_profile(
     if photo is not None:
         raw = await photo.read(MAX_PHOTO_BYTES + 1)
         content = await run_in_threadpool(normalize_photo, raw)
-    profile = await edit_profile(
+    return await edit_profile(
         connection, db, bio=bio, photo=content, remove_photo=photo_action == "remove"
     )
-    return view.profile(profile)
 
 
 @router.get(

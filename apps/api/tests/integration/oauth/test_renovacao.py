@@ -26,7 +26,7 @@ def _prova(key):
 
 
 def test_refresh_publico_reutilizavel_exige_prova_nova_da_mesma_instalacao(
-    client, emitir, database, stub_sigaa
+    client, emitir, database, sigaa
 ):
     key = ECKey.generate_key("P-256")
     first = _prova(key)
@@ -53,10 +53,14 @@ def test_refresh_publico_reutilizavel_exige_prova_nova_da_mesma_instalacao(
     assert response.json()["scope"] == "profile:read"
     assert response.json()["expires_in"] == 2400
     access = response.json()["access_token"]
-    assert (
-        client.get("/me", headers={"Authorization": f"Bearer {access}"}).status_code
-        == 200
-    )
+    for _ in range(2):
+        response = client.get(
+            "/me",
+            headers={"Authorization": f"Bearer {access}", "Cache-Control": "no-cache"},
+        )
+        assert response.status_code == 200
+    assert sigaa.logins == 1
+    assert sigaa.profile_requests >= 2
     assert renew(proof).status_code == 400
     assert renew(_prova(key)).status_code == 200
     with database() as session:
@@ -66,7 +70,7 @@ def test_refresh_publico_reutilizavel_exige_prova_nova_da_mesma_instalacao(
 
 
 def test_refresh_confidencial_exige_aplicacao_autenticada_e_autorizacao_ativa(
-    db, emitir
+    db, emitir, sigaa
 ):
     pair = emitir(Scope.RU)
 
@@ -125,7 +129,7 @@ def test_prova_de_instalacao_nao_substitui_autenticacao_de_cliente_confidencial(
 
 
 def test_renovacao_informa_prazo_real_quando_concessao_vence_antes_do_access(
-    client, emitir, monkeypatch
+    client, emitir, monkeypatch, sigaa
 ):
     from api.core.config import settings
 
@@ -143,3 +147,56 @@ def test_renovacao_informa_prazo_real_quando_concessao_vence_antes_do_access(
     )
     assert response.status_code == 200
     assert response.json()["expires_in"] == 60
+
+
+def test_recusa_do_cas_preserva_validade_e_exige_nova_prova(
+    client, emitir, database, sigaa
+):
+    key = ECKey.generate_key("P-256")
+    pair = emitir(proof=Proof.verify(_prova(key), ENDPOINT))
+    body = {
+        "grant_type": "refresh_token",
+        "client_id": "agenda",
+        "refresh_token": pair.refresh_token,
+    }
+    headers = {"DPoP": _prova(key)}
+    with database() as session:
+        expires_at = session.get(OAuthGrant, pair.grant_id).expires_at
+
+    sigaa.password = "alterada"
+    response = client.post("/oauth/token", data=body, headers=headers)
+    assert response.status_code == 400
+    assert response.json() == {"error": "invalid_grant"}
+    with database() as session:
+        assert session.get(OAuthGrant, pair.grant_id).expires_at == expires_at
+
+    sigaa.password = "senha123"
+    assert client.post("/oauth/token", data=body, headers=headers).json() == {
+        "error": "invalid_dpop_proof"
+    }
+    assert (
+        client.post(
+            "/oauth/token", data=body, headers={"DPoP": _prova(key)}
+        ).status_code
+        == 200
+    )
+
+
+def test_revogacao_durante_login_no_cas_impede_renovacao(db, emitir, monkeypatch):
+    from sigaa_client import SigaaClient
+
+    pair = emitir()
+
+    async def durante_login(_client):
+        await asyncio.wait_for(
+            revoke(db, pair.grant_id, registration="251000000"), timeout=3
+        )
+        return "app14~NOVA"
+
+    monkeypatch.setattr(SigaaClient, "authenticate", durante_login)
+    with pytest.raises(InvalidToken):
+        asyncio.run(
+            renew_access(
+                db, pair.refresh_token, client_id="agenda", authenticated_client=True
+            )
+        )

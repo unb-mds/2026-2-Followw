@@ -51,15 +51,15 @@ def post_detail_freshness(
     return Freshness.FRESH
 
 
-class ClassroomNews(BaseModel):
+class ClassroomNews[T: BaseModel = ParticipantClassroom](BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    classroom: ParticipantClassroom
+    classroom: T
     post: ClassroomPostView
 
 
-class LatestNewsFeed(BaseModel):
-    items: list[ClassroomNews]
+class LatestNewsFeed[T: ClassroomNews = ClassroomNews](BaseModel):
+    items: list[T]
     updating: bool
 
 

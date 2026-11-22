@@ -1,5 +1,6 @@
 from collections.abc import Iterable
 from enum import StrEnum
+from typing import Literal, NotRequired, TypedDict
 
 from fastapi import HTTPException
 
@@ -20,28 +21,59 @@ class Scope(StrEnum):
     INTERNSHIPS = "internships:read"
 
 
-LABELS = {
-    Scope.PROFILE: "Ler nome, matrícula, foto e curso",
-    Scope.PROFILE_WRITE: "Editar foto e bio no SIGAA",
-    Scope.CLASSROOMS: "Ler turmas atuais e horários das aulas",
-    Scope.HISTORY: "Consultar também turmas de semestres anteriores",
-    Scope.GRADES: "Ler menções das turmas autorizadas, IRA e MP",
-    Scope.MEMBERS: "Ver participantes das turmas e seus dados de contato",
-    Scope.FREQUENCY: "Ler frequência e marcações pessoais",
-    Scope.FREQUENCY_WRITE: "Alterar marcações pessoais de frequência",
-    Scope.POSTS: "Ler posts e baixar materiais das turmas autorizadas",
-    Scope.POST_MARKS: "Marcar postagens como lidas ou não lidas",
-    Scope.TRANSCRIPT: "Baixar o histórico acadêmico completo",
-    Scope.RU: "Consultar saldo e extrato do RU",
-    Scope.INTERNSHIPS: "Consultar ofertas de estágio",
-}
+class Permission(TypedDict):
+    label: str
+    trust_level: Literal["low", "medium", "high"]
+    requires: NotRequired[Scope]
 
-DEPENDENCIES = {
-    Scope.PROFILE_WRITE: Scope.PROFILE,
-    Scope.HISTORY: Scope.CLASSROOMS,
-    Scope.GRADES: Scope.CLASSROOMS,
-    Scope.FREQUENCY_WRITE: Scope.FREQUENCY,
-    Scope.POST_MARKS: Scope.POSTS,
+
+PERMISSIONS: dict[Scope, Permission] = {
+    Scope.PROFILE: Permission(
+        label="Ler nome, matrícula, foto e curso", trust_level="low"
+    ),
+    Scope.PROFILE_WRITE: Permission(
+        label="Editar foto e bio no SIGAA", trust_level="high", requires=Scope.PROFILE
+    ),
+    Scope.CLASSROOMS: Permission(
+        label="Ler turmas atuais e horários das aulas", trust_level="medium"
+    ),
+    Scope.HISTORY: Permission(
+        label="Consultar também turmas de semestres anteriores",
+        trust_level="medium",
+        requires=Scope.CLASSROOMS,
+    ),
+    Scope.GRADES: Permission(
+        label="Ler menções das turmas autorizadas, IRA e MP",
+        trust_level="high",
+        requires=Scope.CLASSROOMS,
+    ),
+    Scope.MEMBERS: Permission(
+        label="Ver participantes das turmas e seus dados de contato", trust_level="high"
+    ),
+    Scope.FREQUENCY: Permission(
+        label="Ler frequência e marcações pessoais", trust_level="low"
+    ),
+    Scope.FREQUENCY_WRITE: Permission(
+        label="Alterar marcações pessoais de frequência",
+        trust_level="low",
+        requires=Scope.FREQUENCY,
+    ),
+    Scope.POSTS: Permission(
+        label="Ler posts e baixar materiais das turmas autorizadas",
+        trust_level="medium",
+    ),
+    Scope.POST_MARKS: Permission(
+        label="Marcar postagens como lidas ou não lidas",
+        trust_level="low",
+        requires=Scope.POSTS,
+    ),
+    Scope.TRANSCRIPT: Permission(
+        label="Baixar o histórico acadêmico completo", trust_level="high"
+    ),
+    Scope.RU: Permission(label="Consultar saldo e extrato do RU", trust_level="medium"),
+    Scope.INTERNSHIPS: Permission(
+        label="Consultar ofertas de estágio", trust_level="low"
+    ),
 }
 
 
@@ -49,8 +81,9 @@ def granted_scopes(accepted: Iterable[str]) -> list[Scope]:
     scopes = {Scope(value) for value in accepted}
     if Scope.PROFILE not in scopes:
         raise ValueError("O perfil básico precisa estar entre os escopos concedidos.")
-    for scope, required in DEPENDENCIES.items():
-        if scope in scopes and required not in scopes:
+    for scope in scopes:
+        required = PERMISSIONS[scope].get("requires")
+        if required is not None and required not in scopes:
             raise ValueError(f"{scope} exige {required}.")
     return sorted(scopes)
 

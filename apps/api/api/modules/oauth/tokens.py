@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 from joserfc.errors import JoseError
 from joserfc.jwk import OctKey
 from pydantic import BaseModel
-from sigaa_client import Credentials
+from sigaa_client import AuthenticationFailed, Credentials, SigaaClient
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -153,7 +153,7 @@ async def renew_access(
 ) -> TokenPair:
     """A camada de aplicações autentica o cliente confidencial antes da chamada."""
 
-    async def renew(session: AsyncSession) -> TokenPair:
+    async def authorize(session: AsyncSession) -> tuple[OAuthGrant, dict]:
         grant, login = await _open(session, refresh_token, "refresh")
         if grant.client_id != client_id:
             raise InvalidToken("Token de outra aplicação.")
@@ -163,9 +163,29 @@ async def renew_access(
             if proof is None or proof.thumbprint != grant.key_thumbprint:
                 raise InvalidProof("Prova da instalação exigida.")
             await proof.consume(session)
+        return grant, login
+
+    authorized, login = await db.write(authorize)
+    try:
+        async with SigaaClient(credentials=Credentials.model_validate(login)) as client:
+            session_token = await client.authenticate()
+    except AuthenticationFailed as error:
+        raise InvalidToken("A credencial da autorização expirou.") from error
+
+    async def renew(session: AsyncSession) -> TokenPair:
+        grant = await session.get(OAuthGrant, authorized.id, with_for_update=True)
+        if (
+            grant is None
+            or grant.salt != authorized.salt
+            or grant.expires_at <= datetime.now(UTC)
+        ):
+            raise InvalidToken("Autorização revogada ou expirada durante a renovação.")
         grant.expires_at = _deadline()
         return TokenPair(
-            grant.id, _access(grant, login, None), refresh_token, tuple(grant.scopes)
+            grant.id,
+            _access(grant, login, session_token),
+            refresh_token,
+            tuple(grant.scopes),
         )
 
     return await db.write(renew)

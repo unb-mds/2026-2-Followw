@@ -27,27 +27,30 @@ class LessonClassroom(BaseModel):
     room: str | None
 
 
-class WeekLesson(BaseModel):
+class ScheduledLesson(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     id: UUID
     start_time: time
     end_time: time
-    # `None` onde o usuário não é aluno.
-    status: LessonStatus | None
-    marked: bool
     # Fora do plano: publicada pelo SIGAA, como uma reposição.
     scheduled: bool
     classroom: LessonClassroom
 
 
-class LessonDay(BaseModel):
+class WeekLesson(ScheduledLesson):
+    # `None` onde o usuário não é aluno.
+    status: LessonStatus | None
+    marked: bool
+
+
+class LessonDay[T: ScheduledLesson = WeekLesson](BaseModel):
     model_config = ConfigDict(frozen=True)
 
     date: date
     # Feriado, recesso ou fora do período de aulas; só nos dias sem aulas.
     no_class_reason: str | None
-    lessons: list[WeekLesson]
+    lessons: list[T]
 
 
 class WeekLessonsService:

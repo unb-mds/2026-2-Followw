@@ -179,14 +179,17 @@ class ParticipantSubject(UserSubject):
     kind: Literal["mandatory", "optional", "free"] | None = None
 
 
-class ParticipantClassroom(Classroom, ClassroomOffer):
-    """A turma com a menção do usuário, `None` enquanto não lançada ou sincronizada."""
-
+class ClassroomDetails(Classroom, ClassroomOffer):
     subject: ParticipantSubject
-    grade: Grade | None = None
     status: ClassroomStatus | None = None
     # `None` enquanto o plano não foi lido no SIGAA.
     has_teaching_plan: bool | None = None
+
+
+class ParticipantClassroom(ClassroomDetails):
+    """A turma com a menção do usuário, `None` enquanto não lançada ou sincronizada."""
+
+    grade: Grade | None = None
 
 
 class ClassroomService:

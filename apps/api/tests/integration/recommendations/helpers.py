@@ -36,6 +36,7 @@ class Scenario:
                 course_id=course.id,
                 entry_semester="2025.1",
                 profile_synced_at=NOW,
+                transcript_checked_at=NOW,
                 classrooms_synced_at=NOW,
                 grades_synced_at=NOW,
             )

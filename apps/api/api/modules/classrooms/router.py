@@ -11,7 +11,6 @@ from api.db.enums import LessonStatus
 from api.downloads import attachment
 from api.errors import SIGAA_ERRORS
 from api.modules.classrooms.frequency import (
-    ClassroomFrequencyResult,
     FrequencyServiceDep,
 )
 from api.modules.classrooms.lessons import ClassroomFrequencyView
@@ -20,10 +19,9 @@ from api.modules.classrooms.posts import ClassroomPostsServiceDep
 from api.modules.classrooms.service import (
     ClassroomMembers,
     ClassroomServiceDep,
-    ParticipantClassroom,
 )
 from api.modules.oauth.scopes import Scope, oauth
-from api.modules.oauth.views import OAuthViewDep
+from api.modules.oauth.views import ClassroomResponse, FrequencyResponse, OAuthViewDep
 
 router = APIRouter()
 
@@ -203,7 +201,7 @@ async def mark_post_unread(
 @router.get(
     "",
     openapi_extra=oauth(Scope.CLASSROOMS),
-    response_model=list[ParticipantClassroom],
+    response_model=list[ClassroomResponse],
     summary="Listar turmas do usuário",
     description="Com OAuth, semestres anteriores exigem classrooms:history. A menção individual exige grades:read.",
     responses=SIGAA_ERRORS,
@@ -218,14 +216,14 @@ async def get_classrooms(
             description="Semestre das turmas; 'all' inclui todo o histórico.",
         ),
     ] = None,
-) -> list[ParticipantClassroom] | Response:
+) -> list[ClassroomResponse]:
     return view.classrooms(await service.list_classrooms(semester))
 
 
 @router.get(
     "/frequency",
     openapi_extra=oauth(Scope.FREQUENCY),
-    response_model=list[ClassroomFrequencyResult],
+    response_model=list[FrequencyResponse],
     summary="Consultar frequência das turmas atuais",
     responses={**CLASSROOM_ERRORS, 503: {"description": "Cache em atualização."}},
 )

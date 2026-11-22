@@ -16,7 +16,7 @@ from api.modules.me.router import router as me_router
 from api.modules.me.upload_guard import ProfileUploadGuard
 from api.modules.oauth.cors import FollowwCORS
 from api.modules.oauth.router import router as oauth_router
-from api.modules.oauth.scopes import LABELS
+from api.modules.oauth.scopes import PERMISSIONS
 from api.modules.posts.router import router as posts_router
 from api.modules.public_classrooms.router import router as public_classrooms_router
 from api.modules.public_courses.router import router as public_courses_router
@@ -110,7 +110,7 @@ def custom_openapi() -> dict[str, Any]:
             tags=app.openapi_tags,
             servers=[{"url": app.root_path}],
         )
-        app.openapi_schema["x-oauth-scopes"] = LABELS
+        app.openapi_schema["x-oauth-scopes"] = PERMISSIONS
         app.openapi_schema["components"]["securitySchemes"] = {
             "OAuthBearer": {"type": "http", "scheme": "bearer"},
             "FollowwCookie": {

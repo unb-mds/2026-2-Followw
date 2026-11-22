@@ -1,9 +1,9 @@
 from fastapi import APIRouter
 
 from api.modules.classrooms.router import CLASSROOM_ERRORS
-from api.modules.classrooms.week import LessonDay, WeekLessonsServiceDep
+from api.modules.classrooms.week import WeekLessonsServiceDep
 from api.modules.oauth.scopes import Scope, oauth
-from api.modules.oauth.views import OAuthViewDep
+from api.modules.oauth.views import DayResponse, OAuthViewDep
 
 router = APIRouter()
 
@@ -11,7 +11,7 @@ router = APIRouter()
 @router.get(
     "",
     openapi_extra=oauth(Scope.CLASSROOMS),
-    response_model=list[LessonDay],
+    response_model=list[DayResponse],
     summary="Consultar aulas da semana",
     description="Domingo a sábado da semana atual. Com OAuth, status e marked só aparecem com frequency:read.",
     responses={**CLASSROOM_ERRORS, 503: {"description": "Cache em atualização."}},

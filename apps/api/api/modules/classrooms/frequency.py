@@ -41,8 +41,8 @@ async def sync_frequency(ctx: Context[OwnLink]) -> None:
     )
 
 
-class ClassroomFrequencyResult(BaseModel):
-    classroom: ParticipantClassroom
+class ClassroomFrequencyResult[T: BaseModel = ParticipantClassroom](BaseModel):
+    classroom: T
     frequency: ClassroomFrequencyView
 
 

@@ -26,3 +26,20 @@ def test_origem_externa_nao_recebe_resposta_com_cookies(client, emitir, stub_sig
     assert (
         "access-control-allow-origin" not in client.get("/me", headers=headers).headers
     )
+
+
+def test_origem_do_followw_pode_enviar_credenciais_apos_preflight_com_authorization(
+    api,
+):
+    origin = "https://followw.app"
+    response = api.options(
+        "/me",
+        headers={
+            "Origin": origin,
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "authorization",
+        },
+    )
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == origin
+    assert response.headers["access-control-allow-credentials"] == "true"

@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from unittest.mock import AsyncMock
 
 import pytest
@@ -109,3 +109,28 @@ def test_leitura_de_posts_nao_permite_mudar_marcacao(client, emitir):
             method("/classrooms/AAA/posts/news:1/read", headers=headers).status_code
             == 403
         )
+
+
+def test_feed_e_frequencia_respeitam_escopos_na_turma_aninhada(client, emitir, turmas):
+    from sigaa_client import ClassroomPost, News
+
+    post = ClassroomPost.from_news(
+        News(id=1, title="Aviso", published_on=date(2026, 9, 17))
+    )
+    turmas.classrooms.list_classroom_posts = AsyncMock(return_value=[post])
+    turmas.classrooms.list_dashboard_posts = AsyncMock(return_value=[])
+    for scopes in ((), (Scope.CLASSROOMS,), (Scope.CLASSROOMS, Scope.GRADES)):
+        token = emitir(Scope.POSTS, Scope.FREQUENCY, *scopes).access_token
+        headers = {"Authorization": f"Bearer {token}"}
+        assert client.get("/classrooms/AAA/posts", headers=headers).status_code == 200
+        feed = client.get("/posts/news", headers=headers)
+        frequencies = client.get("/classrooms/frequency", headers=headers)
+        assert feed.status_code == frequencies.status_code == 200
+        for item in (feed.json()["items"][0], frequencies.json()[0]):
+            room = item["classroom"]
+            assert room["id"] == "AAA"
+            if not scopes:
+                assert set(room) == {"id", "sigaa_id"}
+            else:
+                assert room["subject"]["code"] == "CIC0001"
+                assert ("grade" in room) == (Scope.GRADES in scopes)

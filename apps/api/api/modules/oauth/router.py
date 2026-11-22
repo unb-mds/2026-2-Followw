@@ -29,7 +29,10 @@ class TokenResponse(BaseModel):
     "/token",
     response_model=TokenResponse,
     summary="Renovar o acesso OAuth de uma instalação com DPoP",
-    responses={400: {"description": "Refresh ou prova DPoP inválidos."}},
+    responses={
+        400: {"description": "Refresh ou prova DPoP inválidos."},
+        502: {"description": "SIGAA indisponível durante a renovação."},
+    },
 )
 async def refresh(
     body: Annotated[RefreshGrant, Form()],

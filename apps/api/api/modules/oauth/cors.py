@@ -7,6 +7,7 @@ class FollowwCORS:
     """Cookies usam as origens do Followw; apps OAuth fazem fetch com credentials: omit."""
 
     def __init__(self, app: ASGIApp, origins: list[str]):
+        self.origins = frozenset(origins)
         exposed = ["Age", "Retry-After", "WWW-Authenticate"]
         self.session = CORSMiddleware(
             app,
@@ -27,7 +28,12 @@ class FollowwCORS:
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] == "http":
             headers = Headers(scope=scope)
-            if "origin" in headers and "cookie" not in headers:
+            origin = headers.get("origin")
+            if (
+                origin is not None
+                and origin not in self.origins
+                and "cookie" not in headers
+            ):
                 names = set(headers)
                 if scope["method"] == "OPTIONS":
                     names = {

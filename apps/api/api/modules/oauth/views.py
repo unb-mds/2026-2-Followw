@@ -1,85 +1,75 @@
 from typing import Annotated
 
-from fastapi import Depends, Request, Response
-from fastapi.responses import JSONResponse
+from fastapi import Depends
+from pydantic import BaseModel
 
 from api.modules.classrooms.frequency import ClassroomFrequencyResult
 from api.modules.classrooms.posts import ClassroomNews, LatestNewsFeed
-from api.modules.classrooms.service import ParticipantClassroom
-from api.modules.classrooms.week import LessonDay
-from api.modules.me.profile import UserProfile
+from api.modules.classrooms.service import ClassroomDetails, ParticipantClassroom
+from api.modules.classrooms.week import LessonDay, ScheduledLesson
 from api.modules.oauth.scopes import Scope
+from api.sigaa import SigaaConnectionDep
+
+
+class ClassroomRef(BaseModel):
+    id: str
+    sigaa_id: int | None
+
+
+DayResponse = LessonDay | LessonDay[ScheduledLesson]
+ClassroomResponse = ParticipantClassroom | ClassroomDetails
+FrequencyResponse = (
+    ClassroomFrequencyResult
+    | ClassroomFrequencyResult[ClassroomDetails]
+    | ClassroomFrequencyResult[ClassroomRef]
+)
+NewsResponse = (
+    LatestNewsFeed
+    | LatestNewsFeed[ClassroomNews[ClassroomDetails]]
+    | LatestNewsFeed[ClassroomNews[ClassroomRef]]
+)
 
 
 class OAuthView:
-    def __init__(self, request: Request, response: Response):
-        self.request = request
-        self.response = response
+    def __init__(self, connection: SigaaConnectionDep):
+        self.scopes = connection.scopes
 
-    @property
-    def scopes(self) -> frozenset[Scope] | None:
-        return (
-            self.request.state.oauth_scopes
-            if "authorization" in self.request.headers
-            else None
-        )
-
-    def profile(self, value: UserProfile) -> UserProfile | JSONResponse:
-        if self.scopes is None:
-            return value
-        fields = {"name", "registration", "photo", "course"}
-        if Scope.GRADES in self.scopes:
-            fields.update(("ira", "mp"))
-        return self._json(value.model_dump(mode="json", include=fields))
-
-    def lessons(self, days: list[LessonDay]) -> list[LessonDay] | JSONResponse:
+    def lessons(self, days: list[LessonDay]) -> list[DayResponse]:
         if self.scopes is None or Scope.FREQUENCY in self.scopes:
             return days
-        exclude = {"lessons": {"__all__": {"status", "marked"}}}
-        return self._json(
-            [day.model_dump(mode="json", exclude=exclude) for day in days]
-        )
+        return [
+            LessonDay[ScheduledLesson].model_validate(day.model_dump()) for day in days
+        ]
 
-    def classrooms(
-        self, rows: list[ParticipantClassroom]
-    ) -> list[ParticipantClassroom] | JSONResponse:
+    @property
+    def classroom_model(self):
         if self.scopes is None or Scope.GRADES in self.scopes:
+            return ParticipantClassroom
+        if Scope.CLASSROOMS in self.scopes:
+            return ClassroomDetails
+        return ClassroomRef
+
+    def classrooms(self, rows: list[ParticipantClassroom]) -> list[ClassroomResponse]:
+        if self.classroom_model is ParticipantClassroom:
             return rows
-        return self._json(
-            [row.model_dump(mode="json", exclude={"grade"}) for row in rows]
-        )
-
-    def _classroom_fields(self, classroom: ParticipantClassroom) -> dict:
-        if Scope.CLASSROOMS not in self.scopes:
-            return classroom.model_dump(mode="json", include={"id", "sigaa_id"})
-        exclude = set() if Scope.GRADES in self.scopes else {"grade"}
-        return classroom.model_dump(mode="json", exclude=exclude)
-
-    def _item(self, item: ClassroomFrequencyResult | ClassroomNews) -> dict:
-        return {
-            **item.model_dump(mode="json", exclude={"classroom"}),
-            "classroom": self._classroom_fields(item.classroom),
-        }
+        return [ClassroomDetails.model_validate(row.model_dump()) for row in rows]
 
     def frequencies(
         self, rows: list[ClassroomFrequencyResult]
-    ) -> list[ClassroomFrequencyResult] | JSONResponse:
-        if self.scopes is None:
+    ) -> list[FrequencyResponse]:
+        classroom = self.classroom_model
+        if classroom is ParticipantClassroom:
             return rows
-        return self._json([self._item(row) for row in rows])
+        model = ClassroomFrequencyResult[classroom]
+        return [model.model_validate(row.model_dump()) for row in rows]
 
-    def news(self, feed: LatestNewsFeed) -> LatestNewsFeed | JSONResponse:
-        if self.scopes is None:
+    def news(self, feed: LatestNewsFeed) -> NewsResponse:
+        classroom = self.classroom_model
+        if classroom is ParticipantClassroom:
             return feed
-        return self._json(
-            {
-                "updating": feed.updating,
-                "items": [self._item(item) for item in feed.items],
-            }
+        return LatestNewsFeed[ClassroomNews[classroom]].model_validate(
+            feed.model_dump()
         )
-
-    def _json(self, data) -> JSONResponse:
-        return JSONResponse(data, headers=dict(self.response.headers))
 
 
 OAuthViewDep = Annotated[OAuthView, Depends()]

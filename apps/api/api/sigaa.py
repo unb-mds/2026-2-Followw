@@ -109,7 +109,6 @@ async def get_optional_sigaa_connection(
         required = (route.openapi_extra or {}).get("x-oauth-scope")
         if required not in access.scopes:
             raise insufficient_scope()
-        request.state.oauth_scopes = access.scopes
         connection = SigaaConnection(
             access.credentials, access.session_token, scopes=access.scopes
         )

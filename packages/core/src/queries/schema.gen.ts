@@ -715,6 +715,30 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AcademicProfile */
+        AcademicProfile: {
+            /** Name */
+            name: string;
+            /** Registration */
+            registration: string;
+            /** Photo */
+            photo: string | null;
+            course: components["schemas"]["CourseRef"] | null;
+            /** Ira */
+            ira: number | null;
+            /** Mp */
+            mp: number | null;
+        };
+        /** BasicProfile */
+        BasicProfile: {
+            /** Name */
+            name: string;
+            /** Registration */
+            registration: string;
+            /** Photo */
+            photo: string | null;
+            course: components["schemas"]["CourseRef"] | null;
+        };
         /** Body_update_profile_me_profile_patch */
         Body_update_profile_me_profile_patch: {
             /**
@@ -756,9 +780,58 @@ export interface components {
             curriculum_period?: number | null;
             recommendation?: components["schemas"]["SubjectRecommendation"] | null;
         };
+        /** ClassroomDetails */
+        ClassroomDetails: {
+            /**
+             * Professors
+             * @default []
+             */
+            professors: components["schemas"]["ProfessorRef"][];
+            /**
+             * Vacancies
+             * @description Vagas na última coleta, sem atualização em tempo real.
+             */
+            vacancies?: number | null;
+            /**
+             * Occupied
+             * @description Ocupação na última coleta, sem atualização em tempo real.
+             */
+            occupied?: number | null;
+            /** Id */
+            id: string;
+            /** Sigaa Id */
+            sigaa_id?: number | null;
+            /** Number */
+            number: string;
+            /** Semester */
+            semester: string;
+            /** Schedule */
+            schedule?: string | null;
+            /** Room */
+            room?: string | null;
+            /**
+             * Current
+             * @default false
+             */
+            current: boolean;
+            subject: components["schemas"]["ParticipantSubject"];
+            status?: components["schemas"]["ClassroomStatus"] | null;
+            /** Has Teaching Plan */
+            has_teaching_plan?: boolean | null;
+        };
         /** ClassroomFrequencyResult */
         ClassroomFrequencyResult: {
             classroom: components["schemas"]["ParticipantClassroom"];
+            frequency: components["schemas"]["ClassroomFrequencyView"];
+        };
+        /** ClassroomFrequencyResult[ClassroomDetails] */
+        ClassroomFrequencyResult_ClassroomDetails_: {
+            classroom: components["schemas"]["ClassroomDetails"];
+            frequency: components["schemas"]["ClassroomFrequencyView"];
+        };
+        /** ClassroomFrequencyResult[ClassroomRef] */
+        ClassroomFrequencyResult_ClassroomRef_: {
+            classroom: components["schemas"]["ClassroomRef"];
             frequency: components["schemas"]["ClassroomFrequencyView"];
         };
         /** ClassroomFrequencyView */
@@ -794,6 +867,16 @@ export interface components {
         /** ClassroomNews */
         ClassroomNews: {
             classroom: components["schemas"]["ParticipantClassroom"];
+            post: components["schemas"]["ClassroomPostView"];
+        };
+        /** ClassroomNews[ClassroomDetails] */
+        ClassroomNews_ClassroomDetails_: {
+            classroom: components["schemas"]["ClassroomDetails"];
+            post: components["schemas"]["ClassroomPostView"];
+        };
+        /** ClassroomNews[ClassroomRef] */
+        ClassroomNews_ClassroomRef_: {
+            classroom: components["schemas"]["ClassroomRef"];
             post: components["schemas"]["ClassroomPostView"];
         };
         /** ClassroomPostView */
@@ -848,6 +931,13 @@ export interface components {
             total: number;
             /** Percentage */
             percentage: number;
+        };
+        /** ClassroomRef */
+        ClassroomRef: {
+            /** Id */
+            id: string;
+            /** Sigaa Id */
+            sigaa_id: number | null;
         };
         /**
          * ClassroomStatus
@@ -1104,6 +1194,20 @@ export interface components {
             /** Updating */
             updating: boolean;
         };
+        /** LatestNewsFeed[ClassroomNews[ClassroomDetails]] */
+        LatestNewsFeed_ClassroomNews_ClassroomDetails__: {
+            /** Items */
+            items: components["schemas"]["ClassroomNews_ClassroomDetails_"][];
+            /** Updating */
+            updating: boolean;
+        };
+        /** LatestNewsFeed[ClassroomNews[ClassroomRef]] */
+        LatestNewsFeed_ClassroomNews_ClassroomRef__: {
+            /** Items */
+            items: components["schemas"]["ClassroomNews_ClassroomRef_"][];
+            /** Updating */
+            updating: boolean;
+        };
         /**
          * Lesson
          * @description Uma aula; sem horário quando o SIGAA a publicou numa turma sem horário.
@@ -1154,6 +1258,18 @@ export interface components {
             no_class_reason: string | null;
             /** Lessons */
             lessons: components["schemas"]["WeekLesson"][];
+        };
+        /** LessonDay[ScheduledLesson] */
+        LessonDay_ScheduledLesson_: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** No Class Reason */
+            no_class_reason: string | null;
+            /** Lessons */
+            lessons: components["schemas"]["ScheduledLesson"][];
         };
         /** LessonMark */
         LessonMark: {
@@ -1234,10 +1350,10 @@ export interface components {
              */
             current: boolean;
             subject: components["schemas"]["ParticipantSubject"];
-            grade?: components["schemas"]["Grade"] | null;
             status?: components["schemas"]["ClassroomStatus"] | null;
             /** Has Teaching Plan */
             has_teaching_plan?: boolean | null;
+            grade?: components["schemas"]["Grade"] | null;
         };
         /** ParticipantSubject */
         ParticipantSubject: {
@@ -1423,6 +1539,27 @@ export interface components {
             description: string;
             /** Amount */
             amount: string;
+        };
+        /** ScheduledLesson */
+        ScheduledLesson: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Start Time
+             * Format: time
+             */
+            start_time: string;
+            /**
+             * End Time
+             * Format: time
+             */
+            end_time: string;
+            /** Scheduled */
+            scheduled: boolean;
+            classroom: components["schemas"]["LessonClassroom"];
         };
         /**
          * SearchResult
@@ -1633,12 +1770,16 @@ export interface components {
             registration: string;
             /** Photo */
             photo: string | null;
+            course: components["schemas"]["CourseRef"] | null;
+            /** Ira */
+            ira: number | null;
+            /** Mp */
+            mp: number | null;
             /** Email */
             email?: string | null;
             /** Bio */
             bio: string | null;
             unit: components["schemas"]["UnitRef"] | null;
-            course: components["schemas"]["CourseRef"] | null;
             /** Entry Semester */
             entry_semester: string | null;
             /** Curriculum Subject Codes */
@@ -1650,10 +1791,6 @@ export interface components {
             workload: components["schemas"]["Workload"] | null;
             /** Period Max Workload */
             period_max_workload: number | null;
-            /** Ira */
-            ira: number | null;
-            /** Mp */
-            mp: number | null;
             level: components["schemas"]["UserLevel"];
         };
         /** UserSettings */
@@ -1709,12 +1846,12 @@ export interface components {
              * Format: time
              */
             end_time: string;
-            status: components["schemas"]["LessonStatus"] | null;
-            /** Marked */
-            marked: boolean;
             /** Scheduled */
             scheduled: boolean;
             classroom: components["schemas"]["LessonClassroom"];
+            status: components["schemas"]["LessonStatus"] | null;
+            /** Marked */
+            marked: boolean;
         };
         /** Workload */
         Workload: {
@@ -1866,6 +2003,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description SIGAA indisponível durante a renovação. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -2317,7 +2461,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ParticipantClassroom"][];
+                    "application/json": (components["schemas"]["ParticipantClassroom"] | components["schemas"]["ClassroomDetails"])[];
                 };
             };
             /** @description Credenciais ausentes ou inválidas. */
@@ -2370,7 +2514,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ClassroomFrequencyResult"][];
+                    "application/json": (components["schemas"]["ClassroomFrequencyResult"] | components["schemas"]["ClassroomFrequencyResult_ClassroomDetails_"] | components["schemas"]["ClassroomFrequencyResult_ClassroomRef_"])[];
                 };
             };
             /** @description Credenciais ausentes ou inválidas. */
@@ -3171,7 +3315,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LessonDay"][];
+                    "application/json": (components["schemas"]["LessonDay"] | components["schemas"]["LessonDay_ScheduledLesson_"])[];
                 };
             };
             /** @description Credenciais ausentes ou inválidas. */
@@ -3238,7 +3382,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserProfile"];
+                    "application/json": components["schemas"]["UserProfile"] | components["schemas"]["AcademicProfile"] | components["schemas"]["BasicProfile"];
                 };
             };
             /** @description Credenciais ausentes ou inválidas. */
@@ -3544,7 +3688,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserProfile"];
+                    "application/json": components["schemas"]["UserProfile"] | components["schemas"]["AcademicProfile"] | components["schemas"]["BasicProfile"];
                 };
             };
             /** @description Credenciais ausentes ou inválidas. */
@@ -3716,7 +3860,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LatestNewsFeed"];
+                    "application/json": components["schemas"]["LatestNewsFeed"] | components["schemas"]["LatestNewsFeed_ClassroomNews_ClassroomDetails__"] | components["schemas"]["LatestNewsFeed_ClassroomNews_ClassroomRef__"];
                 };
             };
             /** @description Credenciais ausentes ou inválidas. */

@@ -62,13 +62,15 @@ e vencimento. A API deriva chaves distintas para access e refresh com HKDF, o sa
 `OAUTH_SECRET_KEY`. A senha do SIGAA fica cifrada no token do cliente. Cada chamada Bearer valida
 a autorização antes de servir o cache. Excluir o registro invalida imediatamente os dois tokens.
 
-O access vale 40 minutos. Renovar com sucesso estende por 14 dias o prazo do mesmo refresh. Para
+O access vale 40 minutos. Na renovação, a API autentica no SIGAA e cifra a nova sessão no access.
+A autorização é conferida novamente após o login. O sucesso estende por 14 dias o prazo do mesmo refresh. Para
 clientes públicos, `POST /oauth/token` recebe o formulário `grant_type=refresh_token`,
 `client_id`, `refresh_token` e uma prova DPoP ES256 nova, vinculada à chave da instalação e à URL
 `PUBLIC_URL/oauth/token`. Clientes no navegador usam `credentials: "omit"`. O cadastro, o aceite
 e a emissão pública inicial pertencem à etapa de autorização de aplicações.
 
-No OpenAPI, `x-oauth-scopes` lista as permissões e cada operação delegável declara seu
+No OpenAPI, `x-oauth-scopes` traz o título, o nível de confiança e as dependências de cada
+permissão. O nível informa a sensibilidade do acesso. Cada operação delegável declara seu
 `x-oauth-scope`. As respostas OAuth contêm apenas os campos concedidos. O perfil básico inclui
 nome, matrícula, foto e curso. `grades:read` acrescenta IRA, MP e menções nas turmas autorizadas.
 A agenda omite presença e marcação sem `frequency:read`. Consultar uma turma passada por ID
