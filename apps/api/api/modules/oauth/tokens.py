@@ -35,6 +35,8 @@ class TokenPair:
     access_token: str = field(repr=False)
     refresh_token: str = field(repr=False)
     scopes: tuple[str, ...]
+    credentials: Credentials = field(repr=False)
+    session_token: str | None = field(repr=False)
 
 
 def _deadline() -> datetime:
@@ -106,6 +108,8 @@ async def issue_tokens(
             _access(grant, login, session_token),
             _seal(grant, "refresh", login),
             tuple(scopes),
+            credentials,
+            session_token,
         )
 
     return await db.write(create)
@@ -186,6 +190,8 @@ async def renew_access(
             _access(grant, login, session_token),
             refresh_token,
             tuple(grant.scopes),
+            Credentials.model_validate(login),
+            session_token,
         )
 
     return await db.write(renew)

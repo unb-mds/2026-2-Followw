@@ -154,9 +154,6 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     transcript_synced_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True)
     )
-    transcript_checked_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True)
-    )
     entry_semester: Mapped[str | None] = mapped_column()
     integralization: Mapped[int | None] = mapped_column(SmallInteger)
     workload: Mapped[dict[str, int] | None] = mapped_column(JSONB)

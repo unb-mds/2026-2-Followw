@@ -75,7 +75,7 @@ def _stale_account_tasks(user: User | None) -> list[Task[None]]:
     if user is None:
         return [sync_profile, sync_classrooms]
     stale: list[Task[None]] = []
-    if profile_freshness(user) is Freshness.STALE:
+    if profile_freshness(user.profile_synced_at) is Freshness.STALE:
         stale.append(sync_profile)
     if classrooms_freshness(user.classrooms_synced_at) is Freshness.STALE:
         stale.append(sync_classrooms)

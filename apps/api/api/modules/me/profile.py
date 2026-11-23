@@ -67,15 +67,8 @@ class UserProfile(AcademicProfile):
 ProfileResponse = UserProfile | AcademicProfile | BasicProfile
 
 
-def profile_freshness(user: User, *, include_transcript: bool = True) -> Freshness:
-    if (
-        include_transcript
-        and user.level == UserLevel.GRADUACAO
-        and user.transcript_synced_at is None
-        and freshness(user.transcript_checked_at, PROFILE_TTL) is Freshness.STALE
-    ):
-        return Freshness.STALE
-    return freshness(user.profile_synced_at, PROFILE_TTL)
+def profile_freshness(synced_at: datetime | None) -> Freshness:
+    return freshness(synced_at, PROFILE_TTL)
 
 
 async def sync_profile(ctx: Context[None]) -> None:
@@ -86,24 +79,17 @@ async def sync_profile(ctx: Context[None]) -> None:
             profile, started_at, login=ctx.sync.registration
         )
     )
-    if (
-        ctx.sync.scopes is not None
-        or user.profile_synced_at != started_at
-        or profile.level != UserLevel.GRADUACAO
-        or user.transcript_synced_at is not None
-    ):
+    if profile.level != UserLevel.GRADUACAO or user.transcript_synced_at is not None:
         return
-    codes = None
     try:
         codes = await ctx.client.documents.get_completed_subjects(profile.registration)
     except DocumentUnavailable:
-        pass
+        return
     except (HTTPError, SigaaParseError) as error:
         logger.warning("Histórico acadêmico indisponível (%s).", type(error).__name__)
+        return
     await ctx.sync.db.write(
-        lambda session: TranscriptRepository(session).record_check(
-            user, codes, started_at
-        )
+        lambda session: TranscriptRepository(session).save(user.id, codes, started_at)
     )
 
 
@@ -120,7 +106,7 @@ class ProfileService:
             return Cached(
                 await profile_view(session, user, self._sync.scopes),
                 user.profile_synced_at,
-                profile_freshness(user, include_transcript=self._sync.scopes is None),
+                profile_freshness(user.profile_synced_at),
             )
 
         return await self._sync.resolve(sync_profile, None, load)

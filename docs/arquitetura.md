@@ -15,8 +15,8 @@ Universidade de Brasília (UnB), agregando em uma experiência unificada e perfo
 **SIGAA**, **Restaurante Universitário (RU)**, calendários e editais.
 
 O sistema não possui contas proprietárias: a autenticação é delegada ao **Centro de Autenticação da
-UnB**. A sessão web usa cookies cifrados. Requisições OAuth validam a autorização no banco e
-podem recuperar a sessão SIGAA na própria chamada.
+UnB**. A sessão web usa cookies cifrados. Requisições OAuth validam a autorização no banco e seguem
+o mesmo cache da web.
 
 ---
 
@@ -167,9 +167,9 @@ suas interações com as bibliotecas do monorepo e dados.
 
 ### Descoberta, planejamento e serviços autenticados
 
-- A busca pública reúne matérias, cursos e docentes; o catálogo e as matrizes alimentam os fluxos
-  de cursos, estatísticas por matéria e recomendações. As ofertas de estágio vêm do mural do SIGAA
-  e exigem sessão.
+- A busca pública reúne matérias, cursos e docentes; o catálogo e as matrizes alimentam os fluxos de
+  cursos, estatísticas por matéria e recomendações. As ofertas de estágio vêm do mural do SIGAA e
+  exigem sessão.
 - A grade planejada e as menções simuladas ficam no armazenamento local do navegador. A grade não
   realiza matrícula e o simulador não altera índices ou menções no SIGAA.
 - A agenda semanal reúne aulas das turmas atuais e usa o cache de frequência. A confirmação de

@@ -6,8 +6,11 @@ from pydantic import BaseModel, Field, SecretStr
 
 from api.core.config import settings
 from api.db.main import DatabaseDep
+from api.modules.auth.account import start_account
 from api.modules.oauth.proof import InvalidProof, Proof
 from api.modules.oauth.tokens import InvalidToken, renew_access
+from api.sigaa import SigaaConnection
+from api.sync.queue import JobQueueDep
 
 router = APIRouter()
 
@@ -37,6 +40,7 @@ class TokenResponse(BaseModel):
 async def refresh(
     body: Annotated[RefreshGrant, Form()],
     db: DatabaseDep,
+    queue: JobQueueDep,
     response: Response,
     dpop: Annotated[str | None, Header(max_length=8192)] = None,
 ):
@@ -60,6 +64,10 @@ async def refresh(
         return JSONResponse(
             {"error": "invalid_grant"}, status_code=400, headers=headers
         )
+    # Como no refresh da web: agenda o sync da conta do que venceu.
+    await start_account(
+        SigaaConnection(pair.credentials, pair.session_token), db, queue
+    )
     response.headers.update(headers)
     return TokenResponse(
         access_token=pair.access_token,

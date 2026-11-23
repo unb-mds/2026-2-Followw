@@ -93,7 +93,6 @@ class UserRepository:
         if changed_enrollment:
             user.curriculum_id = None
             user.transcript_synced_at = None
-            user.transcript_checked_at = None
         user.course_id = course_id
         user.entry_semester = profile.entry_semester
         user.integralization = profile.integralization

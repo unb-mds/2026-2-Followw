@@ -143,16 +143,6 @@ class Sync:
     def scopes(self) -> frozenset[Scope] | None:
         return self._sigaa.scopes
 
-    async def refresh_stale[T: Target](self, task: Task[T], target: T) -> bool:
-        """Com OAuth, revalida antes da resposta; com cookies, enfileira o trabalho."""
-        if self.scopes is None:
-            self.schedule(task, target)
-            return False
-        if self._cache.only_if_cached:
-            return False
-        await self.perform(task, target)
-        return True
-
     async def resolve[T: Target, V](
         self,
         task: Task[T],
@@ -175,12 +165,7 @@ class Sync:
             cached.freshness is Freshness.FROZEN
             or cache.only_if_cached
             or (immutable and not cache.no_cache)
-            or (
-                not cache.revalidate(cached.synced_at)
-                and not (
-                    self.scopes is not None and cached.freshness is Freshness.STALE
-                )
-            )
+            or not cache.revalidate(cached.synced_at)
         ):
             return self._serve(task, target, cached)
 
@@ -242,7 +227,7 @@ class Sync:
         ]
 
     def _serve[T: Target, V](self, task: Task[T], target: T, cached: Cached[V]) -> V:
-        if cached.freshness is Freshness.STALE and self.scopes is None:
+        if cached.freshness is Freshness.STALE:
             self.schedule(task, target)
         self._cache.served(cached.synced_at)
         return cached.value

@@ -141,7 +141,7 @@ class ClassroomPostsService:
 
     async def latest_news(self) -> LatestNewsFeed:
         """O conteúdo de cada notícia segue sob demanda, por `get_post`."""
-        links = await self._classrooms.list_links(include_grades=True)
+        links = await self._classrooms.list_links()
         if not links:
             return LatestNewsFeed(items=[], updating=False)
         by_id = {link.row.classroom_id: link for link in links}
@@ -177,9 +177,8 @@ class ClassroomPostsService:
             any(link.row.current for link in links)
             and dashboard_freshness(dashboard_synced_at) is Freshness.STALE
         )
-        if updating and await self._sync.refresh_stale(sync_dashboard_posts, None):
-            items, _ = await self._sync.db.read(load)
-            updating = False
+        if updating:
+            self._sync.schedule(sync_dashboard_posts, None)
         return LatestNewsFeed(items=items, updating=updating)
 
     async def list_posts(self, classroom_id: str) -> list[ClassroomPostView]:

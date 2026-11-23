@@ -64,7 +64,7 @@ class RecommendationService:
             user = await UserRepository(session).get_by_registration(registration)
             if user is None or user.profile_synced_at is None:
                 return None
-            state = profile_freshness(user)
+            state = profile_freshness(user.profile_synced_at)
             student = await _student(session, user)
             # Sem matriz, só o perfil em dia confirma a ausência.
             if (

@@ -28,23 +28,20 @@ def test_edicao_com_bearer_reaproveita_o_sigaa_e_filtra_perfil_retornado(
     )
 
 
-def test_perfil_oauth_seguido_de_web_busca_historico_apenas_na_sessao_web(
+def test_perfil_oauth_sincroniza_como_a_web_e_compartilha_o_cache(
     client, emitir, cookies, stub_sigaa
 ):
     from sigaa_client import Credentials
 
-    read = stub_sigaa.documents.get_completed_subjects
-    grant = emitir()
-    bearer = {"Authorization": f"Bearer {grant.access_token}"}
+    bearer = {"Authorization": f"Bearer {emitir().access_token}"}
     assert client.get("/me", headers=bearer).status_code == 200
-    read.assert_not_awaited()
+    stub_sigaa.documents.get_completed_subjects.assert_awaited_once_with("251000000")
 
     client.cookies.update(
         cookies(refresh=Credentials(registration="251000000", password="senha123"))
     )
-    for _ in range(2):
-        assert client.get("/me").status_code == 200
-    read.assert_awaited_once_with("251000000")
+    assert client.get("/me").status_code == 200
+    stub_sigaa.profile.get_profile.assert_awaited_once()
 
 
 def test_perfil_de_desempenho_consulta_indices_sem_carregar_componentes_cumpridos(

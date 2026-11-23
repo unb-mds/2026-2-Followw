@@ -9,9 +9,11 @@ from joserfc.jwk import ECKey
 
 from api.cookies import decrypt_cookie
 from api.db.models import OAuthGrant
+from api.modules.auth.account import sync_account
 from api.modules.oauth.proof import Proof
 from api.modules.oauth.scopes import Scope
 from api.modules.oauth.tokens import InvalidToken, renew_access, revoke
+from api.sync.engine import Step
 
 ENDPOINT = "https://api.followw.test/oauth/token"
 
@@ -26,7 +28,7 @@ def _prova(key):
 
 
 def test_refresh_publico_reutilizavel_exige_prova_nova_da_mesma_instalacao(
-    client, emitir, database, sigaa
+    client, emitir, database, sigaa, qstash
 ):
     key = ECKey.generate_key("P-256")
     first = _prova(key)
@@ -53,13 +55,16 @@ def test_refresh_publico_reutilizavel_exige_prova_nova_da_mesma_instalacao(
     assert response.json()["scope"] == "profile:read"
     assert response.json()["expires_in"] == 2400
     access = response.json()["access_token"]
+    # Como no refresh da web, o sync da conta sai num job com login próprio.
+    assert [job.steps for job in qstash.jobs()] == [(Step.of(sync_account),)]
+    logins = sigaa.logins
     for _ in range(2):
         response = client.get(
             "/me",
             headers={"Authorization": f"Bearer {access}", "Cache-Control": "no-cache"},
         )
         assert response.status_code == 200
-    assert sigaa.logins == 1
+    assert sigaa.logins == logins
     assert sigaa.profile_requests >= 2
     assert renew(proof).status_code == 400
     assert renew(_prova(key)).status_code == 200

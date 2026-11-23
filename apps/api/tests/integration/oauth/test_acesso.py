@@ -5,11 +5,13 @@ from sigaa_client import Credentials
 from sqlalchemy import update
 
 from api.db.models import OAuthGrant, User
+from api.modules.classrooms.service import sync_classrooms
 from api.modules.oauth.scopes import Scope
 from api.modules.oauth.tokens import revoke
+from api.sync.engine import Step
 
 
-def test_agenda_revalida_na_chamada_e_recusa_historico(
+def test_agenda_vencida_segue_o_cache_da_web_e_recusa_historico(
     client, sigaa, emitir, database, qstash
 ):
     pair = emitir(Scope.CLASSROOMS)
@@ -21,14 +23,16 @@ def test_agenda_revalida_na_chamada_e_recusa_historico(
                 classrooms_synced_at=datetime.now(UTC) - timedelta(days=7)
             )
         )
-    logins = sigaa.logins
-    consultas = sigaa.classrooms_requests
+    qstash.published.clear()
     agenda = client.get("/lessons", headers=headers)
-    assert agenda.status_code == 200
-    assert sigaa.logins == logins + 1
+    assert agenda.status_code == 200 and len(agenda.json()) == 7
+    assert Step.of(sync_classrooms) in {s for job in qstash.jobs() for s in job.steps}
+
+    consultas = sigaa.classrooms_requests
+    fresca = client.get("/lessons", headers={**headers, "Cache-Control": "no-cache"})
+    assert fresca.status_code == 200
     assert sigaa.classrooms_requests > consultas
-    assert len(agenda.json()) == 7
-    assert not agenda.cookies and not qstash.published
+    assert not fresca.cookies
     assert client.post("/me/transcript", headers=headers).status_code == 403
 
 

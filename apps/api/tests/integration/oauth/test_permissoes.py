@@ -1,11 +1,9 @@
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime
 from unittest.mock import AsyncMock
 
 import pytest
 from sigaa_client import Classroom, ClassroomFrequency, ClassroomGrade, Grade, Subject
-from sqlalchemy import update
 
-from api.db.models import ClassroomParticipant
 from api.modules.oauth.scopes import Scope
 
 
@@ -56,15 +54,18 @@ def test_consulta_historica_por_lista_e_id_exige_aceite_adicional(
         "/classrooms?semester=2025.2", headers=headers(Scope.HISTORY)
     ).json()
     assert past[0]["id"] == "BBB" and "grade" not in past[0]
+    # Como na web, as menções vêm do sync da conta.
+    client.post(
+        "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
+    )
+    client.cookies.clear()
     graded = client.get(
         "/classrooms?semester=2025.2", headers=headers(Scope.HISTORY, Scope.GRADES)
     ).json()
     assert graded[0]["grade"] == "MS"
 
 
-def test_agenda_separa_horarios_da_frequencia(
-    client, emitir, turmas, database, qstash, hoje
-):
+def test_agenda_separa_horarios_da_frequencia(client, emitir, turmas, hoje):
     hoje(datetime(2026, 9, 17, 15))
 
     def aulas(*permissions):
@@ -76,20 +77,10 @@ def test_agenda_separa_horarios_da_frequencia(
         return [lesson for day in response.json() for lesson in day["lessons"]]
 
     schedule = aulas()
-    turmas.classrooms.get_classroom_frequency.assert_not_awaited()
     assert schedule and "start_time" in schedule[0]
     assert all("marked" not in lesson and "status" not in lesson for lesson in schedule)
-    with database.begin() as session:
-        session.execute(
-            update(ClassroomParticipant).values(
-                frequency_synced_at=datetime.now(UTC) - timedelta(days=7)
-            )
-        )
-    turmas.classrooms.get_classroom_frequency.reset_mock()
     attendance = aulas(Scope.FREQUENCY)
     assert all({"marked", "status"} <= lesson.keys() for lesson in attendance)
-    turmas.classrooms.get_classroom_frequency.assert_awaited_once_with("AAA")
-    assert not qstash.published
 
 
 def test_busca_publica_com_bearer_so_oferece_catalogo(client, emitir):

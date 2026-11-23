@@ -33,8 +33,8 @@ Estes cookies recebem as seguintes configurações de segurança:
 
 - `HttpOnly`: o JavaScript das páginas não consegue lê-los
 - `Secure`: em produção, só trafegam em conexão segura (HTTPS)
-- `SameSite=Lax`: restringe o envio dos cookies em requisições entre sites, mas permite, por exemplo,
-  navegações de nível superior com métodos seguros; não elimina todos os riscos de CSRF.
+- `SameSite=Lax`: restringe o envio dos cookies em requisições entre sites, mas permite, por
+  exemplo, navegações de nível superior com métodos seguros; não elimina todos os riscos de CSRF.
 
 ## Os cookies são criptografados
 
@@ -45,9 +45,9 @@ SIGAA.
 
 ## Uma chave para cada cookie
 
-Os cookies e os jobs usam `JWT_SECRET_KEY`, com no mínimo 32 caracteres. Ele
-nunca é usado diretamente: a partir dele são derivadas chaves de 256 bits, uma para cada uso: o
-`access_token`, o `refresh_token` e as tarefas em segundo plano.
+Os cookies e os jobs usam `JWT_SECRET_KEY`, com no mínimo 32 caracteres. Ele nunca é usado
+diretamente: a partir dele são derivadas chaves de 256 bits, uma para cada uso: o `access_token`, o
+`refresh_token` e as tarefas em segundo plano.
 
 Na prática:
 
@@ -57,24 +57,25 @@ Na prática:
 
 ## Tokens OAuth de aplicações
 
-Cada autorização tem um registro com matrícula, aplicação, permissões concedidas, salt aleatório
-e vencimento. A API deriva chaves distintas para access e refresh com HKDF, o salt e
-`OAUTH_SECRET_KEY`. A senha do SIGAA fica cifrada no token do cliente. Cada chamada Bearer valida
-a autorização antes de servir o cache. Excluir o registro invalida imediatamente os dois tokens.
+Cada autorização tem um registro com matrícula, aplicação, permissões concedidas, salt aleatório e
+vencimento. A API deriva chaves distintas para access e refresh com HKDF, o salt e
+`OAUTH_SECRET_KEY`. A senha do SIGAA fica cifrada no token do cliente. Cada chamada Bearer valida a
+autorização antes de servir o cache. Excluir o registro invalida imediatamente os dois tokens.
 
-O access vale 40 minutos. Na renovação, a API autentica no SIGAA e cifra a nova sessão no access.
-A autorização é conferida novamente após o login. O sucesso estende por 14 dias o prazo do mesmo refresh. Para
-clientes públicos, `POST /oauth/token` recebe o formulário `grant_type=refresh_token`,
-`client_id`, `refresh_token` e uma prova DPoP ES256 nova, vinculada à chave da instalação e à URL
-`PUBLIC_URL/oauth/token`. Clientes no navegador usam `credentials: "omit"`. O cadastro, o aceite
-e a emissão pública inicial pertencem à etapa de autorização de aplicações.
+O access vale 40 minutos. Na renovação, a API autentica no SIGAA, cifra a nova sessão no access e
+agenda o sync da conta, como o refresh da web. A autorização é conferida novamente após o login. O
+sucesso estende por 14 dias o prazo do mesmo refresh. Para clientes públicos, `POST /oauth/token`
+recebe o formulário `grant_type=refresh_token`, `client_id`, `refresh_token` e uma prova DPoP ES256
+nova, vinculada à chave da instalação e à URL `PUBLIC_URL/oauth/token`. Clientes no navegador usam
+`credentials: "omit"`. O cadastro, o aceite e a emissão pública inicial pertencem à etapa de
+autorização de aplicações.
 
 No OpenAPI, `x-oauth-scopes` traz o título, o nível de confiança e as dependências de cada
 permissão. O nível informa a sensibilidade do acesso. Cada operação delegável declara seu
-`x-oauth-scope`. As respostas OAuth contêm apenas os campos concedidos. O perfil básico inclui
-nome, matrícula, foto e curso. `grades:read` acrescenta IRA, MP e menções nas turmas autorizadas.
-A agenda omite presença e marcação sem `frequency:read`. Consultar uma turma passada por ID
-também exige `classrooms:history`.
+`x-oauth-scope`. As respostas OAuth contêm apenas os campos concedidos. O perfil básico inclui nome,
+matrícula, foto e curso. `grades:read` acrescenta IRA, MP e menções nas turmas autorizadas. A agenda
+omite presença e marcação sem `frequency:read`. Consultar uma turma passada por ID também exige
+`classrooms:history`.
 
 ## Se o seu navegador for comprometido
 
