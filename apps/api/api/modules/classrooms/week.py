@@ -14,6 +14,7 @@ from api.db.models import OwnLink
 from api.modules.classrooms.frequency import frequency_freshness, sync_frequency
 from api.modules.classrooms.repository import FrequencyRepository
 from api.modules.classrooms.service import ClassroomServiceDep
+from api.modules.oauth.scopes import Scope, scoped
 from api.schemas import UserSubject
 from api.sync import SyncDep
 
@@ -21,7 +22,7 @@ from api.sync import SyncDep
 class LessonClassroom(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    id: str
+    id: UUID
     subject: UserSubject
     room: str | None
 
@@ -32,9 +33,10 @@ class WeekLesson(BaseModel):
     id: UUID
     start_time: time
     end_time: time
-    # `None` onde o usuário não é aluno.
-    status: LessonStatus | None
-    marked: bool
+    status: LessonStatus | None = scoped(
+        Scope.FREQUENCY, "Presença registrada; `null` onde o usuário não é aluno."
+    )
+    marked: bool = scoped(Scope.FREQUENCY, "Se o usuário marcou a aula.")
     # Fora do plano: publicada pelo SIGAA, como uma reposição.
     scheduled: bool
     classroom: LessonClassroom
@@ -119,7 +121,7 @@ def _frequency_stale(link: OwnLink) -> bool:
 def _classroom(link: OwnLink) -> LessonClassroom:
     classroom = link.row.classroom
     return LessonClassroom(
-        id=link.front_end_id,
+        id=classroom.id,
         subject=UserSubject(code=classroom.subject.code, name=classroom.subject.name),
         room=classroom.room,
     )

@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict
 from sigaa_client import DashboardPost, PostType
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api import academic_calendar
 from api.cache import Freshness, freshness
 from api.db.models import ClassroomPosts, OwnLink, User
 from api.modules.classrooms.post_reading import (
@@ -26,7 +27,7 @@ from api.sync.engine import run_task
 
 POSTS_LIST_TTL = timedelta(hours=24)
 DASHBOARD_TTL = timedelta(hours=1)
-LATEST_NEWS_LIMIT = 5
+FEED_NEWS_LIMIT = 5
 
 
 def posts_freshness(link: OwnLink, synced_at: datetime | None) -> Freshness:
@@ -51,15 +52,17 @@ def post_detail_freshness(
     return Freshness.FRESH
 
 
-class ClassroomNews(BaseModel):
+class FeedPost(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     classroom: ParticipantClassroom
     post: ClassroomPostView
 
 
-class LatestNewsFeed(BaseModel):
-    items: list[ClassroomNews]
+class PostsFeed(BaseModel):
+    """Notícias recentes e as próximas avaliações."""
+
+    items: list[FeedPost]
     updating: bool
 
 
@@ -139,27 +142,27 @@ class ClassroomPostsService:
         self._sync = sync
         self._classrooms = classrooms
 
-    async def latest_news(self) -> LatestNewsFeed:
+    async def latest_posts(self) -> PostsFeed:
         """O conteúdo de cada notícia segue sob demanda, por `get_post`."""
         links = await self._classrooms.list_links()
         if not links:
-            return LatestNewsFeed(items=[], updating=False)
+            return PostsFeed(items=[], updating=False)
         by_id = {link.row.classroom_id: link for link in links}
         user_id = links[0].row.user_id
         curriculum = await self._classrooms.curriculum()
 
         async def load(
             session: AsyncSession,
-        ) -> tuple[list[ClassroomNews], datetime | None]:
-            posts = await PostsRepository(session).latest_news(
-                by_id.keys(), LATEST_NEWS_LIMIT
+        ) -> tuple[list[FeedPost], datetime | None]:
+            posts = await PostsRepository(session).latest_feed(
+                by_id.keys(), academic_calendar.today(), FEED_NEWS_LIMIT
             )
             read_ids = await PostReadingRepository(session).read_ids(
                 user_id, [post.id for post in posts]
             )
             user = await session.get_one(User, user_id)
             items = [
-                ClassroomNews(
+                FeedPost(
                     classroom=to_classroom(by_id[post.classroom_id], curriculum),
                     post=_to_post(
                         post,
@@ -179,7 +182,7 @@ class ClassroomPostsService:
         )
         if updating:
             self._sync.schedule(sync_dashboard_posts, None)
-        return LatestNewsFeed(items=items, updating=updating)
+        return PostsFeed(items=items, updating=updating)
 
     async def list_posts(self, classroom_id: str) -> list[ClassroomPostView]:
         link = await self._classrooms.get_link(classroom_id)

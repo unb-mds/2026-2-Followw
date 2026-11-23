@@ -4,6 +4,7 @@ import pytest
 
 from api.academic_calendar import (
     class_days,
+    enrollment_adjusting,
     grades_closed,
     member_status,
     members_closed,
@@ -67,3 +68,24 @@ def test_dias_letivos_cobrem_o_semestre_inteiro_e_so_existem_no_calendario():
     days = list(class_days("2026.2"))
     assert (days[0], days[-1]) == (date(2026, 8, 10), date(2026, 12, 14))
     assert list(class_days("2099.1")) == []
+
+
+@pytest.mark.parametrize(
+    ("dia", "ajustando"),
+    [
+        (date(2026, 7, 29), False),
+        (date(2026, 7, 30), True),
+        (date(2026, 8, 14), True),
+        (date(2026, 8, 15), False),
+    ],
+)
+def test_matricula_ajusta_as_turmas_do_fim_da_regular_ao_fim_da_extraordinaria(
+    hoje, dia, ajustando
+):
+    hoje(dia)
+
+    assert enrollment_adjusting("2026.2") is ajustando
+
+
+def test_semestre_fora_do_calendario_nao_ajusta_matricula():
+    assert enrollment_adjusting("1900.1") is False

@@ -2,6 +2,7 @@ import hashlib
 import json
 import logging
 from datetime import UTC, datetime, timedelta
+from uuid import uuid4
 
 import httpx
 import pytest
@@ -33,6 +34,7 @@ from .helpers import (
     TELAS,
     _entregar,
     _envelhecer,
+    _telas,
 )
 
 
@@ -57,7 +59,7 @@ def test_novo_login_so_revalida_o_que_venceu(client, conta, database):
     client.post("/auth/sigaa", json=LOGIN)
     _envelhecer(database, User.profile_synced_at, hours=11)
     _envelhecer(database, User.classrooms_synced_at, hours=73)
-    _envelhecer(database, Classroom.members_synced_at, hours=25)
+    _envelhecer(database, Classroom.members_synced_at, hours=49)
 
     client.post("/auth/sigaa", json=LOGIN)
 
@@ -123,17 +125,17 @@ def test_turma_com_falha_nao_impede_o_sync_das_outras(
     assert [c.args for c in estatisticas] == [("BBB",)]
 
 
-def test_login_sincroniza_cada_turma_em_um_job(client, conta, qstash):
+def test_login_sincroniza_cada_turma_em_um_job(client, conta, qstash, id_da_turma):
     client.post("/auth/sigaa", json=LOGIN)
 
     conta_job, *turmas = qstash.jobs()
     atual = (Step.of(sync_members), Step.of(sync_teaching_plan))
     antiga = (Step.of(sync_members), Step.of(sync_statistics))
     assert (conta_job.classroom_id, conta_job.steps) == (None, (Step.of(sync_account),))
-    assert sorted((job.classroom_id, job.steps) for job in turmas) == [
-        ("AAA", atual),
-        ("BBB", antiga),
-    ]
+    assert {job.classroom_id: job.steps for job in turmas} == {
+        id_da_turma("AAA"): atual,
+        id_da_turma("BBB"): antiga,
+    }
     # O login do usuário e uma sessão para cada job, encerrada no fim dele.
     assert conta.authenticate.await_count == 4
     assert conta.logout.await_count == 3
@@ -203,18 +205,18 @@ def test_sessao_do_job_sai_mesmo_quando_a_tarefa_falha(client, stub_sigaa, qstas
 
 
 def test_tarefa_que_falha_na_origem_tem_uma_unica_retentativa(
-    client, turma, qstash, database, caplog
+    client, turma, qstash, database, caplog, id_da_turma
 ):
     turma.classrooms.list_classroom_members.side_effect = SigaaError("fora do ar")
 
-    response = _entregar(client, qstash, encode_job(TELAS))
+    response = _entregar(client, qstash, encode_job(_telas(id_da_turma("AAA"))))
 
     assert response.status_code == 204
     # A outra tarefa da turma não espera pela que falhou.
     turma.classrooms.get_classroom_statistics.assert_awaited_once()
     [retry] = qstash.jobs()
     assert (retry.classroom_id, retry.steps, retry.attempt) == (
-        "AAA",
+        id_da_turma("AAA"),
         (Step.of(sync_members),),
         2,
     )
@@ -240,34 +242,40 @@ def test_tarefa_que_falha_na_origem_tem_uma_unica_retentativa(
     assert all(r["error_type"] == "SigaaError" for r in failures)
 
 
-def test_retentativa_nao_cai_na_deduplicacao_da_primeira(client, turma, qstash):
+def test_retentativa_nao_cai_na_deduplicacao_da_primeira(
+    client, turma, qstash, id_da_turma
+):
     turma.classrooms.list_classroom_members.side_effect = SigaaError("fora do ar")
+    classroom_id = id_da_turma("AAA")
 
-    _entregar(client, qstash, encode_job(TELAS))
+    _entregar(client, qstash, encode_job(_telas(classroom_id)))
 
     retry = qstash.published[0]["headers"]["Upstash-Deduplication-Id"]
-    assert retry == hashlib.sha256(b"251000000:AAA:sync_members:#2").hexdigest()
+    key = f"251000000:{classroom_id}:sync_members:#2".encode()
+    assert retry == hashlib.sha256(key).hexdigest()
 
 
 @pytest.mark.parametrize(
     "erro", [SigaaError("CAS fora do ar"), httpx.ConnectError("fora do ar")]
 )
 def test_login_do_job_com_sigaa_fora_reagenda_todas_as_tarefas(
-    client, turma, qstash, erro
+    client, turma, qstash, erro, id_da_turma
 ):
     turma.authenticate.side_effect = erro
 
-    _entregar(client, qstash, encode_job(TELAS))
+    _entregar(client, qstash, encode_job(_telas(id_da_turma("AAA"))))
 
     [retry] = qstash.jobs()
-    assert (retry.steps, retry.attempt) == (TELAS.steps, 2)
+    assert (retry.steps, retry.attempt) == (TELAS, 2)
     turma.classrooms.list_classroom_members.assert_not_awaited()
 
 
-def test_senha_recusada_no_job_descarta_sem_retentativa(client, turma, qstash):
+def test_senha_recusada_no_job_descarta_sem_retentativa(
+    client, turma, qstash, id_da_turma
+):
     turma.authenticate.side_effect = AuthenticationFailed("senha trocada")
 
-    response = _entregar(client, qstash, encode_job(TELAS))
+    response = _entregar(client, qstash, encode_job(_telas(id_da_turma("AAA"))))
 
     assert response.status_code == 204
     assert qstash.published == []
@@ -275,17 +283,18 @@ def test_senha_recusada_no_job_descarta_sem_retentativa(client, turma, qstash):
 
 
 def test_tarefa_de_turma_que_sumiu_do_sigaa_e_descartada(
-    client, turma, qstash, database
+    client, turma, qstash, database, id_da_turma
 ):
     turma.classrooms.list_classroom_members.side_effect = ClassroomNotFound("sumiu")
+    job = _telas(id_da_turma("AAA"))
 
-    assert _entregar(client, qstash, encode_job(TELAS)).status_code == 204
+    assert _entregar(client, qstash, encode_job(job)).status_code == 204
     assert qstash.published == []
     turma.classrooms.get_classroom_statistics.assert_awaited_once()
 
 
 def test_job_de_turma_fora_da_lista_nao_busca_nada(client, turma, qstash):
-    job = TELAS.model_copy(update={"classroom_id": "ZZZ"})
+    job = _telas(str(uuid4()))
 
     assert _entregar(client, qstash, encode_job(job)).status_code == 204
     turma.classrooms.list_classroom_members.assert_not_awaited()
@@ -293,11 +302,11 @@ def test_job_de_turma_fora_da_lista_nao_busca_nada(client, turma, qstash):
 
 
 def test_requisicao_junta_as_tarefas_num_job_por_turma(
-    client, turma, cookies, qstash, database
+    client, turma, cookies, qstash, database, id_da_turma
 ):
     """A lista vencida vai no job da conta; a tela da turma, no job da turma."""
     client.cookies.update(cookies(refresh=CREDENCIAIS))
-    client.get("/classrooms/AAA/members")
+    client.get(f"/classrooms/{id_da_turma('AAA')}/members")
     vencido = datetime.now(UTC) - timedelta(days=30)
     with database() as session:
         session.execute(update(User).values(classrooms_synced_at=vencido))
@@ -305,12 +314,12 @@ def test_requisicao_junta_as_tarefas_num_job_por_turma(
         session.commit()
     qstash.published.clear()
 
-    client.get("/classrooms/AAA/members")
+    client.get(f"/classrooms/{id_da_turma('AAA')}/members")
 
     jobs = {job.classroom_id: job.steps for job in qstash.jobs()}
     assert jobs == {
         None: (Step(task="sync_classrooms"),),
-        "AAA": (Step.of(sync_members),),
+        id_da_turma("AAA"): (Step.of(sync_members),),
     }
 
 
@@ -350,7 +359,7 @@ def test_aceita_a_proxima_chave_de_assinatura(client, stub_sigaa, qstash):
             JOBS_URL, body, key="sig_de_outra_conta_com_32_bytes_ou_mais"
         ),
         lambda qstash, body: qstash.sign("https://outra.api/jobs", body),
-        lambda qstash, body: qstash.sign(JOBS_URL, encode_job(TELAS)),
+        lambda qstash, body: qstash.sign(JOBS_URL, encode_job(_telas("AAA"))),
     ],
     ids=["outra-chave", "outra-url", "outro-corpo"],
 )

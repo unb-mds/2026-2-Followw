@@ -1,8 +1,11 @@
+from starlette._utils import get_route_path
+from starlette.datastructures import Headers
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from api.core.config import settings
 from api.modules.me.photo import MAX_PHOTO_BYTES
+from api.modules.oauth.auth import parse_bearer_token
 
 _MAX_BODY = MAX_PHOTO_BYTES + 64 * 1024
 
@@ -15,12 +18,12 @@ class ProfileUploadGuard:
         if (
             scope["type"] != "http"
             or scope["method"] != "PATCH"
-            or scope["path"].removeprefix("/api") != "/me/profile"
+            or get_route_path(scope).rstrip("/") != "/me/profile"
         ):
             return await self.app(scope, receive, send)
-        headers = dict(scope["headers"])
-        origin = headers.get(b"origin", b"").decode("latin1")
-        if origin not in settings.cors_origins:
+        headers = Headers(scope=scope)
+        origin = headers.get("origin", "")
+        if origin not in settings.cors_origins and parse_bearer_token(headers) is None:
             return await JSONResponse(
                 {"detail": "Origem não autorizada."}, status_code=403
             )(scope, receive, send)

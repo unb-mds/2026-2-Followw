@@ -2,11 +2,11 @@ import type { components } from './schema.gen.ts';
 
 import { api } from './api.ts';
 
-export type ClassroomNews = components['schemas']['ClassroomNews'];
+export type FeedPost = components['schemas']['FeedPost'];
 
-export const latestNewsQueryOptions = api.queryOptions(
+export const latestPostsQueryOptions = api.queryOptions(
     'get',
-    '/posts/news',
+    '/posts',
     {},
     {
         refetchInterval: (query) => (query.state.data?.updating ? 5000 : false)

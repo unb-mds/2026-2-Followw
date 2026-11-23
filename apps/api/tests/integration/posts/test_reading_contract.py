@@ -17,7 +17,7 @@ def test_confirmacao_valida_id_sem_acessar_banco(api, subtests):
     api.app.dependency_overrides[ClassroomPostsService] = lambda: service
     for post_id in ("news:0", "news:-1", "assessment:abc", "material:123", "inválido"):
         with subtests.test(post_id=post_id):
-            path = f"/classrooms/AAA/posts/{post_id}/read"
+            path = f"/classrooms/123/posts/{post_id}/read"
             assert api.put(path).status_code == 422
             assert api.delete(path).status_code == 422
     service.mark_read.assert_not_awaited()
@@ -30,5 +30,8 @@ def test_openapi_documenta_leitura(api):
     route = schema["paths"]["/classrooms/{classroom_id}/posts/{post_id}/read"]
     assert {"204", "401", "404", "422"} <= route["put"]["responses"].keys()
     assert {"204", "401", "404", "422"} <= route["delete"]["responses"].keys()
+    assert "x-oauth-scope" not in route["put"]
+    assert "x-oauth-scope" not in route["delete"]
+    assert "posts:mark" not in schema["x-oauth-scopes"]
 
     assert "requestBody" not in route["put"]

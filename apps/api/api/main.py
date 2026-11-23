@@ -2,7 +2,6 @@ import logging
 from typing import Any
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import HTMLResponse
@@ -15,6 +14,9 @@ from api.modules.classrooms.router import router as classrooms_router
 from api.modules.lessons.router import router as lessons_router
 from api.modules.me.router import router as me_router
 from api.modules.me.upload_guard import ProfileUploadGuard
+from api.modules.oauth.cors import FollowwCORS
+from api.modules.oauth.router import router as oauth_router
+from api.modules.oauth.scopes import PERMISSIONS
 from api.modules.posts.router import router as posts_router
 from api.modules.public_classrooms.router import router as public_classrooms_router
 from api.modules.public_courses.router import router as public_courses_router
@@ -86,7 +88,7 @@ app = FastAPI(
     title="Followw UnB API",
     description=(
         "API independente e open-source para consultar dados do SIGAA e de outros "
-        "sistemas da UnB. O acesso autenticado usa a conta do SIGAA, com sessão por cookies."
+        "sistemas da UnB. O acesso usa cookies do Followw ou um token OAuth com escopos."
     ),
     version="0.1.0",
     root_path="/api",
@@ -108,6 +110,15 @@ def custom_openapi() -> dict[str, Any]:
             tags=app.openapi_tags,
             servers=[{"url": app.root_path}],
         )
+        app.openapi_schema["x-oauth-scopes"] = PERMISSIONS
+        app.openapi_schema["components"]["securitySchemes"] = {
+            "OAuthBearer": {"type": "http", "scheme": "bearer"},
+            "FollowwCookie": {
+                "type": "apiKey",
+                "in": "cookie",
+                "name": "refresh_token",
+            },
+        }
         app.openapi_schema["x-tagGroups"] = [
             {
                 "name": "Public",
@@ -158,18 +169,12 @@ if settings.environment == "production":
 app.add_middleware(ProfileUploadGuard)
 app.add_middleware(RateLimitMiddleware)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["Age", "Retry-After"],
-)
+app.add_middleware(FollowwCORS, origins=settings.cors_origins)
 
 app.add_middleware(RequestLoggingMiddleware)
 
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])
+app.include_router(oauth_router, prefix="/oauth", tags=["Auth"])
 app.include_router(classrooms_router, prefix="/classrooms", tags=["Classrooms"])
 app.include_router(
     public_classrooms_router, prefix="/public/classrooms", tags=["Public Classrooms"]

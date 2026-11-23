@@ -42,6 +42,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/oauth/token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Renovar o acesso OAuth de uma instalação com DPoP */
+        post: operations["refresh_oauth_token_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/classrooms/{classroom_id}/posts/{post_id}/download": {
         parameters: {
             query?: never;
@@ -153,7 +170,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Listar turmas do usuário */
+        /**
+         * Listar turmas do usuário
+         * @description Com OAuth, semestres anteriores exigem classrooms.history:read. A menção individual exige grades:read.
+         */
         get: operations["get_classrooms_classrooms_get"];
         put?: never;
         post?: never;
@@ -170,7 +190,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Consultar frequência das turmas atuais */
+        /**
+         * Consultar frequência das turmas atuais
+         * @description Com OAuth, `classroom` omite `grade` sem `grades:read`.
+         */
         get: operations["get_current_frequencies_classrooms_frequency_get"];
         put?: never;
         post?: never;
@@ -471,7 +494,7 @@ export interface paths {
         };
         /**
          * Consultar aulas da semana
-         * @description Domingo a sábado da semana atual, com a situação do aluno em cada aula das turmas atuais.
+         * @description Domingo a sábado da semana atual. Com OAuth, status e marked só aparecem com classrooms.frequency:read.
          */
         get: operations["get_week_lessons_lessons_get"];
         put?: never;
@@ -489,7 +512,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Consultar perfil do usuário */
+        /**
+         * Consultar perfil do usuário
+         * @description Com OAuth, retorna nome, matrícula, foto e curso. grades:read acrescenta IRA e MP.
+         */
         get: operations["get_me_me_get"];
         put?: never;
         post?: never;
@@ -603,7 +629,7 @@ export interface paths {
         head?: never;
         /**
          * Atualizar foto ou bio no SIGAA
-         * @description Omita a bio para preservá-la ou envie uma string vazia para limpá-la. A remoção da foto deve ser feita em uma requisição separada. Para substituir, envie um único JPEG ou PNG de até 4 MB.
+         * @description Omita a bio para preservá-la ou envie uma string vazia para limpá-la. A remoção da foto deve ser feita em uma requisição separada. Para substituir, envie um único JPEG ou PNG de até 4 MB. Com OAuth, a resposta segue os escopos de leitura do perfil.
          */
         patch: operations["update_profile_me_profile_patch"];
         trace?: never;
@@ -648,26 +674,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/posts/news": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Consultar notícias recentes das turmas atuais
-         * @description Até cinco notícias. updating indica atualização pendente; texto e anexos completos ficam no detalhe do post.
-         */
-        get: operations["get_latest_news_posts_news_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/posts": {
         parameters: {
             query?: never;
@@ -676,8 +682,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Consultar posts da home do SIGAA
-         * @description Notícias e avaliações das turmas atuais. Consulte os detalhes em /classrooms/{classroom_sigaa_id}/posts.
+         * Consultar notícias recentes e próximas avaliações das turmas atuais
+         * @description Até cinco notícias e todas as avaliações futuras, nessa ordem (`post.type`). updating indica atualização pendente. Com OAuth, `classroom` omite `grade` sem `grades:read`.
          */
         get: operations["get_posts_posts_get"];
         put?: never;
@@ -767,11 +773,6 @@ export interface components {
             monitors: components["schemas"]["ClassroomMember"][];
             /** Professors */
             professors: components["schemas"]["ProfessorRef"][];
-        };
-        /** ClassroomNews */
-        ClassroomNews: {
-            classroom: components["schemas"]["ParticipantClassroom"];
-            post: components["schemas"]["ClassroomPostView"];
         };
         /** ClassroomPostView */
         ClassroomPostView: {
@@ -933,20 +934,10 @@ export interface components {
             /** Dinner */
             dinner?: components["schemas"]["MenuSection"][] | null;
         };
-        /**
-         * DashboardPost
-         * @description Post recente da home: sem ID, o detalhe fica nos posts da turma.
-         */
-        DashboardPost: {
-            type: components["schemas"]["PostType"];
-            /** Classroom Sigaa Id */
-            classroom_sigaa_id?: number | null;
-            /** Title */
-            title: string;
-            /** Published On */
-            published_on?: string | null;
-            /** Starts On */
-            starts_on?: string | null;
+        /** FeedPost */
+        FeedPost: {
+            classroom: components["schemas"]["ParticipantClassroom"];
+            post: components["schemas"]["ClassroomPostView"];
         };
         /**
          * FrequencyStatus
@@ -1074,13 +1065,6 @@ export interface components {
             /** Period */
             period: string;
         };
-        /** LatestNewsFeed */
-        LatestNewsFeed: {
-            /** Items */
-            items: components["schemas"]["ClassroomNews"][];
-            /** Updating */
-            updating: boolean;
-        };
         /**
          * Lesson
          * @description Uma aula; sem horário quando o SIGAA a publicou numa turma sem horário.
@@ -1114,7 +1098,10 @@ export interface components {
         };
         /** LessonClassroom */
         LessonClassroom: {
-            /** Id */
+            /**
+             * Id
+             * Format: uuid
+             */
             id: string;
             subject: components["schemas"]["UserSubject"];
             /** Room */
@@ -1193,7 +1180,11 @@ export interface components {
              * @description Ocupação na última coleta, sem atualização em tempo real.
              */
             occupied?: number | null;
-            /** Id */
+            /**
+             * Id
+             * Format: uuid
+             * @description ID da turma no Followw.
+             */
             id: string;
             /** Sigaa Id */
             sigaa_id?: number | null;
@@ -1211,6 +1202,7 @@ export interface components {
              */
             current: boolean;
             subject: components["schemas"]["ParticipantSubject"];
+            /** @description Menção do usuário, `null` enquanto não lançada. Com OAuth, exige `grades:read`. */
             grade?: components["schemas"]["Grade"] | null;
             status?: components["schemas"]["ClassroomStatus"] | null;
             /** Has Teaching Plan */
@@ -1233,6 +1225,16 @@ export interface components {
          * @enum {string}
          */
         PostType: "news" | "topic" | "material" | "assessment";
+        /**
+         * PostsFeed
+         * @description Notícias recentes e as próximas avaliações.
+         */
+        PostsFeed: {
+            /** Items */
+            items: components["schemas"]["FeedPost"][];
+            /** Updating */
+            updating: boolean;
+        };
         /** ProfessorDegree */
         ProfessorDegree: {
             /** Level */
@@ -1352,6 +1354,21 @@ export interface components {
         };
         /** @enum {string} */
         ReasonCode: "required" | "target_period" | "overdue" | "same_unit" | "chain_length" | "chain_width" | "hours";
+        /** RefreshGrant */
+        RefreshGrant: {
+            /**
+             * Grant Type
+             * @constant
+             */
+            grant_type: "refresh_token";
+            /** Client Id */
+            client_id: string;
+            /**
+             * Refresh Token
+             * Format: password
+             */
+            refresh_token: string;
+        };
         /** RestaurantCredentials */
         RestaurantCredentials: {
             /** Token */
@@ -1552,6 +1569,21 @@ export interface components {
             /** Description */
             description: string | null;
         };
+        /** TokenResponse */
+        TokenResponse: {
+            /** Access Token */
+            access_token: string;
+            /**
+             * Token Type
+             * @default Bearer
+             * @constant
+             */
+            token_type: "Bearer";
+            /** Expires In */
+            expires_in: number;
+            /** Scope */
+            scope: string;
+        };
         /**
          * UnitRef
          * @description Unidade acadêmica: `id` do SIGAA e sigla em `code`.
@@ -1597,9 +1629,15 @@ export interface components {
             workload: components["schemas"]["Workload"] | null;
             /** Period Max Workload */
             period_max_workload: number | null;
-            /** Ira */
+            /**
+             * Ira
+             * @description Índice de rendimento acadêmico. Com OAuth, exige `grades:read`.
+             */
             ira: number | null;
-            /** Mp */
+            /**
+             * Mp
+             * @description Média ponderada. Com OAuth, exige `grades:read`.
+             */
             mp: number | null;
             level: components["schemas"]["UserLevel"];
         };
@@ -1656,8 +1694,12 @@ export interface components {
              * Format: time
              */
             end_time: string;
+            /** @description Presença registrada; `null` onde o usuário não é aluno. Com OAuth, exige `classrooms.frequency:read`. */
             status: components["schemas"]["LessonStatus"] | null;
-            /** Marked */
+            /**
+             * Marked
+             * @description Se o usuário marcou a aula. Com OAuth, exige `classrooms.frequency:read`.
+             */
             marked: boolean;
             /** Scheduled */
             scheduled: boolean;
@@ -1774,6 +1816,55 @@ export interface operations {
             };
         };
     };
+    refresh_oauth_token_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                dpop?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/x-www-form-urlencoded": components["schemas"]["RefreshGrant"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenResponse"];
+                };
+            };
+            /** @description Refresh ou prova DPoP inválidos. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description SIGAA indisponível durante a renovação. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     download_classroom_material_classrooms__classroom_id__posts__post_id__download_post: {
         parameters: {
             query?: never;
@@ -1782,7 +1873,7 @@ export interface operations {
                 "Cache-Control"?: string | null;
             };
             path: {
-                /** @description Classroom.id ou Classroom.sigaa_id. */
+                /** @description `id` da turma no Followw ou seu `sigaa_id`. */
                 classroom_id: string;
                 /** @description ID do material na turma. */
                 post_id: string;
@@ -1802,6 +1893,13 @@ export interface operations {
             };
             /** @description Credenciais ausentes ou inválidas. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1840,7 +1938,7 @@ export interface operations {
                 "Cache-Control"?: string | null;
             };
             path: {
-                /** @description Classroom.id ou Classroom.sigaa_id. */
+                /** @description `id` da turma no Followw ou seu `sigaa_id`. */
                 classroom_id: string;
             };
             cookie?: never;
@@ -1858,6 +1956,13 @@ export interface operations {
             };
             /** @description Credenciais ausentes ou inválidas. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1913,7 +2018,7 @@ export interface operations {
                 "Cache-Control"?: string | null;
             };
             path: {
-                /** @description Classroom.id ou Classroom.sigaa_id. */
+                /** @description `id` da turma no Followw ou seu `sigaa_id`. */
                 classroom_id: string;
             };
             cookie?: never;
@@ -1931,6 +2036,13 @@ export interface operations {
             };
             /** @description Credenciais ausentes ou inválidas. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1983,7 +2095,7 @@ export interface operations {
                 "Cache-Control"?: string | null;
             };
             path: {
-                /** @description Classroom.id ou Classroom.sigaa_id. */
+                /** @description `id` da turma no Followw ou seu `sigaa_id`. */
                 classroom_id: string;
                 /** @description ID do post na listagem da turma. */
                 post_id: string;
@@ -2003,6 +2115,13 @@ export interface operations {
             };
             /** @description Credenciais ausentes ou inválidas. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2055,7 +2174,7 @@ export interface operations {
                 "Cache-Control"?: string | null;
             };
             path: {
-                /** @description Classroom.id ou Classroom.sigaa_id. */
+                /** @description `id` da turma no Followw ou seu `sigaa_id`. */
                 classroom_id: string;
                 /** @description ID do post na listagem da turma. */
                 post_id: string;
@@ -2111,7 +2230,7 @@ export interface operations {
                 "Cache-Control"?: string | null;
             };
             path: {
-                /** @description Classroom.id ou Classroom.sigaa_id. */
+                /** @description `id` da turma no Followw ou seu `sigaa_id`. */
                 classroom_id: string;
                 /** @description ID do post na listagem da turma. */
                 post_id: string;
@@ -2190,6 +2309,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2236,6 +2362,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Turma não encontrada entre as turmas do usuário. */
             404: {
                 headers: {
@@ -2276,7 +2409,7 @@ export interface operations {
                 "Cache-Control"?: string | null;
             };
             path: {
-                /** @description Classroom.id ou Classroom.sigaa_id. */
+                /** @description `id` da turma no Followw ou seu `sigaa_id`. */
                 classroom_id: string;
             };
             cookie?: never;
@@ -2294,6 +2427,13 @@ export interface operations {
             };
             /** @description Credenciais ausentes ou inválidas. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2339,7 +2479,7 @@ export interface operations {
                 "Cache-Control"?: string | null;
             };
             path: {
-                /** @description Classroom.id ou Classroom.sigaa_id. */
+                /** @description `id` da turma no Followw ou seu `sigaa_id`. */
                 classroom_id: string;
             };
             cookie?: never;
@@ -2359,6 +2499,13 @@ export interface operations {
             };
             /** @description Credenciais ausentes ou inválidas. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2404,7 +2551,7 @@ export interface operations {
                 "Cache-Control"?: string | null;
             };
             path: {
-                /** @description Classroom.id ou Classroom.sigaa_id. */
+                /** @description `id` da turma no Followw ou seu `sigaa_id`. */
                 classroom_id: string;
             };
             cookie?: never;
@@ -2422,6 +2569,13 @@ export interface operations {
             };
             /** @description Credenciais ausentes ou inválidas. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2460,7 +2614,7 @@ export interface operations {
                 "Cache-Control"?: string | null;
             };
             path: {
-                /** @description Classroom.id ou Classroom.sigaa_id. */
+                /** @description `id` da turma no Followw ou seu `sigaa_id`. */
                 classroom_id: string;
             };
             cookie?: never;
@@ -2478,6 +2632,13 @@ export interface operations {
             };
             /** @description Credenciais ausentes ou inválidas. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3002,6 +3163,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Turma não encontrada entre as turmas do usuário. */
             404: {
                 headers: {
@@ -3062,6 +3230,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3100,6 +3275,13 @@ export interface operations {
             };
             /** @description Credenciais ausentes ou inválidas. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3216,6 +3398,13 @@ export interface operations {
             };
             /** @description Credenciais ausentes ou inválidas. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3347,6 +3536,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description A foto enviada deve ter até 4 MB. */
             413: {
                 headers: {
@@ -3400,6 +3596,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3445,54 +3648,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Oferta de estágio não encontrada ou mural alterado. */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            /** @description SIGAA indisponível. */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    get_latest_news_posts_news_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description `no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente). */
-                "Cache-Control"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LatestNewsFeed"];
-                };
-            };
-            /** @description Credenciais ausentes ou inválidas. */
-            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3519,7 +3683,10 @@ export interface operations {
     get_posts_posts_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description `no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente). */
+                "Cache-Control"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -3531,7 +3698,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DashboardPost"][];
+                    "application/json": components["schemas"]["PostsFeed"];
                 };
             };
             /** @description Credenciais ausentes ou inválidas. */
@@ -3540,6 +3707,22 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description O aplicativo não possui a permissão exigida. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
             /** @description SIGAA indisponível. */
             502: {

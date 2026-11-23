@@ -3,9 +3,10 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from functools import partial
 from typing import Annotated, Literal
+from uuid import UUID
 
 from fastapi import Depends
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sigaa_client import (
     Classroom,
     ClassroomNotFound,
@@ -23,6 +24,7 @@ from api.db.models import ClassroomParticipant, OwnLink, User
 from api.modules.classrooms.repository import ClassroomRepository
 from api.modules.me.profile import sync_profile
 from api.modules.me.repository import UserRepository
+from api.modules.oauth.scopes import Scope, insufficient_scope, scoped
 from api.modules.recommendations.ranking import Component, subject_kind
 from api.modules.recommendations.repository import RecommendationRepository
 from api.schemas import (
@@ -41,6 +43,9 @@ from api.sync.engine import Task
 CLASSROOMS_TTL = timedelta(hours=72)
 # Detalhes das turmas atuais; os de semestres passados não mudam.
 DETAILS_TTL = timedelta(hours=24)
+MEMBERS_TTL = timedelta(hours=48)
+# Enquanto a matrícula ainda ajusta as turmas.
+MEMBERS_ENROLLMENT_PERIOD_TTL = timedelta(hours=12)
 
 
 def details_ttl(link: OwnLink) -> timedelta | None:
@@ -58,7 +63,12 @@ def members_freshness(link: OwnLink, synced_at: datetime | None) -> Freshness:
     if academic_calendar.members_closed(semester):
         # Passada a tolerância do semestre, a lista vence até um sync depois dela.
         return Freshness.STALE
-    return freshness(synced_at, details_ttl(link))
+    if not link.row.current:
+        return freshness(synced_at, None)
+    adjusting = academic_calendar.enrollment_adjusting(semester)
+    return freshness(
+        synced_at, MEMBERS_ENROLLMENT_PERIOD_TTL if adjusting else MEMBERS_TTL
+    )
 
 
 def statistics_freshness(synced_at: datetime | None) -> Freshness:
@@ -181,8 +191,11 @@ class ParticipantSubject(UserSubject):
 class ParticipantClassroom(Classroom, ClassroomOffer):
     """A turma com a menção do usuário, `None` enquanto não lançada ou sincronizada."""
 
+    id: UUID = Field(description="ID da turma no Followw.")
     subject: ParticipantSubject
-    grade: Grade | None = None
+    grade: Grade | None = scoped(
+        Scope.GRADES, "Menção do usuário, `null` enquanto não lançada.", default=None
+    )
     status: ClassroomStatus | None = None
     # `None` enquanto o plano não foi lido no SIGAA.
     has_teaching_plan: bool | None = None
@@ -221,8 +234,19 @@ class ClassroomService:
                 classrooms_freshness(user.classrooms_synced_at),
             )
 
+        history_allowed = self._sync.access.allows(Scope.HISTORY)
+        if semester == "all" and not history_allowed:
+            raise insufficient_scope()
         links = await self._sync.resolve(sync_classrooms, None, load)
+        if semester is not None and not history_allowed:
+            current_semesters = {
+                link.row.classroom.semester for link in links if link.row.current
+            }
+            if semester not in current_semesters:
+                raise insufficient_scope()
         selected = [link for link in links if _in_semester(link, semester)]
+        if not history_allowed and any(not link.row.current for link in selected):
+            raise insufficient_scope()
         selected.sort(
             key=lambda link: (
                 link.row.classroom.subject.name,
@@ -327,6 +351,8 @@ class ClassroomService:
         if link is None:
             raise ClassroomNotFound(f"Turma `{classroom_id}` não é do usuário.")
 
+        if not link.row.current:
+            self._sync.access.require(Scope.HISTORY)
         return link
 
 
@@ -339,7 +365,7 @@ async def find_link(
         return None, None
 
     repository = ClassroomRepository(session)
-    link = await repository.get_by_front_end_id(
+    link = await repository.get_by_id(
         user.id, classroom_id
     ) or await repository.get_by_sigaa_id(user.id, classroom_id)
     return link, user.classrooms_synced_at
@@ -363,7 +389,7 @@ def to_classroom(
     subject = classroom.subject
 
     return ParticipantClassroom(
-        id=link.front_end_id,
+        id=classroom.id,
         sigaa_id=classroom.sigaa_id,
         number=classroom.number,
         semester=classroom.semester,

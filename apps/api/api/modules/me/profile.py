@@ -1,10 +1,10 @@
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import Depends
 from httpx import HTTPError
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sigaa_client import (
     CurriculumWorkload,
     DocumentUnavailable,
@@ -17,6 +17,8 @@ from api.cache import Freshness, freshness
 from api.db.models import User
 from api.modules.me.repository import UserRepository
 from api.modules.me.transcript import TranscriptRepository
+from api.modules.oauth import redaction
+from api.modules.oauth.scopes import AccessPolicy, Scope, scoped
 from api.modules.recommendations.repository import RecommendationRepository
 from api.schemas import CourseRef, UnitRef, course_ref, unit_ref
 from api.sync import Cached, Context, SyncDep
@@ -47,13 +49,13 @@ class UserProfile(BaseModel):
     entry_semester: str | None
     curriculum_subject_codes: list[str] | None = None
     # Componentes CUMP do histórico, além das aprovações nas turmas.
-    completed_subjects: list[str] = []
+    completed_subjects: list[str] = Field(default_factory=list)
     integralization: int | None
     workload: Workload | None
     # Carga horária máxima por período da matriz do aluno, em horas.
     period_max_workload: int | None
-    ira: float | None
-    mp: float | None
+    ira: float | None = scoped(Scope.GRADES, "Índice de rendimento acadêmico.")
+    mp: float | None = scoped(Scope.GRADES, "Média ponderada.")
     level: UserLevel
 
 
@@ -87,14 +89,16 @@ class ProfileService:
     def __init__(self, sync: SyncDep) -> None:
         self._sync = sync
 
-    async def get_profile(self) -> UserProfile:
-        async def load(session: AsyncSession) -> Cached[UserProfile] | None:
+    async def get_profile(self) -> UserProfile | dict[str, Any]:
+        async def load(
+            session: AsyncSession,
+        ) -> Cached[UserProfile | dict[str, Any]] | None:
             users = UserRepository(session)
             user = await users.get_by_registration(self._sync.registration)
             if user is None or user.profile_synced_at is None:
                 return None
             return Cached(
-                await _to_profile(session, user),
+                await profile_view(session, user, self._sync.access),
                 user.profile_synced_at,
                 profile_freshness(user.profile_synced_at),
             )
@@ -102,8 +106,12 @@ class ProfileService:
         return await self._sync.resolve(sync_profile, None, load)
 
 
-async def _to_profile(session: AsyncSession, user: User) -> UserProfile:
+async def profile_view(
+    session: AsyncSession, user: User, access: AccessPolicy
+) -> UserProfile | dict[str, Any]:
     assert user.registration and user.level
+    if access.delegated:
+        return redaction.profile(user, access)
     codes = (
         sorted(await RecommendationRepository(session).components(user.curriculum_id))
         if user.curriculum_id is not None

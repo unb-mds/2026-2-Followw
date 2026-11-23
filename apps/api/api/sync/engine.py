@@ -22,6 +22,7 @@ from api.cache import NO_DIRECTIVES, CacheControl, Freshness
 from api.db.main import Database
 from api.db.models import OwnLink
 from api.logger import event, operation
+from api.modules.oauth.scopes import AccessPolicy
 from api.sigaa import SigaaConnection
 
 # Falhas da origem: o `stale-if-error` as cobre e um job as tenta de novo.
@@ -138,6 +139,10 @@ class Sync:
     def registration(self) -> str:
         return self._sigaa.registration
 
+    @property
+    def access(self) -> AccessPolicy:
+        return self._sigaa.access
+
     async def resolve[T: Target, V](
         self,
         task: Task[T],
@@ -204,9 +209,9 @@ class Sync:
         """Junta a tarefa ao job da turma do alvo (ou ao da conta, sem turma)."""
         match target:
             case Item(link=link, id=item_id):
-                classroom_id, step = link.front_end_id, Step.of(task, item_id)
-            case OwnLink(front_end_id=front_end_id):
-                classroom_id, step = front_end_id, Step.of(task)
+                classroom_id, step = str(link.row.classroom_id), Step.of(task, item_id)
+            case OwnLink(row=row):
+                classroom_id, step = str(row.classroom_id), Step.of(task)
             case None:
                 classroom_id, step = None, Step.of(task)
         self._pending.setdefault(classroom_id, {})[step] = None

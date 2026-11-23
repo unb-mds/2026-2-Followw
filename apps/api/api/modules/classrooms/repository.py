@@ -114,12 +114,15 @@ class ClassroomRepository:
             Classroom, classroom_id, options=[undefer(Classroom.teaching_plan)]
         )
 
-    async def get_by_front_end_id(
-        self, user_id: UUID, front_end_id: str
-    ) -> OwnLink | None:
+    async def get_by_id(self, user_id: UUID, classroom_id: str) -> OwnLink | None:
+        try:
+            parsed = UUID(classroom_id)
+        except ValueError:
+            return None
         return await self._own(
             ClassroomParticipant.user_id == user_id,
-            ClassroomParticipant.front_end_id == front_end_id,
+            ClassroomParticipant.front_end_id.is_not(None),
+            ClassroomParticipant.classroom_id == parsed,
         )
 
     async def get_by_sigaa_id(self, user_id: UUID, sigaa_id: str) -> OwnLink | None:
@@ -493,29 +496,44 @@ class PostsRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def latest_news(
-        self, classroom_ids: Collection[UUID], limit: int
+    async def latest_feed(
+        self, classroom_ids: Collection[UUID], today: date, news_limit: int
     ) -> list[ClassroomPosts]:
-        return list(
-            await self._session.scalars(
-                select(ClassroomPosts)
-                .where(
-                    ClassroomPosts.classroom_id.in_(classroom_ids),
-                    ClassroomPosts.type == sigaa_client.PostType.NEWS,
-                )
-                .order_by(
-                    func.coalesce(
-                        ClassroomPosts.published_at,
-                        ClassroomPosts.published_on,
-                    )
-                    .desc()
-                    .nulls_last(),
-                    ClassroomPosts.classroom_id,
-                    ClassroomPosts.source_id,
-                )
-                .limit(limit)
+        """As `news_limit` notícias mais novas e todas as avaliações de hoje em diante."""
+        published = func.coalesce(
+            ClassroomPosts.published_at, ClassroomPosts.published_on
+        )
+        news = (
+            select(ClassroomPosts)
+            .where(
+                ClassroomPosts.classroom_id.in_(classroom_ids),
+                ClassroomPosts.type == sigaa_client.PostType.NEWS,
+            )
+            .order_by(
+                published.desc().nulls_last(),
+                ClassroomPosts.classroom_id,
+                ClassroomPosts.source_id,
+            )
+            .limit(news_limit)
+        )
+        assessments = (
+            select(ClassroomPosts)
+            .where(
+                ClassroomPosts.classroom_id.in_(classroom_ids),
+                ClassroomPosts.type == sigaa_client.PostType.ASSESSMENT,
+                ClassroomPosts.starts_on >= today,
+            )
+            .order_by(
+                ClassroomPosts.starts_on,
+                ClassroomPosts.starts_at.nulls_last(),
+                ClassroomPosts.classroom_id,
+                ClassroomPosts.source_id,
             )
         )
+        return [
+            *await self._session.scalars(news),
+            *await self._session.scalars(assessments),
+        ]
 
     async def list_by_classroom(
         self, classroom_id: UUID, *, for_update: bool = False

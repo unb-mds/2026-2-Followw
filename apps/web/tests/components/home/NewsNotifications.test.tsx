@@ -1,6 +1,6 @@
 import type { Classroom, ClassroomPost } from '@followw/core/queries/classrooms.ts';
 
-import { latestNewsQueryOptions } from '@followw/core/queries/posts.ts';
+import { latestPostsQueryOptions } from '@followw/core/queries/posts.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
     RouterContextProvider,
@@ -39,12 +39,25 @@ function news(id: number, extra: Partial<ClassroomPost> = {}): ClassroomPost {
     };
 }
 
+function assessment(id: number, extra: Partial<ClassroomPost> = {}): ClassroomPost {
+    return {
+        id: `assessment:${id}`,
+        type: 'assessment',
+        title: `Avaliação ${id}`,
+        attachments: [],
+        is_read: false,
+        ...extra
+    };
+}
+
 function clientWith(posts: ClassroomPost[] | null, updating = false) {
     const client = new QueryClient({
-        defaultOptions: { queries: { retry: false, retryOnMount: false, staleTime: Infinity } }
+        defaultOptions: {
+            queries: { retry: false, retryOnMount: false, staleTime: Infinity }
+        }
     });
     if (posts)
-        client.setQueryData(latestNewsQueryOptions.queryKey, {
+        client.setQueryData(latestPostsQueryOptions.queryKey, {
             items: posts.map((post) => ({ classroom, post })),
             updating
         });
@@ -65,7 +78,9 @@ describe('popover de notificações', () => {
             useIsoLayoutEffect: useLayoutEffect
         }));
         restoreLayoutEffect = async () => {
-            await mock.module('@base-ui/utils/useIsoLayoutEffect', () => ({ useIsoLayoutEffect }));
+            await mock.module('@base-ui/utils/useIsoLayoutEffect', () => ({
+                useIsoLayoutEffect
+            }));
         };
         ({ NewsNotifications } = await import('#/components/home/NewsNotifications'));
     });
@@ -96,7 +111,7 @@ describe('popover de notificações', () => {
 
     async function open(view: ReturnType<typeof mount>) {
         dom.testing.fireEvent.click(view.getByRole('button', { name: /Notificações/ }));
-        return view.findByText('Últimas notícias');
+        return view.findByRole('dialog');
     }
 
     test('lista as notícias com turma, data, prévia e link para Postagens', async () => {
@@ -145,24 +160,46 @@ describe('popover de notificações', () => {
         expect(mount(clientWith([news(2), news(1)])).getByTestId('unread-dot')).toBeTruthy();
     });
 
+    test('avaliação mostra a data e o rótulo, sem prévia de texto', async () => {
+        const view = mount(
+            clientWith([assessment(1, { starts_on: '2026-10-29', time_label: '14:00' })])
+        );
+        await open(view);
+        expect(view.getByText('Avaliação 1')).toBeTruthy();
+        expect(view.getByText('29/10/2026 · 14:00')).toBeTruthy();
+        expect(view.getByText('Avaliação')).toBeTruthy();
+        expect(view.queryByText('Clique para ler mais.')).toBeNull();
+    });
+
+    test('avaliação nova volta a mostrar o ponto mesmo com a mesma notícia', async () => {
+        localStorageRepository.set(STORAGE_KEYS.SEEN_NEWS, 'AAA:news:1');
+        const view = mount(clientWith([news(1), assessment(1)]));
+        expect(view.getByTestId('unread-dot')).toBeTruthy();
+        await open(view);
+        expect(view.queryByTestId('unread-dot')).toBeNull();
+        expect(localStorageRepository.get(STORAGE_KEYS.SEEN_NEWS)).toBe(
+            'AAA:news:1,AAA:assessment:1'
+        );
+    });
+
     test('sem notícias não mostra o ponto e informa a ausência', async () => {
         const view = mount(clientWith([]));
         expect(view.queryByTestId('unread-dot')).toBeNull();
         await open(view);
-        expect(view.getByText('Nenhuma notícia por enquanto.')).toBeTruthy();
+        expect(view.getByText('Nenhuma notificação por enquanto.')).toBeTruthy();
     });
 
     test('informa a sincronização quando ainda não há notícias', async () => {
         const view = mount(clientWith([], true));
         await open(view);
-        expect(view.getByText('Buscando notícias das turmas...')).toBeTruthy();
+        expect(view.getByText('Buscando novidades das turmas...')).toBeTruthy();
     });
 
     test('revalidação com falha preserva notícias salvas', async () => {
         const target = clientWith([news(1)]);
         target
             .getQueryCache()
-            .find({ queryKey: latestNewsQueryOptions.queryKey })
+            .find({ queryKey: latestPostsQueryOptions.queryKey })
             ?.setState({
                 status: 'error',
                 error: new Error('SIGAA indisponível'),
@@ -182,7 +219,7 @@ describe('popover de notificações', () => {
                 .getQueryCache()
                 .getAll()
                 .map((query) => query.queryKey[1])
-        ).toEqual(['/posts/news']);
+        ).toEqual(['/posts']);
     });
 });
 

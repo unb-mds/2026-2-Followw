@@ -14,8 +14,8 @@ from qstash import AsyncQStash, Receiver
 from qstash.errors import QStashError, SignatureError
 from qstash.message import BatchRequest
 
-from api.cookies import derive_key
 from api.core.config import settings
+from api.crypto import derive_key
 from api.logger import event, operation
 from api.sync.engine import Job
 

@@ -26,6 +26,8 @@ _NO_CLASS = {
 class Event(str, enum.Enum):
     """Os ids dos eventos do calendário que as regras usam."""
 
+    REGULAR_ENROLLMENT = "regular_enrollment"
+    EXTRAORDINARY_ENROLLMENT = "extraordinary_enrollment"
     GRADES_CONSOLIDATION = "grades_consolidation"
     SEMESTER_END = "semester_end"
 
@@ -61,6 +63,17 @@ def parse_semester(value: str) -> tuple[int, int] | None:
     """O semestre `AAAA.P` como (ano, período) ordenável; `None` fora do formato."""
     match = _SEMESTER.fullmatch(value)
     return (int(match[1]), int(match[2])) if match else None
+
+
+def enrollment_adjusting(semester: str) -> bool:
+    """Do fim da matrícula regular ao da extraordinária: as turmas ainda ganham e perdem alunos."""
+    calendar = load_academic_calendar().get_semester(semester)
+    if calendar is None:
+        return False
+    ends = {e.id: e.end_date for e in calendar.events}
+    start = ends.get(Event.REGULAR_ENROLLMENT)
+    end = ends.get(Event.EXTRAORDINARY_ENROLLMENT)
+    return start is not None and end is not None and start < today() <= end
 
 
 def members_closed(semester: str) -> bool:

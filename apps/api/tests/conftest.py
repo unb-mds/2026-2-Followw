@@ -15,6 +15,7 @@ os.environ["DATABASE_URL"] = (
     "postgresql+asyncpg://postgres:postgres@localhost:5432/followw_test"
 )
 os.environ["JWT_SECRET_KEY"] = "chave-de-teste-nao-usar-em-producao"
+os.environ["OAUTH_SECRET_KEY"] = "chave-oauth-exclusiva-para-os-testes"
 os.environ["PUBLIC_URL"] = "https://api.followw.test"
 
 os.environ["QSTASH_URL"] = "https://qstash.upstash.io"

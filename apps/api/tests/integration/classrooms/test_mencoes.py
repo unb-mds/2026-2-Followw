@@ -21,7 +21,10 @@ def test_mencao_vem_com_a_turma_pelo_sync_do_login(client, sigaa, turmas, qstash
 
     response = client.get("/classrooms?semester=all")
 
-    assert {c["id"]: c["grade"] for c in response.json()} == {"AAA": None, "BBB": "MS"}
+    assert {c["subject"]["code"]: c["grade"] for c in response.json()} == {
+        "FGA0146": None,
+        "FGA0158": "MS",
+    }
     turmas.classrooms.list_grades.assert_awaited_once_with()
     assert all(
         "sync_grades" not in [step.task for step in job.steps] for job in qstash.jobs()
@@ -83,8 +86,8 @@ def test_mencoes_associam_codigo_e_semestre_sem_confundir_repeticao(client, turm
     _login(client)
 
     assert {
-        c["id"]: c["grade"] for c in client.get("/classrooms?semester=all").json()
-    } == {"AAA": "MS", "BBB": "MI"}
+        c["semester"]: c["grade"] for c in client.get("/classrooms?semester=all").json()
+    } == {"2026.2": "MS", "2025.2": "MI"}
     turmas.classrooms.list_grades.assert_awaited_once_with()
 
 
@@ -125,8 +128,9 @@ def test_disciplina_ausente_do_relatorio_preserva_a_mencao(client, turmas, datab
 
     assert turmas.classrooms.list_grades.await_count == 2
     assert {
-        c["id"]: c["grade"] for c in client.get("/classrooms?semester=all").json()
-    } == {"AAA": "MS", "BBB": "SS"}
+        c["subject"]["code"]: c["grade"]
+        for c in client.get("/classrooms?semester=all").json()
+    } == {"FGA0146": "MS", "FGA0158": "SS"}
 
 
 def test_falha_no_relatorio_preserva_mencoes_e_tenta_uma_vez(

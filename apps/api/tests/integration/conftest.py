@@ -300,6 +300,26 @@ def client(async_database, qstash):
 
 
 @pytest.fixture
+def id_da_turma(database):
+    """O `id` servido da turma que o SIGAA abre por `front_end_id`."""
+    from sqlalchemy import select
+
+    from api.db.models import ClassroomParticipant
+
+    def resolve(front_end_id: str) -> str:
+        with database() as session:
+            found = session.scalar(
+                select(ClassroomParticipant.classroom_id)
+                .where(ClassroomParticipant.front_end_id == front_end_id)
+                .limit(1)
+            )
+        assert found is not None, f"turma {front_end_id} fora do cache"
+        return str(found)
+
+    return resolve
+
+
+@pytest.fixture
 def api():
     """A app sem Postgres, para validação e OpenAPI: usar o banco falha o teste."""
     from api.db.main import get_sessionmaker

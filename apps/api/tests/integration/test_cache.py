@@ -4,7 +4,6 @@ import pytest
 @pytest.mark.parametrize(
     "path",
     [
-        "/posts",
         "/me/ru-statement",
         "/me/ru-token",
         "/public/classrooms",

@@ -22,17 +22,17 @@ usuário nunca é usada num job.
 O TTL conta a partir do `synced_at` do dado e vence quando `idade > TTL` (estritamente maior). Sem
 TTL (`None`), o dado **nunca vence** sozinho.
 
-| Dado                            | TTL     | Quem tem o `synced_at`  | Observação                                         |
-| :------------------------------ | :------ | :---------------------- | :------------------------------------------------- |
-| Perfil (`/me`)                  | 12 h    | usuário                 |                                                    |
-| Lista de turmas (`/classrooms`) | 72 h    | usuário                 | Vale para todos os semestres                       |
-| Participantes da turma          | 24 h    | turma                   | Turma de semestre passado: sem TTL                 |
-| Estatísticas da turma           | sem TTL | turma                   | Revalidada com `no-cache`                          |
-| Frequência da turma             | 24 h    | vínculo usuário × turma | Turma de semestre passado: sem TTL                 |
-| Lista de posts da turma         | 24 h    | turma                   | Turma de semestre passado: sem TTL                 |
-| Verificação da home do SIGAA    | 1 h     | usuário                 | Agenda sync das turmas com novidades não salvas    |
-| Conteúdo de uma notícia         | sem TTL | notícia                 | Gravado no primeiro acesso; só muda com `no-cache` |
-| Cardápio do RU                  | 5 dias  | campus                  | Sem job: revalida na hora (veja abaixo)            |
+| Dado                            | TTL                                       | Quem tem o `synced_at`  | Observação                                         |
+| :------------------------------ | :---------------------------------------- | :---------------------- | :------------------------------------------------- |
+| Perfil (`/me`)                  | 12 h                                      | usuário                 |                                                    |
+| Lista de turmas (`/classrooms`) | 72 h                                      | usuário                 | Vale para todos os semestres                       |
+| Participantes da turma          | 48 h (12h durante o período de matrícula) | turma                   | semestre passado: sem TTL                          |
+| Estatísticas da turma           | sem TTL                                   | turma                   | Revalidada com `no-cache`                          |
+| Frequência da turma             | 24 h                                      | vínculo usuário × turma | Turma de semestre passado: sem TTL                 |
+| Lista de posts da turma         | 24 h                                      | turma                   | Turma de semestre passado: sem TTL                 |
+| Verificação da home do SIGAA    | 1 h                                       | usuário                 | Agenda sync das turmas com novidades não salvas    |
+| Conteúdo de uma notícia         | sem TTL                                   | notícia                 | Gravado no primeiro acesso; só muda com `no-cache` |
+| Cardápio do RU                  | 5 dias                                    | campus                  | Sem job: revalida na hora (veja abaixo)            |
 
 "Turma atual" é a que o SIGAA marca como do semestre vigente (`ClassroomParticipant.current`).
 
@@ -110,8 +110,7 @@ uma vez. O job roda as tarefas **sem rechecar o TTL**.
 - **Turma ou notícia sumiu do SIGAA** (`ClassroomNotFound`, `NewsNotFound`) ou **gravação
   concorrente** (`IntegrityError`): a tarefa é descartada, sem retentativa.
 - **Rotas sem cache**, que não sincronizam porque nada é guardado: `/me/ru-statement`,
-  `/me/ru-token`, `/posts` (home do SIGAA) e `/public/classrooms` sempre vão à origem;
-  `/me/settings` só usa o banco.
+  `/me/ru-token` e `/public/classrooms` sempre vão à origem; `/me/settings` só usa o banco.
 
 ## Falhas e retentativas
 
@@ -153,22 +152,22 @@ ou `assessment`, e a chave estrangeira composta de `topic_id` impede vincular um
 tópico de outra turma.
 
 `GET /classrooms/{classroom_id}/posts` aceita `?type=material` (ou outra categoria).
-`GET /classrooms/{classroom_id}/posts/{post_id}` usa o `id` opaco da listagem. `/posts` é o feed
-recente da home do SIGAA (notícias e avaliações de todas as turmas atuais), sem cache e sem IDs.
+`GET /classrooms/{classroom_id}/posts/{post_id}` usa o `id` opaco da listagem.
 
-`GET /posts/news` devolve até cinco notícias das turmas do usuário diretamente do banco, com IDs e
-conteúdo já salvo. A identidade é `(classroom_id, source_id)`, nunca título e data. A cada hora,
-quando há turmas atuais, agenda uma verificação da home do SIGAA. O job relê as listas das turmas
-com notícias ou avaliações ainda não presentes no cache. O conteúdo das notícias continua sob
-demanda; `updating` indica que a verificação está pendente e precisa ser agendada.
+`GET /posts` devolve diretamente do banco até cinco notícias e todas as próximas avaliações
+(`starts_on` de hoje em diante) das turmas do usuário, nessa ordem, com IDs e conteúdo já salvo. A
+identidade é `(classroom_id, source_id)`, nunca título e data. A cada hora, quando há turmas atuais,
+agenda uma verificação da home do SIGAA. O job relê as listas das turmas com notícias ou avaliações
+ainda não presentes no cache. O conteúdo das notícias continua sob demanda; `updating` indica que a
+verificação está pendente e precisa ser agendada.
 
 `sync_posts` atualiza a lista completa quando necessário; seu TTL é de 24 horas nas turmas atuais e
 listas históricas não vencem. A verificação da home também pode antecipar o sync. Tópicos, materiais
-e avaliações atualizam seus conteúdos junto com a lista. Notícias mantêm
-o carregamento de conteúdo sob demanda por `sync_news_content`, com revalidação por
-`Cache-Control: no-cache`. Posts removidos da origem são preservados, assim como os conteúdos de
-notícias já consultados. Datas de publicação ausentes continuam nulas; a agenda usa campos próprios
-para data e horário. Resultados individuais ficam fora dos posts.
+e avaliações atualizam seus conteúdos junto com a lista. Notícias mantêm o carregamento de conteúdo
+sob demanda por `sync_news_content`, com revalidação por `Cache-Control: no-cache`. Posts removidos
+da origem são preservados, assim como os conteúdos de notícias já consultados. Datas de publicação
+ausentes continuam nulas; a agenda usa campos próprios para data e horário. Resultados individuais
+ficam fora dos posts.
 
 Não há migração do cache antigo: conforme a convenção do projeto, a mudança de
 `classrooms.news_synced_at` para `posts_synced_at` exige recriar o banco existente.

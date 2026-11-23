@@ -37,8 +37,8 @@ def test_cache_de_turma_evita_nova_consulta(client, cookies, posts_sigaa, qstash
 def test_lista_vazia_tambem_tem_cache(client, cookies, posts_sigaa):
     client.cookies.update(cookies(refresh=CREDENTIALS))
     posts_sigaa.classrooms.list_classroom_posts.return_value = []
-    assert client.get("/classrooms/AAA/posts").json() == []
-    assert client.get("/classrooms/AAA/posts").json() == []
+    assert client.get("/classrooms/123/posts").json() == []
+    assert client.get("/classrooms/123/posts").json() == []
     posts_sigaa.classrooms.list_classroom_posts.assert_awaited_once()
 
 
@@ -46,7 +46,7 @@ def test_lista_vencida_retorna_cache_e_atualiza_pela_fila(
     client, cookies, posts_sigaa, database, qstash
 ):
     client.cookies.update(cookies(refresh=CREDENTIALS))
-    original = client.get("/classrooms/AAA/posts").json()
+    original = client.get("/classrooms/123/posts").json()
     with database() as session:
         classroom = session.scalar(select(DBClassroom))
         classroom.posts_synced_at = datetime.now(UTC) - timedelta(hours=25)
@@ -54,7 +54,7 @@ def test_lista_vencida_retorna_cache_e_atualiza_pela_fila(
     posts_sigaa.classrooms.list_classroom_posts.return_value = [
         _post(id=2, title="Novo aviso", published_on=date(2026, 9, 25))
     ]
-    response = client.get("/classrooms/AAA/posts")
+    response = client.get("/classrooms/123/posts")
     assert response.json() == original
     assert int(response.headers["age"]) >= 25 * 3600
     assert len(qstash.published) == 1
@@ -69,29 +69,30 @@ def test_lista_vencida_retorna_cache_e_atualiza_pela_fila(
 
 def test_lista_de_turma_atual_vale_24_horas(client, cookies, posts_sigaa, database):
     client.cookies.update(cookies(refresh=CREDENTIALS))
-    client.get("/classrooms/AAA/posts")
+    client.get("/classrooms/123/posts")
     with database() as session:
         classroom = session.scalar(select(DBClassroom))
         classroom.posts_synced_at = datetime.now(UTC) - timedelta(hours=23)
         session.commit()
-    client.get("/classrooms/AAA/posts")
+    client.get("/classrooms/123/posts")
     posts_sigaa.classrooms.list_classroom_posts.assert_awaited_once()
 
 
 def test_lista_de_turma_do_historico_nao_vence(
-    client, cookies, posts_sigaa, database, qstash
+    client, cookies, posts_sigaa, database, qstash, id_da_turma
 ):
     client.cookies.update(cookies(refresh=CREDENTIALS))
     historical = posts_sigaa.classrooms.list_classrooms.return_value[0].model_copy(
         update={"id": "BBB", "sigaa_id": None, "current": False}
     )
     posts_sigaa.classrooms.list_classrooms.return_value = [historical]
-    original = client.get("/classrooms/BBB/posts").json()
+    client.get("/classrooms?semester=all")
+    original = client.get(f"/classrooms/{id_da_turma('BBB')}/posts").json()
     with database() as session:
         classroom = session.scalar(select(DBClassroom))
         classroom.posts_synced_at = datetime.now(UTC) - timedelta(days=365)
         session.commit()
-    assert client.get("/classrooms/BBB/posts").json() == original
+    assert client.get(f"/classrooms/{id_da_turma('BBB')}/posts").json() == original
     assert qstash.published == []
     posts_sigaa.classrooms.list_classroom_posts.assert_awaited_once()
 
@@ -102,11 +103,11 @@ def test_atualizar_lista_preserva_conteudo_e_noticias_removidas(
 ):
     client.cookies.update(cookies(refresh=CREDENTIALS))
     detail = client.get(DETAIL_PATH).json()
-    assert client.get("/classrooms/AAA/posts").status_code == 200
+    assert client.get("/classrooms/123/posts").status_code == 200
     if not remaining:
         posts_sigaa.classrooms.list_classroom_posts.return_value = []
     response = client.get(
-        "/classrooms/AAA/posts", headers={"Cache-Control": "no-cache"}
+        "/classrooms/123/posts", headers={"Cache-Control": "no-cache"}
     )
     assert [n["id"] for n in response.json()] == ["news:1"]
     assert response.json()[0]["content"] is None
@@ -171,7 +172,7 @@ def test_cache_nao_da_acesso_a_usuario_sem_vinculo(client, cookies, posts_sigaa)
 def test_only_if_cached_nao_busca_noticia_ausente(client, cookies, posts_sigaa):
     client.cookies.update(cookies(refresh=CREDENTIALS))
     assert client.get("/classrooms").status_code == 200
-    for path in ("/classrooms/AAA/posts", DETAIL_PATH):
+    for path in ("/classrooms/123/posts", DETAIL_PATH):
         assert (
             client.get(path, headers={"Cache-Control": "only-if-cached"}).status_code
             == 504
@@ -180,7 +181,7 @@ def test_only_if_cached_nao_busca_noticia_ausente(client, cookies, posts_sigaa):
     posts_sigaa.classrooms.get_classroom_news.assert_not_awaited()
 
 
-@pytest.mark.parametrize("path", ["/classrooms/AAA/posts", DETAIL_PATH])
+@pytest.mark.parametrize("path", ["/classrooms/123/posts", DETAIL_PATH])
 def test_stale_if_error_preserva_resposta_em_falha_do_sigaa(
     client, cookies, posts_sigaa, path
 ):
@@ -205,7 +206,7 @@ def test_jobs_de_conteudos_distintos_nao_sao_deduplicados():
 
 def test_lista_nao_busca_conteudo_ate_primeira_abertura(client, cookies, posts_sigaa):
     client.cookies.update(cookies(refresh=CREDENTIALS))
-    assert client.get("/classrooms/AAA/posts").status_code == 200
+    assert client.get("/classrooms/123/posts").status_code == 200
     posts_sigaa.classrooms.get_classroom_news.assert_not_awaited()
     first = client.get(DETAIL_PATH)
     assert first.status_code == 200
@@ -245,7 +246,7 @@ def test_lista_vencida_descobre_posts_sem_sobrescrever_conteudo(
     fetch = posts_sigaa.classrooms.list_classroom_posts
     original = ClassroomPost(id=post_id, type=post_type, title="Aviso", content="Texto")
     fetch.return_value = [original]
-    path = f"/classrooms/AAA/posts/{post_id}"
+    path = f"/classrooms/123/posts/{post_id}"
     saved = client.get(path).json()
     with database() as session:
         classroom = session.scalar(select(DBClassroom))
@@ -257,10 +258,10 @@ def test_lista_vencida_descobre_posts_sem_sobrescrever_conteudo(
     ]
     assert client.get(path).json() == saved
     count = fetch.await_count
-    client.get("/classrooms/AAA/posts")
+    client.get("/classrooms/123/posts")
     assert fetch.await_count == count + 1
     assert client.get(path).json() == saved
-    assert {post["id"] for post in client.get("/classrooms/AAA/posts").json()} == {
+    assert {post["id"] for post in client.get("/classrooms/123/posts").json()} == {
         post_id,
         "news:2",
     }
@@ -278,7 +279,7 @@ def test_lista_vencida_atualiza_avaliacao_e_mantem_leitura(
         starts_on=date(2026, 10, 1),
     )
     fetch.return_value = [original]
-    path = "/classrooms/AAA/posts/assessment:1"
+    path = "/classrooms/123/posts/assessment:1"
     saved = client.get(path).json()
     assert mark_read(client, saved).status_code == 204
     with database() as session:

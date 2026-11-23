@@ -31,7 +31,7 @@ def test_download_documento_preserva_conteudo_cookies_e_nao_usa_cache(
     def banco_proibido():
         pytest.fail("Download de documento não deve usar banco")
 
-    client.app.dependency_overrides[get_sessionmaker] = banco_proibido
+    client.app.dependency_overrides[get_sessionmaker] = lambda: banco_proibido
     client.cookies.update(cookies(refresh=CREDENCIAIS))
     for _ in range(2):
         response = client.post(f"/me/{path}")

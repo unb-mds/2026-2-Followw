@@ -11,7 +11,7 @@ api/
   db/                   # Base, mixins, enums, modelos e SessionmakerDep
   modules/<feature>/    # router.py, service.py, repository.py da feature (e suas tarefas de sync)
   sync/                 # Sync (SWR), Job, fila do QStash e a rota /jobs com o registro TASKS
-  academic_calendar.py  # regras pelo calendário acadêmico (congelar sync, status do aluno)
+  academic_calendar.py  # todas as regras pelo calendário acadêmico (congelar sync, matrícula, status)
   sigaa.py              # SigaaConnection da requisição
   cookies.py            # cookies de sessão cifrados
   cache.py              # Cache-Control, age e is_stale
@@ -24,9 +24,12 @@ tests/                  # unit/ (sem Docker) e integration/<feature>/
 - **Módulos.** Uma pasta por feature com `router`, registrado em `api/main.py`. Rotas sem login vão
   em `modules/public_<feature>` (prefixo `/public/<feature>`). Tag nova entra em `x-tagGroups`
   (`custom_openapi`), senão some do `/docs`.
-- **Sessão.** Sem tabela: token e credenciais vivem em cookies `httponly` cifrados (JWE), renovados
-  só quando a requisição vai ao SIGAA. Use `SigaaConnectionDep` (abre o client sob demanda),
+- **Sessão web.** Token e credenciais vivem em cookies `httponly` cifrados (JWE), renovados só
+  quando a requisição vai ao SIGAA. Use `SigaaConnectionDep` (abre o client sob demanda),
   `SigaaClientDep` (rotas sem cache) ou `SigaaPublicClientDep` (sem login).
+- **OAuth.** Declare o escopo das rotas delegáveis com `openapi_extra=oauth(Scope...)`. Confira
+  também os campos da resposta, inclusive em objetos aninhados. O aceite é validado antes do cache.
+  Fora isso, OAuth muda só a autenticação: cache, sync e `Cache-Control` seguem os da web.
 - **Validação** de parâmetros e corpo é feita **sempre** pelo Pydantic no router (tipos, `Field`,
   `StringConstraints` e, para regras entre campos, um modelo de query com `model_validator`). O
   service recebe valores já normalizados e só valida o que depende de banco, login ou SIGAA.
@@ -37,10 +40,13 @@ tests/                  # unit/ (sem Docker) e integration/<feature>/
   (stale-while-revalidate). `load` lê o cache e devolve `Cached` com a validade da feature, a mesma
   do sync do login. A tarefa (`(ctx: Context[alvo]) -> None`) busca no SIGAA e grava; o alvo é a
   conta (`None`), uma turma (`OwnLink`) ou um item dela (`Item`). Tarefa nova entra em `TASKS`. Rota
-  com cache ganha o `Cache-Control` pelo service; GET sem cache usa `NoStore`.
-  A validade de cada dado vem de uma função `*_freshness` do service.
+  com cache ganha o `Cache-Control` pelo service; GET sem cache usa `NoStore`. A validade de cada
+  dado vem de uma função `*_freshness` do service.
 - **Regras de negócio** configuráveis (TTL, tolerância, limite, congelar, quem pode o quê) ficam
   numa constante ou função nomeada do módulo, nunca como literal no `load`, no router ou na query.
+- **Calendário acadêmico.** Toda regra que depende dele (datas de matrícula, fim do semestre,
+  tolerâncias, dias letivos) fica em `academic_calendar.py`, como função nomeada. Services e
+  repositories só a chamam e nunca leem `load_academic_calendar` nem comparam datas do calendário.
 - **Jobs.** Nada roda após a resposta: o que venceu vira job no QStash (um por turma e um da conta),
   com a credencial cifrada e sessão própria do SIGAA, com logout no fim. Nunca use a sessão do
   usuário num job. Falha da origem tem uma única retentativa.

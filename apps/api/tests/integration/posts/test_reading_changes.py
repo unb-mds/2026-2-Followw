@@ -21,8 +21,8 @@ def test_atualizar_noticia_com_no_cache_preserva_leitura(reading_client, posts_s
     assert updated["attachments"] == []
     assert updated["is_read"] is True
     assert "version" not in updated
-    assert client.get("/classrooms/AAA/posts").json()[0]["is_read"] is True
-    assert client.get("/posts/news").json()["items"][0]["post"]["is_read"] is True
+    assert client.get("/classrooms/123/posts").json()[0]["is_read"] is True
+    assert client.get("/posts").json()["items"][0]["post"]["is_read"] is True
 
 
 @pytest.mark.parametrize(
@@ -42,12 +42,12 @@ def test_outros_tipos_preservam_leitura_ao_atualizar_conteudo(
     )
     fetch = posts_sigaa.classrooms.list_classroom_posts
     fetch.return_value = [post]
-    original = client.get("/classrooms/AAA/posts").json()[0]
+    original = client.get("/classrooms/123/posts").json()[0]
     assert mark_read(client, original).status_code == 204
     fetch.return_value = [
         post.model_copy(update={"title": "Novo", "content": "Editado"})
     ]
-    path = f"/classrooms/AAA/posts/{source_id}"
+    path = f"/classrooms/123/posts/{source_id}"
     updated = client.get(path, headers={"Cache-Control": "no-cache"}).json()
     assert updated["content"] == "Editado"
     assert updated["is_read"] is True
@@ -65,7 +65,7 @@ def test_nova_postagem_nao_herda_leitura_de_outra(reading_client, posts_sigaa):
         )
     )
     listed = client.get(
-        "/classrooms/AAA/posts", headers={"Cache-Control": "no-cache"}
+        "/classrooms/123/posts", headers={"Cache-Control": "no-cache"}
     ).json()
     assert {post["id"]: post["is_read"] for post in listed} == {
         "news:1": True,

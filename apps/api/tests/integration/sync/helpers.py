@@ -79,11 +79,11 @@ def _gravacao_concorrente(monkeypatch, async_database, *, vence: bool) -> None:
 PERFIL = Job(credentials=CREDENCIAIS, steps=(Step.of(sync_profile),))
 
 
-TELAS = Job(
-    credentials=CREDENCIAIS,
-    classroom_id="AAA",
-    steps=(Step.of(sync_members), Step.of(sync_statistics)),
-)
+TELAS = (Step.of(sync_members), Step.of(sync_statistics))
+
+
+def _telas(classroom_id: str) -> Job:
+    return Job(credentials=CREDENCIAIS, classroom_id=classroom_id, steps=TELAS)
 
 
 def _entregar(client, qstash, body: str, *, signature: str | None = None):

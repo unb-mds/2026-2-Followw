@@ -4,11 +4,13 @@ from sigaa_client import SigaaParseError
 from .helpers import PATH, PLAN
 
 
-@pytest.mark.parametrize("classroom_id", ["AAA", "123"])
+@pytest.mark.parametrize("by_id", [True, False])
 def test_consulta_plano_pelos_dois_identificadores(
-    logged, teaching_sigaa, classroom_id
+    logged, teaching_sigaa, id_da_turma, by_id
 ):
-    response = logged.get(f"/classrooms/{classroom_id}/teaching-plan")
+    logged.get("/classrooms")
+    path = f"/classrooms/{id_da_turma('AAA')}/teaching-plan" if by_id else PATH
+    response = logged.get(path)
     assert response.status_code == 200
     assert response.json() == PLAN.model_dump(mode="json")
     assert response.json()["schedule"][0]["start_date"] == "2026-08-11"

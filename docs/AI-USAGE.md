@@ -74,9 +74,12 @@ membro do time e quais resultados eles trouxeram.
     - Claude Opus 5.5 (Eliabe)
     - Gemini Flash 3.8 (Gaspar, Kauã, Gabriel da Cruz, Samuel)
     - Gemini 4 Argon (Samuel e Kauã)
+    - Gemini 4 Neon (Eliabe e Samuel)
     - GPT 5.6-Luna (Galvão)
     - GPT 6-Astra (Diego, Galvão)
     - GPT 6.1-Sol (Diego, Gaspar, Gabriel da Cruz)
+    - GPT 6.2-Astra (Diego)
+    - GPT 6.2-Sol (Diego, Gaspar, Gabriel da Cruz)
 
 - Skills:
 
@@ -87,8 +90,8 @@ membro do time e quais resultados eles trouxeram.
     - grilling: Uso geral
     - prune-tests: Destilação da suíte de testes, também usada como régua para novos testes
     - scalar-docs: Kauã e Samuel
-    - security-audit: Eliabe e Diego
-    - thermo-nuclear-code-quality-review: Eliabe
+    - security-audit: Eliabe e Diego (uso pontual, não foi adicionada ao repo)
+    - thermo-nuclear-code-quality-review: Eliabe, Gabriel da Cruz
 
 - MCPs:
     - Context7: para ter acesso às docs atualizadas das bibliotecas

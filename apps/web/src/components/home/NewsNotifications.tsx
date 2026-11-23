@@ -1,8 +1,8 @@
-import type { ClassroomNews } from '@followw/core/queries/posts.ts';
+import type { FeedPost } from '@followw/core/queries/posts.ts';
 import type { Components } from 'react-markdown';
 
 import { postDateLabel } from '@followw/core/lib/classroom-posts.ts';
-import { latestNewsQueryOptions } from '@followw/core/queries/posts.ts';
+import { latestPostsQueryOptions } from '@followw/core/queries/posts.ts';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { Bell } from 'lucide-react';
@@ -17,26 +17,29 @@ import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '#/compone
 import { STORAGE_KEYS, storedValue } from '#/lib/local-storage';
 import { rise, useEntrance } from '#/lib/motion';
 
-const previewComponents: Components = { p: ({ children }) => <span>{children} </span> };
+const previewComponents: Components = {
+    p: ({ children }) => <span>{children} </span>
+};
 
-// Notícia mais recente já vista ao abrir o popover.
+// Chaves das notificações vistas ao abrir o popover, separadas por vírgula.
 const seenNews = storedValue<string | null>(STORAGE_KEYS.SEEN_NEWS, null);
-const newsKey = ({ classroom, post }: ClassroomNews) => `${classroom.id}:${post.id}`;
+const postKey = ({ classroom, post }: FeedPost) => `${classroom.id}:${post.id}`;
 
 export function NewsNotifications() {
-    const feed = useQuery(latestNewsQueryOptions);
+    const feed = useQuery(latestPostsQueryOptions);
     const seen = useSyncExternalStore(
         seenNews.subscribe,
         seenNews.getSnapshot,
         seenNews.getServerSnapshot
     );
-    const latest = feed.data?.items[0];
-    const unread = latest != null && newsKey(latest) !== seen;
+    const items = feed.data?.items ?? [];
+    const seenKeys = new Set(seen?.split(','));
+    const unread = items.some((item) => !seenKeys.has(postKey(item)));
 
     return (
         <Popover
             onOpenChange={(open) => {
-                if (open && latest) seenNews.set(newsKey(latest));
+                if (open && items.length > 0) seenNews.set(items.map(postKey).join(','));
             }}
         >
             <PopoverTrigger
@@ -45,7 +48,7 @@ export function NewsNotifications() {
                         variant="ghost"
                         size="icon-lg"
                         className="relative size-11 rounded-full"
-                        aria-label={unread ? 'Notificações, há notícias novas' : 'Notificações'}
+                        aria-label={unread ? 'Notificações, há novidades' : 'Notificações'}
                     />
                 }
             >
@@ -58,7 +61,7 @@ export function NewsNotifications() {
                 )}
             </PopoverTrigger>
             <PopoverContent align="end" className="w-80 gap-2 p-0 lg:w-96">
-                <PopoverTitle className="border-b px-4 py-3">Últimas notícias</PopoverTitle>
+                <PopoverTitle className="border-b px-4 py-3">Notificações</PopoverTitle>
                 <div className="flex max-h-96 flex-col overflow-y-auto pb-2">
                     <NewsList />
                 </div>
@@ -68,13 +71,13 @@ export function NewsNotifications() {
 }
 
 function NewsList() {
-    const feed = useQuery(latestNewsQueryOptions);
+    const feed = useQuery(latestPostsQueryOptions);
     const entrance = useEntrance();
 
     if (feed.isPending)
         return (
             <LoadingSkeleton
-                label="Carregando notícias..."
+                label="Carregando notificações..."
                 className="gap-0 divide-y divide-border"
             >
                 {repeat(4, () => (
@@ -94,20 +97,22 @@ function NewsList() {
         <>
             {feed.isError && (
                 <div className="px-2">
-                    <StaleDataNotice subject="as notícias" />
+                    <StaleDataNotice subject="as notificações" />
                 </div>
             )}
             {items.length > 0 ? (
                 <m.ul className="flex flex-col divide-y divide-border" {...entrance}>
                     {items.map((item, index) => (
-                        <m.li key={newsKey(item)} custom={index} variants={rise}>
+                        <m.li key={postKey(item)} custom={index} variants={rise}>
                             <NewsItem item={item} />
                         </m.li>
                     ))}
                 </m.ul>
             ) : (
                 <NewsMessage>
-                    {updating ? 'Buscando notícias das turmas...' : 'Nenhuma notícia por enquanto.'}
+                    {updating
+                        ? 'Buscando novidades das turmas...'
+                        : 'Nenhuma notificação por enquanto.'}
                 </NewsMessage>
             )}
         </>
@@ -118,7 +123,7 @@ function NewsMessage({ children }: { children: React.ReactNode }) {
     return <p className="px-4 py-2 text-sm text-muted-foreground">{children}</p>;
 }
 
-function NewsItem({ item: { classroom, post } }: { item: ClassroomNews }) {
+function NewsItem({ item: { classroom, post } }: { item: FeedPost }) {
     const date = postDateLabel(post);
     return (
         <Link
@@ -135,20 +140,24 @@ function NewsItem({ item: { classroom, post } }: { item: ClassroomNews }) {
                 {date && <span className="shrink-0 tabular-nums">{date}</span>}
             </span>
             <span className="line-clamp-2 text-sm font-semibold wrap-anywhere">{post.title}</span>
-            <span className="line-clamp-2 text-sm text-muted-foreground">
-                {post.content?.trim() ? (
-                    <ReactMarkdown
-                        skipHtml
-                        allowedElements={['p', 'br']}
-                        unwrapDisallowed
-                        components={previewComponents}
-                    >
-                        {post.content}
-                    </ReactMarkdown>
-                ) : (
-                    'Clique para ler mais.'
-                )}
-            </span>
+            {post.type === 'assessment' ? (
+                <span className="text-sm text-muted-foreground">Avaliação</span>
+            ) : (
+                <span className="line-clamp-2 text-sm text-muted-foreground">
+                    {post.content?.trim() ? (
+                        <ReactMarkdown
+                            skipHtml
+                            allowedElements={['p', 'br']}
+                            unwrapDisallowed
+                            components={previewComponents}
+                        >
+                            {post.content}
+                        </ReactMarkdown>
+                    ) : (
+                        'Clique para ler mais.'
+                    )}
+                </span>
+            )}
         </Link>
     );
 }

@@ -46,14 +46,14 @@ def _home_vencida(database, idade=timedelta(minutes=61)):
 def test_home_rele_so_a_turma_com_novidade(reading_client, posts_sigaa, qstash):
     client = reading_client
     _duas_turmas(posts_sigaa)
-    client.get("/classrooms/AAA/posts")
-    client.get("/classrooms/BBB/posts")
+    client.get("/classrooms/123/posts")
+    client.get("/classrooms/124/posts")
     posts_sigaa.classrooms.list_dashboard_posts.return_value = [
         AVISO,
         AVISO.model_copy(update={"classroom_sigaa_id": 124, "title": "Novo aviso"}),
     ]
     posts_sigaa.classrooms.list_classroom_posts.reset_mock()
-    response = client.get("/posts/news")
+    response = client.get("/posts")
     assert response.json()["updating"] is True
     assert [step.task for step in qstash.jobs()[-1].steps] == ["sync_dashboard_posts"]
     assert _turmas_lidas(posts_sigaa) == ["BBB"]
@@ -63,19 +63,19 @@ def test_home_sem_novidade_nao_rele_turmas_e_vale_uma_hora(
     reading_client, posts_sigaa, database, qstash
 ):
     client = reading_client
-    client.get("/classrooms/AAA/posts")
+    client.get("/classrooms/123/posts")
     posts_sigaa.classrooms.list_dashboard_posts.return_value = [AVISO]
     posts_sigaa.classrooms.list_classroom_posts.reset_mock()
-    client.get("/posts/news")
+    client.get("/posts")
     posts_sigaa.classrooms.list_dashboard_posts.assert_awaited_once()
     assert _turmas_lidas(posts_sigaa) == []
 
     qstash.published.clear()
-    assert client.get("/posts/news").json()["updating"] is False
+    assert client.get("/posts").json()["updating"] is False
     assert qstash.published == []
 
     _home_vencida(database)
-    assert client.get("/posts/news").json()["updating"] is True
+    assert client.get("/posts").json()["updating"] is True
     assert posts_sigaa.classrooms.list_dashboard_posts.await_count == 2
 
 
@@ -85,7 +85,7 @@ def test_avaliacao_adiada_na_home_atualiza_a_turma(
     client = reading_client
     fetch = posts_sigaa.classrooms.list_classroom_posts
     fetch.return_value = [PROVA]
-    client.get("/classrooms/AAA/posts")
+    client.get("/classrooms/123/posts")
     home = DashboardPost(
         type=PostType.ASSESSMENT,
         classroom_sigaa_id=123,
@@ -93,7 +93,7 @@ def test_avaliacao_adiada_na_home_atualiza_a_turma(
         starts_on=date(2026, 10, 29),
     )
     posts_sigaa.classrooms.list_dashboard_posts.return_value = [home]
-    client.get("/posts/news")
+    client.get("/posts")
     assert fetch.await_count == 1
 
     adiada = date(2026, 11, 5)
@@ -102,22 +102,22 @@ def test_avaliacao_adiada_na_home_atualiza_a_turma(
     ]
     fetch.return_value = [PROVA.model_copy(update={"starts_on": adiada})]
     _home_vencida(database)
-    client.get("/posts/news")
+    client.get("/posts")
     assert fetch.await_count == 2
-    posts = client.get("/classrooms/AAA/posts").json()
+    posts = client.get("/classrooms/123/posts").json()
     assert posts[0]["starts_on"] == "2026-11-05"
 
 
 def test_home_ignora_itens_de_turma_desconhecida(reading_client, posts_sigaa):
     client = reading_client
-    client.get("/classrooms/AAA/posts")
+    client.get("/classrooms/123/posts")
     posts_sigaa.classrooms.list_dashboard_posts.return_value = [
         AVISO,
         AVISO.model_copy(update={"classroom_sigaa_id": 999, "title": "Outra"}),
         AVISO.model_copy(update={"classroom_sigaa_id": None, "title": "Sem turma"}),
     ]
     posts_sigaa.classrooms.list_classroom_posts.reset_mock()
-    client.get("/posts/news")
+    client.get("/posts")
     posts_sigaa.classrooms.list_dashboard_posts.assert_awaited_once()
     assert _turmas_lidas(posts_sigaa) == []
 
@@ -128,11 +128,11 @@ def test_lista_sem_cache_na_turma_e_lida_pela_home(reading_client, posts_sigaa):
     posts_sigaa.classrooms.list_classroom_posts.return_value = [
         _post(id=1, title="Aviso", published_on=date(2026, 9, 24))
     ]
-    client.get("/posts/news")
+    client.get("/posts")
     assert _turmas_lidas(posts_sigaa) == ["AAA"]
-    assert [
-        item["post"]["id"] for item in client.get("/posts/news").json()["items"]
-    ] == ["news:1"]
+    assert [item["post"]["id"] for item in client.get("/posts").json()["items"]] == [
+        "news:1"
+    ]
 
 
 def test_noticia_editada_atualiza_titulo_e_rebusca_conteudo_uma_vez(
@@ -141,11 +141,11 @@ def test_noticia_editada_atualiza_titulo_e_rebusca_conteudo_uma_vez(
     client = reading_client
     lista = posts_sigaa.classrooms.list_classroom_posts
     detalhe = posts_sigaa.classrooms.get_classroom_news
-    client.get("/classrooms/AAA/posts")
+    client.get("/classrooms/123/posts")
     noticia = client.get(DETAIL_PATH).json()
     assert mark_read(client, noticia).status_code == 204
     posts_sigaa.classrooms.list_dashboard_posts.return_value = [AVISO]
-    client.get("/posts/news")
+    client.get("/posts")
     assert lista.await_count == 1
 
     corrigido = "Aviso corrigido"
@@ -158,10 +158,10 @@ def test_noticia_editada_atualiza_titulo_e_rebusca_conteudo_uma_vez(
     )
     for _ in range(2):
         _home_vencida(database)
-        client.get("/posts/news")
+        client.get("/posts")
     assert lista.await_count == 2
 
-    listado = client.get("/classrooms/AAA/posts").json()[0]
+    listado = client.get("/classrooms/123/posts").json()[0]
     assert (listado["title"], listado["is_read"]) == (corrigido, True)
     atualizado = client.get(DETAIL_PATH).json()
     assert atualizado["content"] == "Texto corrigido"

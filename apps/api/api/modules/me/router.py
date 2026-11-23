@@ -33,6 +33,8 @@ from api.modules.me.settings import (
     read_settings,
     save_settings,
 )
+from api.modules.oauth.redaction import json_response
+from api.modules.oauth.scopes import Scope, oauth
 from api.rate_limit import limit_profile_edits
 from api.sigaa import SigaaClientDep, SigaaConnection, SigaaConnectionDep
 
@@ -53,16 +55,24 @@ _PDF_RESPONSES = {
 
 @router.get(
     "",
+    openapi_extra=oauth(Scope.PROFILE),
     response_model=UserProfile,
     summary="Consultar perfil do usuário",
+    description="Com OAuth, retorna nome, matrícula, foto e curso. grades:read acrescenta IRA e MP.",
     responses=SIGAA_ERRORS,
 )
-async def get_me(service: ProfileServiceDep) -> UserProfile:
-    return await service.get_profile()
+async def get_me(
+    service: ProfileServiceDep, response: Response
+) -> UserProfile | Response:
+    profile = await service.get_profile()
+    if isinstance(profile, UserProfile):
+        return profile
+    return json_response(profile, response)
 
 
 @router.get(
     "/ru-statement",
+    openapi_extra=oauth(Scope.RU),
     response_model=RestaurantStatement,
     summary="Consultar extrato, saldo e grupo do RU",
     responses=SIGAA_ERRORS,
@@ -109,6 +119,7 @@ async def get_student_card(client: SigaaClientDep, response: Response) -> Respon
 
 @router.post(
     "/transcript",
+    openapi_extra=oauth(Scope.TRANSCRIPT),
     response_class=Response,
     summary="Baixar o histórico acadêmico em PDF",
     responses=_PDF_RESPONSES,
@@ -146,12 +157,13 @@ async def update_settings(
 
 @router.patch(
     "/profile",
+    openapi_extra=oauth(Scope.PROFILE_WRITE),
     response_model=UserProfile,
     summary="Atualizar foto ou bio no SIGAA",
     description=(
         "Omita a bio para preservá-la ou envie uma string vazia para limpá-la. "
         "A remoção da foto deve ser feita em uma requisição separada. "
-        "Para substituir, envie um único JPEG ou PNG de até 4 MB."
+        "Para substituir, envie um único JPEG ou PNG de até 4 MB. Com OAuth, a resposta segue os escopos de leitura do perfil."
     ),
     dependencies=[NoStore],
     responses={
@@ -161,12 +173,13 @@ async def update_settings(
 )
 async def update_profile(
     request: Request,
+    response: Response,
     photo_action: Annotated[Literal["keep", "replace", "remove"], Form()],
     connection: SigaaConnectionDep,
     db: DatabaseDep,
     bio: Annotated[str | None, Form()] = None,
     photo: Annotated[UploadFile | None, File()] = None,
-) -> UserProfile:
+) -> UserProfile | Response:
     form = await request.form()
     if len(form.getlist("photo")) > 1 or any(
         name != "photo" and isinstance(value, MultipartFile)
@@ -195,13 +208,17 @@ async def update_profile(
     if photo is not None:
         raw = await photo.read(MAX_PHOTO_BYTES + 1)
         content = await run_in_threadpool(normalize_photo, raw)
-    return await edit_profile(
+    profile = await edit_profile(
         connection, db, bio=bio, photo=content, remove_photo=photo_action == "remove"
     )
+    if isinstance(profile, UserProfile):
+        return profile
+    return json_response(profile, response)
 
 
 @router.get(
     "/internships",
+    openapi_extra=oauth(Scope.INTERNSHIPS),
     response_model=list[InternshipItem],
     summary="Listar e buscar ofertas de estágio",
     description="Lista as ofertas de estágio disponíveis no mural do SIGAA. As vagas do curso do aluno vêm primeiro, seguidas pelas demais.",
@@ -224,6 +241,7 @@ async def list_internships(
 
 @router.get(
     "/internships/{reference:path}",
+    openapi_extra=oauth(Scope.INTERNSHIPS),
     response_model=InternshipDetail,
     summary="Consultar detalhes de uma oferta de estágio",
     description="Abre os dados completos da vaga a partir da referência obtida no mural.",

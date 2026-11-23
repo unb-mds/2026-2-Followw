@@ -14,6 +14,7 @@ from api.modules.me.profile import sync_profile
 from api.sync.engine import Step
 
 from .helpers import (
+    ATUAL,
     CREDENCIAIS,
     NO_CACHE,
     _envelhecer,
@@ -264,8 +265,11 @@ def test_cache_vencido_sem_access_token_revalida_sem_logar_na_requisicao(
 
 
 def test_requisicao_usa_um_so_client_do_sigaa(logado, conta):
+    conta.classrooms.list_classrooms.return_value = [
+        ATUAL.model_copy(update={"sigaa_id": 1614100})
+    ]
     # Sem cache: lê as turmas, o perfil para gravá-las e os participantes.
-    response = logado.get("/classrooms/AAA/members")
+    response = logado.get("/classrooms/1614100/members")
 
     assert response.status_code == 200
     conta.profile.get_profile.assert_awaited_once()
