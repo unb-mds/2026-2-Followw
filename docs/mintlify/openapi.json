@@ -174,10 +174,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "Classroom.id ou Classroom.sigaa_id.",
+              "description": "`id` da turma no Followw ou seu `sigaa_id`.",
               "title": "Classroom Id"
             },
-            "description": "Classroom.id ou Classroom.sigaa_id."
+            "description": "`id` da turma no Followw ou seu `sigaa_id`."
           },
           {
             "name": "post_id",
@@ -271,10 +271,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "Classroom.id ou Classroom.sigaa_id.",
+              "description": "`id` da turma no Followw ou seu `sigaa_id`.",
               "title": "Classroom Id"
             },
-            "description": "Classroom.id ou Classroom.sigaa_id."
+            "description": "`id` da turma no Followw ou seu `sigaa_id`."
           },
           {
             "name": "Cache-Control",
@@ -369,10 +369,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "Classroom.id ou Classroom.sigaa_id.",
+              "description": "`id` da turma no Followw ou seu `sigaa_id`.",
               "title": "Classroom Id"
             },
-            "description": "Classroom.id ou Classroom.sigaa_id."
+            "description": "`id` da turma no Followw ou seu `sigaa_id`."
           },
           {
             "name": "type",
@@ -481,10 +481,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "Classroom.id ou Classroom.sigaa_id.",
+              "description": "`id` da turma no Followw ou seu `sigaa_id`.",
               "title": "Classroom Id"
             },
-            "description": "Classroom.id ou Classroom.sigaa_id."
+            "description": "`id` da turma no Followw ou seu `sigaa_id`."
           },
           {
             "name": "post_id",
@@ -583,10 +583,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "Classroom.id ou Classroom.sigaa_id.",
+              "description": "`id` da turma no Followw ou seu `sigaa_id`.",
               "title": "Classroom Id"
             },
-            "description": "Classroom.id ou Classroom.sigaa_id."
+            "description": "`id` da turma no Followw ou seu `sigaa_id`."
           },
           {
             "name": "post_id",
@@ -641,20 +641,8 @@
                 }
               }
             }
-          },
-          "403": {
-            "description": "O aplicativo não possui a permissão exigida."
           }
-        },
-        "x-oauth-scope": "posts:mark",
-        "security": [
-          {
-            "FollowwCookie": []
-          },
-          {
-            "OAuthBearer": []
-          }
-        ]
+        }
       },
       "delete": {
         "tags": [
@@ -670,10 +658,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "Classroom.id ou Classroom.sigaa_id.",
+              "description": "`id` da turma no Followw ou seu `sigaa_id`.",
               "title": "Classroom Id"
             },
-            "description": "Classroom.id ou Classroom.sigaa_id."
+            "description": "`id` da turma no Followw ou seu `sigaa_id`."
           },
           {
             "name": "post_id",
@@ -728,20 +716,8 @@
                 }
               }
             }
-          },
-          "403": {
-            "description": "O aplicativo não possui a permissão exigida."
           }
-        },
-        "x-oauth-scope": "posts:mark",
-        "security": [
-          {
-            "FollowwCookie": []
-          },
-          {
-            "OAuthBearer": []
-          }
-        ]
+        }
       }
     },
     "/classrooms": {
@@ -932,10 +908,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "Classroom.id ou Classroom.sigaa_id.",
+              "description": "`id` da turma no Followw ou seu `sigaa_id`.",
               "title": "Classroom Id"
             },
-            "description": "Classroom.id ou Classroom.sigaa_id."
+            "description": "`id` da turma no Followw ou seu `sigaa_id`."
           },
           {
             "name": "Cache-Control",
@@ -1019,10 +995,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "Classroom.id ou Classroom.sigaa_id.",
+              "description": "`id` da turma no Followw ou seu `sigaa_id`.",
               "title": "Classroom Id"
             },
-            "description": "Classroom.id ou Classroom.sigaa_id."
+            "description": "`id` da turma no Followw ou seu `sigaa_id`."
           },
           {
             "name": "Cache-Control",
@@ -1112,10 +1088,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "Classroom.id ou Classroom.sigaa_id.",
+              "description": "`id` da turma no Followw ou seu `sigaa_id`.",
               "title": "Classroom Id"
             },
-            "description": "Classroom.id ou Classroom.sigaa_id."
+            "description": "`id` da turma no Followw ou seu `sigaa_id`."
           },
           {
             "name": "Cache-Control",
@@ -1196,10 +1172,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "Classroom.id ou Classroom.sigaa_id.",
+              "description": "`id` da turma no Followw ou seu `sigaa_id`.",
               "title": "Classroom Id"
             },
-            "description": "Classroom.id ou Classroom.sigaa_id."
+            "description": "`id` da turma no Followw ou seu `sigaa_id`."
           },
           {
             "name": "Cache-Control",
@@ -4484,6 +4460,7 @@
         "properties": {
           "id": {
             "type": "string",
+            "format": "uuid",
             "title": "Id"
           },
           "subject": {
@@ -4704,7 +4681,9 @@
           },
           "id": {
             "type": "string",
-            "title": "Id"
+            "format": "uuid",
+            "title": "Id",
+            "description": "ID da turma no Followw."
           },
           "sigaa_id": {
             "anyOf": [
@@ -6509,11 +6488,6 @@
     "posts:read": {
       "label": "Ler posts e baixar materiais das turmas autorizadas",
       "trust_level": "medium"
-    },
-    "posts:mark": {
-      "label": "Marcar postagens como lidas ou não lidas",
-      "trust_level": "low",
-      "requires": "posts:read"
     },
     "transcript:read": {
       "label": "Baixar o histórico acadêmico completo",

@@ -30,5 +30,8 @@ def test_openapi_documenta_leitura(api):
     route = schema["paths"]["/classrooms/{classroom_id}/posts/{post_id}/read"]
     assert {"204", "401", "404", "422"} <= route["put"]["responses"].keys()
     assert {"204", "401", "404", "422"} <= route["delete"]["responses"].keys()
+    assert "x-oauth-scope" not in route["put"]
+    assert "x-oauth-scope" not in route["delete"]
+    assert "posts:mark" not in schema["x-oauth-scopes"]
 
     assert "requestBody" not in route["put"]

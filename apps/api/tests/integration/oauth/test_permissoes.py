@@ -70,8 +70,8 @@ def test_busca_publica_com_bearer_so_oferece_catalogo(client, emitir):
     assert "q" in response.json()["detail"]
 
 
-def test_leitura_de_posts_nao_permite_mudar_marcacao(client, emitir):
-    pair = emitir(Scope.POSTS)
+def test_oauth_nao_permite_marcar_post_como_lido(client, emitir):
+    pair = emitir(*Scope)
     headers = {"Authorization": f"Bearer {pair.access_token}"}
     for method in (client.put, client.delete):
         assert (

@@ -26,7 +26,6 @@ def test_dependencias_precisam_ter_sido_concedidas():
         (Scope.HISTORY, Scope.CLASSROOMS),
         (Scope.GRADES, Scope.CLASSROOMS),
         (Scope.FREQUENCY_WRITE, Scope.FREQUENCY),
-        (Scope.POST_MARKS, Scope.POSTS),
     ):
         if required != Scope.PROFILE:
             with pytest.raises(ValueError):

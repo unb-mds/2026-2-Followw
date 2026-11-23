@@ -19,7 +19,6 @@ class Scope(StrEnum):
     FREQUENCY = "frequency:read"
     FREQUENCY_WRITE = "frequency:write"
     POSTS = "posts:read"
-    POST_MARKS = "posts:mark"
     TRANSCRIPT = "transcript:read"
     RU = "ru:read"
     INTERNSHIPS = "internships:read"
@@ -65,11 +64,6 @@ PERMISSIONS: dict[Scope, Permission] = {
     Scope.POSTS: Permission(
         label="Ler posts e baixar materiais das turmas autorizadas",
         trust_level="medium",
-    ),
-    Scope.POST_MARKS: Permission(
-        label="Marcar postagens como lidas ou não lidas",
-        trust_level="low",
-        requires=Scope.POSTS,
     ),
     Scope.TRANSCRIPT: Permission(
         label="Baixar o histórico acadêmico completo", trust_level="high"

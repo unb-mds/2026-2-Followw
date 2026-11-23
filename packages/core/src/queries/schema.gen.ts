@@ -2231,13 +2231,6 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description O aplicativo não possui a permissão exigida. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
             /** @description Turma ou post não encontrado. */
             404: {
                 headers: {
@@ -2289,13 +2282,6 @@ export interface operations {
             };
             /** @description Credenciais ausentes ou inválidas. */
             401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description O aplicativo não possui a permissão exigida. */
-            403: {
                 headers: {
                     [name: string]: unknown;
                 };

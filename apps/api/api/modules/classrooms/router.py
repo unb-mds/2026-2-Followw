@@ -164,7 +164,6 @@ async def get_classroom_post(
 
 @router.put(
     "/{classroom_id}/posts/{post_id}/read",
-    openapi_extra=oauth(Scope.POST_MARKS),
     status_code=204,
     summary="Confirmar a leitura de uma postagem",
     description="Operação individual, idempotente e sem corpo. Consultar ou atualizar uma postagem não altera sua leitura.",
@@ -185,7 +184,6 @@ async def mark_post_read(
 
 @router.delete(
     "/{classroom_id}/posts/{post_id}/read",
-    openapi_extra=oauth(Scope.POST_MARKS),
     status_code=204,
     summary="Marcar uma postagem como não lida",
     description="Remove somente a leitura do usuário autenticado; repetir a operação não altera o resultado.",
