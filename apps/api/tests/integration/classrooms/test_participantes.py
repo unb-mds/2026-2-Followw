@@ -10,13 +10,13 @@ from api.db.models import User
 from .helpers import ANTIGA, ATUAL, CREDENCIAIS, NO_CACHE, PARTICIPANTES
 
 
-def test_participantes_saem_do_cache_do_login(client, sigaa, turmas):
+def test_participantes_saem_do_cache_do_login(client, sigaa, turmas, id_da_turma):
     client.post(
         "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
     )
     lidas = turmas.classrooms.list_classroom_members.await_count
 
-    response = client.get("/classrooms/AAA/members")
+    response = client.get(f"/classrooms/{id_da_turma('AAA')}/members")
 
     assert response.status_code == 200
     body = response.json()
@@ -36,10 +36,14 @@ def test_participantes_saem_do_cache_do_login(client, sigaa, turmas):
 
 
 def test_participantes_sem_cache_buscam_as_turmas_antes(client, turmas, cookies):
+    turmas.classrooms.list_classrooms.return_value = [
+        ATUAL.model_copy(update={"sigaa_id": 1614100}),
+        ANTIGA,
+    ]
     client.cookies.update(cookies(refresh=CREDENCIAIS))
 
-    primeira = client.get("/classrooms/BBB/members")
-    segunda = client.get("/classrooms/BBB/members")
+    primeira = client.get("/classrooms/1614100/members")
+    segunda = client.get("/classrooms/1614100/members")
 
     assert primeira.status_code == segunda.status_code == 200
     assert primeira.json() == segunda.json()
@@ -59,17 +63,19 @@ def test_turma_nova_fora_do_cache_rele_a_lista(client, sigaa, turmas):
     client.post(
         "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
     )
-    nova = ATUAL.model_copy(update={"id": "CCC", "number": "02"})
+    nova = ATUAL.model_copy(update={"id": "CCC", "number": "02", "sigaa_id": 1614200})
     turmas.classrooms.list_classrooms.return_value = [ATUAL, nova, ANTIGA]
 
-    response = client.get("/classrooms/CCC/members")
+    response = client.get("/classrooms/1614200/members")
 
     assert response.status_code == 200
     assert turmas.classrooms.list_classrooms.await_count == 2
     assert turmas.classrooms.list_classroom_members.await_args.args == ("CCC",)
 
 
-def test_detalhes_de_turma_passada_nunca_revalidam(client, sigaa, turmas, database):
+def test_detalhes_de_turma_passada_nunca_revalidam(
+    client, sigaa, turmas, database, id_da_turma
+):
     client.post(
         "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
     )
@@ -81,30 +87,34 @@ def test_detalhes_de_turma_passada_nunca_revalidam(client, sigaa, turmas, databa
         )
         session.commit()
 
-    client.get("/classrooms/BBB/members")
+    client.get(f"/classrooms/{id_da_turma('BBB')}/members")
     assert turmas.classrooms.list_classroom_members.await_count == 2
-    client.get("/classrooms/AAA/members")
+    client.get(f"/classrooms/{id_da_turma('AAA')}/members")
     assert turmas.classrooms.list_classroom_members.await_count == 3
 
 
-def test_refresh_dos_participantes_busca_no_sigaa(client, sigaa, turmas):
+def test_refresh_dos_participantes_busca_no_sigaa(client, sigaa, turmas, id_da_turma):
     client.post(
         "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
     )
     turmas.classrooms.list_classroom_members.return_value = PARTICIPANTES[:1]
 
-    response = client.get("/classrooms/AAA/members", headers=NO_CACHE)
+    response = client.get(f"/classrooms/{id_da_turma('AAA')}/members", headers=NO_CACHE)
 
-    assert response.json() == client.get("/classrooms/AAA/members").json()
+    assert (
+        response.json()
+        == client.get(f"/classrooms/{id_da_turma('AAA')}/members").json()
+    )
     assert [m["name"] for m in response.json()["students"]] == ["ZECA"]
     assert response.json()["professors"] == []
 
 
-def test_detalhes_com_sigaa_fora_retornam_502(client, turmas, cookies):
+def test_detalhes_com_sigaa_fora_retornam_502(client, turmas, cookies, id_da_turma):
     client.cookies.update(cookies(refresh=CREDENCIAIS))
+    client.get("/classrooms")
     turmas.classrooms.list_classroom_members.side_effect = SigaaError("fora")
 
-    assert client.get("/classrooms/AAA/members").status_code == 502
+    assert client.get(f"/classrooms/{id_da_turma('AAA')}/members").status_code == 502
 
 
 def test_openapi_documenta_participantes_e_estatisticas(api):
@@ -130,7 +140,9 @@ def test_refresh_atualiza_turmas_antigas(client, sigaa, turmas):
     assert client.get("/classrooms?semester=2025.2").json() == response.json()
 
 
-def test_detalhes_revalidam_a_lista_de_turmas_vencida(client, sigaa, turmas, database):
+def test_detalhes_revalidam_a_lista_de_turmas_vencida(
+    client, sigaa, turmas, database, id_da_turma
+):
     client.post(
         "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
     )
@@ -143,13 +155,14 @@ def test_detalhes_revalidam_a_lista_de_turmas_vencida(client, sigaa, turmas, dat
         session.commit()
     # A turma foi trancada: o acesso a ela some depois da revalidação.
     turmas.classrooms.list_classrooms.return_value = [ANTIGA]
+    path = f"/classrooms/{id_da_turma('AAA')}/members"
 
-    assert client.get("/classrooms/AAA/members").status_code == 200
+    assert client.get(path).status_code == 200
     assert turmas.classrooms.list_classrooms.await_count == 2
-    assert client.get("/classrooms/AAA/members").status_code == 404
+    assert client.get(path).status_code == 404
 
 
-def test_detalhes_aceitam_sigaa_id(client, turmas, cookies):
+def test_detalhes_aceitam_sigaa_id(client, turmas, cookies, id_da_turma):
     turmas.classrooms.list_classrooms.return_value = [
         ATUAL.model_copy(update={"sigaa_id": 1614100})
     ]
@@ -158,7 +171,10 @@ def test_detalhes_aceitam_sigaa_id(client, turmas, cookies):
     por_sigaa_id = client.get("/classrooms/1614100/members")
 
     assert por_sigaa_id.status_code == 200
-    assert client.get("/classrooms/AAA/members").json() == por_sigaa_id.json()
+    assert (
+        client.get(f"/classrooms/{id_da_turma('AAA')}/members").json()
+        == por_sigaa_id.json()
+    )
     assert turmas.classrooms.list_classrooms.await_count == 1
 
 
@@ -180,7 +196,7 @@ def _participantes_sincronizados_em(database, synced_at: datetime) -> None:
 
 # 2026.2 termina em 18/12: com a tolerância, a lista congela no sync a partir de 22/12.
 def test_participantes_fazem_um_ultimo_sync_depois_da_tolerancia_do_semestre(
-    client, sigaa, turmas, database, hoje
+    client, sigaa, turmas, database, hoje, id_da_turma
 ):
     synced_at = datetime(2026, 9, 22, tzinfo=UTC)
     login = {"registration": "251000000", "password": "senha123"}
@@ -190,7 +206,7 @@ def test_participantes_fazem_um_ultimo_sync_depois_da_tolerancia_do_semestre(
     lidas = turmas.classrooms.list_classroom_members.await_count
 
     # Servida do cache, a lista vence mesmo sem TTL e revalida por job.
-    assert client.get("/classrooms/AAA/members").status_code == 200
+    assert client.get(f"/classrooms/{id_da_turma('AAA')}/members").status_code == 200
     assert turmas.classrooms.list_classroom_members.await_count == lidas + 1
 
     _participantes_sincronizados_em(database, synced_at)
@@ -199,7 +215,7 @@ def test_participantes_fazem_um_ultimo_sync_depois_da_tolerancia_do_semestre(
 
 
 def test_participantes_nao_ressincronizam_depois_do_ultimo_sync(
-    client, sigaa, turmas, database, hoje
+    client, sigaa, turmas, database, hoje, id_da_turma
 ):
     login = {"registration": "251000000", "password": "senha123"}
     client.post("/auth/sigaa", json=login)
@@ -208,17 +224,37 @@ def test_participantes_nao_ressincronizam_depois_do_ultimo_sync(
     lidas = turmas.classrooms.list_classroom_members.await_count
 
     client.post("/auth/sigaa", json=login)
-    assert client.get("/classrooms/AAA/members").status_code == 200
-    assert client.get("/classrooms/AAA/members", headers=NO_CACHE).status_code == 200
+    assert client.get(f"/classrooms/{id_da_turma('AAA')}/members").status_code == 200
+    assert (
+        client.get(
+            f"/classrooms/{id_da_turma('AAA')}/members", headers=NO_CACHE
+        ).status_code
+        == 200
+    )
 
     assert turmas.classrooms.list_classroom_members.await_count == lidas
 
 
 def test_participantes_sem_cache_buscam_depois_da_tolerancia_do_semestre(
-    client, turmas, cookies, hoje
+    client, turmas, cookies, hoje, id_da_turma
 ):
     hoje(date(2026, 12, 22))
     client.cookies.update(cookies(refresh=CREDENCIAIS))
+    client.get("/classrooms")
 
-    assert len(client.get("/classrooms/AAA/members").json()["students"]) == 2
+    assert (
+        len(client.get(f"/classrooms/{id_da_turma('AAA')}/members").json()["students"])
+        == 2
+    )
     assert turmas.classrooms.list_classroom_members.await_count == 1
+
+
+def test_front_end_id_do_sigaa_nao_identifica_a_turma(
+    client, sigaa, turmas, id_da_turma
+):
+    client.post(
+        "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
+    )
+
+    assert client.get(f"/classrooms/{id_da_turma('AAA')}/members").status_code == 200
+    assert client.get("/classrooms/AAA/members").status_code == 404

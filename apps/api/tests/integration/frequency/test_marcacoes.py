@@ -138,12 +138,12 @@ def test_marcacao_exige_login_aula_e_turma_do_aluno(client, logged, scheduled):
         SECOND.model_copy(update={"schedule": "35T23"}),
     ]
     lesson = _lesson(logged.get(FREQ), "2026-09-17")
-    other = _lesson(logged.get("/classrooms/HASH-B/frequency"), "2026-09-17")
+    other = _lesson(logged.get("/classrooms/1614142/frequency"), "2026-09-17")
     assert _mark(logged, (lesson, "falta")).status_code == 204
     for target, classroom in (
         (lesson, "UNKNOWN"),
-        (other, "HASH-A"),
-        (str(uuid4()), "HASH-A"),
+        (other, "1614141"),
+        (str(uuid4()), "1614141"),
     ):
         for status in ("falta", None):
             response = _mark(logged, (target, status), classroom=classroom)

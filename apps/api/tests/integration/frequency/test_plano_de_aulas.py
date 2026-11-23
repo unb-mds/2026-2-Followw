@@ -64,11 +64,16 @@ def test_turma_de_semestre_passado_nao_ganha_aulas_previstas(logged, account, da
         assert session.scalar(select(ClassroomRow.lessons_created_at)) is None
 
 
-def test_turma_fora_do_calendario_tem_so_as_aulas_do_sigaa(logged, account):
+def test_turma_fora_do_calendario_tem_so_as_aulas_do_sigaa(
+    logged, account, id_da_turma
+):
     account.classrooms.list_classrooms.return_value = [
         OLD.model_copy(update={"schedule": "35T23"})
     ]
-    lessons = logged.get("/classrooms/HASH-OLD/frequency").json()["lessons"]
+    logged.get("/classrooms?semester=all")
+    lessons = logged.get(f"/classrooms/{id_da_turma('HASH-OLD')}/frequency").json()[
+        "lessons"
+    ]
     assert [lesson["occurred_on"] for lesson in lessons] == [
         "2026-09-24",
         "2026-09-22",

@@ -11,13 +11,13 @@ from .helpers import PATH, PLAN
 
 @pytest.mark.parametrize("plan", [PLAN, None])
 def test_cache_de_plano_ou_ausencia_e_compartilhado_pelos_identificadores(
-    logged, teaching_sigaa, qstash, plan
+    logged, teaching_sigaa, qstash, plan, id_da_turma
 ):
     teaching_sigaa.classrooms.get_classroom_teaching_plan.return_value = plan
     first = logged.get(PATH)
     assert first.status_code == 200
     teaching_sigaa.created.reset_mock()
-    response = logged.get("/classrooms/123/teaching-plan")
+    response = logged.get(f"/classrooms/{id_da_turma('AAA')}/teaching-plan")
     assert response.status_code == 200
     assert response.json() == first.json()
     assert response.headers["cache-control"] == "private, no-cache"

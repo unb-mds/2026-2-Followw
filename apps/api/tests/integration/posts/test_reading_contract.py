@@ -17,7 +17,7 @@ def test_confirmacao_valida_id_sem_acessar_banco(api, subtests):
     api.app.dependency_overrides[ClassroomPostsService] = lambda: service
     for post_id in ("news:0", "news:-1", "assessment:abc", "material:123", "inválido"):
         with subtests.test(post_id=post_id):
-            path = f"/classrooms/AAA/posts/{post_id}/read"
+            path = f"/classrooms/123/posts/{post_id}/read"
             assert api.put(path).status_code == 422
             assert api.delete(path).status_code == 422
     service.mark_read.assert_not_awaited()

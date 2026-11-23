@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 import pytest
 from sigaa_client import StatisticsShare, StudentSituation
 from sqlalchemy.orm import undefer
@@ -8,7 +10,9 @@ from api.modules.classrooms.repository import ClassroomRepository
 from .helpers import AGORA, CREDENCIAIS, _salvar_turmas, _turma, _vinculos
 
 
-async def test_estatisticas_substituem_as_anteriores(async_database, usuarios):
+async def test_estatisticas_substituem_as_anteriores(
+    async_database, usuarios, id_da_turma
+):
     await _salvar_turmas(async_database, usuarios[0], [_turma("AAA")])
     classroom_id = (await _vinculos(async_database, usuarios[0]))[0].classroom_id
 
@@ -44,12 +48,14 @@ async def test_estatisticas_substituem_as_anteriores(async_database, usuarios):
         assert classroom.statistics == []
 
 
-def test_estatisticas_da_turma_saem_do_cache_do_login(client, sigaa, turmas):
+def test_estatisticas_da_turma_saem_do_cache_do_login(
+    client, sigaa, turmas, id_da_turma
+):
     client.post(
         "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
     )
     chamadas = turmas.classrooms.get_classroom_statistics.await_count
-    response = client.get("/classrooms/BBB/statistics")
+    response = client.get(f"/classrooms/{id_da_turma('BBB')}/statistics")
     assert response.status_code == 200
     assert response.json() == [
         {"situation": "matriculado", "percentage": 10},
@@ -58,9 +64,12 @@ def test_estatisticas_da_turma_saem_do_cache_do_login(client, sigaa, turmas):
     assert turmas.classrooms.get_classroom_statistics.await_count == chamadas
 
 
-def test_estatisticas_sem_cache_buscam_apenas_a_turma_pedida(client, turmas, cookies):
+def test_estatisticas_sem_cache_buscam_apenas_a_turma_pedida(
+    client, turmas, cookies, id_da_turma
+):
     client.cookies.update(cookies(refresh=CREDENCIAIS))
-    response = client.get("/classrooms/BBB/statistics")
+    client.get("/classrooms")
+    response = client.get(f"/classrooms/{id_da_turma('BBB')}/statistics")
     assert response.status_code == 200
     assert len(response.json()) == 2
     turmas.classrooms.get_classroom_statistics.assert_awaited_once_with("BBB")
@@ -72,16 +81,17 @@ def test_estatisticas_de_turma_alheia_retornam_404(client, turmas, cookies):
     turmas.classrooms.get_classroom_statistics.assert_not_awaited()
 
 
-@pytest.mark.parametrize("classroom_id", ["AAA", "BBB"])
+@pytest.mark.parametrize("front_end_id", ["AAA", "BBB"])
 def test_estatisticas_indisponiveis_retornam_lista_vazia(
-    client, turmas, cookies, classroom_id
+    client, turmas, cookies, front_end_id, id_da_turma
 ):
     client.cookies.update(cookies(refresh=CREDENCIAIS))
+    client.get("/classrooms")
     turmas.classrooms.get_classroom_statistics.return_value = []
-    response = client.get(f"/classrooms/{classroom_id}/statistics")
+    response = client.get(f"/classrooms/{id_da_turma(front_end_id)}/statistics")
     assert response.status_code == 200
     assert response.json() == []
 
 
 def test_estatisticas_exigem_autenticacao(api):
-    assert api.get("/classrooms/BBB/statistics").status_code == 401
+    assert api.get(f"/classrooms/{uuid4()}/statistics").status_code == 401

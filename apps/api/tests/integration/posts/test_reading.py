@@ -10,12 +10,12 @@ from .helpers import CREDENTIALS, DETAIL_PATH, mark_read
 
 def test_consultar_lista_detalhe_e_feed_nao_confirma_leitura(reading_client):
     client = reading_client
-    listed = client.get("/classrooms/AAA/posts").json()[0]
+    listed = client.get("/classrooms/123/posts").json()[0]
     assert listed["is_read"] is False
     for _ in range(2):
         detail = client.get(DETAIL_PATH).json()
         assert detail["is_read"] is False
-        assert client.get("/classrooms/AAA/posts").json()[0]["is_read"] is False
+        assert client.get("/classrooms/123/posts").json()[0]["is_read"] is False
         assert client.get("/posts/news").json()["items"][0]["post"]["is_read"] is False
 
 
@@ -28,7 +28,7 @@ def test_confirma_e_desfaz_leitura_nas_tres_consultas(reading_client, database):
         assert response.content == b""
         assert response.headers["cache-control"] == "no-store"
     detail = client.get(DETAIL_PATH).json()
-    listed = client.get("/classrooms/AAA/posts").json()[0]
+    listed = client.get("/classrooms/123/posts").json()[0]
     feed = client.get("/posts/news").json()["items"][0]["post"]
     for item in (detail, listed, feed):
         assert item["is_read"] is True
@@ -40,7 +40,7 @@ def test_confirma_e_desfaz_leitura_nas_tres_consultas(reading_client, database):
         assert response.content == b""
         assert response.headers["cache-control"] == "no-store"
     assert client.get(DETAIL_PATH).json()["is_read"] is False
-    assert client.get("/classrooms/AAA/posts").json()[0]["is_read"] is False
+    assert client.get("/classrooms/123/posts").json()[0]["is_read"] is False
     assert client.get("/posts/news").json()["items"][0]["post"]["is_read"] is False
     with database() as session:
         assert list(session.scalars(select(ClassroomPostRead))) == []
@@ -84,9 +84,9 @@ def test_mesmo_id_em_outra_turma_tem_leitura_independente(reading_client, posts_
     )
     post = client.get(DETAIL_PATH).json()
     assert mark_read(client, post).status_code == 204
-    other_path = "/classrooms/BBB/posts/news:1"
+    other_path = "/classrooms/456/posts/news:1"
     assert client.get(other_path).json()["is_read"] is False
-    assert mark_read(client, post, "BBB").status_code == 204
+    assert mark_read(client, post, "456").status_code == 204
     assert client.delete(f"{other_path}/read").status_code == 204
     assert client.get(DETAIL_PATH).json()["is_read"] is True
 
@@ -121,7 +121,7 @@ def test_troca_de_curso_preserva_leituras_ao_absorver_usuario_sombra(
     )
     original = client.get(DETAIL_PATH).json()
     assert mark_read(client, original).status_code == 204
-    assert client.get("/classrooms/AAA/posts").status_code == 200
+    assert client.get("/classrooms/123/posts").status_code == 200
     with database() as session:
         shadow = User(name="Sombra", registration="252000000")
         session.add(shadow)
@@ -140,7 +140,7 @@ def test_troca_de_curso_preserva_leituras_ao_absorver_usuario_sombra(
         )
     )
     assert client.get("/me", headers={"Cache-Control": "no-cache"}).status_code == 200
-    listed = client.get("/classrooms/AAA/posts").json()
+    listed = client.get("/classrooms/123/posts").json()
     assert {post["id"]: post["is_read"] for post in listed} == {
         "news:1": True,
         "assessment:1": True,
@@ -155,10 +155,10 @@ def test_troca_de_curso_preserva_leituras_ao_absorver_usuario_sombra(
 
 def test_noticia_sem_conteudo_carregado_pode_ser_marcada(reading_client, posts_sigaa):
     client = reading_client
-    listed = client.get("/classrooms/AAA/posts").json()[0]
+    listed = client.get("/classrooms/123/posts").json()[0]
     assert listed["content"] is None
     assert mark_read(client, listed).status_code == 204
-    assert client.get("/classrooms/AAA/posts").json()[0]["is_read"] is True
+    assert client.get("/classrooms/123/posts").json()[0]["is_read"] is True
     posts_sigaa.classrooms.get_classroom_news.assert_not_awaited()
 
 
@@ -185,7 +185,7 @@ def test_alterar_leitura_recusa_turma_sem_vinculo(reading_client, method):
 @pytest.mark.parametrize("method", ["put", "delete"])
 def test_alterar_leitura_recusa_post_ausente(reading_client, method):
     client = reading_client
-    client.get("/classrooms/AAA/posts")
+    client.get("/classrooms/123/posts")
     assert (
-        client.request(method, "/classrooms/AAA/posts/news:999/read").status_code == 404
+        client.request(method, "/classrooms/123/posts/news:999/read").status_code == 404
     )

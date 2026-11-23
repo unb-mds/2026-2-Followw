@@ -209,9 +209,9 @@ class Sync:
         """Junta a tarefa ao job da turma do alvo (ou ao da conta, sem turma)."""
         match target:
             case Item(link=link, id=item_id):
-                classroom_id, step = link.front_end_id, Step.of(task, item_id)
-            case OwnLink(front_end_id=front_end_id):
-                classroom_id, step = front_end_id, Step.of(task)
+                classroom_id, step = str(link.row.classroom_id), Step.of(task, item_id)
+            case OwnLink(row=row):
+                classroom_id, step = str(row.classroom_id), Step.of(task)
             case None:
                 classroom_id, step = None, Step.of(task)
         self._pending.setdefault(classroom_id, {})[step] = None

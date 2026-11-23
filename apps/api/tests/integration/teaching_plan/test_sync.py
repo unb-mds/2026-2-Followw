@@ -15,12 +15,14 @@ def _passada(teaching_sigaa):
     ]
 
 
-def test_login_le_o_plano_da_turma_atual_no_job_dela(client, teaching_sigaa, qstash):
+def test_login_le_o_plano_da_turma_atual_no_job_dela(
+    client, teaching_sigaa, qstash, id_da_turma
+):
     assert client.post("/auth/sigaa", json=LOGIN).status_code == 200
     jobs = {
         job.classroom_id: [step.task for step in job.steps] for job in qstash.jobs()
     }
-    assert "sync_teaching_plan" in jobs["AAA"]
+    assert "sync_teaching_plan" in jobs[id_da_turma("AAA")]
     teaching_sigaa.classrooms.get_classroom_teaching_plan.assert_awaited_once_with(
         "AAA"
     )

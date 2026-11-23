@@ -114,12 +114,15 @@ class ClassroomRepository:
             Classroom, classroom_id, options=[undefer(Classroom.teaching_plan)]
         )
 
-    async def get_by_front_end_id(
-        self, user_id: UUID, front_end_id: str
-    ) -> OwnLink | None:
+    async def get_by_id(self, user_id: UUID, classroom_id: str) -> OwnLink | None:
+        try:
+            parsed = UUID(classroom_id)
+        except ValueError:
+            return None
         return await self._own(
             ClassroomParticipant.user_id == user_id,
-            ClassroomParticipant.front_end_id == front_end_id,
+            ClassroomParticipant.front_end_id.is_not(None),
+            ClassroomParticipant.classroom_id == parsed,
         )
 
     async def get_by_sigaa_id(self, user_id: UUID, sigaa_id: str) -> OwnLink | None:

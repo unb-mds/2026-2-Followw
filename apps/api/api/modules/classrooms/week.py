@@ -22,7 +22,7 @@ from api.sync import SyncDep
 class LessonClassroom(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    id: str
+    id: UUID
     subject: UserSubject
     room: str | None
 
@@ -121,7 +121,7 @@ def _frequency_stale(link: OwnLink) -> bool:
 def _classroom(link: OwnLink) -> LessonClassroom:
     classroom = link.row.classroom
     return LessonClassroom(
-        id=link.front_end_id,
+        id=classroom.id,
         subject=UserSubject(code=classroom.subject.code, name=classroom.subject.name),
         room=classroom.room,
     )

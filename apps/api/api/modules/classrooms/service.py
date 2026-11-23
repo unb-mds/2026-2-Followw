@@ -3,9 +3,10 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from functools import partial
 from typing import Annotated, Literal
+from uuid import UUID
 
 from fastapi import Depends
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sigaa_client import (
     Classroom,
     ClassroomNotFound,
@@ -182,6 +183,7 @@ class ParticipantSubject(UserSubject):
 class ParticipantClassroom(Classroom, ClassroomOffer):
     """A turma com a menção do usuário, `None` enquanto não lançada ou sincronizada."""
 
+    id: UUID = Field(description="ID da turma no Followw.")
     subject: ParticipantSubject
     grade: Grade | None = scoped(
         Scope.GRADES, "Menção do usuário, `null` enquanto não lançada.", default=None
@@ -355,7 +357,7 @@ async def find_link(
         return None, None
 
     repository = ClassroomRepository(session)
-    link = await repository.get_by_front_end_id(
+    link = await repository.get_by_id(
         user.id, classroom_id
     ) or await repository.get_by_sigaa_id(user.id, classroom_id)
     return link, user.classrooms_synced_at
@@ -379,7 +381,7 @@ def to_classroom(
     subject = classroom.subject
 
     return ParticipantClassroom(
-        id=link.front_end_id,
+        id=classroom.id,
         sigaa_id=classroom.sigaa_id,
         number=classroom.number,
         semester=classroom.semester,

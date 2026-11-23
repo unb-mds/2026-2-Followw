@@ -15,7 +15,7 @@ def _days(response) -> dict[str, dict]:
 
 
 def test_semana_traz_os_sete_dias_de_domingo_a_sabado_com_as_aulas_da_turma(
-    logged, scheduled, hoje
+    logged, scheduled, hoje, id_da_turma
 ):
     hoje(datetime(2026, 9, 17, 15, 0))
 
@@ -34,7 +34,7 @@ def test_semana_traz_os_sete_dias_de_domingo_a_sabado_com_as_aulas_da_turma(
         "marked": False,
         "scheduled": True,
         "classroom": {
-            "id": "HASH-A",
+            "id": id_da_turma("HASH-A"),
             "subject": {
                 "code": "MAT0027",
                 "name": "CÁLCULO 3",
@@ -90,7 +90,7 @@ def test_aulas_sem_horario_ficam_de_fora(logged, account, hoje):
 
 
 def test_responde_sem_esperar_a_frequencia_e_agenda_o_sync(
-    logged, scheduled, hoje, qstash
+    logged, scheduled, hoje, qstash, id_da_turma
 ):
     hoje(datetime(2026, 9, 17, 16, 0))
     scheduled.classrooms.get_classroom_frequency.return_value = _with_entries(
@@ -102,7 +102,7 @@ def test_responde_sem_esperar_a_frequencia_e_agenda_o_sync(
     assert first["status"] == "nao_registrada"
     assert [
         (job.registration, job.classroom_id, job.steps) for job in qstash.jobs()
-    ] == [(CREDENCIAIS.registration, "HASH-A", (Step.of(sync_frequency),))]
+    ] == [(CREDENCIAIS.registration, id_da_turma("HASH-A"), (Step.of(sync_frequency),))]
     qstash.deliver(logged)
     assert _days(logged.get(LESSONS))["2026-09-15"]["lessons"][0]["status"] == "falta"
 

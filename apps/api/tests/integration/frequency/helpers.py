@@ -21,7 +21,7 @@ CREDENCIAIS = Credentials(registration="251000000", password=SecretStr("senha123
 NO_CACHE = {"Cache-Control": "no-cache"}
 
 
-FREQ = "/classrooms/HASH-A/frequency"
+FREQ = "/classrooms/1614141/frequency"
 
 
 CURRENT = Classroom(
@@ -132,12 +132,13 @@ def without_ids(frequency: dict) -> dict:
     return {**frequency, "lessons": lessons}
 
 
-def classroom_json(classroom: Classroom) -> dict:
+def classroom_json(classroom: Classroom, id: str) -> dict:
     data = classroom.model_dump(mode="json")
     del data["subject"]["sigaa_id"]
     data["subject"]["kind"] = None
     return {
         **data,
+        "id": id,
         "grade": None,
         "status": "cursando",
         "professors": [],
@@ -173,7 +174,7 @@ def _lesson(response, occurred_on: str, start_time: str | None = None) -> dict:
     )
 
 
-def _mark(client, *marks: tuple[dict | str, str | None], classroom: str = "HASH-A"):
+def _mark(client, *marks: tuple[dict | str, str | None], classroom: str = "1614141"):
     body = [
         {
             "lesson_id": lesson if isinstance(lesson, str) else lesson["id"],

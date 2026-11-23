@@ -39,13 +39,12 @@ from .helpers import (
 )
 
 
-def test_ids_numerico_e_hash_retornam_todos_os_campos_e_usam_o_mesmo_cache(
-    logged, account, database, qstash
+def test_sigaa_id_e_id_retornam_todos_os_campos_e_usam_o_mesmo_cache(
+    logged, account, database, qstash, id_da_turma
 ):
-    responses = [
-        logged.get(f"/classrooms/{identifier}/frequency")
-        for identifier in ("1614141", "HASH-A", "1614141")
-    ]
+    responses = [logged.get(FREQ)]
+    responses += [logged.get(f"/classrooms/{id_da_turma('HASH-A')}/frequency")]
+    responses += [logged.get(FREQ)]
     for response in responses:
         assert response.status_code == 200
         assert without_ids(response.json()) == FREQUENCY_JSON
@@ -70,7 +69,7 @@ def test_ids_numerico_e_hash_retornam_todos_os_campos_e_usam_o_mesmo_cache(
 
 
 def test_agregado_retorna_apenas_atuais_identificadas_em_ordem_e_reutiliza_cache(
-    logged, account
+    logged, account, id_da_turma
 ):
     account.classrooms.get_classroom_frequency.side_effect = [FREQUENCY, NOT_REGISTERED]
     response = logged.get("/classrooms/frequency")
@@ -79,8 +78,14 @@ def test_agregado_retorna_apenas_atuais_identificadas_em_ordem_e_reutiliza_cache
         {**item, "frequency": without_ids(item["frequency"])}
         for item in response.json()
     ] == [
-        {"classroom": classroom_json(CURRENT), "frequency": FREQUENCY_JSON},
-        {"classroom": classroom_json(SECOND), "frequency": NOT_REGISTERED_JSON},
+        {
+            "classroom": classroom_json(CURRENT, id_da_turma("HASH-A")),
+            "frequency": FREQUENCY_JSON,
+        },
+        {
+            "classroom": classroom_json(SECOND, id_da_turma("HASH-B")),
+            "frequency": NOT_REGISTERED_JSON,
+        },
     ]
     assert account.classrooms.get_classroom_frequency.await_args_list == [
         call("HASH-A"),
@@ -126,20 +131,22 @@ def test_refresh_reconsulta_sigaa_e_atualiza_mesmo_cache(logged, account):
 
 
 def test_refresh_agregado_atualiza_lista_e_so_consulta_turmas_que_continuam_ativas(
-    logged, account
+    logged, account, id_da_turma
 ):
     logged.get("/classrooms/frequency")
     account.classrooms.list_classrooms.return_value = [OLD, SECOND]
     account.classrooms.get_classroom_frequency.reset_mock()
     response = logged.get("/classrooms/frequency", headers=NO_CACHE)
     assert response.status_code == 200
-    assert [item["classroom"]["id"] for item in response.json()] == ["HASH-B"]
+    assert [item["classroom"]["id"] for item in response.json()] == [
+        id_da_turma("HASH-B")
+    ]
     account.classrooms.get_classroom_frequency.assert_awaited_once_with("HASH-B")
     assert account.classrooms.list_classrooms.await_count == 2
 
 
 def test_cache_vencido_revalida_por_job_do_aluno_e_turma(
-    logged, account, database, qstash
+    logged, account, database, qstash, id_da_turma
 ):
     logged.get(FREQ)
     age_cache(database)
@@ -149,13 +156,16 @@ def test_cache_vencido_revalida_por_job_do_aluno_e_turma(
     assert logged.get(FREQ).json() == NOT_REGISTERED_JSON
     assert [
         (job.registration, job.classroom_id, job.steps) for job in qstash.jobs()
-    ] == [(CREDENCIAIS.registration, "HASH-A", (Step.of(sync_frequency),))]
+    ] == [(CREDENCIAIS.registration, id_da_turma("HASH-A"), (Step.of(sync_frequency),))]
 
 
-def test_frequencia_de_semestre_passado_por_hash_nao_vence(logged, account, database):
-    logged.get("/classrooms/HASH-OLD/frequency")
+def test_frequencia_de_semestre_passado_por_hash_nao_vence(
+    logged, account, database, id_da_turma
+):
+    logged.get("/classrooms?semester=all")
+    logged.get(f"/classrooms/{id_da_turma('HASH-OLD')}/frequency")
     age_cache(database, days=365)
-    response = logged.get("/classrooms/HASH-OLD/frequency")
+    response = logged.get(f"/classrooms/{id_da_turma('HASH-OLD')}/frequency")
     assert without_ids(response.json()) == FREQUENCY_JSON
     account.classrooms.get_classroom_frequency.assert_awaited_once_with("HASH-OLD")
 

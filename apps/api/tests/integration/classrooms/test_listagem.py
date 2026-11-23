@@ -10,7 +10,9 @@ from api.db.models import User
 from .helpers import CREDENCIAIS, DASHBOARD, HISTORY, NO_CACHE
 
 
-def test_login_e_listagem_retornam_apenas_turmas_atuais(client, classrooms_sigaa):
+def test_login_e_listagem_retornam_apenas_turmas_atuais(
+    client, classrooms_sigaa, id_da_turma
+):
     login = client.post(
         "/auth/sigaa", json={"registration": "251000000", "password": "senha123"}
     )
@@ -22,7 +24,7 @@ def test_login_e_listagem_retornam_apenas_turmas_atuais(client, classrooms_sigaa
     assert response.status_code == 200
     assert response.json() == [
         {
-            "id": "CURRENT",
+            "id": id_da_turma("CURRENT"),
             "sigaa_id": 123,
             "number": "01",
             "semester": "2026.2",
@@ -65,7 +67,7 @@ def test_refresh_reflete_alteracoes_no_sigaa(client, classrooms_sigaa, cookies):
     assert classrooms_sigaa.classrooms_requests == 2
 
 
-def test_lista_todas_as_turmas_ativas(client, classrooms_sigaa, cookies):
+def test_lista_todas_as_turmas_ativas(client, classrooms_sigaa, cookies, id_da_turma):
     second_row = """
       <tr><td class="descricao"><form id="form_acessarTurmaVirtual2">
         <a onclick="jsfcljs(x,{'frontEndIdTurma':'SECOND'},'');">OUTRA DISCIPLINA</a>
@@ -82,7 +84,10 @@ def test_lista_todas_as_turmas_ativas(client, classrooms_sigaa, cookies):
     response = client.get("/classrooms")
 
     assert response.status_code == 200
-    assert [item["id"] for item in response.json()] == ["CURRENT", "SECOND"]
+    assert [item["id"] for item in response.json()] == [
+        id_da_turma("CURRENT"),
+        id_da_turma("SECOND"),
+    ]
 
 
 def test_sem_turmas_atuais_retorna_lista_vazia(client, sigaa, cookies):
@@ -149,13 +154,15 @@ def test_sem_credenciais_validas_retorna_401(client, sigaa, refresh):
 
 
 @pytest.mark.parametrize("access", [None, "app14~MORTO"])
-def test_renova_sessao_e_retorna_as_turmas(client, classrooms_sigaa, cookies, access):
+def test_renova_sessao_e_retorna_as_turmas(
+    client, classrooms_sigaa, cookies, access, id_da_turma
+):
     client.cookies.update(cookies(access=access, refresh=CREDENCIAIS))
 
     response = client.get("/classrooms")
 
     assert response.status_code == 200
-    assert response.json()[0]["id"] == "CURRENT"
+    assert response.json()[0]["id"] == id_da_turma("CURRENT")
     assert classrooms_sigaa.logins == 1
     assert ACCESS_COOKIE_NAME in response.cookies
     assert REFRESH_COOKIE_NAME in response.cookies
@@ -240,7 +247,7 @@ def test_openapi_documenta_lista_de_turmas_e_401(api):
     ],
 )
 def test_filtro_por_semestre_consulta_as_duas_paginas_uma_vez(
-    client, classrooms_sigaa, cookies, database, semester, expected
+    client, classrooms_sigaa, cookies, database, semester, expected, id_da_turma
 ):
     # Com o perfil já no cache, gravar as turmas não precisa buscá-lo.
     with database() as session:
@@ -258,13 +265,17 @@ def test_filtro_por_semestre_consulta_as_duas_paginas_uma_vez(
     response = client.get("/classrooms", params={"semester": semester})
 
     assert response.status_code == 200
-    assert [classroom["id"] for classroom in response.json()] == expected
+    assert [classroom["id"] for classroom in response.json()] == [
+        id_da_turma(front_end_id) for front_end_id in expected
+    ]
     assert classrooms_sigaa.profile_requests == 1
     assert classrooms_sigaa.classrooms_requests == 1
     assert classrooms_sigaa.logins == 0
 
 
-def test_historico_preserva_campos_das_turmas_atuais(client, classrooms_sigaa, cookies):
+def test_historico_preserva_campos_das_turmas_atuais(
+    client, classrooms_sigaa, cookies, id_da_turma
+):
     client.cookies.update(cookies(refresh=CREDENCIAIS))
     current = client.get("/classrooms").json()
 
@@ -273,7 +284,7 @@ def test_historico_preserva_campos_das_turmas_atuais(client, classrooms_sigaa, c
     assert response.status_code == 200
     assert response.json()[0] == current[0]
     assert response.json()[1] == {
-        "id": "OLD",
+        "id": id_da_turma("OLD"),
         "sigaa_id": None,
         "number": "02",
         "semester": "2025.2",
@@ -310,13 +321,13 @@ def test_semestre_invalido_retorna_422_sem_buscar_turmas(
     assert classrooms_sigaa.classrooms_requests == 0
 
 
-def test_filtro_renova_sessao_expirada(client, classrooms_sigaa, cookies):
+def test_filtro_renova_sessao_expirada(client, classrooms_sigaa, cookies, id_da_turma):
     client.cookies.update(cookies(access="app14~MORTO", refresh=CREDENCIAIS))
 
     response = client.get("/classrooms?semester=all")
 
     assert response.status_code == 200
-    assert any(item["id"] == "OLD" for item in response.json())
+    assert any(item["id"] == id_da_turma("OLD") for item in response.json())
     assert classrooms_sigaa.logins == 1
     assert ACCESS_COOKIE_NAME in response.cookies
 

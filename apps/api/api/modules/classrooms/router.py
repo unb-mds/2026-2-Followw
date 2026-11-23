@@ -33,7 +33,9 @@ CLASSROOM_ERRORS = {
     **SIGAA_ERRORS,
     404: {"description": "Turma não encontrada entre as turmas do usuário."},
 }
-ClassroomId = Annotated[str, Path(description="Classroom.id ou Classroom.sigaa_id.")]
+ClassroomId = Annotated[
+    str, Path(description="`id` da turma no Followw ou seu `sigaa_id`.")
+]
 PostId = Annotated[
     str,
     Path(

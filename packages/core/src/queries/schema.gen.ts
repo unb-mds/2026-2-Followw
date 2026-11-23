@@ -1142,7 +1142,10 @@ export interface components {
         };
         /** LessonClassroom */
         LessonClassroom: {
-            /** Id */
+            /**
+             * Id
+             * Format: uuid
+             */
             id: string;
             subject: components["schemas"]["UserSubject"];
             /** Room */
@@ -1221,7 +1224,11 @@ export interface components {
              * @description Ocupação na última coleta, sem atualização em tempo real.
              */
             occupied?: number | null;
-            /** Id */
+            /**
+             * Id
+             * Format: uuid
+             * @description ID da turma no Followw.
+             */
             id: string;
             /** Sigaa Id */
             sigaa_id?: number | null;
@@ -1900,7 +1907,7 @@ export interface operations {
                 "Cache-Control"?: string | null;
             };
             path: {
-                /** @description Classroom.id ou Classroom.sigaa_id. */
+                /** @description `id` da turma no Followw ou seu `sigaa_id`. */
                 classroom_id: string;
                 /** @description ID do material na turma. */
                 post_id: string;
@@ -1965,7 +1972,7 @@ export interface operations {
                 "Cache-Control"?: string | null;
             };
             path: {
-                /** @description Classroom.id ou Classroom.sigaa_id. */
+                /** @description `id` da turma no Followw ou seu `sigaa_id`. */
                 classroom_id: string;
             };
             cookie?: never;
@@ -2045,7 +2052,7 @@ export interface operations {
                 "Cache-Control"?: string | null;
             };
             path: {
-                /** @description Classroom.id ou Classroom.sigaa_id. */
+                /** @description `id` da turma no Followw ou seu `sigaa_id`. */
                 classroom_id: string;
             };
             cookie?: never;
@@ -2122,7 +2129,7 @@ export interface operations {
                 "Cache-Control"?: string | null;
             };
             path: {
-                /** @description Classroom.id ou Classroom.sigaa_id. */
+                /** @description `id` da turma no Followw ou seu `sigaa_id`. */
                 classroom_id: string;
                 /** @description ID do post na listagem da turma. */
                 post_id: string;
@@ -2201,7 +2208,7 @@ export interface operations {
                 "Cache-Control"?: string | null;
             };
             path: {
-                /** @description Classroom.id ou Classroom.sigaa_id. */
+                /** @description `id` da turma no Followw ou seu `sigaa_id`. */
                 classroom_id: string;
                 /** @description ID do post na listagem da turma. */
                 post_id: string;
@@ -2264,7 +2271,7 @@ export interface operations {
                 "Cache-Control"?: string | null;
             };
             path: {
-                /** @description Classroom.id ou Classroom.sigaa_id. */
+                /** @description `id` da turma no Followw ou seu `sigaa_id`. */
                 classroom_id: string;
                 /** @description ID do post na listagem da turma. */
                 post_id: string;
@@ -2450,7 +2457,7 @@ export interface operations {
                 "Cache-Control"?: string | null;
             };
             path: {
-                /** @description Classroom.id ou Classroom.sigaa_id. */
+                /** @description `id` da turma no Followw ou seu `sigaa_id`. */
                 classroom_id: string;
             };
             cookie?: never;
@@ -2520,7 +2527,7 @@ export interface operations {
                 "Cache-Control"?: string | null;
             };
             path: {
-                /** @description Classroom.id ou Classroom.sigaa_id. */
+                /** @description `id` da turma no Followw ou seu `sigaa_id`. */
                 classroom_id: string;
             };
             cookie?: never;
@@ -2592,7 +2599,7 @@ export interface operations {
                 "Cache-Control"?: string | null;
             };
             path: {
-                /** @description Classroom.id ou Classroom.sigaa_id. */
+                /** @description `id` da turma no Followw ou seu `sigaa_id`. */
                 classroom_id: string;
             };
             cookie?: never;
@@ -2655,7 +2662,7 @@ export interface operations {
                 "Cache-Control"?: string | null;
             };
             path: {
-                /** @description Classroom.id ou Classroom.sigaa_id. */
+                /** @description `id` da turma no Followw ou seu `sigaa_id`. */
                 classroom_id: string;
             };
             cookie?: never;

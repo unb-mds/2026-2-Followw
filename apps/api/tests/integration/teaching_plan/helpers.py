@@ -10,7 +10,7 @@ from sigaa_client import (
 )
 
 CREDENTIALS = Credentials(registration="251000000", password=SecretStr("senha123"))
-PATH = "/classrooms/AAA/teaching-plan"
+PATH = "/classrooms/123/teaching-plan"
 LOGIN = {
     "registration": CREDENTIALS.registration,
     "password": CREDENTIALS.password.get_secret_value(),
