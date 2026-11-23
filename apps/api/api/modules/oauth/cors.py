@@ -1,3 +1,4 @@
+from starlette._utils import get_route_path
 from starlette.datastructures import Headers
 from starlette.middleware.cors import CORSMiddleware
 from starlette.types import ASGIApp, Receive, Scope, Send
@@ -26,23 +27,24 @@ class FollowwCORS:
         )
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] == "http":
-            headers = Headers(scope=scope)
-            origin = headers.get("origin")
-            if (
-                origin is not None
-                and origin not in self.origins
-                and "cookie" not in headers
-            ):
-                names = set(headers)
-                if scope["method"] == "OPTIONS":
-                    names = {
-                        name.strip().lower()
-                        for name in headers.get(
-                            "access-control-request-headers", ""
-                        ).split(",")
-                    }
-                if "authorization" in names or "dpop" in names:
-                    await self.oauth(scope, receive, send)
-                    return
+        if scope["type"] == "http" and self._is_oauth(scope):
+            await self.oauth(scope, receive, send)
+            return
         await self.session(scope, receive, send)
+
+    def _is_oauth(self, scope: Scope) -> bool:
+        headers = Headers(scope=scope)
+        origin = headers.get("origin")
+        if origin is None or origin in self.origins or "cookie" in headers:
+            return False
+        if get_route_path(scope).rstrip("/") == "/oauth/token":
+            return True
+        names = (
+            {
+                name.strip().lower()
+                for name in headers.get("access-control-request-headers", "").split(",")
+            }
+            if scope["method"] == "OPTIONS"
+            else set(headers)
+        )
+        return "authorization" in names or "dpop" in names

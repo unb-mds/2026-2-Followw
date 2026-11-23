@@ -3,7 +3,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api import academic_calendar
@@ -41,8 +41,10 @@ async def sync_frequency(ctx: Context[OwnLink]) -> None:
     )
 
 
-class ClassroomFrequencyResult[T: BaseModel = ParticipantClassroom](BaseModel):
-    classroom: T
+class ClassroomFrequencyResult(BaseModel):
+    classroom: ParticipantClassroom = Field(
+        description="Com OAuth, traz só `id` e `sigaa_id` sem `classrooms:read`."
+    )
     frequency: ClassroomFrequencyView
 
 

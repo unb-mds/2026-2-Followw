@@ -20,6 +20,7 @@ from unb_browser import UnbBrowserError
 from api.cookies import clear_cookies
 from api.db.units import UnitNotFound
 from api.logger import error_fields, event
+from api.modules.oauth.auth import is_bearer_request
 
 Handler = Callable[[Request, Exception], Awaitable[JSONResponse]]
 
@@ -36,10 +37,15 @@ def _error(status_code: int, detail: str | None = None) -> Handler:
 
 
 async def _authentication_failed(request: Request, __: Exception) -> JSONResponse:
+    if is_bearer_request(request):
+        return JSONResponse(
+            {"detail": "Invalid credentials"},
+            status_code=401,
+            headers={"WWW-Authenticate": 'Bearer error="invalid_token"'},
+        )
     # A senha não vale mais: a sessão guardada nos cookies também não.
     response = JSONResponse({"detail": "Invalid credentials"}, status_code=401)
-    if "authorization" not in request.headers:
-        clear_cookies(response)
+    clear_cookies(response)
     return response
 
 

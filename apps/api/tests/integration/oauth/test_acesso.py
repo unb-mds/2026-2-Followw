@@ -97,3 +97,16 @@ def test_concessao_vencida_ou_salt_trocado_invalida_access(client, emitir, datab
         grant.salt = salt
         grant.expires_at = datetime.now(UTC) - timedelta(seconds=1)
     assert client.get("/me", headers=headers).status_code == 401
+
+
+def test_falha_de_credencial_oauth_sinaliza_bearer_sem_apagar_cookies(
+    client, sigaa, emitir
+):
+    pair = emitir()
+    sigaa.password = "alterada"
+    response = client.get(
+        "/me", headers={"Authorization": f"Bearer {pair.access_token}"}
+    )
+    assert response.status_code == 401
+    assert response.headers["www-authenticate"] == 'Bearer error="invalid_token"'
+    assert "set-cookie" not in response.headers

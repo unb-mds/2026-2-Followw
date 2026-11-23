@@ -1,6 +1,6 @@
 import createClient, { type Middleware } from 'openapi-fetch';
 
-import type { components, paths } from './schema.gen.ts';
+import type { paths } from './schema.gen.ts';
 
 import { toApiError } from './errors.ts';
 
@@ -35,19 +35,7 @@ const errorHandlingMiddleware: Middleware = {
     }
 };
 
-// Este cliente usa os cookies do Followw e recebe a variante completa em cada rota.
-type CookieResponse<Body> = { responses: { 200: { content: { 'application/json': Body } } } };
-type Schema = components['schemas'];
-type CookiePaths = paths & {
-    '/me': { get: CookieResponse<Schema['UserProfile']> };
-    '/me/profile': { patch: CookieResponse<Schema['UserProfile']> };
-    '/classrooms': { get: CookieResponse<Schema['ParticipantClassroom'][]> };
-    '/classrooms/frequency': { get: CookieResponse<Schema['ClassroomFrequencyResult'][]> };
-    '/lessons': { get: CookieResponse<Schema['LessonDay'][]> };
-    '/posts/news': { get: CookieResponse<Schema['LatestNewsFeed']> };
-};
-
-export const apiClient = createClient<CookiePaths>({
+export const apiClient = createClient<paths>({
     baseUrl: '/api',
     credentials: 'include',
     // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- amplia a assinatura do construtor

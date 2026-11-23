@@ -1,8 +1,12 @@
 from collections.abc import Iterable
+from dataclasses import dataclass
 from enum import StrEnum
-from typing import Literal, NotRequired, TypedDict
+from typing import Any, Literal, NotRequired, TypedDict
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
+from pydantic import Field
+
+_SCOPE_KEY = "x-oauth-scope"
 
 
 class Scope(StrEnum):
@@ -77,6 +81,27 @@ PERMISSIONS: dict[Scope, Permission] = {
 }
 
 
+@dataclass(frozen=True)
+class AccessPolicy:
+    """Permissões da requisição; `scopes=None` representa a sessão web completa."""
+
+    scopes: frozenset[Scope] | None = None
+
+    @property
+    def delegated(self) -> bool:
+        return self.scopes is not None
+
+    def allows(self, scope: Scope) -> bool:
+        return self.scopes is None or scope in self.scopes
+
+    def require(self, scope: Scope) -> None:
+        if not self.allows(scope):
+            raise insufficient_scope()
+
+
+FULL_ACCESS = AccessPolicy()
+
+
 def granted_scopes(accepted: Iterable[str]) -> list[Scope]:
     scopes = {Scope(value) for value in accepted}
     if Scope.PROFILE not in scopes:
@@ -90,12 +115,27 @@ def granted_scopes(accepted: Iterable[str]) -> list[Scope]:
 
 def oauth(scope: Scope) -> dict:
     return {
-        "x-oauth-scope": scope.value,
+        _SCOPE_KEY: scope.value,
         "security": [{"FollowwCookie": []}, {"OAuthBearer": []}],
         "responses": {
             "403": {"description": "O aplicativo não possui a permissão exigida."}
         },
     }
+
+
+def scoped(scope: Scope, description: str, **field: Any) -> Any:
+    """Campo que o OAuth só devolve com o escopo; o OpenAPI o marca com `x-oauth-scope`."""
+    return Field(
+        description=f"{description} Com OAuth, exige `{scope}`.",
+        json_schema_extra={_SCOPE_KEY: scope.value},
+        **field,
+    )
+
+
+def route_scope(request: Request) -> Scope | None:
+    route = request.scope.get("route")
+    raw = (getattr(route, "openapi_extra", None) or {}).get(_SCOPE_KEY)
+    return Scope(raw) if raw is not None else None
 
 
 def insufficient_scope() -> HTTPException:

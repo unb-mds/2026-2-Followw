@@ -1,9 +1,10 @@
 from datetime import UTC, datetime
+from typing import Any
 
 from sigaa_client import ProfileReadFailedAfterEdit
 
 from api.db.main import Database
-from api.modules.me.profile import ProfileResponse, profile_view
+from api.modules.me.profile import UserProfile, profile_view
 from api.modules.me.repository import UserRepository
 from api.sigaa import SigaaConnection
 
@@ -15,7 +16,7 @@ async def edit_profile(
     bio: str | None,
     photo: bytes | None,
     remove_photo: bool,
-) -> ProfileResponse:
+) -> UserProfile | dict[str, Any]:
     fresh = SigaaConnection(connection.credentials)
     try:
         client = await fresh.client()
@@ -52,7 +53,7 @@ async def edit_profile(
                     update_bio=bio is not None,
                 )
                 return (
-                    await profile_view(session, user, connection.scopes)
+                    await profile_view(session, user, connection.access)
                     if user is not None
                     else None
                 )
@@ -71,7 +72,7 @@ async def edit_profile(
                 login=registration,
             )
             await session.refresh(user, ["course", "curriculum"])
-            return await profile_view(session, user, connection.scopes)
+            return await profile_view(session, user, connection.access)
 
         return await db.write(save)
     finally:

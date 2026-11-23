@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.models import OAuthProof
 
+MAX_PROOF_LENGTH = 8192
 _PROOF_AGE = timedelta(minutes=5)
 
 
@@ -28,7 +29,7 @@ class Proof:
     def verify(cls, encoded: str, token_endpoint: str) -> Proof:
         """O endpoint é a URL pública configurada pelo servidor, sem query ou fragmento."""
         try:
-            if len(encoded) > 8192:
+            if len(encoded) > MAX_PROOF_LENGTH:
                 raise ValueError
             header = jws.extract_compact(encoded.encode()).headers()
             jwk = header["jwk"]

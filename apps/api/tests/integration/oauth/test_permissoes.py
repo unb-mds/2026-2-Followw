@@ -1,36 +1,6 @@
-from datetime import date, datetime
-from unittest.mock import AsyncMock
-
-import pytest
-from sigaa_client import Classroom, ClassroomFrequency, ClassroomGrade, Grade, Subject
+from datetime import datetime
 
 from api.modules.oauth.scopes import Scope
-
-
-@pytest.fixture
-def turmas(stub_sigaa):
-    subject = Subject(name="Compiladores", code="CIC0001", hours=60)
-    atual = Classroom(
-        id="AAA",
-        number="01",
-        semester="2026.2",
-        current=True,
-        schedule="3M12",
-        subject=subject,
-    )
-    antiga = atual.model_copy(
-        update={"id": "BBB", "semester": "2025.2", "current": False}
-    )
-    stub_sigaa.classrooms.list_classrooms.return_value = [atual, antiga]
-    stub_sigaa.classrooms.list_grades.return_value = [
-        ClassroomGrade(subject_code=subject.code, semester="2025.2", grade=Grade.MS)
-    ]
-    stub_sigaa.classrooms.get_classroom_frequency = AsyncMock(
-        return_value=ClassroomFrequency(
-            progress={"taught": 10, "total": 60, "percentage": 17}
-        )
-    )
-    return stub_sigaa
 
 
 def test_consulta_historica_por_lista_e_id_exige_aceite_adicional(
@@ -41,12 +11,19 @@ def test_consulta_historica_por_lista_e_id_exige_aceite_adicional(
         return {"Authorization": f"Bearer {grant.access_token}"}
 
     current = headers()
-    rooms = client.get("/classrooms", headers=current).json()
-    assert [room["id"] for room in rooms] == ["AAA"]
-    assert "status" in rooms[0] and "grade" not in rooms[0]
+    rooms = client.get("/classrooms", headers=current)
+    assert rooms.status_code == 200
+    assert "cache-control" in rooms.headers and "age" in rooms.headers
+    assert [room["id"] for room in rooms.json()] == ["AAA"]
+    assert "status" in rooms.json()[0] and "grade" not in rooms.json()[0]
+    assert [
+        room["id"]
+        for room in client.get("/classrooms?semester=2026.2", headers=current).json()
+    ] == ["AAA"]
     for path in (
         "/classrooms?semester=all",
         "/classrooms?semester=2025.2",
+        "/classrooms?semester=2020.1",
         "/classrooms/BBB/members",
     ):
         assert client.get(path, headers=current).status_code == 403
@@ -102,14 +79,9 @@ def test_leitura_de_posts_nao_permite_mudar_marcacao(client, emitir):
         )
 
 
-def test_feed_e_frequencia_respeitam_escopos_na_turma_aninhada(client, emitir, turmas):
-    from sigaa_client import ClassroomPost, News
-
-    post = ClassroomPost.from_news(
-        News(id=1, title="Aviso", published_on=date(2026, 9, 17))
-    )
-    turmas.classrooms.list_classroom_posts = AsyncMock(return_value=[post])
-    turmas.classrooms.list_dashboard_posts = AsyncMock(return_value=[])
+def test_feed_e_frequencia_respeitam_escopos_na_turma_aninhada(
+    client, emitir, noticias
+):
     for scopes in ((), (Scope.CLASSROOMS,), (Scope.CLASSROOMS, Scope.GRADES)):
         token = emitir(Scope.POSTS, Scope.FREQUENCY, *scopes).access_token
         headers = {"Authorization": f"Bearer {token}"}

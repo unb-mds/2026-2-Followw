@@ -799,14 +799,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "anyOf": [
-                      {
-                        "$ref": "#/components/schemas/ParticipantClassroom"
-                      },
-                      {
-                        "$ref": "#/components/schemas/ClassroomDetails"
-                      }
-                    ]
+                    "$ref": "#/components/schemas/ParticipantClassroom"
                   },
                   "title": "Response Get Classrooms Classrooms Get"
                 }
@@ -850,6 +843,7 @@
           "Classrooms"
         ],
         "summary": "Consultar frequência das turmas atuais",
+        "description": "Com OAuth, `classroom` traz só `id` e `sigaa_id` sem `classrooms:read`, e omite `grade` sem `grades:read`.",
         "operationId": "get_current_frequencies_classrooms_frequency_get",
         "parameters": [
           {
@@ -879,17 +873,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "anyOf": [
-                      {
-                        "$ref": "#/components/schemas/ClassroomFrequencyResult"
-                      },
-                      {
-                        "$ref": "#/components/schemas/ClassroomFrequencyResult_ClassroomDetails_"
-                      },
-                      {
-                        "$ref": "#/components/schemas/ClassroomFrequencyResult_ClassroomRef_"
-                      }
-                    ]
+                    "$ref": "#/components/schemas/ClassroomFrequencyResult"
                   },
                   "title": "Response Get Current Frequencies Classrooms Frequency Get"
                 }
@@ -2387,14 +2371,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "anyOf": [
-                      {
-                        "$ref": "#/components/schemas/LessonDay"
-                      },
-                      {
-                        "$ref": "#/components/schemas/LessonDay_ScheduledLesson_"
-                      }
-                    ]
+                    "$ref": "#/components/schemas/LessonDay"
                   },
                   "title": "Response Get Week Lessons Lessons Get"
                 }
@@ -2472,18 +2449,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/UserProfile"
-                    },
-                    {
-                      "$ref": "#/components/schemas/AcademicProfile"
-                    },
-                    {
-                      "$ref": "#/components/schemas/BasicProfile"
-                    }
-                  ],
-                  "title": "Response Get Me Me Get"
+                  "$ref": "#/components/schemas/UserProfile"
                 }
               }
             }
@@ -2759,18 +2725,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/UserProfile"
-                    },
-                    {
-                      "$ref": "#/components/schemas/AcademicProfile"
-                    },
-                    {
-                      "$ref": "#/components/schemas/BasicProfile"
-                    }
-                  ],
-                  "title": "Response Update Profile Me Profile Patch"
+                  "$ref": "#/components/schemas/UserProfile"
                 }
               }
             }
@@ -2954,7 +2909,7 @@
           "Posts"
         ],
         "summary": "Consultar notícias recentes das turmas atuais",
-        "description": "Até cinco notícias. updating indica atualização pendente; texto e anexos completos ficam no detalhe do post.",
+        "description": "Até cinco notícias. updating indica atualização pendente; texto e anexos completos ficam no detalhe do post. Com OAuth, `classroom` traz só `id` e `sigaa_id` sem `classrooms:read`, e omite `grade` sem `grades:read`.",
         "operationId": "get_latest_news_posts_news_get",
         "parameters": [
           {
@@ -2982,18 +2937,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/LatestNewsFeed"
-                    },
-                    {
-                      "$ref": "#/components/schemas/LatestNewsFeed_ClassroomNews_ClassroomDetails__"
-                    },
-                    {
-                      "$ref": "#/components/schemas/LatestNewsFeed_ClassroomNews_ClassroomRef__"
-                    }
-                  ],
-                  "title": "Response Get Latest News Posts News Get"
+                  "$ref": "#/components/schemas/LatestNewsFeed"
                 }
               }
             }
@@ -3076,112 +3020,6 @@
   },
   "components": {
     "schemas": {
-      "AcademicProfile": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "registration": {
-            "type": "string",
-            "title": "Registration"
-          },
-          "photo": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Photo"
-          },
-          "course": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/CourseRef"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "ira": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ira"
-          },
-          "mp": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Mp"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "registration",
-          "photo",
-          "course",
-          "ira",
-          "mp"
-        ],
-        "title": "AcademicProfile"
-      },
-      "BasicProfile": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "registration": {
-            "type": "string",
-            "title": "Registration"
-          },
-          "photo": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Photo"
-          },
-          "course": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/CourseRef"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "registration",
-          "photo",
-          "course"
-        ],
-        "title": "BasicProfile"
-      },
       "Body_update_profile_me_profile_patch": {
         "properties": {
           "photo_action": {
@@ -3384,128 +3222,11 @@
         "title": "CatalogSubject",
         "description": "O componente com as turmas do semestre consultado e os requisitos."
       },
-      "ClassroomDetails": {
-        "properties": {
-          "professors": {
-            "items": {
-              "$ref": "#/components/schemas/ProfessorRef"
-            },
-            "type": "array",
-            "title": "Professors",
-            "default": []
-          },
-          "vacancies": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Vacancies",
-            "description": "Vagas na última coleta, sem atualização em tempo real."
-          },
-          "occupied": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Occupied",
-            "description": "Ocupação na última coleta, sem atualização em tempo real."
-          },
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "sigaa_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sigaa Id"
-          },
-          "number": {
-            "type": "string",
-            "title": "Number"
-          },
-          "semester": {
-            "type": "string",
-            "title": "Semester"
-          },
-          "schedule": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Schedule"
-          },
-          "room": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Room"
-          },
-          "current": {
-            "type": "boolean",
-            "title": "Current",
-            "default": false
-          },
-          "subject": {
-            "$ref": "#/components/schemas/ParticipantSubject"
-          },
-          "status": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ClassroomStatus"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "has_teaching_plan": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Has Teaching Plan"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "number",
-          "semester",
-          "subject"
-        ],
-        "title": "ClassroomDetails"
-      },
       "ClassroomFrequencyResult": {
         "properties": {
           "classroom": {
-            "$ref": "#/components/schemas/ParticipantClassroom"
+            "$ref": "#/components/schemas/ParticipantClassroom",
+            "description": "Com OAuth, traz só `id` e `sigaa_id` sem `classrooms:read`."
           },
           "frequency": {
             "$ref": "#/components/schemas/ClassroomFrequencyView"
@@ -3517,38 +3238,6 @@
           "frequency"
         ],
         "title": "ClassroomFrequencyResult"
-      },
-      "ClassroomFrequencyResult_ClassroomDetails_": {
-        "properties": {
-          "classroom": {
-            "$ref": "#/components/schemas/ClassroomDetails"
-          },
-          "frequency": {
-            "$ref": "#/components/schemas/ClassroomFrequencyView"
-          }
-        },
-        "type": "object",
-        "required": [
-          "classroom",
-          "frequency"
-        ],
-        "title": "ClassroomFrequencyResult[ClassroomDetails]"
-      },
-      "ClassroomFrequencyResult_ClassroomRef_": {
-        "properties": {
-          "classroom": {
-            "$ref": "#/components/schemas/ClassroomRef"
-          },
-          "frequency": {
-            "$ref": "#/components/schemas/ClassroomFrequencyView"
-          }
-        },
-        "type": "object",
-        "required": [
-          "classroom",
-          "frequency"
-        ],
-        "title": "ClassroomFrequencyResult[ClassroomRef]"
       },
       "ClassroomFrequencyView": {
         "properties": {
@@ -3680,7 +3369,8 @@
       "ClassroomNews": {
         "properties": {
           "classroom": {
-            "$ref": "#/components/schemas/ParticipantClassroom"
+            "$ref": "#/components/schemas/ParticipantClassroom",
+            "description": "Com OAuth, traz só `id` e `sigaa_id` sem `classrooms:read`."
           },
           "post": {
             "$ref": "#/components/schemas/ClassroomPostView"
@@ -3692,38 +3382,6 @@
           "post"
         ],
         "title": "ClassroomNews"
-      },
-      "ClassroomNews_ClassroomDetails_": {
-        "properties": {
-          "classroom": {
-            "$ref": "#/components/schemas/ClassroomDetails"
-          },
-          "post": {
-            "$ref": "#/components/schemas/ClassroomPostView"
-          }
-        },
-        "type": "object",
-        "required": [
-          "classroom",
-          "post"
-        ],
-        "title": "ClassroomNews[ClassroomDetails]"
-      },
-      "ClassroomNews_ClassroomRef_": {
-        "properties": {
-          "classroom": {
-            "$ref": "#/components/schemas/ClassroomRef"
-          },
-          "post": {
-            "$ref": "#/components/schemas/ClassroomPostView"
-          }
-        },
-        "type": "object",
-        "required": [
-          "classroom",
-          "post"
-        ],
-        "title": "ClassroomNews[ClassroomRef]"
       },
       "ClassroomPostView": {
         "properties": {
@@ -3920,31 +3578,6 @@
         ],
         "title": "ClassroomProgress",
         "description": "O \"Andamento das Aulas\" da turma virtual: quanto da CH já foi ministrada."
-      },
-      "ClassroomRef": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "sigaa_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sigaa Id"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "sigaa_id"
-        ],
-        "title": "ClassroomRef"
       },
       "ClassroomStatus": {
         "type": "string",
@@ -4786,48 +4419,6 @@
         ],
         "title": "LatestNewsFeed"
       },
-      "LatestNewsFeed_ClassroomNews_ClassroomDetails__": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/ClassroomNews_ClassroomDetails_"
-            },
-            "type": "array",
-            "title": "Items"
-          },
-          "updating": {
-            "type": "boolean",
-            "title": "Updating"
-          }
-        },
-        "type": "object",
-        "required": [
-          "items",
-          "updating"
-        ],
-        "title": "LatestNewsFeed[ClassroomNews[ClassroomDetails]]"
-      },
-      "LatestNewsFeed_ClassroomNews_ClassroomRef__": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/ClassroomNews_ClassroomRef_"
-            },
-            "type": "array",
-            "title": "Items"
-          },
-          "updating": {
-            "type": "boolean",
-            "title": "Updating"
-          }
-        },
-        "type": "object",
-        "required": [
-          "items",
-          "updating"
-        ],
-        "title": "LatestNewsFeed[ClassroomNews[ClassroomRef]]"
-      },
       "Lesson": {
         "properties": {
           "id": {
@@ -4951,40 +4542,6 @@
           "lessons"
         ],
         "title": "LessonDay"
-      },
-      "LessonDay_ScheduledLesson_": {
-        "properties": {
-          "date": {
-            "type": "string",
-            "format": "date",
-            "title": "Date"
-          },
-          "no_class_reason": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "No Class Reason"
-          },
-          "lessons": {
-            "items": {
-              "$ref": "#/components/schemas/ScheduledLesson"
-            },
-            "type": "array",
-            "title": "Lessons"
-          }
-        },
-        "type": "object",
-        "required": [
-          "date",
-          "no_class_reason",
-          "lessons"
-        ],
-        "title": "LessonDay[ScheduledLesson]"
       },
       "LessonMark": {
         "properties": {
@@ -5198,6 +4755,18 @@
           "subject": {
             "$ref": "#/components/schemas/ParticipantSubject"
           },
+          "grade": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Grade"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Menção do usuário, `null` enquanto não lançada. Com OAuth, exige `grades:read`.",
+            "x-oauth-scope": "grades:read"
+          },
           "status": {
             "anyOf": [
               {
@@ -5218,16 +4787,6 @@
               }
             ],
             "title": "Has Teaching Plan"
-          },
-          "grade": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Grade"
-              },
-              {
-                "type": "null"
-              }
-            ]
           }
         },
         "type": "object",
@@ -5854,41 +5413,6 @@
         ],
         "title": "RestaurantStatementEntry"
       },
-      "ScheduledLesson": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "start_time": {
-            "type": "string",
-            "format": "time",
-            "title": "Start Time"
-          },
-          "end_time": {
-            "type": "string",
-            "format": "time",
-            "title": "End Time"
-          },
-          "scheduled": {
-            "type": "boolean",
-            "title": "Scheduled"
-          },
-          "classroom": {
-            "$ref": "#/components/schemas/LessonClassroom"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "start_time",
-          "end_time",
-          "scheduled",
-          "classroom"
-        ],
-        "title": "ScheduledLesson"
-      },
       "SearchResult": {
         "properties": {
           "subjects": {
@@ -6489,38 +6013,6 @@
             ],
             "title": "Photo"
           },
-          "course": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/CourseRef"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "ira": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ira"
-          },
-          "mp": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Mp"
-          },
           "email": {
             "anyOf": [
               {
@@ -6547,6 +6039,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/UnitRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "course": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CourseRef"
               },
               {
                 "type": "null"
@@ -6617,6 +6119,32 @@
             ],
             "title": "Period Max Workload"
           },
+          "ira": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ira",
+            "description": "Índice de rendimento acadêmico. Com OAuth, exige `grades:read`.",
+            "x-oauth-scope": "grades:read"
+          },
+          "mp": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mp",
+            "description": "Média ponderada. Com OAuth, exige `grades:read`.",
+            "x-oauth-scope": "grades:read"
+          },
           "level": {
             "$ref": "#/components/schemas/UserLevel"
           }
@@ -6626,15 +6154,15 @@
           "name",
           "registration",
           "photo",
-          "course",
-          "ira",
-          "mp",
           "bio",
           "unit",
+          "course",
           "entry_semester",
           "integralization",
           "workload",
           "period_max_workload",
+          "ira",
+          "mp",
           "level"
         ],
         "title": "UserProfile",
@@ -6774,13 +6302,6 @@
             "format": "time",
             "title": "End Time"
           },
-          "scheduled": {
-            "type": "boolean",
-            "title": "Scheduled"
-          },
-          "classroom": {
-            "$ref": "#/components/schemas/LessonClassroom"
-          },
           "status": {
             "anyOf": [
               {
@@ -6789,11 +6310,22 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "Presença registrada; `null` onde o usuário não é aluno. Com OAuth, exige `frequency:read`.",
+            "x-oauth-scope": "frequency:read"
           },
           "marked": {
             "type": "boolean",
-            "title": "Marked"
+            "title": "Marked",
+            "description": "Se o usuário marcou a aula. Com OAuth, exige `frequency:read`.",
+            "x-oauth-scope": "frequency:read"
+          },
+          "scheduled": {
+            "type": "boolean",
+            "title": "Scheduled"
+          },
+          "classroom": {
+            "$ref": "#/components/schemas/LessonClassroom"
           }
         },
         "type": "object",
@@ -6801,10 +6333,10 @@
           "id",
           "start_time",
           "end_time",
-          "scheduled",
-          "classroom",
           "status",
-          "marked"
+          "marked",
+          "scheduled",
+          "classroom"
         ],
         "title": "WeekLesson"
       },

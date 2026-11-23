@@ -6,17 +6,19 @@ from uuid import UUID, uuid4
 
 from joserfc.errors import JoseError
 from joserfc.jwk import OctKey
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from sigaa_client import AuthenticationFailed, Credentials, SigaaClient
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.cookies import decrypt_claims, derive_secret, encrypt_claims
 from api.core.config import settings
+from api.crypto import decrypt_claims, derive_secret, encrypt_claims
 from api.db.main import Database
 from api.db.models import OAuthGrant
 from api.modules.oauth.proof import InvalidProof, Proof
 from api.modules.oauth.scopes import Scope, granted_scopes
+
+MAX_TOKEN_LENGTH = 16384
 
 
 class InvalidToken(ValueError):
@@ -34,13 +36,13 @@ class TokenPair:
     grant_id: UUID
     access_token: str = field(repr=False)
     refresh_token: str = field(repr=False)
-    scopes: tuple[str, ...]
+    expires_in: int
+    scopes: tuple[Scope, ...]
     credentials: Credentials = field(repr=False)
-    session_token: str | None = field(repr=False)
 
 
-def _deadline() -> datetime:
-    return datetime.now(UTC) + timedelta(minutes=settings.refresh_token_expire_minutes)
+def _deadline(now: datetime) -> datetime:
+    return now + timedelta(minutes=settings.refresh_token_expire_minutes)
 
 
 def _key(grant: OAuthGrant, purpose: str) -> OctKey:
@@ -55,19 +57,18 @@ def _seal(grant: OAuthGrant, purpose: str, claims: dict) -> str:
     return f"{grant.id}.{encrypt_claims(claims, _key(grant, purpose))}"
 
 
-def _access(grant: OAuthGrant, login: dict, session_token: str | None) -> str:
-    expires = datetime.now(UTC) + timedelta(
-        minutes=settings.access_token_expire_minutes
+def _issue_access(
+    grant: OAuthGrant, login: dict, session_token: str | None, now: datetime
+) -> tuple[str, int]:
+    expires = min(
+        now + timedelta(minutes=settings.access_token_expire_minutes), grant.expires_at
     )
-    return _seal(
+    token = _seal(
         grant,
         "access",
-        {
-            **login,
-            "session_token": session_token,
-            "exp": int(min(expires, grant.expires_at).timestamp()),
-        },
+        {**login, "session_token": session_token, "exp": int(expires.timestamp())},
     )
+    return token, max(0, int((expires - now).total_seconds()))
 
 
 async def issue_tokens(
@@ -88,13 +89,14 @@ async def issue_tokens(
     async def create(session: AsyncSession) -> TokenPair:
         if proof is not None:
             await proof.consume(session)
+        now = datetime.now(UTC)
         grant = OAuthGrant(
             id=uuid4(),
             client_id=client_id,
             confidential=authenticated_client,
             registration=credentials.registration,
             scopes=scopes,
-            expires_at=_deadline(),
+            expires_at=_deadline(now),
             salt=secrets.token_bytes(32),
             key_thumbprint=proof.thumbprint if proof else None,
         )
@@ -103,13 +105,14 @@ async def issue_tokens(
             "registration": credentials.registration,
             "password": credentials.password.get_secret_value(),
         }
+        access_token, expires_in = _issue_access(grant, login, session_token, now)
         return TokenPair(
             grant.id,
-            _access(grant, login, session_token),
+            access_token,
             _seal(grant, "refresh", login),
+            expires_in,
             tuple(scopes),
             credentials,
-            session_token,
         )
 
     return await db.write(create)
@@ -120,15 +123,14 @@ async def _open(
 ) -> tuple[OAuthGrant, dict]:
     try:
         grant_id, token = encoded.split(".", 1)
-        if len(encoded) > 16384 or token.count(".") != 4:
+        if len(encoded) > MAX_TOKEN_LENGTH or token.count(".") != 4:
             raise ValueError
-        grant = await session.get(
-            OAuthGrant, UUID(grant_id), with_for_update=purpose == "refresh"
-        )
-        if grant is None or grant.expires_at <= datetime.now(UTC):
+        grant = await session.get(OAuthGrant, UUID(grant_id))
+        now = datetime.now(UTC)
+        if grant is None or grant.expires_at <= now:
             raise ValueError
         claims = decrypt_claims(token, _key(grant, purpose))
-        if purpose == "access" and claims["exp"] <= datetime.now(UTC).timestamp():
+        if purpose == "access" and claims["exp"] <= now.timestamp():
             raise ValueError
     except (JoseError, KeyError, ValueError, TypeError) as error:
         raise InvalidToken("Token OAuth inválido ou expirado.") from error
@@ -138,11 +140,14 @@ async def _open(
 async def read_access(db: Database, token: str) -> Access:
     async def read(session: AsyncSession) -> Access:
         grant, claims = await _open(session, token, "access")
-        return Access(
-            credentials=Credentials.model_validate(claims),
-            session_token=claims["session_token"],
-            scopes=frozenset(grant.scopes),
-        )
+        try:
+            return Access(
+                credentials=Credentials.model_validate(claims),
+                session_token=claims["session_token"],
+                scopes=frozenset(grant.scopes),
+            )
+        except (KeyError, ValidationError) as error:
+            raise InvalidToken("Token OAuth inválido ou expirado.") from error
 
     return await db.read(read)
 
@@ -170,28 +175,27 @@ async def renew_access(
         return grant, login
 
     authorized, login = await db.write(authorize)
+    credentials = Credentials.model_validate(login)
     try:
-        async with SigaaClient(credentials=Credentials.model_validate(login)) as client:
+        async with SigaaClient(credentials=credentials) as client:
             session_token = await client.authenticate()
     except AuthenticationFailed as error:
         raise InvalidToken("A credencial da autorização expirou.") from error
 
     async def renew(session: AsyncSession) -> TokenPair:
         grant = await session.get(OAuthGrant, authorized.id, with_for_update=True)
-        if (
-            grant is None
-            or grant.salt != authorized.salt
-            or grant.expires_at <= datetime.now(UTC)
-        ):
+        now = datetime.now(UTC)
+        if grant is None or grant.salt != authorized.salt or grant.expires_at <= now:
             raise InvalidToken("Autorização revogada ou expirada durante a renovação.")
-        grant.expires_at = _deadline()
+        grant.expires_at = _deadline(now)
+        access_token, expires_in = _issue_access(grant, login, session_token, now)
         return TokenPair(
             grant.id,
-            _access(grant, login, session_token),
+            access_token,
             refresh_token,
-            tuple(grant.scopes),
-            Credentials.model_validate(login),
-            session_token,
+            expires_in,
+            tuple(Scope(value) for value in grant.scopes),
+            credentials,
         )
 
     return await db.write(renew)

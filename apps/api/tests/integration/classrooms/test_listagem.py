@@ -214,10 +214,9 @@ def test_openapi_documenta_lista_de_turmas_e_401(api):
     assert "401" in route["responses"]
     response_schema = route["responses"]["200"]["content"]["application/json"]["schema"]
     assert response_schema["type"] == "array"
-    assert {v["$ref"] for v in response_schema["items"]["anyOf"]} == {
-        "#/components/schemas/ParticipantClassroom",
-        "#/components/schemas/ClassroomDetails",
-    }
+    assert (
+        response_schema["items"]["$ref"] == "#/components/schemas/ParticipantClassroom"
+    )
     assert {"number", "semester", "schedule", "room", "subject", "grade"} <= schema[
         "components"
     ]["schemas"]["ParticipantClassroom"]["properties"].keys()

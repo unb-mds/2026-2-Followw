@@ -14,8 +14,8 @@ from api.cookies import (
 )
 from api.db.main import DatabaseDep
 from api.logger import operation
-from api.modules.oauth.scopes import Scope, insufficient_scope
-from api.modules.oauth.tokens import InvalidToken, read_access
+from api.modules.oauth.auth import authenticate_bearer
+from api.modules.oauth.scopes import FULL_ACCESS, AccessPolicy
 
 
 class SigaaConnection:
@@ -31,10 +31,10 @@ class SigaaConnection:
         session_token: str | None = None,
         *,
         response: Response | None = None,
-        scopes: frozenset[Scope] | None = None,
+        access: AccessPolicy = FULL_ACCESS,
     ) -> None:
         self.credentials = credentials
-        self.scopes = scopes
+        self.access = access
         self._session_token = session_token
         self._response = response
         self._client: SigaaClient | None = None
@@ -85,43 +85,28 @@ class SigaaConnection:
             set_access_cookie(self._response, token, self.registration)
 
 
+def _cookie_connection(request: Request, response: Response) -> SigaaConnection | None:
+    credentials = read_refresh_cookie(request)
+    if credentials is None:
+        return None
+    return SigaaConnection(
+        credentials,
+        read_access_cookie(request, credentials.registration),
+        response=response,
+    )
+
+
 async def get_optional_sigaa_connection(
-    request: Request, response: Response, db: DatabaseDep
+    request: Request, response: Response
 ) -> AsyncGenerator[SigaaConnection | None]:
+    """Sessão opcional das rotas públicas: usa apenas cookies e ignora OAuth."""
     if "authorization" in request.headers:
-        route = request.scope["route"]
-        if request.url.path.removeprefix("/api").startswith("/public/"):
-            yield None
-            return
-        scheme, _, token = request.headers["authorization"].partition(" ")
-        if scheme.lower() != "bearer" or not token:
-            raise HTTPException(
-                401, "Bearer token esperado.", headers={"WWW-Authenticate": "Bearer"}
-            )
-        try:
-            access = await read_access(db, token)
-        except InvalidToken:
-            raise HTTPException(
-                401,
-                "Token inválido ou expirado.",
-                headers={"WWW-Authenticate": 'Bearer error="invalid_token"'},
-            ) from None
-        required = (route.openapi_extra or {}).get("x-oauth-scope")
-        if required not in access.scopes:
-            raise insufficient_scope()
-        connection = SigaaConnection(
-            access.credentials, access.session_token, scopes=access.scopes
-        )
-    else:
-        credentials = read_refresh_cookie(request)
-        if credentials is None:
-            yield None
-            return
-        connection = SigaaConnection(
-            credentials,
-            read_access_cookie(request, credentials.registration),
-            response=response,
-        )
+        yield None
+        return
+    connection = _cookie_connection(request, response)
+    if connection is None:
+        yield None
+        return
     try:
         yield connection
     finally:
@@ -134,13 +119,25 @@ OptionalSigaaConnectionDep = Annotated[
 
 
 async def get_sigaa_connection(
-    connection: OptionalSigaaConnectionDep,
-) -> SigaaConnection:
-    if connection is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated"
+    request: Request, response: Response, db: DatabaseDep
+) -> AsyncGenerator[SigaaConnection]:
+    if "authorization" in request.headers:
+        access = await authenticate_bearer(request, db)
+        connection = SigaaConnection(
+            access.credentials,
+            access.session_token,
+            access=AccessPolicy(access.scopes),
         )
-    return connection
+    else:
+        connection = _cookie_connection(request, response)
+        if connection is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated"
+            )
+    try:
+        yield connection
+    finally:
+        await connection.aclose()
 
 
 SigaaConnectionDep = Annotated[SigaaConnection, Depends(get_sigaa_connection)]

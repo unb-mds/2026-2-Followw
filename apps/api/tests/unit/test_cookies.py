@@ -17,7 +17,6 @@ from api.cookies import (
     _key,
     clear_cookies,
     decrypt_cookie,
-    derive_key,
     encrypt_cookie,
     read_access_cookie,
     read_refresh_cookie,
@@ -25,6 +24,7 @@ from api.cookies import (
     set_refresh_cookie,
 )
 from api.core.config import Settings, settings
+from api.crypto import derive_key
 
 SENHA = "S3nh@-Muito-Secreta"
 CREDENCIAIS = Credentials(registration="251000000", password=SecretStr(SENHA))

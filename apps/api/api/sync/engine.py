@@ -22,7 +22,7 @@ from api.cache import NO_DIRECTIVES, CacheControl, Freshness
 from api.db.main import Database
 from api.db.models import OwnLink
 from api.logger import event, operation
-from api.modules.oauth.scopes import Scope
+from api.modules.oauth.scopes import AccessPolicy
 from api.sigaa import SigaaConnection
 
 # Falhas da origem: o `stale-if-error` as cobre e um job as tenta de novo.
@@ -140,8 +140,8 @@ class Sync:
         return self._sigaa.registration
 
     @property
-    def scopes(self) -> frozenset[Scope] | None:
-        return self._sigaa.scopes
+    def access(self) -> AccessPolicy:
+        return self._sigaa.access
 
     async def resolve[T: Target, V](
         self,

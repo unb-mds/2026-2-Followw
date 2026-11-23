@@ -23,7 +23,7 @@ from api.db.models import ClassroomParticipant, OwnLink, User
 from api.modules.classrooms.repository import ClassroomRepository
 from api.modules.me.profile import sync_profile
 from api.modules.me.repository import UserRepository
-from api.modules.oauth.scopes import Scope, insufficient_scope
+from api.modules.oauth.scopes import Scope, insufficient_scope, scoped
 from api.modules.recommendations.ranking import Component, subject_kind
 from api.modules.recommendations.repository import RecommendationRepository
 from api.schemas import (
@@ -179,17 +179,16 @@ class ParticipantSubject(UserSubject):
     kind: Literal["mandatory", "optional", "free"] | None = None
 
 
-class ClassroomDetails(Classroom, ClassroomOffer):
+class ParticipantClassroom(Classroom, ClassroomOffer):
+    """A turma com a menção do usuário, `None` enquanto não lançada ou sincronizada."""
+
     subject: ParticipantSubject
+    grade: Grade | None = scoped(
+        Scope.GRADES, "Menção do usuário, `null` enquanto não lançada.", default=None
+    )
     status: ClassroomStatus | None = None
     # `None` enquanto o plano não foi lido no SIGAA.
     has_teaching_plan: bool | None = None
-
-
-class ParticipantClassroom(ClassroomDetails):
-    """A turma com a menção do usuário, `None` enquanto não lançada ou sincronizada."""
-
-    grade: Grade | None = None
 
 
 class ClassroomService:
@@ -225,14 +224,18 @@ class ClassroomService:
                 classrooms_freshness(user.classrooms_synced_at),
             )
 
-        current_only = (
-            self._sync.scopes is not None and Scope.HISTORY not in self._sync.scopes
-        )
-        if semester == "all" and current_only:
+        history_allowed = self._sync.access.allows(Scope.HISTORY)
+        if semester == "all" and not history_allowed:
             raise insufficient_scope()
         links = await self._sync.resolve(sync_classrooms, None, load)
+        if semester is not None and not history_allowed:
+            current_semesters = {
+                link.row.classroom.semester for link in links if link.row.current
+            }
+            if semester not in current_semesters:
+                raise insufficient_scope()
         selected = [link for link in links if _in_semester(link, semester)]
-        if current_only and any(not link.row.current for link in selected):
+        if not history_allowed and any(not link.row.current for link in selected):
             raise insufficient_scope()
         selected.sort(
             key=lambda link: (
@@ -338,12 +341,8 @@ class ClassroomService:
         if link is None:
             raise ClassroomNotFound(f"Turma `{classroom_id}` não é do usuário.")
 
-        if (
-            not link.row.current
-            and self._sync.scopes is not None
-            and Scope.HISTORY not in self._sync.scopes
-        ):
-            raise insufficient_scope()
+        if not link.row.current:
+            self._sync.access.require(Scope.HISTORY)
         return link
 
 

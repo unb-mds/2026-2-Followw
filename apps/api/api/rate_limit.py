@@ -13,8 +13,8 @@ from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 from upstash_ratelimit.asyncio import FixedWindow, Ratelimit, Response
 
-from api.cookies import derive_key
 from api.core.config import settings
+from api.crypto import derive_key
 from api.logger import event
 from api.redis import redis_client
 

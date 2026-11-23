@@ -11,6 +11,7 @@ from api.db.enums import LessonStatus
 from api.downloads import attachment
 from api.errors import SIGAA_ERRORS
 from api.modules.classrooms.frequency import (
+    ClassroomFrequencyResult,
     FrequencyServiceDep,
 )
 from api.modules.classrooms.lessons import ClassroomFrequencyView
@@ -19,9 +20,12 @@ from api.modules.classrooms.posts import ClassroomPostsServiceDep
 from api.modules.classrooms.service import (
     ClassroomMembers,
     ClassroomServiceDep,
+    ParticipantClassroom,
 )
+from api.modules.oauth import redaction
+from api.modules.oauth.redaction import deliver
 from api.modules.oauth.scopes import Scope, oauth
-from api.modules.oauth.views import ClassroomResponse, FrequencyResponse, OAuthViewDep
+from api.sigaa import SigaaConnectionDep
 
 router = APIRouter()
 
@@ -201,14 +205,15 @@ async def mark_post_unread(
 @router.get(
     "",
     openapi_extra=oauth(Scope.CLASSROOMS),
-    response_model=list[ClassroomResponse],
+    response_model=list[ParticipantClassroom],
     summary="Listar turmas do usuário",
     description="Com OAuth, semestres anteriores exigem classrooms:history. A menção individual exige grades:read.",
     responses=SIGAA_ERRORS,
 )
 async def get_classrooms(
     service: ClassroomServiceDep,
-    view: OAuthViewDep,
+    connection: SigaaConnectionDep,
+    response: Response,
     semester: Annotated[
         str | None,
         Query(
@@ -216,22 +221,34 @@ async def get_classrooms(
             description="Semestre das turmas; 'all' inclui todo o histórico.",
         ),
     ] = None,
-) -> list[ClassroomResponse]:
-    return view.classrooms(await service.list_classrooms(semester))
+) -> list[ParticipantClassroom] | Response:
+    return deliver(
+        await service.list_classrooms(semester),
+        connection.access,
+        response,
+        redaction.classrooms,
+    )
 
 
 @router.get(
     "/frequency",
     openapi_extra=oauth(Scope.FREQUENCY),
-    response_model=list[FrequencyResponse],
+    response_model=list[ClassroomFrequencyResult],
     summary="Consultar frequência das turmas atuais",
+    description="Com OAuth, `classroom` traz só `id` e `sigaa_id` sem `classrooms:read`, e omite `grade` sem `grades:read`.",
     responses={**CLASSROOM_ERRORS, 503: {"description": "Cache em atualização."}},
 )
 async def get_current_frequencies(
     service: FrequencyServiceDep,
-    view: OAuthViewDep,
-):
-    return view.frequencies(await service.list_frequencies())
+    connection: SigaaConnectionDep,
+    response: Response,
+) -> list[ClassroomFrequencyResult] | Response:
+    return deliver(
+        await service.list_frequencies(),
+        connection.access,
+        response,
+        redaction.frequencies,
+    )
 
 
 @router.get(

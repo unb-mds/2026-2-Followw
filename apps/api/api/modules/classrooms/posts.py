@@ -4,7 +4,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import Depends, HTTPException
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sigaa_client import DashboardPost, PostType
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -51,15 +51,17 @@ def post_detail_freshness(
     return Freshness.FRESH
 
 
-class ClassroomNews[T: BaseModel = ParticipantClassroom](BaseModel):
+class ClassroomNews(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    classroom: T
+    classroom: ParticipantClassroom = Field(
+        description="Com OAuth, traz só `id` e `sigaa_id` sem `classrooms:read`."
+    )
     post: ClassroomPostView
 
 
-class LatestNewsFeed[T: ClassroomNews = ClassroomNews](BaseModel):
-    items: list[T]
+class LatestNewsFeed(BaseModel):
+    items: list[ClassroomNews]
     updating: bool
 
 

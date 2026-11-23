@@ -6,10 +6,9 @@ from pydantic import BaseModel, Field, SecretStr
 
 from api.core.config import settings
 from api.db.main import DatabaseDep
-from api.modules.auth.account import start_account
-from api.modules.oauth.proof import InvalidProof, Proof
-from api.modules.oauth.tokens import InvalidToken, renew_access
-from api.sigaa import SigaaConnection
+from api.modules.auth.account import schedule_account_sync
+from api.modules.oauth.proof import MAX_PROOF_LENGTH, InvalidProof, Proof
+from api.modules.oauth.tokens import MAX_TOKEN_LENGTH, InvalidToken, renew_access
 from api.sync.queue import JobQueueDep
 
 router = APIRouter()
@@ -18,7 +17,7 @@ router = APIRouter()
 class RefreshGrant(BaseModel):
     grant_type: Literal["refresh_token"]
     client_id: str = Field(min_length=1, max_length=256)
-    refresh_token: SecretStr = Field(min_length=1, max_length=16384)
+    refresh_token: SecretStr = Field(min_length=1, max_length=MAX_TOKEN_LENGTH)
 
 
 class TokenResponse(BaseModel):
@@ -42,7 +41,7 @@ async def refresh(
     db: DatabaseDep,
     queue: JobQueueDep,
     response: Response,
-    dpop: Annotated[str | None, Header(max_length=8192)] = None,
+    dpop: Annotated[str | None, Header(max_length=MAX_PROOF_LENGTH)] = None,
 ):
     headers = {"Cache-Control": "no-store", "Pragma": "no-cache"}
     try:
@@ -65,15 +64,10 @@ async def refresh(
             {"error": "invalid_grant"}, status_code=400, headers=headers
         )
     # Como no refresh da web: agenda o sync da conta do que venceu.
-    await start_account(
-        SigaaConnection(pair.credentials, pair.session_token), db, queue
-    )
+    await schedule_account_sync(pair.credentials, db, queue)
     response.headers.update(headers)
     return TokenResponse(
         access_token=pair.access_token,
-        expires_in=min(
-            settings.access_token_expire_minutes, settings.refresh_token_expire_minutes
-        )
-        * 60,
+        expires_in=pair.expires_in,
         scope=" ".join(pair.scopes),
     )

@@ -1,24 +1,18 @@
 from datetime import UTC, datetime, timedelta
-from functools import cache
 
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from fastapi import Request, Response
 from joserfc import jwt
 from joserfc.errors import JoseError
-from joserfc.jwe import JWERegistry
 from joserfc.jwk import OctKey
 from pydantic import ValidationError
 from sigaa_client import Credentials
 
 from api.core.config import settings
+from api.crypto import decrypt_claims, derive_key, encrypt_claims
 
 ACCESS_COOKIE_NAME = "access_token"
 REFRESH_COOKIE_NAME = "refresh_token"
 
-# JWE com chave simétrica direta: AES-GCM cifra e autentica o payload.
-_JWE_HEADER = {"alg": "dir", "enc": "A256GCM"}
-_JWE_REGISTRY = JWERegistry(algorithms=list(_JWE_HEADER.values()))
 _CLAIMS = jwt.JWTClaimsRegistry(exp={"essential": True})
 
 
@@ -73,14 +67,6 @@ def encrypt_cookie(name: str, claims: dict) -> str:
     return encrypt_claims(claims, _key(name))
 
 
-def encrypt_claims(claims: dict, key: OctKey) -> str:
-    return jwt.encode(_JWE_HEADER, claims, key, registry=_JWE_REGISTRY)
-
-
-def decrypt_claims(token: str, key: OctKey) -> dict:
-    return jwt.decode(token, key, registry=_JWE_REGISTRY).claims
-
-
 def decrypt_cookie(name: str, token: str) -> dict | None:
     """Claims do cookie, ou `None` se ele não foi cifrado por nós ou expirou."""
     try:
@@ -93,22 +79,6 @@ def decrypt_cookie(name: str, token: str) -> dict | None:
 
 def _key(name: str) -> OctKey:
     return OctKey.import_key(derive_key(f"followw:cookie:{name}"))
-
-
-def derive_key(info: str) -> bytes:
-    """Chave de 256 bits derivada do `jwt_secret_key`, uma para cada `info`."""
-    return _hkdf(settings.jwt_secret_key, info)
-
-
-@cache
-def _hkdf(secret: str, info: str) -> bytes:
-    return derive_secret(secret, info, salt=None)
-
-
-def derive_secret(secret: str, info: str, salt: bytes | None) -> bytes:
-    return HKDF(
-        algorithm=hashes.SHA256(), length=32, salt=salt, info=info.encode()
-    ).derive(secret.encode())
 
 
 def _set_cookie(

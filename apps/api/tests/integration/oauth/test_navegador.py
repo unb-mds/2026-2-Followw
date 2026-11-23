@@ -43,3 +43,19 @@ def test_origem_do_followw_pode_enviar_credenciais_apos_preflight_com_authorizat
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == origin
     assert response.headers["access-control-allow-credentials"] == "true"
+
+
+def test_token_externo_sem_dpop_mantem_cors_para_expor_erro_oauth(api):
+    response = api.post(
+        "/oauth/token",
+        data={
+            "grant_type": "refresh_token",
+            "client_id": "agenda",
+            "refresh_token": "qualquer",
+        },
+        headers={"Origin": "https://agenda.example"},
+    )
+    assert response.status_code == 400
+    assert response.json() == {"error": "invalid_dpop_proof"}
+    assert response.headers["access-control-allow-origin"] == "*"
+    assert "access-control-allow-credentials" not in response.headers

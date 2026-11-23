@@ -1,5 +1,6 @@
 from functools import partial
 
+from sigaa_client import Credentials
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.cache import Freshness
@@ -27,17 +28,22 @@ async def start_account(
     """Confere a senha (logando, se não houver sessão) e agenda o sync do que venceu."""
     if not connection.authenticated:
         await connection.client()
+    await schedule_account_sync(connection.credentials, db, queue)
 
+
+async def schedule_account_sync(
+    credentials: Credentials, db: Database, queue: QStashQueue
+) -> None:
     await db.write(
-        lambda session: UserRepository(session).register(connection.registration)
+        lambda session: UserRepository(session).register(credentials.registration)
     )
-    user, links = await db.read(partial(_account, connection.registration))
+    user, links = await db.read(partial(_account, credentials.registration))
     if (
         _stale_account_tasks(user)
         or _stale_grades(user)
         or any(stale_classroom_tasks(l) for l in links)
     ):
-        job = Job(credentials=connection.credentials, steps=(Step.of(sync_account),))
+        job = Job(credentials=credentials, steps=(Step.of(sync_account),))
         await queue.enqueue(job)
 
 
