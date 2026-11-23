@@ -47,12 +47,13 @@ export function EditProfile({
     user: UserProfile;
     displayName?: string | null;
 }) {
+    const online = useOnline();
     const [open, setOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger
-                disabled={saving}
+                disabled={saving || !online}
                 render={
                     <Button
                         variant="ghost"

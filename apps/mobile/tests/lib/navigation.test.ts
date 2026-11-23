@@ -13,13 +13,7 @@ test('marca a aba da rota e a de turmas e perfil nas subpáginas', () => {
 test('esconde a barra nas telas cheias como no web', () => {
     for (const path of ['/', '/turmas', '/turmas/1', '/ru', '/buscar', '/perfil', '/professores/1'])
         expect(showsNavigation(path)).toBe(true);
-    for (const path of [
-        '/login',
-        '/privacidade',
-        '/cursos/123',
-        '/turmas/1/plano-de-ensino',
-        '/rota-inexistente'
-    ])
+    for (const path of ['/login', '/cursos/123', '/turmas/1/plano-de-ensino', '/rota-inexistente'])
         expect(showsNavigation(path)).toBe(false);
 });
 

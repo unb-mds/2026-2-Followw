@@ -66,6 +66,7 @@ export function EditProfile({
     user: UserProfile;
     displayName?: string | null;
 }) {
+    const online = useOnline();
     const [open, setOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     return (
@@ -73,7 +74,7 @@ export function EditProfile({
             <DialogTrigger asChild>
                 <Button
                     variant="ghost"
-                    disabled={saving}
+                    disabled={saving || !online}
                     className="h-auto min-h-12 w-full justify-start gap-3 rounded-none px-3 py-2.5"
                 >
                     <View className="size-8 shrink-0 items-center justify-center rounded-full bg-primary/10">

@@ -1,6 +1,6 @@
 export const NAV_HREFS = ['/', '/turmas', '/ru', '/buscar', '/perfil'] as const;
 
-// rotas com a barra; as demais (login, curso, privacidade, plano de ensino) ocupam a tela toda
+// rotas com a barra; as demais (login, curso, plano de ensino) ocupam a tela toda
 const WITH_NAVIGATION = /^\/(turmas|ru|buscar|perfil|professores)?(\/|$)/;
 const DOUBLE_TAP_MS = 400;
 
