@@ -276,6 +276,14 @@ async def create_client(
     db: Database, owner_registration: str, body: OAuthClientCreate
 ) -> OAuthClientCreated:
     async def write(session: AsyncSession) -> OAuthClientCreated:
+        # Serializa criações da mesma matrícula para evitar race condition no limite.
+        await session.execute(
+            select(
+                func.pg_advisory_xact_lock(
+                    func.hashtextextended(f"oauth_clients:{owner_registration}", 0)
+                )
+            )
+        )
         count = await session.scalar(
             select(func.count())
             .select_from(OAuthClient)

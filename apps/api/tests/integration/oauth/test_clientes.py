@@ -1,11 +1,15 @@
+import asyncio
 import base64
 
+from fastapi import HTTPException
 from sigaa_client import Credentials
 
 from api.modules.oauth.clients import (
     CLIENT_ID_PREFIX,
     CLIENT_SECRET_PREFIX,
     MAX_CLIENTS_PER_USER,
+    OAuthClientCreate,
+    create_client,
 )
 
 
@@ -144,6 +148,30 @@ def test_limite_de_aplicacoes_por_conta(client, cookies):
         },
     )
     assert excedente.status_code == 422
+
+
+def test_limite_de_aplicacoes_resiste_a_criacao_concorrente(db):
+    async def disparar():
+        body = OAuthClientCreate(
+            name="App concorrente",
+            confidential=False,
+            redirect_uris=["https://concorrente.exemplo.com/cb"],
+        )
+        return await asyncio.gather(
+            *(
+                create_client(db, "251000000", body)
+                for _ in range(MAX_CLIENTS_PER_USER + 5)
+            ),
+            return_exceptions=True,
+        )
+
+    resultados = asyncio.run(disparar())
+    criados = [r for r in resultados if not isinstance(r, BaseException)]
+    recusados = [
+        r for r in resultados if isinstance(r, HTTPException) and r.status_code == 422
+    ]
+    assert len(criados) == MAX_CLIENTS_PER_USER
+    assert len(recusados) == 5
 
 
 def test_excluir_aplicacao_revoga_tokens_em_cascata(
