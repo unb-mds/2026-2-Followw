@@ -2,7 +2,7 @@ import { useOnline } from '@followw/core/lib/online.ts';
 import { loadQuery } from '@followw/core/queries/load.ts';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { Link, Navigate, createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
-import { ChevronRight, GitFork, LogOut } from 'lucide-react';
+import { ChevronRight, Code2, GitFork, LogOut } from 'lucide-react';
 
 import type { UserProfile } from '#/queries/me';
 
@@ -10,6 +10,7 @@ import { useDesktop } from '#/components/DesktopContext';
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
 import { ListCard } from '#/components/ListCard';
+import { ConnectedAppsSection } from '#/components/profile/ConnectedAppsSection';
 import { DocumentDownloads } from '#/components/profile/DocumentDownloads';
 import { EditProfile } from '#/components/profile/EditProfile';
 import { InstallPromptCard } from '#/components/profile/InstallPromptCard';
@@ -103,7 +104,8 @@ function PerfilPage() {
                         </div>
                     </ProfileSection>
                 </div>
-                <div className="profile-account lg:col-start-2 lg:row-start-3">
+                <div className="profile-account flex flex-col gap-6 lg:col-start-2 lg:row-start-3">
+                    <ConnectedAppsSection />
                     <AccountSection
                         user={user}
                         displayName={settings.displayName}
@@ -152,6 +154,22 @@ function AccountSection({
                         </Link>
                     </div>
                 )}
+                <div className="-mx-3">
+                    <Link
+                        to="/developers"
+                        aria-label="Abrir portal de desenvolvedores"
+                        className={cn(
+                            buttonVariants({ variant: 'ghost' }),
+                            'h-auto min-h-12 w-full justify-start gap-3 rounded-none px-3 py-2.5'
+                        )}
+                    >
+                        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                            <Code2 className="size-4" aria-hidden="true" />
+                        </span>
+                        <span className="flex-1 text-left">Portal de desenvolvedores</span>
+                        <ChevronRight aria-hidden="true" className="size-4 text-muted-foreground" />
+                    </Link>
+                </div>
                 <LogoutButton />
             </ListCard>
         </ProfileSection>
