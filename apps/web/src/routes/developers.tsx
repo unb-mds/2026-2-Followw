@@ -7,7 +7,7 @@ import {
     oauthClientsQueryOptions,
     updateOAuthClient
 } from '@followw/core/queries/oauth.ts';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Navigate, redirect } from '@tanstack/react-router';
 import { useState } from 'react';
 
@@ -37,21 +37,18 @@ export const Route = createFileRoute('/developers')({
 });
 
 function DevelopersPage() {
-    const me = useQuery(meQueryOptions);
+    const { data: user } = useSuspenseQuery(meQueryOptions);
     const clients = useQuery(oauthClientsQueryOptions);
     const online = useOnline();
 
     const [createOpen, setCreateOpen] = useState(false);
     const [editing, setEditing] = useState<OAuthClient | null>(null);
     const [revealedSecret, setRevealedSecret] = useState<RevealedSecret | null>(null);
-    const { rotate, remove, error, invalidate } = useClientActions(setRevealedSecret);
+    const { rotate, remove, busy, error, invalidate } = useClientActions(setRevealedSecret);
 
-    if (me.data === null) return <Navigate to="/login" replace />;
+    if (!user) return <Navigate to="/login" replace />;
 
     const items = clients.data ?? [];
-    const busy = (id: string) =>
-        (rotate.isPending && rotate.variables === id) ||
-        (remove.isPending && remove.variables === id);
 
     return (
         <main className="min-h-dvh bg-background px-6 py-10 text-foreground">

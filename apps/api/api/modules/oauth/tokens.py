@@ -201,12 +201,15 @@ async def renew_access(
     return await db.write(renew)
 
 
-async def revoke(db: Database, grant_id: UUID, *, registration: str) -> None:
-    async def remove(session: AsyncSession) -> None:
-        await session.execute(
+async def revoke(db: Database, grant_id: UUID, *, registration: str) -> bool:
+    """Indica se havia uma autorização desse estudante para revogar."""
+
+    async def remove(session: AsyncSession) -> bool:
+        result = await session.execute(
             delete(OAuthGrant).where(
                 OAuthGrant.id == grant_id, OAuthGrant.registration == registration
             )
         )
+        return result.rowcount > 0
 
-    await db.write(remove)
+    return await db.write(remove)

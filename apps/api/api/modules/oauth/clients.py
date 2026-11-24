@@ -224,6 +224,16 @@ class OAuthClientUpdate(BaseModel):
     def _check_homepage(cls, value: str | None) -> str | None:
         return validate_homepage_url(value)
 
+    @model_validator(mode="after")
+    def _check_fields(self) -> OAuthClientUpdate:
+        if not self.model_fields_set:
+            raise ValueError("Informe ao menos um campo para atualizar.")
+        if "name" in self.model_fields_set and self.name is None:
+            raise ValueError("Informe o nome da aplicação.")
+        if "redirect_uris" in self.model_fields_set and self.redirect_uris is None:
+            raise ValueError("Informe ao menos uma URI de redirecionamento.")
+        return self
+
 
 class OAuthClientView(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -334,22 +344,17 @@ async def update_client(
     db: Database, owner_registration: str, client_id: str, body: OAuthClientUpdate
 ) -> OAuthClientView:
     fields = body.model_fields_set
-    if not fields:
-        raise HTTPException(422, "Informe ao menos um campo para atualizar.")
 
     async def write(session: AsyncSession) -> OAuthClientView:
         client = await _owned_client(session, owner_registration, client_id)
-        if "name" in fields and body.name is not None:
+        if body.name is not None:
             client.name = body.name
         if "description" in fields:
             client.description = body.description
         if "homepage_url" in fields:
             client.homepage_url = body.homepage_url
-        if "redirect_uris" in fields:
-            if body.redirect_uris is None:
-                raise HTTPException(
-                    422, "Informe ao menos uma URI de redirecionamento."
-                )
+        if body.redirect_uris is not None:
+            # a regra de esquema depende do tipo gravado no banco
             try:
                 client.redirect_uris = _validate_redirect_list(
                     body.redirect_uris, confidential=client.confidential
@@ -423,13 +428,3 @@ async def list_grants(db: Database, registration: str) -> list[OAuthGrantView]:
         ]
 
     return await db.read(read)
-
-
-async def revoke_grant(db: Database, registration: str, grant_id: UUID) -> None:
-    async def write(session: AsyncSession) -> None:
-        grant = await session.get(OAuthGrant, grant_id)
-        if grant is None or grant.registration != registration:
-            raise HTTPException(404, "Autorização não encontrada.")
-        await session.delete(grant)
-
-    await db.write(write)

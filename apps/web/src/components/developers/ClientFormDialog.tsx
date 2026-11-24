@@ -241,7 +241,7 @@ export function ClientFormDialog(props: Props) {
                                                 ? 'https://meuapp.unb.dev/callback'
                                                 : 'https://meuapp.unb.dev/cb ou meuapp://cb'
                                         }
-                                        required
+                                        required={index === 0}
                                     />
                                     {redirectUris.length > 1 && (
                                         <Button

@@ -4,7 +4,7 @@ from typing import Annotated, Literal
 from urllib.parse import unquote_plus
 from uuid import UUID
 
-from fastapi import APIRouter, Form, Header, Path, Response
+from fastapi import APIRouter, Form, Header, HTTPException, Path, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, SecretStr
 
@@ -26,12 +26,16 @@ from api.modules.oauth.clients import (
     delete_client,
     list_clients,
     list_grants,
-    revoke_grant,
     rotate_client_secret,
     update_client,
 )
 from api.modules.oauth.proof import MAX_PROOF_LENGTH, InvalidProof, Proof
-from api.modules.oauth.tokens import MAX_TOKEN_LENGTH, InvalidToken, renew_access
+from api.modules.oauth.tokens import (
+    MAX_TOKEN_LENGTH,
+    InvalidToken,
+    renew_access,
+    revoke,
+)
 from api.sigaa import SigaaConnectionDep
 from api.sync.queue import JobQueueDep
 
@@ -110,9 +114,9 @@ async def refresh(
     headers = {"Cache-Control": "no-store", "Pragma": "no-cache"}
     try:
         client_id, client_secret = _client_credentials(body, authorization)
-        if client_secret is None and dpop is None:
-            raise InvalidProof("Prova DPoP ausente.")
         client = await authenticate_client(db, client_id, client_secret)
+        if not client.confidential and dpop is None:
+            raise InvalidProof("Prova DPoP ausente.")
         proof = (
             Proof.verify(dpop, f"{settings.public_url.rstrip('/')}/oauth/token")
             if dpop is not None
@@ -267,4 +271,5 @@ async def get_oauth_grants(
 async def delete_oauth_grant(
     grant_id: UUID, connection: SigaaConnectionDep, db: DatabaseDep
 ) -> None:
-    await revoke_grant(db, connection.registration, grant_id)
+    if not await revoke(db, grant_id, registration=connection.registration):
+        raise HTTPException(404, "Autorização não encontrada.")

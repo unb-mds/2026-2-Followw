@@ -77,4 +77,6 @@ test('excluir é destructive e só age depois da confirmação', async () => {
 
     fireEvent.click(view.getByRole('button', { name: 'Excluir aplicação' }));
     expect(deleted).toBe(1);
+    // fecha ao confirmar, sem permitir um segundo clique
+    expect(view.getByRole('alertdialog').hasAttribute('data-closed')).toBe(true);
 });

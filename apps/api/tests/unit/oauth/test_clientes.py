@@ -7,6 +7,7 @@ from api.modules.oauth.clients import (
     CLIENT_ID_PREFIX,
     CLIENT_SECRET_PREFIX,
     OAuthClientCreate,
+    OAuthClientUpdate,
     generate_client_id,
     generate_client_secret,
     validate_homepage_url,
@@ -114,3 +115,10 @@ def test_schema_rejeita_uris_duplicadas_e_nome_em_branco():
                 "https://app.exemplo.com/cb",
             ],
         )
+
+
+def test_edicao_rejeita_corpo_vazio_e_campos_obrigatorios_nulos(subtests):
+    for corpo in ({}, {"name": None}, {"redirect_uris": None}):
+        with subtests.test(corpo=corpo), pytest.raises(ValueError):
+            OAuthClientUpdate.model_validate(corpo)
+    assert OAuthClientUpdate.model_validate({"description": None}).description is None

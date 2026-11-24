@@ -76,6 +76,37 @@ describe('ClientFormDialog', () => {
         expect(closed).toBe(true);
     });
 
+    test('só a primeira URI é obrigatória e linhas extras vazias são ignoradas', async () => {
+        const { render, fireEvent, waitFor } = dom.testing;
+        const submitted: OAuthClientCreate[] = [];
+
+        const view = render(
+            <ClientFormDialog
+                mode="create"
+                open
+                onOpenChange={() => {}}
+                onSubmit={async (body) => {
+                    submitted.push(body);
+                }}
+            />
+        );
+
+        fireEvent.change(view.getByLabelText('Nome da aplicação'), {
+            target: { value: 'Bot UnB' }
+        });
+        fireEvent.change(view.getByLabelText('URI de redirecionamento 1'), {
+            target: { value: 'https://bot.unb.dev/cb' }
+        });
+        fireEvent.click(view.getByRole('button', { name: /Adicionar URI/i }));
+
+        expect(view.getByLabelText('URI de redirecionamento 1')).toHaveProperty('required', true);
+        expect(view.getByLabelText('URI de redirecionamento 2')).toHaveProperty('required', false);
+
+        fireEvent.click(view.getByRole('button', { name: 'Criar aplicação' }));
+        await waitFor(() => expect(submitted).toHaveLength(1));
+        expect(submitted[0]?.redirect_uris).toEqual(['https://bot.unb.dev/cb']);
+    });
+
     test('exibe erro retornado pela API ao falhar na criação', async () => {
         const { render, fireEvent, waitFor } = dom.testing;
 

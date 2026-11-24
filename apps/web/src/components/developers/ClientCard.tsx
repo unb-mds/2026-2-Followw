@@ -123,6 +123,7 @@ export function ClientCard({
                 title="Rotacionar client_secret?"
                 description={`O segredo atual de ${client.name} deixará de funcionar imediatamente. Atualize suas variáveis de ambiente com o novo valor.`}
                 confirmLabel="Gerar novo segredo"
+                disabled={disabled}
                 onConfirm={onRotateSecret}
             />
             <ConfirmActionDialog
@@ -132,6 +133,7 @@ export function ClientCard({
                 description="A aplicação será removida e todas as autorizações ativas de estudantes vinculadas a ela serão revogadas imediatamente."
                 confirmLabel="Excluir aplicação"
                 destructive
+                disabled={disabled}
                 onConfirm={onDelete}
             />
         </Card>

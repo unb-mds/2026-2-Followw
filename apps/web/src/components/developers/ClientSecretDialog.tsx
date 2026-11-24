@@ -27,8 +27,15 @@ export function ClientSecretDialog({
     title = 'Guarde seu client_secret agora'
 }: Props) {
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-lg">
+        // o segredo só aparece uma vez: fecha apenas pelo botão de confirmação
+        <Dialog
+            open={open}
+            disablePointerDismissal
+            onOpenChange={(next, details) => {
+                if (details.reason !== 'escape-key') onOpenChange(next);
+            }}
+        >
+            <DialogContent className="sm:max-w-lg" showCloseButton={false}>
                 <DialogHeader>
                     <DialogTitle>{title}</DialogTitle>
                     <DialogDescription>

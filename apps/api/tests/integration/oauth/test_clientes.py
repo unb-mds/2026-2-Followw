@@ -266,6 +266,18 @@ def test_oauth_token_valida_registro_e_rotacao_de_client_secret(
         == 401
     )
 
+    # Sem segredo nem DPoP, o erro é da autenticação do cliente
+    sem_segredo = client.post(
+        "/oauth/token",
+        data={
+            "grant_type": "refresh_token",
+            "client_id": app_id,
+            "refresh_token": par.refresh_token,
+        },
+    )
+    assert sem_segredo.status_code == 401
+    assert sem_segredo.json() == {"error": "invalid_client"}
+
     # Segredo válido via formulário funciona
     ok_form = client.post(
         "/oauth/token",

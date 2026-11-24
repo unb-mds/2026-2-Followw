@@ -16,6 +16,7 @@ export function ConfirmActionDialog({
     description,
     confirmLabel,
     destructive = false,
+    disabled = false,
     onConfirm
 }: {
     open: boolean;
@@ -24,6 +25,7 @@ export function ConfirmActionDialog({
     description: string;
     confirmLabel: string;
     destructive?: boolean;
+    disabled?: boolean;
     onConfirm: () => void;
 }) {
     return (
@@ -37,7 +39,11 @@ export function ConfirmActionDialog({
                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
                     <AlertDialogAction
                         variant={destructive ? 'destructive' : undefined}
-                        onClick={onConfirm}
+                        disabled={disabled}
+                        onClick={() => {
+                            onOpenChange(false);
+                            onConfirm();
+                        }}
                     >
                         {confirmLabel}
                     </AlertDialogAction>

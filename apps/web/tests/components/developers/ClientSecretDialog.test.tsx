@@ -42,4 +42,24 @@ describe('ClientSecretDialog', () => {
         fireEvent.click(view.getByRole('button', { name: 'Entendi, já salvei' }));
         expect(closed).toBe(true);
     });
+
+    test('não fecha com Esc nem oferece botão de fechar', () => {
+        const { render, fireEvent } = dom.testing;
+        let closed = false;
+
+        const view = render(
+            <ClientSecretDialog
+                open
+                onOpenChange={(open) => {
+                    if (!open) closed = true;
+                }}
+                clientId="flw_app_abc123"
+                clientSecret="flw_sec_segredo_unico"
+            />
+        );
+
+        fireEvent.keyDown(view.getByRole('dialog'), { key: 'Escape' });
+        expect(closed).toBe(false);
+        expect(view.queryByRole('button', { name: 'Close' })).toBeNull();
+    });
 });

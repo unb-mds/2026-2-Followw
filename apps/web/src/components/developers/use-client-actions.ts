@@ -4,10 +4,12 @@ import {
     oauthClientsQueryOptions,
     rotateOAuthClientSecret
 } from '@followw/core/queries/oauth.ts';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useMutationState, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { toast } from '#/components/ui/toast';
+
+const ACTION_KEY = ['oauth-client-action'];
 
 export type RevealedSecret = { clientId: string; clientSecret: string; title: string };
 
@@ -31,6 +33,7 @@ export function useClientActions(onSecret: (secret: RevealedSecret) => void) {
     }
 
     const rotate = useMutation({
+        mutationKey: ACTION_KEY,
         mutationFn: rotateOAuthClientSecret,
         onMutate: () => setError(null),
         onSuccess: (result) => {
@@ -48,6 +51,7 @@ export function useClientActions(onSecret: (secret: RevealedSecret) => void) {
     });
 
     const remove = useMutation({
+        mutationKey: ACTION_KEY,
         mutationFn: deleteOAuthClient,
         onMutate: () => setError(null),
         onSuccess: () => {
@@ -60,5 +64,12 @@ export function useClientActions(onSecret: (secret: RevealedSecret) => void) {
         )
     });
 
-    return { rotate, remove, error, invalidate };
+    // todas as ações pendentes, não só a última de cada mutation
+    const pending = useMutationState({
+        filters: { mutationKey: ACTION_KEY, status: 'pending' },
+        select: (mutation) => mutation.state.variables
+    });
+    const busy = (id: string) => pending.includes(id);
+
+    return { rotate, remove, busy, error, invalidate };
 }
