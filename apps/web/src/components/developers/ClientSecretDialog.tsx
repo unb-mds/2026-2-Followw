@@ -1,6 +1,6 @@
-import { Check, Copy, ShieldAlert } from 'lucide-react';
-import { useState } from 'react';
+import { ShieldAlert } from 'lucide-react';
 
+import { CopyField } from '#/components/developers/CopyField';
 import { Button } from '#/components/ui/button';
 import {
     Dialog,
@@ -26,19 +26,6 @@ export function ClientSecretDialog({
     clientSecret,
     title = 'Guarde seu client_secret agora'
 }: Props) {
-    const [copiedField, setCopiedField] = useState<'id' | 'secret' | null>(null);
-
-    async function copy(field: 'id' | 'secret', value: string) {
-        try {
-            await navigator.clipboard.writeText(value);
-            setCopiedField(field);
-            setTimeout(
-                () => setCopiedField((current) => (current === field ? null : current)),
-                2000
-            );
-        } catch {}
-    }
-
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-lg">
@@ -59,59 +46,8 @@ export function ClientSecretDialog({
                         </span>
                     </div>
 
-                    <div className="flex flex-col gap-1.5">
-                        <span className="text-xs font-medium text-muted-foreground">Client ID</span>
-                        <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
-                            <code className="flex-1 truncate text-xs">{clientId}</code>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 gap-1 px-2 text-xs"
-                                onClick={() => void copy('id', clientId)}
-                            >
-                                {copiedField === 'id' ? (
-                                    <>
-                                        <Check className="size-3.5" aria-hidden="true" />
-                                        Copiado
-                                    </>
-                                ) : (
-                                    <>
-                                        <Copy className="size-3.5" aria-hidden="true" />
-                                        Copiar
-                                    </>
-                                )}
-                            </Button>
-                        </div>
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                        <span className="text-xs font-medium text-muted-foreground">
-                            Client Secret
-                        </span>
-                        <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
-                            <code className="flex-1 text-xs break-all">{clientSecret}</code>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 gap-1 px-2 text-xs"
-                                onClick={() => void copy('secret', clientSecret)}
-                            >
-                                {copiedField === 'secret' ? (
-                                    <>
-                                        <Check className="size-3.5" aria-hidden="true" />
-                                        Copiado
-                                    </>
-                                ) : (
-                                    <>
-                                        <Copy className="size-3.5" aria-hidden="true" />
-                                        Copiar
-                                    </>
-                                )}
-                            </Button>
-                        </div>
-                    </div>
+                    <CopyField label="Client ID" value={clientId} />
+                    <CopyField label="Client Secret" value={clientSecret} wrap />
                 </div>
 
                 <DialogFooter>

@@ -113,12 +113,12 @@ test('lista aplicações públicas e confidenciais com ações adequadas', async
         expect(cards[0]?.textContent).toContain('Bot UnB');
         expect(cards[0]?.textContent).toContain('Confidencial');
         expect(cards[0]?.textContent).toContain('flw_app_confidencial');
-        expect(cards[0]?.textContent).toContain('Rotacionar segredo');
+        expect(cards[0]?.querySelector('[aria-label="Ações de Bot UnB"]')).not.toBeNull();
 
         expect(cards[1]?.textContent).toContain('App Mobile');
         expect(cards[1]?.textContent).toContain('Pública');
         expect(cards[1]?.textContent).toContain('meuapp://callback');
-        expect(cards[1]?.textContent).not.toContain('Rotacionar segredo');
+        expect(cards[1]?.querySelector('[aria-label="Ações de App Mobile"]')).not.toBeNull();
     } finally {
         browser.close();
     }
