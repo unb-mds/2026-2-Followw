@@ -8,7 +8,7 @@ import { useRouter } from 'expo-router';
 import { Coffee, Soup, UtensilsCrossed } from 'lucide-react-native';
 import { Pressable, View } from 'react-native';
 
-import { LoadingText } from '@/components/LoadingText';
+import { LinesSkeleton, LoadingSkeleton } from '@/components/LoadingSkeleton';
 import { SectionHeader } from '@/components/SectionHeader';
 import { Card } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
@@ -70,9 +70,15 @@ export function PublicInfoSection({
                         </Text>
                     </View>
                     {isLoading && published.length === 0 ? (
-                        <LoadingText className="justify-start py-0">
-                            Carregando cardápio...
-                        </LoadingText>
+                        <LoadingSkeleton label="Carregando cardápio...">
+                            <LinesSkeleton
+                                lines={
+                                    isToday
+                                        ? ['h-3 w-1/2', 'h-8 w-3/4']
+                                        : ['w-full', 'w-full', 'w-full']
+                                }
+                            />
+                        </LoadingSkeleton>
                     ) : isToday ? (
                         <NextMeal meal={next} today={now.date} />
                     ) : published.length > 0 ? (

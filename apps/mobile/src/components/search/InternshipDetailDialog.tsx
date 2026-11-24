@@ -10,7 +10,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Briefcase, Building2, Download, GraduationCap, Users, Wallet } from 'lucide-react-native';
 import { Pressable, ScrollView, View } from 'react-native';
 
-import { LoadingText } from '@/components/LoadingText';
+import { LinesSkeleton, LoadingSkeleton, repeat } from '@/components/LoadingSkeleton';
 import { Markdown, openLink } from '@/components/Markdown';
 import { formatCurrency, formatDate } from '@/components/search/InternshipCard';
 import { Badge } from '@/components/ui/badge';
@@ -198,9 +198,16 @@ export function InternshipDetailDialog({
                             <DialogDescription>
                                 {`Inscrições até ${summary ? formatDate(summary.published_until) : ''}`}
                             </DialogDescription>
-                            <LoadingText className="justify-start py-0">
-                                Carregando detalhes da vaga...
-                            </LoadingText>
+                            <LoadingSkeleton
+                                label="Carregando detalhes da vaga..."
+                                className="mt-4 gap-6"
+                            >
+                                {repeat(3, () => (
+                                    <LinesSkeleton
+                                        lines={['h-5 w-1/3', 'w-full', 'w-full', 'w-2/3']}
+                                    />
+                                ))}
+                            </LoadingSkeleton>
                         </DialogHeader>
                     ) : missing || !detail ? (
                         <View className="items-center py-8">

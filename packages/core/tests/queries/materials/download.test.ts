@@ -3,7 +3,7 @@ import type { Middleware } from 'openapi-fetch';
 import { afterEach, beforeEach, expect, test } from 'bun:test';
 
 import { apiClient } from '../../../src/queries/client.ts';
-import { getMaterialDownload } from '../../../src/queries/materials.ts';
+import { getMaterialBytes, getMaterialDownload } from '../../../src/queries/materials.ts';
 
 let middleware: Middleware;
 let requests: Request[];
@@ -78,4 +78,18 @@ test('falha do SIGAA não vira arquivo para salvar', async () => {
             (error: unknown) => error
         )
     ).toBeInstanceOf(Error);
+});
+
+test('download em bytes preserva nome, tipo e conteúdo', async () => {
+    const file = await getMaterialBytes('AAA', 'material:' + 'a'.repeat(64));
+    expect(file.filename).toBe('Anotações.txt');
+    expect(file.type).toBe('text/plain; charset=utf-8');
+    expect(new TextDecoder().decode(file.bytes)).toBe('arquivo');
+});
+
+test('download em bytes rejeita corpo vazio', async () => {
+    response = () => new Response('');
+    expect(
+        await getMaterialBytes('AAA', 'material:' + 'a'.repeat(64)).catch((error: unknown) => error)
+    ).toMatchObject({ message: 'O arquivo recebido está vazio.' });
 });

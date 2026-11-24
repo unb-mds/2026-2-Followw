@@ -1,7 +1,7 @@
-import type { ClassroomNews } from '@followw/core/queries/posts.ts';
+import type { FeedPost } from '@followw/core/queries/posts.ts';
 
 import { postDateLabel, postPreview } from '@followw/core/lib/classroom-posts.ts';
-import { latestNewsQueryOptions } from '@followw/core/queries/posts.ts';
+import { latestPostsQueryOptions } from '@followw/core/queries/posts.ts';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { Bell } from 'lucide-react-native';
@@ -9,7 +9,7 @@ import { useState, useSyncExternalStore } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 
 import { ErrorCard, SIGAA_DOWN_MESSAGE, StaleDataNotice } from '@/components/ErrorState';
-import { LoadingText } from '@/components/LoadingText';
+import { LinesSkeleton, LoadingSkeleton, repeat } from '@/components/LoadingSkeleton';
 import { Button } from '@/components/ui/button';
 import {
     Drawer,
@@ -23,16 +23,17 @@ import { Text } from '@/components/ui/text';
 import { STORAGE_KEYS, storedValue } from '@/lib/storage';
 import { cn } from '@/lib/utils';
 
-// notícia mais recente já vista ao abrir a lista
+// chaves das notificações vistas ao abrir a lista, separadas por vírgula
 const seenNews = storedValue<string | null>(STORAGE_KEYS.SEEN_NEWS, null);
-const newsKey = ({ classroom, post }: ClassroomNews) => `${classroom.id}:${post.id}`;
+const postKey = ({ classroom, post }: FeedPost) => `${classroom.id}:${post.id}`;
 
 export function NewsNotifications() {
     const [open, setOpen] = useState(false);
-    const feed = useQuery(latestNewsQueryOptions);
+    const feed = useQuery(latestPostsQueryOptions);
     const seen = useSyncExternalStore(seenNews.subscribe, seenNews.getSnapshot);
-    const latest = feed.data?.items[0];
-    const unread = latest != null && newsKey(latest) !== seen;
+    const items = feed.data?.items ?? [];
+    const seenKeys = new Set(seen?.split(','));
+    const unread = items.some((item) => !seenKeys.has(postKey(item)));
 
     return (
         <Drawer
@@ -40,7 +41,7 @@ export function NewsNotifications() {
             open={open}
             onOpenChange={(next) => {
                 setOpen(next);
-                if (next && latest) seenNews.set(newsKey(latest));
+                if (next && items.length > 0) seenNews.set(items.map(postKey).join(','));
             }}
         >
             <DrawerTrigger asChild>
@@ -48,7 +49,7 @@ export function NewsNotifications() {
                     variant="ghost"
                     size="icon"
                     className="relative size-11 rounded-full"
-                    accessibilityLabel={unread ? 'Notificações, há notícias novas' : 'Notificações'}
+                    accessibilityLabel={unread ? 'Notificações, há novidades' : 'Notificações'}
                 >
                     <Icon as={Bell} className="size-5" />
                     {unread && (
@@ -61,7 +62,7 @@ export function NewsNotifications() {
             </DrawerTrigger>
             <DrawerContent className="mx-auto max-w-lg">
                 <DrawerHeader className="border-b border-border">
-                    <DrawerTitle>Últimas notícias</DrawerTitle>
+                    <DrawerTitle>Notificações</DrawerTitle>
                 </DrawerHeader>
                 <ScrollView className="max-h-96" contentContainerClassName="pb-2">
                     <NewsList onOpen={() => setOpen(false)} />
@@ -72,13 +73,18 @@ export function NewsNotifications() {
 }
 
 function NewsList({ onOpen }: { onOpen: () => void }) {
-    const feed = useQuery(latestNewsQueryOptions);
+    const feed = useQuery(latestPostsQueryOptions);
 
     if (feed.isPending)
         return (
-            <NewsMessage>
-                <LoadingText className="justify-start py-0">Carregando notícias...</LoadingText>
-            </NewsMessage>
+            <LoadingSkeleton label="Carregando notificações..." className="gap-0">
+                {repeat(4, (index) => (
+                    <LinesSkeleton
+                        lines={['h-3 w-1/2', 'w-3/4', 'w-full']}
+                        className={cn('px-4 py-3', index > 0 && 'border-t border-border')}
+                    />
+                ))}
+            </LoadingSkeleton>
         );
     if (feed.isLoadingError)
         return (
@@ -92,19 +98,19 @@ function NewsList({ onOpen }: { onOpen: () => void }) {
         <>
             {feed.isError && (
                 <View className="px-2">
-                    <StaleDataNotice subject="as notícias" />
+                    <StaleDataNotice subject="as notificações" />
                 </View>
             )}
             {items.length > 0 ? (
                 items.map((item, index) => (
-                    <NewsItem key={newsKey(item)} item={item} first={index === 0} onOpen={onOpen} />
+                    <NewsItem key={postKey(item)} item={item} first={index === 0} onOpen={onOpen} />
                 ))
             ) : (
                 <NewsMessage>
                     <Text className="text-sm text-muted-foreground">
                         {updating
-                            ? 'Buscando notícias das turmas...'
-                            : 'Nenhuma notícia por enquanto.'}
+                            ? 'Buscando novidades das turmas...'
+                            : 'Nenhuma notificação por enquanto.'}
                     </Text>
                 </NewsMessage>
             )}
@@ -121,7 +127,7 @@ function NewsItem({
     first,
     onOpen
 }: {
-    item: ClassroomNews;
+    item: FeedPost;
     first: boolean;
     onOpen: () => void;
 }) {
@@ -152,9 +158,13 @@ function NewsItem({
             <Text numberOfLines={2} className="text-sm font-semibold">
                 {post.title}
             </Text>
-            <Text numberOfLines={2} className="text-sm text-muted-foreground">
-                {post.content?.trim() ? postPreview(post.content) : 'Toque para ler mais.'}
-            </Text>
+            {post.type === 'assessment' ? (
+                <Text className="text-sm text-muted-foreground">Avaliação</Text>
+            ) : (
+                <Text numberOfLines={2} className="text-sm text-muted-foreground">
+                    {post.content?.trim() ? postPreview(post.content) : 'Toque para ler mais.'}
+                </Text>
+            )}
         </Pressable>
     );
 }

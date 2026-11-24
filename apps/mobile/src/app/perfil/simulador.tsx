@@ -9,8 +9,11 @@ import { Redirect } from 'expo-router';
 
 import { ErrorCard, StaleDataNotice } from '@/components/ErrorState';
 import { BackHeader } from '@/components/HeaderBar';
-import { LoadingText } from '@/components/LoadingText';
-import { AcademicSimulator } from '@/components/profile/AcademicSimulator';
+import { LoadingSkeleton } from '@/components/LoadingSkeleton';
+import {
+    AcademicSimulator,
+    AcademicSimulatorSkeleton
+} from '@/components/profile/AcademicSimulator';
 import { QueryState } from '@/components/QueryState';
 import { Screen } from '@/components/Screen';
 
@@ -28,6 +31,7 @@ export default function SimulatorScreen() {
                 loading="Carregando perfil..."
                 error="Não foi possível carregar o perfil."
                 stale="Não foi possível atualizar o perfil."
+                skeleton={<AcademicSimulatorSkeleton />}
             >
                 {(user) =>
                     !user ? (
@@ -53,7 +57,12 @@ function SimulatorData({ user }: { user: UserProfile }) {
             />
         );
     }
-    if (classrooms.isPending) return <LoadingText>Carregando disciplinas...</LoadingText>;
+    if (classrooms.isPending)
+        return (
+            <LoadingSkeleton label="Carregando disciplinas...">
+                <AcademicSimulatorSkeleton />
+            </LoadingSkeleton>
+        );
 
     const current =
         getCurrentSemester()?.semester ??

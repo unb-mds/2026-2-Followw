@@ -28,7 +28,7 @@ import { View } from 'react-native';
 
 import { BackToTodayBar } from '@/components/BackToTodayBar';
 import { HeaderBar, HeaderToggle } from '@/components/HeaderBar';
-import { LoadingText } from '@/components/LoadingText';
+import { LinesSkeleton, LoadingSkeleton, repeat } from '@/components/LoadingSkeleton';
 import { MealDetails } from '@/components/ru/MealDetails';
 import { RestaurantAccount } from '@/components/ru/RestaurantAccount';
 import { Screen } from '@/components/Screen';
@@ -246,13 +246,10 @@ export default function RUPage() {
                         </View>
                         {sections.length > 0 ? (
                             <MealDetails sections={sections} />
+                        ) : isPending ? (
+                            <MenuSkeleton />
                         ) : (
                             <View className="min-h-40 justify-center px-1">
-                                {isPending && (
-                                    <LoadingText className="justify-start py-0">
-                                        Carregando cardápio...
-                                    </LoadingText>
-                                )}
                                 {isLoadingError && (
                                     <Text className="text-sm text-muted-foreground">
                                         {failureMessage}{' '}
@@ -265,7 +262,7 @@ export default function RUPage() {
                                         </Text>
                                     </Text>
                                 )}
-                                {!isPending && !isLoadingError && (
+                                {!isLoadingError && (
                                     <View className="items-center gap-3 py-4">
                                         <View className="size-12 items-center justify-center rounded-full bg-muted">
                                             <Icon as={UtensilsCrossed} className="size-6" />
@@ -278,7 +275,8 @@ export default function RUPage() {
                                                 Ainda não há pratos divulgados para esta refeição.
                                             </Text>
                                         </View>
-                                        {selectedDate !== today && (
+                                        {(selectedDate !== opening.date ||
+                                            selectedMeal !== opening.meal.key) && (
                                             <Button
                                                 variant="outline"
                                                 size="sm"
@@ -324,6 +322,29 @@ export default function RUPage() {
                 onBack={() => select({ date: opening.date })}
             />
         </View>
+    );
+}
+
+function MenuSkeleton() {
+    return (
+        <LoadingSkeleton label="Carregando cardápio...">
+            <Card>
+                <CardContent className="gap-4">
+                    <LinesSkeleton lines={['h-3 w-24', 'h-7 w-2/3']} />
+                    <View className="gap-3 border-t border-border pt-4">
+                        {repeat(2, () => (
+                            <LinesSkeleton lines={['h-3 w-1/3', 'w-2/3']} />
+                        ))}
+                    </View>
+                </CardContent>
+            </Card>
+            {repeat(4, () => (
+                <LinesSkeleton
+                    lines={['h-3 w-1/3', 'w-3/4', 'w-1/2']}
+                    className="gap-3 rounded-2xl border border-foreground/10 bg-card p-4"
+                />
+            ))}
+        </LoadingSkeleton>
     );
 }
 

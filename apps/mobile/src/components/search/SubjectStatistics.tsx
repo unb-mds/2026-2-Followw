@@ -5,10 +5,12 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { View } from 'react-native';
 
-import { LoadingText } from '@/components/LoadingText';
+import { LoadingSkeleton, repeat } from '@/components/LoadingSkeleton';
 import { StatisticsChart } from '@/components/StatisticsChart';
+import { StatisticsChartSkeleton } from '@/components/StatisticsChartSkeleton';
 import { TabFilter } from '@/components/TabFilter';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Text } from '@/components/ui/text';
 
 export function SubjectStatistics({
@@ -30,7 +32,14 @@ export function SubjectStatistics({
         <View className="gap-3 rounded-xl border border-border p-4">
             <Text className="text-sm font-semibold">Estatísticas anteriores</Text>
             {query.isPending && (
-                <LoadingText className="justify-center">Carregando estatísticas...</LoadingText>
+                <LoadingSkeleton label="Carregando estatísticas...">
+                    <View className="flex-row gap-2">
+                        {repeat(3, () => (
+                            <Skeleton className="h-8 w-24 rounded-full" />
+                        ))}
+                    </View>
+                    <StatisticsChartSkeleton />
+                </LoadingSkeleton>
             )}
             {query.isError && (
                 <View className="items-start gap-2">

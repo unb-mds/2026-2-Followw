@@ -36,6 +36,9 @@ bun doctor                   # expo-doctor
   reescreva sem motivo.
 - Estilo só com classes do Uniwind e os tokens de `src/global.css` (os mesmos do web). Para props
   que não aceitam `className` (ícones nativos, gráficos), use `useColor('token')`.
+- Carregamento de conteúdo usa `Skeleton` imitando o layout do resultado, dentro de
+  `LoadingSkeleton` (`@/components/LoadingSkeleton`), como no web; `LoadingText` só onde o layout é
+  incerto e em botões de ação.
 - Texto sempre com o `Text` de `@/components/ui/text` (aplica a fonte DM Sans); pesos via
   `font-medium`/`font-semibold`/`font-bold`.
 - Acesso à API pelas queries do core. Sessão: a API roda no modo nativo (`X-Followw-Auth: header`) e

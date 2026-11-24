@@ -8,8 +8,8 @@ import { Check, CircleHelp } from 'lucide-react-native';
 import { View } from 'react-native';
 
 import { ErrorCard } from '@/components/ErrorState';
-import { LoadingText } from '@/components/LoadingText';
-import { TurmaSection } from '@/components/search/TurmaSection';
+import { LoadingSkeleton } from '@/components/LoadingSkeleton';
+import { TurmaSection, TurmaSectionSkeleton } from '@/components/search/TurmaSection';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -80,7 +80,9 @@ export function RecommendationsSection({
     return (
         <View accessibilityLabel="Matérias recomendadas" className="gap-3">
             {query.isPending ? (
-                <LoadingText className="justify-center">Buscando recomendações...</LoadingText>
+                <LoadingSkeleton label="Buscando recomendações...">
+                    <TurmaSectionSkeleton />
+                </LoadingSkeleton>
             ) : query.isLoadingError ? (
                 <ErrorCard
                     message="Não foi possível carregar suas recomendações."

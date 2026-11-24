@@ -1,6 +1,11 @@
 import type { ClassroomPost, PostType } from '@followw/core/queries/classrooms.ts';
 
-import { postDateLabel, postLink, postTypeLabels } from '@followw/core/lib/classroom-posts.ts';
+import {
+    groupTopics,
+    postDateLabel,
+    postLink,
+    postTypeLabels
+} from '@followw/core/lib/classroom-posts.ts';
 import {
     classroomPostDetailQueryOptions,
     classroomPostsQueryOptions
@@ -11,9 +16,10 @@ import { RefreshCw } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
 
+import { MaterialDownload } from '@/components/classroom/MaterialDownload';
 import { ErrorCard, SIGAA_DOWN_MESSAGE, StaleDataNotice } from '@/components/ErrorState';
 import { ListCard } from '@/components/ListCard';
-import { LoadingText } from '@/components/LoadingText';
+import { LinesSkeleton, LoadingSkeleton, repeat } from '@/components/LoadingSkeleton';
 import { Markdown, openLink } from '@/components/Markdown';
 import { TabFilter } from '@/components/TabFilter';
 import {
@@ -26,6 +32,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Text } from '@/components/ui/text';
 
 const filters = ['all', 'news', 'topic', 'material', 'assessment'] as const;
@@ -46,17 +53,27 @@ export function ClassroomPosts({ id }: { id: string }) {
 
     if (posts.isPending)
         return (
-            <PostsMessage>
-                <LoadingText className="py-0">Carregando postagens...</LoadingText>
-            </PostsMessage>
+            <LoadingSkeleton label="Carregando postagens...">
+                <View className="flex-row gap-2">
+                    {repeat(4, () => (
+                        <Skeleton className="h-7 w-20 rounded-full" />
+                    ))}
+                </View>
+                <ListCard>
+                    {repeat(5, () => (
+                        <LinesSkeleton
+                            lines={['h-5 w-24 rounded-full', 'w-3/4']}
+                            className="py-3"
+                        />
+                    ))}
+                </ListCard>
+            </LoadingSkeleton>
         );
     if (posts.isLoadingError)
         return <ErrorCard message={SIGAA_DOWN_MESSAGE} onRetry={() => void posts.refetch()} />;
 
     const visible = posts.data.filter((post) => type === 'all' || post.type === type);
-    const topics = new Map(
-        posts.data.filter((post) => post.type === 'topic').map((post) => [post.id, post])
-    );
+    const { topics, materials } = groupTopics(posts.data);
 
     return (
         <View accessibilityLabel="Postagens da turma" className="flex-col gap-3">
@@ -144,12 +161,13 @@ export function ClassroomPosts({ id }: { id: string }) {
                                     </View>
                                 </AccordionTrigger>
                                 <AccordionContent className="pb-3">
-                                    {openedId === post.id &&
-                                        (post.type === 'news' ? (
-                                            <PostDetail classroomId={id} postId={post.id} />
-                                        ) : (
-                                            <PostContent post={post} />
-                                        ))}
+                                    {openedId === post.id && (
+                                        <PostBody
+                                            classroomId={id}
+                                            post={post}
+                                            materials={materials.get(post.id) ?? []}
+                                        />
+                                    )}
                                 </AccordionContent>
                             </AccordionItem>
                         ))}
@@ -168,16 +186,66 @@ function PostsMessage({ children }: { children: React.ReactNode }) {
     );
 }
 
+function PostBody({
+    classroomId,
+    post,
+    materials
+}: {
+    classroomId: string;
+    post: ClassroomPost;
+    materials: ClassroomPost[];
+}) {
+    if (post.type === 'news') return <PostDetail classroomId={classroomId} postId={post.id} />;
+    if (post.type === 'topic')
+        return <TopicContent classroomId={classroomId} topic={post} materials={materials} />;
+    return <PostContent classroomId={classroomId} post={post} />;
+}
+
+function TopicContent({
+    classroomId,
+    topic,
+    materials
+}: {
+    classroomId: string;
+    topic: ClassroomPost;
+    materials: ClassroomPost[];
+}) {
+    return (
+        <View className="flex-col gap-3">
+            {topic.content && <Markdown>{topic.content}</Markdown>}
+            {materials.length > 0 && (
+                <View accessibilityLabel="Materiais do tópico" className="flex-col gap-3">
+                    {materials.map((material) => (
+                        <View key={material.id} className="flex-col gap-2">
+                            <Text className="text-sm font-medium">{material.title}</Text>
+                            <PostContent classroomId={classroomId} post={material} />
+                        </View>
+                    ))}
+                </View>
+            )}
+            {!topic.content && materials.length === 0 && (
+                <Text className="text-sm text-muted-foreground">
+                    Nenhuma descrição publicada para este tópico.
+                </Text>
+            )}
+        </View>
+    );
+}
+
 function PostDetail({ classroomId, postId }: { classroomId: string; postId: string }) {
     const detail = useQuery(classroomPostDetailQueryOptions(classroomId, postId));
     if (detail.isPending)
-        return <LoadingText className="justify-start py-0">Carregando postagem...</LoadingText>;
+        return (
+            <LoadingSkeleton label="Carregando postagem...">
+                <LinesSkeleton lines={['w-full', 'w-full', 'w-2/3']} />
+            </LoadingSkeleton>
+        );
     if (detail.isLoadingError)
         return <ErrorCard message={SIGAA_DOWN_MESSAGE} onRetry={() => void detail.refetch()} />;
     return (
         <>
             {detail.isError && <StaleDataNotice subject="esta postagem" className="mb-3" />}
-            <PostContent post={detail.data} />
+            <PostContent classroomId={classroomId} post={detail.data} />
         </>
     );
 }
@@ -194,7 +262,7 @@ function LinkText({ url, children }: { url: string; children: string }) {
     );
 }
 
-function PostContent({ post }: { post: ClassroomPost }) {
+function PostContent({ classroomId, post }: { classroomId: string; post: ClassroomPost }) {
     const url = postLink(post.url);
     const attachments = post.attachments.flatMap((attachment) => {
         const href = postLink(attachment.url);
@@ -212,7 +280,10 @@ function PostContent({ post }: { post: ClassroomPost }) {
                     {post.type === 'material' ? 'Acessar material' : 'Abrir link'}
                 </LinkText>
             )}
-            {post.type === 'material' && !url && (
+            {post.material_kind === 'file' && (
+                <MaterialDownload classroomId={classroomId} postId={post.id} />
+            )}
+            {post.material_kind === 'action' && (
                 <View className="flex-col gap-2">
                     <Text className="text-sm text-muted-foreground">
                         Este material está disponível na página da turma no SIGAA.
@@ -232,11 +303,6 @@ function PostContent({ post }: { post: ClassroomPost }) {
             )}
             {post.type === 'news' && date && (
                 <Text className="text-xs text-muted-foreground">Publicada em {date}</Text>
-            )}
-            {post.type === 'topic' && !post.content && (
-                <Text className="text-sm text-muted-foreground">
-                    Nenhuma descrição publicada para este tópico.
-                </Text>
             )}
             {post.type === 'news' && !post.content && attachments.length === 0 && (
                 <Text className="text-sm text-muted-foreground">

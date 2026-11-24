@@ -4,7 +4,7 @@ import { keepPreviousData, noop, useQuery, useQueryClient } from '@tanstack/reac
 import { View } from 'react-native';
 
 import { QueryState } from '@/components/QueryState';
-import { TurmaSection } from '@/components/search/TurmaSection';
+import { TurmaSection, TurmaSectionSkeleton } from '@/components/search/TurmaSection';
 import { Text } from '@/components/ui/text';
 
 /** Matérias da unidade, listadas sem texto de busca. */
@@ -28,7 +28,7 @@ export function SubjectResults({
                 loading="Buscando matérias..."
                 error="Não foi possível buscar as matérias."
                 stale="Não foi possível atualizar as matérias. Exibindo os dados salvos."
-                className="justify-center"
+                skeleton={<TurmaSectionSkeleton title />}
             >
                 {(data) => {
                     const subjects = withClassrooms(data);

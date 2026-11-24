@@ -27,12 +27,14 @@ import {
     type MarkLessons
 } from '@/components/classroom/LessonMenu';
 import { ListCard, Meter } from '@/components/ListCard';
+import { repeat } from '@/components/LoadingSkeleton';
 import { SelectionBar } from '@/components/SelectionBar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Icon } from '@/components/ui/icon';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Text } from '@/components/ui/text';
 import { ToggleGroup, ToggleGroupIcon, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
@@ -435,5 +437,47 @@ function Stat({
                 {value}
             </Text>
         </View>
+    );
+}
+
+export function FrequencySummarySkeleton() {
+    return (
+        <Card size="sm" className="gap-0 py-0">
+            <View className="flex-row border-b border-border">
+                {repeat(3, (index) => (
+                    <View
+                        className={cn(
+                            'flex-1 gap-2 px-3 py-3',
+                            index > 0 && 'border-l border-border'
+                        )}
+                    >
+                        <Skeleton className="h-3 w-16" />
+                        <Skeleton className="h-7 w-12" />
+                    </View>
+                ))}
+            </View>
+            <View className="gap-2 px-3 py-3">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-2 w-full" />
+            </View>
+        </Card>
+    );
+}
+
+export function FrequencyContentSkeleton() {
+    return (
+        <>
+            <FrequencySummarySkeleton />
+            <Skeleton className="mt-2 h-5 w-24" />
+            <ListCard>
+                {repeat(6, () => (
+                    <View className="flex-row items-center gap-2 py-2.5">
+                        <Skeleton className="size-4 shrink-0 rounded-full" />
+                        <Skeleton className="h-4 w-1/3" />
+                        <Skeleton className="ml-auto h-6 w-20 rounded-full" />
+                    </View>
+                ))}
+            </ListCard>
+        </>
     );
 }

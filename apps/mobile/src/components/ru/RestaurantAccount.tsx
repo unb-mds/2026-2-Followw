@@ -23,7 +23,7 @@ import { QrCode, RefreshCw } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 
-import { LoadingText } from '@/components/LoadingText';
+import { LoadingSkeleton } from '@/components/LoadingSkeleton';
 import { StudentCard } from '@/components/ru/StudentCard';
 import {
     Accordion,
@@ -44,6 +44,7 @@ import {
     DrawerTrigger
 } from '@/components/ui/drawer';
 import { Icon } from '@/components/ui/icon';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Text } from '@/components/ui/text';
 import { useColor } from '@/lib/colors';
 import { cn } from '@/lib/utils';
@@ -108,7 +109,6 @@ export function RestaurantAccount({
         />
     );
 
-    // o carregamento ocupa o lugar do rótulo do saldo
     const loadingStatement = statement.isPending && !statement.data;
     const statementStatus = (
         <AccountStatus
@@ -149,23 +149,20 @@ export function RestaurantAccount({
                 </View>
 
                 <View>
-                    <View
-                        className={cn(
-                            'flex-row items-center justify-between gap-2',
-                            !loadingStatement && 'mb-2'
-                        )}
-                    >
+                    <View className="mb-2 flex-row items-center justify-between gap-2">
                         {loadingStatement ? (
-                            statementStatus
+                            <Skeleton className="h-5 w-28" />
                         ) : (
                             <Text className="text-sm text-muted-foreground">Saldo disponível</Text>
                         )}
-                        {!statement.data && cardDrawer}
+                        {!statement.data && !loadingStatement && cardDrawer}
                     </View>
-                    {statement.data && (
+                    {statement.data ? (
                         <StatementDetails statement={statement.data} action={cardDrawer} />
+                    ) : (
+                        loadingStatement && <StatementSkeleton action={cardDrawer} />
                     )}
-                    {!loadingStatement && statementStatus}
+                    {statementStatus}
                 </View>
             </CardContent>
         </Card>
@@ -206,6 +203,16 @@ function StudentCardDrawer({
                 </DrawerHeader>
                 <ScrollView contentContainerClassName="p-4">
                     {credentials.data && <StudentCard credentials={credentials.data} />}
+                    {credentials.isPending && !credentials.data && (
+                        <LoadingSkeleton
+                            label="Carregando carteirinha..."
+                            className="mt-4 items-center gap-2"
+                        >
+                            <Skeleton className="size-64 max-w-full" />
+                            <Skeleton className="h-4 w-56" />
+                            <Skeleton className="h-3 w-32" />
+                        </LoadingSkeleton>
+                    )}
                     <AccountStatus
                         query={credentials}
                         hasData={Boolean(credentials.data)}
@@ -225,6 +232,22 @@ function StudentCardDrawer({
                 </DrawerFooter>
             </DrawerContent>
         </Drawer>
+    );
+}
+
+function StatementSkeleton({ action }: { action: React.ReactNode }) {
+    return (
+        <>
+            <View className="flex-row items-center justify-between gap-3">
+                <LoadingSkeleton label="Carregando saldo e extrato...">
+                    <Skeleton className="h-10 w-40" />
+                </LoadingSkeleton>
+                {action}
+            </View>
+            <View className="mt-5 border-t border-border pt-4">
+                <Skeleton className="mb-3 h-5 w-28" />
+            </View>
+        </>
     );
 }
 
@@ -332,9 +355,6 @@ function AccountStatus({
 
     return (
         <View accessibilityLiveRegion="polite">
-            {query.isPending && !hasData && (
-                <LoadingText className="justify-start py-0">Carregando {label}...</LoadingText>
-            )}
             {showError && (
                 <Text className="text-xs text-destructive">
                     {failure ?? failureMessage}{' '}

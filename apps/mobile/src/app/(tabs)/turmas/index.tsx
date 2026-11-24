@@ -10,9 +10,9 @@ import { View } from 'react-native';
 
 import { ErrorCard, SIGAA_DOWN_MESSAGE } from '@/components/ErrorState';
 import { HeaderBar, HeaderTitle } from '@/components/HeaderBar';
-import { ClassCard } from '@/components/home/ClassCard';
+import { ClassCard, ClassCardSkeleton } from '@/components/home/ClassCard';
 import { LoginPromptCard } from '@/components/home/LoginPromptCard';
-import { LoadingText } from '@/components/LoadingText';
+import { LoadingSkeleton, repeat } from '@/components/LoadingSkeleton';
 import { QueryState } from '@/components/QueryState';
 import { Screen } from '@/components/Screen';
 import { TabFilter } from '@/components/TabFilter';
@@ -96,18 +96,22 @@ function Classrooms() {
                     />
                 ))}
             </View>
-            {(isPending || classrooms.length === 0) && (
-                <Card>
-                    <CardContent>
-                        {isPending ? (
-                            <LoadingText className="py-0">Carregando turmas...</LoadingText>
-                        ) : (
+            {isPending ? (
+                <LoadingSkeleton label="Carregando turmas..." className="gap-2">
+                    {repeat(5, () => (
+                        <ClassCardSkeleton />
+                    ))}
+                </LoadingSkeleton>
+            ) : (
+                classrooms.length === 0 && (
+                    <Card>
+                        <CardContent>
                             <Text className="text-center text-sm text-muted-foreground">
                                 Nenhuma turma encontrada.
                             </Text>
-                        )}
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                )
             )}
         </View>
     );

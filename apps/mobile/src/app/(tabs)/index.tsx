@@ -1,7 +1,7 @@
 import { lessonsOn, nowInBrasilia, weekDays } from '@followw/core/lib/schedule.ts';
 import { weekLessonsQueryOptions } from '@followw/core/queries/lessons.ts';
 import { meQueryOptions } from '@followw/core/queries/me.ts';
-import { latestNewsQueryOptions } from '@followw/core/queries/posts.ts';
+import { latestPostsQueryOptions } from '@followw/core/queries/posts.ts';
 import { refreshQuery } from '@followw/core/queries/refresh.ts';
 import {
     campusOf,
@@ -85,7 +85,7 @@ export default function HomeScreen() {
                             weeklyMenuQueryOptions({ campus, date: selectedDay.date })
                         ),
                         user && refreshQuery(queryClient, weekLessonsQueryOptions),
-                        user && refreshQuery(queryClient, latestNewsQueryOptions)
+                        user && refreshQuery(queryClient, latestPostsQueryOptions)
                     ])
                 }
             >

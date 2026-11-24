@@ -17,6 +17,7 @@ import { useState, useSyncExternalStore } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { LineChart } from 'react-native-gifted-charts';
 
+import { repeat } from '@/components/LoadingSkeleton';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
@@ -27,6 +28,7 @@ import {
     SelectTrigger,
     SelectValue
 } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Text } from '@/components/ui/text';
 import { simulatedGrades } from '@/lib/academic-simulation';
 import { useColor } from '@/lib/colors';
@@ -269,5 +271,39 @@ function EvolutionChart({
                 />
             </View>
         </ScrollView>
+    );
+}
+
+export function AcademicSimulatorSkeleton() {
+    return (
+        <View className="my-4 gap-4">
+            <Card className="gap-3 px-4">
+                <View className="flex-row gap-4">
+                    {repeat(2, () => (
+                        <View className="flex-1 gap-2">
+                            <Skeleton className="h-4 w-10" />
+                            <Skeleton className="h-8 w-16" />
+                        </View>
+                    ))}
+                </View>
+                <Skeleton className="h-9 w-36" />
+            </Card>
+            <View className="gap-2">
+                <Skeleton className="mx-1 h-4 w-40" />
+                <Card className="gap-0 py-0">
+                    {repeat(5, (index) => (
+                        <View
+                            className={cn(
+                                'min-h-14 flex-row items-center justify-between gap-3 px-4 py-2',
+                                index > 0 && 'border-t border-border'
+                            )}
+                        >
+                            <Skeleton className="h-4 w-1/2" />
+                            <Skeleton className="h-9 w-20" />
+                        </View>
+                    ))}
+                </Card>
+            </View>
+        </View>
     );
 }

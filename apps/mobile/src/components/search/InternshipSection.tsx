@@ -6,10 +6,12 @@ import { ArrowRight } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 
+import { CardSkeleton, repeat, SectionHeaderSkeleton } from '@/components/LoadingSkeleton';
 import { QueryState } from '@/components/QueryState';
 import { InternshipCard } from '@/components/search/InternshipCard';
 import { InternshipDetailDialog } from '@/components/search/InternshipDetailDialog';
 import { Icon } from '@/components/ui/icon';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
 
@@ -129,7 +131,7 @@ export function InternshipResults({ text }: { text: string | null }) {
                 loading="Carregando ofertas de estágio..."
                 error="Não foi possível carregar as ofertas de estágio."
                 stale="Não foi possível atualizar as vagas. Exibindo os dados salvos."
-                className="justify-center"
+                skeleton={<InternshipSectionSkeleton count={5} />}
             >
                 {(data) => (
                     <InternshipSection
@@ -142,6 +144,24 @@ export function InternshipResults({ text }: { text: string | null }) {
                     />
                 )}
             </QueryState>
+        </View>
+    );
+}
+
+export function InternshipSectionSkeleton({ title, count }: { title?: boolean; count: number }) {
+    return (
+        <View className="flex-col gap-4">
+            {title && <SectionHeaderSkeleton />}
+            <View className="flex-col gap-2.5">
+                <Skeleton className="h-5 w-32" />
+                {repeat(count, () => (
+                    <CardSkeleton
+                        media="size-9 rounded-xl"
+                        lines={['w-2/3', 'h-3 w-1/2']}
+                        className="items-start"
+                    />
+                ))}
+            </View>
         </View>
     );
 }

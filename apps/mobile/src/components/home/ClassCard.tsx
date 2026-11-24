@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
 
@@ -170,5 +171,15 @@ export function ClassCard({
                 </Card>
             )}
         </Pressable>
+    );
+}
+
+export function ClassCardSkeleton() {
+    return (
+        <Card size="sm" className="gap-2 px-3">
+            <Skeleton className="h-5 w-3/4" />
+            <Skeleton className="h-3 w-1/2" />
+            <Skeleton className="h-3 w-1/3" />
+        </Card>
     );
 }
