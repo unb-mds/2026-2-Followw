@@ -1,4 +1,4 @@
-# Recomendações de matérias — v3
+# Recomendações de matérias
 
 `GET /public/subjects` sem `q`, `code` e `unit` devolve as recomendações do aluno de graduação
 logado, no lugar da listagem padrão da unidade. Visitantes recebem 422, como antes, e usuários fora
@@ -13,6 +13,9 @@ medida (semestres, matérias ou horas).
 Para quem está logado, toda resposta do `/public/subjects` (busca ou recomendação) traz `kind`:
 `mandatory`, `optional` (inclui complementares) ou `free` (fora da matriz). Na busca comum, a matriz
 é a gravada no usuário, sem ir ao SIGAA; sem login ou sem matriz, `kind` é `null`.
+
+Recomendações usam a sessão web por cookies; essa rota pública não aceita OAuth como sessão
+opcional para personalizar os resultados.
 
 A aba de busca exibe as recomendações, seus motivos e turmas para alunos de graduação quando não há
 texto ou filtros aplicados. A pontuação não é persistida no cache offline.
@@ -44,7 +47,7 @@ histórico é lido uma vez por matrícula e curso (`users.transcript_synced_at`)
 são tentadas de novo no próximo sync do perfil. Os códigos ficam em `user_completed_subjects` e
 chegam ao front em `completed_subjects` do `/me`. O histórico de outra matrícula é descartado.
 
-A matriz é inferida só pelo semestre de entrada do perfil (`entry_semester`), com curso e turno do
+A matriz é inferida pelo semestre de entrada do perfil (`entry_semester`), com curso e turno do
 perfil armazenado: vale a vigência mais recente até a entrada; se a entrada preceder todas, a mais
 antiga. Revisão do código e ID SIGAA desempatam, e matriz de turno oposto nunca é escolhida. O turno
 vem do curso resolvido pelo sync, não de uma confirmação adicional. A inferência roda no sync do
@@ -60,14 +63,19 @@ anterior ao alvo.
 
 ## Elegibilidade e score
 
-O universo abrange toda a universidade: entra toda matéria com turma no semestre da oferta. As
-exclusões são contadas uma vez, nesta ordem: aprovada, em andamento, pré-requisitos, correquisitos,
-matriz indisponível, módulo livre. Fora da matriz é módulo livre; componentes optativos e
-complementares da matriz não são. Regras são OU de grupos E. Equivalências declaradas no catálogo
-excluem a candidata quando um grupo inteiro já foi aprovado, está em andamento ou tem resultado
+As candidatas são matérias da matriz do aluno com turma no semestre da oferta. Matérias fora da
+matriz (módulo livre) não são recomendadas; componentes optativos e complementares da matriz podem
+ser. Aprovadas, em andamento e tentativas sem resultado saem da lista. Regras são OU de grupos E.
+Para pré e correquisitos, se houver grupos inteiramente contidos na matriz ou nos códigos
+explicitamente concluídos, só esses grupos são considerados; caso contrário, a regra original é
+mantida. Equivalências declaradas no catálogo excluem a candidata quando um grupo inteiro já foi
+aprovado, está em andamento ou tem resultado
 desconhecido. Esses mesmos grupos satisfazem pré/correquisitos, presumindo aprovação das tentativas
 sem menção. A avaliação é direcional e direta, sem inferir reciprocidade ou transitividade, e inclui
-requisitos fora da matriz. Correquisitos não são projetados como matrícula simultânea.
+requisitos fora da matriz. Correquisitos podem ser satisfeitos pelas matérias concluídas ou por
+outras candidatas elegíveis para cursar junto. A lista é reduzida até estabilizar: se uma candidata
+perde um correquisito que não pode ser recomendado, ela também é removida. Isso não verifica
+compatibilidade de horários entre as turmas.
 
 Critérios absolutos:
 
@@ -109,9 +117,11 @@ autorização de matrícula.
 ```bash
 uv sync --all-packages
 uv run ruff format .
-uv run pytest apps/api/tests/test_recommendations.py
+uv run pytest apps/api/tests/unit/test_recommendations.py
+uv run pytest apps/api/tests/integration/recommendations
 uv run pytest apps/api
 uv run pytest packages/sigaa-client/tests
 ```
 
-Os testes usam dados sintéticos, SQLite temporário e SIGAA simulado, sem validar produção.
+Os testes usam dados sintéticos e SIGAA simulado, sem validar produção. Testes unitários não exigem
+banco; os de integração usam PostgreSQL via testcontainers e exigem Docker ativo.

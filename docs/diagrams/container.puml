@@ -6,20 +6,22 @@ LAYOUT_WITH_LEGEND()
 title Diagrama de Containers — Followw UnB
 
 Person(estudante, "Estudante UnB", "Usuário final interagindo com a plataforma.")
+System_Ext(aplicativo, "Aplicação terceira", "Cliente OAuth com permissões concedidas.")
 
 System_Boundary(c1, "Followw UnB") {
     Container(web, "Frontend Web", "TanStack Start, React 19, Tailwind CSS, PWA", "Interface web reativa com suporte offline (Service Worker + IndexedDB).")
-    Container(api, "Backend API", "FastAPI, Python 3.14", "API REST assíncrona, orquestra cache SWR, valida cookies JWE e executa scrapers.")
-    ContainerDb(db, "Banco de Dados", "PostgreSQL 18+", "Cache de turmas, postagens, participantes, currículos, disciplinas e cardápio do RU.")
+    Container(api, "Backend API", "FastAPI, Python 3.14", "API REST, cache SWR, cookies JWE, OAuth com escopos e scrapers.")
+    ContainerDb(db, "Banco de Dados", "PostgreSQL 18+", "Cache acadêmico e do RU, preferências, leituras e autorizações OAuth.")
 }
 
 System_Ext(sigaa, "SIGAA / CAS UnB", "Sistema Acadêmico Legado")
-System_Ext(portais, "Portais UnB", "PDFs do RU e editais")
+System_Ext(portais, "Site do RU", "Cardápios públicos em PDF")
 System_Ext(qstash, "Upstash QStash", "Fila de jobs assíncronos")
 System_Ext(redis, "Upstash Redis", "Armazenamento em memória para Rate Limiting")
 
 Rel(estudante, web, "Utiliza", "HTTPS")
 Rel(web, api, "Consome endpoints REST (cookies JWE)", "HTTPS / JSON")
+Rel(aplicativo, api, "Usa Bearer; renova autorização com DPoP", "HTTPS / JSON")
 Rel(api, db, "Lê/Grava cache (SWR)", "Asyncpg / SQLAlchemy")
 Rel(api, redis, "Verifica e incrementa cotas de requisição", "HTTPS / REST")
 Rel(api, sigaa, "Scraping com ciclo de vida JSF", "HTTPS")

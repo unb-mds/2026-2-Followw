@@ -28,6 +28,8 @@ TTL (`None`), o dado **nunca vence** sozinho.
 | Lista de turmas (`/classrooms`) | 72 h                                      | usuário                 | Vale para todos os semestres                       |
 | Participantes da turma          | 48 h (12h durante o período de matrícula) | turma                   | semestre passado: sem TTL                          |
 | Estatísticas da turma           | sem TTL                                   | turma                   | Revalidada com `no-cache`                          |
+| Plano de ensino                 | sem TTL                                   | turma                   | Revalidável pelo cliente; ausência também é salva  |
+| Menções do relatório             | 24 h                                      | usuário                 | Sync da conta; não congela após consolidação       |
 | Frequência da turma             | 24 h                                      | vínculo usuário × turma | Turma de semestre passado: sem TTL                 |
 | Lista de posts da turma         | 24 h                                      | turma                   | Turma de semestre passado: sem TTL                 |
 | Verificação da home do SIGAA    | 1 h                                       | usuário                 | Agenda sync das turmas com novidades não salvas    |
@@ -75,12 +77,14 @@ Se a busca falhar e houver cache aceito pelo `stale-if-error`, ele é servido. S
 - O dado foi servido **vencido** (idade > TTL): agenda a tarefa daquela turma, ou da conta.
 - A lista de turmas está vencida ao abrir qualquer turma: agenda o sync da conta.
 - **Login** (`POST /auth/sigaa`) e **refresh** (`POST /auth/sigaa/refresh`, chamado ao abrir o app):
-  se o usuário não existe, ou perfil/lista de turmas/participantes/estatísticas estão vencidos,
-  agenda o sync da conta. O job da conta atualiza perfil e lista de turmas vencidos e então agenda
-  **um job por turma** com participantes ou estatísticas vencidos.
+  se perfil, lista de turmas, menções ou detalhes elegíveis estão vencidos, agenda o sync da conta.
+  O job atualiza perfil, lista de turmas e menções vencidos e agenda **um job por turma** com as
+  tarefas pendentes: participantes, estatísticas de turmas passadas e plano de ensino de turmas
+  atuais. A renovação OAuth (`POST /oauth/token`) também agenda esse sync.
 
-O login só pré-aquece perfil, turmas, participantes e estatísticas. Frequência e notícias só
-sincronizam quando alguém as consulta.
+O login pré-aquece perfil, turmas, menções, participantes, estatísticas históricas e planos de
+ensino atuais. Frequência e posts são sincronizados nas consultas que os utilizam, inclusive a
+agenda semanal e a verificação de novidades da home.
 
 Um job por turma leva todas as tarefas vencidas dela; tarefas repetidas na mesma requisição entram
 uma vez. O job roda as tarefas **sem rechecar o TTL**.
@@ -88,9 +92,10 @@ uma vez. O job roda as tarefas **sem rechecar o TTL**.
 ## Quando a API **não** sincroniza
 
 - **Cache dentro do TTL** e o cliente não pediu para revalidar.
-- **Dado sem TTL**: estatísticas e conteúdo de notícia de qualquer turma, além de participantes,
-  frequência e lista de posts de turmas de semestres passados. Só são relidos com `no-cache`,
-  respeitando o congelamento dos participantes descrito abaixo.
+- **Dado sem TTL**: estatísticas, plano de ensino e conteúdo de notícia, além de participantes,
+  frequência e lista de posts de turmas de semestres passados. Não vencem por tempo, mas aceitam
+  revalidação por `no-cache` ou `max-age`, respeitando o congelamento dos participantes. Detalhes
+  imutáveis de posts exigem especificamente `no-cache`.
 - **Regras do calendário acadêmico** (`api/academic_calendar.py`): passados 3 dias do fim do
   semestre da turma, os participantes vencem até um último sync. Depois dele, **nunca** são
   ressincronizados, nem com `no-cache` nem no login. Semestres anteriores ao calendário já contam
@@ -109,8 +114,9 @@ uma vez. O job roda as tarefas **sem rechecar o TTL**.
 - **Turma saiu da lista do usuário** depois de agendada: o job é descartado.
 - **Turma ou notícia sumiu do SIGAA** (`ClassroomNotFound`, `NewsNotFound`) ou **gravação
   concorrente** (`IntegrityError`): a tarefa é descartada, sem retentativa.
-- **Rotas sem cache**, que não sincronizam porque nada é guardado: `/me/ru-statement`,
-  `/me/ru-token` e `/public/classrooms` sempre vão à origem; `/me/settings` só usa o banco.
+- **Recursos sem cache de conteúdo**: extrato/token do RU, PDFs, arquivos de materiais, estágios e
+  `/public/classrooms` consultam a origem. Configurações usam o banco. A edição de perfil grava no
+  SIGAA e atualiza o cache do perfil, mas sua resposta usa `no-store`.
 
 ## Falhas e retentativas
 
@@ -169,8 +175,19 @@ da origem são preservados, assim como os conteúdos de notícias já consultado
 ausentes continuam nulas; a agenda usa campos próprios para data e horário. Resultados individuais
 ficam fora dos posts.
 
-Não há migração do cache antigo: conforme a convenção do projeto, a mudança de
-`classrooms.news_synced_at` para `posts_synced_at` exige recriar o banco existente.
+O banco não tem migrações de esquema: mudanças de colunas exigem recriá-lo; `db-init` só cria
+tabelas ausentes e semeia os dados de referência.
 
 O campo `is_read` é individual: `PUT` e `DELETE /classrooms/{classroom_id}/posts/{post_id}/read`
 confirmam e desfazem a leitura no banco do Followw, sem alterar a postagem no SIGAA.
+
+`POST /classrooms/{classroom_id}/posts/{post_id}/download` baixa um material diretamente do SIGAA,
+sem guardar seus bytes. Plano de ensino fica em `GET /classrooms/{classroom_id}/teaching-plan` e
+retorna `null` se a origem não disponibiliza plano; essa ausência também fica em cache.
+
+## OAuth e validade imutável
+
+Chamadas OAuth validam a autorização e os escopos antes de servir o cache e seguem as mesmas
+regras de sincronização da web. Permissões também limitam os campos retornados e o acesso a
+semestres passados. Conteúdos tratados como imutáveis pelo motor só são revalidados com `no-cache`;
+`max-age` não os força. Isso difere de `FROZEN`, que impede até a revalidação com `no-cache`.

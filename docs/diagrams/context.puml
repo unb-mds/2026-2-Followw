@@ -6,16 +6,18 @@ LAYOUT_WITH_LEGEND()
 title Diagrama de Contexto — Followw UnB
 
 Person(estudante, "Estudante UnB", "Aluno de graduação ou pós-graduação consultando informações acadêmicas e serviços do campus.")
+System_Ext(aplicativo, "Aplicação terceira", "Consulta recursos delegáveis com autorização OAuth e escopos.")
 
-System(followw, "Followw UnB", "Cliente alternativo e API que unifica dados do SIGAA, RU e calendários com sessão stateless.")
+System(followw, "Followw UnB", "Cliente alternativo e API com cookies cifrados, cache acadêmico e autorizações OAuth.")
 
 System_Ext(sigaa, "SIGAA / CAS UnB", "Sistema acadêmico legado e Centro de Autenticação da UnB.")
-System_Ext(site_unb, "Portais da UnB (RU / Calendário)", "Páginas institucionais que publicam cardápios em PDF e calendários oficiais.")
+System_Ext(site_unb, "Site do RU", "Páginas institucionais que publicam cardápios em PDF.")
 System_Ext(qstash, "Upstash QStash", "Serviço externo de mensageria e filas serverless para jobs assíncronos.")
 
 Rel(estudante, followw, "Acessa turmas, notas, frequência e cardápio", "HTTPS")
+Rel(aplicativo, followw, "Usa Bearer; renova com DPoP", "HTTPS / JSON")
 Rel(followw, sigaa, "Autentica e extrai dados acadêmicos", "HTTPS / JSF")
-Rel(followw, site_unb, "Coleta cardápios do RU e calendários", "HTTPS")
+Rel(followw, site_unb, "Coleta cardápios do RU; calendário é distribuído em JSON local", "HTTPS")
 Rel(followw, qstash, "Enfileira jobs de sincronização", "HTTPS")
 Rel(qstash, followw, "Dispara webhooks de background sync", "HTTPS / POST /jobs")
 

@@ -4,7 +4,7 @@ O Followw não tem conta própria: você entra com a mesma matrícula e senha do
 que confere se elas estão certas. Este documento explica como as credenciais são protegidas depois
 do login e os limites dessa proteção. Todo o código citado é aberto e pode ser auditado.
 
-## O Followw não guarda sua senha
+## Onde a credencial fica
 
 Nenhuma senha vai para o banco de dados, para os logs ou para qualquer arquivo do servidor. O banco
 guarda o cache acadêmico e os registros de autorização dos aplicativos.
@@ -59,7 +59,8 @@ Na prática:
 
 Cada autorização tem um registro com matrícula, aplicação, permissões concedidas, salt aleatório e
 vencimento. A API deriva chaves distintas para access e refresh com HKDF, o salt e
-`OAUTH_SECRET_KEY`. A senha do SIGAA fica cifrada no token do cliente. Cada chamada Bearer valida a
+`OAUTH_SECRET_KEY` (no mínimo 32 caracteres e diferente de `JWT_SECRET_KEY`). A senha do SIGAA fica
+cifrada no token do cliente. Cada chamada Bearer valida a
 autorização antes de servir o cache. Excluir o registro invalida imediatamente os dois tokens.
 
 O access vale 40 minutos. Na renovação, a API autentica no SIGAA, cifra a nova sessão no access e
@@ -68,7 +69,8 @@ sucesso estende por 14 dias o prazo do mesmo refresh. Para clientes públicos, `
 recebe o formulário `grant_type=refresh_token`, `client_id`, `refresh_token` e uma prova DPoP ES256
 nova, vinculada à chave da instalação e à URL `PUBLIC_URL/oauth/token`. Clientes no navegador usam
 `credentials: "omit"`. O cadastro, o aceite e a emissão pública inicial pertencem à etapa de
-autorização de aplicações.
+autorização de aplicações, ainda sem rotas públicas de cadastro, consentimento e emissão inicial
+implementadas. O endpoint público atual permite renovar uma autorização já existente.
 
 No OpenAPI, `x-oauth-scopes` traz o título, o nível de confiança e as dependências de cada
 permissão. O nível informa a sensibilidade do acesso. Cada operação delegável declara seu
@@ -104,7 +106,9 @@ implementa nenhum algoritmo criptográfico por conta própria.
 
 ## Onde conferir
 
-- `apps/api/api/cookies.py`: derivação das chaves, emissão, criptografia e leitura dos cookies.
-- `apps/api/tests/test_cookies.py`: testes de segurança de cada etapa (vazamento, adulteração,
+- `apps/api/api/crypto.py` e `cookies.py`: derivação das chaves, criptografia e cookies.
+- `apps/api/tests/unit/test_cookies.py`: testes de segurança de cada etapa (vazamento, adulteração,
   chaves, formatos recusados, expiração).
 - `apps/api/api/sync/queue.py`: cifra das tarefas em segundo plano.
+- `apps/api/api/modules/oauth/`: tokens, autorização, escopos, DPoP e filtragem das respostas.
+- `apps/api/tests/unit/oauth/` e `apps/api/tests/integration/oauth/`: testes do acesso delegado.

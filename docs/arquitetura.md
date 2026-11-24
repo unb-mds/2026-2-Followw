@@ -12,7 +12,8 @@ decisões técnicas e organização do código.
 
 O Followw UnB é um cliente alternativo e open-source para o ecossistema de sistemas acadêmicos da
 Universidade de Brasília (UnB), agregando em uma experiência unificada e performática dados do
-**SIGAA**, **Restaurante Universitário (RU)**, calendários e editais.
+**SIGAA**, **Restaurante Universitário (RU)** e calendário acadêmico. Editais ainda não têm
+resource na biblioteca nem tela ou endpoint no Followw.
 
 O sistema não possui contas proprietárias: a autenticação é delegada ao **Centro de Autenticação da
 UnB**. A sessão web usa cookies cifrados. Requisições OAuth validam a autorização no banco e seguem
@@ -30,11 +31,11 @@ o mesmo cache da web.
 | **Offline & PWA**      | `vite-plugin-pwa` (Workbox) + `idb-keyval`                                   | Service Worker para precache de assets/HTML SSR e persistência do cache do TanStack Query no IndexedDB por 14 dias.                                                       |
 | **Backend API**        | FastAPI (Python >= 3.14)                                                     | Assíncrono nativo, alta performance, geração automática de documentação OpenAPI (Mintlify) e injeção de dependências robusta.                                             |
 | **Scraper SIGAA**      | `sigaa-client` (`httpx`, `bs4`, `lxml`, `pypdf`, `zxing-cpp`, `markdownify`) | Abstração que gerencia o ciclo de vida JSF (ViewState, postback), emissão de documentos PDF, leitura de QR Code/código de barras do RU e conversão de HTML para Markdown. |
-| **Scraper Sites UnB**  | `unb-browser` (`httpx`, `bs4`, `pdfplumber`)                                 | Extração resiliente de cardápios do RU (parser geométrico via `pdfplumber`) e calendários acadêmicos.                                                                     |
+| **Sites UnB e calendário** | `unb-browser` (`httpx`, `bs4`, `pdfplumber`)                             | Extração de cardápios do RU via `pdfplumber` e calendário acadêmico distribuído em JSON local. |
 | **Banco de Dados**     | PostgreSQL 18+ (SQLAlchemy assíncrono + `asyncpg`)                           | Armazenamento de cache de turmas, postagens, currículos, disciplinas, cardápios e participantes.                                                                          |
-| **Rate Limit / Cache** | Upstash Redis (REST HTTP) / Redis 8 (`redis-py`)                             | Controle de taxa em memória por IP/janela fixa, mitigando abusos de força bruta e sobrecarga no CAS/SIGAA.                                                                |
+| **Rate Limit**         | Upstash Redis (SDK REST assíncrono); Redis 8 com proxy REST local              | Cotas distribuídas por IP e matrícula em janela fixa. O cache acadêmico fica no PostgreSQL. |
 | **Fila Assíncrona**    | Upstash QStash                                                               | Execução desacoplada de jobs de sincronização via webhooks HTTP autenticados, com _flow control_ e deduplicação.                                                          |
-| **Segurança/Sessão**   | JWE (`AES-256-GCM`) + Fernet + HKDF                                          | Sessão _stateless_: tokens e credenciais residem em cookies `HttpOnly` cifrados (JWE) e jobs em payloads Fernet; nenhuma senha persistida no servidor.                    |
+| **Segurança/Sessão**   | JWE (`AES-256-GCM`) + Fernet + HKDF; OAuth com escopos e DPoP na renovação     | Cookies e tokens cifrados; autorizações OAuth no banco; credenciais de jobs cifradas na fila. Senhas não são gravadas no banco nem nos logs. |
 | **Observabilidade**    | Logger JSON (`api/logger.py`) + PostHog (Web)                                | Telemetria de produto no cliente e logs estruturados por evento com `request_id` e `duration_ms` sem exposição de dados sensíveis.                                        |
 | **Infra & Qualidade**  | Vercel (`gru1`), GitHub Actions, `uv`, `bun`, Ruff, Oxlint/Oxfmt             | Hospedagem Serverless Multi-Service, resolução instantânea de dependências e pipeline de CI com lint e testes automatizados.                                              |
 
@@ -106,6 +107,16 @@ suas interações com as bibliotecas do monorepo e dados.
 - Para detalhes sobre ciclo de vida dos tokens, rotação de chaves e garantias criptográficas,
   disponível em [`docs/seguranca.md`](seguranca.md).
 
+### Acesso delegado por OAuth
+
+- Aplicações usam Bearer nas rotas delegáveis. A API valida o registro da autorização e seus
+  escopos antes de acessar o cache, filtra campos da resposta e exige permissão adicional para
+  histórico de turmas.
+- `POST /oauth/token` renova autorizações existentes com uma prova DPoP ES256 da instalação.
+  Cadastro, consentimento e emissão inicial ainda não têm rotas públicas implementadas.
+- `OAUTH_SECRET_KEY` é obrigatório e distinto de `JWT_SECRET_KEY`. As regras de cache e jobs são
+  compartilhadas com a sessão web; CORS OAuth permite clientes externos sem cookies.
+
 ### Proteção contra Abuso e Rate Limiting (Redis)
 
 - **Controle de Taxa Distribuído (`api/rate_limit.py`, `api/redis.py`)**: A API aplica limites de
@@ -135,6 +146,7 @@ suas interações com as bibliotecas do monorepo e dados.
   sessão podem trocá-la, e o client confere e reabre a turma antes de ler cada tela.
 - **Extração geométrica de PDFs**: O `unb-browser` utiliza `pdfplumber` avaliando posicionamento
   espacial relativo para lidar com células mescladas e formatos variados entre os campi da UnB.
+  O calendário acadêmico vem de JSON estático distribuído pelo pacote, sem consulta de rede.
 
 ### Orquestração de Background Jobs (QStash)
 
@@ -158,8 +170,10 @@ suas interações com as bibliotecas do monorepo e dados.
 
 - **Semeadura de Dados (`api/db/seed/`)**: na inicialização do banco (`db-init`), arquivos CSV
   pré-coletados em `packages/sigaa-client/data/` populam automaticamente unidades acadêmicas
-  (`units`), cursos de graduação (`courses`), estruturas curriculares (`curriculums`), componentes
+  (`units`), cursos de graduação (`courses`), estruturas curriculares (`curricula`), componentes
   curriculares (`subjects`) e turmas (`classrooms`).
+- Docentes têm importação própria por `uv run db-seed-professors`; ela não faz parte do seed
+  automático de `db-init`.
 - **Congelamento por Calendário Acadêmico (`api/academic_calendar.py`)**: utiliza as datas oficiais
   do período letivo para congelar automaticamente a ressincronização de turmas encerradas (passados
   3 dias do término do semestre, após um último sync consolidado), evitando requisições
@@ -174,6 +188,11 @@ suas interações com as bibliotecas do monorepo e dados.
   realiza matrícula e o simulador não altera índices ou menções no SIGAA.
 - A agenda semanal reúne aulas das turmas atuais e usa o cache de frequência. A confirmação de
   leitura de posts é armazenada por usuário no banco do Followw.
+- O plano de ensino é consultado por turma e armazenado no cache. Downloads de materiais e PDFs
+  consultam o SIGAA sem persistir os bytes no servidor.
+- Foto e bio podem ser editadas no SIGAA pelo perfil do Followw. A API usa uma sessão própria,
+  valida e normaliza a imagem e atualiza o cache; nome de exibição continua sendo uma preferência
+  local ao Followw.
 
 ### Observabilidade Estruturada e Privacidade por Design
 
@@ -209,7 +228,7 @@ suas interações com as bibliotecas do monorepo e dados.
 │   │   │   ├── redis.py            # Cliente Upstash Redis assíncrono
 │   │   │   ├── schemas.py          # Esquemas Pydantic compartilhados
 │   │   │   └── sigaa.py            # Conexão com o SIGAA da requisição
-│   │   └── tests/                  # Testes da API, um arquivo por módulo
+│   │   └── tests/                  # unit/ sem Docker; integration/ por feature com PostgreSQL
 │   │
 │   └── web/                        # Frontend TanStack Start
 │       ├── src/
@@ -218,7 +237,8 @@ suas interações com as bibliotecas do monorepo e dados.
 │       │   ├── lib/                # Armazenamento, tema, parâmetros de URL e exportação de imagens
 │       │   ├── queries/            # Adaptadores web de sessão, SSR e documentos
 │       │   └── routes/             # Rotas: /, /turmas, /buscar, /cursos/$id, /professores/$siape,
-│       │                           # /ru, /perfil, /perfil/simulador, /login e /privacidade
+│       │                           # /ru, /perfil, /perfil/simulador, /login, /privacidade
+│       │                           # e /turmas/$id/plano-de-ensino
 │       └── tests/                  # Testes unitários e de componentes do frontend
 │
 ├── packages/

@@ -2,7 +2,7 @@
 
 **Escopo:** funcionalidades atuais e histórico das releases
 
-**Revisão:** 17 de novembro de 2026
+**Revisão:** 23 de novembro de 2026
 
 ---
 
@@ -142,13 +142,19 @@ interface.
 
 - **RF04 — Configurações Pessoais do Usuário (`GET` e `PATCH /me/settings`):** O sistema deve
   permitir ao estudante consultar e atualizar preferências locais sincronizadas com a API, incluindo
-  `display_name` e `default_campus`, mantendo preferências visuais de tema persistidas no cliente.
+  `displayName` (ou `display_name` na entrada), mantendo preferências visuais de tema persistidas no
+  cliente. O campus é inferido pela unidade do aluno, sem campo `default_campus` nas configurações.
 
 **Critérios de Aceitação:**
 
 - O nome de exibição, quando definido, substitui o nome civil nas saudações e cabeçalhos do Followw,
   permitindo restauração do nome original a qualquer momento.
 - A alteração de preferências deve ser pontual (suportando atualização parcial de campos via PATCH).
+
+Foto e bio são editadas por `PATCH /me/profile` e alteram o SIGAA. Nome de exibição é uma
+preferência do Followw. A bio aceita até 1.024 caracteres; sua omissão preserva o texto existente
+e uma string vazia o limpa. A foto aceita JPEG/PNG de até 4 MB e 16 milhões de pixels, normalizada
+para JPEG de 800 × 1.000. Remover a foto exige requisição separada da edição da bio.
 
 #### 1.5: Política de Privacidade e Termos de Serviço
 
@@ -211,7 +217,8 @@ inscrito, histórico letivo, controle de frequência, avisos dos professores e a
 
 - **RF06 — Detalhes da Turma e Participantes (`GET /classrooms/{id}/members`):** O sistema deve
   disponibilizar página de detalhes da disciplina com abas dedicadas e listar discentes e docentes
-  da turma (`name`, `role`, `registration`, `photo`, `email`, `course`, `unit`).
+  da turma. A resposta separa `students`, `monitors` e `professors`; os dados de cada grupo seguem
+  seus modelos no OpenAPI, sem um campo `role` único em uma lista plana.
 
 **Critérios de Aceitação:**
 
@@ -229,7 +236,8 @@ inscrito, histórico letivo, controle de frequência, avisos dos professores e a
 - **US19:** Como estudante, quero que as chamadas oficiais lançadas posteriormente pelo docente no
   SIGAA tenham precedência sobre as marcações manuais realizadas.
 
-- **RF07 — Gestão e Estimativa de Frequência (`GET` e `PUT /classrooms/{id}/frequency`):** O sistema
+- **RF07 — Gestão e Estimativa de Frequência (`GET /classrooms/{id}/frequency` e
+  `PATCH /classrooms/{id}/frequency/lessons`):** O sistema
   deve permitir ao aluno registrar marcações locais de frequência em aulas sem chamada oficial,
   calculando o percentual projetado e sinalizando em cores de alerta o risco de reprovação.
 
@@ -294,15 +302,16 @@ inscrito, histórico letivo, controle de frequência, avisos dos professores e a
 
 - **RF10 — Sincronização Paralela e Invalidação de Cache:** A API deve suportar requisições
   concorrentes com sessões independentes do SIGAA, servindo respostas imediatas via cache e
-  aceitando o parâmetro `?refresh=true` ou cabeçalho `Cache-Control: no-cache` para atualização
+  aceitando o cabeçalho `Cache-Control: no-cache` para atualização
   manual.
 
 **Critérios de Aceitação:**
 
-- Turmas já consolidadas ou de semestres findados não devem disparar novas requisições de raspagem
-  ao SIGAA.
-- Caso o SIGAA apresente erro temporário durante uma revalidação, a versão em cache deve ser
-  preservada e entregue ao discente.
+- Dados históricos sem TTL não vencem por tempo, mas podem ser revalidados manualmente. Os
+  participantes congelam após o sync final previsto no calendário; menções continuam com TTL de
+  24 horas. As regras por recurso estão em [cache-e-sincronizacao.md](cache-e-sincronizacao.md).
+- Caso o SIGAA falhe na revalidação síncrona, o cache deve ser preservado. A API só o entrega
+  nessa falha se a requisição aceitar `stale-if-error`; na web, o Query mantém dados já disponíveis.
 
 ---
 
@@ -389,8 +398,9 @@ analisar concorrência de vagas, pré-requisitos, quadro de professores e recome
 
 - **RF17 — Catálogo Geral e Pesquisa Pública de Docentes (`GET /public/professors`):** O sistema
   deve oferecer busca pública aberta no quadro docente da UnB, suportando filtros por unidade
-  acadêmica e nome parcial do professor, retornando nome completo, departamento, e-mail
-  institucional e URL do portal público no SIGAA.
+  acadêmica, semestre e nome parcial do professor. A listagem paginada retorna SIAPE, nome, unidade,
+  foto e URL pública; e-mail, formação, interesses e disciplinas ficam no detalhe
+  `GET /public/professors/{siape}`.
 
 **Critérios de Aceitação:**
 
@@ -431,6 +441,14 @@ analisar concorrência de vagas, pré-requisitos, quadro de professores e recome
 - **RF23 — Agenda semanal:** `GET /lessons` reúne as aulas das turmas atuais de domingo a sábado,
   com horário, local e situação do aluno; dias sem aulas podem indicar feriado, recesso ou período
   fora das aulas. Frequências vencidas são agendadas para atualização em segundo plano.
+
+#### 3.9: Plano de ensino e materiais
+
+- **RF24 — Plano de ensino:** `GET /classrooms/{id}/teaching-plan` permite consultar metodologia,
+  avaliação, atendimento, cronograma e referências. A página `/turmas/$id/plano-de-ensino` apresenta
+  o plano quando disponível; a ausência é representada por `null` e também fica em cache.
+- **RF25 — Download de materiais:** `POST /classrooms/{id}/posts/{post_id}/download` baixa os
+  arquivos de materiais da turma usando a sessão do aluno, sem armazenar os bytes no servidor.
 
 ---
 
@@ -523,9 +541,10 @@ Os requisitos não funcionais definem os critérios técnicos de qualidade, conf
 conformidade de arquitetura e segurança da informação.
 
 - **RNF01 — Documentação Interativa de Endpoints (Mintlify / OpenAPI):**
-    - Todos os endpoints da API devem ser documentados com modelos rigorosos de entrada, códigos de
+    - Os endpoints públicos da API devem ser documentados com modelos de entrada, códigos de
       retorno HTTP (200, 401, 404, 422, 502) e exemplos claros via OpenAPI, renderizados pela
-      interface Mintlify integrada.
+      interface Mintlify. `/docs` redireciona para o portal e `/openapi.json` fornece o contrato;
+      a rota interna de jobs não é exposta nesse contrato.
 
 - **RNF02 — Cobertura Abrangente de Testes Automatizados:**
     - Toda funcionalidade e correção deve conter testes automatizados. O back-end utiliza **Pytest**
@@ -533,8 +552,8 @@ conformidade de arquitetura e segurança da informação.
       testes ultrarrápida do **Bun** (`bun test`).
 
 - **RNF03 — Segurança, Privacidade e Sessão Efêmera:**
-    - O sistema não deve, sob qualquer condição, persistir senhas de usuários em bancos de dados
-      relacionais, discos ou logs.
+    - O sistema não grava senhas no banco ou nos logs. Cookies, tokens OAuth e mensagens da fila
+      podem carregar credenciais cifradas conforme [seguranca.md](seguranca.md).
     - O transporte de dados na web deve ocorrer exclusivamente por HTTPS/TLS com atributos de
       cookies `HttpOnly`, `SameSite` e `Secure`.
     - Os dados pessoais salvos no dispositivo devem ser descartados no momento do logout ou ao
@@ -584,7 +603,8 @@ conformidade de arquitetura e segurança da informação.
 - **RNF11 — Observabilidade e Monitoramento de Produção:**
     - A API deve emitir logs estruturados padronizados contendo identificadores de requisição e
       tempos de execução, e o front-end deve integrar telemetria analítica e de erros (PostHog)
-      preservando o anonimato de dados sensíveis.
+      conforme a política publicada em `/privacidade`. O filtro de campos dos logs da API é
+      descrito em [observabilidade.md](observabilidade.md).
 
 - **RNF12 — Controle de Taxa de Requisições e Proteção contra Abuso (Rate Limiting via Redis):**
     - A API deve implementar controle de taxa distribuído em memória por janela fixa com Redis para
@@ -603,11 +623,11 @@ ou regras de negócio isoladas para o usuário final:
 1. **Automação de Diagramas C4 via Script Local:** Script em Python (`scripts/generate_diagrams.py`)
    para geração autônoma de diagramas arquiteturais em SVG (C4 Context, Container, Componentes),
    reduzindo a dependência de esteiras externas de CI.
-2. **Repositório Centralizado de Armazenamento no Navegador:** Engine unificada de persistência para
-   tratar leituras e escritas em `localStorage` e `IndexedDB`, gerenciando cotas, tratamento de
-   erros de gravação e _namespaces_ isolados (`followw:`).
+2. **Armazenamento no Navegador:** preferências, grade e simulações usam o repositório de
+   `localStorage` (`followw:`); o cache de queries usa IndexedDB. A limpeza da sessão coordena os
+   dois mecanismos e o cache de páginas.
 3. **Dataset Local Estruturado de Ofertas:** Compilação e indexação de turmas abertas da
-   universidade para permitir pesquisas com tempo de resposta sub-milissegundo no catálogo público.
+   universidade para consultar o catálogo público sem acessar o SIGAA a cada busca.
 4. **Otimização de Índices no Banco de Dados:** Criação de índices estratégicos em tabelas de
    menções, turmas e docentes para garantir alto desempenho durante sincronizações em lote.
 5. **Camada de Rate Limiting e Proteção de Borda via Redis:** Implementação de controle de taxa em
@@ -661,6 +681,15 @@ O desenvolvimento do Followw UnB é conduzido de forma incremental através de s
 
 - Busca de cursos, docentes e estágios; visualização de fluxos e montagem de grade com exportação.
 - Simulação de IRA e MP, agenda semanal e confirmação de leitura de posts pela API.
+- Consulta de plano de ensino e download de materiais das turmas.
+- Edição de foto e bio no SIGAA por `PATCH /me/profile`, com normalização de JPEG/PNG de até 4 MB,
+  limite de 16 milhões de pixels e cotas de edição por IP e matrícula. Omitir a bio a preserva;
+  enviar uma string vazia a limpa. A remoção de foto é uma requisição separada.
+- Acesso delegado por escopos OAuth e renovação de autorizações existentes com DPoP em
+  `POST /oauth/token`; cadastro, consentimento e emissão pública inicial ainda não implementados.
+
+O desenvolvimento atual segue rolling release. As seções R1 e R2 acima são registros históricos;
+o comportamento atual é descrito nos requisitos e nos documentos técnicos.
 
 ### Backlog Evolutivo
 
