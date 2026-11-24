@@ -240,7 +240,7 @@ class OAuthGrantView(BaseModel):
 
 
 async def list_clients(db: Database, owner_registration: str) -> list[OAuthClientView]:
-    async with db.session() as session:
+    async def read(session: AsyncSession) -> list[OAuthClientView]:
         rows = (
             await session.scalars(
                 select(OAuthClient)
@@ -248,7 +248,9 @@ async def list_clients(db: Database, owner_registration: str) -> list[OAuthClien
                 .order_by(OAuthClient.created_at.desc())
             )
         ).all()
-    return [OAuthClientView.model_validate(row) for row in rows]
+        return [OAuthClientView.model_validate(row) for row in rows]
+
+    return await db.read(read)
 
 
 async def create_client(
@@ -327,6 +329,7 @@ async def update_client(
             except ValueError as error:
                 raise HTTPException(422, str(error)) from None
         await session.flush()
+        await session.refresh(client)
         return OAuthClientView.model_validate(client)
 
     return await db.write(write)
@@ -361,7 +364,8 @@ async def delete_client(db: Database, owner_registration: str, client_id: str) -
 
 async def list_grants(db: Database, registration: str) -> list[OAuthGrantView]:
     now = datetime.now(UTC)
-    async with db.session() as session:
+
+    async def read(session: AsyncSession) -> list[OAuthGrantView]:
         rows = (
             await session.execute(
                 select(OAuthGrant, OAuthClient)
@@ -373,20 +377,22 @@ async def list_grants(db: Database, registration: str) -> list[OAuthGrantView]:
                 .order_by(OAuthGrant.created_at.desc())
             )
         ).all()
-    return [
-        OAuthGrantView(
-            id=grant.id,
-            client_id=grant.client_id,
-            client_name=client.name if client else None,
-            client_description=client.description if client else None,
-            client_homepage_url=client.homepage_url if client else None,
-            confidential=grant.confidential,
-            scopes=[Scope(scope) for scope in grant.scopes],
-            created_at=grant.created_at,
-            expires_at=grant.expires_at,
-        )
-        for grant, client in rows
-    ]
+        return [
+            OAuthGrantView(
+                id=grant.id,
+                client_id=grant.client_id,
+                client_name=client.name if client else None,
+                client_description=client.description if client else None,
+                client_homepage_url=client.homepage_url if client else None,
+                confidential=grant.confidential,
+                scopes=[Scope(scope) for scope in grant.scopes],
+                created_at=grant.created_at,
+                expires_at=grant.expires_at,
+            )
+            for grant, client in rows
+        ]
+
+    return await db.read(read)
 
 
 async def revoke_grant(db: Database, registration: str, grant_id: UUID) -> None:
