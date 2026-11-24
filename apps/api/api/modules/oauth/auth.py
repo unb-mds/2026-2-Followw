@@ -1,10 +1,34 @@
 from collections.abc import Mapping
+from typing import Annotated
+from urllib.parse import urlsplit
 
-from fastapi import HTTPException, Request
+from fastapi import Depends, HTTPException, Request
+from sigaa_client import Credentials
 
+from api.cookies import read_refresh_cookie
+from api.core.config import settings
 from api.db.main import Database
 from api.modules.oauth.scopes import insufficient_scope, route_scope
 from api.modules.oauth.tokens import Access, InvalidToken, read_access
+
+
+async def require_web_session(request: Request) -> Credentials:
+    headers = {"Cache-Control": "no-store"}
+    credentials = read_refresh_cookie(request)
+    if credentials is None or "authorization" in request.headers:
+        raise HTTPException(401, "Sessão do Followw exigida.", headers=headers)
+    origin = request.headers.get("origin")
+    if request.method != "GET" and origin is not None:
+        public = urlsplit(settings.public_url)
+        same_origin = f"{request.url.scheme}://{request.url.netloc}"
+        public_origin = f"{public.scheme}://{public.netloc}"
+        if origin not in (same_origin, public_origin, *settings.cors_origins):
+            raise HTTPException(403, "Origem não autorizada.", headers=headers)
+    return credentials
+
+
+WebSessionDep = Annotated[Credentials, Depends(require_web_session)]
+WEB_SECURITY = {"security": [{"FollowwCookie": []}]}
 
 
 def parse_bearer_token(headers: Mapping[str, str]) -> str | None:

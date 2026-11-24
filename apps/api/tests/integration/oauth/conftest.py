@@ -18,6 +18,8 @@ from api.db.main import Database
 from api.modules.oauth.scopes import Scope
 from api.modules.oauth.tokens import issue_tokens
 
+from .helpers import APPLICATIONS, REDIRECT
+
 
 @pytest.fixture
 def db(async_database):
@@ -42,6 +44,30 @@ def emitir(db):
         )
 
     return issue
+
+
+@pytest.fixture
+def sessao_web(cookies):
+    def auth(registration="251000000"):
+        credentials = Credentials(registration=registration, password="senha123")
+        jar = cookies(refresh=credentials)
+        return {"Cookie": f"refresh_token={jar['refresh_token']}"}
+
+    return auth
+
+
+@pytest.fixture
+def criar_aplicacao(client, sessao_web):
+    def create(name="Agenda", owner=None):
+        response = client.post(
+            APPLICATIONS,
+            json={"name": name, "redirect_uris": [REDIRECT]},
+            headers=owner or sessao_web(),
+        )
+        assert response.status_code == 201, response.json()
+        return response.json()
+
+    return create
 
 
 @pytest.fixture

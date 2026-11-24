@@ -15,6 +15,7 @@ from api.core.config import settings
 from api.crypto import decrypt_claims, derive_secret, encrypt_claims
 from api.db.main import Database
 from api.db.models import OAuthGrant
+from api.modules.oauth.applications import ApplicationRepository
 from api.modules.oauth.proof import InvalidProof, Proof
 from api.modules.oauth.scopes import Scope, granted_scopes
 
@@ -82,40 +83,59 @@ async def issue_tokens(
     proof: Proof | None = None,
 ) -> TokenPair:
     """Recebe o aceite validado pela autorização. Clientes públicos exigem a prova verificada."""
+    return await db.write(
+        lambda session: create_token_pair(
+            session,
+            client_id=client_id,
+            credentials=credentials,
+            accepted=accepted,
+            authenticated_client=authenticated_client,
+            session_token=session_token,
+            proof=proof,
+        )
+    )
+
+
+async def create_token_pair(
+    session: AsyncSession,
+    *,
+    client_id: str,
+    credentials: Credentials,
+    accepted: Iterable[str],
+    authenticated_client: bool,
+    session_token: str | None = None,
+    proof: Proof | None = None,
+) -> TokenPair:
     if not authenticated_client and proof is None:
         raise InvalidProof("Clientes públicos precisam comprovar a posse da chave.")
     scopes = granted_scopes(accepted)
-
-    async def create(session: AsyncSession) -> TokenPair:
-        if proof is not None:
-            await proof.consume(session)
-        now = datetime.now(UTC)
-        grant = OAuthGrant(
-            id=uuid4(),
-            client_id=client_id,
-            confidential=authenticated_client,
-            registration=credentials.registration,
-            scopes=scopes,
-            expires_at=_deadline(now),
-            salt=secrets.token_bytes(32),
-            key_thumbprint=proof.thumbprint if proof else None,
-        )
-        session.add(grant)
-        login = {
-            "registration": credentials.registration,
-            "password": credentials.password.get_secret_value(),
-        }
-        access_token, expires_in = _issue_access(grant, login, session_token, now)
-        return TokenPair(
-            grant.id,
-            access_token,
-            _seal(grant, "refresh", login),
-            expires_in,
-            tuple(scopes),
-            credentials,
-        )
-
-    return await db.write(create)
+    if proof is not None:
+        await proof.consume(session)
+    now = datetime.now(UTC)
+    grant = OAuthGrant(
+        id=uuid4(),
+        client_id=client_id,
+        confidential=authenticated_client,
+        registration=credentials.registration,
+        scopes=scopes,
+        expires_at=_deadline(now),
+        salt=secrets.token_bytes(32),
+        key_thumbprint=proof.thumbprint if proof else None,
+    )
+    session.add(grant)
+    login = {
+        "registration": credentials.registration,
+        "password": credentials.password.get_secret_value(),
+    }
+    access_token, expires_in = _issue_access(grant, login, session_token, now)
+    return TokenPair(
+        grant.id,
+        access_token,
+        _seal(grant, "refresh", login),
+        expires_in,
+        tuple(scopes),
+        credentials,
+    )
 
 
 async def _open(
@@ -157,16 +177,19 @@ async def renew_access(
     refresh_token: str,
     *,
     client_id: str,
-    authenticated_client: bool,
+    authenticated_client: bool = False,
     proof: Proof | None = None,
+    client_secret: str | None = None,
 ) -> TokenPair:
-    """A camada de aplicações autentica o cliente confidencial antes da chamada."""
-
     async def authorize(session: AsyncSession) -> tuple[OAuthGrant, dict]:
+        if client_secret is not None:
+            await ApplicationRepository(session).authenticate(client_id, client_secret)
         grant, login = await _open(session, refresh_token, "refresh")
         if grant.client_id != client_id:
             raise InvalidToken("Token de outra aplicação.")
-        if grant.confidential and not authenticated_client:
+        if grant.confidential and not (
+            authenticated_client or client_secret is not None
+        ):
             raise InvalidToken("A aplicação precisa se autenticar.")
         if grant.key_thumbprint is not None:
             if proof is None or proof.thumbprint != grant.key_thumbprint:
@@ -183,6 +206,10 @@ async def renew_access(
         raise InvalidToken("A credencial da autorização expirou.") from error
 
     async def renew(session: AsyncSession) -> TokenPair:
+        if client_secret is not None:
+            await ApplicationRepository(session).authenticate(
+                client_id, client_secret, lock=True
+            )
         grant = await session.get(OAuthGrant, authorized.id, with_for_update=True)
         now = datetime.now(UTC)
         if grant is None or grant.salt != authorized.salt or grant.expires_at <= now:

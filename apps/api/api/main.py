@@ -14,6 +14,8 @@ from api.modules.classrooms.router import router as classrooms_router
 from api.modules.lessons.router import router as lessons_router
 from api.modules.me.router import router as me_router
 from api.modules.me.upload_guard import ProfileUploadGuard
+from api.modules.oauth.applications_router import router as oauth_applications_router
+from api.modules.oauth.authorization_router import router as oauth_authorization_router
 from api.modules.oauth.cors import FollowwCORS
 from api.modules.oauth.router import router as oauth_router
 from api.modules.oauth.scopes import PERMISSIONS
@@ -35,6 +37,10 @@ tags_metadata = [
     {
         "name": "Auth",
         "description": "Login no SIGAA e sessão por cookies.",
+    },
+    {
+        "name": "OAuth",
+        "description": "Cadastro de aplicações, consentimento e emissão de tokens.",
     },
     {
         "name": "Classrooms",
@@ -133,7 +139,7 @@ def custom_openapi() -> dict[str, Any]:
             },
             {
                 "name": "SIGAA",
-                "tags": ["Auth", "Classrooms", "Lessons", "Me", "Posts"],
+                "tags": ["Auth", "OAuth", "Classrooms", "Lessons", "Me", "Posts"],
             },
         ]
     return app.openapi_schema
@@ -174,7 +180,9 @@ app.add_middleware(FollowwCORS, origins=settings.cors_origins)
 app.add_middleware(RequestLoggingMiddleware)
 
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])
-app.include_router(oauth_router, prefix="/oauth", tags=["Auth"])
+app.include_router(oauth_applications_router, prefix="/oauth", tags=["OAuth"])
+app.include_router(oauth_authorization_router, prefix="/oauth", tags=["OAuth"])
+app.include_router(oauth_router, prefix="/oauth", tags=["OAuth"])
 app.include_router(classrooms_router, prefix="/classrooms", tags=["Classrooms"])
 app.include_router(
     public_classrooms_router, prefix="/public/classrooms", tags=["Public Classrooms"]

@@ -93,14 +93,470 @@
         }
       }
     },
+    "/oauth/applications": {
+      "post": {
+        "tags": [
+          "OAuth"
+        ],
+        "summary": "Cadastrar uma aplicação OAuth",
+        "operationId": "create_application_oauth_applications_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplicationCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "FollowwCookie": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "OAuth"
+        ],
+        "summary": "Listar aplicações do desenvolvedor",
+        "operationId": "list_applications_oauth_applications_get",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 25,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationsPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "FollowwCookie": []
+          }
+        ]
+      }
+    },
+    "/oauth/applications/{client_id}": {
+      "patch": {
+        "tags": [
+          "OAuth"
+        ],
+        "summary": "Editar uma aplicação OAuth",
+        "operationId": "update_application_oauth_applications__client_id__patch",
+        "parameters": [
+          {
+            "name": "client_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Client Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplicationUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Application"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "FollowwCookie": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "OAuth"
+        ],
+        "summary": "Remover uma aplicação OAuth",
+        "operationId": "delete_application_oauth_applications__client_id__delete",
+        "parameters": [
+          {
+            "name": "client_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Client Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "FollowwCookie": []
+          }
+        ]
+      }
+    },
+    "/oauth/applications/{client_id}/rotate-secret": {
+      "post": {
+        "tags": [
+          "OAuth"
+        ],
+        "summary": "Rotacionar o segredo da aplicação",
+        "operationId": "rotate_application_secret_oauth_applications__client_id__rotate_secret_post",
+        "parameters": [
+          {
+            "name": "client_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Client Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientSecret"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "FollowwCookie": []
+          }
+        ]
+      }
+    },
+    "/oauth/authorize": {
+      "get": {
+        "tags": [
+          "OAuth"
+        ],
+        "summary": "Consultar a aplicação e as permissões solicitadas",
+        "operationId": "get_authorization_oauth_authorize_get",
+        "parameters": [
+          {
+            "name": "response_type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "const": "code",
+              "type": "string",
+              "title": "Response Type"
+            }
+          },
+          {
+            "name": "client_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36,
+              "title": "Client Id"
+            }
+          },
+          {
+            "name": "redirect_uri",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048,
+              "title": "Redirect Uri"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512,
+              "default": "",
+              "title": "Scope"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "name": "code_challenge",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{43}$",
+              "title": "Code Challenge"
+            }
+          },
+          {
+            "name": "code_challenge_method",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "const": "S256",
+              "type": "string",
+              "title": "Code Challenge Method"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorizationDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Aplicação, URI ou escopos inválidos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthProblem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "FollowwCookie": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "OAuth"
+        ],
+        "summary": "Aprovar ou recusar a autorização OAuth",
+        "operationId": "post_authorization_oauth_authorize_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthorizationDecision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorizationRedirect"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Pedido de autorização inválido ou expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthProblem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "FollowwCookie": []
+          }
+        ]
+      }
+    },
     "/oauth/token": {
       "post": {
         "tags": [
-          "Auth"
+          "OAuth"
         ],
-        "summary": "Renovar o acesso OAuth de uma instalação com DPoP",
-        "operationId": "refresh_oauth_token_post",
+        "summary": "Trocar um código de autorização ou renovar o acesso OAuth",
+        "operationId": "token_oauth_token_post",
         "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 1024
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
           {
             "name": "dpop",
             "in": "header",
@@ -124,7 +580,7 @@
           "content": {
             "application/x-www-form-urlencoded": {
               "schema": {
-                "$ref": "#/components/schemas/RefreshGrant"
+                "$ref": "#/components/schemas/TokenRequest"
               }
             }
           }
@@ -141,7 +597,24 @@
             }
           },
           "400": {
-            "description": "Refresh ou prova DPoP inválidos."
+            "description": "Requisição, concessão ou prova DPoP inválida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthProblem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciais da aplicação inválidas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthProblem"
+                }
+              }
+            }
           },
           "502": {
             "description": "SIGAA indisponível durante a renovação."
@@ -2952,6 +3425,226 @@
   },
   "components": {
     "schemas": {
+      "Application": {
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Client Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "redirect_uris": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Redirect Uris"
+          }
+        },
+        "type": "object",
+        "required": [
+          "client_id",
+          "name",
+          "redirect_uris"
+        ],
+        "title": "Application"
+      },
+      "ApplicationCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[^\\x00-\\x1F\\x7F]+$",
+            "title": "Name"
+          },
+          "redirect_uris": {
+            "items": {
+              "type": "string",
+              "maxLength": 2048,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Redirect Uris"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "redirect_uris"
+        ],
+        "title": "ApplicationCreate"
+      },
+      "ApplicationCreated": {
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "title": "Client Secret"
+          },
+          "client_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Client Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "redirect_uris": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Redirect Uris"
+          }
+        },
+        "type": "object",
+        "required": [
+          "client_secret",
+          "client_id",
+          "name",
+          "redirect_uris"
+        ],
+        "title": "ApplicationCreated"
+      },
+      "ApplicationUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1,
+                "pattern": "^[^\\x00-\\x1F\\x7F]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "redirect_uris": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "maxLength": 2048,
+                  "minLength": 1
+                },
+                "type": "array",
+                "maxItems": 10,
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Redirect Uris"
+          }
+        },
+        "type": "object",
+        "title": "ApplicationUpdate"
+      },
+      "ApplicationsPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Application"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "ApplicationsPage"
+      },
+      "AuthorizationDecision": {
+        "properties": {
+          "request_token": {
+            "type": "string",
+            "maxLength": 16384,
+            "minLength": 1,
+            "format": "password",
+            "title": "Request Token",
+            "writeOnly": true
+          },
+          "approved": {
+            "type": "boolean",
+            "title": "Approved"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_token",
+          "approved"
+        ],
+        "title": "AuthorizationDecision"
+      },
+      "AuthorizationDetails": {
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "title": "Client Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "permissions": {
+            "items": {
+              "$ref": "#/components/schemas/PermissionResponse"
+            },
+            "type": "array",
+            "title": "Permissions"
+          },
+          "request_token": {
+            "type": "string",
+            "title": "Request Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "client_id",
+          "name",
+          "permissions",
+          "request_token"
+        ],
+        "title": "AuthorizationDetails"
+      },
+      "AuthorizationRedirect": {
+        "properties": {
+          "redirect_uri": {
+            "type": "string",
+            "title": "Redirect Uri"
+          }
+        },
+        "type": "object",
+        "required": [
+          "redirect_uri"
+        ],
+        "title": "AuthorizationRedirect"
+      },
       "Body_update_profile_me_profile_patch": {
         "properties": {
           "photo_action": {
@@ -3579,6 +4272,19 @@
           "complementary_references"
         ],
         "title": "ClassroomTeachingPlan"
+      },
+      "ClientSecret": {
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "title": "Client Secret"
+          }
+        },
+        "type": "object",
+        "required": [
+          "client_secret"
+        ],
+        "title": "ClientSecret"
       },
       "CourseCurriculum": {
         "properties": {
@@ -4525,6 +5231,19 @@
         ],
         "title": "NewsAttachment"
       },
+      "OAuthProblem": {
+        "properties": {
+          "error": {
+            "type": "string",
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "title": "OAuthProblem"
+      },
       "ParticipantClassroom": {
         "properties": {
           "professors": {
@@ -4712,6 +5431,43 @@
           "name"
         ],
         "title": "ParticipantSubject"
+      },
+      "PermissionResponse": {
+        "properties": {
+          "scope": {
+            "$ref": "#/components/schemas/Scope"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "trust_level": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Trust Level"
+          },
+          "requires": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Scope"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "scope",
+          "label",
+          "trust_level"
+        ],
+        "title": "PermissionResponse"
       },
       "PostType": {
         "type": "string",
@@ -5183,36 +5939,6 @@
           "hours"
         ]
       },
-      "RefreshGrant": {
-        "properties": {
-          "grant_type": {
-            "type": "string",
-            "const": "refresh_token",
-            "title": "Grant Type"
-          },
-          "client_id": {
-            "type": "string",
-            "maxLength": 256,
-            "minLength": 1,
-            "title": "Client Id"
-          },
-          "refresh_token": {
-            "type": "string",
-            "maxLength": 16384,
-            "minLength": 1,
-            "format": "password",
-            "title": "Refresh Token",
-            "writeOnly": true
-          }
-        },
-        "type": "object",
-        "required": [
-          "grant_type",
-          "client_id",
-          "refresh_token"
-        ],
-        "title": "RefreshGrant"
-      },
       "RestaurantCredentials": {
         "properties": {
           "token": {
@@ -5293,6 +6019,24 @@
           "amount"
         ],
         "title": "RestaurantStatementEntry"
+      },
+      "Scope": {
+        "type": "string",
+        "enum": [
+          "profile:read",
+          "profile:write",
+          "classrooms:read",
+          "classrooms.history:read",
+          "grades:read",
+          "classrooms.members:read",
+          "classrooms.frequency:read",
+          "classrooms.frequency:write",
+          "classrooms.posts:read",
+          "transcript:read",
+          "ru:read",
+          "internships:read"
+        ],
+        "title": "Scope"
       },
       "SearchResult": {
         "properties": {
@@ -5804,11 +6548,124 @@
         ],
         "title": "TeachingPlanScheduleEntry"
       },
+      "TokenRequest": {
+        "properties": {
+          "grant_type": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Grant Type",
+            "description": "`authorization_code` ou `refresh_token`."
+          },
+          "client_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Id"
+          },
+          "client_secret": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256,
+                "minLength": 1,
+                "format": "password",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Secret"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16384,
+                "minLength": 1,
+                "format": "password",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "redirect_uri": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2048,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Redirect Uri"
+          },
+          "code_verifier": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128,
+                "minLength": 43,
+                "format": "password",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code Verifier"
+          },
+          "refresh_token": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16384,
+                "minLength": 1,
+                "format": "password",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refresh Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "grant_type"
+        ],
+        "title": "TokenRequest"
+      },
       "TokenResponse": {
         "properties": {
           "access_token": {
             "type": "string",
             "title": "Access Token"
+          },
+          "refresh_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refresh Token"
           },
           "token_type": {
             "type": "string",
@@ -6304,6 +7161,10 @@
       "description": "Login no SIGAA e sessão por cookies."
     },
     {
+      "name": "OAuth",
+      "description": "Cadastro de aplicações, consentimento e emissão de tokens."
+    },
+    {
       "name": "Classrooms",
       "description": "Turmas, participantes, frequência e resultados acadêmicos."
     },
@@ -6423,6 +7284,7 @@
       "name": "SIGAA",
       "tags": [
         "Auth",
+        "OAuth",
         "Classrooms",
         "Lessons",
         "Me",

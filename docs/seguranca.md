@@ -57,6 +57,21 @@ Na prática:
 
 ## Tokens OAuth de aplicações
 
+O cadastro em `/oauth/applications` exige a sessão web do desenvolvedor. Cada aplicação tem um
+`client_id`, pertence ao login SIGAA que a criou e registra suas URIs de retorno. A API retorna o
+segredo aleatório de 256 bits na criação e na rotação e guarda somente seu hash SHA-256. Remover
+a aplicação revoga as concessões já emitidas.
+
+A tela de consentimento consulta `GET /oauth/authorize` com `response_type=code`, `client_id`,
+`redirect_uri`, os escopos em `scope` e o desafio PKCE com `code_challenge_method=S256`. O
+`POST /oauth/authorize` recebe `request_token` e `approved` e devolve a URI validada com o código
+ou `error=access_denied`, junto do `state` quando informado. A API compara a URI exatamente com a
+cadastrada e aceita HTTPS ou HTTP de loopback.
+
+A aplicação troca o código em `POST /oauth/token` com `grant_type=authorization_code`, `code`,
+`redirect_uri` e `code_verifier`. Autentica-se por HTTP Basic ou pelos campos `client_id` e
+`client_secret` no formulário. O código vence em cinco minutos e só pode ser trocado uma vez.
+
 Cada autorização tem um registro com matrícula, aplicação, permissões concedidas, salt aleatório e
 vencimento. A API deriva chaves distintas para access e refresh com HKDF, o salt e
 `OAUTH_SECRET_KEY`. A senha do SIGAA fica cifrada no token do cliente. Cada chamada Bearer valida a
@@ -64,11 +79,10 @@ autorização antes de servir o cache. Excluir o registro invalida imediatamente
 
 O access vale 40 minutos. Na renovação, a API autentica no SIGAA, cifra a nova sessão no access e
 agenda o sync da conta, como o refresh da web. A autorização é conferida novamente após o login. O
-sucesso estende por 14 dias o prazo do mesmo refresh. Para clientes públicos, `POST /oauth/token`
-recebe o formulário `grant_type=refresh_token`, `client_id`, `refresh_token` e uma prova DPoP ES256
-nova, vinculada à chave da instalação e à URL `PUBLIC_URL/oauth/token`. Clientes no navegador usam
-`credentials: "omit"`. O cadastro, o aceite e a emissão pública inicial pertencem à etapa de
-autorização de aplicações.
+sucesso estende por 14 dias o prazo do mesmo refresh. Em `POST /oauth/token`, a renovação recebe
+`grant_type=refresh_token` e `refresh_token`. Aplicações cadastradas apresentam o segredo atual.
+Concessões públicas exigem `client_id` e uma prova DPoP ES256 nova, vinculada à chave da instalação
+e à URL `PUBLIC_URL/oauth/token`. Clientes no navegador usam `credentials: "omit"`.
 
 No OpenAPI, `x-oauth-scopes` traz o título, o nível de confiança e as dependências de cada
 permissão. O nível informa a sensibilidade do acesso. Cada operação delegável declara seu

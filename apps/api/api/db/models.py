@@ -17,7 +17,7 @@ from sqlalchemy import (
     literal_column,
 )
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, column_property, mapped_column, relationship
 
@@ -27,11 +27,28 @@ from api.db.enums import ClassroomRole, ClassroomStatus, LessonStatus, UserLevel
 type Requirements = list[list[str]]
 
 
+class OAuthApplication(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "oauth_applications"
+    __table_args__ = (Index("ix_oauth_applications_owner_client", "owner", "id"),)
+
+    owner: Mapped[str]
+    name: Mapped[str]
+    secret_hash: Mapped[bytes] = mapped_column(deferred=True, deferred_raiseload=True)
+    redirect_uris: Mapped[list[str]] = mapped_column(ARRAY(Text))
+
+
+class OAuthAuthorizationCode(Base):
+    __tablename__ = "oauth_authorization_codes"
+
+    digest: Mapped[bytes] = mapped_column(primary_key=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+
 class OAuthGrant(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "oauth_grants"
 
     registration: Mapped[str] = mapped_column(index=True)
-    client_id: Mapped[str]
+    client_id: Mapped[str] = mapped_column(index=True)
     confidential: Mapped[bool]
     scopes: Mapped[list[str]] = mapped_column(JSONB)
     salt: Mapped[bytes]
