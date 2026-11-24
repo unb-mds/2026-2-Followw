@@ -4,15 +4,37 @@ from fastapi import APIRouter, Query, Response
 
 from api.cache import no_store
 from api.modules.public_classrooms.code import ClassroomCode
-from api.modules.public_subjects.service import CatalogSubject, PublicSubjectServiceDep
+from api.modules.public_subjects.filters import SubjectFilters
+from api.modules.public_subjects.service import (
+    CatalogSubject,
+    PublicSubjectServiceDep,
+    SubjectPage,
+)
 from api.modules.public_subjects.statistics import (
     SubjectStatistics,
     SubjectStatisticsServiceDep,
 )
-from api.schemas import SearchText, UnitFilter
-from api.sync import OptionalSyncDep
+from api.sync import OptionalSyncDep, SyncDep
 
 router = APIRouter()
+
+
+@router.get(
+    "/recommendations",
+    summary="Recomendar matérias para o aluno autenticado",
+    responses={
+        401: {"description": "Sessão inválida ao buscar recomendações."},
+        422: {"description": "Dados insuficientes para recomendar matérias."},
+        502: {"description": "SIGAA indisponível ao consultar o histórico."},
+        503: {"description": "Histórico em atualização."},
+    },
+)
+async def subject_recommendations(
+    service: PublicSubjectServiceDep, sync: SyncDep, response: Response
+) -> list[CatalogSubject]:
+    subjects = await service.recommendations(sync)
+    no_store(response)
+    return subjects
 
 
 @router.get(
@@ -35,46 +57,22 @@ async def subject_statistics(
 
 @router.get(
     "",
-    response_model=list[CatalogSubject],
+    response_model=SubjectPage,
     summary="Buscar matérias com suas turmas",
-    description="Matérias e ofertas do catálogo do Followw. Sem filtros de busca, retorna recomendações para o aluno autenticado.",
+    description="Página de matérias e ofertas do catálogo do Followw.",
     responses={
-        401: {"description": "Sessão inválida ao buscar recomendações."},
-        422: {
-            "description": "Filtros inválidos ou dados insuficientes para recomendar matérias."
+        404: {
+            "description": "Matriz curricular não encontrada ao filtrar pelo tipo de matéria."
         },
-        502: {"description": "SIGAA indisponível ao consultar o histórico."},
-        503: {"description": "Histórico em atualização."},
+        422: {"description": "Filtros inválidos."},
     },
 )
 async def search_subjects(
     service: PublicSubjectServiceDep,
     sync: OptionalSyncDep,
     response: Response,
-    q: Annotated[
-        SearchText | None,
-        Query(
-            description="Termos do código, nome da matéria ou docente. Códigos completos também buscam equivalências.",
-        ),
-    ] = None,
-    code: Annotated[
-        ClassroomCode | None,
-        Query(description="Código completo da matéria."),
-    ] = None,
-    unit: Annotated[
-        UnitFilter | None,
-        Query(description="ID ou sigla da unidade responsável."),
-    ] = None,
-    semester: Annotated[
-        str | None,
-        Query(
-            pattern=r"^[0-9]{4}\.[0-9]$",
-            description="Semestre das turmas.",
-        ),
-    ] = None,
-) -> list[CatalogSubject]:
-    subjects = await service.search(
-        q, code=code, unit=unit, semester=semester, sync=sync
-    )
+    filters: Annotated[SubjectFilters, Query()],
+) -> SubjectPage:
+    subjects = await service.search(filters, sync)
     no_store(response)
     return subjects

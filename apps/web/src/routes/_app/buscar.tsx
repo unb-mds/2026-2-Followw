@@ -1,5 +1,6 @@
 import type { SearchCategory } from '@followw/core/lib/search-categories.ts';
 import type { UserProfile } from '@followw/core/queries/me.ts';
+import type { SubjectKind, SubjectsQuery } from '@followw/core/queries/subjects.ts';
 
 import { getCurrentSemester } from '@followw/core/calendar.ts';
 import {
@@ -30,30 +31,29 @@ import {
 import { environmentManager, noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { Search, Briefcase } from 'lucide-react';
-import { m, type Variants } from 'motion/react';
 import { useEffect, useMemo, useState } from 'react';
 
-import { useDesktop } from '#/components/DesktopContext';
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
 import { SchedulePreview } from '#/components/schedule/SchedulePreview';
+import { usePlannedSchedule } from '#/components/schedule/usePlannedSchedule';
 import { catalogQueryOptions } from '#/components/search/catalog-queries';
 import { CatalogResults, type CatalogCategory } from '#/components/search/CatalogResults';
 import { InternshipResults } from '#/components/search/InternshipSection';
 import { RecommendationsSection } from '#/components/search/RecommendationsSection';
 import { SearchResults } from '#/components/search/SearchResults';
+import { SubjectFilters } from '#/components/search/SubjectFilters';
 import { SubjectResults } from '#/components/search/SubjectResults';
-import { SearchPill } from '#/components/SearchPill';
 import { TabFilter } from '#/components/TabFilter';
 import { Input } from '#/components/ui/input';
-import { ease, useEntrance } from '#/lib/motion';
-import { loadSearchParams, useSearchState, validateSearch } from '#/lib/search-params';
+import { blockStarts, loadSearchParams, useSearchState, validateSearch } from '#/lib/search-params';
 
 type SearchView =
     | { kind: 'recommendations' }
     | { kind: 'catalog'; category: CatalogCategory }
     | { kind: 'search'; text: string }
-    | { kind: 'unit'; unit: string }
+    | { kind: 'subjects'; query: SubjectsQuery; title: string }
+    | { kind: 'curriculum-login' }
     | { kind: 'internships'; text: string | null };
 
 /** Sem texto, as abas com matérias mostram as recomendações ou a unidade do aluno, e as demais o catálogo. */
@@ -61,15 +61,49 @@ function searchView(
     category: SearchCategory,
     q: string,
     text: string | null,
-    user: UserProfile | null
+    user: UserProfile | null,
+    filters: Pick<
+        Awaited<ReturnType<typeof loadSearchParams>>,
+        'days' | 'hours' | 'start' | 'mandatory' | 'electives' | 'freeModules' | 'unit'
+    >
 ): SearchView | null {
-    if (category === 'internships') return { kind: 'internships', text };
+    const { days, start, hours, mandatory, electives, freeModules, unit } = filters;
     const subjects = showsSubjects(category);
+    const kind: SubjectKind[] = [];
+    if (mandatory) kind.push('mandatory');
+    if (electives) kind.push('optional');
+    if (freeModules) kind.push('free');
+    if (subjects && kind.length && !user) return { kind: 'curriculum-login' };
+    if (subjects && (kind.length || days || start.length || hours.length || unit)) {
+        return {
+            kind: 'subjects',
+            title:
+                [mandatory && 'Obrigatórias', electives && 'Optativas', freeModules && 'Livres']
+                    .filter(Boolean)
+                    .join(' e ') || 'Matérias',
+            query: {
+                q: text ?? undefined,
+                unit: unit || undefined,
+                offered: true,
+                kind: kind.length ? kind : undefined,
+                days: days || undefined,
+                start: start.length ? start.flatMap(blockStarts) : undefined,
+                hours: hours.length ? hours : undefined
+            }
+        };
+    }
+    const name = text && text.length >= SEARCH_MIN_LENGTH ? text : null;
+    if (category === 'internships') return { kind: 'internships', text: name };
     if (subjects && showRecommendations(user, { q })) return { kind: 'recommendations' };
-    if (text) return { kind: 'search', text };
+    if (name) return { kind: 'search', text: name };
     if (category === 'courses' || category === 'professors') return { kind: 'catalog', category };
-    const unit = user?.unit?.code;
-    return subjects && unit ? { kind: 'unit', unit } : null;
+    return subjects && user?.unit?.code
+        ? {
+              kind: 'subjects',
+              query: { unit: user.unit.code, offered: true },
+              title: `Matérias da ${user.unit.code}`
+          }
+        : null;
 }
 
 export const Route = createFileRoute('/_app/buscar')({
@@ -78,8 +112,8 @@ export const Route = createFileRoute('/_app/buscar')({
     shouldReload: ({ cause }) => cause !== 'stay',
     loader: async ({ context: { queryClient }, location }) => {
         const user = await loadQuery(queryClient, meQueryOptions);
-        const { q, category } = loadSearchParams(location.searchStr);
-        const view = searchView(category, q, searchText(q), user);
+        const { q, category, ...filters } = loadSearchParams(location.searchStr);
+        const view = searchView(category, q, searchText(q), user, filters);
         const results = Promise.all([
             showsSubjects(category) &&
                 user &&
@@ -95,8 +129,8 @@ export const Route = createFileRoute('/_app/buscar')({
                     ? loadQuery(queryClient, catalogQueryOptions.courses)
                     : loadQuery(queryClient, catalogQueryOptions.professors)
                 ).catch(noop),
-            view?.kind === 'unit' &&
-                loadQuery(queryClient, subjectsQueryOptions({ unit: view.unit })).catch(noop),
+            view?.kind === 'subjects' &&
+                loadQuery(queryClient, subjectsQueryOptions(view.query)).catch(noop),
             view?.kind === 'internships' &&
                 user &&
                 loadQuery(queryClient, internshipsQueryOptions).catch(noop)
@@ -115,15 +149,17 @@ export const Route = createFileRoute('/_app/buscar')({
     component: BuscarPage
 });
 
-// o conteúdo do campo aparece depois que a pílula termina de expandir
-const fieldContent: Variants = {
-    hidden: { opacity: 0 },
-    show: { opacity: 1, transition: { duration: 0.2, ease, delay: 0.2 } }
+const searchLabels: Partial<Record<SearchCategory, string>> = {
+    all: 'Busque por matéria, horário, curso ou professor',
+    classrooms: 'Busque por matéria, horário ou departamento',
+    internships: 'Busque por estágio'
 };
 
 function BuscarPage() {
     const { data: user } = useSuspenseQuery(meQueryOptions);
-    const [{ q, category }, setSearch] = useSearchState();
+    const [{ q, category, ...filters }, setSearch] = useSearchState();
+    const { items } = usePlannedSchedule();
+    const planned = filters.hideConflicts ? items : undefined;
     const subjects = showsSubjects(category);
     const currentPeriod = currentCurriculumPeriod(
         user?.entry_semester,
@@ -135,57 +171,52 @@ function BuscarPage() {
         const timer = setTimeout(() => setText((previous) => searchText(q, previous)), 300);
         return () => clearTimeout(timer);
     }, [q]);
-    const view = searchView(category, q, text, user);
+    const view = searchView(category, q, text, user, filters);
     const searchLabel =
-        category === 'internships'
-            ? 'Busque por estágio'
-            : 'Busque por matéria, curso ou professor';
+        subjects && (filters.mandatory || filters.electives || filters.freeModules)
+            ? 'Busque por matéria, horário ou departamento'
+            : (searchLabels[category] ?? 'Busque por matéria, curso ou professor');
     const { data: history } = useQuery({
         ...allClassroomsQueryOptions,
-        enabled: subjects && Boolean(user)
+        enabled: Boolean(user) && subjects
     });
     const completed = user?.completed_subjects;
-    const taken = useMemo(
-        () => (history ? takenCodes(history, approvedCodes(history, completed)) : null),
+    const approved = useMemo(
+        () => (history ? approvedCodes(history, completed) : null),
         [history, completed]
     );
-    const desktop = useDesktop();
-    const entrance = useEntrance();
+    const taken = useMemo(
+        () => (history && approved ? takenCodes(history, approved) : null),
+        [history, approved]
+    );
     return (
         <div className="search-columns flex flex-col gap-5 lg:grid lg:items-start lg:gap-x-10">
-            <m.div layoutRoot className="desktop-search-field relative lg:fixed">
-                <SearchPill className="hidden border border-primary bg-background lg:block" />
-                <m.div
-                    className="relative"
-                    initial={desktop ? entrance.initial : false}
-                    animate="show"
-                    variants={fieldContent}
-                >
-                    <Search
-                        className="pointer-events-none absolute top-1/2 left-3.5 size-5 -translate-y-1/2 text-muted-foreground"
-                        aria-hidden="true"
-                    />
-                    <Input
-                        type="search"
-                        value={q}
-                        onChange={(event) => {
-                            const value = event.target.value.slice(0, SEARCH_MAX_LENGTH);
-                            void setSearch({ q: value.trim() ? value : null });
-                        }}
-                        maxLength={SEARCH_MAX_LENGTH}
-                        placeholder={`${searchLabel}...`}
-                        aria-label={searchLabel}
-                        className="h-11 bg-card pl-10 text-sm lg:h-14 lg:rounded-full lg:border-transparent lg:bg-transparent lg:pl-12 lg:dark:bg-transparent"
-                    />
-                </m.div>
-            </m.div>
+            <div className="desktop-search-field relative lg:fixed">
+                <Search
+                    className="pointer-events-none absolute top-1/2 left-3.5 size-5 -translate-y-1/2 text-muted-foreground"
+                    aria-hidden="true"
+                />
+                <Input
+                    type="search"
+                    value={q}
+                    onChange={(event) => {
+                        const value = event.target.value.slice(0, SEARCH_MAX_LENGTH);
+                        void setSearch({ q: value.trim() ? value : null });
+                    }}
+                    maxLength={SEARCH_MAX_LENGTH}
+                    placeholder={`${searchLabel}...`}
+                    aria-label={searchLabel}
+                    className="h-11 bg-card pr-12 pl-10 text-sm transition-none lg:h-14 lg:rounded-full lg:border-primary lg:bg-background lg:pl-12 lg:dark:bg-background"
+                />
+                {subjects && <SubjectFilters />}
+            </div>
             <TabFilter
                 label="Categoria da busca"
                 value={category}
                 options={SEARCH_CATEGORIES}
                 labels={searchCategoryLabels}
                 onChange={(value) => void setSearch({ category: value })}
-                className="search-filters -my-2 lg:col-start-1 lg:row-start-1 lg:my-0 lg:mb-4 lg:w-fit"
+                className="search-filters -my-2 lg:col-start-1 lg:row-start-1 lg:my-0 lg:mb-4 lg:w-fit lg:max-w-full"
             />
             <SchedulePreview />
             <div
@@ -193,9 +224,12 @@ function BuscarPage() {
                 className="search-results flex min-w-0 flex-col gap-5 pb-8 lg:col-start-1 lg:row-start-2"
             >
                 {!view && (
-                    <p className="py-8 text-center text-sm text-muted-foreground">{`Digite de ${SEARCH_MIN_LENGTH} a ${SEARCH_MAX_LENGTH} caracteres do nome, código da matéria, curso ou professor para ver os resultados.`}</p>
+                    <p className="py-8 text-center text-sm text-muted-foreground">
+                        Busque por matéria, departamento ou código de horário do SIGAA, como 24M34.
+                        Para selecionar horários, abra o filtro de matérias.
+                    </p>
                 )}
-                {subjects && !user && text && (
+                {subjects && !user && text && view?.kind !== 'curriculum-login' && (
                     <p className="text-sm text-muted-foreground">
                         <Link className="font-bold text-primary hover:underline" to="/login">
                             Entre na sua conta
@@ -204,7 +238,12 @@ function BuscarPage() {
                     </p>
                 )}
                 {view?.kind === 'recommendations' && (
-                    <RecommendationsSection currentPeriod={currentPeriod} taken={taken} />
+                    <RecommendationsSection
+                        currentPeriod={currentPeriod}
+                        taken={taken}
+                        availability={filters.hideUnavailable ? approved : undefined}
+                        planned={planned}
+                    />
                 )}
                 {view?.kind === 'search' && (
                     <SearchResults
@@ -214,6 +253,8 @@ function BuscarPage() {
                         empty={searchEmptyMessages[category]}
                         currentPeriod={currentPeriod}
                         taken={taken}
+                        availability={filters.hideUnavailable ? approved : undefined}
+                        planned={planned}
                         onShowCategory={
                             category === 'all'
                                 ? (value) => void setSearch({ category: value })
@@ -222,8 +263,23 @@ function BuscarPage() {
                     />
                 )}
                 {view?.kind === 'catalog' && <CatalogResults category={view.category} />}
-                {view?.kind === 'unit' && (
-                    <SubjectResults unit={view.unit} currentPeriod={currentPeriod} taken={taken} />
+                {view?.kind === 'subjects' && (
+                    <SubjectResults
+                        query={view.query}
+                        title={view.title}
+                        currentPeriod={currentPeriod}
+                        taken={taken}
+                        availability={filters.hideUnavailable ? approved : undefined}
+                        planned={planned}
+                    />
+                )}
+                {view?.kind === 'curriculum-login' && (
+                    <p>
+                        <Link className="font-bold text-primary" to="/login">
+                            Entre na sua conta
+                        </Link>{' '}
+                        para filtrar as matérias pela matriz do seu curso.
+                    </p>
                 )}
                 {view?.kind === 'internships' &&
                     (user ? (

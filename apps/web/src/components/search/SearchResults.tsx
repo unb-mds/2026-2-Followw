@@ -1,3 +1,4 @@
+import type { PlannedClass } from '@followw/core/lib/planned-schedule.ts';
 import type { InternshipItem } from '@followw/core/queries/internships.ts';
 import type { SearchResult, SearchType } from '@followw/core/queries/search.ts';
 
@@ -5,7 +6,6 @@ import { searchTypes } from '@followw/core/lib/search-categories.ts';
 import { filterInternships, internshipsQueryOptions } from '@followw/core/queries/internships.ts';
 import { meQueryOptions } from '@followw/core/queries/me.ts';
 import { searchQueryOptions } from '@followw/core/queries/search.ts';
-import { withClassrooms } from '@followw/core/queries/subjects.ts';
 import {
     type UseQueryResult,
     keepPreviousData,
@@ -22,7 +22,7 @@ import {
     InternshipSectionSkeleton
 } from '#/components/search/InternshipSection';
 import { ProfessorSection } from '#/components/search/ProfessorSection';
-import { TurmaSection } from '#/components/search/TurmaSection';
+import { SubjectPageSection } from '#/components/search/SubjectPageSection';
 import { refreshQuery } from '#/queries/refresh';
 
 type PreviewCategory = 'courses' | 'professors' | 'internships';
@@ -51,20 +51,29 @@ function SearchResultSections({
     text,
     data,
     currentPeriod,
+    planned,
+    availability,
     taken,
+    placeholder,
+    empty,
     onShowCategory,
-    onOpenDetails
+    onRefresh
 }: {
     text: string;
     data: SearchResult;
     currentPeriod: number | null;
+    planned?: readonly PlannedClass[];
+    availability?: Set<string> | null;
     taken: Set<string> | null;
+    placeholder: boolean;
+    // sem estágios para exibir; vale só quando não há cursos nem docentes
+    empty?: string;
     onShowCategory?: (category: PreviewCategory) => void;
-    onOpenDetails: () => void;
+    onRefresh: () => void;
 }) {
     const { courses, professors, subjects } = data;
-    const offered = withClassrooms(subjects ?? []);
-    if (!courses?.items.length && !professors?.items.length && !offered.length) return null;
+    if (!hasSearchResults(data)) return null;
+    const hasCoursesOrProfessors = Boolean(courses?.items.length || professors?.items.length);
 
     return (
         <Fragment key={text}>
@@ -82,13 +91,20 @@ function SearchResultSections({
                     onShowAll={onShowCategory && (() => onShowCategory('professors'))}
                 />
             )}
-            <TurmaSection
-                title="Turmas"
-                subjects={offered}
-                currentPeriod={currentPeriod}
-                taken={taken}
-                onOpenDetails={onOpenDetails}
-            />
+            {subjects && (
+                <SubjectPageSection
+                    first={subjects}
+                    query={{ q: text, offered: true }}
+                    title="Turmas"
+                    currentPeriod={currentPeriod}
+                    planned={planned}
+                    availability={availability}
+                    taken={taken}
+                    refreshFirst={onRefresh}
+                    placeholder={placeholder}
+                    empty={hasCoursesOrProfessors ? undefined : empty}
+                />
+            )}
         </Fragment>
     );
 }
@@ -96,9 +112,7 @@ function SearchResultSections({
 function hasSearchResults(data: SearchResult | undefined) {
     if (!data) return false;
     return Boolean(
-        data.courses?.items.length ||
-        data.professors?.items.length ||
-        withClassrooms(data.subjects ?? []).length
+        data.courses?.items.length || data.professors?.items.length || data.subjects?.total
     );
 }
 
@@ -149,6 +163,8 @@ export function SearchResults({
     types,
     empty,
     currentPeriod,
+    planned,
+    availability,
     taken,
     onShowCategory
 }: {
@@ -156,6 +172,8 @@ export function SearchResults({
     types: SearchType[] | undefined;
     empty: string;
     currentPeriod: number | null;
+    planned?: readonly PlannedClass[];
+    availability?: Set<string> | null;
     taken: Set<string> | null;
     // na aba Todos, cursos, docentes e estágios viram prévias que levam à aba própria
     onShowCategory?: (category: PreviewCategory) => void;
@@ -184,6 +202,7 @@ export function SearchResults({
     const refresh = () => void refreshQuery(client, options).catch(noop);
     const busy = result.isFetching || (showInternships && internships.isFetching);
     const showEmpty = isSearchEmpty(result, showInternships, internships);
+    const noInternships = !showInternships || (internships.isSuccess && !internships.data.length);
 
     return (
         <div aria-busy={busy} className="flex flex-col gap-5">
@@ -199,9 +218,13 @@ export function SearchResults({
                         text={text}
                         data={data}
                         currentPeriod={currentPeriod}
+                        planned={planned}
+                        availability={availability}
                         taken={taken}
+                        placeholder={result.isPlaceholderData}
+                        empty={noInternships ? empty : undefined}
                         onShowCategory={showCategory}
-                        onOpenDetails={refresh}
+                        onRefresh={refresh}
                     />
                 )}
             </QueryState>

@@ -15,6 +15,9 @@ export const finalGrade = (classroom: Classroom) => classroom.grade ?? null;
 
 export const classroomsQueryOptions = api.queryOptions('get', '/classrooms');
 
+export const semesterClassroomsQueryOptions = (semester: string) =>
+    api.queryOptions('get', '/classrooms', { params: { query: { semester } } });
+
 export const allClassroomsQueryOptions = api.queryOptions('get', '/classrooms', {
     params: { query: { semester: 'all' } }
 });

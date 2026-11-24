@@ -373,7 +373,7 @@ analisar concorrência de vagas, pré-requisitos, quadro de professores e recome
 - **US42:** Como estudante autenticado, quero recomendações que excluam disciplinas já cursadas ou
   em andamento, inclusive equivalentes, permitindo repetição somente com reprovação confirmada.
 
-- **RF16 — Exclusão de Disciplinas Cursadas e Equivalências (`GET /public/subjects`):** O sistema
+- **RF16 — Exclusão de Disciplinas Cursadas e Equivalências (`GET /public/subjects/recommendations`):** O sistema
   deve excluir aprovações, matrículas atuais e tentativas sem resultado, considerando as expressões
   de equivalência do catálogo.
 

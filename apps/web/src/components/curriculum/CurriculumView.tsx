@@ -10,11 +10,14 @@ import { allClassroomsQueryOptions } from '@followw/core/queries/classrooms.ts';
 import { curriculumQueryOptions } from '@followw/core/queries/curriculum.ts';
 import { ApiError } from '@followw/core/queries/errors.ts';
 import { useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { Download } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
 import { DesktopDiagram, MobileDiagram } from '#/components/curriculum/Diagram';
 import { LoadingText } from '#/components/LoadingText';
 import { QueryState } from '#/components/QueryState';
+import { Button } from '#/components/ui/button';
+import { saveFile } from '#/lib/download';
 
 function CurriculumNotices({
     matrix,
@@ -101,6 +104,7 @@ function CurriculumDiagram({
 
 export function CurriculumView({
     courseId,
+    courseName,
     entrySemester,
     completedSubjects,
     currentPeriod,
@@ -110,6 +114,7 @@ export function CurriculumView({
     desktop
 }: {
     courseId: number;
+    courseName: string;
     entrySemester: string;
     completedSubjects?: string[];
     currentPeriod: number | null;
@@ -121,6 +126,8 @@ export function CurriculumView({
 }) {
     const matrix = useQuery(curriculumQueryOptions(courseId, entrySemester));
     const history = useQuery({ ...allClassroomsQueryOptions, enabled: loggedIn });
+    const [downloading, setDownloading] = useState(false);
+    const [downloadError, setDownloadError] = useState(false);
     const state = useMemo(
         () =>
             loggedIn ? academicState(history.data, currentPeriod, completedSubjects) : undefined,
@@ -135,6 +142,26 @@ export function CurriculumView({
         : null;
     const ready = model && model.subjects.length > 0 && initialPeriod !== null;
 
+    async function download() {
+        if (!model || !matrix.data || downloading) return;
+        setDownloading(true);
+        setDownloadError(false);
+        try {
+            const { createCurriculumPng } = await import('#/lib/curriculum/export');
+            const blob = await createCurriculumPng({
+                model,
+                name: courseName,
+                matrix: `Matriz ${matrix.data.code} · ${matrix.data.valid_from}`,
+                state
+            });
+            saveFile(blob, `fluxograma-${courseId}-${entrySemester}.png`);
+        } catch {
+            setDownloadError(true);
+        } finally {
+            setDownloading(false);
+        }
+    }
+
     return (
         <div className="flex min-h-0 flex-1 flex-col">
             <CurriculumNotices
@@ -146,6 +173,19 @@ export function CurriculumView({
                 currentPeriod={currentPeriod}
                 selected={selected}
             />
+            {model && model.subjects.length > 0 && (
+                <div className="flex shrink-0 flex-wrap items-center gap-2 px-4 pb-3 lg:px-6">
+                    <Button variant="outline" size="sm" disabled={downloading} onClick={download}>
+                        <Download aria-hidden="true" />
+                        {downloading ? 'Preparando arquivo…' : 'Baixar fluxograma'}
+                    </Button>
+                    {downloadError && (
+                        <output className="text-sm text-destructive">
+                            Não foi possível baixar o fluxograma. Tente novamente.
+                        </output>
+                    )}
+                </div>
+            )}
             {ready && (
                 <CurriculumDiagram
                     courseId={courseId}

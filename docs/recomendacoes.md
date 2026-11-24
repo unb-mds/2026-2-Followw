@@ -1,16 +1,16 @@
 # Recomendações de matérias
 
-`GET /public/subjects` sem `q`, `code` e `unit` devolve as recomendações do aluno de graduação
-logado, no lugar da listagem padrão da unidade. Visitantes recebem 422, como antes, e usuários fora
-da graduação ou sem matriz identificada também. Com qualquer filtro, a busca é a comum.
+`GET /public/subjects/recommendations` devolve as recomendações do aluno de graduação logado.
+Visitantes recebem 401. Usuários fora da graduação ou sem matriz identificada recebem 422.
+`GET /public/subjects` lista os resultados da busca em páginas de 25.
 
-A resposta é a mesma lista de `CatalogSubject` da busca, com as turmas do semestre da oferta,
+A resposta é uma lista de `CatalogSubject`, com as turmas do semestre da oferta,
 ordenada pelo ranking e com `recommendation: {reasons}` em cada matéria. Score e pontos não são
 expostos: os motivos vêm do que mais pesou ao que menos pesou, e o front segue essa ordem. Na busca
 comum, `recommendation` é `null`. Nos critérios acumulativos, `reasons[].value` traz a quantidade
 medida (semestres, matérias ou horas).
 
-Para quem está logado, toda resposta do `/public/subjects` (busca ou recomendação) traz `kind`:
+Para quem está logado, cada matéria retornada pela busca ou pelas recomendações traz `kind`:
 `mandatory`, `optional` (inclui complementares) ou `free` (fora da matriz). Na busca comum, a matriz
 é a gravada no usuário, sem ir ao SIGAA; sem login ou sem matriz, `kind` é `null`.
 

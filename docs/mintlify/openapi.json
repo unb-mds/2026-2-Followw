@@ -2070,6 +2070,18 @@
             "description": "ID ou sigla da unidade, para todos os tipos."
           },
           {
+            "name": "offered",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Somente matérias com turma no semestre.",
+              "default": false,
+              "title": "Offered"
+            },
+            "description": "Somente matérias com turma no semestre."
+          },
+          {
             "name": "Cache-Control",
             "in": "header",
             "required": false,
@@ -2170,13 +2182,70 @@
         }
       }
     },
+    "/public/subjects/recommendations": {
+      "get": {
+        "tags": [
+          "Public Subjects"
+        ],
+        "summary": "Recomendar matérias para o aluno autenticado",
+        "operationId": "subject_recommendations_public_subjects_recommendations_get",
+        "parameters": [
+          {
+            "name": "Cache-Control",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente).",
+              "title": "Cache-Control"
+            },
+            "description": "`no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CatalogSubject"
+                  },
+                  "title": "Response Subject Recommendations Public Subjects Recommendations Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sessão inválida ao buscar recomendações."
+          },
+          "422": {
+            "description": "Dados insuficientes para recomendar matérias."
+          },
+          "502": {
+            "description": "SIGAA indisponível ao consultar o histórico."
+          },
+          "503": {
+            "description": "Histórico em atualização."
+          }
+        }
+      }
+    },
     "/public/subjects": {
       "get": {
         "tags": [
           "Public Subjects"
         ],
         "summary": "Buscar matérias com suas turmas",
-        "description": "Matérias e ofertas do catálogo do Followw. Sem filtros de busca, retorna recomendações para o aluno autenticado.",
+        "description": "Página de matérias e ofertas do catálogo do Followw.",
         "operationId": "search_subjects_public_subjects_get",
         "parameters": [
           {
@@ -2195,10 +2264,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Termos do código, nome da matéria ou docente. Códigos completos também buscam equivalências.",
+              "description": "Código, nome da matéria, docente, unidade ou horário do SIGAA. Códigos completos também buscam equivalências.",
               "title": "Q"
             },
-            "description": "Termos do código, nome da matéria ou docente. Códigos completos também buscam equivalências."
+            "description": "Código, nome da matéria, docente, unidade ou horário do SIGAA. Códigos completos também buscam equivalências."
           },
           {
             "name": "code",
@@ -2244,6 +2313,93 @@
             "description": "ID ou sigla da unidade responsável."
           },
           {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-6]{1,7}$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Turmas com aula em algum destes dias, de segunda (0) a domingo (6).",
+              "title": "Days"
+            },
+            "description": "Turmas com aula em algum destes dias, de segunda (0) a domingo (6)."
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ClockTime"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Turmas com aula começando em algum destes horários.",
+              "title": "Start"
+            },
+            "description": "Turmas com aula começando em algum destes horários."
+          },
+          {
+            "name": "hours",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WorkloadFilter"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cargas horárias exatas ou 90+ para cargas de 90 horas ou mais.",
+              "title": "Hours"
+            },
+            "description": "Cargas horárias exatas ou 90+ para cargas de 90 horas ou mais."
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "enum": [
+                      "mandatory",
+                      "optional",
+                      "free"
+                    ],
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Tipos da matéria na matriz do aluno autenticado.",
+              "title": "Kind"
+            },
+            "description": "Tipos da matéria na matriz do aluno autenticado."
+          },
+          {
             "name": "semester",
             "in": "query",
             "required": false,
@@ -2261,6 +2417,29 @@
               "title": "Semester"
             },
             "description": "Semestre das turmas."
+          },
+          {
+            "name": "offered",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Somente matérias com turma no semestre, inclusive cheias.",
+              "default": false,
+              "title": "Offered"
+            },
+            "description": "Somente matérias com turma no semestre, inclusive cheias."
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
           },
           {
             "name": "Cache-Control",
@@ -2287,26 +2466,16 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/CatalogSubject"
-                  },
-                  "title": "Response Search Subjects Public Subjects Get"
+                  "$ref": "#/components/schemas/SubjectPage"
                 }
               }
             }
           },
-          "401": {
-            "description": "Sessão inválida ao buscar recomendações."
+          "404": {
+            "description": "Matriz curricular não encontrada ao filtrar pelo tipo de matéria."
           },
           "422": {
-            "description": "Filtros inválidos ou dados insuficientes para recomendar matérias."
-          },
-          "502": {
-            "description": "SIGAA indisponível ao consultar o histórico."
-          },
-          "503": {
-            "description": "Histórico em atualização."
+            "description": "Filtros inválidos."
           }
         }
       }
@@ -3002,6 +3171,12 @@
         },
         "type": "array"
       },
+      "CatalogSearchText": {
+        "type": "string",
+        "maxLength": 32,
+        "minLength": 1,
+        "pattern": "^[^\\x00-\\x1f\\x7f]+$"
+      },
       "CatalogSubject": {
         "properties": {
           "curriculum_prerequisites": {
@@ -3092,6 +3267,19 @@
                 "type": "null"
               }
             ]
+          },
+          "prerequisite_equivalences": {
+            "additionalProperties": {
+              "items": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Prerequisite Equivalences"
           },
           "classrooms": {
             "items": {
@@ -5299,16 +5487,12 @@
           "subjects": {
             "anyOf": [
               {
-                "items": {
-                  "$ref": "#/components/schemas/CatalogSubject"
-                },
-                "type": "array"
+                "$ref": "#/components/schemas/SubjectPage"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Subjects"
+            ]
           },
           "courses": {
             "anyOf": [
@@ -5576,6 +5760,37 @@
           "semester"
         ],
         "title": "SubjectClassroom"
+      },
+      "SubjectPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogSubject"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size",
+            "default": 25
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page"
+        ],
+        "title": "SubjectPage"
       },
       "SubjectReason": {
         "properties": {
@@ -6284,6 +6499,19 @@
           "complementary"
         ],
         "title": "Workload"
+      },
+      "WorkloadFilter": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "maximum": 32767.0,
+            "exclusiveMinimum": 0.0
+          },
+          {
+            "type": "string",
+            "const": "90+"
+          }
+        ]
       }
     },
     "securitySchemes": {

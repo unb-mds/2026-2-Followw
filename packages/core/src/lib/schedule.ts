@@ -25,6 +25,16 @@ const SLOTS: Record<string, [string, string][]> = {
 
 export const SCHEDULE_SLOTS = Object.values(SLOTS).flat();
 
+export const SCHEDULE_BLOCKS = SCHEDULE_SLOTS.reduce<(typeof SCHEDULE_SLOTS)[]>((blocks, slot) => {
+    const previous = blocks.at(-1);
+    if (previous?.length === 1 && previous[0][1] === slot[0]) {
+        previous.push(slot);
+    } else {
+        blocks.push([slot]);
+    }
+    return blocks;
+}, []);
+
 interface TimeRange {
     start: string;
     end: string;
@@ -49,6 +59,13 @@ export function visibleSlots(times: TimeRange[]) {
 const MERGE_GAP_MINUTES = 5;
 
 export const minutesOf = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
+
+export function formatDuration(minutes: number) {
+    const hours = Math.floor(minutes / 60);
+    const remainder = minutes % 60;
+    if (hours === 0) return `${remainder}min`;
+    return remainder ? `${hours}h${remainder}min` : `${hours}h`;
+}
 
 export const WEEKDAYS_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 

@@ -9,9 +9,9 @@ import type { CatalogSubject, Requirements, SubjectClassroom } from '../../src/q
 import { apiClient } from '../../src/queries/client.ts';
 import {
     approvedCodes,
+    availableSubjects,
     covered,
     currentCurriculumPeriod,
-    withClassrooms,
     seats,
     subjectRequirementLabel,
     searchText,
@@ -40,13 +40,14 @@ describe('busca de matérias', () => {
     let middleware: Middleware;
     let client: QueryClient;
     let requests: Request[];
+    const page = { items: [subject], total: 1, page: 1, page_size: 25 };
 
     beforeEach(() => {
         requests = [];
         middleware = {
             onRequest: ({ request }) => {
                 requests.push(request);
-                return Response.json([subject]);
+                return Response.json(page);
             }
         };
         apiClient.use(middleware);
@@ -58,7 +59,7 @@ describe('busca de matérias', () => {
     });
 
     test('consulta o endpoint público com o filtro escolhido', async () => {
-        expect(await client.query(subjectsQueryOptions({ q: 'compila' }))).toEqual([subject]);
+        expect(await client.query(subjectsQueryOptions({ q: 'compila' }))).toEqual(page);
         const url = new URL(requests[0].url);
         expect(url.pathname).toBe('/api/public/subjects');
         expect(url.searchParams.get('q')).toBe('compila');
@@ -68,6 +69,9 @@ describe('busca de matérias', () => {
         ['FGA0003', 'FGA0003'],
         [' fga0003 ', 'fga0003'],
         [' cálculo 1 ', 'cálculo 1'],
+        ['10', null],
+        ['8', null],
+        ['24', null],
         ['ab', null],
         ['abc', 'abc'],
         ['a'.repeat(32), 'a'.repeat(32)],
@@ -135,11 +139,7 @@ describe('pré-requisitos', () => {
     });
 });
 
-describe('filtros no cliente', () => {
-    test('descarta matérias sem turmas', () => {
-        expect(withClassrooms([subject, { ...subject, classrooms: [] }])).toEqual([subject]);
-    });
-
+describe('ocupação das turmas', () => {
     test.each([
         [40, 10, 30, 'free'],
         [40, 31, 9, 'filling'],
@@ -174,4 +174,26 @@ test.each([
     ['2025.3', '2026.2', null]
 ] as const)('calcula período atual para ingresso %s e semestre %s', (entry, semester, expected) => {
     expect(currentCurriculumPeriod(entry, semester)).toBe(expected);
+});
+
+test('oculta turmas cheias e exige um grupo completo de pré-requisitos', () => {
+    const component = {
+        code: 'A',
+        name: 'Matéria',
+        prerequisites: requirements([['B', 'C'], ['D']]),
+        curriculum_prerequisites: [],
+        prerequisite_equivalences: { D: [['X', 'Y']] },
+        classrooms: [morning, night],
+        unlocks: []
+    };
+    expect(availableSubjects([component], new Set(['B']))).toEqual([]);
+    expect(availableSubjects([component], new Set(['D']))).toEqual([
+        { ...component, classrooms: [morning] }
+    ]);
+    expect(availableSubjects([component], new Set(['X']))).toEqual([]);
+    expect(availableSubjects([component], new Set(['X', 'Y']))).toEqual([
+        { ...component, classrooms: [morning] }
+    ]);
+    expect(availableSubjects([component], null)).toEqual([{ ...component, classrooms: [morning] }]);
+    expect(availableSubjects([{ ...component, classrooms: [night] }], null)).toEqual([]);
 });

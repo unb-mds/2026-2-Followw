@@ -8,7 +8,6 @@ import { useDesktop } from '#/components/DesktopContext';
 import { ClassCard } from '#/components/home/ClassCard';
 import { usePlannedSchedule } from '#/components/schedule/usePlannedSchedule';
 import { WeeklySchedule } from '#/components/schedule/WeeklySchedule';
-import { WeeklyTable } from '#/components/schedule/WeeklyTable';
 import { SelectionBar } from '#/components/SelectionBar';
 import { Button } from '#/components/ui/button';
 import {
@@ -23,6 +22,7 @@ import { Progress } from '#/components/ui/progress';
 import { saveFile } from '#/lib/download';
 import { easeIn, spring } from '#/lib/motion';
 import { createSchedulePng } from '#/lib/schedule-image';
+import { cn } from '#/lib/shadcn';
 
 export function SchedulePreview() {
     const desktop = useDesktop();
@@ -44,36 +44,37 @@ export function SchedulePreview() {
 
     const content = (
         <>
-            {grid.map((semester) =>
-                desktop ? (
-                    <div key={semester.semester} className="flex flex-col gap-4">
-                        <div className="flex items-center justify-between gap-3 text-sm">
-                            <h3>Planejamento · {semester.semester}</h3>
-                            <span className="text-muted-foreground tabular-nums">
-                                {maxHours == null
-                                    ? `${semester.hours}h`
-                                    : `${semester.hours}h de ${maxHours}h`}
-                            </span>
-                        </div>
-                        {maxHours != null && maxHours > 0 && (
-                            <Progress
-                                aria-label={`Carga horária de ${semester.semester}`}
-                                value={Math.min(100, (semester.hours / maxHours) * 100)}
-                                className="h-1"
-                            />
-                        )}
-                        <WeeklySchedule
-                            label={`Grade semanal ${semester.semester}`}
-                            entries={semester.classes.map((entry) => ({
-                                ...entry,
-                                key: classKey(entry)
-                            }))}
-                        />
+            {grid.map((semester) => (
+                <div key={semester.semester} className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                        <h3>Planejamento · {semester.semester}</h3>
+                        <span
+                            className={cn(
+                                'text-muted-foreground tabular-nums',
+                                maxHours != null && semester.hours > maxHours && 'text-destructive'
+                            )}
+                        >
+                            {maxHours == null
+                                ? `${semester.hours}h`
+                                : `${semester.hours}h de ${maxHours}h`}
+                        </span>
                     </div>
-                ) : (
-                    <WeeklyTable key={semester.semester} grid={semester} maxHours={maxHours} />
-                )
-            )}
+                    {maxHours != null && maxHours > 0 && (
+                        <Progress
+                            aria-label={`Carga horária de ${semester.semester}`}
+                            value={Math.min(100, (semester.hours / maxHours) * 100)}
+                            className="h-1"
+                        />
+                    )}
+                    <WeeklySchedule
+                        label={`Grade semanal ${semester.semester}`}
+                        entries={semester.classes.map((entry) => ({
+                            ...entry,
+                            key: classKey(entry)
+                        }))}
+                    />
+                </div>
+            ))}
             {items.length === 0 ? (
                 <div className="flex min-h-56 flex-col items-center justify-center gap-3 py-8 text-center">
                     <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -102,6 +103,7 @@ export function SchedulePreview() {
                             >
                                 <ClassCard
                                     compact
+                                    code={item.code}
                                     title={item.name}
                                     time={describeSchedule(item.schedule) ?? 'Horário a definir'}
                                     location={item.room ?? undefined}

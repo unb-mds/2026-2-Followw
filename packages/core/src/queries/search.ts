@@ -6,4 +6,6 @@ export type SearchResult = components['schemas']['SearchResult'];
 export type SearchType = components['schemas']['SearchType'];
 
 export const searchQueryOptions = (q: string, type?: SearchType[]) =>
-    api.queryOptions('get', '/public/search', { params: { query: { q, type } } });
+    api.queryOptions('get', '/public/search', {
+        params: { query: { q, type, offered: !type || type.includes('subjects') || undefined } }
+    });

@@ -1,5 +1,6 @@
-import type { FlowEdge, FlowNode, FlowSubject, Point, RoutedEdge } from './types.ts';
+import type { FlowEdge, FlowNode, FlowSubject, Point } from './types.ts';
 
+import { colorConnections } from './colors.ts';
 import { groupBy } from './graph.ts';
 import { portLanes, type PortSpan } from './lanes.ts';
 import { shortestChannelPath } from './shortcuts.ts';
@@ -213,15 +214,18 @@ export function planConnections(columns: FlowSubject[][], edges: FlowEdge[], min
                     nodes
                 );
             }
-            return connections.map((connection): RoutedEdge => ({
-                edge: connection.edge,
-                points: simplify(path(connection)),
-                color: color(
-                    connection.kind === 'channel'
-                        ? node(connection.owner)
-                        : ends(connection.edge)[0]
-                )
-            }));
+            return colorConnections(
+                connections.map((connection) => ({
+                    edge: connection.edge,
+                    points: simplify(path(connection)),
+                    net: connection.kind === 'channel' ? connection.net : connection.edge.id,
+                    color: color(
+                        connection.kind === 'channel'
+                            ? node(connection.owner)
+                            : ends(connection.edge)[0]
+                    )
+                }))
+            );
         }
     };
 }

@@ -15,6 +15,20 @@ export const classKey = ({ code, semester, number }: PlannedClass) =>
 const totalHours = (items: PlannedClass[]) =>
     items.reduce((total, item) => total + (item.hours ?? 0), 0);
 
+/** Compara as ofertas com os horários da grade, sem contar a turma contra ela mesma. */
+export function scheduleConflictFinder(items: readonly PlannedClass[]) {
+    const scheduled = items.map((item) => ({ item, times: parseSchedule(item.schedule) }));
+    return (code: string, classroom: SubjectClassroom) => {
+        const times = parseSchedule(classroom.schedule);
+        return scheduled.find(
+            ({ item, times: existing }) =>
+                item.semester === classroom.semester &&
+                (item.code !== code || item.number !== classroom.number) &&
+                existing.some((slot) => times.some((time) => overlaps(time, slot)))
+        )?.item;
+    };
+}
+
 /** Por que a turma não entra na grade: matéria repetida, choque de horário ou carga máxima. */
 export function addError(
     items: PlannedClass[],
@@ -26,12 +40,7 @@ export function addError(
     if (repeated) {
         return `${item.name} (${item.code}) já está na grade do semestre ${item.semester}, na turma ${repeated.number}.`;
     }
-    const times = parseSchedule(item.schedule);
-    const clash = semester.find((entry) =>
-        parseSchedule(entry.schedule).some((existing) =>
-            times.some((time) => overlaps(time, existing))
-        )
-    );
+    const clash = scheduleConflictFinder(semester)(item.code, item);
     if (clash) {
         return `O horário de ${item.name} (${item.code}) conflita com ${clash.name} (${clash.code}), turma ${clash.number}.`;
     }
@@ -47,10 +56,14 @@ export const GRID_DAYS = WEEKDAYS_SHORT.slice(1).map((label, index) => ({
     weekday: index + 1
 }));
 
+export function visibleGridDays(times: { weekday: number }[]) {
+    return times.some(({ weekday }) => weekday === 6) ? GRID_DAYS : GRID_DAYS.slice(0, -1);
+}
+
 export interface GridRow {
     start: string;
     end: string;
-    /** Uma célula por dia de `GRID_DAYS`; a grade não aceita choques. */
+    /** Uma célula por dia visível do semestre; a grade não aceita choques. */
     cells: (PlannedClass | undefined)[];
 }
 
@@ -58,22 +71,23 @@ export interface GridRow {
 export function weeklyGrid(items: PlannedClass[]) {
     return groupBySemester(items).map(([semester, classes]) => {
         const timed = classes.map((item) => ({ item, times: parseSchedule(item.schedule) }));
-        const rows = visibleSlots(timed.flatMap(({ times }) => times)).map(
-            ([start, end]): GridRow => ({
-                start,
-                end,
-                cells: GRID_DAYS.map(
-                    ({ weekday }) =>
-                        timed.find(({ times }) =>
-                            times.some((time) => overlaps(time, { weekday, start, end }))
-                        )?.item
-                )
-            })
-        );
+        const allTimes = timed.flatMap((entry) => entry.times);
+        const days = visibleGridDays(allTimes);
+        const rows = visibleSlots(allTimes).map(([start, end]): GridRow => ({
+            start,
+            end,
+            cells: days.map(
+                ({ weekday }) =>
+                    timed.find(({ times }) =>
+                        times.some((time) => overlaps(time, { weekday, start, end }))
+                    )?.item
+            )
+        }));
         return {
             semester,
             classes,
             hours: totalHours(classes),
+            days,
             rows,
             unscheduled: timed.filter(({ times }) => times.length === 0).map(({ item }) => item)
         };

@@ -1,5 +1,7 @@
 import type { Point, RoutedEdge } from './types.ts';
 
+import { perpendicularCrossing } from './intersections.ts';
+
 interface Segment {
     points: [Point, Point];
     edgeIds: string[];
@@ -99,5 +101,46 @@ export function connectionSegments(routes: RoutedEdge[]) {
         }
         if (directions.size >= 3) junctions.push({ ...point, color });
     }
-    return { segments, arrows: [...arrows.values()], junctions };
+    return {
+        segments: separateCrossings(segments, junctions),
+        arrows: [...arrows.values()],
+        junctions
+    };
+}
+
+function separateCrossings(segments: Segment[], junctions: (Point & { color: number })[]) {
+    const horizontal = segments.filter(({ points: [a, b] }) => a.y === b.y);
+    const joined = new Set(junctions.map(({ x, y, color }) => `${color}:${x}:${y}`));
+    return segments.flatMap((segment) => {
+        const {
+            points: [a, b],
+            color
+        } = segment;
+        if (a.x !== b.x) return [segment];
+        const crossings = horizontal
+            .flatMap(({ points: [c, d], color: other }) => {
+                const at = color === other && perpendicularCrossing(a, b, c, d);
+                return at && !joined.has(`${color}:${at.x}:${at.y}`) ? [at.y] : [];
+            })
+            .toSorted((first, second) => first - second);
+        if (!crossings.length) return [segment];
+
+        const pieces: Segment[] = [];
+        let start = a.y;
+        for (const y of crossings) {
+            const gap = Math.min(4, (y - a.y) / 2, (b.y - y) / 2);
+            if (start < y - gap) {
+                pieces.push({
+                    ...segment,
+                    points: [
+                        { x: a.x, y: start },
+                        { x: a.x, y: y - gap }
+                    ]
+                });
+            }
+            start = Math.max(start, y + gap);
+        }
+        pieces.push({ ...segment, points: [{ x: a.x, y: start }, b] });
+        return pieces;
+    });
 }

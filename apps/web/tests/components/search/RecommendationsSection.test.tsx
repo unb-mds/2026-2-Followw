@@ -151,7 +151,7 @@ describe('seção de recomendações', () => {
             expect(page.getByRole('button', { name: /FGA0001/ })).toBeDefined()
         );
         const request = new URL(requests[0].url);
-        expect(request.pathname.endsWith('/public/subjects')).toBe(true);
+        expect(request.pathname.endsWith('/public/subjects/recommendations')).toBe(true);
         expect([...request.searchParams]).toEqual([]);
         expect(page.getByRole('button', { name: /FGA0001/ }).textContent).toContain('2 turmas');
         expect(page.getByRole('button', { name: /FGA0001/ }).textContent).toContain('Obrigatória');
@@ -185,7 +185,9 @@ describe('seção de recomendações', () => {
         await testing.waitFor(() =>
             expect(classrooms[0].getAttribute('aria-expanded')).toBe('true')
         );
-        const subjects = requests.filter(({ url }) => url.endsWith('/public/subjects'));
+        const subjects = requests.filter(({ url }) =>
+            url.endsWith('/public/subjects/recommendations')
+        );
         expect(subjects).toHaveLength(1);
     });
     test('exibe 25 recomendações e carrega mais sob demanda', async () => {

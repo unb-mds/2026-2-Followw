@@ -4,10 +4,9 @@ import { api } from './api.ts';
 
 export type Recommendation = NonNullable<CatalogSubject['recommendation']>;
 
-/** Sem filtros, o /public/subjects devolve as recomendações do aluno logado. */
 export const recommendationsQueryOptions = api.queryOptions(
     'get',
-    '/public/subjects',
+    '/public/subjects/recommendations',
     {},
     { staleTime: 0, gcTime: 60_000 }
 );

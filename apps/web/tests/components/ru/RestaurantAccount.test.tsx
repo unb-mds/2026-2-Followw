@@ -32,7 +32,7 @@ describe('RestaurantAccount', () => {
         );
 
         expect(markup).toMatch(
-            /<button\b(?=[^>]*aria-haspopup="dialog")(?=[^>]*aria-label="Ver QR code da carteirinha")[^>]*>/
+            /<button\b(?=[^>]*aria-haspopup="dialog")(?=[^>]*aria-label="Ver QR code da carteirinha")[^>]*\bbg-secondary\b[^>]*>/
         );
         expect(markup).toContain('aria-expanded="false"');
         expect(markup).not.toContain('QR code da carteirinha estudantil');

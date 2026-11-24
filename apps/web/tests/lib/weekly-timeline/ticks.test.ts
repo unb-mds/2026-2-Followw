@@ -29,8 +29,7 @@ describe('marcadores de horário da grade semanal', () => {
     test('não sobrepõe marcadores na junção dos intervalos omitidos', () => {
         const ticks = timeTicks(weeklyTimeline(parseSchedule('2M12 2N34')));
         expect(ticks.map(({ minute }) => minute)).toEqual([480, 540, 1200, 1260, 1320, 1380]);
-        for (let index = 1; index < ticks.length; index++)
-            expect(ticks[index].top - ticks[index - 1].top).toBe(48);
+        expect(ticks.map(({ top }) => top)).toEqual([0, 48, 120, 168, 216, 264]);
     });
 
     test('não cria marcadores sem aulas', () => {

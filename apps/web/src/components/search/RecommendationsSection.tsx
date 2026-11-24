@@ -1,7 +1,8 @@
+import type { PlannedClass } from '@followw/core/lib/planned-schedule.ts';
 import type { CatalogSubject } from '@followw/core/queries/subjects.ts';
 
 import { reasonLabel, recommendationsQueryOptions } from '@followw/core/queries/recommendations.ts';
-import { withClassrooms } from '@followw/core/queries/subjects.ts';
+import { availableSubjects, withoutScheduleConflicts } from '@followw/core/queries/subjects.ts';
 import { noop, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, CircleHelp } from 'lucide-react';
 
@@ -61,15 +62,22 @@ function WhyDialog(subject: CatalogSubject) {
 
 export function RecommendationsSection({
     currentPeriod,
+    planned,
+    availability,
     taken
 }: {
     currentPeriod?: number | null;
+    planned?: readonly PlannedClass[];
+    availability?: Set<string> | null;
     taken?: Set<string> | null;
 }) {
     const client = useQueryClient();
     const query = useQuery(recommendationsQueryOptions);
     const refresh = () => void refreshQuery(client, recommendationsQueryOptions).catch(noop);
-    const subjects = query.data && withClassrooms(query.data);
+    const compatible = query.data && withoutScheduleConflicts(query.data, planned);
+    const subjects =
+        compatible &&
+        (availability === undefined ? compatible : availableSubjects(compatible, availability));
     return (
         <section
             aria-label="Matérias recomendadas"
@@ -103,6 +111,7 @@ export function RecommendationsSection({
                             currentPeriod={currentPeriod}
                             taken={taken}
                             footer={WhyDialog}
+                            clientPagination
                         />
                     )}
                 </>

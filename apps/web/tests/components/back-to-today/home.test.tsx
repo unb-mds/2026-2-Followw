@@ -27,6 +27,9 @@ test('ao escolher outro dia da semana mostra o atalho e volta para hoje', async 
     const other =
         weekDays(now.date).find((day) => day.date !== now.date)?.date ?? addDays(now.date, 1);
     dom.testing.fireEvent.click(view.getByTitle('Exibir dias da semana'));
+    const picker = view.getByLabelText('Escolher dia');
+    const classes = view.getByRole('heading', { name: 'Aulas do dia' }).closest('section');
+    expect(picker.nextElementSibling).toBe(classes);
     dom.testing.fireEvent.click(view.getByRole('button', { name: other }));
     expect(view.getByRole('button', { name: other }).getAttribute('aria-pressed')).toBe('true');
     dom.testing.fireEvent.click(await view.findByRole('button', { name: 'Voltar para hoje' }));

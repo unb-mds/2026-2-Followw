@@ -1,18 +1,11 @@
 import type { CatalogSubject } from '@followw/core/queries/subjects.ts';
 
-import { covered } from '@followw/core/queries/subjects.ts';
 import { m } from 'motion/react';
 import { useState, type ReactNode } from 'react';
 
 import { SectionHeaderSkeleton } from '#/components/LoadingSkeleton';
-import { SubjectSummary } from '#/components/search/SubjectSummary';
-import { TurmaCard } from '#/components/search/TurmaCard';
-import {
-    Accordion,
-    AccordionContent,
-    AccordionItem,
-    AccordionTrigger
-} from '#/components/ui/accordion';
+import { TurmaItem } from '#/components/search/TurmaItem';
+import { Accordion } from '#/components/ui/accordion';
 import { Button } from '#/components/ui/button';
 import { Skeleton } from '#/components/ui/skeleton';
 import { rise, useEntrance } from '#/lib/motion';
@@ -26,14 +19,16 @@ export function TurmaSection({
     taken,
     onOpenDetails,
     currentPeriod,
-    footer
+    footer,
+    clientPagination = false
 }: {
     currentPeriod?: number | null;
     title?: string;
     subjects: CatalogSubject[];
     taken?: Set<string> | null;
-    onOpenDetails?: () => void;
+    onOpenDetails?: (subject: CatalogSubject) => void;
     footer?: (subject: CatalogSubject) => ReactNode;
+    clientPagination?: boolean;
 }) {
     const [limit, setLimit] = useState(PAGE_SIZE);
     const entrance = useEntrance();
@@ -50,40 +45,19 @@ export function TurmaSection({
                 </div>
             )}
             <Accordion multiple className="gap-2" render={<m.div {...entrance} />}>
-                {subjects.slice(0, limit).map((subject, index) => (
-                    <AccordionItem
+                {(clientPagination ? subjects.slice(0, limit) : subjects).map((subject, index) => (
+                    <TurmaItem
                         key={subject.code}
-                        render={<m.div custom={index % PAGE_SIZE} variants={rise} />}
-                        value={subject.code}
-                        className="overflow-hidden rounded-2xl border bg-card text-card-foreground"
-                    >
-                        <AccordionTrigger className="items-center gap-3 rounded-none px-3 py-3 hover:bg-primary/5 hover:no-underline focus-visible:ring-inset lg:px-5 lg:py-4">
-                            <SubjectSummary
-                                subject={subject}
-                                currentPeriod={currentPeriod}
-                                done={covered(taken, subject)}
-                            />
-                            <span className="shrink-0 text-xs text-muted-foreground">
-                                {`${subject.classrooms.length} ${subject.classrooms.length === 1 ? 'turma' : 'turmas'}`}
-                            </span>
-                        </AccordionTrigger>
-                        <AccordionContent className="pb-0">
-                            <div className="flex flex-col divide-y divide-border border-t border-border">
-                                {subject.classrooms.map((classroom) => (
-                                    <TurmaCard
-                                        key={`${classroom.semester}-${classroom.number}`}
-                                        subject={subject}
-                                        classroom={classroom}
-                                        onOpenDetails={onOpenDetails}
-                                    />
-                                ))}
-                            </div>
-                            {footer?.(subject)}
-                        </AccordionContent>
-                    </AccordionItem>
+                        animation={<m.div custom={index % PAGE_SIZE} variants={rise} />}
+                        subject={subject}
+                        currentPeriod={currentPeriod}
+                        taken={taken}
+                        onOpenDetails={onOpenDetails && (() => onOpenDetails(subject))}
+                        footer={footer?.(subject)}
+                    />
                 ))}
             </Accordion>
-            {subjects.length > limit && (
+            {clientPagination && subjects.length > limit && (
                 <Button
                     variant="outline"
                     className="self-center"

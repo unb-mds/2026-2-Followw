@@ -16,7 +16,8 @@ from api.db.models import (
 NOW = datetime.now(UTC)
 
 
-URL = "/public/subjects"
+CATALOG_URL = "/public/subjects"
+URL = f"{CATALOG_URL}/recommendations"
 
 
 class Scenario:

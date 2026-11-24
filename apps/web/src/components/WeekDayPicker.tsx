@@ -27,13 +27,14 @@ interface WeekDayPickerProps {
     selectedDate: string;
     onSelect: (day: Day) => void;
     week?: WeekNavigation;
+    tiles?: boolean;
 }
 
-export function WeekDayPicker({ days, selectedDate, onSelect, week }: WeekDayPickerProps) {
+export function WeekDayPicker({ week, ...dayButtons }: WeekDayPickerProps) {
     return (
         <>
-            {week && <WeekHeader days={days} week={week} />}
-            <DayButtons days={days} selectedDate={selectedDate} onSelect={onSelect} />
+            {week && <WeekHeader days={dayButtons.days} week={week} />}
+            <DayButtons {...dayButtons} />
         </>
     );
 }
@@ -75,12 +76,16 @@ function WeekHeader({ days, week }: { days: Day[]; week: WeekNavigation }) {
     );
 }
 
-function DayButtons({ days, selectedDate, onSelect }: Omit<WeekDayPickerProps, 'week'>) {
+function DayButtons({ days, selectedDate, onSelect, tiles }: Omit<WeekDayPickerProps, 'week'>) {
     const id = useId();
+    const activeVariant = tiles ? 'ghost' : 'default';
     return (
         <m.div
             layoutScroll
-            className="mb-4 flex items-center gap-1 overflow-x-auto px-px py-1"
+            className={cn(
+                'mb-4 flex items-center gap-1 overflow-x-auto px-px py-1',
+                tiles && 'sm:gap-2'
+            )}
             aria-label="Escolher dia"
         >
             {days.map((day) => {
@@ -89,32 +94,51 @@ function DayButtons({ days, selectedDate, onSelect }: Omit<WeekDayPickerProps, '
                     <Button
                         key={day.date}
                         type="button"
-                        variant={isActive ? 'default' : 'outline'}
+                        variant={isActive ? activeVariant : 'outline'}
                         onClick={() => onSelect(day)}
                         aria-label={day.date}
                         aria-pressed={isActive}
                         className={cn(
-                            'relative isolate h-16 min-w-0 flex-1 flex-col gap-1 px-0',
-                            isActive && 'bg-transparent hover:bg-transparent'
+                            'relative isolate flex-col px-0',
+                            tiles
+                                ? 'aspect-3/2 h-auto min-h-11 min-w-11 flex-1 gap-0 sm:gap-1'
+                                : 'h-16 min-w-0 flex-1 gap-1',
+                            isActive && 'bg-transparent hover:bg-transparent',
+                            isActive &&
+                                tiles &&
+                                'text-primary hover:text-primary dark:hover:bg-transparent'
                         )}
                     >
                         {isActive && (
                             <m.span
                                 layoutId={id}
                                 aria-hidden="true"
-                                className="absolute -inset-px -z-10 rounded-[inherit] bg-primary"
+                                className={cn(
+                                    'absolute -inset-px -z-10 rounded-[inherit]',
+                                    tiles
+                                        ? 'bg-primary/12 ring-1 ring-primary/30 ring-inset'
+                                        : 'bg-primary'
+                                )}
                                 transition={spring}
                             />
                         )}
                         <span
                             className={cn(
-                                'text-xs font-bold tracking-wider uppercase',
-                                isActive ? 'text-primary-foreground/90' : 'text-muted-foreground'
+                                'text-xs font-bold uppercase',
+                                tiles ? 'leading-tight' : 'tracking-wider',
+                                !isActive && 'text-muted-foreground',
+                                isActive && !tiles && 'text-primary-foreground/90'
                             )}
                         >
                             {WEEKDAYS[day.weekday]}
                         </span>
-                        <span className="text-lg font-extrabold">{Number(day.date.slice(8))}</span>
+                        <span
+                            className={
+                                tiles ? 'text-sm font-bold sm:text-lg' : 'text-lg font-extrabold'
+                            }
+                        >
+                            {Number(day.date.slice(8))}
+                        </span>
                     </Button>
                 );
             })}

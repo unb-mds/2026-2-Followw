@@ -21,6 +21,15 @@ describe('parâmetros da busca', () => {
 
     test('restaura a query e os filtros tipados da URL', () => {
         expect(loadSearchParams('?q=calculo&category=courses')).toEqual({
+            hideConflicts: false,
+            hideUnavailable: false,
+            electives: false,
+            freeModules: false,
+            mandatory: false,
+            days: '',
+            unit: '',
+            start: [],
+            hours: [],
             q: 'calculo',
             category: 'courses'
         });
@@ -28,9 +37,41 @@ describe('parâmetros da busca', () => {
 
     test('filtros ausentes ou inválidos usam os padrões', () => {
         expect(loadSearchParams('?category=Eletiva')).toEqual({
+            hideConflicts: false,
+            hideUnavailable: false,
+            electives: false,
+            freeModules: false,
+            mandatory: false,
+            days: '',
+            unit: '',
+            start: [],
+            hours: [],
             q: '',
             category: 'all'
         });
+    });
+
+    test('restaura seleções múltiplas de horas e horários pela URL', () => {
+        const filters = {
+            hours: [60, '90+' as const],
+            start: ['08:00', '10:00'],
+            mandatory: true
+        };
+        const url = createSerializer(searchParsers)(filters);
+        expect(loadSearchParams(url)).toMatchObject(filters);
+        expect(validateSearch['~standard'].validate(parseRouterSearch(url))).toEqual({
+            value: filters
+        });
+        expect(validateSearch['~standard'].validate(parseRouterSearch('?hours=60'))).toEqual({
+            value: { hours: [60] }
+        });
+    });
+
+    test('carga horária aceita só as opções exatas abaixo de 90h e 90+', () => {
+        expect(loadSearchParams('?hours=60&hours=90&hours=105&hours=90%2B&hours=x').hours).toEqual([
+            60,
+            '90+'
+        ]);
     });
 
     test('limpar consulta e filtros remove os parâmetros', () => {

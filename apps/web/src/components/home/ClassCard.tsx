@@ -13,6 +13,7 @@ import { cn } from '#/lib/shadcn';
 
 export interface ClassCardProps {
     title: string;
+    code?: string;
     compact?: boolean;
     time: string;
     /** `null` é turma sem local lançado; `undefined` omite o local. */
@@ -45,6 +46,25 @@ const STATUS = {
     cancelled: { label: 'Cancelada', variant: 'secondary', className: 'text-muted-foreground' }
 } as const;
 
+function ClassCardBadge({
+    status,
+    statusText
+}: {
+    status: NonNullable<ClassCardProps['status']>;
+    statusText?: string;
+}) {
+    const statusInfo = status === 'normal' ? undefined : STATUS[status];
+    if (!statusInfo) return null;
+    return (
+        <Badge variant={statusInfo.variant} className={cn('px-1.5 py-0', statusInfo.className)}>
+            {status === 'in_progress' && (
+                <span className="size-1.5 animate-pulse rounded-full bg-primary" />
+            )}
+            {statusText || statusInfo.label}
+        </Badge>
+    );
+}
+
 function ClassCardStatus({
     time,
     status,
@@ -54,27 +74,21 @@ function ClassCardStatus({
     status: NonNullable<ClassCardProps['status']>;
     statusText?: string;
 }) {
-    const statusInfo = status === 'normal' ? undefined : STATUS[status];
-    const active = status === 'in_progress';
     return (
         <div className="pointer-events-none relative flex items-center gap-2 text-xs">
             <span className="min-w-0 font-semibold text-primary tabular-nums">{time}</span>
-            {statusInfo && (
-                <Badge
-                    variant={statusInfo.variant}
-                    className={cn('px-1.5 py-0', statusInfo.className)}
-                >
-                    {active && <span className="size-1.5 animate-pulse rounded-full bg-primary" />}
-                    {statusText || statusInfo.label}
-                </Badge>
-            )}
+            <ClassCardBadge status={status} statusText={statusText} />
         </div>
     );
 }
 
 function ClassCardBody({
     title,
+    code,
     compact,
+    time,
+    status,
+    statusText,
     location,
     professors,
     grade,
@@ -83,7 +97,11 @@ function ClassCardBody({
     indicator
 }: {
     title: string;
+    code?: string;
     compact: boolean;
+    time: string;
+    status: NonNullable<ClassCardProps['status']>;
+    statusText?: string;
     location?: string | null;
     professors?: string[];
     grade?: Classroom['grade'];
@@ -98,6 +116,7 @@ function ClassCardBody({
 
     return (
         <>
+            {code && <span className="text-xs font-semibold text-primary">{code}</span>}
             <div className="pointer-events-none relative flex items-center gap-2">
                 <h3
                     className={cn(
@@ -110,6 +129,17 @@ function ClassCardBody({
                 </h3>
                 {indicator}
             </div>
+            {code && (
+                <div className="pointer-events-none relative flex flex-wrap items-center gap-2">
+                    <Badge
+                        variant="secondary"
+                        className="h-auto max-w-full min-w-0 shrink py-0 text-left whitespace-normal tabular-nums"
+                    >
+                        {time}
+                    </Badge>
+                    <ClassCardBadge status={status} statusText={statusText} />
+                </div>
+            )}
             <div className="pointer-events-none relative flex items-center gap-1 text-xs text-muted-foreground">
                 {grade ? (
                     <Award className="size-3 shrink-0" />
@@ -140,6 +170,7 @@ function ClassCardBody({
 
 export const ClassCard: React.FC<ClassCardProps> = ({
     title,
+    code,
     compact = false,
     time,
     location,
@@ -157,7 +188,11 @@ export const ClassCard: React.FC<ClassCardProps> = ({
     const body = (
         <ClassCardBody
             title={title}
+            code={code}
             compact={compact}
+            time={time}
+            status={status}
+            statusText={statusText}
             location={location}
             professors={professors}
             grade={grade}
@@ -180,7 +215,7 @@ export const ClassCard: React.FC<ClassCardProps> = ({
                     )}
                 />
             )}
-            <ClassCardStatus time={time} status={status} statusText={statusText} />
+            {!code && <ClassCardStatus time={time} status={status} statusText={statusText} />}
             {action ? (
                 <div className="flex items-center justify-between gap-2">
                     <div className="flex min-w-0 flex-col gap-1">{body}</div>

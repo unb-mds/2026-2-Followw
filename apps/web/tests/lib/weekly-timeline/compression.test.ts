@@ -11,10 +11,9 @@ describe('escala semanal compartilhada', () => {
             [600, 1200, true],
             [1200, 1380, false]
         ]);
-        expect(timePosition('22:30', segments)).toBe(216);
-        expect(timePosition('20:50', segments)).toBe(136);
-        expect(segments.find(({ omitted }) => omitted)?.height).toBe(0);
-        expect(timePosition('10:00', segments)).toBe(timePosition('20:00', segments));
+        expect(timePosition('22:30', segments)).toBe(240);
+        expect(timePosition('20:50', segments)).toBe(160);
+        expect(timePosition('20:00', segments) - timePosition('10:00', segments)).toBe(24);
     });
     test('aula à tarde em outro dia impede compactação da faixa ocupada', () => {
         const segments = weeklyTimeline(parseSchedule('2M12 2N34 3T23'));

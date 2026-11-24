@@ -544,6 +544,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/public/subjects/recommendations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Recomendar matérias para o aluno autenticado */
+        get: operations["subject_recommendations_public_subjects_recommendations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/public/subjects/{code}/statistics": {
         parameters: {
             query?: never;
@@ -573,7 +590,7 @@ export interface paths {
         };
         /**
          * Buscar matérias com suas turmas
-         * @description Matérias e ofertas do catálogo do Followw. Sem filtros de busca, retorna recomendações para o aluno autenticado.
+         * @description Página de matérias e ofertas do catálogo do Followw.
          */
         get: operations["search_subjects_public_subjects_get"];
         put?: never;
@@ -828,6 +845,10 @@ export interface components {
             prerequisites?: components["schemas"]["CatalogRequirements"] | null;
             corequisites?: components["schemas"]["CatalogRequirements"] | null;
             equivalences?: components["schemas"]["CatalogRequirements"] | null;
+            /** Prerequisite Equivalences */
+            prerequisite_equivalences?: {
+                [key: string]: string[][];
+            };
             /** Classrooms */
             classrooms: components["schemas"]["SubjectClassroom"][];
             /** Kind */
@@ -948,6 +969,7 @@ export interface components {
             /** Complementary References */
             complementary_references: components["schemas"]["TeachingPlanReference"][];
         };
+        ClockTime: string;
         /** CourseCurriculum */
         CourseCurriculum: {
             /** Sigaa Id */
@@ -1630,8 +1652,7 @@ export interface components {
          * @description Cada tipo no formato do seu endpoint; nulo quando não foi pedido.
          */
         SearchResult: {
-            /** Subjects */
-            subjects: components["schemas"]["CatalogSubject"][] | null;
+            subjects: components["schemas"]["SubjectPage"] | null;
             courses: components["schemas"]["CoursePage"] | null;
             professors: components["schemas"]["ProfessorPage"] | null;
         };
@@ -1711,6 +1732,20 @@ export interface components {
             schedule?: string | null;
             /** Room */
             room?: string | null;
+        };
+        /** SubjectPage */
+        SubjectPage: {
+            /** Items */
+            items: components["schemas"]["CatalogSubject"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /**
+             * Page Size
+             * @default 25
+             */
+            page_size: number;
         };
         /** SubjectReason */
         SubjectReason: {
@@ -1944,6 +1979,7 @@ export interface components {
             /** Complementary */
             complementary: number | null;
         };
+        WorkloadFilter: number | "90+";
     };
     responses: never;
     parameters: never;
@@ -3560,6 +3596,8 @@ export interface operations {
                 type?: components["schemas"]["SearchType"][] | null;
                 /** @description ID ou sigla da unidade, para todos os tipos. */
                 unit?: number | string | null;
+                /** @description Somente matérias com turma no semestre. */
+                offered?: boolean;
             };
             header?: {
                 /** @description `no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente). */
@@ -3581,6 +3619,57 @@ export interface operations {
             };
             /** @description Texto ou tipo inválido, ou unidade inexistente. */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    subject_recommendations_public_subjects_recommendations_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description `no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente). */
+                "Cache-Control"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogSubject"][];
+                };
+            };
+            /** @description Sessão inválida ao buscar recomendações. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Dados insuficientes para recomendar matérias. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description SIGAA indisponível ao consultar o histórico. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Histórico em atualização. */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3625,14 +3714,25 @@ export interface operations {
     search_subjects_public_subjects_get: {
         parameters: {
             query?: {
-                /** @description Termos do código, nome da matéria ou docente. Códigos completos também buscam equivalências. */
+                /** @description Código, nome da matéria, docente, unidade ou horário do SIGAA. Códigos completos também buscam equivalências. */
                 q?: string | null;
                 /** @description Código completo da matéria. */
                 code?: string | null;
                 /** @description ID ou sigla da unidade responsável. */
                 unit?: number | string | null;
+                /** @description Turmas com aula em algum destes dias, de segunda (0) a domingo (6). */
+                days?: string | null;
+                /** @description Turmas com aula começando em algum destes horários. */
+                start?: components["schemas"]["ClockTime"][] | null;
+                /** @description Cargas horárias exatas ou 90+ para cargas de 90 horas ou mais. */
+                hours?: components["schemas"]["WorkloadFilter"][] | null;
+                /** @description Tipos da matéria na matriz do aluno autenticado. */
+                kind?: ("mandatory" | "optional" | "free")[] | null;
                 /** @description Semestre das turmas. */
                 semester?: string | null;
+                /** @description Somente matérias com turma no semestre, inclusive cheias. */
+                offered?: boolean;
+                page?: number;
             };
             header?: {
                 /** @description `no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente). */
@@ -3649,32 +3749,18 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CatalogSubject"][];
+                    "application/json": components["schemas"]["SubjectPage"];
                 };
             };
-            /** @description Sessão inválida ao buscar recomendações. */
-            401: {
+            /** @description Matriz curricular não encontrada ao filtrar pelo tipo de matéria. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Filtros inválidos ou dados insuficientes para recomendar matérias. */
+            /** @description Filtros inválidos. */
             422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description SIGAA indisponível ao consultar o histórico. */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Histórico em atualização. */
-            503: {
                 headers: {
                     [name: string]: unknown;
                 };

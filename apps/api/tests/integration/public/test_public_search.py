@@ -6,6 +6,7 @@ from sigaa_client import Credentials
 
 from api.db.enums import UserLevel
 from api.db.models import (
+    Classroom,
     Course,
     Curriculum,
     CurriculumComponent,
@@ -45,7 +46,7 @@ def _search(client, **params):
 def _summary(result):
     return {
         "subjects": result["subjects"]
-        and [subject["code"] for subject in result["subjects"]],
+        and [subject["code"] for subject in result["subjects"]["items"]],
         "courses": result["courses"]
         and [course["id"] for course in result["courses"]["items"]],
         "professors": result["professors"]
@@ -75,6 +76,59 @@ def test_cada_termo_precisa_casar(client, catalog):
         "courses": [2],
         "professors": [],
     }
+
+
+@pytest.mark.parametrize("q", ["10:00", "18:55"])
+def test_horario_digitado_nao_filtra_turmas(client, catalog, database, q):
+    with database.begin() as session:
+        session.add_all(
+            Classroom(
+                subject_code="FGA0001",
+                number=number,
+                semester="2026.2",
+                schedule=schedule,
+            )
+            for number, schedule in [("01", "24M34"), ("02", "2T6")]
+        )
+    assert _search(client, q=q, type="subjects")["subjects"]["items"] == []
+
+
+@pytest.mark.parametrize(
+    ("query", "numbers"),
+    [("2m34", ["02"]), ("24m34", ["01", "04"])],
+)
+def test_codigo_sigaa_filtra_dias_e_blocos_exatos(
+    client, catalog, database, query, numbers
+):
+    with database.begin() as session:
+        session.add_all(
+            Classroom(
+                subject_code="FGA0001",
+                number=number,
+                semester="2026.2",
+                schedule=schedule,
+            )
+            for number, schedule in [
+                ("01", "24M34"),
+                ("02", "2M34"),
+                ("03", "24M3"),
+                ("04", "2M34 4M34"),
+                ("05", "2M34 2T1"),
+                ("06", "2M345"),
+                ("07", "2M34 4N5"),
+            ]
+        )
+    result = _search(client, q=query)
+    assert result["courses"] is None
+    assert result["professors"] is None
+    (subject,) = result["subjects"]["items"]
+    assert [turma["number"] for turma in subject["classrooms"]] == numbers
+
+
+@pytest.mark.parametrize("q", ["FCE", "Ceilandia", "matematica ceilandia"])
+def test_busca_materia_por_sigla_ou_nome_da_unidade(client, catalog, q):
+    result = _search(client, q=q, type="subjects")
+    assert [subject["code"] for subject in result["subjects"]["items"]] == ["MAT0031"]
 
 
 def test_type_escolhe_os_tipos_e_os_demais_vem_nulos(client, catalog, monkeypatch):
@@ -108,6 +162,7 @@ def test_parametros_invalidos_retornam_422(client, catalog, subtests):
     for params in [
         {},
         {"q": "ab"},
+        {"q": "24"},
         {"q": "   "},
         {"q": "a" * 33},
         {"q": "abc\x00"},
@@ -119,11 +174,20 @@ def test_parametros_invalidos_retornam_422(client, catalog, subtests):
             assert client.get(URL, params=params).status_code == 422
 
 
-def test_com_login_materias_trazem_o_tipo_da_matriz(
+def test_com_login_busca_prioriza_obrigatorias_e_optativas_da_matriz(
     client, catalog, database, cookies, stub_sigaa
 ):
     now = datetime.now(UTC)
     with database.begin() as session:
+        session.add_all(
+            Subject(code=code, name="MATEMÁTICA", unit_id=673)
+            for code in ["MAT0002", "MAT0010"]
+        )
+        session.flush()
+        session.add_all(
+            Classroom(subject_code=code, number="01", semester="2026.2", schedule="2M3")
+            for code in ["MAT0002", "MAT0010", "MAT0025", "MAT0031"]
+        )
         curriculum = Curriculum(
             course_id=2,
             sigaa_id=1,
@@ -135,13 +199,21 @@ def test_com_login_materias_trazem_o_tipo_da_matriz(
         )
         session.add(curriculum)
         session.flush()
-        session.add(
-            CurriculumComponent(
-                curriculum_id=curriculum.id,
-                subject_code="MAT0025",
-                kind="required",
-                period=1,
-            )
+        session.add_all(
+            [
+                CurriculumComponent(
+                    curriculum_id=curriculum.id,
+                    subject_code="MAT0031",
+                    kind="required",
+                    period=1,
+                ),
+                CurriculumComponent(
+                    curriculum_id=curriculum.id,
+                    subject_code="MAT0025",
+                    kind="optional",
+                    period=0,
+                ),
+            ]
         )
         session.add(
             User(
@@ -157,15 +229,68 @@ def test_com_login_materias_trazem_o_tipo_da_matriz(
             )
         )
 
-    def kinds():
-        result = _search(client, q="matematica", type="subjects")
-        return {subject["code"]: subject["kind"] for subject in result["subjects"]}
+    def kinds(q):
+        result = _search(client, q=q, type="subjects")
+        return [
+            (subject["code"], subject["kind"])
+            for subject in result["subjects"]["items"]
+        ]
 
-    assert kinds() == {"MAT0025": None, "MAT0031": None}
+    assert kinds("matematica") == [
+        (code, None) for code in ["MAT0002", "MAT0010", "MAT0025", "MAT0031"]
+    ]
     client.cookies.update(
         cookies(refresh=Credentials(registration="251000000", password="senha"))
     )
-    assert kinds() == {"MAT0025": "mandatory", "MAT0031": "free"}
+    assert kinds("matematica") == [
+        ("MAT0031", "mandatory"),
+        ("MAT0025", "optional"),
+        ("MAT0002", "free"),
+        ("MAT0010", "free"),
+    ]
+    with database.begin() as session:
+        session.get(Subject, "MAT0025").hours = 60
+        session.get(Subject, "MAT0002").hours = 60
+        session.add(
+            Classroom(
+                subject_code="MAT0025",
+                number="02",
+                semester="2026.2",
+                schedule="2M3",
+                vacancies=30,
+                occupied=30,
+            )
+        )
+        session.add(
+            Classroom(
+                subject_code="MAT0025", number="03", semester="2026.2", schedule="24M3"
+            )
+        )
+    for params, expected in [
+        ({"kind": "mandatory"}, ["MAT0031"]),
+        ({"kind": "optional"}, ["MAT0025"]),
+        ({"kind": "free"}, ["MAT0002", "MAT0010"]),
+        ({"kind": ["optional", "free"]}, ["MAT0025", "MAT0002", "MAT0010"]),
+        (
+            {"kind": ["mandatory", "optional", "free"]},
+            ["MAT0031", "MAT0025", "MAT0002", "MAT0010"],
+        ),
+        (
+            {
+                "kind": ["optional", "free"],
+                "q": "matematica",
+                "days": "0",
+                "start": "10:00",
+                "unit": "673",
+                "hours": 60,
+            },
+            ["MAT0025", "MAT0002"],
+        ),
+        ({"kind": "optional", "days": "02"}, ["MAT0025"]),
+    ]:
+        response = client.get("/public/subjects", params={"q": "matematica", **params})
+        assert response.status_code == 200
+        assert [s["code"] for s in response.json()["items"]] == expected
     stub_sigaa.profile.get_profile.assert_not_awaited()
 
 

@@ -3,6 +3,8 @@ import type { ClassTime } from '@followw/core/lib/schedule.ts';
 
 import { minutesOf } from '@followw/core/lib/schedule.ts';
 
+const INTERVAL_HEIGHT = 24;
+
 export interface TimeSegment {
     start: number;
     end: number;
@@ -35,7 +37,7 @@ export function weeklyTimeline(times: ClassTime[]) {
             end,
             omitted,
             top: previous ? previous.top + previous.height : 0,
-            height: omitted ? 0 : (end - start) * 0.8
+            height: omitted ? INTERVAL_HEIGHT : (end - start) * 0.8
         });
     };
     let start = ranges[0].start;
