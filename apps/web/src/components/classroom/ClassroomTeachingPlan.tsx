@@ -57,7 +57,16 @@ function PlanText({ title, content }: { title: string; content: string | null })
     );
 }
 
-/* oxlint-disable react/no-array-index-key -- A origem não fornece IDs e contém linhas repetidas; as células não têm estado. */
+function keyRows(rows: (string | null)[][]) {
+    const counts = new Map<string, number>();
+    return rows.map((row) => {
+        const base = row.map((cell) => cell ?? '').join('\0');
+        const seen = (counts.get(base) ?? 0) + 1;
+        counts.set(base, seen);
+        return { key: `${base}#${seen}`, row };
+    });
+}
+
 function PlanRows({
     title,
     columns,
@@ -69,6 +78,7 @@ function PlanRows({
 }) {
     const populated = rows.filter((row) => row.some((cell) => cell?.trim()));
     if (populated.length === 0) return null;
+    const keyedRows = keyRows(populated);
     const fields = columns
         .map((label, index) => ({ label, index }))
         .filter(({ index }) => populated.some((row) => row[index]?.trim()));
@@ -86,10 +96,10 @@ function PlanRows({
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                    {populated.map((row, index) => (
-                        <tr key={index}>
+                    {keyedRows.map(({ key, row }) => (
+                        <tr key={key}>
                             {fields.map(({ label, index: cellIndex }) => (
-                                <td key={label} className="px-3 py-3 align-top wrap-anywhere">
+                                <td key={label} className="p-3 align-top wrap-anywhere">
                                     {row[cellIndex]}
                                 </td>
                             ))}
@@ -98,8 +108,8 @@ function PlanRows({
                 </tbody>
             </table>
             <ul aria-label={title} className="flex flex-col divide-y divide-border lg:hidden">
-                {populated.map((row, index) => (
-                    <li key={index} className="py-3 first:pt-0 last:pb-0">
+                {keyedRows.map(({ key, row }) => (
+                    <li key={key} className="py-3 first:pt-0 last:pb-0">
                         <dl className="flex flex-col gap-2 text-sm">
                             {fields.map(({ label, index: cellIndex }) =>
                                 row[cellIndex]?.trim() ? (

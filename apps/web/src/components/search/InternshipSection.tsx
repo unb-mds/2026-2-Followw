@@ -5,12 +5,13 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowRight } from 'lucide-react';
 import { useState } from 'react';
 
-import { CardSkeleton, repeat, SectionHeaderSkeleton } from '#/components/LoadingSkeleton';
+import { CardSkeleton, SectionHeaderSkeleton } from '#/components/LoadingSkeleton';
 import { QueryState } from '#/components/QueryState';
 import { InternshipCard } from '#/components/search/InternshipCard';
 import { InternshipDetailDialog } from '#/components/search/InternshipDetailDialog';
 import { Button } from '#/components/ui/button';
 import { Skeleton } from '#/components/ui/skeleton';
+import { repeat } from '#/lib/repeat';
 import { cn } from '#/lib/shadcn';
 
 const GROUPS = [

@@ -39,12 +39,12 @@ import { meQueryOptions } from '#/queries/me';
 import { useUserSettings } from '#/queries/settings';
 
 export const Route = createFileRoute('/_app/perfil')({
-    head: () => ({ meta: [{ title: 'Perfil | Followw' }] }),
     loader: async ({ context }) => {
         const user = await loadQuery(context.queryClient, meQueryOptions);
         if (!user) throw redirect({ to: '/login' });
         return user;
     },
+    head: () => ({ meta: [{ title: 'Perfil | Followw' }] }),
     staticData: { header: ProfileHeader },
     errorComponent: ErrorState,
     component: PerfilPage

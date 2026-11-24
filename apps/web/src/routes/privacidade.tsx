@@ -26,7 +26,7 @@ function PrivacyPage() {
                     </Link>
                     <div className="flex items-center gap-3">
                         <FollowwLogo className="size-10" />
-                        <h1 className="text-2xl font-bold tracking-tight">Privacidade e termos</h1>
+                        <h1 className="text-3xl font-bold tracking-tight">Privacidade e termos</h1>
                     </div>
                     <p className="text-sm text-muted-foreground">
                         Atualizado em <time dateTime="2026-10-18">18 de outubro de 2026</time>

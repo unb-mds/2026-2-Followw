@@ -45,36 +45,65 @@ const STATUS = {
     cancelled: { label: 'Cancelada', variant: 'secondary', className: 'text-muted-foreground' }
 } as const;
 
-export const ClassCard: React.FC<ClassCardProps> = ({
-    title,
-    compact = false,
+function ClassCardStatus({
     time,
+    status,
+    statusText
+}: {
+    time: string;
+    status: NonNullable<ClassCardProps['status']>;
+    statusText?: string;
+}) {
+    const statusInfo = status === 'normal' ? undefined : STATUS[status];
+    const active = status === 'in_progress';
+    return (
+        <div className="pointer-events-none relative flex items-center gap-2 text-xs">
+            <span className="min-w-0 font-semibold text-primary tabular-nums">{time}</span>
+            {statusInfo && (
+                <Badge
+                    variant={statusInfo.variant}
+                    className={cn('px-1.5 py-0', statusInfo.className)}
+                >
+                    {active && <span className="size-1.5 animate-pulse rounded-full bg-primary" />}
+                    {statusText || statusInfo.label}
+                </Badge>
+            )}
+        </div>
+    );
+}
+
+function ClassCardBody({
+    title,
+    compact,
     location,
     professors,
     grade,
-    status = 'normal',
-    statusText,
+    cancelled,
     onLocationClick,
-    onClick,
-    indicator,
-    action,
-    plain = false
-}) => {
-    const statusInfo = status === 'normal' ? undefined : STATUS[status];
-    const active = status === 'in_progress';
+    indicator
+}: {
+    title: string;
+    compact: boolean;
+    location?: string | null;
+    professors?: string[];
+    grade?: Classroom['grade'];
+    cancelled: boolean;
+    onLocationClick?: () => void;
+    indicator?: React.ReactNode;
+}) {
     const professorNames = professors?.join(', ');
     // A menção lançada ocupa o lugar do local.
     const place = grade || location === undefined ? undefined : (location ?? 'Local não informado');
     const details = [place, professorNames].filter(Boolean).join(' · ');
 
-    const body = (
+    return (
         <>
             <div className="pointer-events-none relative flex items-center gap-2">
                 <h3
                     className={cn(
                         'min-w-0 flex-1 text-sm leading-snug font-semibold lg:line-clamp-none lg:text-lg lg:font-medium',
                         compact ? 'line-clamp-1' : 'line-clamp-2',
-                        status === 'cancelled' && 'text-muted-foreground line-through'
+                        cancelled && 'text-muted-foreground line-through'
                     )}
                 >
                     {title}
@@ -107,6 +136,36 @@ export const ClassCard: React.FC<ClassCardProps> = ({
             </div>
         </>
     );
+}
+
+export const ClassCard: React.FC<ClassCardProps> = ({
+    title,
+    compact = false,
+    time,
+    location,
+    professors,
+    grade,
+    status = 'normal',
+    statusText,
+    onLocationClick,
+    onClick,
+    indicator,
+    action,
+    plain = false
+}) => {
+    const active = status === 'in_progress';
+    const body = (
+        <ClassCardBody
+            title={title}
+            compact={compact}
+            location={location}
+            professors={professors}
+            grade={grade}
+            cancelled={status === 'cancelled'}
+            onLocationClick={onLocationClick}
+            indicator={indicator}
+        />
+    );
 
     const content = (
         <>
@@ -121,20 +180,7 @@ export const ClassCard: React.FC<ClassCardProps> = ({
                     )}
                 />
             )}
-            <div className="pointer-events-none relative flex items-center gap-2 text-xs">
-                <span className="min-w-0 font-semibold text-primary tabular-nums">{time}</span>
-                {statusInfo && (
-                    <Badge
-                        variant={statusInfo.variant}
-                        className={cn('px-1.5 py-0', statusInfo.className)}
-                    >
-                        {active && (
-                            <span className="size-1.5 animate-pulse rounded-full bg-primary" />
-                        )}
-                        {statusText || statusInfo.label}
-                    </Badge>
-                )}
-            </div>
+            <ClassCardStatus time={time} status={status} statusText={statusText} />
             {action ? (
                 <div className="flex items-center justify-between gap-2">
                     <div className="flex min-w-0 flex-col gap-1">{body}</div>

@@ -16,13 +16,13 @@ import {
 import { meQueryOptions } from '#/queries/me';
 
 export const Route = createFileRoute('/_app/perfil_/simulador')({
-    head: () => ({ meta: [{ title: 'Simulador de IRA e MP | Followw' }] }),
     loader: async ({ context: { queryClient } }) => {
         const user = await loadQuery(queryClient, meQueryOptions);
         if (!user) throw redirect({ to: '/login' });
         if (user.level !== 'Graduação') throw redirect({ to: '/perfil' });
         await loadQuery(queryClient, allClassroomsQueryOptions).catch(noop);
     },
+    head: () => ({ meta: [{ title: 'Simulador de IRA e MP | Followw' }] }),
     staticData: {
         header: () => <BackHeader to="/perfil" title="Simulador de IRA e MP" />
     },

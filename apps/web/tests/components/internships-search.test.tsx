@@ -6,7 +6,8 @@ import { meQueryOptions } from '@followw/core/queries/me.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, expect, test } from 'bun:test';
 
-import { formatCurrency, formatDate, InternshipCard } from '#/components/search/InternshipCard';
+import { formatCurrency, formatDate } from '#/components/search/internship-format';
+import { InternshipCard } from '#/components/search/InternshipCard';
 import { InternshipDetailView } from '#/components/search/InternshipDetailDialog';
 import { InternshipSection } from '#/components/search/InternshipSection';
 import { SearchResults } from '#/components/search/SearchResults';

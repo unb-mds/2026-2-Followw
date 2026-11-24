@@ -1,3 +1,6 @@
+import type { CurriculumModel } from '@followw/core/lib/curriculum/types.ts';
+import type { UseQueryResult } from '@tanstack/react-query';
+
 import {
     academicState,
     initialMobilePeriod,
@@ -12,6 +15,89 @@ import { useMemo } from 'react';
 import { DesktopDiagram, MobileDiagram } from '#/components/curriculum/Diagram';
 import { LoadingText } from '#/components/LoadingText';
 import { QueryState } from '#/components/QueryState';
+
+function CurriculumNotices({
+    matrix,
+    history,
+    model,
+    loggedIn,
+    ownCourse,
+    currentPeriod,
+    selected
+}: {
+    matrix: UseQueryResult<unknown, unknown>;
+    history: UseQueryResult<unknown, unknown>;
+    model: CurriculumModel | null;
+    loggedIn: boolean;
+    ownCourse: boolean;
+    currentPeriod: number | null;
+    selected?: string;
+}) {
+    const matrixError =
+        matrix.error instanceof ApiError && matrix.error.isNotFound
+            ? 'Nenhuma matriz disponível para este curso e semestre de ingresso.'
+            : 'Não foi possível carregar a matriz curricular.';
+
+    return (
+        <div className="flex max-h-64 shrink-0 flex-col gap-2 overflow-y-auto px-4 pb-3 text-sm empty:hidden lg:px-6">
+            <QueryState
+                query={matrix}
+                loading="Carregando matriz..."
+                error={matrixError}
+                stale="Não foi possível atualizar a matriz. Exibindo os dados salvos."
+            />
+            {model && loggedIn && (
+                <QueryState
+                    query={history}
+                    loading="Carregando histórico; estados acadêmicos ainda indisponíveis..."
+                    error="Histórico indisponível. Os estados acadêmicos não puderam ser determinados."
+                    stale="Não foi possível atualizar o histórico. Exibindo os estados salvos."
+                />
+            )}
+            {model && ownCourse && currentPeriod === null && (
+                <output>Período atual indisponível; atrasos não foram calculados.</output>
+            )}
+            {model && selected && !model.byCode.has(selected) && (
+                <output>
+                    A matéria {selected} não pertence aos períodos exibidos desta matriz.
+                </output>
+            )}
+            {model && model.subjects.length === 0 && (
+                <p>Nenhuma disciplina nos períodos regulares desta matriz.</p>
+            )}
+        </div>
+    );
+}
+
+function CurriculumDiagram({
+    courseId,
+    entrySemester,
+    model,
+    selected,
+    state,
+    initialPeriod,
+    desktop
+}: {
+    courseId: number;
+    entrySemester: string;
+    model: CurriculumModel;
+    selected?: string;
+    state?: ReturnType<typeof academicState>;
+    initialPeriod: number;
+    desktop: boolean | null;
+}) {
+    if (desktop === null) return <LoadingText className="p-4">Preparando fluxo...</LoadingText>;
+    if (desktop) return <DesktopDiagram model={model} selected={selected} state={state} />;
+    return (
+        <MobileDiagram
+            key={`${courseId}:${entrySemester}:${selected}:${initialPeriod}`}
+            model={model}
+            selected={selected}
+            state={state}
+            initialPeriod={initialPeriod}
+        />
+    );
+}
 
 export function CurriculumView({
     courseId,
@@ -47,55 +133,30 @@ export function CurriculumView({
     const initialPeriod = model
         ? initialMobilePeriod(model.periods, ownCourse, currentPeriod)
         : null;
+    const ready = model && model.subjects.length > 0 && initialPeriod !== null;
+
     return (
         <div className="flex min-h-0 flex-1 flex-col">
-            <div className="flex max-h-64 shrink-0 flex-col gap-2 overflow-y-auto px-4 pb-3 text-sm empty:hidden lg:px-6">
-                <QueryState
-                    query={matrix}
-                    loading="Carregando matriz..."
-                    error={
-                        matrix.error instanceof ApiError && matrix.error.isNotFound
-                            ? 'Nenhuma matriz disponível para este curso e semestre de ingresso.'
-                            : 'Não foi possível carregar a matriz curricular.'
-                    }
-                    stale="Não foi possível atualizar a matriz. Exibindo os dados salvos."
+            <CurriculumNotices
+                matrix={matrix}
+                history={history}
+                model={model}
+                loggedIn={loggedIn}
+                ownCourse={ownCourse}
+                currentPeriod={currentPeriod}
+                selected={selected}
+            />
+            {ready && (
+                <CurriculumDiagram
+                    courseId={courseId}
+                    entrySemester={entrySemester}
+                    model={model}
+                    selected={selected}
+                    state={state}
+                    initialPeriod={initialPeriod}
+                    desktop={desktop}
                 />
-                {model && loggedIn && (
-                    <QueryState
-                        query={history}
-                        loading="Carregando histórico; estados acadêmicos ainda indisponíveis..."
-                        error="Histórico indisponível. Os estados acadêmicos não puderam ser determinados."
-                        stale="Não foi possível atualizar o histórico. Exibindo os estados salvos."
-                    />
-                )}
-                {model && ownCourse && currentPeriod === null && (
-                    <output>Período atual indisponível; atrasos não foram calculados.</output>
-                )}
-                {model && selected && !model.byCode.has(selected) && (
-                    <output>
-                        A matéria {selected} não pertence aos períodos exibidos desta matriz.
-                    </output>
-                )}
-                {model && model.subjects.length === 0 && (
-                    <p>Nenhuma disciplina nos períodos regulares desta matriz.</p>
-                )}
-            </div>
-            {model &&
-                model.subjects.length > 0 &&
-                initialPeriod !== null &&
-                (desktop === null ? (
-                    <LoadingText className="p-4">Preparando fluxo...</LoadingText>
-                ) : desktop ? (
-                    <DesktopDiagram model={model} selected={selected} state={state} />
-                ) : (
-                    <MobileDiagram
-                        key={`${courseId}:${entrySemester}:${selected}:${initialPeriod}`}
-                        model={model}
-                        selected={selected}
-                        state={state}
-                        initialPeriod={initialPeriod}
-                    />
-                ))}
+            )}
         </div>
     );
 }

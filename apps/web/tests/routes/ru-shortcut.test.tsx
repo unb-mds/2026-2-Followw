@@ -11,15 +11,15 @@ import {
     Outlet,
     RouterProvider
 } from '@tanstack/react-router';
-import { expect, mock, test } from 'bun:test';
+import { expect, test } from 'bun:test';
 import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
-import { useLayoutEffect } from 'react';
 
 import { BottomNavigation } from '#/components/BottomNavigation';
 import { PageStateProvider } from '#/components/PageState';
 import { meQueryOptions, type UserProfile } from '#/queries/me';
 import { Route } from '#/routes/_app/ru';
 
+import { mockBrowserLayoutEffect } from '../helpers/base-ui';
 import { useDom } from '../helpers/dom';
 import { runLoader } from '../helpers/route';
 
@@ -83,10 +83,7 @@ test('dois cliques no RU abrem o QR salvo enquanto o cardápio carrega', async (
         isServer: false,
         origin: 'http://localhost'
     });
-    const { useIsoLayoutEffect } = await import('@base-ui/utils/useIsoLayoutEffect');
-    await mock.module('@base-ui/utils/useIsoLayoutEffect', () => ({
-        useIsoLayoutEffect: useLayoutEffect
-    }));
+    const restoreLayoutEffect = await mockBrowserLayoutEffect();
     apiClient.use(middleware);
     try {
         await router.load();
@@ -112,6 +109,6 @@ test('dois cliques no RU abrem o QR salvo enquanto o cardápio carrega', async (
         menu.resolve(Response.json([]));
         client.clear();
         apiClient.eject(middleware);
-        await mock.module('@base-ui/utils/useIsoLayoutEffect', () => ({ useIsoLayoutEffect }));
+        await restoreLayoutEffect();
     }
 });

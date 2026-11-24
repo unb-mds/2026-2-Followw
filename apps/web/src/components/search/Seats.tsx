@@ -1,14 +1,9 @@
-import type { Occupancy, SubjectClassroom } from '@followw/core/queries/subjects.ts';
+import type { SubjectClassroom } from '@followw/core/queries/subjects.ts';
 
 import { seats } from '@followw/core/queries/subjects.ts';
 
+import { OCCUPANCY_COLOR } from '#/components/search/occupancy';
 import { cn } from '#/lib/shadcn';
-
-export const OCCUPANCY_COLOR: Record<Occupancy, string> = {
-    free: 'text-primary',
-    filling: 'text-warning',
-    full: 'text-destructive'
-};
 
 export function Seats({ classroom }: { classroom: SubjectClassroom }) {
     const status = seats(classroom);

@@ -3,24 +3,7 @@ import type { InternshipItem } from '@followw/core/queries/internships.ts';
 import { titleCase } from '@followw/core/lib/profile.ts';
 import { Briefcase, Calendar, Users } from 'lucide-react';
 
-export function formatCurrency(value: string | number | null | undefined): string | null {
-    if (!value) return null;
-    const num = typeof value === 'string' ? parseFloat(value) : value;
-    if (isNaN(num) || num === 0) return null;
-    return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
-
-export function formatDate(isoString: string): string {
-    try {
-        return new Date(isoString).toLocaleDateString('pt-BR', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-        });
-    } catch {
-        return isoString;
-    }
-}
+import { formatCurrency, formatDate } from '#/components/search/internship-format';
 
 export function InternshipCard({
     internship,
@@ -36,7 +19,7 @@ export function InternshipCard({
             type="button"
             onClick={onClick}
             aria-label={titleCase(internship.title)}
-            className="flex w-full cursor-pointer flex-col gap-3 rounded-2xl border bg-card p-4 text-left text-card-foreground transition-all hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            className="flex w-full cursor-pointer flex-col gap-3 rounded-2xl border bg-card p-4 text-left text-card-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
             <div className="flex items-center gap-2">
                 <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">

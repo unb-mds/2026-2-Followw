@@ -47,7 +47,8 @@ import { BackToTodayBar } from '#/components/BackToTodayBar';
 import { useDesktop } from '#/components/DesktopContext';
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderTitle, HeaderToggle } from '#/components/HeaderBar';
-import { LinesSkeleton, LoadingSkeleton, repeat } from '#/components/LoadingSkeleton';
+import { LinesSkeleton, LoadingSkeleton } from '#/components/LoadingSkeleton';
+import { SlideSwitch } from '#/components/Motion';
 import { usePageState } from '#/components/PageState';
 import { ShareButton } from '#/components/ShareButton';
 import { Button, buttonVariants } from '#/components/ui/button';
@@ -62,7 +63,8 @@ import {
 } from '#/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs';
 import { WeekDayPicker } from '#/components/WeekDayPicker';
-import { rise, slide, SlideSwitch, useEntrance, useSlideDirection } from '#/lib/motion';
+import { rise, slide, useEntrance, useSlideDirection } from '#/lib/motion';
+import { repeat } from '#/lib/repeat';
 import {
     isDefaultSelection,
     restaurantDefaults,
@@ -215,6 +217,132 @@ function useMenuSelection() {
     return { selection, select, defaults };
 }
 
+function MenuFilters({
+    days,
+    selectedDate,
+    selectedMeal,
+    campus,
+    isNextWeek,
+    onSelect,
+    onShiftWeek
+}: {
+    days: ReturnType<typeof weekDays>;
+    selectedDate: string;
+    selectedMeal: MealKey;
+    campus: RestaurantSelection['campus'];
+    isNextWeek: boolean;
+    onSelect: (change: Partial<RestaurantSelection>) => void;
+    onShiftWeek: (weeks: number) => () => void;
+}) {
+    return (
+        <div className="ru-filters lg:col-start-2 lg:row-start-2">
+            <div className="lg:rounded-2xl lg:bg-card lg:p-4 lg:shadow-card lg:ring-1 lg:ring-foreground/8">
+                <h2 className="mb-5 hidden text-lg font-bold lg:block">Data e campus</h2>
+                <WeekDayPicker
+                    days={days}
+                    selectedDate={selectedDate}
+                    onSelect={(day) => onSelect({ date: day.date })}
+                    week={{
+                        label: isNextWeek ? 'Próxima semana' : 'Esta semana',
+                        onPrevious: isNextWeek ? onShiftWeek(-1) : undefined,
+                        onNext: isNextWeek ? undefined : onShiftWeek(1)
+                    }}
+                />
+
+                <div className="mb-5">
+                    <Label
+                        htmlFor="menu-campus"
+                        className="mb-2 px-1 text-xs text-muted-foreground"
+                    >
+                        Campus
+                    </Label>
+                    <Select
+                        items={CAMPUS_OPTIONS.map((option) => ({
+                            value: option,
+                            label: CAMPUS_LABELS[option]
+                        }))}
+                        value={campus}
+                        onValueChange={(value) => {
+                            const selected = CAMPUS_OPTIONS.find((option) => option === value);
+                            if (selected) onSelect({ campus: selected });
+                        }}
+                    >
+                        <SelectTrigger
+                            id="menu-campus"
+                            className="w-full bg-background lg:h-12 lg:rounded-xl lg:px-4"
+                        >
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {CAMPUS_OPTIONS.map((option) => (
+                                <SelectItem key={option} value={option}>
+                                    {CAMPUS_LABELS[option]}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <MealPicker selected={selectedMeal} onSelect={(key) => onSelect({ meal: key })} />
+            </div>
+        </div>
+    );
+}
+
+function MenuBody({
+    sections,
+    isPending,
+    isLoadingError,
+    failureMessage,
+    onRetry,
+    cascade,
+    showReset
+}: {
+    sections: MenuSection[];
+    isPending: boolean;
+    isLoadingError: boolean;
+    failureMessage: string;
+    onRetry: () => void;
+    cascade: boolean;
+    showReset: boolean;
+}) {
+    if (sections.length > 0) return <MealDetails sections={sections} cascade={cascade} />;
+    if (isPending) return <MenuSkeleton />;
+    return (
+        <div className="my-auto px-1 text-center text-sm text-muted-foreground">
+            {isLoadingError ? (
+                <>
+                    {failureMessage}{' '}
+                    <Button variant="link" size="xs" onClick={onRetry} className="h-auto p-0">
+                        Tentar novamente
+                    </Button>
+                </>
+            ) : (
+                <div className="flex flex-col items-center gap-3 py-4">
+                    <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+                        <UtensilsCrossed className="size-6" aria-hidden="true" />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        <p className="font-semibold text-foreground">Cardápio não publicado</p>
+                        <p>Ainda não há pratos divulgados para esta refeição.</p>
+                    </div>
+                    {showReset && (
+                        <Link
+                            to="/ru"
+                            search={{}}
+                            className={buttonVariants({
+                                variant: 'outline',
+                                size: 'sm'
+                            })}
+                        >
+                            Ver cardápio atual
+                        </Link>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
 function RUPage() {
     const desktop = useDesktop();
     const { today } = Route.useLoaderData();
@@ -239,76 +367,30 @@ function RUPage() {
         menuQueryOptions({ date: selectedDate, campus })
     );
     const failureMessage = useFailureMessage('O site do RU não respondeu.');
-    const menu = data?.[0];
     const meal = MEALS.find((item) => item.key === selectedMeal) ?? MEALS[1];
-    const sections = menu?.[selectedMeal] ?? [];
+    const sections = data?.[0]?.[selectedMeal] ?? [];
     // Só esta semana e a próxima; trocar de semana mantém o dia da semana.
     const days = weekDays(selectedDate, 7);
     const firstDay = weekDays(today, 7)[0].date;
     const isNextWeek = days[0].date > firstDay;
     const shiftWeek = (weeks: number) => () => select({ date: addDays(selectedDate, 7 * weeks) });
     const shiftDay = (offset: number) => () => select({ date: addDays(selectedDate, offset) });
-    const mealOrder = MEALS.findIndex((item) => item.key === selectedMeal);
-    const menuDirection = useSlideDirection(`${selectedDate}-${mealOrder}`);
+    const menuDirection = useSlideDirection(
+        `${selectedDate}-${MEALS.findIndex((item) => item.key === selectedMeal)}`
+    );
 
     return (
         <div className="ru-columns lg:grid lg:items-start lg:gap-x-10 lg:gap-y-8">
             {(filtersOpen || desktop) && (
-                <div className="ru-filters lg:col-start-2 lg:row-start-2">
-                    <div className="lg:rounded-2xl lg:bg-card lg:p-4 lg:shadow-card lg:ring-1 lg:ring-foreground/8">
-                        <h2 className="mb-5 hidden text-lg font-bold lg:block">Data e campus</h2>
-                        <WeekDayPicker
-                            days={days}
-                            selectedDate={selectedDate}
-                            onSelect={(day) => select({ date: day.date })}
-                            week={{
-                                label: isNextWeek ? 'Próxima semana' : 'Esta semana',
-                                onPrevious: isNextWeek ? shiftWeek(-1) : undefined,
-                                onNext: isNextWeek ? undefined : shiftWeek(1)
-                            }}
-                        />
-
-                        <div className="mb-5">
-                            <Label
-                                htmlFor="menu-campus"
-                                className="mb-2 px-1 text-xs text-muted-foreground"
-                            >
-                                Campus
-                            </Label>
-                            <Select
-                                items={CAMPUS_OPTIONS.map((option) => ({
-                                    value: option,
-                                    label: CAMPUS_LABELS[option]
-                                }))}
-                                value={campus}
-                                onValueChange={(value) => {
-                                    const selected = CAMPUS_OPTIONS.find(
-                                        (option) => option === value
-                                    );
-                                    if (selected) select({ campus: selected });
-                                }}
-                            >
-                                <SelectTrigger
-                                    id="menu-campus"
-                                    className="w-full bg-background lg:h-12 lg:rounded-xl lg:px-4"
-                                >
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {CAMPUS_OPTIONS.map((option) => (
-                                        <SelectItem key={option} value={option}>
-                                            {CAMPUS_LABELS[option]}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <MealPicker
-                            selected={selectedMeal}
-                            onSelect={(key) => select({ meal: key })}
-                        />
-                    </div>
-                </div>
+                <MenuFilters
+                    days={days}
+                    selectedDate={selectedDate}
+                    selectedMeal={selectedMeal}
+                    campus={campus}
+                    isNextWeek={isNextWeek}
+                    onSelect={select}
+                    onShiftWeek={shiftWeek}
+                />
             )}
 
             <Tabs
@@ -364,57 +446,15 @@ function RUPage() {
                         direction={menuDirection}
                         className="flex min-h-40 flex-col gap-2 lg:gap-6"
                     >
-                        {sections.length > 0 ? (
-                            <MealDetails sections={sections} cascade={!menuDirection} />
-                        ) : isPending ? (
-                            <MenuSkeleton />
-                        ) : (
-                            <div className="my-auto px-1 text-center text-sm text-muted-foreground">
-                                {isLoadingError && (
-                                    <>
-                                        {failureMessage}{' '}
-                                        <Button
-                                            variant="link"
-                                            size="xs"
-                                            onClick={() => refetch()}
-                                            className="h-auto p-0"
-                                        >
-                                            Tentar novamente
-                                        </Button>
-                                    </>
-                                )}
-                                {!isLoadingError && (
-                                    <div className="flex flex-col items-center gap-3 py-4">
-                                        <div className="flex size-12 items-center justify-center rounded-full bg-muted">
-                                            <UtensilsCrossed
-                                                className="size-6"
-                                                aria-hidden="true"
-                                            />
-                                        </div>
-                                        <div className="flex flex-col gap-1">
-                                            <p className="font-semibold text-foreground">
-                                                Cardápio não publicado
-                                            </p>
-                                            <p>
-                                                Ainda não há pratos divulgados para esta refeição.
-                                            </p>
-                                        </div>
-                                        {!isDefaultSelection(selection, defaults) && (
-                                            <Link
-                                                to="/ru"
-                                                search={{}}
-                                                className={buttonVariants({
-                                                    variant: 'outline',
-                                                    size: 'sm'
-                                                })}
-                                            >
-                                                Ver cardápio atual
-                                            </Link>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        )}
+                        <MenuBody
+                            sections={sections}
+                            isPending={isPending}
+                            isLoadingError={isLoadingError}
+                            failureMessage={failureMessage}
+                            onRetry={() => refetch()}
+                            cascade={!menuDirection}
+                            showReset={!isDefaultSelection(selection, defaults)}
+                        />
                     </SlideSwitch>
                 </TabsContent>
             </Tabs>

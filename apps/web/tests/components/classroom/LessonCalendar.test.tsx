@@ -3,7 +3,8 @@ import type { Lesson } from '@followw/core/queries/classrooms.ts';
 import { describe, expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import { LessonCalendar, lessonsByDay } from '#/components/classroom/LessonCalendar';
+import { lessonsByDay } from '#/components/classroom/lesson-utils';
+import { LessonCalendar } from '#/components/classroom/LessonCalendar';
 
 const lesson = (occurred_on: string, status: Lesson['status'], start_time = '08:00'): Lesson => ({
     id: `${occurred_on}:${start_time}`,

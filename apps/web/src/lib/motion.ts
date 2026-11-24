@@ -1,6 +1,5 @@
 import type { Transition, Variants } from 'motion/react';
 
-import { AnimatePresence, LazyMotion, m, MotionConfig } from 'motion/react';
 import { useState, useSyncExternalStore } from 'react';
 
 // Personalidade "corporate": curva única, molas com pouco bounce só em seleção e feedback.
@@ -8,18 +7,6 @@ export const ease = [0.2, 0, 0, 1] as const;
 export const easeIn = [0.3, 0, 1, 1] as const;
 export const spring: Transition = { type: 'spring', bounce: 0.15, visualDuration: 0.35 };
 export const snappy: Transition = { type: 'spring', bounce: 0.1, visualDuration: 0.2 };
-
-const loadFeatures = () => import('#/lib/motion-features').then((module) => module.default);
-
-export function MotionProvider({ children }: { children: React.ReactNode }) {
-    return (
-        <LazyMotion features={loadFeatures} strict>
-            <MotionConfig reducedMotion="user" transition={{ duration: 0.25, ease }}>
-                {children}
-            </MotionConfig>
-        </LazyMotion>
-    );
-}
 
 // Itens de lista: sobem em cascata, limitada a ~300ms independente do tamanho da lista.
 export const rise: Variants = {
@@ -50,37 +37,6 @@ export function useSlideDirection(order?: string | number) {
         setState([order, known ? (order > previous ? 1 : -1) : 0]);
     }
     return direction;
-}
-
-/** Troca o conteúdo com slide-fade lateral sempre que `id` muda. */
-export function SlideSwitch({
-    id,
-    direction,
-    className,
-    children
-}: {
-    id: string;
-    direction: number;
-    className?: string;
-    children: React.ReactNode;
-}) {
-    return (
-        <div className="relative">
-            <AnimatePresence initial={false} mode="popLayout" custom={direction}>
-                <m.div
-                    key={id}
-                    custom={direction}
-                    variants={slide}
-                    initial="enter"
-                    animate="center"
-                    exit="exit"
-                    className={className}
-                >
-                    {children}
-                </m.div>
-            </AnimatePresence>
-        </div>
-    );
 }
 
 const noop = () => () => {};

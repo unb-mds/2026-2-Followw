@@ -3,15 +3,13 @@ import type { Classroom } from '@followw/core/queries/classrooms.ts';
 import { groupBySemester } from '@followw/core/lib/classroom-details.ts';
 import { formatAcademicIndex, titleCase } from '@followw/core/lib/profile.ts';
 import { ChevronDown } from 'lucide-react';
-import { useSyncExternalStore } from 'react';
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
+import { lazy, Suspense, useSyncExternalStore } from 'react';
 
 import type { Grade } from '#/lib/academic-simulation';
 
-import { repeat } from '#/components/LoadingSkeleton';
+import { LoadingSkeleton } from '#/components/LoadingSkeleton';
 import { Button } from '#/components/ui/button';
 import { Card } from '#/components/ui/card';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '#/components/ui/chart';
 import {
     Select,
     SelectContent,
@@ -30,8 +28,14 @@ import {
     simulationGrade,
     simulationKey
 } from '#/lib/academic-simulation';
+import { repeat } from '#/lib/repeat';
 
-const chartConfig = { ira: { label: 'IRA', color: 'var(--primary)' } };
+const AcademicSimulatorChart = lazy(() =>
+    import('#/components/profile/AcademicSimulatorChart').then((module) => ({
+        default: module.AcademicSimulatorChart
+    }))
+);
+
 const gradeItems = [
     { value: null, label: 'Sem menção' },
     ...Object.keys(gradeWeights).map((grade) => ({ value: grade, label: grade }))
@@ -194,51 +198,19 @@ export function AcademicSimulator({
                             A evolução aparece quando houver menções para calcular o IRA.
                         </p>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <ChartContainer
-                                config={chartConfig}
-                                className="h-56 w-full"
-                                style={{ minWidth: evolution.length * 42 + 44 }}
-                            >
-                                <LineChart data={evolution} margin={{ left: 0, right: 20, top: 8 }}>
-                                    <CartesianGrid vertical={false} />
-                                    <XAxis
-                                        dataKey="semester"
-                                        tickFormatter={(semester: string) =>
-                                            semester.slice(2) +
-                                            (projected && semester === current ? '*' : '')
-                                        }
-                                        tickMargin={8}
-                                        interval={0}
-                                    />
-                                    <YAxis domain={[0, 5]} allowDecimals={false} width={24} />
-                                    <ChartTooltip
-                                        content={
-                                            <ChartTooltipContent
-                                                indicator="dot"
-                                                labelFormatter={(semester) =>
-                                                    projected &&
-                                                    typeof semester === 'string' &&
-                                                    semester === current
-                                                        ? `${semester} · Projeção`
-                                                        : semester
-                                                }
-                                                formatter={(value) =>
-                                                    `IRA ${formatAcademicIndex(Number(value))}`
-                                                }
-                                            />
-                                        }
-                                    />
-                                    <Line
-                                        dataKey="ira"
-                                        stroke="var(--color-ira)"
-                                        strokeWidth={2}
-                                        dot={{ r: 3 }}
-                                        isAnimationActive={false}
-                                    />
-                                </LineChart>
-                            </ChartContainer>
-                        </div>
+                        <Suspense
+                            fallback={
+                                <LoadingSkeleton label="Carregando gráfico...">
+                                    <Skeleton className="h-56 w-full" />
+                                </LoadingSkeleton>
+                            }
+                        >
+                            <AcademicSimulatorChart
+                                evolution={evolution}
+                                projected={projected}
+                                current={current}
+                            />
+                        </Suspense>
                     )}
                     {projected && (
                         <p className="text-xs text-muted-foreground">* Projeção para {current}.</p>

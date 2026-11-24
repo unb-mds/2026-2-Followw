@@ -11,11 +11,12 @@ import { useSyncExternalStore } from 'react';
 import ReactMarkdown from 'react-markdown';
 
 import { ErrorCard, SIGAA_DOWN_MESSAGE, StaleDataNotice } from '#/components/ErrorState';
-import { LinesSkeleton, LoadingSkeleton, repeat } from '#/components/LoadingSkeleton';
+import { LinesSkeleton, LoadingSkeleton } from '#/components/LoadingSkeleton';
 import { Button } from '#/components/ui/button';
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '#/components/ui/popover';
 import { STORAGE_KEYS, storedValue } from '#/lib/local-storage';
 import { rise, useEntrance } from '#/lib/motion';
+import { repeat } from '#/lib/repeat';
 
 const previewComponents: Components = {
     p: ({ children }) => <span>{children} </span>

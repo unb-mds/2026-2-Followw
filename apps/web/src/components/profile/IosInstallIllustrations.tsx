@@ -112,7 +112,7 @@ function SafariShareSheet() {
                 </div>
                 <X className="size-4 text-muted-foreground" />
             </div>
-            <div className="rounded-2xl bg-muted/70 p-1">
+            <div className="rounded-2xl bg-muted/70 p-2">
                 <SafariRow icon={BookOpen}>Adicionar Favorito a…</SafariRow>
                 <SafariRow icon={Star}>Preferidos</SafariRow>
                 <SafariRow icon={FileSearch}>Buscar na Página</SafariRow>

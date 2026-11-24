@@ -39,7 +39,7 @@ export function DesktopNavigation() {
                 </Link>
                 <nav
                     aria-label="Navegação principal do aplicativo"
-                    className="flex items-center rounded-full border bg-muted/40 p-1.5 shadow-sm"
+                    className="flex items-center rounded-full border bg-muted/40 p-2 shadow-sm"
                 >
                     {items.map(({ to, label, icon: Icon }) => {
                         const active = to === '/' ? pathname === '/' : pathname.startsWith(to);
@@ -72,7 +72,7 @@ export function DesktopNavigation() {
                         );
                     })}
                     <m.div
-                        className="relative h-12"
+                        className="relative h-12 overflow-hidden"
                         initial={false}
                         animate={{ width: searching ? 0 : 112, opacity: searching ? 0 : 1 }}
                         transition={{ duration: 0.2, ease }}

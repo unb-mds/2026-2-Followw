@@ -12,20 +12,22 @@ import { ErrorCard, ErrorState, SIGAA_DOWN_MESSAGE } from '#/components/ErrorSta
 import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
 import { ClassCardSkeleton } from '#/components/home/ClassCard';
 import { LoginPromptCard } from '#/components/home/LoginPromptCard';
-import { LoadingSkeleton, repeat } from '#/components/LoadingSkeleton';
+import { LoadingSkeleton } from '#/components/LoadingSkeleton';
+import { SlideSwitch } from '#/components/Motion';
 import { WeeklySchedule } from '#/components/schedule/WeeklySchedule';
 import { TabFilter } from '#/components/TabFilter';
 import { Card, CardContent } from '#/components/ui/card';
-import { rise, SlideSwitch, useEntrance, useSlideDirection } from '#/lib/motion';
+import { rise, useEntrance, useSlideDirection } from '#/lib/motion';
+import { repeat } from '#/lib/repeat';
 import { meQueryOptions } from '#/queries/me';
 
 export const Route = createFileRoute('/_app/turmas')({
     codeSplitGroupings: [['loader'], ['component'], ['errorComponent']],
-    head: () => ({ meta: [{ title: 'Minhas Turmas | Followw' }] }),
     loader: async ({ context: { queryClient } }) => {
         const user = await loadQuery(queryClient, meQueryOptions);
         if (user) await loadQuery(queryClient, allClassroomsQueryOptions).catch(noop);
     },
+    head: () => ({ meta: [{ title: 'Minhas Turmas | Followw' }] }),
     staticData: {
         header: () => (
             <HeaderBar hideOnDesktop>

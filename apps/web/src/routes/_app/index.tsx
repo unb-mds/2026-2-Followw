@@ -34,6 +34,15 @@ const WEEKDAYS = [
 ];
 
 export const Route = createFileRoute('/_app/')({
+    loader: async ({ context: { queryClient } }) => {
+        const now = nowInBrasilia();
+        const user = await loadQuery(queryClient, meQueryOptions);
+        await Promise.all([
+            loadQuery(queryClient, weeklyMenuQueryOptions({ date: now.date, user })).catch(noop),
+            user && loadQuery(queryClient, weekLessonsQueryOptions).catch(noop)
+        ]);
+        return { now };
+    },
     head: () => ({
         ...publicPageHead({
             path: '/',
@@ -54,15 +63,6 @@ export const Route = createFileRoute('/_app/')({
             }
         ]
     }),
-    loader: async ({ context: { queryClient } }) => {
-        const now = nowInBrasilia();
-        const user = await loadQuery(queryClient, meQueryOptions);
-        await Promise.all([
-            loadQuery(queryClient, weeklyMenuQueryOptions({ date: now.date, user })).catch(noop),
-            user && loadQuery(queryClient, weekLessonsQueryOptions).catch(noop)
-        ]);
-        return { now };
-    },
     staticData: { header: HomeHeader },
     errorComponent: ErrorState,
     component: HomePage

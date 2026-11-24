@@ -35,8 +35,6 @@ function flowTarget(user: UserProfile | null | undefined, courseId: number) {
 
 export const Route = createFileRoute('/_app/cursos/$id')({
     codeSplitGroupings: [['loader'], ['component'], ['errorComponent'], ['pendingComponent']],
-    validateSearch: validateFlowSearch,
-    staticData: { presentation: 'fullscreen' },
     params: {
         parse: ({ id }) => {
             const courseId = /^\d+$/.test(id) ? Number(id) : 0;
@@ -46,6 +44,8 @@ export const Route = createFileRoute('/_app/cursos/$id')({
         },
         stringify: ({ id }) => ({ id: String(id) })
     },
+    validateSearch: validateFlowSearch,
+    staticData: { presentation: 'fullscreen' },
     loader: async ({ context: { queryClient }, params: { id: courseId } }) => {
         const user = await loadQuery(queryClient, meQueryOptions);
         const { ownCourse, loggedIn, entrySemester } = flowTarget(user, courseId);
@@ -89,6 +89,64 @@ function FlowHeader() {
     return <BackHeader to="/buscar" title="Fluxo acadêmico" />;
 }
 
+function FlowContent({
+    ownCourse,
+    loggedIn,
+    course,
+    entrySemester,
+    currentPeriod,
+    completedSubjects,
+    subject,
+    desktop,
+    isPending,
+    isError,
+    onRetry
+}: {
+    ownCourse: boolean;
+    loggedIn: boolean;
+    course: UserProfile['course'] | undefined;
+    entrySemester?: string | null;
+    currentPeriod: number | null;
+    completedSubjects?: string[];
+    subject?: string | null;
+    desktop: boolean | null;
+    isPending: boolean;
+    isError: boolean;
+    onRetry: () => void;
+}) {
+    if (!ownCourse && isPending)
+        return <LoadingText className="p-4">Carregando curso...</LoadingText>;
+    if (!ownCourse && isError) {
+        return (
+            <div className="p-4">
+                <ErrorCard message="Não foi possível carregar o curso." onRetry={onRetry} />
+            </div>
+        );
+    }
+    if (!course) return <p className="p-4">Curso não encontrado no catálogo.</p>;
+    if (!entrySemester) {
+        return (
+            <p className="p-4">
+                Semestre de referência indisponível. Não foi possível identificar a matriz deste
+                curso.
+            </p>
+        );
+    }
+    return (
+        <CurriculumView
+            key={course.id}
+            courseId={course.id}
+            entrySemester={entrySemester}
+            completedSubjects={completedSubjects}
+            currentPeriod={currentPeriod}
+            selected={subject ?? undefined}
+            ownCourse={ownCourse}
+            loggedIn={loggedIn}
+            desktop={desktop}
+        />
+    );
+}
+
 function FlowPage() {
     const eligible = useDesktop();
     const { ref, width } = useWidth<HTMLDivElement>();
@@ -106,35 +164,19 @@ function FlowPage() {
                 <FlowHeader />
                 {course && <CourseSummary course={course} entrySemester={entrySemester} />}
             </div>
-            {!ownCourse && listed.isPending ? (
-                <LoadingText className="p-4">Carregando curso...</LoadingText>
-            ) : !ownCourse && listed.isLoadingError && !unlisted ? (
-                <div className="p-4">
-                    <ErrorCard
-                        message="Não foi possível carregar o curso."
-                        onRetry={() => listed.refetch()}
-                    />
-                </div>
-            ) : !course ? (
-                <p className="p-4">Curso não encontrado no catálogo.</p>
-            ) : !entrySemester ? (
-                <p className="p-4">
-                    Semestre de referência indisponível. Não foi possível identificar a matriz deste
-                    curso.
-                </p>
-            ) : (
-                <CurriculumView
-                    key={course.id}
-                    courseId={course.id}
-                    entrySemester={entrySemester}
-                    completedSubjects={user?.completed_subjects}
-                    currentPeriod={currentPeriod}
-                    selected={subject ?? undefined}
-                    ownCourse={ownCourse}
-                    loggedIn={loggedIn}
-                    desktop={desktop}
-                />
-            )}
+            <FlowContent
+                ownCourse={ownCourse}
+                loggedIn={loggedIn}
+                course={course}
+                entrySemester={entrySemester}
+                currentPeriod={currentPeriod}
+                completedSubjects={user?.completed_subjects}
+                subject={subject}
+                desktop={desktop}
+                isPending={listed.isPending}
+                isError={listed.isLoadingError && !unlisted}
+                onRetry={() => listed.refetch()}
+            />
         </div>
     );
 }

@@ -106,7 +106,7 @@ export function ProfileForm({
     const { action } = photo;
     const preview = action === 'replace' ? photo.preview : null;
     const [error, setError] = useState('');
-    const [remoteSaved, setRemoteSaved] = useState(false);
+    const remoteSaved = useRef(false);
     const pending = remote.isPending || settings.isPending;
     useEffect(
         () => () => {
@@ -119,7 +119,7 @@ export function ProfileForm({
         saving.current = true;
         onSavingChange(true);
         setError('');
-        let saved = remoteSaved;
+        let saved = remoteSaved.current;
         let done = '';
         let failure =
             'Não foi possível confirmar a alteração no SIGAA. Confira o perfil antes de tentar novamente.';
@@ -128,7 +128,7 @@ export function ProfileForm({
             if (action === 'remove') {
                 await remote.mutateAsync({ action, photo: null });
                 setPhoto({ action: 'keep' });
-                setRemoteSaved(true);
+                remoteSaved.current = true;
                 saved = true;
                 done = 'Foto removida. ';
                 failure = 'Não foi possível confirmar a alteração da bio no SIGAA.';
@@ -141,7 +141,7 @@ export function ProfileForm({
                 });
                 setSavedBio(bio);
                 setPhoto({ action: 'keep' });
-                setRemoteSaved(true);
+                remoteSaved.current = true;
                 saved = true;
             }
             done = saved ? 'Alterações salvas no SIGAA. ' : '';

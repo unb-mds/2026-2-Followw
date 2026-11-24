@@ -90,15 +90,18 @@ export function RestaurantAccount({
         }, 10_000);
         setCoolingDown(true);
         setRefreshing(true);
-        const pending: Promise<unknown>[] = [];
-        if (target !== 'credentials') {
-            pending.push(refreshQuery(queryClient, statementOptions, { retry: false }));
+        try {
+            const pending: Promise<unknown>[] = [];
+            if (target !== 'credentials') {
+                pending.push(refreshQuery(queryClient, statementOptions, { retry: false }));
+            }
+            if (target !== 'statement') {
+                pending.push(refreshQuery(queryClient, credentialsOptions, { retry: false }));
+            }
+            await Promise.allSettled(pending);
+        } finally {
+            setRefreshing(false);
         }
-        if (target !== 'statement') {
-            pending.push(refreshQuery(queryClient, credentialsOptions, { retry: false }));
-        }
-        await Promise.allSettled(pending);
-        setRefreshing(false);
     };
 
     const cardDrawer = (

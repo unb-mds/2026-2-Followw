@@ -19,7 +19,6 @@ import { SessionNotStoredError, useLogin } from '#/queries/auth';
 import { meQueryOptions } from '#/queries/me';
 
 export const Route = createFileRoute('/login')({
-    head: () => ({ meta: [{ title: 'Entrar | Followw' }] }),
     loader: async ({ context }) => {
         try {
             const user = await loadQuery(context.queryClient, meQueryOptions);
@@ -29,6 +28,7 @@ export const Route = createFileRoute('/login')({
             throw error;
         }
     },
+    head: () => ({ meta: [{ title: 'Entrar | Followw' }] }),
     errorComponent: ErrorState,
     component: LoginPage
 });

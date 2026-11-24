@@ -1,3 +1,4 @@
+import type { InternshipItem } from '@followw/core/queries/internships.ts';
 import type { SearchResult, SearchType } from '@followw/core/queries/search.ts';
 
 import { searchTypes } from '@followw/core/lib/search-categories.ts';
@@ -5,7 +6,13 @@ import { filterInternships, internshipsQueryOptions } from '@followw/core/querie
 import { meQueryOptions } from '@followw/core/queries/me.ts';
 import { searchQueryOptions } from '@followw/core/queries/search.ts';
 import { withClassrooms } from '@followw/core/queries/subjects.ts';
-import { keepPreviousData, noop, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+    type UseQueryResult,
+    keepPreviousData,
+    noop,
+    useQuery,
+    useQueryClient
+} from '@tanstack/react-query';
 import { Fragment } from 'react';
 
 import { QueryState } from '#/components/QueryState';
@@ -17,6 +24,124 @@ import {
 import { ProfessorSection } from '#/components/search/ProfessorSection';
 import { TurmaSection } from '#/components/search/TurmaSection';
 import { refreshQuery } from '#/queries/refresh';
+
+type PreviewCategory = 'courses' | 'professors' | 'internships';
+
+function seedCategoryPage(
+    client: ReturnType<typeof useQueryClient>,
+    text: string,
+    queryKey: readonly unknown[],
+    category: 'courses' | 'professors'
+) {
+    const data = client.getQueryData<SearchResult>(queryKey)?.[category];
+    if (!data) return;
+    client.setQueryData(
+        searchQueryOptions(text, searchTypes[category]).queryKey,
+        (old) =>
+            old ?? {
+                subjects: null,
+                courses: null,
+                professors: null,
+                [category]: data
+            }
+    );
+}
+
+function SearchResultSections({
+    text,
+    data,
+    currentPeriod,
+    taken,
+    onShowCategory,
+    onOpenDetails
+}: {
+    text: string;
+    data: SearchResult;
+    currentPeriod: number | null;
+    taken: Set<string> | null;
+    onShowCategory?: (category: PreviewCategory) => void;
+    onOpenDetails: () => void;
+}) {
+    const { courses, professors, subjects } = data;
+    const offered = withClassrooms(subjects ?? []);
+    if (!courses?.items.length && !professors?.items.length && !offered.length) return null;
+
+    return (
+        <Fragment key={text}>
+            {courses && (
+                <CourseSection
+                    page={courses}
+                    q={text}
+                    onShowAll={onShowCategory && (() => onShowCategory('courses'))}
+                />
+            )}
+            {professors && (
+                <ProfessorSection
+                    page={professors}
+                    q={text}
+                    onShowAll={onShowCategory && (() => onShowCategory('professors'))}
+                />
+            )}
+            <TurmaSection
+                title="Turmas"
+                subjects={offered}
+                currentPeriod={currentPeriod}
+                taken={taken}
+                onOpenDetails={onOpenDetails}
+            />
+        </Fragment>
+    );
+}
+
+function hasSearchResults(data: SearchResult | undefined) {
+    if (!data) return false;
+    return Boolean(
+        data.courses?.items.length ||
+        data.professors?.items.length ||
+        withClassrooms(data.subjects ?? []).length
+    );
+}
+
+function isSearchEmpty(
+    result: { isSuccess: boolean; isPlaceholderData: boolean; data?: SearchResult },
+    showInternships: boolean,
+    internships: { isSuccess: boolean; data?: unknown[] }
+) {
+    if (!result.isSuccess || result.isPlaceholderData || hasSearchResults(result.data)) {
+        return false;
+    }
+    return !showInternships || (internships.isSuccess && !internships.data?.length);
+}
+
+function InternshipPreview({
+    query,
+    text,
+    onShowAll
+}: {
+    query: UseQueryResult<InternshipItem[], unknown>;
+    text: string;
+    onShowAll?: () => void;
+}) {
+    return (
+        <QueryState
+            query={query}
+            loading="Carregando ofertas de estágio..."
+            error="Não foi possível carregar as ofertas de estágio."
+            stale="Não foi possível atualizar as vagas. Exibindo os dados salvos."
+            skeleton={<InternshipSectionSkeleton title count={3} />}
+        >
+            {(data) => (
+                <InternshipSection
+                    key={text}
+                    internships={data}
+                    title="Estágios"
+                    previewLimit={3}
+                    onShowAll={onShowAll}
+                />
+            )}
+        </QueryState>
+    );
+}
 
 /** Cursos, docentes e matérias pedidos em `types` numa só consulta. */
 export function SearchResults({
@@ -33,7 +158,7 @@ export function SearchResults({
     currentPeriod: number | null;
     taken: Set<string> | null;
     // na aba Todos, cursos, docentes e estágios viram prévias que levam à aba própria
-    onShowCategory?: (category: 'courses' | 'professors' | 'internships') => void;
+    onShowCategory?: (category: PreviewCategory) => void;
 }) {
     const client = useQueryClient();
     const { data: user } = useQuery(meQueryOptions);
@@ -50,32 +175,18 @@ export function SearchResults({
     // a aba da categoria reaproveita a primeira página já carregada
     const showCategory =
         onShowCategory &&
-        ((category: 'courses' | 'professors' | 'internships') => {
+        ((category: PreviewCategory) => {
             if (category !== 'internships') {
-                const data = client.getQueryData<SearchResult>(options.queryKey)?.[category];
-                if (data)
-                    client.setQueryData(
-                        searchQueryOptions(text, searchTypes[category]).queryKey,
-                        (old) =>
-                            old ?? {
-                                subjects: null,
-                                courses: null,
-                                professors: null,
-                                [category]: data
-                            }
-                    );
+                seedCategoryPage(client, text, options.queryKey, category);
             }
             onShowCategory(category);
         });
     const refresh = () => void refreshQuery(client, options).catch(noop);
-    const { courses, professors, subjects } = result.data ?? {};
-    const offered = withClassrooms(subjects ?? []);
-    const found = courses?.items.length || professors?.items.length || offered.length;
+    const busy = result.isFetching || (showInternships && internships.isFetching);
+    const showEmpty = isSearchEmpty(result, showInternships, internships);
+
     return (
-        <div
-            aria-busy={result.isFetching || (showInternships && internships.isFetching)}
-            className="flex flex-col gap-5"
-        >
+        <div aria-busy={busy} className="flex flex-col gap-5">
             <QueryState
                 query={result}
                 loading="Buscando..."
@@ -83,59 +194,25 @@ export function SearchResults({
                 stale="Não foi possível atualizar a busca. Exibindo os dados salvos."
                 className="justify-center"
             >
-                {() =>
-                    found ? (
-                        <Fragment key={text}>
-                            {courses && (
-                                <CourseSection
-                                    page={courses}
-                                    q={text}
-                                    onShowAll={showCategory && (() => showCategory('courses'))}
-                                />
-                            )}
-                            {professors && (
-                                <ProfessorSection
-                                    page={professors}
-                                    q={text}
-                                    onShowAll={showCategory && (() => showCategory('professors'))}
-                                />
-                            )}
-                            <TurmaSection
-                                title="Turmas"
-                                subjects={offered}
-                                currentPeriod={currentPeriod}
-                                taken={taken}
-                                onOpenDetails={refresh}
-                            />
-                        </Fragment>
-                    ) : null
-                }
+                {(data) => (
+                    <SearchResultSections
+                        text={text}
+                        data={data}
+                        currentPeriod={currentPeriod}
+                        taken={taken}
+                        onShowCategory={showCategory}
+                        onOpenDetails={refresh}
+                    />
+                )}
             </QueryState>
             {showInternships && (
-                <QueryState
+                <InternshipPreview
                     query={internships}
-                    loading="Carregando ofertas de estágio..."
-                    error="Não foi possível carregar as ofertas de estágio."
-                    stale="Não foi possível atualizar as vagas. Exibindo os dados salvos."
-                    skeleton={<InternshipSectionSkeleton title count={3} />}
-                >
-                    {(data) => (
-                        <InternshipSection
-                            key={text}
-                            internships={data}
-                            title="Estágios"
-                            previewLimit={3}
-                            onShowAll={showCategory && (() => showCategory('internships'))}
-                        />
-                    )}
-                </QueryState>
+                    text={text}
+                    onShowAll={showCategory && (() => showCategory('internships'))}
+                />
             )}
-            {result.isSuccess &&
-                !result.isPlaceholderData &&
-                !found &&
-                (!showInternships || (internships.isSuccess && !internships.data.length)) && (
-                    <p className="py-8 text-center text-sm text-muted-foreground">{empty}</p>
-                )}
+            {showEmpty && <p className="py-8 text-center text-sm text-muted-foreground">{empty}</p>}
         </div>
     );
 }
