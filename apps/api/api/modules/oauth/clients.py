@@ -24,10 +24,11 @@ CLIENT_ID_PREFIX = "flw_app_"
 CLIENT_SECRET_PREFIX = "flw_sec_"
 
 _SCHEME_RE = re.compile(r"^[a-z][a-z0-9+.-]*$")
-_LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1"})
+_LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
 _FORBIDDEN_SCHEMES = frozenset(
     {"javascript", "data", "vbscript", "file", "blob", "about"}
 )
+_VALID_SCOPES = frozenset(Scope)
 
 
 def validate_redirect_uri(uri: str, *, confidential: bool) -> str:
@@ -55,7 +56,7 @@ def validate_redirect_uri(uri: str, *, confidential: bool) -> str:
     if scheme == "http":
         if parsed.hostname not in _LOOPBACK_HOSTS:
             raise ValueError(
-                "HTTP só é permitido para localhost ou 127.0.0.1; use HTTPS."
+                "HTTP só é permitido para localhost, 127.0.0.1 ou [::1]; use HTTPS."
             )
         return value
 
@@ -412,7 +413,9 @@ async def list_grants(db: Database, registration: str) -> list[OAuthGrantView]:
                 client_description=client.description if client else None,
                 client_homepage_url=client.homepage_url if client else None,
                 confidential=grant.confidential,
-                scopes=[Scope(scope) for scope in grant.scopes],
+                scopes=[
+                    Scope(scope) for scope in grant.scopes if scope in _VALID_SCOPES
+                ],
                 created_at=grant.created_at,
                 expires_at=grant.expires_at,
             )

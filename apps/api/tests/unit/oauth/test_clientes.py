@@ -21,6 +21,8 @@ def test_valida_redirect_uris_conforme_oauth_21(subtests):
         ("https://app.exemplo.com/callback", False),
         ("http://localhost:3000/callback", True),
         ("http://127.0.0.1:8080/oauth", False),
+        ("http://[::1]:3000/callback", True),
+        ("http://[::1]/callback", False),
         ("meuapp://oauth/callback", False),
     ]
     for uri, confidencial in validas:

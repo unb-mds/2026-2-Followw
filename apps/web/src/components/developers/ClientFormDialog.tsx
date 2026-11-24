@@ -164,41 +164,53 @@ export function ClientFormDialog(props: Props) {
                     </div>
 
                     {!editing && (
-                        <div className="flex flex-col gap-2">
-                            <Label>Tipo de aplicação</Label>
+                        <fieldset className="flex flex-col gap-2">
+                            <legend className="text-sm leading-none font-medium">
+                                Tipo de aplicação
+                            </legend>
                             <div className="grid grid-cols-2 gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => setConfidential(false)}
+                                <label
                                     className={cn(
-                                        'flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors',
+                                        'flex cursor-pointer flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors has-focus-visible:ring-2 has-focus-visible:ring-ring',
                                         !confidential
                                             ? 'border-primary bg-primary/5'
                                             : 'border-border hover:bg-muted/50'
                                     )}
                                 >
+                                    <input
+                                        type="radio"
+                                        name="dev-app-type"
+                                        checked={!confidential}
+                                        onChange={() => setConfidential(false)}
+                                        className="sr-only"
+                                    />
                                     <span className="text-sm font-medium">Pública</span>
                                     <span className="text-xs text-muted-foreground">
                                         SPA, mobile ou CLI. Sem segredo; exige PKCE + DPoP.
                                     </span>
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setConfidential(true)}
+                                </label>
+                                <label
                                     className={cn(
-                                        'flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors',
+                                        'flex cursor-pointer flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors has-focus-visible:ring-2 has-focus-visible:ring-ring',
                                         confidential
                                             ? 'border-primary bg-primary/5'
                                             : 'border-border hover:bg-muted/50'
                                     )}
                                 >
+                                    <input
+                                        type="radio"
+                                        name="dev-app-type"
+                                        checked={confidential}
+                                        onChange={() => setConfidential(true)}
+                                        className="sr-only"
+                                    />
                                     <span className="text-sm font-medium">Confidencial</span>
                                     <span className="text-xs text-muted-foreground">
                                         Servidor backend capaz de guardar client_secret.
                                     </span>
-                                </button>
+                                </label>
                             </div>
-                        </div>
+                        </fieldset>
                     )}
 
                     <div className="flex flex-col gap-2">
@@ -246,9 +258,9 @@ export function ClientFormDialog(props: Props) {
                             ))}
                         </div>
                         <p className="text-xs text-muted-foreground">
-                            Correspondência exata, sem wildcards. HTTPS obrigatório (localhost e
-                            127.0.0.1 liberados para dev; esquemas customizados apenas em apps
-                            públicos).
+                            Correspondência exata, sem wildcards. HTTPS obrigatório (localhost,
+                            127.0.0.1 e [::1] liberados para dev; esquemas customizados apenas em
+                            apps públicos).
                         </p>
                     </div>
 

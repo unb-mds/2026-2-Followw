@@ -1,5 +1,6 @@
 from sigaa_client import Credentials
 
+from api.db.models import OAuthGrant
 from api.modules.oauth.scopes import Scope
 
 
@@ -56,3 +57,17 @@ def test_lista_e_revoga_autorizacoes_do_estudante(client, cookies, emitir, stub_
 
     client.cookies.clear()
     assert client.get("/me", headers=headers).status_code == 401
+
+
+def test_listagem_de_grants_ignora_escopo_desconhecido_sem_erro_500(
+    client, cookies, emitir, database
+):
+    _logar(client, cookies, "251000000")
+    par = emitir(Scope.CLASSROOMS)
+    with database.begin() as session:
+        grant = session.get(OAuthGrant, par.grant_id)
+        grant.scopes = ["profile:read", "escopo:removido", "classrooms:read"]
+
+    resposta = client.get("/oauth/grants")
+    assert resposta.status_code == 200
+    assert set(resposta.json()[0]["scopes"]) == {"profile:read", "classrooms:read"}
