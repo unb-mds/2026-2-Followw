@@ -1277,8 +1277,8 @@ export interface components {
         };
         /** OAuthClientCreated */
         OAuthClientCreated: {
-            /** Id */
-            id: string;
+            /** Client Id */
+            client_id: string;
             /** Name */
             name: string;
             /** Description */
@@ -1322,8 +1322,8 @@ export interface components {
         };
         /** OAuthClientView */
         OAuthClientView: {
-            /** Id */
-            id: string;
+            /** Client Id */
+            client_id: string;
             /** Name */
             name: string;
             /** Description */

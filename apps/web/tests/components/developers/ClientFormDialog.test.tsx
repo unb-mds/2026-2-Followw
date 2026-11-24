@@ -141,7 +141,7 @@ describe('ClientFormDialog', () => {
         const updated: OAuthClientUpdate[] = [];
 
         const existing: OAuthClient = {
-            id: 'flw_app_1',
+            client_id: 'flw_app_1',
             name: 'App Original',
             description: 'Descrição inicial',
             homepage_url: 'https://app.unb.dev',

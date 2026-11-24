@@ -62,7 +62,7 @@ def test_token_externo_sem_dpop_mantem_cors_para_expor_erro_oauth(client, db):
         "/oauth/token",
         data={
             "grant_type": "refresh_token",
-            "client_id": publico.id,
+            "client_id": publico.client_id,
             "refresh_token": "qualquer",
         },
         headers={"Origin": "https://agenda.example"},

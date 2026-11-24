@@ -22,7 +22,7 @@ def test_lista_e_revoga_autorizacoes_do_estudante(client, cookies, emitir, stub_
             "confidential": True,
             "redirect_uris": ["https://planejador.unb.dev/cb"],
         },
-    ).json()["id"]
+    ).json()["client_id"]
 
     par = emitir(Scope.CLASSROOMS, client_id=app_id)
 

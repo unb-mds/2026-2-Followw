@@ -125,7 +125,7 @@ async def refresh(
         pair = await renew_access(
             db,
             body.refresh_token.get_secret_value(),
-            client_id=client.id,
+            client_id=client.client_id,
             authenticated_client=client.confidential,
             proof=proof,
         )

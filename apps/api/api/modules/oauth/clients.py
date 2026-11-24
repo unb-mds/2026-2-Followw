@@ -119,7 +119,9 @@ async def authenticate_client(
     """Valida a existência da aplicação cadastrada e o client_secret quando confidencial."""
 
     async def read(session: AsyncSession) -> OAuthClient | None:
-        return await session.get(OAuthClient, client_id)
+        return await session.scalar(
+            select(OAuthClient).where(OAuthClient.client_id == client_id)
+        )
 
     client = await db.read(read)
     if client is None:
@@ -238,7 +240,7 @@ class OAuthClientUpdate(BaseModel):
 class OAuthClientView(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: str
+    client_id: str
     name: str
     description: str | None
     homepage_url: str | None
@@ -313,7 +315,7 @@ async def create_client(
             plain_secret, salt, digest = generate_client_secret()
 
         client = OAuthClient(
-            id=generate_client_id(),
+            client_id=generate_client_id(),
             owner_registration=owner_registration,
             name=body.name,
             description=body.description,
@@ -334,8 +336,13 @@ async def create_client(
 async def _owned_client(
     session: AsyncSession, owner_registration: str, client_id: str
 ) -> OAuthClient:
-    client = await session.get(OAuthClient, client_id)
-    if client is None or client.owner_registration != owner_registration:
+    client = await session.scalar(
+        select(OAuthClient).where(
+            OAuthClient.client_id == client_id,
+            OAuthClient.owner_registration == owner_registration,
+        )
+    )
+    if client is None:
         raise HTTPException(404, "Aplicação não encontrada.")
     return client
 
@@ -379,7 +386,7 @@ async def rotate_client_secret(
         client.secret_salt = salt
         client.secret_hash = digest
         await session.flush()
-        return OAuthClientSecret(client_id=client.id, client_secret=plain)
+        return OAuthClientSecret(client_id=client.client_id, client_secret=plain)
 
     return await db.write(write)
 
@@ -388,7 +395,7 @@ async def delete_client(db: Database, owner_registration: str, client_id: str) -
     async def write(session: AsyncSession) -> None:
         client = await _owned_client(session, owner_registration, client_id)
         await session.execute(
-            delete(OAuthGrant).where(OAuthGrant.client_id == client.id)
+            delete(OAuthGrant).where(OAuthGrant.client_id == client.client_id)
         )
         await session.delete(client)
 
@@ -402,7 +409,7 @@ async def list_grants(db: Database, registration: str) -> list[OAuthGrantView]:
         rows = (
             await session.execute(
                 select(OAuthGrant, OAuthClient)
-                .outerjoin(OAuthClient, OAuthGrant.client_id == OAuthClient.id)
+                .outerjoin(OAuthClient, OAuthGrant.client_id == OAuthClient.client_id)
                 .where(
                     OAuthGrant.registration == registration,
                     OAuthGrant.expires_at > now,

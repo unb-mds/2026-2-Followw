@@ -72,7 +72,7 @@ test('exibe estado vazio quando o desenvolvedor ainda não possui aplicações',
 test('lista aplicações públicas e confidenciais com ações adequadas', async () => {
     const apps: OAuthClient[] = [
         {
-            id: 'flw_app_confidencial',
+            client_id: 'flw_app_confidencial',
             name: 'Bot UnB',
             description: 'Notifica avisos no Telegram',
             homepage_url: 'https://bot.unb.dev',
@@ -82,7 +82,7 @@ test('lista aplicações públicas e confidenciais com ações adequadas', async
             updated_at: '2026-11-24T00:00:00Z'
         },
         {
-            id: 'flw_app_publico',
+            client_id: 'flw_app_publico',
             name: 'App Mobile',
             description: null,
             homepage_url: null,

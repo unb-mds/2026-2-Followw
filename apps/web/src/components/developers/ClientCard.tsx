@@ -98,7 +98,7 @@ export function ClientCard({
             </CardHeader>
 
             <CardContent className="flex flex-col gap-4">
-                <CopyField label="Client ID" value={client.id} />
+                <CopyField label="Client ID" value={client.client_id} />
 
                 <div className="flex flex-col gap-1.5">
                     <span className="text-xs font-medium text-muted-foreground">

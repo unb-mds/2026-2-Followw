@@ -35,7 +35,7 @@ def test_crud_completo_de_aplicacao_confidencial_e_publica(client, cookies):
     )
     assert criado.status_code == 201
     dados = criado.json()
-    assert dados["id"].startswith(CLIENT_ID_PREFIX)
+    assert dados["client_id"].startswith(CLIENT_ID_PREFIX)
     assert dados["client_secret"].startswith(CLIENT_SECRET_PREFIX)
     assert dados["confidential"] is True
 
@@ -47,7 +47,7 @@ def test_crud_completo_de_aplicacao_confidencial_e_publica(client, cookies):
 
     # Edição
     editado = client.patch(
-        f"/oauth/clients/{dados['id']}",
+        f"/oauth/clients/{dados['client_id']}",
         json={
             "name": "Bot UnB v2",
             "redirect_uris": [
@@ -61,7 +61,7 @@ def test_crud_completo_de_aplicacao_confidencial_e_publica(client, cookies):
     assert len(editado.json()["redirect_uris"]) == 2
 
     # Rotação de segredo gera um novo valor distinto
-    rotacionado = client.post(f"/oauth/clients/{dados['id']}/rotate-secret")
+    rotacionado = client.post(f"/oauth/clients/{dados['client_id']}/rotate-secret")
     assert rotacionado.status_code == 200
     assert rotacionado.json()["client_secret"].startswith(CLIENT_SECRET_PREFIX)
     assert rotacionado.json()["client_secret"] != dados["client_secret"]
@@ -78,7 +78,9 @@ def test_crud_completo_de_aplicacao_confidencial_e_publica(client, cookies):
     assert publico.status_code == 201
     assert publico.json()["client_secret"] is None
     assert (
-        client.post(f"/oauth/clients/{publico.json()['id']}/rotate-secret").status_code
+        client.post(
+            f"/oauth/clients/{publico.json()['client_id']}/rotate-secret"
+        ).status_code
         == 422
     )
 
@@ -92,7 +94,7 @@ def test_isolamento_entre_donos_e_bloqueio_de_token_oauth(client, cookies, emiti
             "confidential": True,
             "redirect_uris": ["https://a.exemplo.com/cb"],
         },
-    ).json()["id"]
+    ).json()["client_id"]
 
     # Outro usuário não enxerga nem altera a aplicação
     _logar(client, cookies, "252000000")
@@ -186,7 +188,7 @@ def test_excluir_aplicacao_revoga_tokens_em_cascata(
             "redirect_uris": ["https://temp.exemplo.com/cb"],
         },
     ).json()
-    app_id = criado["id"]
+    app_id = criado["client_id"]
     segredo = criado["client_secret"]
 
     par = emitir(client_id=app_id)
@@ -233,7 +235,7 @@ def test_oauth_token_valida_registro_e_rotacao_de_client_secret(
             "redirect_uris": ["https://backend.exemplo.com/cb"],
         },
     ).json()
-    app_id = criado["id"]
+    app_id = criado["client_id"]
     segredo_antigo = criado["client_secret"]
     par = emitir(client_id=app_id)
 

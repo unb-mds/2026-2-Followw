@@ -13,6 +13,7 @@ from sigaa_client import (
     News,
     Subject,
 )
+from sqlalchemy import select
 
 from api.db.main import Database
 from api.db.models import OAuthClient
@@ -33,13 +34,16 @@ def emitir(db):
 
         async def _ensure_client_and_issue():
             async def ensure(session):
-                if await session.get(OAuthClient, client_id) is None:
+                existente = await session.scalar(
+                    select(OAuthClient).where(OAuthClient.client_id == client_id)
+                )
+                if existente is None:
                     salt = digest = None
                     if is_confidential:
                         _, salt, digest = generate_client_secret()
                     session.add(
                         OAuthClient(
-                            id=client_id,
+                            client_id=client_id,
                             owner_registration="251000000",
                             name=client_id,
                             description=None,

@@ -20,7 +20,7 @@ afterAll(async () => {
 });
 
 const client: OAuthClient = {
-    id: 'flw_app_c',
+    client_id: 'flw_app_c',
     name: 'Bot UnB',
     description: null,
     homepage_url: null,

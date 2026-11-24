@@ -82,12 +82,12 @@ function DevelopersPage() {
                     <section aria-label="Suas aplicações" className="flex flex-col gap-4">
                         {items.map((item) => (
                             <ClientCard
-                                key={item.id}
+                                key={item.client_id}
                                 client={item}
-                                disabled={!online || busy(item.id)}
+                                disabled={!online || busy(item.client_id)}
                                 onEdit={() => setEditing(item)}
-                                onRotateSecret={() => rotate.mutate(item.id)}
-                                onDelete={() => remove.mutate(item.id)}
+                                onRotateSecret={() => rotate.mutate(item.client_id)}
+                                onDelete={() => remove.mutate(item.client_id)}
                             />
                         ))}
                     </section>
@@ -103,7 +103,7 @@ function DevelopersPage() {
                             await invalidate();
                             if (created.client_secret) {
                                 setRevealedSecret({
-                                    clientId: created.id,
+                                    clientId: created.client_id,
                                     clientSecret: created.client_secret,
                                     title: 'Aplicação criada — salve seu client_secret'
                                 });
@@ -114,13 +114,13 @@ function DevelopersPage() {
 
                 {editing && (
                     <ClientFormDialog
-                        key={editing.id}
+                        key={editing.client_id}
                         mode="edit"
                         client={editing}
                         open
                         onOpenChange={(open) => !open && setEditing(null)}
                         onSubmit={async (body) => {
-                            await updateOAuthClient(editing.id, body);
+                            await updateOAuthClient(editing.client_id, body);
                             await invalidate();
                         }}
                     />

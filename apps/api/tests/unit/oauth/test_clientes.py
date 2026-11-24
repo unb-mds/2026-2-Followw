@@ -68,7 +68,7 @@ def test_segredo_usa_prefixo_salt_e_verificacao_em_tempo_constante():
 
     now = datetime.now(UTC)
     confidencial = OAuthClient(
-        id="flw_app_1",
+        client_id="flw_app_1",
         owner_registration="251000000",
         name="Bot",
         description=None,
@@ -81,7 +81,7 @@ def test_segredo_usa_prefixo_salt_e_verificacao_em_tempo_constante():
         updated_at=now,
     )
     publico = OAuthClient(
-        id="flw_app_2",
+        client_id="flw_app_2",
         owner_registration="251000000",
         name="Mobile",
         description=None,
