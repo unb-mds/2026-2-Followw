@@ -129,8 +129,8 @@ def test_prova_de_instalacao_nao_substitui_autenticacao_de_cliente_confidencial(
         },
         headers={"DPoP": _prova(key)},
     )
-    assert response.status_code == 400
-    assert response.json() == {"error": "invalid_grant"}
+    assert response.status_code == 401
+    assert response.json() == {"error": "invalid_client"}
 
 
 def test_renovacao_informa_prazo_real_quando_concessao_vence_antes_do_access(

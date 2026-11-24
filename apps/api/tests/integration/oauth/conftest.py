@@ -15,6 +15,8 @@ from sigaa_client import (
 )
 
 from api.db.main import Database
+from api.db.models import OAuthClient
+from api.modules.oauth.clients import generate_client_secret
 from api.modules.oauth.scopes import Scope
 from api.modules.oauth.tokens import issue_tokens
 
@@ -27,19 +29,40 @@ def db(async_database):
 @pytest.fixture
 def emitir(db):
     def issue(*scopes, client_id="agenda", proof=None, confidential=None):
-        return asyncio.run(
-            issue_tokens(
+        is_confidential = proof is None if confidential is None else confidential
+
+        async def _ensure_client_and_issue():
+            async def ensure(session):
+                if await session.get(OAuthClient, client_id) is None:
+                    salt = digest = None
+                    if is_confidential:
+                        _, salt, digest = generate_client_secret()
+                    session.add(
+                        OAuthClient(
+                            id=client_id,
+                            owner_registration="251000000",
+                            name=client_id,
+                            description=None,
+                            homepage_url=None,
+                            confidential=is_confidential,
+                            redirect_uris=["https://app.followw.test/callback"],
+                            secret_salt=salt,
+                            secret_hash=digest,
+                        )
+                    )
+
+            await db.write(ensure)
+            return await issue_tokens(
                 db,
                 client_id=client_id,
                 accepted=(Scope.PROFILE, *scopes),
                 credentials=Credentials(registration="251000000", password="senha123"),
                 session_token="app14~SESSAO-EXPIRADA",
                 proof=proof,
-                authenticated_client=proof is None
-                if confidential is None
-                else confidential,
+                authenticated_client=is_confidential,
             )
-        )
+
+        return asyncio.run(_ensure_client_and_issue())
 
     return issue
 

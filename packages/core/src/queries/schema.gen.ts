@@ -51,7 +51,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Renovar o acesso OAuth de uma instalação com DPoP */
+        /**
+         * Renovar o acesso OAuth de uma aplicação registrada
+         * @description Valida a aplicação cadastrada: clientes confidenciais autenticam com client_secret (formulário ou HTTP Basic) e clientes públicos exigem prova DPoP.
+         */
         post: operations["refresh_oauth_token_post"];
         delete?: never;
         options?: never;
@@ -1574,7 +1577,9 @@ export interface components {
              */
             grant_type: "refresh_token";
             /** Client Id */
-            client_id: string;
+            client_id?: string | null;
+            /** Client Secret */
+            client_secret?: string | null;
             /**
              * Refresh Token
              * Format: password
@@ -2038,6 +2043,7 @@ export interface operations {
             query?: never;
             header?: {
                 dpop?: string | null;
+                authorization?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -2059,6 +2065,13 @@ export interface operations {
             };
             /** @description Refresh ou prova DPoP inválidos. */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Aplicação não registrada ou client_secret inválido. */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

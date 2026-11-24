@@ -97,6 +97,10 @@ def generate_client_secret() -> tuple[str, bytes, bytes]:
     return plain, salt, digest
 
 
+class InvalidClient(ValueError):
+    """Aplicação inexistente ou credenciais de cliente inválidas."""
+
+
 def verify_client_secret(client: OAuthClient, secret: str) -> bool:
     if (
         not client.confidential
@@ -108,8 +112,23 @@ def verify_client_secret(client: OAuthClient, secret: str) -> bool:
     return hmac.compare_digest(client.secret_hash, candidate)
 
 
-def matches_redirect_uri(client: OAuthClient, redirect_uri: str) -> bool:
-    return redirect_uri in client.redirect_uris
+async def authenticate_client(
+    db: Database, client_id: str, client_secret: str | None
+) -> OAuthClient:
+    """Valida a existência da aplicação cadastrada e o client_secret quando confidencial."""
+
+    async def read(session: AsyncSession) -> OAuthClient | None:
+        return await session.get(OAuthClient, client_id)
+
+    client = await db.read(read)
+    if client is None:
+        raise InvalidClient("Aplicação não registrada.")
+    if client.confidential:
+        if client_secret is None or not verify_client_secret(client, client_secret):
+            raise InvalidClient("Credenciais da aplicação inválidas.")
+    elif client_secret is not None:
+        raise InvalidClient("Aplicações públicas não aceitam client_secret.")
+    return client
 
 
 def _validate_redirect_list(uris: list[str], *, confidential: bool) -> list[str]:

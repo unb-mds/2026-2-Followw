@@ -9,7 +9,6 @@ from api.modules.oauth.clients import (
     OAuthClientCreate,
     generate_client_id,
     generate_client_secret,
-    matches_redirect_uri,
     validate_homepage_url,
     validate_redirect_uri,
     verify_client_secret,
@@ -95,8 +94,6 @@ def test_segredo_usa_prefixo_salt_e_verificacao_em_tempo_constante():
     assert verify_client_secret(confidencial, plain)
     assert not verify_client_secret(confidencial, plain + "x")
     assert not verify_client_secret(publico, plain)
-    assert matches_redirect_uri(confidencial, "https://bot.exemplo.com/cb")
-    assert not matches_redirect_uri(confidencial, "https://bot.exemplo.com/cb?x=1")
 
 
 def test_schema_rejeita_uris_duplicadas_e_nome_em_branco():

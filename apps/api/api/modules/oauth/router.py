@@ -1,4 +1,7 @@
+import base64
+import binascii
 from typing import Annotated, Literal
+from urllib.parse import unquote_plus
 from uuid import UUID
 
 from fastapi import APIRouter, Form, Header, Path, Response
@@ -11,12 +14,14 @@ from api.db.main import DatabaseDep
 from api.errors import SIGAA_ERRORS
 from api.modules.auth.account import schedule_account_sync
 from api.modules.oauth.clients import (
+    InvalidClient,
     OAuthClientCreate,
     OAuthClientCreated,
     OAuthClientSecret,
     OAuthClientUpdate,
     OAuthClientView,
     OAuthGrantView,
+    authenticate_client,
     create_client,
     delete_client,
     list_clients,
@@ -35,7 +40,8 @@ router = APIRouter()
 
 class RefreshGrant(BaseModel):
     grant_type: Literal["refresh_token"]
-    client_id: str = Field(min_length=1, max_length=256)
+    client_id: str | None = Field(default=None, min_length=1, max_length=256)
+    client_secret: SecretStr | None = Field(default=None, min_length=1, max_length=256)
     refresh_token: SecretStr = Field(min_length=1, max_length=MAX_TOKEN_LENGTH)
 
 
@@ -46,12 +52,50 @@ class TokenResponse(BaseModel):
     scope: str
 
 
+def _parse_basic_auth(header: str) -> tuple[str, str]:
+    scheme, _, encoded = header.partition(" ")
+    if scheme.lower() != "basic" or not encoded:
+        raise InvalidClient("Cabeçalho Authorization inválido.")
+    try:
+        decoded = base64.b64decode(encoded, validate=True).decode("utf-8")
+    except (binascii.Error, UnicodeDecodeError) as error:
+        raise InvalidClient("Credenciais Basic inválidas.") from error
+    if ":" not in decoded:
+        raise InvalidClient("Credenciais Basic incompletas.")
+    raw_id, raw_secret = decoded.split(":", 1)
+    client_id, client_secret = unquote_plus(raw_id), unquote_plus(raw_secret)
+    if not client_id or not client_secret:
+        raise InvalidClient("Credenciais Basic vazias.")
+    return client_id, client_secret
+
+
+def _client_credentials(
+    body: RefreshGrant, authorization: str | None
+) -> tuple[str, str | None]:
+    if authorization is not None:
+        basic_id, basic_secret = _parse_basic_auth(authorization)
+        if body.client_secret is not None or (
+            body.client_id is not None and body.client_id != basic_id
+        ):
+            raise InvalidClient("Não combine múltiplos métodos de autenticação.")
+        return basic_id, basic_secret
+    if body.client_id is None:
+        raise InvalidClient("Informe o client_id.")
+    secret = body.client_secret.get_secret_value() if body.client_secret else None
+    return body.client_id, secret
+
+
 @router.post(
     "/token",
     response_model=TokenResponse,
-    summary="Renovar o acesso OAuth de uma instalação com DPoP",
+    summary="Renovar o acesso OAuth de uma aplicação registrada",
+    description=(
+        "Valida a aplicação cadastrada: clientes confidenciais autenticam com client_secret "
+        "(formulário ou HTTP Basic) e clientes públicos exigem prova DPoP."
+    ),
     responses={
         400: {"description": "Refresh ou prova DPoP inválidos."},
+        401: {"description": "Aplicação não registrada ou client_secret inválido."},
         502: {"description": "SIGAA indisponível durante a renovação."},
     },
 )
@@ -61,18 +105,34 @@ async def refresh(
     queue: JobQueueDep,
     response: Response,
     dpop: Annotated[str | None, Header(max_length=MAX_PROOF_LENGTH)] = None,
+    authorization: Annotated[str | None, Header(max_length=1024)] = None,
 ):
     headers = {"Cache-Control": "no-store", "Pragma": "no-cache"}
     try:
-        if dpop is None:
+        client_id, client_secret = _client_credentials(body, authorization)
+        if client_secret is None and dpop is None:
             raise InvalidProof("Prova DPoP ausente.")
-        proof = Proof.verify(dpop, f"{settings.public_url.rstrip('/')}/oauth/token")
+        client = await authenticate_client(db, client_id, client_secret)
+        proof = (
+            Proof.verify(dpop, f"{settings.public_url.rstrip('/')}/oauth/token")
+            if dpop is not None
+            else None
+        )
         pair = await renew_access(
             db,
             body.refresh_token.get_secret_value(),
-            client_id=body.client_id,
-            authenticated_client=False,
+            client_id=client.id,
+            authenticated_client=client.confidential,
             proof=proof,
+        )
+    except InvalidClient:
+        error_headers = (
+            {**headers, "WWW-Authenticate": "Basic"}
+            if authorization is not None
+            else headers
+        )
+        return JSONResponse(
+            {"error": "invalid_client"}, status_code=401, headers=error_headers
         )
     except InvalidProof:
         return JSONResponse(

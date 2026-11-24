@@ -1,3 +1,5 @@
+import base64
+
 from sigaa_client import Credentials
 
 from api.modules.oauth.clients import (
@@ -148,14 +150,16 @@ def test_excluir_aplicacao_revoga_tokens_em_cascata(
     client, cookies, emitir, stub_sigaa
 ):
     _logar(client, cookies)
-    app_id = client.post(
+    criado = client.post(
         "/oauth/clients",
         json={
             "name": "App Temporário",
             "confidential": True,
             "redirect_uris": ["https://temp.exemplo.com/cb"],
         },
-    ).json()["id"]
+    ).json()
+    app_id = criado["id"]
+    segredo = criado["client_secret"]
 
     par = emitir(client_id=app_id)
     assert (
@@ -168,7 +172,7 @@ def test_excluir_aplicacao_revoga_tokens_em_cascata(
     assert client.delete(f"/oauth/clients/{app_id}").status_code == 204
     assert client.get("/oauth/clients").json() == []
 
-    # Token emitido para a aplicação excluída para de funcionar imediatamente
+    # Token emitido e refresh para a aplicação excluída param de funcionar imediatamente
     client.cookies.clear()
     assert (
         client.get(
@@ -176,3 +180,103 @@ def test_excluir_aplicacao_revoga_tokens_em_cascata(
         ).status_code
         == 401
     )
+    renovacao = client.post(
+        "/oauth/token",
+        data={
+            "grant_type": "refresh_token",
+            "client_id": app_id,
+            "client_secret": segredo,
+            "refresh_token": par.refresh_token,
+        },
+    )
+    assert renovacao.status_code == 401
+    assert renovacao.json() == {"error": "invalid_client"}
+
+
+def test_oauth_token_valida_registro_e_rotacao_de_client_secret(
+    client, cookies, emitir, sigaa
+):
+    _logar(client, cookies)
+    criado = client.post(
+        "/oauth/clients",
+        json={
+            "name": "Backend UnB",
+            "confidential": True,
+            "redirect_uris": ["https://backend.exemplo.com/cb"],
+        },
+    ).json()
+    app_id = criado["id"]
+    segredo_antigo = criado["client_secret"]
+    par = emitir(client_id=app_id)
+
+    client.cookies.clear()
+
+    # client_id não registrado é rejeitado
+    inexistente = client.post(
+        "/oauth/token",
+        data={
+            "grant_type": "refresh_token",
+            "client_id": "flw_app_nao_existe",
+            "client_secret": segredo_antigo,
+            "refresh_token": par.refresh_token,
+        },
+    )
+    assert inexistente.status_code == 401
+    assert inexistente.json() == {"error": "invalid_client"}
+
+    # Segredo errado ou ausente é rejeitado
+    assert (
+        client.post(
+            "/oauth/token",
+            data={
+                "grant_type": "refresh_token",
+                "client_id": app_id,
+                "client_secret": "flw_sec_errado",
+                "refresh_token": par.refresh_token,
+            },
+        ).status_code
+        == 401
+    )
+
+    # Segredo válido via formulário funciona
+    ok_form = client.post(
+        "/oauth/token",
+        data={
+            "grant_type": "refresh_token",
+            "client_id": app_id,
+            "client_secret": segredo_antigo,
+            "refresh_token": par.refresh_token,
+        },
+    )
+    assert ok_form.status_code == 200
+    assert ok_form.json()["access_token"]
+
+    # Rotaciona o segredo
+    _logar(client, cookies)
+    novo_segredo = client.post(f"/oauth/clients/{app_id}/rotate-secret").json()[
+        "client_secret"
+    ]
+    client.cookies.clear()
+
+    # Segredo antigo para de funcionar imediatamente
+    antigo_bloqueado = client.post(
+        "/oauth/token",
+        data={
+            "grant_type": "refresh_token",
+            "client_id": app_id,
+            "client_secret": segredo_antigo,
+            "refresh_token": par.refresh_token,
+        },
+    )
+    assert antigo_bloqueado.status_code == 401
+    assert antigo_bloqueado.json() == {"error": "invalid_client"}
+
+    # Novo segredo funciona via HTTP Basic (RFC 6749)
+    basic = base64.b64encode(f"{app_id}:{novo_segredo}".encode()).decode()
+    ok_basic = client.post(
+        "/oauth/token",
+        data={"grant_type": "refresh_token", "refresh_token": par.refresh_token},
+        headers={"Authorization": f"Basic {basic}"},
+    )
+    assert ok_basic.status_code == 200
+    assert ok_basic.json()["access_token"]
