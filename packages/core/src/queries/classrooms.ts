@@ -11,9 +11,7 @@ export type ClassroomPost = components['schemas']['ClassroomPostView'];
 export type TeachingPlan = components['schemas']['ClassroomTeachingPlan'];
 export type PostType = components['schemas']['PostType'];
 
-/** A menção vale nas turmas encerradas; nas atuais, quem ocupa o lugar dela é o local. */
-export const finalGrade = (classroom: Classroom) =>
-    classroom.current ? null : (classroom.grade ?? null);
+export const finalGrade = (classroom: Classroom) => classroom.grade ?? null;
 
 export const classroomsQueryOptions = api.queryOptions('get', '/classrooms');
 

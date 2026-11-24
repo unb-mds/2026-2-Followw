@@ -106,7 +106,7 @@ describe('pré-requisitos', () => {
         expect(covered(new Set(['B']), { code: 'A', equivalences: [[]] })).toBe(false);
         expect(covered(null, { code: 'B', equivalences })).toBe(false);
     });
-    test('aprovado só com SS, MS ou MM em turma encerrada', () => {
+    test('aprovado só com SS, MS ou MM lançada, mesmo em turma atual', () => {
         const approved = approvedCodes(
             [
                 history('A', 'SS'),
@@ -118,7 +118,7 @@ describe('pré-requisitos', () => {
             ],
             undefined
         );
-        expect([...approved]).toEqual(['A', 'B']);
+        expect([...approved]).toEqual(['A', 'B', 'E']);
     });
     test('aprovadas incluem as cumpridas no histórico do perfil', () => {
         expect([...approvedCodes([history('A', 'SS')], ['B'])].toSorted()).toEqual(['A', 'B']);

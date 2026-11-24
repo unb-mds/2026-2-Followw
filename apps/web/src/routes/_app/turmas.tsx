@@ -1,16 +1,16 @@
 import { groupBySemester } from '@followw/core/lib/classroom-details.ts';
-import { describeSchedule } from '@followw/core/lib/schedule.ts';
-import { allClassroomsQueryOptions, finalGrade } from '@followw/core/queries/classrooms.ts';
+import { allClassroomsQueryOptions } from '@followw/core/queries/classrooms.ts';
 import { loadQuery } from '@followw/core/queries/load.ts';
 import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { m } from 'motion/react';
 import { useState } from 'react';
 
+import { ClassroomCard } from '#/components/classroom/ClassroomCard';
 import { useDesktop } from '#/components/DesktopContext';
 import { ErrorCard, ErrorState, SIGAA_DOWN_MESSAGE } from '#/components/ErrorState';
 import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
-import { ClassCard, ClassCardSkeleton } from '#/components/home/ClassCard';
+import { ClassCardSkeleton } from '#/components/home/ClassCard';
 import { LoginPromptCard } from '#/components/home/LoginPromptCard';
 import { LoadingSkeleton, repeat } from '#/components/LoadingSkeleton';
 import { WeeklySchedule } from '#/components/schedule/WeeklySchedule';
@@ -83,23 +83,8 @@ function Classrooms() {
                         >
                             {items?.map((classroom, index) => (
                                 <m.div key={classroom.id} custom={index} variants={rise}>
-                                    <ClassCard
-                                        title={classroom.subject.name}
-                                        time={
-                                            describeSchedule(classroom.schedule) ??
-                                            'Horário a definir'
-                                        }
-                                        location={
-                                            classroom.current
-                                                ? (classroom.room ?? 'Local não informado')
-                                                : undefined
-                                        }
-                                        grade={finalGrade(classroom)}
-                                        status={
-                                            classroom.status === 'pending_enrollment'
-                                                ? 'pending'
-                                                : 'normal'
-                                        }
+                                    <ClassroomCard
+                                        classroom={classroom}
                                         onClick={() =>
                                             navigate({
                                                 to: '/turmas/$id',

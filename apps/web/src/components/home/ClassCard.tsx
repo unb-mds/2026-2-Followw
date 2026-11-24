@@ -15,7 +15,8 @@ export interface ClassCardProps {
     title: string;
     compact?: boolean;
     time: string;
-    location?: string;
+    /** `null` é turma sem local lançado; `undefined` omite o local. */
+    location?: string | null;
     professors?: string[];
     grade?: Classroom['grade'];
     status?: 'in_progress' | 'next' | 'pending' | 'normal' | 'warning' | 'cancelled';
@@ -62,7 +63,9 @@ export const ClassCard: React.FC<ClassCardProps> = ({
     const statusInfo = status === 'normal' ? undefined : STATUS[status];
     const active = status === 'in_progress';
     const professorNames = professors?.join(', ');
-    const details = [location, professorNames].filter(Boolean).join(' · ');
+    // A menção lançada ocupa o lugar do local.
+    const place = grade || location === undefined ? undefined : (location ?? 'Local não informado');
+    const details = [place, professorNames].filter(Boolean).join(' · ');
 
     const body = (
         <>
@@ -82,7 +85,7 @@ export const ClassCard: React.FC<ClassCardProps> = ({
                 {grade ? (
                     <Award className="size-3 shrink-0" />
                 ) : (
-                    location && <MapPin className="size-3 shrink-0" />
+                    place && <MapPin className="size-3 shrink-0" />
                 )}
                 <span className="min-w-0 truncate" title={professorNames ? details : undefined}>
                     {grade && <GradeText grade={grade} />}

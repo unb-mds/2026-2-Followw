@@ -37,9 +37,19 @@ describe('ClassroomSummary', () => {
         expect(markup).not.toContain('Local não informado');
     });
 
-    test.each(['ICC', null])('mantém o local nas turmas atuais: %s', (room) => {
+    test('substitui o local pela menção já lançada numa turma atual', () => {
         const markup = renderToStaticMarkup(
-            <ClassroomSummary classroom={{ ...classroom, current: true, room }} />
+            <ClassroomSummary classroom={{ ...classroom, current: true, room: 'ICC' }} />
+        );
+
+        expect(markup).toContain('>SS</span>');
+        expect(markup).not.toContain('ICC');
+        expect(markup).not.toContain('lucide-map-pin');
+    });
+
+    test.each(['ICC', null])('mantém o local nas turmas atuais sem menção: %s', (room) => {
+        const markup = renderToStaticMarkup(
+            <ClassroomSummary classroom={{ ...classroom, current: true, room, grade: null }} />
         );
 
         expect(markup).toContain(room ?? 'Local não informado');

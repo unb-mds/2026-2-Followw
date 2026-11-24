@@ -24,14 +24,16 @@ export function ClassroomSummary({ classroom }: { classroom: Classroom }) {
                         {schedule ?? 'Horário a definir'}
                     </span>
                 </SummaryItem>
-                {classroom.current ? (
+                {grade ? (
+                    <SummaryItem icon={Award}>
+                        <GradeText grade={grade} />
+                    </SummaryItem>
+                ) : classroom.current ? (
                     <SummaryItem icon={MapPin}>
                         {classroom.room ?? 'Local não informado'}
                     </SummaryItem>
                 ) : (
-                    <SummaryItem icon={Award}>
-                        {grade ? <GradeText grade={grade} /> : 'Menção não disponível'}
-                    </SummaryItem>
+                    <SummaryItem icon={Award}>Menção não disponível</SummaryItem>
                 )}
                 {classroom.subject.hours != null && (
                     <SummaryItem icon={Hourglass}>{classroom.subject.hours}h</SummaryItem>
