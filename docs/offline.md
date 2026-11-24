@@ -51,7 +51,7 @@ Atualiza sozinho (`autoUpdate`: `skipWaiting` + `clientsClaim`).
 ## Interface offline
 
 - `OfflineBanner` no `AppLayout`: "Você está offline".
-- `useFailureMessage` (`src/lib/online.ts`) troca a mensagem de falha por `OFFLINE_MESSAGE` ("Você
+- `useFailureMessage` (`packages/core/src/lib/online.ts`) troca a mensagem de falha por `OFFLINE_MESSAGE` ("Você
   está sem conexão com a internet.") quando não há conexão. O `ErrorCard` já faz isso sozinho.
 - Login mostra `OFFLINE_MESSAGE` e não envia sem conexão; logout fica desabilitado (o banner
   explica); a renovação da sessão espera a rede voltar.
@@ -63,6 +63,11 @@ Atualiza sozinho (`autoUpdate`: `skipWaiting` + `clientsClaim`).
 de páginas e remove o service worker. Arquivos públicos do build podem ser reaproveitados no próximo
 login.
 
+A limpeza também remove grade planejada, notícias vistas e simulações de índices do `localStorage`,
+preservando o tema. O cache de HTML usa um marcador de sessão para impedir que uma navegação ainda
+em andamento volte a gravar páginas da conta após a limpeza. Recomendações não são persistidas no
+IndexedDB. PDFs e arquivos baixados não fazem parte desse cache de queries.
+
 ## Testar
 
 ```fish
@@ -72,5 +77,7 @@ PORT=3100 node .output/server/index.mjs
 ```
 
 O SW só registra em produção. No DevTools: _Application → Service workers_ e _Network → Offline_. A
-API local só aceita CORS de `localhost:3000`; para outra porta, suba com
-`CORS_ORIGINS='["http://localhost:3100"]' uv run api`.
+web usa `/api` da mesma origem; no desenvolvimento, o Vite encaminha esse caminho para a API em
+`127.0.0.1:8000`. Ao servir o build localmente, configure também esse encaminhamento. Para chamadas
+diretas ao endereço da API com cookies, inclua a origem usada em `CORS_ORIGINS`; o padrão da API é
+`["https://followw.app"]`.

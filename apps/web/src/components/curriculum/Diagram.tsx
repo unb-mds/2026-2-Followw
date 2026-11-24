@@ -187,7 +187,7 @@ export function MobileDiagram({
     return (
         <div className="flex min-h-0 flex-1 flex-col">
             <div className="sticky top-0 z-10 shrink-0 bg-background px-4 pt-2 pb-2">
-                <div className="flex items-center justify-between gap-4 rounded-xl bg-muted/60 p-1">
+                <div className="flex items-center justify-between gap-4 rounded-xl bg-muted/60 p-2">
                     <Button
                         variant="outline"
                         size="icon"

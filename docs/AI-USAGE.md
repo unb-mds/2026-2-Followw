@@ -52,7 +52,8 @@ membro do time e quais resultados eles trouxeram.
 
 ## Uso irrelevante ou nulo
 
-- Documentação: Os relatórios das sprints, requisitos e arquitetura não tiveram uso relevante de IA,
+- Documentação (relato original): Os relatórios das sprints, requisitos e arquitetura não tiveram
+  uso relevante de IA,
   todo o emprego de agentes de IA envolvido em documentação foi na organização do arquivo final, por
   meio da criação de templates, especificado no caso do Template.md nas sprints e no arquivo de
   requisitos. Na arquitetura foi usado apenas para a adição da ferramenta de diagramas dinâmicos.
@@ -100,5 +101,11 @@ membro do time e quais resultados eles trouxeram.
 
 ---
 
-Esse arquivo foi redigido de forma manual, sem nenhum uso de qualquer agente de IA, em conjunto com
-todos os participantes do grupo. Ele estará em atualização contínua até o lançamento da R2.
+A redação original deste registro foi manual, em conjunto com os participantes do grupo. As
+atribuições de ferramentas e níveis de uso acima são relatos da equipe, não inferências a partir
+do código.
+
+Em 23/11/2026, uma revisão assistida por Codex comparou a documentação de `docs/` com o código atual,
+corrigiu descrições técnicas e referências e atualizou os diagramas. As atas de sprints foram
+preservadas como registros históricos. Essa revisão não comprova nem altera as atribuições
+históricas de uso de IA relatadas pela equipe.

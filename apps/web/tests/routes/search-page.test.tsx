@@ -15,11 +15,10 @@ import {
     createRoute,
     createRouter
 } from '@tanstack/react-router';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 import { Window } from 'happy-dom';
 import { NuqsAdapter } from 'nuqs/adapters/tanstack-router';
 import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
-import { useLayoutEffect } from 'react';
 import { renderToString } from 'react-dom/server';
 
 import {
@@ -30,6 +29,7 @@ import {
 } from '#/lib/search-params';
 import { meQueryOptions } from '#/queries/me';
 
+import { mockBrowserLayoutEffect } from '../helpers/base-ui';
 import { professorRef } from '../helpers/professor';
 const paged = <T,>(items: T[], page = 1) => ({
     items: items.slice((page - 1) * 25, page * 25),
@@ -138,13 +138,7 @@ beforeAll(async () => {
         Object.defineProperty(globalThis, key, { value, configurable: true, writable: true });
     }
     testing = await import('@testing-library/react/pure');
-    const { useIsoLayoutEffect } = await import('@base-ui/utils/useIsoLayoutEffect');
-    await mock.module('@base-ui/utils/useIsoLayoutEffect', () => ({
-        useIsoLayoutEffect: useLayoutEffect
-    }));
-    restoreLayoutEffect = async () => {
-        await mock.module('@base-ui/utils/useIsoLayoutEffect', () => ({ useIsoLayoutEffect }));
-    };
+    restoreLayoutEffect = await mockBrowserLayoutEffect();
     ({ Route } = await import('#/routes/_app/buscar'));
 });
 

@@ -1,8 +1,8 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, mock, test } from 'bun:test';
-import { useLayoutEffect } from 'react';
 
 import { initializeInstallSupport } from '#/integrations/offline/install';
 
+import { mockBrowserLayoutEffect } from '../../helpers/base-ui';
 import { useDom } from '../../helpers/dom';
 
 const dom = useDom();
@@ -10,13 +10,7 @@ let InstallPromptCard: typeof import('#/components/profile/InstallPromptCard').I
 let restoreLayoutEffect: () => Promise<void>;
 beforeAll(async () => {
     // Outros testes importam Base UI durante SSR; restaura o hook de navegador neste DOM.
-    const { useIsoLayoutEffect } = await import('@base-ui/utils/useIsoLayoutEffect');
-    await mock.module('@base-ui/utils/useIsoLayoutEffect', () => ({
-        useIsoLayoutEffect: useLayoutEffect
-    }));
-    restoreLayoutEffect = async () => {
-        await mock.module('@base-ui/utils/useIsoLayoutEffect', () => ({ useIsoLayoutEffect }));
-    };
+    restoreLayoutEffect = await mockBrowserLayoutEffect();
     ({ InstallPromptCard } = await import('#/components/profile/InstallPromptCard'));
 });
 afterAll(() => restoreLayoutEffect());

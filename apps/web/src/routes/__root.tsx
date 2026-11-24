@@ -12,12 +12,12 @@ import { NuqsAdapter } from 'nuqs/adapters/tanstack-router';
 import { useEffect } from 'react';
 
 import { ErrorPage } from '#/components/ErrorPage';
+import { MotionProvider } from '#/components/Motion';
 import { NotFoundPage } from '#/components/NotFoundPage';
 import { initializeInstallSupport } from '#/integrations/offline/install';
 import { useOfflineSupport } from '#/integrations/offline/use-offline-support';
 import PostHogProvider from '#/integrations/posthog/provider';
 import { reloadOnPreloadError } from '#/lib/chunk-reload';
-import { MotionProvider } from '#/lib/motion';
 import { themeScript } from '#/lib/theme';
 import { useSessionRefresh } from '#/queries/auth';
 import { seedAnonymousProfile } from '#/queries/me';

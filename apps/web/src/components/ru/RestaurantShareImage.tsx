@@ -36,6 +36,13 @@ const PALETTES = {
 };
 const column: React.CSSProperties = { display: 'flex', flexDirection: 'column' };
 
+const shareDateFormat = new Intl.DateTimeFormat('pt-BR', {
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+    timeZone: 'UTC'
+});
+
 // Limita textos longos para o conteúdo não estourar o card.
 function truncate(text: string, max: number) {
     return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
@@ -56,12 +63,7 @@ export function RestaurantShareImage({
     const meal = MEAL_TIMES.find(({ key }) => key === selection.meal)!;
     const { main, alternatives, others: ungrouped } = highlightMenu(sections);
     const others = groupSalads(ungrouped);
-    const date = new Intl.DateTimeFormat('pt-BR', {
-        weekday: 'long',
-        day: '2-digit',
-        month: 'long',
-        timeZone: 'UTC'
-    }).format(new Date(`${selection.date}T12:00:00Z`));
+    const date = shareDateFormat.format(new Date(`${selection.date}T12:00:00Z`));
     const length = sections.reduce((total, section) => total + section.items.join(', ').length, 0);
     const fontSize = length > 750 ? 16 : length > 450 ? 19 : 22;
 

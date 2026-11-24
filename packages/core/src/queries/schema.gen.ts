@@ -51,9 +51,108 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Renovar o acesso OAuth de uma instalação com DPoP */
+        /**
+         * Renovar o acesso OAuth de uma aplicação registrada
+         * @description Valida a aplicação cadastrada: clientes confidenciais autenticam com client_secret (formulário ou HTTP Basic) e clientes públicos exigem prova DPoP.
+         */
         post: operations["refresh_oauth_token_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/oauth/clients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Listar aplicações OAuth do desenvolvedor */
+        get: operations["get_oauth_clients_oauth_clients_get"];
+        put?: never;
+        /**
+         * Cadastrar uma nova aplicação OAuth
+         * @description Aplicações confidenciais recebem o client_secret uma única vez na resposta.
+         */
+        post: operations["post_oauth_client_oauth_clients_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/oauth/clients/{client_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Excluir uma aplicação OAuth
+         * @description Remove a aplicação e revoga todas as autorizações vinculadas a ela.
+         */
+        delete: operations["delete_oauth_client_oauth_clients__client_id__delete"];
+        options?: never;
+        head?: never;
+        /** Atualizar uma aplicação OAuth */
+        patch: operations["patch_oauth_client_oauth_clients__client_id__patch"];
+        trace?: never;
+    };
+    "/oauth/clients/{client_id}/rotate-secret": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Gerar novo client_secret para uma aplicação confidencial
+         * @description Invalida o segredo anterior imediatamente e retorna o novo uma única vez.
+         */
+        post: operations["post_rotate_oauth_client_secret_oauth_clients__client_id__rotate_secret_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/oauth/grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Listar aplicações autorizadas pelo usuário */
+        get: operations["get_oauth_grants_oauth_grants_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/oauth/grants/{grant_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revogar a autorização de uma aplicação */
+        delete: operations["delete_oauth_grant_oauth_grants__grant_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1160,6 +1259,122 @@ export interface components {
             /** Url */
             url: string;
         };
+        /** OAuthClientCreate */
+        OAuthClientCreate: {
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /** Homepage Url */
+            homepage_url?: string | null;
+            /**
+             * Confidential
+             * @default false
+             */
+            confidential: boolean;
+            /** Redirect Uris */
+            redirect_uris: string[];
+        };
+        /** OAuthClientCreated */
+        OAuthClientCreated: {
+            /** Client Id */
+            client_id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string | null;
+            /** Homepage Url */
+            homepage_url: string | null;
+            /** Confidential */
+            confidential: boolean;
+            /** Redirect Uris */
+            redirect_uris: string[];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Client Secret */
+            client_secret?: string | null;
+        };
+        /** OAuthClientSecret */
+        OAuthClientSecret: {
+            /** Client Id */
+            client_id: string;
+            /** Client Secret */
+            client_secret: string;
+        };
+        /** OAuthClientUpdate */
+        OAuthClientUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Homepage Url */
+            homepage_url?: string | null;
+            /** Redirect Uris */
+            redirect_uris?: string[] | null;
+        };
+        /** OAuthClientView */
+        OAuthClientView: {
+            /** Client Id */
+            client_id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string | null;
+            /** Homepage Url */
+            homepage_url: string | null;
+            /** Confidential */
+            confidential: boolean;
+            /** Redirect Uris */
+            redirect_uris: string[];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** OAuthGrantView */
+        OAuthGrantView: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Client Id */
+            client_id: string;
+            /** Client Name */
+            client_name: string | null;
+            /** Client Description */
+            client_description: string | null;
+            /** Client Homepage Url */
+            client_homepage_url: string | null;
+            /** Confidential */
+            confidential: boolean;
+            /** Scopes */
+            scopes: components["schemas"]["Scope"][];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+        };
         /**
          * ParticipantClassroom
          * @description A turma com a menção do usuário, `None` enquanto não lançada ou sincronizada.
@@ -1362,7 +1577,9 @@ export interface components {
              */
             grant_type: "refresh_token";
             /** Client Id */
-            client_id: string;
+            client_id?: string | null;
+            /** Client Secret */
+            client_secret?: string | null;
             /**
              * Refresh Token
              * Format: password
@@ -1403,6 +1620,11 @@ export interface components {
             /** Amount */
             amount: string;
         };
+        /**
+         * Scope
+         * @enum {string}
+         */
+        Scope: "profile:read" | "profile:write" | "classrooms:read" | "classrooms.history:read" | "grades:read" | "classrooms.members:read" | "classrooms.frequency:read" | "classrooms.frequency:write" | "classrooms.posts:read" | "transcript:read" | "ru:read" | "internships:read";
         /**
          * SearchResult
          * @description Cada tipo no formato do seu endpoint; nulo quando não foi pedido.
@@ -1821,6 +2043,7 @@ export interface operations {
             query?: never;
             header?: {
                 dpop?: string | null;
+                authorization?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -1847,6 +2070,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Aplicação não registrada ou client_secret inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -1857,6 +2087,323 @@ export interface operations {
                 };
             };
             /** @description SIGAA indisponível durante a renovação. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_oauth_clients_oauth_clients_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthClientView"][];
+                };
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description SIGAA indisponível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    post_oauth_client_oauth_clients_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OAuthClientCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthClientCreated"];
+                };
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Dados inválidos ou limite de aplicações atingido. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description SIGAA indisponível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    delete_oauth_client_oauth_clients__client_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Aplicação não encontrada. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description SIGAA indisponível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    patch_oauth_client_oauth_clients__client_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OAuthClientUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthClientView"];
+                };
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Aplicação não encontrada. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Dados inválidos. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description SIGAA indisponível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    post_rotate_oauth_client_secret_oauth_clients__client_id__rotate_secret_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthClientSecret"];
+                };
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Aplicação não encontrada. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Aplicações públicas não possuem client_secret. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description SIGAA indisponível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_oauth_grants_oauth_grants_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthGrantView"][];
+                };
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description SIGAA indisponível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    delete_oauth_grant_oauth_grants__grant_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                grant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Autorização não encontrada. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description SIGAA indisponível. */
             502: {
                 headers: {
                     [name: string]: unknown;

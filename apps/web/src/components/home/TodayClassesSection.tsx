@@ -7,8 +7,8 @@ import { m } from 'motion/react';
 import { Fragment } from 'react';
 
 import { ErrorCard, SIGAA_DOWN_MESSAGE } from '#/components/ErrorState';
-import { ClassCard } from '#/components/home/ClassCard';
 import { ClassProgress } from '#/components/home/ClassProgress';
+import { LessonCard } from '#/components/home/LessonCard';
 import { LoginPromptCard } from '#/components/home/LoginPromptCard';
 import { SectionHeader } from '#/components/SectionHeader';
 import { Card } from '#/components/ui/card';
@@ -96,12 +96,11 @@ function TodayClassesContent({
                                 )}
                             >
                                 <m.div custom={index} variants={rise}>
-                                    <ClassCard
-                                        plain
-                                        title={item.classroom.subject.name}
-                                        time={`${start}–${end}`}
-                                        location={item.classroom.room ?? 'Local não informado'}
-                                        status={cancelled(item) ? 'cancelled' : status}
+                                    <LessonCard
+                                        lesson={item}
+                                        start={start}
+                                        end={end}
+                                        status={status}
                                         onClick={() =>
                                             navigate({
                                                 to: '/turmas/$id',

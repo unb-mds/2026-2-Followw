@@ -39,12 +39,12 @@ import { meQueryOptions } from '#/queries/me';
 import { useUserSettings } from '#/queries/settings';
 
 export const Route = createFileRoute('/_app/perfil')({
-    head: () => ({ meta: [{ title: 'Perfil | Followw' }] }),
     loader: async ({ context }) => {
         const user = await loadQuery(context.queryClient, meQueryOptions);
         if (!user) throw redirect({ to: '/login' });
         return user;
     },
+    head: () => ({ meta: [{ title: 'Perfil | Followw' }] }),
     staticData: { header: ProfileHeader },
     errorComponent: ErrorState,
     component: PerfilPage
@@ -103,7 +103,7 @@ function PerfilPage() {
                         </div>
                     </ProfileSection>
                 </div>
-                <div className="profile-account lg:col-start-2 lg:row-start-3">
+                <div className="profile-account flex flex-col gap-6 lg:col-start-2 lg:row-start-3">
                     <AccountSection
                         user={user}
                         displayName={settings.displayName}

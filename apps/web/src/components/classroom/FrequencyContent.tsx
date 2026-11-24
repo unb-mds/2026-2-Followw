@@ -16,15 +16,15 @@ import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { CalendarDays, List } from 'lucide-react';
 import { useRef, useState } from 'react';
 
-import { LessonCalendar } from '#/components/classroom/LessonCalendar';
 import {
     LESSON_VIEW,
-    LessonMenuContent,
+    lessonRuns,
     selectable,
     type MarkLessons
-} from '#/components/classroom/LessonMenu';
+} from '#/components/classroom/lesson-utils';
+import { LessonCalendar } from '#/components/classroom/LessonCalendar';
+import { LessonMenuContent } from '#/components/classroom/LessonMenu';
 import { ListCard, Meter } from '#/components/ListCard';
-import { repeat } from '#/components/LoadingSkeleton';
 import { SelectionBar } from '#/components/SelectionBar';
 import { Button } from '#/components/ui/button';
 import { Card } from '#/components/ui/card';
@@ -32,6 +32,7 @@ import { Checkbox } from '#/components/ui/checkbox';
 import { DropdownMenu, DropdownMenuTrigger } from '#/components/ui/dropdown-menu';
 import { Skeleton } from '#/components/ui/skeleton';
 import { ToggleGroup, ToggleGroupItem } from '#/components/ui/toggle-group';
+import { repeat } from '#/lib/repeat';
 import { cn } from '#/lib/shadcn';
 
 const FREQUENCY_TONE = {
@@ -238,20 +239,6 @@ const RUN_COLOR = {
     nao_registrada: 'bg-muted-foreground/40'
 } as const;
 
-type Run = { id: string; status: keyof typeof RUN_COLOR; count: number };
-
-/** Aulas em ordem cronológica, agrupadas em sequências de mesma situação. */
-export function lessonRuns(lessons: Lesson[]): Run[] {
-    const runs: Run[] = [];
-    for (const lesson of lessons.toReversed()) {
-        if (lesson.status === 'cancelada') continue;
-        const last = runs.at(-1);
-        if (last?.status === lesson.status) last.count++;
-        else runs.push({ id: lesson.id, status: lesson.status, count: 1 });
-    }
-    return runs;
-}
-
 /** Andamento das aulas com as dadas divididas em sequências de presenças e faltas. */
 function LessonsProgress({ data }: { data: ClassroomFrequency }) {
     const { percentage, taught, total } = data.progress;
@@ -259,7 +246,7 @@ function LessonsProgress({ data }: { data: ClassroomFrequency }) {
     const runs = lessonRuns(data.lessons);
 
     return (
-        <div className="px-3 py-3">
+        <div className="p-3">
             <div className="flex items-baseline justify-between gap-2">
                 <h3 className="text-sm font-medium">Andamento das aulas</h3>
                 <span className="text-sm font-semibold text-primary tabular-nums">
@@ -402,18 +389,22 @@ function SelectableLesson({
                     cancel();
                     if (!pending) openMenu();
                 }}
-                onClickCapture={(event) => {
-                    if (!pressed.current) return;
-                    pressed.current = false;
-                    event.preventDefault();
-                    event.stopPropagation();
-                }}
             >
                 <Checkbox
                     aria-label={`Selecionar aula de ${formatClassroomDate(lesson.occurred_on)}`}
                     checked={selected}
                     disabled={pending}
                     onCheckedChange={onSelect}
+                    onKeyDown={() => {
+                        // pelo teclado não há toque longo a ignorar
+                        pressed.current = false;
+                    }}
+                    onClickCapture={(event) => {
+                        if (!pressed.current) return;
+                        pressed.current = false;
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }}
                     className="rounded-full"
                 />
             </span>
@@ -432,7 +423,7 @@ function Stat({
     className?: string;
 }) {
     return (
-        <div className="px-3 py-3">
+        <div className="p-3">
             <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
             <dd
                 className={cn(
@@ -451,13 +442,13 @@ export function FrequencySummarySkeleton() {
         <Card size="sm" className="gap-0 divide-y divide-border py-0">
             <div className="grid grid-cols-3 divide-x divide-border">
                 {repeat(3, () => (
-                    <div className="flex flex-col gap-2 px-3 py-3">
+                    <div className="flex flex-col gap-2 p-3">
                         <Skeleton className="h-3 w-16" />
                         <Skeleton className="h-7 w-12" />
                     </div>
                 ))}
             </div>
-            <div className="flex flex-col gap-2 px-3 py-3">
+            <div className="flex flex-col gap-2 p-3">
                 <Skeleton className="h-4 w-40" />
                 <Skeleton className="h-2 w-full" />
             </div>

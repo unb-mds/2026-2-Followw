@@ -37,11 +37,8 @@ import { useDesktop } from '#/components/DesktopContext';
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
 import { SchedulePreview } from '#/components/schedule/SchedulePreview';
-import {
-    CatalogResults,
-    type CatalogCategory,
-    catalogQueryOptions
-} from '#/components/search/CatalogResults';
+import { catalogQueryOptions } from '#/components/search/catalog-queries';
+import { CatalogResults, type CatalogCategory } from '#/components/search/CatalogResults';
 import { InternshipResults } from '#/components/search/InternshipSection';
 import { RecommendationsSection } from '#/components/search/RecommendationsSection';
 import { SearchResults } from '#/components/search/SearchResults';
@@ -76,7 +73,6 @@ function searchView(
 }
 
 export const Route = createFileRoute('/_app/buscar')({
-    head: () => ({ meta: [{ title: 'Buscar | Followw' }] }),
     validateSearch,
     // No navegador, inicia as consultas sem bloquear o campo; no SSR, aguarda. Depois vale o debounce.
     shouldReload: ({ cause }) => cause !== 'stay',
@@ -107,6 +103,7 @@ export const Route = createFileRoute('/_app/buscar')({
         ]);
         if (environmentManager.isServer()) await results;
     },
+    head: () => ({ meta: [{ title: 'Buscar | Followw' }] }),
     staticData: {
         header: () => (
             <HeaderBar hideOnDesktop>

@@ -9,8 +9,8 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Briefcase, Building2, Download, GraduationCap, Users, Wallet } from 'lucide-react';
 
-import { LinesSkeleton, LoadingSkeleton, repeat } from '#/components/LoadingSkeleton';
-import { formatCurrency, formatDate } from '#/components/search/InternshipCard';
+import { LinesSkeleton, LoadingSkeleton } from '#/components/LoadingSkeleton';
+import { formatCurrency, formatDate } from '#/components/search/internship-format';
 import { Badge } from '#/components/ui/badge';
 import { Button } from '#/components/ui/button';
 import {
@@ -21,6 +21,7 @@ import {
     DialogTitle
 } from '#/components/ui/dialog';
 import { Markdown } from '#/lib/markdown';
+import { repeat } from '#/lib/repeat';
 
 export function InternshipDetailView({ detail }: { detail: InternshipDetail }) {
     return (

@@ -4,8 +4,8 @@ import { displayedRequirements, seats } from '@followw/core/queries/subjects.ts'
 
 import type { TurmaProps } from '#/components/search/TurmaCard';
 
+import { OCCUPANCY_COLOR } from '#/components/search/occupancy';
 import { RequirementList } from '#/components/search/RequirementList';
-import { OCCUPANCY_COLOR } from '#/components/search/Seats';
 import { SubjectDisclosure } from '#/components/search/SubjectDisclosure';
 import { SubjectSearchLink } from '#/components/search/SubjectSearchLink';
 import { SubjectStatistics } from '#/components/search/SubjectStatistics';

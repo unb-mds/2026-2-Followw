@@ -4,11 +4,12 @@ import { subjectStatisticsQueryOptions } from '@followw/core/queries/subject-sta
 import { useQuery } from '@tanstack/react-query';
 import { lazy, Suspense, useState } from 'react';
 
-import { LoadingSkeleton, repeat } from '#/components/LoadingSkeleton';
+import { LoadingSkeleton } from '#/components/LoadingSkeleton';
 import { StatisticsChartSkeleton } from '#/components/StatisticsChartSkeleton';
 import { TabFilter } from '#/components/TabFilter';
 import { Button } from '#/components/ui/button';
 import { Skeleton } from '#/components/ui/skeleton';
+import { repeat } from '#/lib/repeat';
 
 const StatisticsChart = lazy(() =>
     import('#/components/StatisticsChart').then((module) => ({ default: module.StatisticsChart }))

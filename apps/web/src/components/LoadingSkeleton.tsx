@@ -1,6 +1,7 @@
-import { Fragment, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 import { Skeleton } from '#/components/ui/skeleton';
+import { repeat } from '#/lib/repeat';
 import { cn } from '#/lib/shadcn';
 
 /** Esboço do resultado; leitores de tela ouvem apenas o rótulo. */
@@ -20,9 +21,6 @@ export function LoadingSkeleton({
         </output>
     );
 }
-
-export const repeat = (count: number, render: (index: number) => ReactNode) =>
-    Array.from({ length: count }, (_, index) => <Fragment key={index}>{render(index)}</Fragment>);
 
 /** Título e contagem de uma seção de resultados. */
 export function SectionHeaderSkeleton({ className }: { className?: string }) {

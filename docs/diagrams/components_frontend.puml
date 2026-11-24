@@ -9,9 +9,10 @@ Person(estudante, "Estudante UnB", "Usuário final interagindo com a interface."
 
 Container_Boundary(web_boundary, "Frontend Web (TanStack Start / React 19)") {
     Component(navigation, "AppLayout & Header", "React Component", "Cabeçalho, navbar inferior/lateral, banner offline e alternador de tema.")
-    Component(pages, "Rotas / Páginas", "TanStack Router", "Páginas: Início, Turmas, Busca Pública, Cardápio do RU, Perfil/Documentos e Login.")
+    Component(pages, "Rotas / Páginas", "TanStack Router", "Início, Turmas/Plano de ensino, Busca/Estágios, Cursos/Fluxo, Docentes, RU, Perfil/Simulador, Login e Privacidade.")
     Component(ui, "UI Components", "React Components", "Componentes visuais reutilizáveis (cards de turma, postagens, grade horária, etc.).")
-    Component(queries, "State & Data Fetching", "TanStack Query", "Gerenciamento de cache no cliente com loadQuery, revalidação e tratamento de erros.")
+    Component(core, "@followw/core", "TypeScript compartilhado", "Queries tipadas, calendário e regras de fluxo, grade e recomendações visuais.")
+    Component(queries, "Adaptadores web", "TanStack Query / SSR", "Sessão, cookies no SSR, documentos, edição de perfil e persistência local.")
     Component(offline, "Offline & PWA", "Workbox SW + IndexedDB", "Service Worker para cache de páginas/assets e persistência do Query por 14 dias.")
     Component(client, "ApiClient", "openapi-fetch", "Cliente HTTP tipado pelo schema OpenAPI com cookies HttpOnly JWE.")
 }
@@ -22,6 +23,7 @@ Rel(estudante, navigation, "Navega entre páginas")
 Rel(estudante, pages, "Visualiza dados e interage")
 Rel(pages, ui, "Renderiza componentes")
 Rel(pages, queries, "Pré-carrega (loadQuery) e consome dados")
+Rel(queries, core, "Usa queries e regras portáveis")
 Rel(queries, offline, "Persiste e restaura cache (idb-keyval)")
 Rel(queries, client, "Executa chamadas HTTP")
 Rel(client, api, "Consome endpoints REST", "HTTPS / JSON")

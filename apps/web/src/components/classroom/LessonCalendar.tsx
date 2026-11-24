@@ -6,7 +6,8 @@ import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { createContext, use, useMemo } from 'react';
 import { ptBR } from 'react-day-picker/locale';
 
-import { LessonMenuContent, markable, type MarkLessons } from '#/components/classroom/LessonMenu';
+import { lessonsByDay, markable, type MarkLessons } from '#/components/classroom/lesson-utils';
+import { LessonMenuContent } from '#/components/classroom/LessonMenu';
 import { Calendar } from '#/components/ui/calendar';
 import { Card } from '#/components/ui/card';
 import { DropdownMenu, DropdownMenuTrigger } from '#/components/ui/dropdown-menu';
@@ -41,17 +42,13 @@ const CalendarContext = createContext<CalendarState>({
 
 const LEGEND = { presente: 'Presença', falta: 'Falta', nao_registrada: 'Não registrada' };
 
-const dayLabel = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'long' });
+const dayLabel = new Intl.DateTimeFormat('pt-BR', {
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'UTC'
+});
 
-/** Situações das aulas de cada dia, em ordem cronológica. */
-export function lessonsByDay(lessons: Lesson[]) {
-    const days = new Map<string, Lesson[]>();
-    for (const lesson of lessons.toReversed()) {
-        const key = lesson.occurred_on.slice(0, 10);
-        days.set(key, [...(days.get(key) ?? []), lesson]);
-    }
-    return days;
-}
+const formatDayLabel = (isoDate: string) => dayLabel.format(new Date(`${isoDate}T12:00:00Z`));
 
 const toDate = (iso: string) => {
     const [year, month, day] = iso.split('-').map(Number);
@@ -95,7 +92,7 @@ function LessonDay({ day, modifiers, children, className, ...props }: DayProps) 
             {editable.length > 0 ? (
                 <DropdownMenu>
                     <DropdownMenuTrigger
-                        aria-label={`Marcar aulas de ${dayLabel.format(day.date)}`}
+                        aria-label={`Marcar aulas de ${formatDayLabel(day.isoDate)}`}
                         disabled={pending}
                         className={cn(
                             cellClass,
@@ -147,13 +144,13 @@ export function LessonCalendar({
                     components={{ Day: LessonDay }}
                     labels={{
                         labelGridcell: (date) => {
-                            const statuses = (days.get(isoOf(date)) ?? []).map(
+                            const iso = isoOf(date);
+                            const statuses = (days.get(iso) ?? []).map(
                                 (l) => STATUS_NAME[l.status]
                             );
-                            const holiday = getHoliday(isoOf(date));
-                            const label = holiday
-                                ? `${dayLabel.format(date)}, ${holiday.name}`
-                                : dayLabel.format(date);
+                            const holiday = getHoliday(iso);
+                            const formatted = formatDayLabel(iso);
+                            const label = holiday ? `${formatted}, ${holiday.name}` : formatted;
                             return statuses.length ? `${label}: ${statuses.join(', ')}` : label;
                         }
                     }}

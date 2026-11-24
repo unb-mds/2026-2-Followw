@@ -12,16 +12,16 @@
         "build": "bun run --filter web build",
         "check": "bun run --filter \"*\" check",
         "test": "bun run --filter \"*\" test",
-        "fmt": "oxfmt apps/web packages/core package.json bunfig.toml .oxfmtrc.json .oxlintrc.json",
-        "lint": "oxlint apps/web packages/core --fix",
+        "fmt": "oxfmt apps/web packages/core package.json bunfig.toml .oxfmtrc.json .oxlintrc.json && uv run ruff format .",
+        "lint": "oxlint apps/web packages/core --fix && uv run ruff check --fix .",
         "generate-api": "bun run --filter @followw/core generate-api"
     },
     "devDependencies": {
-        "@oxlint/plugins": "1.94.0",
-        "oxfmt": "^0.79.0",
-        "oxlint": "^1.94.0",
-        "oxlint-tsgolint": "^7.0.2007",
+        "@oxlint/plugins": "1.95.0",
+        "oxfmt": "^0.80.0",
+        "oxlint": "^1.95.0",
+        "oxlint-tsgolint": "^7.0.2008",
         "typescript": "^7.0.2"
     },
-    "packageManager": "bun@1.4.4"
+    "packageManager": "bun@1.4.5"
 }

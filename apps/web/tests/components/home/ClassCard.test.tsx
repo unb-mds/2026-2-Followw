@@ -25,14 +25,16 @@ describe('ClassCard', () => {
         ['MI', 'destructive'],
         ['II', 'destructive'],
         ['SR', 'destructive']
-    ] as const)('exibe apenas %s antes do local com a cor %s', (grade, color) => {
+    ] as const)('exibe %s no lugar do local com a cor %s', (grade, color) => {
         const markup = renderToStaticMarkup(<ClassCard {...classroom} grade={grade} />);
 
         expect(markup).not.toContain('Menção');
         expect(markup).toContain(`text-${color}`);
         expect(markup).not.toContain(`bg-${color}/10`);
         expect(markup).not.toContain('data-slot="badge"');
-        expect(markup).toMatch(new RegExp(`<span[^>]*>${grade}</span> · ICC Norte</span>`));
+        expect(markup).toMatch(new RegExp(`<span[^>]*>${grade}</span></span>`));
+        expect(markup).not.toContain('ICC Norte');
+        expect(markup).not.toContain('lucide-map-pin');
         expect(markup.match(new RegExp(`<span[^>]*>${grade}</span>`))?.[0]).not.toContain(
             'ml-auto'
         );
@@ -51,6 +53,13 @@ describe('ClassCard', () => {
 
         for (const value of Object.values(classroom)) expect(markup).toContain(value);
         expect(markup).not.toContain('<button');
+    });
+
+    test('informa quando a turma não tem local lançado', () => {
+        const markup = renderToStaticMarkup(<ClassCard {...classroom} location={null} />);
+
+        expect(markup).toContain('Local não informado');
+        expect(markup).toContain('lucide-map-pin');
     });
 
     test('omite local e ícone quando não há local', () => {

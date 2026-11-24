@@ -19,25 +19,11 @@ const percentLabel = (value: number) =>
     `${value.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}%`;
 const NO_CLASSROOMS: readonly Classroom[] = [];
 
-export function CourseProgress({
-    user,
-    classrooms = NO_CLASSROOMS
-}: {
-    user: UserProfile;
-    classrooms?: readonly Classroom[];
-}) {
+function progressSummary(user: UserProfile, classrooms: readonly Classroom[]) {
     const { integralization, workload } = user;
     const progress = curriculumProgress(workload);
-
     const forecast = projectedCategoryHours(classrooms);
     const projected = projectedIntegralization(user, forecast);
-    const entrance = useEntrance();
-    // o anel se desenha a partir do zero, no mesmo tempo da contagem
-    const draw = (percent: number) => ({
-        initial: entrance.initial && { strokeDasharray: '0 100' },
-        animate: { strokeDasharray: `${percent} 100` },
-        transition: { duration: 0.6, ease }
-    });
     const categories = workload && [
         {
             label: 'Obrigatórias',
@@ -73,100 +59,138 @@ export function CourseProgress({
     const hoursGain = categories
         ? categories.reduce((sum, category) => sum + categoryGain(category), 0)
         : 0;
+    return {
+        integralization,
+        workload,
+        progress,
+        projected,
+        categories,
+        showForecast,
+        percentGain,
+        hoursGain
+    };
+}
+
+function ProgressLegend({ showForecast }: { showForecast: boolean }) {
+    return (
+        <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground lg:gap-x-4">
+            <span className="flex items-center gap-2">
+                <span aria-hidden="true" className="h-1 w-5 rounded-full bg-primary" />
+                Concluído
+            </span>
+            {showForecast && (
+                <span className="flex items-center gap-2">
+                    <span aria-hidden="true" className="h-1 w-5 rounded-full bg-forecast" />
+                    <span className="font-medium text-forecast-foreground">Em andamento</span>
+                </span>
+            )}
+        </div>
+    );
+}
+
+function IntegralizationRing({
+    integralization,
+    projected,
+    percentGain
+}: {
+    integralization: number;
+    projected: number | null;
+    percentGain: number | null;
+}) {
+    const entrance = useEntrance();
+    // o anel se desenha a partir do zero, no mesmo tempo da contagem
+    const draw = (percent: number) => ({
+        initial: entrance.initial && { strokeDasharray: '0 100' },
+        animate: { strokeDasharray: `${percent} 100` },
+        transition: { duration: 0.6, ease }
+    });
+    return (
+        <div className="relative flex size-20 shrink-0 items-center justify-center lg:size-28">
+            <svg viewBox="0 0 100 100" className="absolute inset-0 size-full -rotate-90">
+                <title>{`Integralização do curso: ${integralization.toLocaleString('pt-BR')}%${projected != null ? '. Em andamento: avanço com as disciplinas do semestre atual.' : ''}`}</title>
+                <circle cx="50" cy="50" r="44" fill="none" stroke="var(--muted)" strokeWidth="8" />
+                {projected != null && (
+                    <m.circle
+                        cx="50"
+                        cy="50"
+                        r="44"
+                        fill="none"
+                        stroke="var(--forecast)"
+                        strokeWidth="8"
+                        strokeLinecap="round"
+                        pathLength="100"
+                        {...draw(projected)}
+                    />
+                )}
+                {integralization > 0 && (
+                    <m.circle
+                        cx="50"
+                        cy="50"
+                        r="44"
+                        fill="none"
+                        stroke="var(--primary)"
+                        strokeWidth="8"
+                        strokeLinecap="round"
+                        pathLength="100"
+                        {...draw(Math.min(100, integralization))}
+                    />
+                )}
+            </svg>
+            <span aria-hidden="true" className="flex flex-col items-center leading-tight">
+                <span className="text-xl font-medium tabular-nums lg:text-2xl">
+                    <AnimatedNumber
+                        value={integralization}
+                        format={(value) =>
+                            // inteiro durante a contagem, exato ao final
+                            (value === integralization ? value : Math.round(value)).toLocaleString(
+                                'pt-BR'
+                            )
+                        }
+                    />
+                    %
+                </span>
+                {percentGain != null && percentGain > 0 && (
+                    <span className="text-[0.625rem] font-medium text-forecast-foreground tabular-nums lg:text-xs">
+                        +{percentLabel(percentGain)}
+                    </span>
+                )}
+            </span>
+        </div>
+    );
+}
+
+export function CourseProgress({
+    user,
+    classrooms = NO_CLASSROOMS
+}: {
+    user: UserProfile;
+    classrooms?: readonly Classroom[];
+}) {
+    const {
+        integralization,
+        workload,
+        progress,
+        projected,
+        categories,
+        showForecast,
+        percentGain,
+        hoursGain
+    } = progressSummary(user, classrooms);
 
     return (
         <Card size="sm" className="gap-0 divide-y divide-border px-4 py-3 lg:px-5 lg:py-4">
             {(integralization != null || progress) && (
                 <div className="pb-3 last:pb-0 lg:pb-5">
                     {(integralization != null || showForecast) && (
-                        <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground lg:gap-x-4">
-                            <span className="flex items-center gap-2">
-                                <span
-                                    aria-hidden="true"
-                                    className="h-1 w-5 rounded-full bg-primary"
-                                />
-                                Concluído
-                            </span>
-                            {showForecast && (
-                                <span className="flex items-center gap-2">
-                                    <span
-                                        aria-hidden="true"
-                                        className="h-1 w-5 rounded-full bg-forecast"
-                                    />
-                                    <span className="font-medium text-forecast-foreground">
-                                        Em andamento
-                                    </span>
-                                </span>
-                            )}
-                        </div>
+                        <ProgressLegend showForecast={showForecast} />
                     )}
                     <div className="flex flex-wrap items-center gap-4 lg:gap-5">
                         {integralization != null && (
-                            <div className="relative flex size-20 shrink-0 items-center justify-center lg:size-28">
-                                <svg
-                                    viewBox="0 0 100 100"
-                                    className="absolute inset-0 size-full -rotate-90"
-                                >
-                                    <title>{`Integralização do curso: ${integralization.toLocaleString('pt-BR')}%${projected != null ? '. Em andamento: avanço com as disciplinas do semestre atual.' : ''}`}</title>
-                                    <circle
-                                        cx="50"
-                                        cy="50"
-                                        r="44"
-                                        fill="none"
-                                        stroke="var(--muted)"
-                                        strokeWidth="8"
-                                    />
-                                    {projected != null && (
-                                        <m.circle
-                                            cx="50"
-                                            cy="50"
-                                            r="44"
-                                            fill="none"
-                                            stroke="var(--forecast)"
-                                            strokeWidth="8"
-                                            strokeLinecap="round"
-                                            pathLength="100"
-                                            {...draw(projected)}
-                                        />
-                                    )}
-                                    {integralization > 0 && (
-                                        <m.circle
-                                            cx="50"
-                                            cy="50"
-                                            r="44"
-                                            fill="none"
-                                            stroke="var(--primary)"
-                                            strokeWidth="8"
-                                            strokeLinecap="round"
-                                            pathLength="100"
-                                            {...draw(Math.min(100, integralization))}
-                                        />
-                                    )}
-                                </svg>
-                                <span
-                                    aria-hidden="true"
-                                    className="flex flex-col items-center leading-tight"
-                                >
-                                    <span className="text-xl font-medium tabular-nums lg:text-2xl">
-                                        <AnimatedNumber
-                                            value={integralization}
-                                            format={(value) =>
-                                                // inteiro durante a contagem, exato ao final
-                                                (value === integralization
-                                                    ? value
-                                                    : Math.round(value)
-                                                ).toLocaleString('pt-BR')
-                                            }
-                                        />
-                                        %
-                                    </span>
-                                    {percentGain != null && percentGain > 0 && (
-                                        <span className="text-[0.625rem] font-medium text-forecast-foreground tabular-nums lg:text-xs">
-                                            +{percentLabel(percentGain)}
-                                        </span>
-                                    )}
-                                </span>
-                            </div>
+                            <IntegralizationRing
+                                integralization={integralization}
+                                projected={projected}
+                                percentGain={percentGain}
+                            />
                         )}
                         {progress ? (
                             <div className="min-w-0">

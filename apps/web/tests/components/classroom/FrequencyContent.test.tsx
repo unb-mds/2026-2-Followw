@@ -1,14 +1,22 @@
 import type { ClassroomFrequency, Lesson } from '@followw/core/queries/classrooms.ts';
 
 import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
-import { afterEach, describe, expect, test } from 'bun:test';
+import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import type { MarkLessons } from '#/components/classroom/LessonMenu';
+import { lessonRuns, type MarkLessons } from '#/components/classroom/lesson-utils';
 
-import { FrequencyContent, lessonRuns } from '#/components/classroom/FrequencyContent';
-
+import { mockBrowserLayoutEffect } from '../../helpers/base-ui';
 import { useDom } from '../../helpers/dom';
+
+let FrequencyContent: typeof import('#/components/classroom/FrequencyContent').FrequencyContent;
+let restoreLayoutEffect: () => Promise<void>;
+
+beforeAll(async () => {
+    restoreLayoutEffect = await mockBrowserLayoutEffect();
+    ({ FrequencyContent } = await import('#/components/classroom/FrequencyContent'));
+});
+afterAll(() => restoreLayoutEffect());
 
 const progress = { taught: 30, total: 60, percentage: 50 };
 
@@ -325,5 +333,20 @@ describe('marcação das aulas', () => {
         expect(markup).toContain('Andamento das aulas');
         expect(markup).toContain('data-slot="progress-indicator"');
         expect(markup).not.toContain('min-w-1 rounded-full');
+    });
+
+    test('após fechar o menu aberto pelo teclado, o Espaço ainda seleciona a aula', async () => {
+        const { fireEvent, findByRole, waitForElementToBeRemoved } = dom.testing;
+        const { page } = renderMarking();
+        const checkbox = page.getByRole('checkbox', { name: 'Selecionar aula de 08/10/2026' });
+
+        // a tecla de menu do navegador dispara o contextmenu no checkbox focado
+        fireEvent.contextMenu(checkbox);
+        fireEvent.keyDown(await findByRole(document.body, 'menu'), { key: 'Escape' });
+        await waitForElementToBeRemoved(() => document.body.querySelector('[role="menu"]'));
+        fireEvent.keyDown(checkbox, { key: ' ' });
+        fireEvent.keyUp(checkbox, { key: ' ' });
+
+        expect(checkbox.getAttribute('aria-checked')).toBe('true');
     });
 });

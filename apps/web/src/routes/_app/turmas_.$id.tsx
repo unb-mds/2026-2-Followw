@@ -31,7 +31,8 @@ import {
 } from '#/components/ErrorState';
 import { BackHeader } from '#/components/HeaderBar';
 import { LoginPromptCard } from '#/components/home/LoginPromptCard';
-import { CardSkeleton, LoadingSkeleton, repeat } from '#/components/LoadingSkeleton';
+import { CardSkeleton, LoadingSkeleton } from '#/components/LoadingSkeleton';
+import { SlideSwitch } from '#/components/Motion';
 import { Card, CardContent } from '#/components/ui/card';
 import { PersonPhoto } from '#/components/ui/person-photo';
 import { Skeleton } from '#/components/ui/skeleton';
@@ -44,7 +45,8 @@ import {
     loadClassroomSearch,
     validateClassroomSearch
 } from '#/lib/classroom-search';
-import { SlideSwitch, useSlideDirection } from '#/lib/motion';
+import { useSlideDirection } from '#/lib/motion';
+import { repeat } from '#/lib/repeat';
 import { meQueryOptions } from '#/queries/me';
 
 type Member = components['schemas']['ClassroomMember'];
@@ -99,6 +101,13 @@ export const Route = createFileRoute('/_app/turmas_/$id')({
     component: ClassroomPage
 });
 
+function ClassroomTabPanel({ id, active }: { id: string; active: ClassroomTab }) {
+    if (active === 'posts') return <ClassroomPosts key={id} id={id} />;
+    if (active === 'frequency') return <FrequencyTab id={id} />;
+    if (active === 'statistics') return <ClassroomStatistics id={id} />;
+    return <MembersTab id={id} />;
+}
+
 function ClassroomPage() {
     const { id } = Route.useParams();
     const { data: user } = useSuspenseQuery(meQueryOptions);
@@ -111,58 +120,50 @@ function ClassroomPage() {
     const active = classroomTab(tab, classroom?.current ?? false);
     const direction = useSlideDirection(CLASSROOM_TABS.indexOf(active));
 
+    if (!user) return <LoginPromptCard />;
+    if (classrooms.isLoadingError) {
+        return <ErrorCard message={SIGAA_DOWN_MESSAGE} onRetry={() => classrooms.refetch()} />;
+    }
+    if (classrooms.isPending) return <ClassroomSkeleton />;
+    if (!classroom) return <InformationCard>Turma não encontrada.</InformationCard>;
+
+    const tabs = CLASSROOM_TABS.filter((item) => classroomTab(item, classroom.current) === item);
+
     return (
-        <>
-            {!user ? (
-                <LoginPromptCard />
-            ) : classrooms.isLoadingError ? (
-                <ErrorCard message={SIGAA_DOWN_MESSAGE} onRetry={() => classrooms.refetch()} />
-            ) : classrooms.isPending ? (
-                <ClassroomSkeleton />
-            ) : !classroom ? (
-                <InformationCard>Turma não encontrada.</InformationCard>
-            ) : (
-                <div className="classroom-detail-columns lg:grid lg:items-start lg:gap-10">
-                    {/* abaixo da topbar (7rem) e do cabeçalho fixo (3,5rem) */}
-                    <div className="lg:sticky lg:top-44">
-                        <ClassroomSummary classroom={classroom} />
-                    </div>
-                    <Tabs
-                        value={active}
-                        onValueChange={(value: ClassroomTab) => void setSearch({ tab: value })}
-                        className="mt-5 min-w-0 gap-4 lg:mt-0"
-                    >
-                        {/* Sem leitura do plano ainda, a página dele consulta o SIGAA. */}
-                        {classroom.has_teaching_plan !== false && <TeachingPlanLink id={id} />}
-                        <TabsList
-                            variant="line"
-                            className="grid w-full grid-cols-3 border-b border-border group-data-horizontal/tabs:h-auto"
-                            aria-label="Detalhes da turma"
+        <div className="classroom-detail-columns lg:grid lg:items-start lg:gap-10">
+            {/* abaixo da topbar (7rem) e do cabeçalho fixo (3,5rem) */}
+            <div className="lg:sticky lg:top-44">
+                <ClassroomSummary classroom={classroom} />
+            </div>
+            <Tabs
+                value={active}
+                onValueChange={(value: ClassroomTab) => void setSearch({ tab: value })}
+                className="mt-5 min-w-0 gap-4 lg:mt-0"
+            >
+                {/* Sem leitura do plano ainda, a página dele consulta o SIGAA. */}
+                {classroom.has_teaching_plan !== false && <TeachingPlanLink id={id} />}
+                <TabsList
+                    variant="line"
+                    className="grid w-full grid-cols-3 border-b border-border group-data-horizontal/tabs:h-auto"
+                    aria-label="Detalhes da turma"
+                >
+                    {tabs.map((item) => (
+                        <TabsTrigger
+                            key={item}
+                            value={item}
+                            className="h-auto min-w-0 py-2 after:bg-primary data-active:text-primary"
                         >
-                            {CLASSROOM_TABS.filter(
-                                (item) => classroomTab(item, classroom.current) === item
-                            ).map((item) => (
-                                <TabsTrigger
-                                    key={item}
-                                    value={item}
-                                    className="h-auto min-w-0 py-2 after:bg-primary data-active:text-primary"
-                                >
-                                    {TAB_LABELS[item]}
-                                </TabsTrigger>
-                            ))}
-                        </TabsList>
-                        <TabsContent value={active}>
-                            <SlideSwitch id={active} direction={direction}>
-                                {active === 'posts' && <ClassroomPosts key={id} id={id} />}
-                                {active === 'frequency' && <FrequencyTab id={id} />}
-                                {active === 'statistics' && <ClassroomStatistics id={id} />}
-                                {active === 'members' && <MembersTab id={id} />}
-                            </SlideSwitch>
-                        </TabsContent>
-                    </Tabs>
-                </div>
-            )}
-        </>
+                            {TAB_LABELS[item]}
+                        </TabsTrigger>
+                    ))}
+                </TabsList>
+                <TabsContent value={active}>
+                    <SlideSwitch id={active} direction={direction}>
+                        <ClassroomTabPanel id={id} active={active} />
+                    </SlideSwitch>
+                </TabsContent>
+            </Tabs>
+        </div>
     );
 }
 

@@ -11,8 +11,11 @@ padrões ficam em `api/core/config.py` e `.env.example`:
 
 - `RATE_LIMIT_REQUESTS=600`: cota geral por IP.
 - `RATE_LIMIT_LOGIN_REQUESTS=30`: cota de `POST /auth/sigaa` por IP.
-- `RATE_LIMIT_REFRESH_REQUESTS=120`: cota separada de `POST /auth/sigaa/refresh`. Ao exceder, o sync
-  não é agendado, mas ninguém é deslogado.
+- `RATE_LIMIT_REFRESH_REQUESTS=120`: cotas separadas para `POST /auth/sigaa/refresh` e
+  `POST /oauth/token`. Ao exceder, a API retorna 429 sem executar a renovação nem agendar o sync;
+  a web não encerra a sessão por esse status.
+- `PATCH /me/profile`: 10 tentativas por IP na janela geral (60 s por padrão) e 5 por matrícula a
+  cada 60 s, com limites definidos em `api/rate_limit.py`, além da validação do tamanho do upload.
 - `RATE_LIMIT_WINDOW_SECONDS=60`: janela fixa das cotas acima.
 - `RATE_LIMIT_REGISTRATION_REQUESTS=10` e `RATE_LIMIT_REGISTRATION_WINDOW_SECONDS=600`: tentativas
   de login por matrícula, de qualquer IP. A desvantagem é a possibilidade de impedir um login

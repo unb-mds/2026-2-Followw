@@ -3,6 +3,7 @@ import {
     classroomStatisticsQueryOptions
 } from '@followw/core/queries/classrooms.ts';
 import { type UseQueryResult, useQuery } from '@tanstack/react-query';
+import { lazy, Suspense } from 'react';
 
 import {
     FrequencySummary,
@@ -10,9 +11,12 @@ import {
 } from '#/components/classroom/FrequencyContent';
 import { ErrorCard, SIGAA_DOWN_MESSAGE, StaleDataNotice } from '#/components/ErrorState';
 import { LoadingSkeleton } from '#/components/LoadingSkeleton';
-import { StatisticsChart } from '#/components/StatisticsChart';
 import { StatisticsChartSkeleton } from '#/components/StatisticsChartSkeleton';
 import { Card, CardContent } from '#/components/ui/card';
+
+const StatisticsChart = lazy(() =>
+    import('#/components/StatisticsChart').then((module) => ({ default: module.StatisticsChart }))
+);
 
 export function ClassroomStatistics({ id }: { id: string }) {
     const statistics = useQuery(classroomStatisticsQueryOptions(id));
@@ -36,10 +40,18 @@ export function ClassroomStatistics({ id }: { id: string }) {
                     <Card size="sm">
                         <CardContent>
                             {shares.some((share) => share.percentage > 0) ? (
-                                <StatisticsChart
-                                    data={shares}
-                                    label="Situação dos discentes desta turma"
-                                />
+                                <Suspense
+                                    fallback={
+                                        <LoadingSkeleton label="Carregando gráfico...">
+                                            <StatisticsChartSkeleton />
+                                        </LoadingSkeleton>
+                                    }
+                                >
+                                    <StatisticsChart
+                                        data={shares}
+                                        label="Situação dos discentes desta turma"
+                                    />
+                                </Suspense>
                             ) : (
                                 <p className="text-center text-sm text-muted-foreground">
                                     Resultados desta turma indisponíveis

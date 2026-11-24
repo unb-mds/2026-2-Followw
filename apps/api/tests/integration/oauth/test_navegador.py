@@ -1,3 +1,8 @@
+import asyncio
+
+from api.modules.oauth.clients import OAuthClientCreate, create_client
+
+
 def test_preflight_de_aplicativo_externo_permite_bearer_e_dpop_sem_cookies(api):
     for path, method, header in (
         ("/me", "GET", "authorization"),
@@ -45,12 +50,19 @@ def test_origem_do_followw_pode_enviar_credenciais_apos_preflight_com_authorizat
     assert response.headers["access-control-allow-credentials"] == "true"
 
 
-def test_token_externo_sem_dpop_mantem_cors_para_expor_erro_oauth(api):
-    response = api.post(
+def test_token_externo_sem_dpop_mantem_cors_para_expor_erro_oauth(client, db):
+    publico = asyncio.run(
+        create_client(
+            db,
+            "251000000",
+            OAuthClientCreate(name="Agenda", redirect_uris=["agenda://callback"]),
+        )
+    )
+    response = client.post(
         "/oauth/token",
         data={
             "grant_type": "refresh_token",
-            "client_id": "agenda",
+            "client_id": publico.client_id,
             "refresh_token": "qualquer",
         },
         headers={"Origin": "https://agenda.example"},

@@ -4,7 +4,7 @@ import { covered } from '@followw/core/queries/subjects.ts';
 import { m } from 'motion/react';
 import { useState, type ReactNode } from 'react';
 
-import { repeat, SectionHeaderSkeleton } from '#/components/LoadingSkeleton';
+import { SectionHeaderSkeleton } from '#/components/LoadingSkeleton';
 import { SubjectSummary } from '#/components/search/SubjectSummary';
 import { TurmaCard } from '#/components/search/TurmaCard';
 import {
@@ -16,6 +16,7 @@ import {
 import { Button } from '#/components/ui/button';
 import { Skeleton } from '#/components/ui/skeleton';
 import { rise, useEntrance } from '#/lib/motion';
+import { repeat } from '#/lib/repeat';
 
 const PAGE_SIZE = 25;
 

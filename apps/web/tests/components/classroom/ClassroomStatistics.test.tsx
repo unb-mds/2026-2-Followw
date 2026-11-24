@@ -38,13 +38,13 @@ function render(shares: components['schemas']['StatisticsShare'][]) {
     );
 }
 
-test('mostra os percentuais da própria turma sem filtros e oculta situações zeradas', () => {
+test('mostra os percentuais da própria turma sem filtros e oculta situações zeradas', async () => {
     const page = render([
         { situation: 'aprovado', percentage: 72.5 },
         { situation: 'reprovado', percentage: 27.5 },
         { situation: 'trancado', percentage: 0 }
     ]);
-    expect(page.getByText('72,5%')).toBeTruthy();
+    await dom.testing.waitFor(() => expect(page.getByText('72,5%')).toBeTruthy());
     expect(page.getByText('27,5%')).toBeTruthy();
     expect(page.queryByText('100%')).toBeNull();
     expect(page.queryByText('Trancado')).toBeNull();
@@ -62,11 +62,11 @@ test.each([{ shares: [] }, { shares: [{ situation: 'aprovado' as const, percenta
     }
 );
 
-test('exibe a frequência abaixo do gráfico, cada um com seu título', () => {
+test('exibe a frequência abaixo do gráfico, cada um com seu título', async () => {
     const page = render([{ situation: 'aprovado', percentage: 100 }]);
     const headings = page.getAllByRole('heading').map((heading) => heading.textContent);
     expect(headings.slice(0, 2)).toEqual(['Resultados da turma', 'Sua frequência']);
-    const chart = page.getByLabelText('Situação dos discentes desta turma');
+    const chart = await page.findByLabelText('Situação dos discentes desta turma');
     const presences = page.getByText('Presenças');
     expect(
         chart.compareDocumentPosition(presences) & Node.DOCUMENT_POSITION_FOLLOWING

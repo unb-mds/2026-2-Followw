@@ -27,6 +27,20 @@ from api.db.enums import ClassroomRole, ClassroomStatus, LessonStatus, UserLevel
 type Requirements = list[list[str]]
 
 
+class OAuthClient(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "oauth_clients"
+
+    client_id: Mapped[str] = mapped_column(unique=True)
+    owner_registration: Mapped[str] = mapped_column(index=True)
+    name: Mapped[str] = mapped_column()
+    description: Mapped[str | None] = mapped_column()
+    homepage_url: Mapped[str | None] = mapped_column()
+    confidential: Mapped[bool] = mapped_column()
+    redirect_uris: Mapped[list[str]] = mapped_column(JSONB)
+    secret_salt: Mapped[bytes | None] = mapped_column()
+    secret_hash: Mapped[bytes | None] = mapped_column()
+
+
 class OAuthGrant(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "oauth_grants"
 

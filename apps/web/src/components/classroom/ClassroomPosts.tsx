@@ -18,7 +18,7 @@ import { useState } from 'react';
 import { MaterialDownload } from '#/components/classroom/MaterialDownload';
 import { ErrorCard, SIGAA_DOWN_MESSAGE, StaleDataNotice } from '#/components/ErrorState';
 import { ListCard } from '#/components/ListCard';
-import { LinesSkeleton, LoadingSkeleton, repeat } from '#/components/LoadingSkeleton';
+import { LinesSkeleton, LoadingSkeleton } from '#/components/LoadingSkeleton';
 import { TabFilter } from '#/components/TabFilter';
 import {
     Accordion,
@@ -32,6 +32,7 @@ import { Card, CardContent } from '#/components/ui/card';
 import { Skeleton } from '#/components/ui/skeleton';
 import { Markdown } from '#/lib/markdown';
 import { rise, useEntrance } from '#/lib/motion';
+import { repeat } from '#/lib/repeat';
 import { cn } from '#/lib/shadcn';
 import { refreshQuery } from '#/queries/refresh';
 
