@@ -1,6 +1,7 @@
 import type { OAuthGrant } from '@followw/core/queries/oauth.ts';
 
 import { useOnline } from '@followw/core/lib/online.ts';
+import { ApiError } from '@followw/core/queries/errors.ts';
 import {
     OAUTH_SCOPE_LABELS,
     oauthGrantsQueryOptions,
@@ -8,6 +9,7 @@ import {
 } from '@followw/core/queries/oauth.ts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink, ShieldCheck, Unlink } from 'lucide-react';
+import { useState } from 'react';
 
 import { LoadingSkeleton } from '#/components/LoadingSkeleton';
 import { ProfileSection } from '#/components/profile/ProfileOverview';
@@ -26,16 +28,32 @@ import { Badge } from '#/components/ui/badge';
 import { Button } from '#/components/ui/button';
 import { Card, CardContent } from '#/components/ui/card';
 import { Skeleton } from '#/components/ui/skeleton';
+import { toast } from '#/components/ui/toast';
 
 export function ConnectedAppsSection() {
     const grants = useQuery(oauthGrantsQueryOptions);
     const queryClient = useQueryClient();
     const online = useOnline();
+    const [error, setError] = useState<string | null>(null);
 
     const revoke = useMutation({
         mutationFn: (grantId: string) => revokeOAuthGrant(grantId),
+        onMutate: () => setError(null),
         onSuccess: () => {
+            toast.add({ type: 'success', title: 'Acesso revogado' });
             void queryClient.invalidateQueries({ queryKey: oauthGrantsQueryOptions.queryKey });
+        },
+        onError: (err) => {
+            const description =
+                err instanceof ApiError && typeof err.detail === 'string'
+                    ? err.detail
+                    : 'Não foi possível revogar o acesso. Tente novamente.';
+            setError(description);
+            toast.add({
+                type: 'error',
+                title: 'Erro ao revogar acesso',
+                description
+            });
         }
     });
 
@@ -64,6 +82,11 @@ export function ConnectedAppsSection() {
                 </Card>
             ) : (
                 <div className="flex flex-col gap-3">
+                    {error && (
+                        <p role="alert" className="text-sm font-medium text-destructive">
+                            {error}
+                        </p>
+                    )}
                     {items.map((grant) => (
                         <GrantCard
                             key={grant.id}

@@ -1,6 +1,7 @@
 import type { OAuthClient } from '@followw/core/queries/oauth.ts';
 
 import { useOnline } from '@followw/core/lib/online.ts';
+import { ApiError } from '@followw/core/queries/errors.ts';
 import { loadQuery } from '@followw/core/queries/load.ts';
 import {
     createOAuthClient,
@@ -45,6 +46,7 @@ import { Badge } from '#/components/ui/badge';
 import { Button } from '#/components/ui/button';
 import { Card, CardContent } from '#/components/ui/card';
 import { Skeleton } from '#/components/ui/skeleton';
+import { toast } from '#/components/ui/toast';
 import { meQueryOptions } from '#/queries/me';
 
 export const Route = createFileRoute('/developers')({
@@ -66,6 +68,7 @@ function DevelopersPage() {
 
     const [createOpen, setCreateOpen] = useState(false);
     const [editing, setEditing] = useState<OAuthClient | null>(null);
+    const [actionError, setActionError] = useState<string | null>(null);
     const [revealedSecret, setRevealedSecret] = useState<{
         clientId: string;
         clientSecret: string;
@@ -77,6 +80,7 @@ function DevelopersPage() {
 
     const rotateMutation = useMutation({
         mutationFn: (clientId: string) => rotateOAuthClientSecret(clientId),
+        onMutate: () => setActionError(null),
         onSuccess: (result) => {
             setRevealedSecret({
                 clientId: result.client_id,
@@ -84,13 +88,39 @@ function DevelopersPage() {
                 title: 'Novo client_secret gerado'
             });
             void invalidate();
+        },
+        onError: (error) => {
+            const description =
+                error instanceof ApiError && typeof error.detail === 'string'
+                    ? error.detail
+                    : 'Não foi possível rotacionar o segredo. Tente novamente.';
+            setActionError(description);
+            toast.add({
+                type: 'error',
+                title: 'Erro ao rotacionar segredo',
+                description
+            });
         }
     });
 
     const deleteMutation = useMutation({
         mutationFn: (clientId: string) => deleteOAuthClient(clientId),
+        onMutate: () => setActionError(null),
         onSuccess: () => {
+            toast.add({ type: 'success', title: 'Aplicação excluída' });
             void invalidate();
+        },
+        onError: (error) => {
+            const description =
+                error instanceof ApiError && typeof error.detail === 'string'
+                    ? error.detail
+                    : 'Não foi possível excluir a aplicação. Tente novamente.';
+            setActionError(description);
+            toast.add({
+                type: 'error',
+                title: 'Erro ao excluir aplicação',
+                description
+            });
         }
     });
 
@@ -145,6 +175,15 @@ function DevelopersPage() {
                         </Button>
                     </div>
                 </header>
+
+                {actionError && (
+                    <p
+                        role="alert"
+                        className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm font-medium text-destructive"
+                    >
+                        {actionError}
+                    </p>
+                )}
 
                 {clients.isLoadingError ? (
                     <ErrorCard
