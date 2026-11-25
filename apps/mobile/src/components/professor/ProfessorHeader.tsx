@@ -9,10 +9,11 @@ import { Linking, Pressable, View } from 'react-native';
 import { PersonPhoto } from '@/components/PersonPhoto';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
+import { Rise } from '@/lib/motion';
 
 export function ProfessorHeader({ professor }: { professor: ProfessorDetails }) {
     return (
-        <View className="flex-row items-stretch gap-4 rounded-2xl border border-foreground/10 bg-card p-4 shadow-sm shadow-black/5">
+        <Rise className="flex-row items-stretch gap-4 rounded-2xl border border-foreground/10 bg-card p-4 shadow-sm shadow-black/5">
             <View className="shrink-0 self-start rounded-xl border border-primary/20 bg-background/60 p-1 shadow-sm shadow-black/5">
                 <PersonPhoto src={professor.photo} size="xl" />
             </View>
@@ -57,7 +58,7 @@ export function ProfessorHeader({ professor }: { professor: ProfessorDetails }) 
                     <ExternalLink href={professor.url}>SIGAA</ExternalLink>
                 </View>
             </View>
-        </View>
+        </Rise>
     );
 }
 

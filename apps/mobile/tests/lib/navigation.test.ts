@@ -1,4 +1,4 @@
-import { activeNavIndex, isDoubleTap, showsNavigation } from '@/lib/navigation';
+import { activeNavIndex, restaurantTabHref, showsNavigation } from '@/lib/navigation';
 
 test('marca a aba da rota e a de turmas e perfil nas subpáginas', () => {
     expect(activeNavIndex('/')).toBe(0);
@@ -27,8 +27,7 @@ test('esconde a barra nas telas cheias como no web', () => {
         expect(showsNavigation(path)).toBe(false);
 });
 
-test('dois toques rápidos contam como toque duplo', () => {
-    expect(isDoubleTap(null, 1000)).toBe(false);
-    expect(isDoubleTap(1000, 1300)).toBe(true);
-    expect(isDoubleTap(1000, 1500)).toBe(false);
+test('tocar no RU já aberto pede a carteirinha', () => {
+    expect(restaurantTabHref('/')).toBe('/ru');
+    expect(restaurantTabHref('/ru')).toEqual({ pathname: '/ru', params: { carteirinha: '1' } });
 });

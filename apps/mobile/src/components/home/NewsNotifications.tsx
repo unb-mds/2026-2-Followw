@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/drawer';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
+import { Rise } from '@/lib/motion';
 import { STORAGE_KEYS, storedValue } from '@/lib/storage';
 import { cn } from '@/lib/utils';
 
@@ -103,7 +104,9 @@ function NewsList({ onOpen }: { onOpen: () => void }) {
             )}
             {items.length > 0 ? (
                 items.map((item, index) => (
-                    <NewsItem key={postKey(item)} item={item} first={index === 0} onOpen={onOpen} />
+                    <Rise key={postKey(item)} index={index}>
+                        <NewsItem item={item} first={index === 0} onOpen={onOpen} />
+                    </Rise>
                 ))
             ) : (
                 <NewsMessage>

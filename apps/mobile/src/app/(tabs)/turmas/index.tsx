@@ -18,6 +18,7 @@ import { Screen } from '@/components/Screen';
 import { TabFilter } from '@/components/TabFilter';
 import { Card, CardContent } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
+import { Rise, SlideSwitch, useSlideDirection } from '@/lib/motion';
 
 export { ErrorState as ErrorBoundary } from '@/components/ErrorState';
 
@@ -63,6 +64,9 @@ function Classrooms() {
 
     const groups = groupBySemester(classrooms ?? []);
     const [semester, items] = groups.find(([name]) => name === selected) ?? groups[0] ?? [];
+    const direction = useSlideDirection(
+        semester ? groups.findIndex(([name]) => name === semester) : undefined
+    );
 
     if (isLoadingError)
         return <ErrorCard message={SIGAA_DOWN_MESSAGE} onRetry={() => void refetch()} />;
@@ -77,17 +81,21 @@ function Classrooms() {
                     onChange={setSelected}
                 />
             )}
-            <View className="flex-col gap-2">
-                {items?.map((classroom) => (
-                    <ClassroomCard
-                        key={classroom.id}
-                        classroom={classroom}
-                        onClick={() =>
-                            router.push({ pathname: '/turmas/[id]', params: { id: classroom.id } })
-                        }
-                    />
+            <SlideSwitch id={semester ?? ''} direction={direction} className="flex-col gap-2">
+                {items?.map((classroom, index) => (
+                    <Rise key={classroom.id} index={index} animate={!direction}>
+                        <ClassroomCard
+                            classroom={classroom}
+                            onClick={() =>
+                                router.push({
+                                    pathname: '/turmas/[id]',
+                                    params: { id: classroom.id }
+                                })
+                            }
+                        />
+                    </Rise>
                 ))}
-            </View>
+            </SlideSwitch>
             {isPending ? (
                 <LoadingSkeleton label="Carregando turmas..." className="gap-2">
                     {repeat(5, () => (

@@ -3,6 +3,7 @@ import { View } from 'react-native';
 
 import { PagedSection } from '@/components/search/PagedSection';
 import { ProfessorCard } from '@/components/search/ProfessorCard';
+import { Rise } from '@/lib/motion';
 
 export function ProfessorSection({
     page,
@@ -24,8 +25,10 @@ export function ProfessorSection({
         >
             {(professors) => (
                 <View className="gap-2">
-                    {professors.map((professor) => (
-                        <ProfessorCard key={professor.siape} professor={professor} />
+                    {professors.map((professor, index) => (
+                        <Rise key={professor.siape} index={index}>
+                            <ProfessorCard professor={professor} />
+                        </Rise>
                     ))}
                 </View>
             )}

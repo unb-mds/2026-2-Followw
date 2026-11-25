@@ -6,12 +6,21 @@ import {
     projectedCategoryHours,
     projectedIntegralization
 } from '@followw/core/lib/profile.ts';
+import { useEffect } from 'react';
 import { View } from 'react-native';
+import {
+    createAnimatedComponent,
+    useAnimatedProps,
+    useSharedValue,
+    withTiming
+} from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 
+import { AnimatedNumber } from '@/components/AnimatedNumber';
 import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 import { useColor } from '@/lib/colors';
+import { ease } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
 const hoursLabel = (hours: number) => `${hours.toLocaleString('pt-BR')}h`;
@@ -19,7 +28,30 @@ const percentLabel = (value: number) =>
     `${value.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}%`;
 const NO_CLASSROOMS: readonly Classroom[] = [];
 const RING_LENGTH = 2 * Math.PI * 44;
-const arc = (percent: number) => `${(percent / 100) * RING_LENGTH} ${RING_LENGTH}`;
+const AnimatedCircle = createAnimatedComponent(Circle);
+
+/** Arco do anel que se desenha a partir do zero, no mesmo tempo da contagem. */
+function RingArc({ percent, color }: { percent: number; color: string }) {
+    const drawn = useSharedValue(0);
+    useEffect(() => {
+        drawn.value = withTiming(percent, { duration: 600, easing: ease });
+    }, [drawn, percent]);
+    const props = useAnimatedProps(() => ({
+        strokeDasharray: [(drawn.value / 100) * RING_LENGTH, RING_LENGTH]
+    }));
+    return (
+        <AnimatedCircle
+            cx="50"
+            cy="50"
+            r="44"
+            fill="none"
+            stroke={color}
+            strokeWidth="8"
+            strokeLinecap="round"
+            animatedProps={props}
+        />
+    );
+}
 
 export function CourseProgress({
     user,
@@ -160,33 +192,19 @@ function IntegralizationRing({
                 style={{ position: 'absolute', transform: [{ rotate: '-90deg' }] }}
             >
                 <Circle cx="50" cy="50" r="44" fill="none" stroke={muted} strokeWidth="8" />
-                {projected != null && (
-                    <Circle
-                        cx="50"
-                        cy="50"
-                        r="44"
-                        fill="none"
-                        stroke={forecast}
-                        strokeWidth="8"
-                        strokeLinecap="round"
-                        strokeDasharray={arc(projected)}
-                    />
-                )}
-                {value > 0 && (
-                    <Circle
-                        cx="50"
-                        cy="50"
-                        r="44"
-                        fill="none"
-                        stroke={primary}
-                        strokeWidth="8"
-                        strokeLinecap="round"
-                        strokeDasharray={arc(Math.min(100, value))}
-                    />
-                )}
+                {projected != null && <RingArc percent={projected} color={forecast} />}
+                {value > 0 && <RingArc percent={Math.min(100, value)} color={primary} />}
             </Svg>
             <Text className="text-xl leading-tight font-medium">
-                {value.toLocaleString('pt-BR')}%
+                <AnimatedNumber
+                    value={value}
+                    className="text-xl leading-tight font-medium"
+                    // inteiro durante a contagem, exato ao final
+                    format={(shown) =>
+                        (shown === value ? shown : Math.round(shown)).toLocaleString('pt-BR')
+                    }
+                />
+                %
             </Text>
             {gain != null && gain > 0 && (
                 <Text className="text-xs leading-tight font-medium text-forecast-foreground">

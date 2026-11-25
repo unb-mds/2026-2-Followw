@@ -6,6 +6,7 @@ import { FollowwLogo } from '@/components/FollowwLogo';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
+import { Turn } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
 interface HeaderBarProps {
@@ -57,10 +58,12 @@ export function HeaderToggle({ children, open, onToggle, title }: HeaderTogglePr
             className="flex-row items-center gap-1 active:opacity-70"
         >
             <HeaderTitle>{children}</HeaderTitle>
-            <Icon
-                as={ChevronDown}
-                className={cn('size-4 text-muted-foreground', open && 'rotate-180 text-primary')}
-            />
+            <Turn turned={open}>
+                <Icon
+                    as={ChevronDown}
+                    className={cn('size-4 text-muted-foreground', open && 'text-primary')}
+                />
+            </Turn>
         </Pressable>
     );
 }

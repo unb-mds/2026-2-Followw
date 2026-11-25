@@ -16,6 +16,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Text } from '@/components/ui/text';
+import { Rise } from '@/lib/motion';
 
 const PAGE_SIZE = 25;
 
@@ -62,45 +63,46 @@ export function TurmaSection({
             {subjects.length > 0 && (
                 <Accordion type="multiple">
                     <View className="gap-2">
-                        {shown.map((subject) => (
-                            <AccordionItem
-                                key={subject.code}
-                                value={subject.code}
-                                className="overflow-hidden rounded-2xl border border-border bg-card"
-                            >
-                                <AccordionTrigger className="items-center gap-3 rounded-none px-3 py-3 active:bg-primary/5">
-                                    <SubjectSummary
-                                        subject={subject}
-                                        currentPeriod={currentPeriod}
-                                        done={covered(taken, subject)}
-                                    />
-                                    <Text className="shrink-0 text-xs font-normal text-muted-foreground">
-                                        {`${subject.classrooms.length} ${subject.classrooms.length === 1 ? 'turma' : 'turmas'}`}
-                                    </Text>
-                                </AccordionTrigger>
-                                <AccordionContent className="pb-0">
-                                    <View className="border-t border-border">
-                                        {subject.classrooms.map((classroom, index) => (
-                                            <View
-                                                key={`${classroom.semester}-${classroom.number}`}
-                                                className={
-                                                    index > 0 ? 'border-t border-border' : ''
-                                                }
-                                            >
-                                                <TurmaCard
-                                                    subject={subject}
-                                                    classroom={classroom}
-                                                    onOpenDetails={
-                                                        onOpenDetails &&
-                                                        (() => onOpenDetails(subject))
+                        {shown.map((subject, index) => (
+                            <Rise key={subject.code} index={index % PAGE_SIZE}>
+                                <AccordionItem
+                                    value={subject.code}
+                                    className="overflow-hidden rounded-2xl border border-border bg-card"
+                                >
+                                    <AccordionTrigger className="items-center gap-3 rounded-none px-3 py-3 active:bg-primary/5">
+                                        <SubjectSummary
+                                            subject={subject}
+                                            currentPeriod={currentPeriod}
+                                            done={covered(taken, subject)}
+                                        />
+                                        <Text className="shrink-0 text-xs font-normal text-muted-foreground">
+                                            {`${subject.classrooms.length} ${subject.classrooms.length === 1 ? 'turma' : 'turmas'}`}
+                                        </Text>
+                                    </AccordionTrigger>
+                                    <AccordionContent className="pb-0">
+                                        <View className="border-t border-border">
+                                            {subject.classrooms.map((classroom, position) => (
+                                                <View
+                                                    key={`${classroom.semester}-${classroom.number}`}
+                                                    className={
+                                                        position > 0 ? 'border-t border-border' : ''
                                                     }
-                                                />
-                                            </View>
-                                        ))}
-                                    </View>
-                                    {footer?.(subject)}
-                                </AccordionContent>
-                            </AccordionItem>
+                                                >
+                                                    <TurmaCard
+                                                        subject={subject}
+                                                        classroom={classroom}
+                                                        onOpenDetails={
+                                                            onOpenDetails &&
+                                                            (() => onOpenDetails(subject))
+                                                        }
+                                                    />
+                                                </View>
+                                            ))}
+                                        </View>
+                                        {footer?.(subject)}
+                                    </AccordionContent>
+                                </AccordionItem>
+                            </Rise>
                         ))}
                     </View>
                 </Accordion>

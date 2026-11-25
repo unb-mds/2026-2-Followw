@@ -4,7 +4,7 @@ import { Pressable, View } from 'react-native';
 
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
-import { cn } from '@/lib/utils';
+import { Turn } from '@/lib/motion';
 
 export function SubjectDisclosure({
     count,
@@ -25,10 +25,9 @@ export function SubjectDisclosure({
                 className="flex-row items-center gap-1 self-start py-1"
             >
                 <Text className="text-sm font-normal text-muted-foreground">{`${count} matérias`}</Text>
-                <Icon
-                    as={ChevronDown}
-                    className={cn('size-4 text-muted-foreground', open && 'rotate-180')}
-                />
+                <Turn turned={open}>
+                    <Icon as={ChevronDown} className="size-4 text-muted-foreground" />
+                </Turn>
             </Pressable>
             {open && (
                 <View className="mt-2 min-w-0 gap-2 border-l border-border pl-3">{children}</View>

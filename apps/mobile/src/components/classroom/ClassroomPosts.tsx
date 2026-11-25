@@ -34,6 +34,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Text } from '@/components/ui/text';
+import { Rise, Spin } from '@/lib/motion';
 
 const filters = ['all', 'news', 'topic', 'material', 'assessment'] as const;
 const filterLabels: Record<(typeof filters)[number], string> = {
@@ -112,7 +113,9 @@ export function ClassroomPosts({ id }: { id: string }) {
                         ]).catch(() => {});
                     }}
                 >
-                    <Icon as={RefreshCw} className="size-4" />
+                    <Spin active={posts.isFetching}>
+                        <Icon as={RefreshCw} className="size-4" />
+                    </Spin>
                 </Button>
             </View>
             {posts.isError && <StaleDataNotice subject="as postagens" />}
@@ -133,43 +136,46 @@ export function ClassroomPosts({ id }: { id: string }) {
                         onValueChange={(value?: string) => setOpenedId(value || null)}
                     >
                         {visible.map((post, index) => (
-                            <AccordionItem
-                                key={post.id}
-                                value={post.id}
-                                className={index === visible.length - 1 ? 'border-b-0' : undefined}
-                            >
-                                <AccordionTrigger className="gap-3 py-3">
-                                    <View className="min-w-0 flex-1 flex-col items-start gap-2">
-                                        <View className="flex-row flex-wrap items-center gap-2">
-                                            <Badge variant="secondary">
-                                                <Text>{postTypeLabels[post.type]}</Text>
-                                            </Badge>
-                                            {postDateLabel(post) && (
-                                                <Text className="text-xs font-medium text-muted-foreground">
-                                                    {postDateLabel(post)}
+                            <Rise key={post.id} index={index}>
+                                <AccordionItem
+                                    value={post.id}
+                                    className={
+                                        index === visible.length - 1 ? 'border-b-0' : undefined
+                                    }
+                                >
+                                    <AccordionTrigger className="gap-3 py-3">
+                                        <View className="min-w-0 flex-1 flex-col items-start gap-2">
+                                            <View className="flex-row flex-wrap items-center gap-2">
+                                                <Badge variant="secondary">
+                                                    <Text>{postTypeLabels[post.type]}</Text>
+                                                </Badge>
+                                                {postDateLabel(post) && (
+                                                    <Text className="text-xs font-medium text-muted-foreground">
+                                                        {postDateLabel(post)}
+                                                    </Text>
+                                                )}
+                                            </View>
+                                            <Text className="text-left text-sm font-semibold text-foreground">
+                                                {post.title}
+                                            </Text>
+                                            {post.topic_id && topics.has(post.topic_id) && (
+                                                <Text className="text-left text-xs font-normal text-muted-foreground">
+                                                    Tópico: {topics.get(post.topic_id)?.title}
                                                 </Text>
                                             )}
                                         </View>
-                                        <Text className="text-left text-sm font-semibold text-foreground">
-                                            {post.title}
-                                        </Text>
-                                        {post.topic_id && topics.has(post.topic_id) && (
-                                            <Text className="text-left text-xs font-normal text-muted-foreground">
-                                                Tópico: {topics.get(post.topic_id)?.title}
-                                            </Text>
+                                    </AccordionTrigger>
+                                    <AccordionContent className="pb-3">
+                                        {openedId === post.id && (
+                                            <PostBody
+                                                classroomId={id}
+                                                post={post}
+                                                materials={materials.get(post.id) ?? []}
+                                            />
                                         )}
-                                    </View>
-                                </AccordionTrigger>
-                                <AccordionContent className="pb-3">
-                                    {openedId === post.id && (
-                                        <PostBody
-                                            classroomId={id}
-                                            post={post}
-                                            materials={materials.get(post.id) ?? []}
-                                        />
-                                    )}
-                                </AccordionContent>
-                            </AccordionItem>
+                                    </AccordionContent>
+                                </AccordionItem>
+                            </Rise>
                         ))}
                     </Accordion>
                 </ListCard>

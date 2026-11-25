@@ -3,6 +3,7 @@ import { describeSchedule } from '@followw/core/lib/schedule.ts';
 import { CalendarDays, Download, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { ScrollView, useWindowDimensions, View } from 'react-native';
+import Animated, { LayoutAnimationConfig } from 'react-native-reanimated';
 
 import { ClassCard } from '@/components/home/ClassCard';
 import { ScheduleImageExport } from '@/components/schedule/ScheduleImage';
@@ -21,6 +22,7 @@ import {
 import { Icon } from '@/components/ui/icon';
 import { Progress } from '@/components/ui/progress';
 import { Text } from '@/components/ui/text';
+import { listItem } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
 /** Barra flutuante acima da navegação inferior; renderize dentro de um container `relative flex-1`. */
@@ -33,21 +35,19 @@ export function SchedulePreview() {
 
     return (
         <Dialog>
-            {items.length > 0 && (
-                <SelectionBar
-                    label="Turmas selecionadas"
-                    count={items.length}
-                    units={['turma', 'turmas']}
-                    onClear={clear}
-                >
-                    <DialogTrigger asChild>
-                        <Button variant="ghost" size="sm" className="rounded-full">
-                            <Icon as={CalendarDays} className="size-4 text-primary" />
-                            <Text className="text-primary">Ver grade</Text>
-                        </Button>
-                    </DialogTrigger>
-                </SelectionBar>
-            )}
+            <SelectionBar
+                label="Turmas selecionadas"
+                count={items.length}
+                units={['turma', 'turmas']}
+                onClear={clear}
+            >
+                <DialogTrigger asChild>
+                    <Button variant="ghost" size="sm" className="rounded-full">
+                        <Icon as={CalendarDays} className="size-4 text-primary" />
+                        <Text className="text-primary">Ver grade</Text>
+                    </Button>
+                </DialogTrigger>
+            </SelectionBar>
             <DialogContent className="max-w-3xl rounded-2xl" showCloseButton={false}>
                 <DialogHeader className="flex-row items-center justify-between gap-3">
                     <DialogTitle>Minha grade semanal</DialogTitle>
@@ -112,30 +112,44 @@ export function SchedulePreview() {
                             </Text>
                         </View>
                     ) : (
-                        <View className="gap-2">
-                            {items.map((item) => (
-                                <ClassCard
-                                    key={classKey(item)}
-                                    compact
-                                    variant="planned"
-                                    code={item.code}
-                                    title={item.name}
-                                    time={describeSchedule(item.schedule) ?? 'Horário a definir'}
-                                    location={item.room ?? undefined}
-                                    professors={item.professors.map(({ name }) => name)}
-                                    action={
-                                        <Button
-                                            variant="ghost"
-                                            size="icon-sm"
-                                            accessibilityLabel={`Remover da grade: ${item.code}, turma ${item.number}`}
-                                            onPress={() => toggle(item)}
-                                        >
-                                            <Icon as={X} className="size-4 text-destructive" />
-                                        </Button>
-                                    }
-                                />
-                            ))}
-                        </View>
+                        <LayoutAnimationConfig skipEntering>
+                            <View className="gap-2">
+                                {items.map((item) => (
+                                    <Animated.View
+                                        key={classKey(item)}
+                                        entering={listItem.entering}
+                                        exiting={listItem.exiting}
+                                        layout={listItem.layout}
+                                    >
+                                        <ClassCard
+                                            compact
+                                            variant="planned"
+                                            code={item.code}
+                                            title={item.name}
+                                            time={
+                                                describeSchedule(item.schedule) ??
+                                                'Horário a definir'
+                                            }
+                                            location={item.room ?? undefined}
+                                            professors={item.professors.map(({ name }) => name)}
+                                            action={
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon-sm"
+                                                    accessibilityLabel={`Remover da grade: ${item.code}, turma ${item.number}`}
+                                                    onPress={() => toggle(item)}
+                                                >
+                                                    <Icon
+                                                        as={X}
+                                                        className="size-4 text-destructive"
+                                                    />
+                                                </Button>
+                                            }
+                                        />
+                                    </Animated.View>
+                                ))}
+                            </View>
+                        </LayoutAnimationConfig>
                     )}
                     {items.length > 0 && (
                         <Button

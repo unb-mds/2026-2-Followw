@@ -168,14 +168,12 @@ export function FrequencyContent({
                     )}
                 </View>
             )}
-            {selected.length > 0 && (
-                <FloatingSelection
-                    count={selected.length}
-                    pending={pending}
-                    onClear={() => setSelectedIds(new Set())}
-                    onMark={markSelected}
-                />
-            )}
+            <FloatingSelection
+                count={selected.length}
+                pending={pending}
+                onClear={() => setSelectedIds(new Set())}
+                onMark={markSelected}
+            />
         </View>
     );
 }

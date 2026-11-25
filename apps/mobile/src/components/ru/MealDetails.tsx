@@ -22,6 +22,7 @@ import { View } from 'react-native';
 import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
+import { Rise } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
 const ALTERNATIVES: Partial<
@@ -50,18 +51,24 @@ const SECTION_ICONS: Partial<Record<NonNullable<MenuSection['key']>, LucideIcon>
     complement: Egg
 };
 
-export function MealDetails({ sections }: { sections: MenuSection[] }) {
+export function MealDetails({ sections, cascade }: { sections: MenuSection[]; cascade: boolean }) {
     const { main, alternatives, others: ungrouped } = highlightMenu(sections);
     const others = groupSalads(renameSections(ungrouped));
 
     return (
         <View className="gap-2">
-            {main && <MealHighlight main={main} alternatives={alternatives} />}
+            {main && (
+                <Rise animate={cascade}>
+                    <MealHighlight main={main} alternatives={alternatives} />
+                </Rise>
+            )}
             {others.length > 0 && (
                 <View className="overflow-hidden rounded-2xl border border-foreground/10 bg-card shadow-sm shadow-black/5">
                     {others.map((section, index) => (
-                        <View
+                        <Rise
                             key={section.name}
+                            index={(main ? 1 : 0) + index}
+                            animate={cascade}
                             className={cn(
                                 'flex-row items-center gap-3 px-3 py-2',
                                 index > 0 && 'border-t border-foreground/8'
@@ -84,7 +91,7 @@ export function MealDetails({ sections }: { sections: MenuSection[] }) {
                                     </Text>
                                 ))}
                             </View>
-                        </View>
+                        </Rise>
                     ))}
                 </View>
             )}

@@ -1,5 +1,6 @@
 import { ScrollView } from 'react-native';
 
+import { Highlight, useSlidingHighlight } from '@/components/SlidingHighlight';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
@@ -24,6 +25,7 @@ export function TabFilter<T extends string>({
     size,
     className
 }: TabFilterProps<T>) {
+    const highlight = useSlidingHighlight(value);
     return (
         <ScrollView
             horizontal
@@ -32,16 +34,24 @@ export function TabFilter<T extends string>({
             className={cn('min-w-0 grow-0', className)}
             contentContainerClassName="flex-row items-center gap-1 py-1"
         >
+            <Highlight
+                highlight={highlight}
+                top={4}
+                className={cn(size === 'sm' ? 'rounded-md' : 'rounded-lg', 'bg-secondary')}
+            />
             {options.map((option) => (
                 <Button
                     key={option}
-                    variant={option === value ? 'secondary' : 'ghost'}
+                    variant="ghost"
                     size={size}
                     accessibilityState={{ selected: option === value }}
                     onPress={() => onChange(option)}
-                    className="shrink-0"
+                    onLayout={highlight.measure(option)}
+                    className={cn('shrink-0', option === value && 'active:bg-transparent')}
                 >
-                    <Text>{labels?.[option] ?? option}</Text>
+                    <Text className={cn(option === value && 'text-secondary-foreground')}>
+                        {labels?.[option] ?? option}
+                    </Text>
                 </Button>
             ))}
         </ScrollView>

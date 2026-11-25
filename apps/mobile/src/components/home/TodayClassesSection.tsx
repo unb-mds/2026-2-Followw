@@ -14,6 +14,7 @@ import { LoginPromptCard } from '@/components/home/LoginPromptCard';
 import { SectionHeader } from '@/components/SectionHeader';
 import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
+import { Rise } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
 interface TodayClassesSectionProps {
@@ -67,44 +68,48 @@ function TodayClassesContent({
         <View className="relative">
             {/* o fundo do card começa depois do trace, que fica fora dele */}
             <Card size="sm" className="absolute inset-y-0 right-0 left-3.5 py-0" />
-            {timeline.map(({ item, start, end, status, progress, gap, overlap }, index) => (
-                <Fragment key={item.id}>
-                    {index > 0 && (
+            <View key={date ?? now.date}>
+                {timeline.map(({ item, start, end, status, progress, gap, overlap }, index) => (
+                    <Fragment key={item.id}>
+                        {index > 0 && (
+                            <View className="flex-row gap-3">
+                                <ClassProgress progress={progress > 0 ? 1 : 0} absent={false} />
+                                <View className="min-w-0 flex-1 flex-row pr-3 pl-4">
+                                    <Divider gap={gap} overlap={overlap} />
+                                </View>
+                            </View>
+                        )}
                         <View className="flex-row gap-3">
-                            <ClassProgress progress={progress > 0 ? 1 : 0} absent={false} />
-                            <View className="min-w-0 flex-1 flex-row pr-3 pl-4">
-                                <Divider gap={gap} overlap={overlap} />
+                            <ClassProgress
+                                progress={cancelled(item) ? 0 : progress}
+                                absent={item.status === 'falta'}
+                            />
+                            <View
+                                className={cn(
+                                    'min-w-0 flex-1 overflow-hidden',
+                                    index === 0 && 'rounded-t-2xl',
+                                    index === timeline.length - 1 && 'rounded-b-2xl'
+                                )}
+                            >
+                                <Rise index={index}>
+                                    <LessonCard
+                                        lesson={item}
+                                        start={start}
+                                        end={end}
+                                        status={status}
+                                        onClick={() =>
+                                            router.push({
+                                                pathname: '/turmas/[id]',
+                                                params: { id: item.classroom.id }
+                                            })
+                                        }
+                                    />
+                                </Rise>
                             </View>
                         </View>
-                    )}
-                    <View className="flex-row gap-3">
-                        <ClassProgress
-                            progress={cancelled(item) ? 0 : progress}
-                            absent={item.status === 'falta'}
-                        />
-                        <View
-                            className={cn(
-                                'min-w-0 flex-1 overflow-hidden',
-                                index === 0 && 'rounded-t-2xl',
-                                index === timeline.length - 1 && 'rounded-b-2xl'
-                            )}
-                        >
-                            <LessonCard
-                                lesson={item}
-                                start={start}
-                                end={end}
-                                status={status}
-                                onClick={() =>
-                                    router.push({
-                                        pathname: '/turmas/[id]',
-                                        params: { id: item.classroom.id }
-                                    })
-                                }
-                            />
-                        </View>
-                    </View>
-                </Fragment>
-            ))}
+                    </Fragment>
+                ))}
+            </View>
         </View>
     );
 }

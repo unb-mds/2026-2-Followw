@@ -1,4 +1,5 @@
 import { ScrollView, type ScrollViewProps, View } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { OfflineBanner } from '@/components/OfflineBanner';
@@ -26,7 +27,8 @@ export function Screen({
     const insets = useSafeAreaInsets();
     const refreshControl = usePullToRefresh(onRefreshData, insets.top);
     return (
-        <View className="flex-1 bg-background">
+        // a página entra com fade, como o `main` do web
+        <Animated.View entering={FadeIn.duration(200)} className="flex-1 bg-background">
             <ScrollView
                 keyboardShouldPersistTaps="handled"
                 refreshControl={refreshControl}
@@ -50,6 +52,6 @@ export function Screen({
                 style={{ height: insets.top }}
                 className="absolute inset-x-0 top-0 bg-background"
             />
-        </View>
+        </Animated.View>
     );
 }

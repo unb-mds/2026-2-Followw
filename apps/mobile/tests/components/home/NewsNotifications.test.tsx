@@ -67,6 +67,11 @@ function mount(posts: ClassroomPost[] | null) {
     const client = new QueryClient({
         defaultOptions: { queries: { retry: false, staleTime: Infinity } }
     });
+    // sem dados, a consulta fica pendente em vez de depender da rede
+    if (!posts)
+        client.setQueryDefaults(latestPostsQueryOptions.queryKey, {
+            queryFn: () => new Promise(() => {})
+        });
     if (posts)
         client.setQueryData(latestPostsQueryOptions.queryKey, {
             items: posts.map((item) => ({ classroom, post: item })),

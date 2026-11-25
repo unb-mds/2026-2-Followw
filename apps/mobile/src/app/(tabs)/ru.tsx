@@ -48,6 +48,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Text } from '@/components/ui/text';
 import { WeekDayPicker } from '@/components/WeekDayPicker';
+import { SlideSwitch, useSlideDirection } from '@/lib/motion';
 import { share } from '@/lib/share';
 import { cn } from '@/lib/utils';
 import { shareMenuImage } from '@/queries/restaurant-share';
@@ -107,6 +108,9 @@ export default function RUPage() {
     const failureMessage = useFailureMessage('O site do RU não respondeu.');
     const menu = data?.[0];
     const meal = MEALS.find((item) => item.key === selectedMeal) ?? MEALS[1];
+    const menuDirection = useSlideDirection(
+        `${selectedDate}-${MEALS.findIndex((item) => item.key === selectedMeal)}`
+    );
     const sections = menu?.[selectedMeal] ?? [];
     // Só esta semana e a próxima; trocar de semana mantém o dia da semana.
     const days = weekDays(selectedDate, 7);
@@ -222,12 +226,9 @@ export default function RUPage() {
                         >
                             <Icon as={ChevronLeft} className="size-4" />
                         </Button>
-                        <Text
-                            className="text-xs font-bold text-muted-foreground"
-                            accessibilityLiveRegion="polite"
-                        >
+                        <MenuDayLabel date={selectedDate}>
                             {formatMenuDay(selectedDate, today)} · {meal.start}–{meal.end}
-                        </Text>
+                        </MenuDayLabel>
                         <Button
                             variant="ghost"
                             size="icon-sm"
@@ -252,51 +253,60 @@ export default function RUPage() {
                     </TabsList>
 
                     <TabsContent value={selectedMeal}>
-                        {sections.length > 0 ? (
-                            <MealDetails sections={sections} />
-                        ) : isPending ? (
-                            <MenuSkeleton />
-                        ) : (
-                            <View className="min-h-40 justify-center px-1">
-                                {isLoadingError && (
-                                    <Text className="text-sm text-muted-foreground">
-                                        {failureMessage}{' '}
-                                        <Text
-                                            accessibilityRole="button"
-                                            onPress={() => void refetch()}
-                                            className="text-xs font-medium text-primary"
-                                        >
-                                            Tentar novamente
-                                        </Text>
-                                    </Text>
-                                )}
-                                {!isLoadingError && (
-                                    <View className="items-center gap-3 py-4">
-                                        <View className="size-12 items-center justify-center rounded-full bg-muted">
-                                            <Icon as={UtensilsCrossed} className="size-6" />
-                                        </View>
-                                        <View className="items-center gap-1">
-                                            <Text className="font-semibold text-foreground">
-                                                Cardápio não publicado
-                                            </Text>
-                                            <Text className="text-center text-sm text-muted-foreground">
-                                                Ainda não há pratos divulgados para esta refeição.
-                                            </Text>
-                                        </View>
-                                        {(selectedDate !== opening.date ||
-                                            selectedMeal !== opening.meal.key) && (
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onPress={() => setChosen({ campus: chosen.campus })}
+                        <SlideSwitch
+                            id={`${selectedDate}-${selectedMeal}-${campus}`}
+                            direction={menuDirection}
+                            className="min-h-40 gap-2"
+                        >
+                            {sections.length > 0 ? (
+                                <MealDetails sections={sections} cascade={!menuDirection} />
+                            ) : isPending ? (
+                                <MenuSkeleton />
+                            ) : (
+                                <View className="min-h-40 justify-center px-1">
+                                    {isLoadingError && (
+                                        <Text className="text-sm text-muted-foreground">
+                                            {failureMessage}{' '}
+                                            <Text
+                                                accessibilityRole="button"
+                                                onPress={() => void refetch()}
+                                                className="text-xs font-medium text-primary"
                                             >
-                                                <Text>Ver cardápio atual</Text>
-                                            </Button>
-                                        )}
-                                    </View>
-                                )}
-                            </View>
-                        )}
+                                                Tentar novamente
+                                            </Text>
+                                        </Text>
+                                    )}
+                                    {!isLoadingError && (
+                                        <View className="items-center gap-3 py-4">
+                                            <View className="size-12 items-center justify-center rounded-full bg-muted">
+                                                <Icon as={UtensilsCrossed} className="size-6" />
+                                            </View>
+                                            <View className="items-center gap-1">
+                                                <Text className="font-semibold text-foreground">
+                                                    Cardápio não publicado
+                                                </Text>
+                                                <Text className="text-center text-sm text-muted-foreground">
+                                                    Ainda não há pratos divulgados para esta
+                                                    refeição.
+                                                </Text>
+                                            </View>
+                                            {(selectedDate !== opening.date ||
+                                                selectedMeal !== opening.meal.key) && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onPress={() =>
+                                                        setChosen({ campus: chosen.campus })
+                                                    }
+                                                >
+                                                    <Text>Ver cardápio atual</Text>
+                                                </Button>
+                                            )}
+                                        </View>
+                                    )}
+                                </View>
+                            )}
+                        </SlideSwitch>
                     </TabsContent>
                 </Tabs>
 
@@ -358,6 +368,21 @@ function MenuSkeleton() {
                 ))}
             </View>
         </LoadingSkeleton>
+    );
+}
+
+// desliza para o lado em que o dia mudou
+function MenuDayLabel({ date, children }: { date: string; children: React.ReactNode }) {
+    const direction = useSlideDirection(date);
+    return (
+        <View
+            className="min-w-0 flex-1 items-center overflow-hidden"
+            accessibilityLiveRegion="polite"
+        >
+            <SlideSwitch id={date} direction={direction}>
+                <Text className="text-xs font-bold text-muted-foreground">{children}</Text>
+            </SlideSwitch>
+        </View>
     );
 }
 

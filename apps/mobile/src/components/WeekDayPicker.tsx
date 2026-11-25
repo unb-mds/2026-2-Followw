@@ -4,6 +4,7 @@ import { formatDayRange } from '@followw/core/lib/schedule.ts';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { View } from 'react-native';
 
+import { Highlight, useSlidingHighlight } from '@/components/SlidingHighlight';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
@@ -31,18 +32,16 @@ const variants = {
     solid: {
         row: '',
         button: 'h-16 min-w-0 flex-1 gap-1',
-        activeButton: 'default',
-        active: '',
+        highlight: 'rounded-lg bg-primary',
         weekday: 'tracking-wider',
         activeWeekday: 'text-primary-foreground/90',
         date: 'text-lg font-extrabold',
-        activeDate: ''
+        activeDate: 'text-primary-foreground'
     },
     tiles: {
         row: '',
         button: 'aspect-3/2 h-auto min-h-11 min-w-11 flex-1 gap-0',
-        activeButton: 'ghost',
-        active: 'border border-primary/30 bg-primary/12 active:bg-primary/12',
+        highlight: 'rounded-lg border border-primary/30 bg-primary/12',
         weekday: 'leading-tight',
         activeWeekday: 'text-primary',
         date: 'text-sm font-bold',
@@ -98,21 +97,28 @@ function DayButtons({
     variant = 'solid'
 }: Omit<WeekDayPickerProps, 'week'>) {
     const style = variants[variant];
+    const highlight = useSlidingHighlight(selectedDate);
     return (
         <View
             className={cn('mb-4 flex-row items-center gap-1 py-1', style.row)}
             accessibilityLabel="Escolher dia"
         >
+            <Highlight highlight={highlight} top={4} className={style.highlight} />
             {days.map((day) => {
                 const isActive = day.date === selectedDate;
                 return (
                     <Button
                         key={day.date}
-                        variant={isActive ? style.activeButton : 'outline'}
+                        variant={isActive ? 'ghost' : 'outline'}
                         onPress={() => onSelect(day)}
+                        onLayout={highlight.measure(day.date)}
                         aria-label={day.date}
                         accessibilityState={{ selected: isActive }}
-                        className={cn('flex-col px-0', style.button, isActive && style.active)}
+                        className={cn(
+                            'flex-col px-0',
+                            style.button,
+                            isActive && 'active:bg-transparent'
+                        )}
                     >
                         <Text
                             className={cn(

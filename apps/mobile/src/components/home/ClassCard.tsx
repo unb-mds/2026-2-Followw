@@ -4,12 +4,14 @@ import { Award, MapIcon, MapPin } from 'lucide-react-native';
 import { Pressable, View } from 'react-native';
 
 import { GradeText } from '@/components/classroom/GradeText';
+import { PressableScale } from '@/components/PressableScale';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Text } from '@/components/ui/text';
+import { Pulse } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
 export type ClassStatus = 'in_progress' | 'next' | 'pending' | 'normal' | 'warning' | 'cancelled';
@@ -155,7 +157,7 @@ export function ClassCard(props: ClassCardProps) {
                             variant={statusInfo.variant}
                             className={cn('px-1.5 py-0', statusInfo.className)}
                         >
-                            {active && <View className="size-1.5 rounded-full bg-primary" />}
+                            {active && <Pulse className="size-1.5 rounded-full bg-primary" />}
                             <Text className={cn('text-xs', statusInfo.textClassName)}>
                                 {lesson?.statusText || statusInfo.label}
                             </Text>
@@ -174,29 +176,31 @@ export function ClassCard(props: ClassCardProps) {
         </>
     );
 
-    return (
-        <Pressable
-            disabled={!onClick}
-            onPress={onClick}
-            accessibilityRole={onClick ? 'button' : undefined}
-            accessibilityLabel={onClick ? title : undefined}
-            className={plain ? 'active:bg-primary/5' : 'active:opacity-70'}
-        >
-            {plain ? (
+    const press = {
+        disabled: !onClick,
+        onPress: onClick,
+        accessibilityRole: onClick ? ('button' as const) : undefined,
+        accessibilityLabel: onClick ? title : undefined
+    };
+    if (plain)
+        return (
+            <Pressable {...press} className="active:bg-primary/5">
                 <View className="gap-1 py-3 pr-3 pl-4">{content}</View>
-            ) : (
-                <Card
-                    size="sm"
-                    className={cn(
-                        'gap-1 px-3',
-                        active && 'border-primary/30 bg-primary/5',
-                        compact && 'gap-0.5 py-2'
-                    )}
-                >
-                    {content}
-                </Card>
-            )}
-        </Pressable>
+            </Pressable>
+        );
+    return (
+        <PressableScale {...press}>
+            <Card
+                size="sm"
+                className={cn(
+                    'gap-1 px-3',
+                    active && 'border-primary/30 bg-primary/5',
+                    compact && 'gap-0.5 py-2'
+                )}
+            >
+                {content}
+            </Card>
+        </PressableScale>
     );
 }
 

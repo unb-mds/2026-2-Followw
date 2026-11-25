@@ -7,18 +7,14 @@ import {
     UserRoundGroup,
     Utensils
 } from 'lucide-react-native';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Keyboard, Pressable, View } from 'react-native';
-import Animated, {
-    Easing,
-    useAnimatedStyle,
-    useSharedValue,
-    withTiming
-} from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/ui/icon';
-import { activeNavIndex, isDoubleTap, NAV_HREFS, showsNavigation } from '@/lib/navigation';
+import { snappy, spring } from '@/lib/motion';
+import { activeNavIndex, NAV_HREFS, restaurantTabHref, showsNavigation } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 
 interface NavItem {
@@ -34,9 +30,6 @@ const NAV_ITEMS: NavItem[] = [
     { href: '/buscar', label: 'Buscar', icon: Search },
     { href: '/perfil', label: 'Perfil', icon: User }
 ];
-
-// mesma curva com overshoot do web
-const INDICATOR_EASING = Easing.bezier(0.34, 1.4, 0.64, 1);
 
 function useKeyboardVisible() {
     const [visible, setVisible] = useState(false);
@@ -57,16 +50,12 @@ export function BottomNavigation() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const keyboardVisible = useKeyboardVisible();
-    const lastRestaurantTap = useRef<number | null>(null);
     const [itemWidth, setItemWidth] = useState(0);
     const activeIndex = activeNavIndex(pathname);
 
     const position = useSharedValue(Math.max(activeIndex, 0));
     useEffect(() => {
-        position.value = withTiming(Math.max(activeIndex, 0), {
-            duration: 400,
-            easing: INDICATOR_EASING
-        });
+        position.value = withSpring(Math.max(activeIndex, 0), spring);
     }, [activeIndex, position]);
     const indicatorStyle = useAnimatedStyle(() => ({
         transform: [{ translateX: position.value * itemWidth }]
@@ -77,16 +66,10 @@ export function BottomNavigation() {
     const go = (href: Href) => {
         if (href !== pathname) router.navigate(href);
     };
-    // dois toques no RU abrem a carteirinha
     const onRestaurantPress = () => {
-        const now = Date.now();
-        if (!isDoubleTap(lastRestaurantTap.current, now)) {
-            lastRestaurantTap.current = now;
-            go('/ru');
-            return;
-        }
-        lastRestaurantTap.current = null;
-        router.navigate({ pathname: '/ru', params: { carteirinha: '1' } });
+        const href = restaurantTabHref(pathname);
+        if (typeof href === 'string') go(href);
+        else router.navigate(href);
     };
 
     return (
@@ -127,19 +110,29 @@ export function BottomNavigation() {
                                 }
                                 className="flex-1 items-center justify-center rounded-full active:scale-90"
                             >
-                                <Icon
-                                    as={item.icon}
-                                    strokeWidth={active ? 2.5 : 2}
-                                    className={cn(
-                                        'size-5',
-                                        active ? 'scale-110 text-primary' : 'text-muted-foreground'
-                                    )}
-                                />
+                                <NavIcon icon={item.icon} active={active} />
                             </Pressable>
                         );
                     })}
                 </View>
             </View>
         </View>
+    );
+}
+
+function NavIcon({ icon, active }: { icon: LucideIcon; active: boolean }) {
+    const scale = useSharedValue(active ? 1.1 : 1);
+    useEffect(() => {
+        scale.value = withSpring(active ? 1.1 : 1, snappy);
+    }, [active, scale]);
+    const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+    return (
+        <Animated.View style={style}>
+            <Icon
+                as={icon}
+                strokeWidth={active ? 2.5 : 2}
+                className={cn('size-5', active ? 'text-primary' : 'text-muted-foreground')}
+            />
+        </Animated.View>
     );
 }
