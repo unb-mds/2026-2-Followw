@@ -143,7 +143,9 @@ describe('página não encontrada', () => {
             }
             const filesExist = await Promise.all(
                 Array.from(images, (image) =>
-                    Bun.file(`public${image.getAttribute('src')}`).exists()
+                    Bun.file(
+                        new URL(`../../public${image.getAttribute('src')}`, import.meta.url)
+                    ).exists()
                 )
             );
             expect(filesExist).toEqual([true, true, true]);

@@ -6,18 +6,18 @@ requires-python = ">=3.14"
 dependencies = [
     "asyncpg>=0.32.0",
     "cryptography>=50.0.2",
-    "fastapi[standard]>=0.163.2",
+    "fastapi[standard]>=0.165.0",
     "joserfc>=1.8.0",
     "pillow>=13.0.0",
     "pydantic>=2.14.4",
     "pydantic-settings>=2.16.3",
-    "qstash>=3.4.0",
+    "qstash>=3.5.0",
     "sigaa-client",
     "sqlalchemy[asyncio]>=2.1.9",
     "tzdata>=2026.6",
     "unb-browser",
     "upstash-ratelimit>=1.2.0",
-    "upstash-redis>=1.9.0",
+    "upstash-redis>=1.10.0",
 ]
 
 [tool.uv.sources]

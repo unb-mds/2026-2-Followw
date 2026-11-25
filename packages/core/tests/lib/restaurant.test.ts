@@ -8,6 +8,7 @@ import {
     formatMenuDay,
     groupSalads,
     highlightMenu,
+    renameSections,
     insufficientMealBalance
 } from '../../src/lib/restaurant.ts';
 import { nowInBrasilia } from '../../src/lib/schedule.ts';
@@ -111,6 +112,19 @@ describe('groupSalads', () => {
     test('com uma salada só mantém as seções', () => {
         const sections = [section('salad_2'), section('fruit')];
         expect(groupSalads(sections)).toEqual(sections);
+    });
+});
+
+describe('renameSections', () => {
+    test('encurta o nome do refresco e mantém as demais seções', () => {
+        const sections = [
+            { key: 'drink' as const, name: 'Bebida (refresco de)', items: ['Acerola'] },
+            { key: 'dessert' as const, name: 'Sobremesa', items: ['Laranja'] }
+        ];
+        expect(renameSections(sections).map((s) => s.name)).toEqual([
+            'Refresco sabor',
+            'Sobremesa'
+        ]);
     });
 });
 

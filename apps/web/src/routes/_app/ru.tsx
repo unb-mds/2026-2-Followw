@@ -7,6 +7,7 @@ import {
     lastMenuDay,
     MEAL_TIMES,
     groupSalads,
+    renameSections,
     type MealKey
 } from '@followw/core/lib/restaurant.ts';
 import { addDays, nowInBrasilia, weekDays } from '@followw/core/lib/schedule.ts';
@@ -401,6 +402,29 @@ function RUPage() {
                     if (selected) select({ meal: selected.key });
                 }}
             >
+                <div className="flex items-center justify-between gap-2 lg:mb-2">
+                    <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={shiftDay(-1)}
+                        disabled={selectedDate <= firstDay}
+                        aria-label="Dia anterior"
+                    >
+                        <ChevronLeft />
+                    </Button>
+                    <MenuDayLabel date={selectedDate}>
+                        {formatMenuDay(selectedDate, today)} · {meal.start}–{meal.end}
+                    </MenuDayLabel>
+                    <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={shiftDay(1)}
+                        disabled={selectedDate >= lastMenuDay(today)}
+                        aria-label="Próximo dia"
+                    >
+                        <ChevronRight />
+                    </Button>
+                </div>
                 <TabsList
                     className="w-full group-data-horizontal/tabs:h-auto lg:hidden"
                     aria-label="Escolher refeição"
@@ -417,30 +441,7 @@ function RUPage() {
                     ))}
                 </TabsList>
 
-                <TabsContent value={selectedMeal} className="mt-4 lg:mt-0">
-                    <div className="mb-4 flex items-center justify-between gap-2">
-                        <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={shiftDay(-1)}
-                            disabled={selectedDate <= firstDay}
-                            aria-label="Dia anterior"
-                        >
-                            <ChevronLeft />
-                        </Button>
-                        <MenuDayLabel date={selectedDate}>
-                            {formatMenuDay(selectedDate, today)} · {meal.start}–{meal.end}
-                        </MenuDayLabel>
-                        <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={shiftDay(1)}
-                            disabled={selectedDate >= lastMenuDay(today)}
-                            aria-label="Próximo dia"
-                        >
-                            <ChevronRight />
-                        </Button>
-                    </div>
+                <TabsContent value={selectedMeal}>
                     <SlideSwitch
                         id={`${selectedDate}-${selectedMeal}-${campus}`}
                         direction={menuDirection}
@@ -490,21 +491,21 @@ function RUPage() {
 function MenuSkeleton() {
     return (
         <LoadingSkeleton label="Carregando cardápio..." className="lg:gap-4">
-            <Card className="lg:py-6">
-                <CardContent className="flex flex-col gap-4 lg:gap-6">
+            <Card className="py-3 lg:py-6">
+                <CardContent className="flex flex-col gap-3 px-3 lg:gap-6 lg:px-4">
                     <LinesSkeleton lines={['h-3 w-24', 'h-7 w-2/3 lg:h-9']} />
-                    <div className="flex flex-col gap-3 border-t border-border pt-4 lg:flex-row lg:gap-6 lg:pt-6">
+                    <div className="flex flex-col gap-3 border-t border-border pt-3 lg:flex-row lg:gap-6 lg:pt-6">
                         {repeat(2, () => (
                             <LinesSkeleton lines={['h-3 w-1/3', 'w-2/3']} />
                         ))}
                     </div>
                 </CardContent>
             </Card>
-            <div className="grid gap-3 sm:grid-cols-2 lg:gap-4">
+            <div className="flex flex-col divide-y divide-foreground/8 overflow-hidden rounded-2xl bg-card shadow-card ring-1 ring-foreground/8 lg:grid lg:grid-cols-2 lg:gap-4 lg:divide-y-0 lg:overflow-visible lg:rounded-none lg:bg-transparent lg:shadow-none lg:ring-0">
                 {repeat(4, () => (
                     <LinesSkeleton
-                        lines={['h-3 w-1/3', 'w-3/4', 'w-1/2']}
-                        className="gap-3 rounded-2xl bg-card p-4 shadow-card ring-1 ring-foreground/8 lg:p-5"
+                        lines={['h-3 w-1/3', 'w-3/4']}
+                        className="gap-2 px-3 py-2 lg:gap-3 lg:rounded-2xl lg:bg-card lg:p-5 lg:shadow-card lg:ring-1 lg:ring-foreground/8"
                     />
                 ))}
             </div>
@@ -572,13 +573,13 @@ function MenuDayLabel({ date, children }: { date: string; children: React.ReactN
 
 function MealDetails({ sections, cascade }: { sections: MenuSection[]; cascade: boolean }) {
     const { main, alternatives, others: ungrouped } = highlightMenu(sections);
-    const others = groupSalads(ungrouped);
+    const others = groupSalads(renameSections(ungrouped));
     const entrance = useEntrance();
     const offset = main ? 1 : 0;
 
     return (
         <m.div
-            className="flex flex-col gap-3 lg:gap-4"
+            className="flex flex-col gap-2 lg:gap-4"
             initial={cascade ? entrance.initial : false}
             animate={entrance.animate}
         >
@@ -588,7 +589,7 @@ function MealDetails({ sections, cascade }: { sections: MenuSection[]; cascade: 
                 </m.div>
             )}
             {others.length > 0 && (
-                <dl className="grid gap-3 sm:grid-cols-2 lg:gap-4">
+                <dl className="flex flex-col divide-y divide-foreground/8 overflow-hidden rounded-2xl bg-card shadow-card ring-1 ring-foreground/8 lg:grid lg:grid-cols-2 lg:gap-4 lg:divide-y-0 lg:overflow-visible lg:rounded-none lg:bg-transparent lg:shadow-none lg:ring-0">
                     {others.map((section, index) => {
                         const Icon = (section.key && SECTION_ICONS[section.key]) || UtensilsCrossed;
                         return (
@@ -596,13 +597,16 @@ function MealDetails({ sections, cascade }: { sections: MenuSection[]; cascade: 
                                 key={section.name}
                                 custom={offset + index}
                                 variants={rise}
-                                className="flex flex-col gap-3 rounded-2xl bg-card p-4 shadow-card ring-1 ring-foreground/8 lg:p-5"
+                                className="grid min-w-0 grid-cols-[auto_1fr] items-center gap-x-3 px-3 py-2 lg:gap-x-2 lg:gap-y-3 lg:rounded-2xl lg:bg-card lg:p-5 lg:shadow-card lg:ring-1 lg:ring-foreground/8"
                             >
-                                <dt className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                                    <Icon className="size-4 text-primary" aria-hidden="true" />
+                                <Icon
+                                    className="row-span-2 size-5 text-primary lg:row-span-1 lg:size-4"
+                                    aria-hidden="true"
+                                />
+                                <dt className="text-xs text-muted-foreground lg:font-medium lg:tracking-wide lg:uppercase">
                                     {section.name}
                                 </dt>
-                                <dd className="flex flex-col gap-1.5 text-base leading-snug font-medium text-foreground">
+                                <dd className="col-start-2 flex flex-col text-sm leading-snug font-medium text-foreground lg:col-span-2 lg:col-start-1 lg:gap-1.5 lg:text-base">
                                     {section.items.map((item) => (
                                         <p key={item}>{item}</p>
                                     ))}
@@ -619,14 +623,14 @@ function MealDetails({ sections, cascade }: { sections: MenuSection[]; cascade: 
 function MealHighlight({ main, alternatives }: { main: MenuSection; alternatives: MenuSection[] }) {
     return (
         <section aria-label={main.name}>
-            <Card className="bg-primary/5 ring-primary/30 lg:py-6">
-                <CardContent>
+            <Card className="bg-primary/5 py-3 ring-primary/30 lg:py-6">
+                <CardContent className="px-3 lg:px-4">
                     <p className="text-xs font-semibold text-primary">{main.name}</p>
                     <div className="mt-1 flex flex-col gap-1">
                         {main.items.map((item) => (
                             <p
                                 key={item}
-                                className="text-xl leading-tight font-bold tracking-tight lg:mt-3 lg:text-3xl lg:font-medium"
+                                className="text-lg leading-tight font-bold tracking-tight lg:mt-3 lg:text-3xl lg:font-medium"
                             >
                                 {item}
                             </p>
@@ -634,13 +638,16 @@ function MealHighlight({ main, alternatives }: { main: MenuSection; alternatives
                     </div>
 
                     {alternatives.length > 0 && (
-                        <ul className="desktop:*:flex-1 mt-4 flex flex-col gap-3 border-t border-primary/15 pt-4 lg:mt-6 lg:flex-row lg:gap-6 lg:pt-6">
+                        <ul className="desktop:*:flex-1 mt-3 flex flex-col gap-2 border-t border-primary/15 pt-3 lg:mt-6 lg:flex-row lg:gap-6 lg:pt-6">
                             {alternatives.map((section) => {
                                 const info = section.key ? ALTERNATIVES[section.key] : undefined;
                                 const Icon = info?.icon ?? Leaf;
                                 return (
-                                    <li key={section.name} className="flex items-center gap-3">
-                                        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                    <li
+                                        key={section.name}
+                                        className="flex items-center gap-2 lg:gap-3"
+                                    >
+                                        <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary lg:size-8">
                                             <Icon className="size-4" aria-hidden="true" />
                                         </span>
                                         <div className="min-w-0">
