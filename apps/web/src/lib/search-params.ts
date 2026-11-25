@@ -7,8 +7,8 @@ import { defaultParseSearch, defaultStringifySearch } from '@tanstack/react-rout
 import { useQueryStates } from 'nuqs';
 import {
     createLoader,
-    createStandardSchemaV1,
     createParser,
+    createStandardSchemaV1,
     type inferParserType,
     parseAsNativeArrayOf,
     parseAsBoolean,
@@ -17,6 +17,30 @@ import {
 } from 'nuqs/server';
 
 import { AUTHORIZATION_SEARCH_KEYS } from '#/lib/oauth-request';
+
+export const startTimes = SCHEDULE_BLOCKS.map((block) => block[0][0]);
+export const workloads = [15, 30, 45, 60, 75] as const;
+export const kindLabels: Record<SubjectKind, string> = {
+    mandatory: 'Obrigatórias',
+    optional: 'Optativas',
+    free: 'Livres'
+};
+
+const workloadFilter = createParser<number | '90+'>({
+    parse: (value) =>
+        value === '90+' ? value : (workloads.find((hours) => String(hours) === value) ?? null),
+    serialize: String
+});
+
+// Dias de segunda (0) a domingo (6), sem repetição e em ordem, como a API espera.
+const weekdaysFilter = createParser<string>({
+    parse: (value) => (/^[0-6]{1,7}$/.test(value) ? [...new Set(value)].toSorted().join('') : null),
+    serialize: String
+});
+
+/** O início de um bloco inclui os horários nele. */
+export const blockStarts = (start: string) =>
+    SCHEDULE_BLOCKS.find((block) => block[0][0] === start)?.map(([time]) => time) ?? [start];
 
 export const searchParsers = {
     hideUnavailable: parseAsBoolean.withDefault(false),
@@ -83,10 +107,6 @@ export function subjectsQueryFrom(
         hours: hours.length ? hours : undefined
     };
 }
-
-// Valores que o Router leria como JSON (números, listas) continuam texto.
-const textKeys = ['q', 'days'] as const;
-const arrayKeys = ['kind', 'start', 'hours'] as const;
 
 // OAuth usa valores opacos: zeros iniciais, JSON e parâmetros repetidos não podem mudar.
 const TEXT_SEARCH_KEYS = ['q', 'returnTo', ...AUTHORIZATION_SEARCH_KEYS];

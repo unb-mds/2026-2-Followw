@@ -20,7 +20,6 @@ let stopPersisting: () => void = noop;
 let warming: AbortController | undefined;
 let clearing: Promise<void> | undefined;
 
-// Recomendações dependem do histórico do momento e não vão para o disco.
 const recommendationHashes = new Set(
     [false, true].map((available) => hashKey(recommendationsQueryOptions(available).queryKey))
 );
@@ -29,7 +28,7 @@ const recommendationHashes = new Set(
 export function shouldPersistQuery(query: Query, now = Date.now()) {
     return (
         query.meta?.persist !== false &&
-        query.queryHash !== hashKey(recommendationsQueryOptions.queryKey) &&
+        !recommendationHashes.has(query.queryHash) &&
         query.state.data !== undefined &&
         now - query.state.dataUpdatedAt < PERSIST_MAX_AGE
     );

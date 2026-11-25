@@ -4,7 +4,6 @@ import { House, Search, User, UserRoundGroup, Utensils } from 'lucide-react';
 import { m } from 'motion/react';
 
 import { FollowwLogo } from '#/components/FollowwLogo';
-import { SearchPill } from '#/components/SearchPill';
 import { SettingsLink } from '#/components/SettingsLink';
 import { useRestaurantShortcut } from '#/components/useRestaurantShortcut';
 import { spring } from '#/lib/motion';
