@@ -98,13 +98,14 @@ def _codes(client, **params):
     return [item["code"] for item in response.json()["items"]]
 
 
-def test_dias_combinam_por_ou_e_o_horario_vale_no_dia_escolhido(client, database):
-    _schedules_catalog(database, ["2M12", "4T23", "24T23", "6T6"])
+def test_dias_mostram_so_turmas_contidas_nos_dias_escolhidos(client, database):
+    _schedules_catalog(database, ["2M12", "4T23", "24T23", "246M2", "6T6"])
 
+    assert _codes(client, days="0") == ["ADM0001"]
     assert _codes(client, days="02") == ["ADM0001", "ADM0002", "ADM0003"]
-    assert _codes(client, days="0") == ["ADM0001", "ADM0003"]
-    assert _codes(client, days="0", start="14:00") == ["ADM0003"]
-    assert _codes(client, days="4") == ["ADM0004"]
+    assert _codes(client, days="024") == [f"ADM000{index}" for index in range(1, 6)]
+    assert _codes(client, days="0", start="14:00") == []
+    assert _codes(client, days="02", start="14:00") == ["ADM0002", "ADM0003"]
 
 
 def test_horarios_de_inicio_combinam_por_ou(client, database):

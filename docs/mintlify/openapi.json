@@ -2326,10 +2326,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Turmas com aula em algum destes dias, de segunda (0) a domingo (6).",
+              "description": "Turmas cujas aulas ocorrem só nestes dias, de segunda (0) a domingo (6).",
               "title": "Days"
             },
-            "description": "Turmas com aula em algum destes dias, de segunda (0) a domingo (6)."
+            "description": "Turmas cujas aulas ocorrem só nestes dias, de segunda (0) a domingo (6)."
           },
           {
             "name": "start",

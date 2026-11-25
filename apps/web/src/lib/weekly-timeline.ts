@@ -1,82 +1,37 @@
-import type { GridRow } from '@followw/core/lib/planned-schedule.ts';
 import type { ClassTime } from '@followw/core/lib/schedule.ts';
 
 import { minutesOf } from '@followw/core/lib/schedule.ts';
 
-const INTERVAL_HEIGHT = 24;
+const PIXELS_PER_MINUTE = 0.8;
 
-export interface TimeSegment {
+export interface TimeRange {
     start: number;
     end: number;
-    top: number;
-    height: number;
-    omitted: boolean;
 }
 
 export const formatMinutes = (value: number) =>
     `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
 
-export function weeklyTimeline(times: ClassTime[]) {
-    const ranges: { start: number; end: number }[] = [];
-    for (const time of times
-        .filter(({ weekday }) => weekday >= 1 && weekday <= 6)
-        .toSorted((a, b) => a.start.localeCompare(b.start))) {
-        const start = minutesOf(time.start);
-        const end = minutesOf(time.end);
-        const last = ranges.at(-1);
-        if (last && start <= last.end) last.end = Math.max(last.end, end);
-        else ranges.push({ start, end });
-    }
-    if (!ranges.length) return [];
-    const segments: TimeSegment[] = [];
-    const push = (start: number, end: number, omitted: boolean) => {
-        if (end <= start) return;
-        const previous = segments.at(-1);
-        segments.push({
-            start,
-            end,
-            omitted,
-            top: previous ? previous.top + previous.height : 0,
-            height: omitted ? INTERVAL_HEIGHT : (end - start) * 0.8
-        });
+/** Da hora cheia da primeira aula à da última, de segunda a sábado; nulo sem aulas. */
+export function weeklyTimeline(times: ClassTime[]): TimeRange | null {
+    const week = times.filter(({ weekday }) => weekday >= 1 && weekday <= 6);
+    if (!week.length) return null;
+    return {
+        start: Math.floor(Math.min(...week.map(({ start }) => minutesOf(start))) / 60) * 60,
+        end: Math.ceil(Math.max(...week.map(({ end }) => minutesOf(end))) / 60) * 60
     };
-    let start = ranges[0].start;
-    let occupiedEnd = ranges[0].end;
-    for (const range of ranges.slice(1)) {
-        if (range.start - occupiedEnd >= 120) {
-            const end = Math.ceil(occupiedEnd / 60) * 60;
-            const next = Math.floor(range.start / 60) * 60;
-            push(Math.floor(start / 60) * 60, end, false);
-            push(end, next, true);
-            start = range.start;
-        }
-        occupiedEnd = range.end;
-    }
-    push(Math.floor(start / 60) * 60, Math.ceil(occupiedEnd / 60) * 60, false);
-    return segments;
 }
 
-export function timePosition(time: string, segments: TimeSegment[]) {
-    const value = minutesOf(time);
-    const segment = segments.find(({ start, end }) => start <= value && value <= end);
-    if (!segment) return 0;
-    return segment.top + ((value - segment.start) / (segment.end - segment.start)) * segment.height;
-}
+export const timePosition = (time: string, { start }: TimeRange) =>
+    (minutesOf(time) - start) * PIXELS_PER_MINUTE;
 
-export function timeTicks(segments: TimeSegment[]) {
-    const ticks = segments
-        .filter(({ omitted }) => !omitted)
-        .flatMap((segment) => {
-            const minutes = [];
-            for (let minute = segment.start; minute < segment.end; minute += 60)
-                minutes.push(minute);
-            return minutes.map((minute) => ({
-                minute,
-                top: segment.top + (minute - segment.start) * 0.8
-            }));
-        });
-    const last = segments.at(-1);
-    if (last) ticks.push({ minute: last.end, top: last.top + last.height });
+export const timelineHeight = ({ start, end }: TimeRange) => (end - start) * PIXELS_PER_MINUTE;
+
+export function timeTicks(range: TimeRange | null) {
+    if (!range) return [];
+    const ticks = [];
+    for (let minute = range.start; minute <= range.end; minute += 60)
+        ticks.push({ minute, top: (minute - range.start) * PIXELS_PER_MINUTE });
     return ticks;
 }
 
@@ -100,25 +55,4 @@ export function dayLanes<T extends ClassTime>(times: T[]) {
         const lanes = Math.max(...items.map(({ lane }) => lane)) + 1;
         return items.map((item) => ({ ...item, lanes }));
     });
-}
-
-export function compactGridRows(rows: GridRow[]): (GridRow & { omitted?: boolean })[] {
-    const result: (GridRow & { omitted?: boolean })[] = [];
-    for (let index = 0; index < rows.length;) {
-        const row = rows[index];
-        if (row.cells.some(Boolean)) {
-            result.push(row);
-            index++;
-            continue;
-        }
-        let end = index + 1;
-        while (end < rows.length && !rows[end].cells.some(Boolean)) end++;
-        const startTime = rows[index - 1]?.end ?? row.start;
-        const endTime = rows[end]?.start ?? rows[end - 1].end;
-        if (minutesOf(endTime) - minutesOf(startTime) >= 120)
-            result.push({ start: startTime, end: endTime, cells: [], omitted: true });
-        else result.push(...rows.slice(index, end));
-        index = end;
-    }
-    return result;
 }

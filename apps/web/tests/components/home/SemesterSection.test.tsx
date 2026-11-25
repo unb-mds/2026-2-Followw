@@ -37,7 +37,7 @@ test('mostra o semestre e as três próximas datas logo abaixo do RU', () => {
 
     expect(html.indexOf('aria-label="RU"')).toBeGreaterThanOrEqual(0);
     expect(html.indexOf('aria-label="Semestre"')).toBeGreaterThan(html.indexOf('aria-label="RU"'));
-    expect(html).toContain('Semestre 2026.2');
+    expect(html).toContain('<h3>2026.2</h3>');
     expect(html).toContain('aria-valuenow="83"');
     expect(html).toContain('Semana 16 de 19 · 21 dias até o fim das aulas');
     expect(Array.from(html.matchAll(/<time[^>]*>([^<]+)<\/time>/g), ([, date]) => date)).toEqual([

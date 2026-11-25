@@ -28,7 +28,7 @@ test('contém a rolagem horizontal e deixa a vertical seguir para o painel', () 
     expect(view.queryByText(/Intervalo de/)).toBeNull();
 });
 
-test('mostra a duração aproximada de cada faixa omitida na grade', () => {
+test('mantém a escala contínua, sem omitir intervalos entre as aulas', () => {
     const view = dom.testing.render(
         <WeeklySchedule
             label="Grade semanal"
@@ -43,7 +43,7 @@ test('mostra a duração aproximada de cada faixa omitida na grade', () => {
             ]}
         />
     );
-    expect(view.getAllByText('~ Intervalo de 4h')).toHaveLength(2);
+    expect(view.queryByText(/Intervalo de/)).toBeNull();
     expect(view.getByRole('figure', { name: /Ter, 14:00–15:50/ })).toBeTruthy();
-    expect(view.queryByText('12:00')).toBeNull();
+    expect(view.getByText('12:00')).toBeTruthy();
 });

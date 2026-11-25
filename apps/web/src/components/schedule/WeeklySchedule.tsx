@@ -1,5 +1,5 @@
 import { visibleGridDays } from '@followw/core/lib/planned-schedule.ts';
-import { formatDuration, parseSchedule } from '@followw/core/lib/schedule.ts';
+import { parseSchedule } from '@followw/core/lib/schedule.ts';
 import { useMemo } from 'react';
 
 import { cn } from '#/lib/shadcn';
@@ -7,6 +7,7 @@ import {
     dayLanes,
     formatMinutes,
     timePosition,
+    timelineHeight,
     timeTicks,
     weeklyTimeline
 } from '#/lib/weekly-timeline';
@@ -40,14 +41,12 @@ export function WeeklySchedule({
     );
     const days = visibleGridDays(times);
     const columns = { gridTemplateColumns: `3.25rem repeat(${days.length}, minmax(0, 1fr))` };
-    const segments = weeklyTimeline(times);
-    const ticks = timeTicks(segments);
-    const last = segments.at(-1);
-    const timelineHeight = last ? last.top + last.height : 0;
+    const range = weeklyTimeline(times);
+    const ticks = timeTicks(range);
 
     return (
         <section aria-label={label} className="min-w-0">
-            {segments.length > 0 && (
+            {range && (
                 <div className="weekly-scroll max-h-144 overflow-auto overscroll-x-contain rounded-xl border">
                     <div className="min-w-md">
                         <div
@@ -63,7 +62,10 @@ export function WeeklySchedule({
                         </div>
                         <div
                             className="relative grid"
-                            style={{ ...columns, height: timelineHeight + TIMELINE_INSET * 2 }}
+                            style={{
+                                ...columns,
+                                height: timelineHeight(range) + TIMELINE_INSET * 2
+                            }}
                         >
                             <div className="relative border-r border-foreground/10 bg-muted/50">
                                 {ticks.map(({ minute, top }) => (
@@ -80,14 +82,12 @@ export function WeeklySchedule({
                                 <div key={weekday} className="relative">
                                     {dayLanes(times.filter((time) => time.weekday === weekday)).map(
                                         ({ entry, start, end, lane, lanes }) => {
-                                            const top = timePosition(start, segments);
+                                            const top = timePosition(start, range);
                                             const style = {
                                                 top: top + TIMELINE_INSET + BLOCK_GAP,
                                                 height: Math.max(
                                                     16,
-                                                    timePosition(end, segments) -
-                                                        top -
-                                                        BLOCK_GAP * 2
+                                                    timePosition(end, range) - top - BLOCK_GAP * 2
                                                 ),
                                                 left: `calc(${(lane / lanes) * 100}% + ${BLOCK_GAP}px)`,
                                                 width: `calc(${100 / lanes}% - ${BLOCK_GAP * 2}px)`
@@ -135,17 +135,6 @@ export function WeeklySchedule({
                                     )}
                                 </div>
                             ))}
-                            {segments
-                                .filter(({ omitted }) => omitted)
-                                .map(({ start, end, top, height }) => (
-                                    <p
-                                        key={start}
-                                        className="absolute inset-x-0 flex items-center gap-3 pr-3 pl-13 text-xs text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border"
-                                        style={{ top: top + TIMELINE_INSET, height }}
-                                    >
-                                        ~ Intervalo de {formatDuration(end - start)}
-                                    </p>
-                                ))}
                         </div>
                     </div>
                 </div>

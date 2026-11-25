@@ -11,7 +11,7 @@ _CODE = re.compile(rf"{_BLOCK}(?: +{_BLOCK})*")
 
 @dataclass(frozen=True)
 class ScheduleFilter:
-    """Turmas com aula em algum dos dias que começa em algum dos horários."""
+    """Turmas só com aulas nos dias escolhidos, alguma começando num dos horários."""
 
     starts: frozenset[time] = frozenset()
     weekdays: frozenset[int] = frozenset()
@@ -23,13 +23,17 @@ class ScheduleFilter:
         )
 
     def matches(self, schedule: str) -> bool:
-        return any(
-            (not self.weekdays or weekday in self.weekdays)
+        sessions = Timetable.parse(schedule).sessions
+        return bool(sessions) and (
+            (not self.weekdays or sessions.keys() <= self.weekdays)
             and (
                 not self.starts
-                or any(period.start in self.starts for period in periods)
+                or any(
+                    period.start in self.starts
+                    for periods in sessions.values()
+                    for period in periods
+                )
             )
-            for weekday, periods in Timetable.parse(schedule).sessions.items()
         )
 
 

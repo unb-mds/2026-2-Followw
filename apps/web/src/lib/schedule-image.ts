@@ -2,8 +2,6 @@ import type { GridSemester, PlannedClass } from '@followw/core/lib/planned-sched
 
 import { describeSchedule } from '@followw/core/lib/schedule.ts';
 
-import { compactGridRows } from '#/lib/weekly-timeline';
-
 const WIDTH = 1200;
 const PADDING = 40;
 const CONTENT = WIDTH - PADDING * 2;
@@ -18,10 +16,6 @@ const details = (item: PlannedClass) =>
 const cardHeight = (item: PlannedClass) => (details(item) ? 100 : 76);
 
 export async function createSchedulePng(sections: GridSemester[]): Promise<Blob> {
-    const compact = sections.map((section) => ({
-        ...section,
-        rows: compactGridRows(section.rows)
-    }));
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Não foi possível gerar a imagem da grade.');
@@ -49,7 +43,7 @@ export async function createSchedulePng(sections: GridSemester[]): Promise<Blob>
 
     const height =
         PADDING +
-        compact.reduce(
+        sections.reduce(
             (sum, { classes, rows }) =>
                 sum +
                 TITLE_HEIGHT +
@@ -69,7 +63,7 @@ export async function createSchedulePng(sections: GridSemester[]): Promise<Blob>
     ctx.textBaseline = 'middle';
 
     let y = PADDING;
-    for (const { semester, classes, rows, days } of compact) {
+    for (const { semester, classes, rows, days } of sections) {
         ctx.textAlign = 'left';
         ctx.fillStyle = color('--foreground');
         font(30, 700);
@@ -92,20 +86,7 @@ export async function createSchedulePng(sections: GridSemester[]): Promise<Blob>
                 ctx.fillText(day, PADDING + columnWidth * (column + 0.5), y + ROW_HEIGHT / 2)
             );
             let rowY = y + ROW_HEIGHT;
-            for (const { start, end, cells, omitted } of rows) {
-                if (omitted) {
-                    ctx.fillStyle = color('--muted');
-                    ctx.fillRect(PADDING, rowY, CONTENT, ROW_HEIGHT);
-                    ctx.fillStyle = color('--muted-foreground');
-                    font(16, 500);
-                    ctx.fillText(
-                        `Intervalo omitido · ${start}–${end}`,
-                        WIDTH / 2,
-                        rowY + ROW_HEIGHT / 2
-                    );
-                    rowY += ROW_HEIGHT;
-                    continue;
-                }
+            for (const { start, end, cells } of rows) {
                 for (let column = 0; column < labels.length; column++) {
                     const x = PADDING + column * columnWidth;
                     const center = x + columnWidth / 2;

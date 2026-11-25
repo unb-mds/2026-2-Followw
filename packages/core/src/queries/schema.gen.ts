@@ -3720,7 +3720,7 @@ export interface operations {
                 code?: string | null;
                 /** @description ID ou sigla da unidade responsável. */
                 unit?: number | string | null;
-                /** @description Turmas com aula em algum destes dias, de segunda (0) a domingo (6). */
+                /** @description Turmas cujas aulas ocorrem só nestes dias, de segunda (0) a domingo (6). */
                 days?: string | null;
                 /** @description Turmas com aula começando em algum destes horários. */
                 start?: components["schemas"]["ClockTime"][] | null;

@@ -25,7 +25,7 @@ class SubjectFilters(BaseModel):
     days: str | None = Field(
         None,
         pattern=r"^[0-6]{1,7}$",
-        description="Turmas com aula em algum destes dias, de segunda (0) a domingo (6).",
+        description="Turmas cujas aulas ocorrem só nestes dias, de segunda (0) a domingo (6).",
     )
     start: list[ClockTime] | None = Field(
         None, description="Turmas com aula começando em algum destes horários."

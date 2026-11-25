@@ -42,7 +42,7 @@ export function SemesterSection({ today, loggedIn }: { today: string; loggedIn: 
             <Card size="sm" className="gap-3 p-4 text-base lg:p-6">
                 <div className="flex flex-col gap-1.5">
                     <div className="flex items-center justify-between gap-2 font-medium">
-                        <h3>Semestre {semester.semester}</h3>
+                        <h3>{semester.semester}</h3>
                         <span aria-hidden="true" className="text-primary tabular-nums">
                             {percent}%
                         </span>
