@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+from uuid import uuid4
 
 from fastapi import Request, Response
 from joserfc import jwt
@@ -62,7 +63,11 @@ def read_refresh_cookie(request: Request) -> WebSession | None:
         return None
     try:
         return WebSession.model_validate(
-            {"credentials": payload, "session_id": payload.get("session_id")}
+            {
+                "credentials": payload,
+                # Cookies emitidos antes do session_id ganham um na próxima gravação.
+                "session_id": payload.get("session_id") or str(uuid4()),
+            }
         )
     except ValidationError:
         return None

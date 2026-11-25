@@ -111,6 +111,16 @@ def test_refresh_cookie_devolve_as_credenciais(ler_cookies):
     assert lidas.credentials.password.get_secret_value() == SENHA
 
 
+def test_refresh_cookie_antigo_sem_session_id_continua_valido():
+    token = encrypt_cookie(REFRESH_COOKIE_NAME, _refresh_claims())
+
+    lida = read_refresh_cookie(_request(**{REFRESH_COOKIE_NAME: token}))
+
+    assert lida is not None
+    assert lida.credentials == CREDENCIAIS
+    assert lida.session_id
+
+
 def test_cookies_sao_jwe_compacto_com_aes_gcm(ler_cookies):
     response = Response()
     set_access_cookie(response, "app14~TOKEN1", CREDENCIAIS.registration)
