@@ -39,7 +39,7 @@ const STATEMENT_STALE_TIME = 90 * 60_000;
 export const statementQueryOptions = (registration: string) =>
     accountQuery(api.queryOptions('get', '/me/ru-statement'), registration);
 
-const hasValidCard = (data: RestaurantCredentials | undefined) =>
+export const hasValidCard = (data: RestaurantCredentials | undefined) =>
     Boolean(data && !cardIsExpired(data.valid_until, nowInBrasilia().date));
 
 // Dentro da validade, a carteirinha salva não é refeita automaticamente.

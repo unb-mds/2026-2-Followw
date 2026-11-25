@@ -1,5 +1,6 @@
 import type { Query, QueryClient } from '@tanstack/react-query';
 
+import { credentialsQueryOptions } from '@followw/core/queries/restaurant-account.ts';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { noop } from '@tanstack/react-query';
 import { persistQueryClient, persistQueryClientSave } from '@tanstack/react-query-persist-client';
@@ -14,6 +15,7 @@ import {
 // também é o gcTime das queries no navegador, senão a query sai do cache antes de vencer no disco
 export const PERSIST_MAX_AGE = 14 * 24 * 60 * 60 * 1000;
 
+const CARD_PATH = credentialsQueryOptions('').queryKey[1];
 const QUERY_CACHE_KEY = 'followw-query-cache';
 let stopPersisting: () => void = noop;
 let warming: AbortController | undefined;
@@ -58,7 +60,7 @@ export function persistQueryCache(queryClient: QueryClient, onRestored: () => vo
                     state.error = null;
                     state.fetchFailureReason = null;
                     state.fetchFailureCount = 0;
-                    if (queryKey[1] === '/me/ru-token') state.isInvalidated = false;
+                    if (queryKey[1] === CARD_PATH) state.isInvalidated = false;
                 }
             }
             return JSON.stringify(snapshot);

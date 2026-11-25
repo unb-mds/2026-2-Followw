@@ -118,6 +118,39 @@ describe('useStudentCard', () => {
         }
     });
 
+    test('busca a carteirinha de novo quando outra aba registrou o vencimento', async () => {
+        const registration = '202688888';
+        const options = credentialsQueryOptions(registration);
+        const renewed = { token: 'qr-renovado', valid_until: '2028-03-01' };
+        let tokenRequests = 0;
+        const middleware: Middleware = {
+            onRequest: () => {
+                tokenRequests++;
+                return Response.json(renewed);
+            }
+        };
+        apiClient.use(middleware);
+        localStorageRepository.set(STORAGE_KEYS.STUDENT_CARD, {
+            registration,
+            updatedAt: Date.now()
+        });
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        client.setQueryData(
+            options.queryKey,
+            { token: 'qr-antigo', valid_until: '2027-03-01' },
+            { updatedAt: Date.now() - 86400000 }
+        );
+        try {
+            const view = mountCard(registration, client);
+            await dom.testing.waitFor(() => expect(view.result.current.data).toEqual(renewed));
+            expect(tokenRequests).toBe(1);
+            view.unmount();
+        } finally {
+            await clearSession(client);
+            apiClient.eject(middleware);
+        }
+    });
+
     test('impede que uma aba desatualizada restaure o QR após resposta de vencimento do SIGAA, preservando a cópia em falha de rede', async () => {
         const registration = '202644444';
         const options = credentialsQueryOptions(registration);

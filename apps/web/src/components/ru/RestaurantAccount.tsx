@@ -10,6 +10,7 @@ import { cardIsExpired, insufficientMealBalance } from '@followw/core/lib/restau
 import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import {
     credentialsQueryOptions,
+    hasValidCard,
     statementQueryOptions
 } from '@followw/core/queries/restaurant-account.ts';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -81,13 +82,10 @@ export function RestaurantAccount({
         []
     );
 
-    const hasValidCard = Boolean(
-        credentials.data && !cardIsExpired(credentials.data.valid_until, nowInBrasilia().date)
-    );
+    const validCard = hasValidCard(credentials.data);
     const statementRefreshDisabled = coolingDown || refreshing || statement.isFetching;
     const credentialsRefreshDisabled = coolingDown || refreshing || credentials.isFetching;
-    const refreshDisabled =
-        statementRefreshDisabled || (!hasValidCard && credentialsRefreshDisabled);
+    const refreshDisabled = statementRefreshDisabled || (!validCard && credentialsRefreshDisabled);
     const refresh = async (target: 'statement' | 'credentials' | 'all' = 'all') => {
         const disabled =
             target === 'statement'
@@ -107,7 +105,7 @@ export function RestaurantAccount({
             if (target !== 'credentials') {
                 pending.push(refreshQuery(queryClient, statementOptions, { retry: false }));
             }
-            if (target === 'credentials' || (target === 'all' && !hasValidCard)) {
+            if (target === 'credentials' || (target === 'all' && !validCard)) {
                 pending.push(refreshQuery(queryClient, credentialsOptions, { retry: false }));
             }
             await Promise.allSettled(pending);
@@ -119,7 +117,7 @@ export function RestaurantAccount({
     const cardDrawer = (
         <StudentCardDrawer
             credentials={credentials}
-            hasValidCard={hasValidCard}
+            cardIsValid={validCard}
             open={cardOpen}
             onOpenChange={setCardOpen}
             onRetry={() => refresh('credentials')}
@@ -184,14 +182,14 @@ export function RestaurantAccount({
 
 function StudentCardDrawer({
     credentials,
-    hasValidCard,
+    cardIsValid,
     open,
     onOpenChange,
     onRetry,
     retryDisabled
 }: {
     credentials: UseQueryResult<RestaurantCredentials>;
-    hasValidCard: boolean;
+    cardIsValid: boolean;
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onRetry: () => Promise<void>;
@@ -231,7 +229,7 @@ function StudentCardDrawer({
                             <Skeleton className="h-3 w-32" />
                         </LoadingSkeleton>
                     )}
-                    {!hasValidCard && (
+                    {!cardIsValid && (
                         <AccountStatus
                             query={credentials}
                             hasData={Boolean(credentials.data)}
