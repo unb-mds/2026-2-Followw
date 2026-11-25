@@ -87,6 +87,7 @@ export default function CourseFlowScreen() {
         <CurriculumView
             key={course.id}
             courseId={course.id}
+            courseName={course.name}
             entrySemester={entrySemester}
             completedSubjects={user?.completed_subjects}
             currentPeriod={currentPeriod}

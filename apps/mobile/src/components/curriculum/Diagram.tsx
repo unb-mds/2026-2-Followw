@@ -104,7 +104,7 @@ export function Diagram({
                     {notices}
                 </View>
                 <View className="bg-background px-4 pt-2 pb-2">
-                    <View className="w-full max-w-2xl flex-row items-center justify-between gap-4 self-center rounded-xl bg-muted/60 p-1">
+                    <View className="w-full max-w-2xl flex-row items-center justify-between gap-4 self-center rounded-xl bg-muted/60 p-2">
                         <Button
                             variant="outline"
                             size="icon"

@@ -8,17 +8,22 @@ import { curriculumQueryOptions } from '@followw/core/queries/curriculum.ts';
 import { ApiError } from '@followw/core/queries/errors.ts';
 import { refreshQuery } from '@followw/core/queries/refresh.ts';
 import { useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { Download } from 'lucide-react-native';
+import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
+import { CurriculumImageExport } from '@/components/curriculum/CurriculumImage';
 import { Diagram } from '@/components/curriculum/Diagram';
 import { QueryState } from '@/components/QueryState';
 import { Screen } from '@/components/Screen';
+import { Button } from '@/components/ui/button';
+import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { usePullToRefresh } from '@/lib/pull-to-refresh';
 
 export function CurriculumView({
     courseId,
+    courseName,
     entrySemester,
     completedSubjects,
     currentPeriod,
@@ -28,6 +33,7 @@ export function CurriculumView({
     header
 }: {
     courseId: number;
+    courseName: string;
     entrySemester: string;
     completedSubjects?: string[];
     currentPeriod: number | null;
@@ -39,6 +45,8 @@ export function CurriculumView({
     const options = curriculumQueryOptions(courseId, entrySemester);
     const matrix = useQuery(options);
     const history = useQuery({ ...allClassroomsQueryOptions, enabled: loggedIn });
+    const [downloading, setDownloading] = useState(false);
+    const [downloadError, setDownloadError] = useState(false);
     const state = useMemo(
         () =>
             loggedIn ? academicState(history.data, currentPeriod, completedSubjects) : undefined,
@@ -87,6 +95,39 @@ export function CurriculumView({
                 <Text className="text-sm">
                     Nenhuma disciplina nos períodos regulares desta matriz.
                 </Text>
+            )}
+            {model && model.subjects.length > 0 && (
+                <View className="flex-row flex-wrap items-center gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={downloading}
+                        onPress={() => {
+                            setDownloadError(false);
+                            setDownloading(true);
+                        }}
+                    >
+                        <Icon as={Download} className="size-4" />
+                        <Text>{downloading ? 'Preparando arquivo…' : 'Baixar fluxograma'}</Text>
+                    </Button>
+                    {downloadError && (
+                        <Text role="alert" className="text-sm text-destructive">
+                            Não foi possível baixar o fluxograma. Tente novamente.
+                        </Text>
+                    )}
+                </View>
+            )}
+            {downloading && model && matrix.data && (
+                <CurriculumImageExport
+                    model={model}
+                    name={courseName}
+                    matrix={`Matriz ${matrix.data.code} · ${matrix.data.valid_from}`}
+                    state={state}
+                    onDone={(failed) => {
+                        setDownloading(false);
+                        setDownloadError(failed);
+                    }}
+                />
             )}
         </>
     );
