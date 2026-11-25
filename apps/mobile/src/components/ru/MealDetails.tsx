@@ -1,7 +1,7 @@
 import type { MenuSection } from '@followw/core/queries/restaurant.ts';
 import type { LucideIcon } from 'lucide-react-native';
 
-import { groupSalads, highlightMenu } from '@followw/core/lib/restaurant.ts';
+import { groupSalads, highlightMenu, renameSections } from '@followw/core/lib/restaurant.ts';
 import {
     Apple,
     Carrot,
@@ -22,6 +22,7 @@ import { View } from 'react-native';
 import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
+import { cn } from '@/lib/utils';
 
 const ALTERNATIVES: Partial<
     Record<NonNullable<MenuSection['key']>, { label: string; icon: LucideIcon }>
@@ -51,35 +52,33 @@ const SECTION_ICONS: Partial<Record<NonNullable<MenuSection['key']>, LucideIcon>
 
 export function MealDetails({ sections }: { sections: MenuSection[] }) {
     const { main, alternatives, others: ungrouped } = highlightMenu(sections);
-    const others = groupSalads(ungrouped);
+    const others = groupSalads(renameSections(ungrouped));
 
     return (
-        <View className="gap-3">
+        <View className="gap-2">
             {main && <MealHighlight main={main} alternatives={alternatives} />}
             {others.length > 0 && (
-                <View className="gap-3">
-                    {others.map((section) => (
+                <View className="overflow-hidden rounded-2xl border border-foreground/10 bg-card shadow-sm shadow-black/5">
+                    {others.map((section, index) => (
                         <View
                             key={section.name}
-                            className="gap-3 rounded-2xl border border-foreground/10 bg-card p-4 shadow-sm shadow-black/5"
+                            className={cn(
+                                'flex-row items-center gap-3 px-3 py-2',
+                                index > 0 && 'border-t border-foreground/8'
+                            )}
                         >
-                            <View className="flex-row items-center gap-2">
-                                <Icon
-                                    as={
-                                        (section.key && SECTION_ICONS[section.key]) ||
-                                        UtensilsCrossed
-                                    }
-                                    className="size-4 text-primary"
-                                />
-                                <Text className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                            <Icon
+                                as={(section.key && SECTION_ICONS[section.key]) || UtensilsCrossed}
+                                className="size-5 text-primary"
+                            />
+                            <View className="min-w-0 flex-1">
+                                <Text className="text-xs text-muted-foreground">
                                     {section.name}
                                 </Text>
-                            </View>
-                            <View className="gap-1.5">
                                 {section.items.map((item) => (
                                     <Text
                                         key={item}
-                                        className="text-base leading-snug font-medium text-foreground"
+                                        className="text-sm leading-snug font-medium text-foreground"
                                     >
                                         {item}
                                     </Text>
@@ -96,14 +95,14 @@ export function MealDetails({ sections }: { sections: MenuSection[] }) {
 function MealHighlight({ main, alternatives }: { main: MenuSection; alternatives: MenuSection[] }) {
     return (
         <View accessibilityLabel={main.name}>
-            <Card className="border-primary/30 bg-primary/5">
-                <CardContent>
+            <Card className="border-primary/30 bg-primary/5 py-3">
+                <CardContent className="px-3">
                     <Text className="text-xs font-semibold text-primary">{main.name}</Text>
                     <View className="mt-1 gap-1">
                         {main.items.map((item) => (
                             <Text
                                 key={item}
-                                className="text-xl leading-tight font-bold tracking-tight"
+                                className="text-lg leading-tight font-bold tracking-tight"
                             >
                                 {item}
                             </Text>
@@ -111,15 +110,15 @@ function MealHighlight({ main, alternatives }: { main: MenuSection; alternatives
                     </View>
 
                     {alternatives.length > 0 && (
-                        <View className="mt-4 gap-3 border-t border-primary/15 pt-4">
+                        <View className="mt-3 gap-2 border-t border-primary/15 pt-3">
                             {alternatives.map((section) => {
                                 const info = section.key ? ALTERNATIVES[section.key] : undefined;
                                 return (
                                     <View
                                         key={section.name}
-                                        className="flex-row items-center gap-3"
+                                        className="flex-row items-center gap-2"
                                     >
-                                        <View className="size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                                        <View className="size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10">
                                             <Icon
                                                 as={info?.icon ?? Leaf}
                                                 className="size-4 text-primary"

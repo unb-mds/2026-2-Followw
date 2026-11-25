@@ -7,14 +7,16 @@ export const STORAGE_KEYS = {
     THEME: 'theme',
     SCHEDULE: 'schedule',
     ACADEMIC_SIMULATION: 'academic-simulation',
-    SEEN_NEWS: 'seen-news'
+    SEEN_NEWS: 'seen-news',
+    STUDENT_CARD: 'student-card'
 } as const;
 
 // dados da conta, apagados ao trocar de sessão
 const ACCOUNT_KEYS: string[] = [
     STORAGE_KEYS.SCHEDULE,
     STORAGE_KEYS.SEEN_NEWS,
-    STORAGE_KEYS.ACADEMIC_SIMULATION
+    STORAGE_KEYS.ACADEMIC_SIMULATION,
+    STORAGE_KEYS.STUDENT_CARD
 ];
 const stores = new Map<string, { clear: () => void }>();
 

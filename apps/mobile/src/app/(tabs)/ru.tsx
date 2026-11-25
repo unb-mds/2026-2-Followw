@@ -12,6 +12,7 @@ import { meQueryOptions } from '@followw/core/queries/me.ts';
 import { refreshQuery } from '@followw/core/queries/refresh.ts';
 import {
     credentialsQueryOptions,
+    hasValidCard,
     statementQueryOptions
 } from '@followw/core/queries/restaurant-account.ts';
 import {
@@ -48,6 +49,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Text } from '@/components/ui/text';
 import { WeekDayPicker } from '@/components/WeekDayPicker';
 import { share } from '@/lib/share';
+import { cn } from '@/lib/utils';
 import { shareMenuImage } from '@/queries/restaurant-share';
 
 export { ErrorState as ErrorBoundary } from '@/components/ErrorState';
@@ -147,7 +149,13 @@ export default function RUPage() {
                     Promise.all([
                         refreshQuery(queryClient, menuOptions),
                         user && refreshQuery(queryClient, statementQueryOptions(user.registration)),
+                        // dentro da validade, a carteirinha só é refeita pelo próprio botão dela
                         user &&
+                            !hasValidCard(
+                                queryClient.getQueryData(
+                                    credentialsQueryOptions(user.registration).queryKey
+                                )
+                            ) &&
                             refreshQuery(queryClient, credentialsQueryOptions(user.registration))
                     ])
                 }
@@ -204,6 +212,32 @@ export default function RUPage() {
                         if (selected) select({ meal: selected.key });
                     }}
                 >
+                    <View className="flex-row items-center justify-between gap-2">
+                        <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onPress={shiftDay(-1)}
+                            disabled={selectedDate <= firstDay}
+                            accessibilityLabel="Dia anterior"
+                        >
+                            <Icon as={ChevronLeft} className="size-4" />
+                        </Button>
+                        <Text
+                            className="text-xs font-bold text-muted-foreground"
+                            accessibilityLiveRegion="polite"
+                        >
+                            {formatMenuDay(selectedDate, today)} · {meal.start}–{meal.end}
+                        </Text>
+                        <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onPress={shiftDay(1)}
+                            disabled={selectedDate >= lastMenuDay(today)}
+                            accessibilityLabel="Próximo dia"
+                        >
+                            <Icon as={ChevronRight} className="size-4" />
+                        </Button>
+                    </View>
                     <TabsList className="h-auto w-full" accessibilityLabel="Escolher refeição">
                         {MEALS.map((item) => (
                             <TabsTrigger
@@ -217,33 +251,7 @@ export default function RUPage() {
                         ))}
                     </TabsList>
 
-                    <TabsContent value={selectedMeal} className="mt-4">
-                        <View className="mb-4 flex-row items-center justify-between gap-2">
-                            <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                onPress={shiftDay(-1)}
-                                disabled={selectedDate <= firstDay}
-                                accessibilityLabel="Dia anterior"
-                            >
-                                <Icon as={ChevronLeft} className="size-4" />
-                            </Button>
-                            <Text
-                                className="text-xs font-bold text-muted-foreground"
-                                accessibilityLiveRegion="polite"
-                            >
-                                {formatMenuDay(selectedDate, today)} · {meal.start}–{meal.end}
-                            </Text>
-                            <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                onPress={shiftDay(1)}
-                                disabled={selectedDate >= lastMenuDay(today)}
-                                accessibilityLabel="Próximo dia"
-                            >
-                                <Icon as={ChevronRight} className="size-4" />
-                            </Button>
-                        </View>
+                    <TabsContent value={selectedMeal}>
                         {sections.length > 0 ? (
                             <MealDetails sections={sections} />
                         ) : isPending ? (
@@ -328,22 +336,27 @@ export default function RUPage() {
 function MenuSkeleton() {
     return (
         <LoadingSkeleton label="Carregando cardápio...">
-            <Card>
-                <CardContent className="gap-4">
+            <Card className="py-3">
+                <CardContent className="gap-3 px-3">
                     <LinesSkeleton lines={['h-3 w-24', 'h-7 w-2/3']} />
-                    <View className="gap-3 border-t border-border pt-4">
+                    <View className="gap-3 border-t border-border pt-3">
                         {repeat(2, () => (
                             <LinesSkeleton lines={['h-3 w-1/3', 'w-2/3']} />
                         ))}
                     </View>
                 </CardContent>
             </Card>
-            {repeat(4, () => (
-                <LinesSkeleton
-                    lines={['h-3 w-1/3', 'w-3/4', 'w-1/2']}
-                    className="gap-3 rounded-2xl border border-foreground/10 bg-card p-4"
-                />
-            ))}
+            <View className="overflow-hidden rounded-2xl border border-foreground/10 bg-card">
+                {repeat(4, (index) => (
+                    <LinesSkeleton
+                        lines={['h-3 w-1/3', 'w-3/4']}
+                        className={cn(
+                            'gap-2 px-3 py-2',
+                            index > 0 && 'border-t border-foreground/8'
+                        )}
+                    />
+                ))}
+            </View>
         </LoadingSkeleton>
     );
 }

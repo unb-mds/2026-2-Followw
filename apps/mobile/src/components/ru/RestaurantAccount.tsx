@@ -16,6 +16,7 @@ import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { refreshQuery } from '@followw/core/queries/refresh.ts';
 import {
     credentialsQueryOptions,
+    hasValidCard,
     statementQueryOptions
 } from '@followw/core/queries/restaurant-account.ts';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -48,6 +49,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Text } from '@/components/ui/text';
 import { useColor } from '@/lib/colors';
 import { cn } from '@/lib/utils';
+import { useStudentCard } from '@/queries/student-card';
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const dateTime = new Intl.DateTimeFormat('pt-BR', {
@@ -68,7 +70,7 @@ export function RestaurantAccount({
     const statementOptions = statementQueryOptions(registration);
     const credentialsOptions = credentialsQueryOptions(registration);
     const statement = useQuery(statementOptions);
-    const credentials = useQuery(credentialsOptions);
+    const credentials = useStudentCard(registration);
     const [refreshing, setRefreshing] = useState(false);
     const [coolingDown, setCoolingDown] = useState(false);
     const cooldownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -79,33 +81,46 @@ export function RestaurantAccount({
         []
     );
 
-    const refreshDisabled =
-        coolingDown || refreshing || statement.isFetching || credentials.isFetching;
+    const validCard = hasValidCard(credentials.data);
+    const statementRefreshDisabled = coolingDown || refreshing || statement.isFetching;
+    const credentialsRefreshDisabled = coolingDown || refreshing || credentials.isFetching;
+    const refreshDisabled = statementRefreshDisabled || (!validCard && credentialsRefreshDisabled);
     const refresh = async (target: 'statement' | 'credentials' | 'all' = 'all') => {
-        if (cooldownTimer.current !== null || refreshDisabled) return;
+        const disabled =
+            target === 'statement'
+                ? statementRefreshDisabled
+                : target === 'credentials'
+                  ? credentialsRefreshDisabled
+                  : refreshDisabled;
+        if (cooldownTimer.current !== null || disabled) return;
         cooldownTimer.current = setTimeout(() => {
             cooldownTimer.current = null;
             setCoolingDown(false);
         }, 10_000);
         setCoolingDown(true);
         setRefreshing(true);
-        const pending: Promise<unknown>[] = [];
-        if (target !== 'credentials') {
-            pending.push(refreshQuery(queryClient, statementOptions, { retry: false }));
+        try {
+            const pending: Promise<unknown>[] = [];
+            if (target !== 'credentials') {
+                pending.push(refreshQuery(queryClient, statementOptions, { retry: false }));
+            }
+            // dentro da validade, a carteirinha só é refeita pelo próprio botão dela
+            if (target === 'credentials' || (target === 'all' && !validCard)) {
+                pending.push(refreshQuery(queryClient, credentialsOptions, { retry: false }));
+            }
+            await Promise.allSettled(pending);
+        } finally {
+            setRefreshing(false);
         }
-        if (target !== 'statement') {
-            pending.push(refreshQuery(queryClient, credentialsOptions, { retry: false }));
-        }
-        await Promise.allSettled(pending);
-        setRefreshing(false);
     };
 
     const cardDrawer = (
         <StudentCardDrawer
             credentials={credentials}
+            cardIsValid={validCard}
             requested={openCard}
             onRetry={() => refresh('credentials')}
-            retryDisabled={refreshDisabled}
+            retryDisabled={credentialsRefreshDisabled}
         />
     );
 
@@ -116,7 +131,7 @@ export function RestaurantAccount({
             hasData={Boolean(statement.data)}
             label="saldo e extrato"
             onRetry={() => refresh('statement')}
-            retryDisabled={refreshDisabled}
+            retryDisabled={statementRefreshDisabled}
         />
     );
 
@@ -171,11 +186,13 @@ export function RestaurantAccount({
 
 function StudentCardDrawer({
     credentials,
+    cardIsValid,
     requested,
     onRetry,
     retryDisabled
 }: {
     credentials: UseQueryResult<RestaurantCredentials>;
+    cardIsValid: boolean;
     requested: boolean;
     onRetry: () => Promise<void>;
     retryDisabled: boolean;
@@ -188,10 +205,11 @@ function StudentCardDrawer({
             <DrawerTrigger asChild>
                 <Button
                     size="icon"
-                    className="size-14 rounded-2xl bg-foreground active:bg-foreground/90"
+                    variant="secondary"
+                    className="size-14 rounded-2xl"
                     accessibilityLabel="Ver QR code da carteirinha"
                 >
-                    <Icon as={QrCode} className="size-6 text-background" />
+                    <Icon as={QrCode} className="size-6" />
                 </Button>
             </DrawerTrigger>
             <DrawerContent className="mx-auto max-w-lg">
@@ -213,15 +231,17 @@ function StudentCardDrawer({
                             <Skeleton className="h-3 w-32" />
                         </LoadingSkeleton>
                     )}
-                    <AccountStatus
-                        query={credentials}
-                        hasData={Boolean(credentials.data)}
-                        label="carteirinha"
-                        failure={documentRefusal(credentials.error)}
-                        showUpdatedAt={false}
-                        onRetry={onRetry}
-                        retryDisabled={retryDisabled}
-                    />
+                    {!cardIsValid && (
+                        <AccountStatus
+                            query={credentials}
+                            hasData={Boolean(credentials.data)}
+                            label="carteirinha"
+                            failure={documentRefusal(credentials.error)}
+                            showUpdatedAt={false}
+                            onRetry={onRetry}
+                            retryDisabled={retryDisabled}
+                        />
+                    )}
                 </ScrollView>
                 <DrawerFooter>
                     <DrawerClose asChild>
