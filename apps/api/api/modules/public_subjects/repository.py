@@ -1,7 +1,21 @@
-from collections.abc import Sequence
+from collections.abc import Collection, Mapping, Sequence
+from dataclasses import dataclass
+from typing import Any
 from uuid import UUID
 
-from sqlalchemy import ColumnElement, and_, case, func, literal_column, or_, select
+from sqlalchemy import (
+    ColumnElement,
+    Select,
+    and_,
+    case,
+    func,
+    literal,
+    literal_column,
+    or_,
+    select,
+    true,
+)
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, selectinload, undefer
 
@@ -14,6 +28,25 @@ from api.modules.public_subjects.schedule_search import ScheduleSearch
 LONG_WORKLOAD = 90
 SUBJECTS_PAGE_SIZE = 25
 UNRANKED_SUBJECT_PRIORITY = 2
+
+
+@dataclass(frozen=True)
+class SubjectCriteria:
+    """Os filtros de matérias; as turmas são sempre as de `semester`."""
+
+    semester: str | None
+    q: str | None = None
+    code: str | None = None
+    codes: Collection[str] | None = None
+    excluded_codes: Collection[str] = ()
+    unit_id: int | None = None
+    hours: Sequence[WorkloadFilter] = ()
+    schedules: Sequence[ScheduleSearch] = ()
+    offered: bool = False
+    # Só turmas com vaga; com `done` (cumpridas ou em andamento), também os pré-requisitos.
+    available: bool = False
+    done: Collection[str] | None = None
+    priority: Mapping[str, int] | None = None
 
 
 def _subject_term(term: str) -> ColumnElement[bool]:
@@ -85,20 +118,15 @@ class SubjectCatalogRepository:
         ]
 
     async def subject_names(self, codes: set[str]) -> dict[str, str]:
-        references = await self.subject_references(codes)
-        return {code: name for code, (name, _) in references.items()}
-
-    async def subject_references(
-        self, codes: set[str]
-    ) -> dict[str, tuple[str, list[list[str]] | None]]:
         if not codes:
             return {}
-        rows = await self._session.execute(
-            select(Subject.code, Subject.name, Subject.equivalences).where(
-                Subject.code.in_(codes)
-            )
+        return dict(
+            (
+                await self._session.execute(
+                    select(Subject.code, Subject.name).where(Subject.code.in_(codes))
+                )
+            ).all()
         )
-        return {code: (name, equivalences) for code, name, equivalences in rows}
 
     async def latest_semester(self) -> str | None:
         return await self._session.scalar(select(func.max(Classroom.semester)))
@@ -151,74 +179,144 @@ class SubjectCatalogRepository:
             )
         )
 
-    async def list_subjects(
-        self,
-        *,
-        q: str | None = None,
-        code: str | None = None,
-        codes: set[str] | None = None,
-        unit_id: int | None = None,
-        semester: str | None = None,
-        schedules: Sequence[ScheduleSearch] = (),
-        hours: Sequence[WorkloadFilter] = (),
-        excluded_codes: set[str] | None = None,
-        offered: bool = False,
-        priority: dict[str, int] | None = None,
-        page: int | None = None,
+    async def list_subjects(self, criteria: SubjectCriteria) -> list[Subject]:
+        return list(await self._session.scalars(await self._query(criteria)))
+
+    async def page_subjects(
+        self, criteria: SubjectCriteria, page: int
     ) -> tuple[list[Subject], int]:
-        """Cada componente com as turmas de `semester` (o mais recente gravado, se omitido)."""
-        semester = semester or await self.latest_semester()
-        query = select(Subject)
-        if code is not None:
-            query = query.where(Subject.code == code)
-        if codes is not None:
-            query = query.where(Subject.code.in_(codes))
-        if unit_id is not None:
-            query = query.where(Subject.unit_id == unit_id)
-        if hours:
-            query = query.where(
-                or_(
-                    *(
-                        Subject.hours >= LONG_WORKLOAD
-                        if value == "90+"
-                        else Subject.hours == value
-                        for value in hours
+        query = await self._query(criteria)
+        return await paginate(self._session, query, page, SUBJECTS_PAGE_SIZE)
+
+    async def _query(self, criteria: SubjectCriteria) -> Select[tuple[Subject]]:
+        """Cada componente com as turmas de `criteria.semester` que casam com a busca."""
+        offer = [Classroom.semester == criteria.semester]
+        if criteria.schedules:
+            offer.append(
+                Classroom.schedule.in_(
+                    await self._matching_schedules(
+                        criteria.semester, criteria.schedules
                     )
                 )
             )
-        if excluded_codes:
-            query = query.where(Subject.code.not_in(excluded_codes))
-        conditions = [Classroom.semester == semester]
-        if schedules:
-            stored_schedules = await self._session.scalars(
-                select(Classroom.schedule)
-                .where(Classroom.semester == semester, Classroom.schedule.is_not(None))
-                .distinct()
+        if criteria.q is not None:
+            offer.append(all_terms(criteria.q, _classroom_term))
+        if criteria.available:
+            offer.append(_has_seats())
+        matches = and_(*offer)
+
+        query = select(Subject).where(*_subject_conditions(criteria))
+        if criteria.available and criteria.done is not None:
+            covered = await self._covered(criteria.done)
+            query = query.where(_prerequisites_within(covered))
+        if criteria.offered or criteria.available or criteria.schedules:
+            query = query.where(Subject.classrooms.any(matches))
+        elif criteria.q is not None:
+            query = query.where(
+                or_(
+                    all_terms(criteria.q, _subject_term),
+                    Subject.classrooms.any(matches),
+                )
             )
-            matching = [
-                value
-                for value in stored_schedules
-                if value and all(s.matches(value) for s in schedules)
-            ]
-            if not matching:
-                return [], 0
-            conditions.append(Classroom.schedule.in_(matching))
-        if q is not None:
-            conditions.append(all_terms(q, _classroom_term))
-        matches = and_(*conditions)
-        matching_offer = Subject.classrooms.any(matches)
-        if offered or schedules or hours:
-            query = query.where(matching_offer)
-        elif q is not None:
-            query = query.where(or_(all_terms(q, _subject_term), matching_offer))
-        if priority:
+        if criteria.priority:
             query = query.order_by(
-                case(priority, value=Subject.code, else_=UNRANKED_SUBJECT_PRIORITY)
+                case(
+                    criteria.priority,
+                    value=Subject.code,
+                    else_=UNRANKED_SUBJECT_PRIORITY,
+                )
             )
-        query = query.order_by(Subject.code).options(
+        return query.order_by(Subject.code).options(
             selectinload(Subject.classrooms.and_(matches))
         )
-        if page is not None:
-            return await paginate(self._session, query, page, SUBJECTS_PAGE_SIZE)
-        subjects = list(await self._session.scalars(query))
-        return subjects, len(subjects)
+
+    async def _matching_schedules(
+        self, semester: str | None, searches: Sequence[ScheduleSearch]
+    ) -> list[str]:
+        """Os horários gravados no semestre que atendem a todas as buscas."""
+        stored = await self._session.scalars(
+            select(Classroom.schedule)
+            .where(Classroom.semester == semester, Classroom.schedule.is_not(None))
+            .distinct()
+        )
+        return [
+            value
+            for value in stored
+            if value and all(search.matches(value) for search in searches)
+        ]
+
+    async def _covered(self, done: Collection[str]) -> set[str]:
+        """As cumpridas e as cobertas por um grupo inteiro de equivalências."""
+        if not done:
+            return set()
+        done_json = literal(sorted(done), JSONB)
+        group = func.jsonb_array_elements(_as_array(Subject.equivalences)).table_valued(
+            "value"
+        )
+        equivalent = await self._session.scalars(
+            select(Subject.code)
+            .select_from(Subject)
+            .join(group, true())
+            .where(
+                func.jsonb_array_length(group.c.value) > 0,
+                group.c.value.op("<@")(done_json),
+            )
+            .distinct()
+        )
+        return {*done, *equivalent}
+
+
+def _subject_conditions(criteria: SubjectCriteria) -> list[ColumnElement[bool]]:
+    conditions: list[ColumnElement[bool]] = []
+    if criteria.code is not None:
+        conditions.append(Subject.code == criteria.code)
+    if criteria.codes is not None:
+        conditions.append(Subject.code.in_(criteria.codes))
+    if criteria.excluded_codes:
+        conditions.append(Subject.code.not_in(criteria.excluded_codes))
+    if criteria.unit_id is not None:
+        conditions.append(Subject.unit_id == criteria.unit_id)
+    if criteria.hours:
+        conditions.append(
+            or_(
+                *(
+                    Subject.hours >= LONG_WORKLOAD
+                    if value == "90+"
+                    else Subject.hours == value
+                    for value in criteria.hours
+                )
+            )
+        )
+    return conditions
+
+
+def _as_array(column: ColumnElement[Any]) -> ColumnElement[Any]:
+    """`[]` para `null`/escalar, que `jsonb_array_elements` não aceita."""
+    return case(
+        (func.jsonb_typeof(column) == "array", column),
+        else_=literal([], JSONB),
+    )
+
+
+def _has_seats() -> ColumnElement[bool]:
+    """Turma que não está cheia; sem os números do SIGAA, conta como aberta."""
+    return or_(
+        Classroom.vacancies.is_(None),
+        Classroom.occupied.is_(None),
+        and_(Classroom.vacancies > 0, Classroom.occupied < Classroom.vacancies),
+    )
+
+
+def _prerequisites_within(covered: set[str]) -> ColumnElement[bool]:
+    """Sem pré-requisito ou com algum grupo inteiro em `covered`."""
+    group = func.jsonb_array_elements(_as_array(Subject.prerequisites)).table_valued(
+        "value"
+    )
+    return or_(
+        Subject.prerequisites.is_(None),
+        func.jsonb_array_length(_as_array(Subject.prerequisites)) == 0,
+        select(1)
+        .select_from(group)
+        .where(group.c.value.op("<@")(literal(sorted(covered), JSONB)))
+        .exists(),
+    )

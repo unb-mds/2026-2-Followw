@@ -1,6 +1,7 @@
 import uuid
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.models import Course, Curriculum, CurriculumComponent, Subject
@@ -29,6 +30,22 @@ class PublicCourseRepository:
 
     async def get_course(self, course_id: int) -> Course | None:
         return await self._session.get(Course, course_id)
+
+    async def latest_matrices(self, course_ids: list[int]) -> dict[int, str]:
+        """A matriz ativa mais recente de cada curso que tem alguma."""
+        if not course_ids:
+            return {}
+        rows = await self._session.execute(
+            select(Curriculum.course_id, Curriculum.matrix)
+            .where(Curriculum.course_id.in_(course_ids), Curriculum.active.is_(True))
+            .ext(distinct_on(Curriculum.course_id))
+            .order_by(
+                Curriculum.course_id,
+                Curriculum.valid_from.desc(),
+                Curriculum.sigaa_id.desc(),
+            )
+        )
+        return dict(rows.all())
 
     async def list_curricula(self, course_id: int) -> list[Curriculum]:
         return list(

@@ -30,9 +30,17 @@ router = APIRouter()
     },
 )
 async def subject_recommendations(
-    service: PublicSubjectServiceDep, sync: SyncDep, response: Response
+    service: PublicSubjectServiceDep,
+    sync: SyncDep,
+    response: Response,
+    available: Annotated[
+        bool,
+        Query(
+            description="Somente turmas com vaga; o ranking já considera os pré-requisitos."
+        ),
+    ] = False,
 ) -> list[CatalogSubject]:
-    subjects = await service.recommendations(sync)
+    subjects = await service.recommendations(sync, available=available)
     no_store(response)
     return subjects
 

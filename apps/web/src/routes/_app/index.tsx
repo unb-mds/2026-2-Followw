@@ -138,7 +138,7 @@ function HomePage() {
                 dayPicker={
                     weekOpen && (
                         <WeekDayPicker
-                            tiles
+                            variant="tiles"
                             days={days}
                             selectedDate={selectedDay.date}
                             onSelect={(day) => setPicked(day.date === now.date ? null : day.date)}

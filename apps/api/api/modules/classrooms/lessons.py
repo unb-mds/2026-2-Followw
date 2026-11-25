@@ -130,7 +130,7 @@ class ClassroomFrequencyView(BaseModel):
             )
         )
         return cls(
-            progress=summary.progress,
+            progress=_progress(lessons, rows) if planned else summary.progress,
             frequency_status=summary.frequency_status,
             lessons=lessons,
             totals=_totals(lessons, max_absences(workload) if planned else None),
@@ -239,6 +239,20 @@ def _totals(
         max_absences=max_absences,
         estimated=estimated,
     )
+
+
+def _progress(
+    lessons: Collection[Lesson],
+    rows: Collection[tuple[models.Lesson, models.LessonAttendance | None]],
+) -> ClassroomProgress:
+    """Aulas dadas sobre as do plano, sem as canceladas."""
+    total = sum(
+        not (attendance and attendance.status is LessonStatus.CANCELADA)
+        for _, attendance in rows
+    )
+    taught = sum(lesson.status is not LessonStatus.CANCELADA for lesson in lessons)
+    percentage = round(taught * 100 / total) if total else 0
+    return ClassroomProgress(taught=taught, total=total, percentage=percentage)
 
 
 def _attendance(lesson: Lesson) -> bool:

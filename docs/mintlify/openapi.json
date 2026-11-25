@@ -2082,6 +2082,18 @@
             "description": "Somente matérias com turma no semestre."
           },
           {
+            "name": "available",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Somente turmas com vaga e pré-requisitos cumpridos ou em andamento.",
+              "default": false,
+              "title": "Available"
+            },
+            "description": "Somente turmas com vaga e pré-requisitos cumpridos ou em andamento."
+          },
+          {
             "name": "Cache-Control",
             "in": "header",
             "required": false,
@@ -2190,6 +2202,18 @@
         "summary": "Recomendar matérias para o aluno autenticado",
         "operationId": "subject_recommendations_public_subjects_recommendations_get",
         "parameters": [
+          {
+            "name": "available",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Somente turmas com vaga; o ranking já considera os pré-requisitos.",
+              "default": false,
+              "title": "Available"
+            },
+            "description": "Somente turmas com vaga; o ranking já considera os pré-requisitos."
+          },
           {
             "name": "Cache-Control",
             "in": "header",
@@ -2382,12 +2406,7 @@
                 {
                   "type": "array",
                   "items": {
-                    "enum": [
-                      "mandatory",
-                      "optional",
-                      "free"
-                    ],
-                    "type": "string"
+                    "$ref": "#/components/schemas/SubjectKind"
                   }
                 },
                 {
@@ -2429,6 +2448,18 @@
               "title": "Offered"
             },
             "description": "Somente matérias com turma no semestre, inclusive cheias."
+          },
+          {
+            "name": "available",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Somente turmas com vaga e, para o aluno autenticado, matérias com pré-requisitos cumpridos ou em andamento.",
+              "default": false,
+              "title": "Available"
+            },
+            "description": "Somente turmas com vaga e, para o aluno autenticado, matérias com pré-requisitos cumpridos ou em andamento."
           },
           {
             "name": "page",
@@ -3268,19 +3299,6 @@
               }
             ]
           },
-          "prerequisite_equivalences": {
-            "additionalProperties": {
-              "items": {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              "type": "array"
-            },
-            "type": "object",
-            "title": "Prerequisite Equivalences"
-          },
           "classrooms": {
             "items": {
               "$ref": "#/components/schemas/SubjectClassroom"
@@ -3291,18 +3309,12 @@
           "kind": {
             "anyOf": [
               {
-                "type": "string",
-                "enum": [
-                  "mandatory",
-                  "optional",
-                  "free"
-                ]
+                "$ref": "#/components/schemas/SubjectKind"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Kind"
+            ]
           },
           "unlocks": {
             "items": {
@@ -5335,17 +5347,16 @@
           "unit": {
             "$ref": "#/components/schemas/UnitRef"
           },
-          "level": {
+          "degree": {
             "anyOf": [
               {
-                "type": "string",
-                "const": "Graduação"
+                "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Level"
+            "title": "Degree"
           }
         },
         "type": "object",
@@ -5355,7 +5366,7 @@
           "name",
           "shift",
           "unit",
-          "level"
+          "degree"
         ],
         "title": "PublicCourse"
       },
@@ -6511,6 +6522,14 @@
             "type": "string",
             "const": "90+"
           }
+        ]
+      },
+      "SubjectKind": {
+        "type": "string",
+        "enum": [
+          "mandatory",
+          "optional",
+          "free"
         ]
       }
     },

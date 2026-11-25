@@ -9,7 +9,6 @@ import type { CatalogSubject, Requirements, SubjectClassroom } from '../../src/q
 import { apiClient } from '../../src/queries/client.ts';
 import {
     approvedCodes,
-    availableSubjects,
     covered,
     currentCurriculumPeriod,
     seats,
@@ -174,26 +173,4 @@ test.each([
     ['2025.3', '2026.2', null]
 ] as const)('calcula período atual para ingresso %s e semestre %s', (entry, semester, expected) => {
     expect(currentCurriculumPeriod(entry, semester)).toBe(expected);
-});
-
-test('oculta turmas cheias e exige um grupo completo de pré-requisitos', () => {
-    const component = {
-        code: 'A',
-        name: 'Matéria',
-        prerequisites: requirements([['B', 'C'], ['D']]),
-        curriculum_prerequisites: [],
-        prerequisite_equivalences: { D: [['X', 'Y']] },
-        classrooms: [morning, night],
-        unlocks: []
-    };
-    expect(availableSubjects([component], new Set(['B']))).toEqual([]);
-    expect(availableSubjects([component], new Set(['D']))).toEqual([
-        { ...component, classrooms: [morning] }
-    ]);
-    expect(availableSubjects([component], new Set(['X']))).toEqual([]);
-    expect(availableSubjects([component], new Set(['X', 'Y']))).toEqual([
-        { ...component, classrooms: [morning] }
-    ]);
-    expect(availableSubjects([component], null)).toEqual([{ ...component, classrooms: [morning] }]);
-    expect(availableSubjects([{ ...component, classrooms: [night] }], null)).toEqual([]);
 });

@@ -44,7 +44,7 @@ export function CourseSection({
                                         {titleCase(course.name)}
                                     </h3>
                                     <p className="text-sm font-medium text-primary">
-                                        {course.level ?? 'Curso'}
+                                        {course.degree ? titleCase(course.degree) : 'Curso'}
                                         {course.shift && ` · ${titleCase(course.shift)}`}
                                     </p>
                                     <p className="text-xs text-muted-foreground">

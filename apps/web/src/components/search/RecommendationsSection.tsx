@@ -1,14 +1,13 @@
-import type { PlannedClass } from '@followw/core/lib/planned-schedule.ts';
 import type { CatalogSubject } from '@followw/core/queries/subjects.ts';
 
 import { reasonLabel, recommendationsQueryOptions } from '@followw/core/queries/recommendations.ts';
-import { availableSubjects, withoutScheduleConflicts } from '@followw/core/queries/subjects.ts';
 import { noop, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, CircleHelp } from 'lucide-react';
 
 import { ErrorCard } from '#/components/ErrorState';
 import { LoadingSkeleton } from '#/components/LoadingSkeleton';
 import { TurmaSection, TurmaSectionSkeleton } from '#/components/search/TurmaSection';
+import { useSubjectListing } from '#/components/search/useSubjectListing';
 import { Badge } from '#/components/ui/badge';
 import { Button } from '#/components/ui/button';
 import {
@@ -60,24 +59,14 @@ function WhyDialog(subject: CatalogSubject) {
     );
 }
 
-export function RecommendationsSection({
-    currentPeriod,
-    planned,
-    availability,
-    taken
-}: {
-    currentPeriod?: number | null;
-    planned?: readonly PlannedClass[];
-    availability?: Set<string> | null;
-    taken?: Set<string> | null;
-}) {
+/** Com `available`, só turmas com vaga e pré-requisitos cumpridos. */
+export function RecommendationsSection({ available }: { available: boolean }) {
     const client = useQueryClient();
-    const query = useQuery(recommendationsQueryOptions);
-    const refresh = () => void refreshQuery(client, recommendationsQueryOptions).catch(noop);
-    const compatible = query.data && withoutScheduleConflicts(query.data, planned);
-    const subjects =
-        compatible &&
-        (availability === undefined ? compatible : availableSubjects(compatible, availability));
+    const options = recommendationsQueryOptions(available);
+    const query = useQuery(options);
+    const refresh = () => void refreshQuery(client, options).catch(noop);
+    const { currentPeriod, taken, visible } = useSubjectListing();
+    const subjects = query.data && visible(query.data);
     return (
         <section
             aria-label="Matérias recomendadas"

@@ -11,8 +11,10 @@ import { titleCase } from '@followw/core/lib/profile.ts';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { Connections } from '#/components/curriculum/Connections';
+import { canvasToPng, resolvedThemeColors } from '#/lib/canvas';
 
 const HEADER_HEIGHT = 74;
+const FOOTER_HEIGHT = 64;
 const MAX_PNG_DIMENSION = 12288;
 const MAX_PNG_PIXELS = 16_000_000;
 const FONT = 'system-ui, sans-serif';
@@ -36,30 +38,18 @@ export async function createCurriculumPng({
     state?: (subject: FlowSubject) => AcademicState;
 }): Promise<Blob> {
     const geometry = layoutCurriculum(model, 0);
-    const theme = getComputedStyle(document.documentElement);
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
     if (!context) throw new Error('Não foi possível preparar o fluxograma.');
     context.font = `700 22px ${FONT}`;
     const titleWidth = context.measureText(name).width + 48;
     context.font = `700 12px ${FONT}`;
-    const colors = new Map<string, string>();
-    const colorOf = (token: string) => {
-        const cached = colors.get(token);
-        if (cached) return cached;
-        context.clearRect(0, 0, 1, 1);
-        context.fillStyle = theme.getPropertyValue(token).trim();
-        context.fillRect(0, 0, 1, 1);
-        const [r, g, b] = context.getImageData(0, 0, 1, 1).data;
-        const color = `rgb(${r}, ${g}, ${b})`;
-        colors.set(token, color);
-        return color;
-    };
+    const colorOf = resolvedThemeColors();
     const background = colorOf('--background');
     const foreground = colorOf('--foreground');
     const muted = colorOf('--muted-foreground');
     const width = Math.ceil(Math.max(520, titleWidth, geometry.width));
-    const height = geometry.height + HEADER_HEIGHT;
+    const height = geometry.height + HEADER_HEIGHT + FOOTER_HEIGHT;
     const scale = Math.min(
         5,
         MAX_PNG_DIMENSION / Math.max(width, height),
@@ -148,6 +138,17 @@ export async function createCurriculumPng({
                     );
                 })}
             </g>
+            <text
+                x={width / 2}
+                y={height - FOOTER_HEIGHT / 2}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fill={muted}
+                fontSize={16}
+                fontWeight={500}
+            >
+                followw.app
+            </text>
         </svg>
     );
     const imageUrl = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));
@@ -162,12 +163,7 @@ export async function createCurriculumPng({
         URL.revokeObjectURL(imageUrl);
     }
 
-    return new Promise((resolve, reject) => {
-        canvas.toBlob((blob) => {
-            if (blob) resolve(blob);
-            else reject(new Error('Não foi possível gerar o PNG do fluxograma.'));
-        }, 'image/png');
-    });
+    return canvasToPng(canvas, 'Não foi possível gerar o PNG do fluxograma.');
 }
 
 function wrapName(name: string, fits: (text: string) => boolean) {

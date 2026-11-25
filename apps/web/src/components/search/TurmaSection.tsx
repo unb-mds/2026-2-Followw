@@ -15,6 +15,7 @@ const PAGE_SIZE = 25;
 
 export function TurmaSection({
     title,
+    summary,
     subjects,
     taken,
     onOpenDetails,
@@ -24,6 +25,8 @@ export function TurmaSection({
 }: {
     currentPeriod?: number | null;
     title?: string;
+    // texto ao lado do título; por padrão, a quantidade exibida
+    summary?: string;
     subjects: CatalogSubject[];
     taken?: Set<string> | null;
     onOpenDetails?: (subject: CatalogSubject) => void;
@@ -32,7 +35,6 @@ export function TurmaSection({
 }) {
     const [limit, setLimit] = useState(PAGE_SIZE);
     const entrance = useEntrance();
-    if (subjects.length === 0) return null;
 
     return (
         <section className="flex flex-col gap-3">
@@ -40,23 +42,28 @@ export function TurmaSection({
                 <div className="flex items-baseline justify-between gap-3">
                     <h2 className="text-base font-bold text-foreground">{title}</h2>
                     <span className="shrink-0 text-xs text-muted-foreground">
-                        {`${subjects.length} ${subjects.length === 1 ? 'resultado' : 'resultados'}`}
+                        {summary ??
+                            `${subjects.length} ${subjects.length === 1 ? 'resultado' : 'resultados'}`}
                     </span>
                 </div>
             )}
-            <Accordion multiple className="gap-2" render={<m.div {...entrance} />}>
-                {(clientPagination ? subjects.slice(0, limit) : subjects).map((subject, index) => (
-                    <TurmaItem
-                        key={subject.code}
-                        animation={<m.div custom={index % PAGE_SIZE} variants={rise} />}
-                        subject={subject}
-                        currentPeriod={currentPeriod}
-                        taken={taken}
-                        onOpenDetails={onOpenDetails && (() => onOpenDetails(subject))}
-                        footer={footer?.(subject)}
-                    />
-                ))}
-            </Accordion>
+            {subjects.length > 0 && (
+                <Accordion multiple className="gap-2" render={<m.div {...entrance} />}>
+                    {(clientPagination ? subjects.slice(0, limit) : subjects).map(
+                        (subject, index) => (
+                            <TurmaItem
+                                key={subject.code}
+                                animation={<m.div custom={index % PAGE_SIZE} variants={rise} />}
+                                subject={subject}
+                                currentPeriod={currentPeriod}
+                                taken={taken}
+                                onOpenDetails={onOpenDetails && (() => onOpenDetails(subject))}
+                                footer={footer?.(subject)}
+                            />
+                        )
+                    )}
+                </Accordion>
+            )}
             {clientPagination && subjects.length > limit && (
                 <Button
                     variant="outline"

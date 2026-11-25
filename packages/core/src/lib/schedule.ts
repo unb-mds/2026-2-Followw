@@ -60,11 +60,13 @@ const MERGE_GAP_MINUTES = 5;
 
 export const minutesOf = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
 
-export function formatDuration(minutes: number) {
+/** `1h30min`; `short` omite o "min" depois das horas (`1h30`). */
+export function formatDuration(minutes: number, { short = false } = {}) {
     const hours = Math.floor(minutes / 60);
     const remainder = minutes % 60;
     if (hours === 0) return `${remainder}min`;
-    return remainder ? `${hours}h${remainder}min` : `${hours}h`;
+    if (!remainder) return `${hours}h`;
+    return `${hours}h${remainder}${short ? '' : 'min'}`;
 }
 
 export const WEEKDAYS_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];

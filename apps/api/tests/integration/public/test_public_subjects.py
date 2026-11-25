@@ -81,15 +81,11 @@ def test_combina_carga_exata_com_a_faixa_de_90_horas_ou_mais(catalog, database):
             session.add(Subject(code=code, name=code, hours=hours))
             session.flush()
             session.add(Classroom(subject_code=code, number="01", semester="2026.2"))
-    assert [subject["hours"] for subject in _search(catalog, hours=[30, "90+"])] == [
-        30,
-        90,
-        91,
-        180,
-        960,
-        975,
-    ]
+    offered = _search(catalog, hours=[30, "90+"], offered=True)
+    assert [subject["hours"] for subject in offered] == [30, 90, 91, 180, 960, 975]
     assert [subject["hours"] for subject in _search(catalog, hours=89)] == [89]
+    # Sem `offered`, a carga também traz quem não tem turma no semestre.
+    assert "FGA0001" in {subject["code"] for subject in _search(catalog, hours=90)}
 
 
 @pytest.mark.parametrize(
@@ -223,7 +219,6 @@ def test_componente_traz_as_turmas_do_semestre_mais_recente(catalog):
             "curriculum_period": None,
             "unlocks": [],
             "recommendation": None,
-            "prerequisite_equivalences": {"FGA0001": [["ANT0001", "ANT0002"]]},
         }
     ]
 
@@ -309,7 +304,7 @@ def test_q_invalida_nao_consulta_o_catalogo(catalog, monkeypatch, subtests):
 
     search = AsyncMock(side_effect=AssertionError("Query inválida consultou o banco"))
     monkeypatch.setattr(
-        "api.modules.public_subjects.repository.SubjectCatalogRepository.list_subjects",
+        "api.modules.public_subjects.repository.SubjectCatalogRepository.page_subjects",
         search,
     )
     for q in ["", "a", "ab", "a" * 33, " a ", "   "]:
@@ -412,6 +407,7 @@ def test_openapi_so_tem_os_filtros_do_banco(api):
         "hours",
         "kind",
         "offered",
+        "available",
         "page",
         "Cache-Control",
     }

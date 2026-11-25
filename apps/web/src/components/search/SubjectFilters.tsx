@@ -1,3 +1,5 @@
+import { GRID_DAYS } from '@followw/core/lib/planned-schedule.ts';
+import { SUBJECT_KINDS } from '@followw/core/queries/subjects.ts';
 import { Funnel } from 'lucide-react';
 import { useId } from 'react';
 
@@ -6,22 +8,23 @@ import { Checkbox } from '#/components/ui/checkbox';
 import { Label } from '#/components/ui/label';
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '#/components/ui/popover';
 import { ToggleGroup, ToggleGroupItem } from '#/components/ui/toggle-group';
-import { startTimes, useSearchState, workloads } from '#/lib/search-params';
+import {
+    clearedSubjectFilters,
+    hasSubjectFilters,
+    kindLabels,
+    startTimes,
+    useSearchState,
+    workloads
+} from '#/lib/search-params';
 
-const weekdays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((label, index) => ({
-    label,
-    value: String(index)
-}));
+// A API conta os dias de segunda (0) a domingo (6).
+const weekdays = GRID_DAYS.map(({ label, weekday }) => ({ label, value: String(weekday - 1) }));
 const startOptions = startTimes.map((time) => ({ label: time, value: time }));
 const workloadOptions = [
     ...workloads.map((value) => ({ label: `${value}h`, value: String(value) })),
     { label: '90h+', value: '90+' }
 ];
-const kinds = [
-    { label: 'Obrigatórias', value: 'mandatory' },
-    { label: 'Optativas', value: 'electives' },
-    { label: 'Livres', value: 'freeModules' }
-] as const;
+const kinds = SUBJECT_KINDS.map((value) => ({ label: kindLabels[value], value }));
 
 function FilterChoices({
     label,
@@ -61,19 +64,10 @@ function FilterChoices({
 
 export function SubjectFilters() {
     const [filters, setSearch] = useSearchState();
-    const { days, start, hours, hideConflicts, hideUnavailable, unit } = filters;
+    const { days, kind, start, hours, hideConflicts, hideUnavailable } = filters;
     const hideConflictsId = useId();
     const hideUnavailableId = useId();
-    const selectedKinds = kinds.filter(({ value }) => filters[value]).map(({ value }) => value);
-    const active = Boolean(
-        days ||
-        start.length ||
-        hours.length ||
-        selectedKinds.length ||
-        hideConflicts ||
-        hideUnavailable ||
-        unit
-    );
+    const active = hasSubjectFilters(filters);
     return (
         <Popover>
             <PopoverTrigger
@@ -102,12 +96,10 @@ export function SubjectFilters() {
                 <FilterChoices
                     label="Tipo de matéria"
                     options={kinds}
-                    values={selectedKinds}
+                    values={kind}
                     onChange={(values) =>
                         void setSearch({
-                            mandatory: values.includes('mandatory'),
-                            electives: values.includes('electives'),
-                            freeModules: values.includes('freeModules')
+                            kind: SUBJECT_KINDS.filter((value) => values.includes(value))
                         })
                     }
                 />
@@ -144,22 +136,7 @@ export function SubjectFilters() {
                     <Label htmlFor={hideUnavailableId}>Ocultar turmas indisponíveis</Label>
                 </div>
                 {active && (
-                    <Button
-                        variant="outline"
-                        onClick={() =>
-                            void setSearch({
-                                days: null,
-                                start: null,
-                                hours: null,
-                                mandatory: null,
-                                electives: null,
-                                freeModules: null,
-                                hideConflicts: null,
-                                hideUnavailable: null,
-                                unit: null
-                            })
-                        }
-                    >
+                    <Button variant="outline" onClick={() => void setSearch(clearedSubjectFilters)}>
                         Limpar filtros
                     </Button>
                 )}

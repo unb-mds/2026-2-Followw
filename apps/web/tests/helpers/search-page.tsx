@@ -54,7 +54,7 @@ const carlos = [makeProfessor(99999, 'CARLOS SILVA')];
 export const makeCourse = (index: number, name = `ENGENHARIA CIVIL ${index}`) => ({
     id: index,
     sigaa_id: 100 + index,
-    level: 'Graduação',
+    degree: 'Bacharelado',
     name,
     shift: 'DIURNO',
     unit: { id: 1, code: 'ENG', name: 'ENGENHARIA' }

@@ -1,4 +1,3 @@
-import type { PlannedClass } from '@followw/core/lib/planned-schedule.ts';
 import type { InternshipItem } from '@followw/core/queries/internships.ts';
 import type { SearchResult, SearchType } from '@followw/core/queries/search.ts';
 
@@ -49,22 +48,16 @@ function seedCategoryPage(
 
 function SearchResultSections({
     text,
+    available,
     data,
-    currentPeriod,
-    planned,
-    availability,
-    taken,
     placeholder,
     empty,
     onShowCategory,
     onRefresh
 }: {
     text: string;
+    available: boolean;
     data: SearchResult;
-    currentPeriod: number | null;
-    planned?: readonly PlannedClass[];
-    availability?: Set<string> | null;
-    taken: Set<string> | null;
     placeholder: boolean;
     // sem estágios para exibir; vale só quando não há cursos nem docentes
     empty?: string;
@@ -94,12 +87,8 @@ function SearchResultSections({
             {subjects && (
                 <SubjectPageSection
                     first={subjects}
-                    query={{ q: text, offered: true }}
+                    query={{ q: text, offered: true, available: available || undefined }}
                     title="Turmas"
-                    currentPeriod={currentPeriod}
-                    planned={planned}
-                    availability={availability}
-                    taken={taken}
                     refreshFirst={onRefresh}
                     placeholder={placeholder}
                     empty={hasCoursesOrProfessors ? undefined : empty}
@@ -157,30 +146,24 @@ function InternshipPreview({
     );
 }
 
-/** Cursos, docentes e matérias pedidos em `types` numa só consulta. */
+/** Cursos, docentes e matérias pedidos em `types` numa só consulta; `available` vale para as matérias. */
 export function SearchResults({
     text,
     types,
+    available,
     empty,
-    currentPeriod,
-    planned,
-    availability,
-    taken,
     onShowCategory
 }: {
     text: string;
     types: SearchType[] | undefined;
+    available: boolean;
     empty: string;
-    currentPeriod: number | null;
-    planned?: readonly PlannedClass[];
-    availability?: Set<string> | null;
-    taken: Set<string> | null;
     // na aba Todos, cursos, docentes e estágios viram prévias que levam à aba própria
     onShowCategory?: (category: PreviewCategory) => void;
 }) {
     const client = useQueryClient();
     const { data: user } = useQuery(meQueryOptions);
-    const options = searchQueryOptions(text, types);
+    const options = searchQueryOptions(text, types, available);
     const result = useQuery({ ...options, placeholderData: keepPreviousData });
 
     const showInternships = Boolean(user && onShowCategory);
@@ -216,11 +199,8 @@ export function SearchResults({
                 {(data) => (
                     <SearchResultSections
                         text={text}
+                        available={available}
                         data={data}
-                        currentPeriod={currentPeriod}
-                        planned={planned}
-                        availability={availability}
-                        taken={taken}
                         placeholder={result.isPlaceholderData}
                         empty={noInternships ? empty : undefined}
                         onShowCategory={showCategory}

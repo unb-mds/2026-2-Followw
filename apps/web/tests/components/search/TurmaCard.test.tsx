@@ -380,7 +380,11 @@ describe('TurmaSection', () => {
         expect(markup.match(/text-blue-500/g)).toHaveLength(1);
     });
 
-    test('seção vazia não é exibida', () => {
-        expect(renderWithRouter(<TurmaSection title="Vazio" subjects={[]} />)).toBe('');
+    test('seção vazia mantém o cabeçalho e o resumo sem listar matérias', () => {
+        const markup = renderWithRouter(
+            <TurmaSection title="Turmas" summary="3 resultados · 3 ocultas" subjects={[]} />
+        );
+        expect(markup).toContain('3 resultados · 3 ocultas');
+        expect(markup).not.toContain('data-slot="accordion"');
     });
 });

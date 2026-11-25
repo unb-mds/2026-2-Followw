@@ -11,24 +11,38 @@ import { Skeleton } from '#/components/ui/skeleton';
 import { snappy } from '#/lib/motion';
 import { cn } from '#/lib/shadcn';
 
-export interface ClassCardProps {
+export type ClassStatus = 'in_progress' | 'next' | 'pending' | 'normal' | 'warning' | 'cancelled';
+
+interface BaseClassCardProps {
     title: string;
-    code?: string;
     compact?: boolean;
     time: string;
     /** `null` é turma sem local lançado; `undefined` omite o local. */
     location?: string | null;
     professors?: string[];
-    grade?: Classroom['grade'];
-    status?: 'in_progress' | 'next' | 'pending' | 'normal' | 'warning' | 'cancelled';
-    statusText?: string;
     onLocationClick?: () => void;
-    onClick?: () => void;
     indicator?: React.ReactNode;
     action?: React.ReactNode;
     /** Sem a moldura do card, para listar dentro de outro card. */
     plain?: boolean;
 }
+
+/** Aula ou turma cursada: horário e situação acima do título. */
+interface LessonCardProps extends BaseClassCardProps {
+    variant?: 'lesson';
+    grade?: Classroom['grade'];
+    status?: ClassStatus;
+    statusText?: string;
+    onClick?: () => void;
+}
+
+/** Turma da grade planejada: código acima do título e horário logo abaixo. */
+interface PlannedCardProps extends BaseClassCardProps {
+    variant: 'planned';
+    code: string;
+}
+
+export type ClassCardProps = LessonCardProps | PlannedCardProps;
 
 const STATUS = {
     in_progress: {
@@ -46,49 +60,38 @@ const STATUS = {
     cancelled: { label: 'Cancelada', variant: 'secondary', className: 'text-muted-foreground' }
 } as const;
 
-function ClassCardBadge({
-    status,
-    statusText
-}: {
-    status: NonNullable<ClassCardProps['status']>;
-    statusText?: string;
-}) {
-    const statusInfo = status === 'normal' ? undefined : STATUS[status];
-    if (!statusInfo) return null;
-    return (
-        <Badge variant={statusInfo.variant} className={cn('px-1.5 py-0', statusInfo.className)}>
-            {status === 'in_progress' && (
-                <span className="size-1.5 animate-pulse rounded-full bg-primary" />
-            )}
-            {statusText || statusInfo.label}
-        </Badge>
-    );
-}
-
 function ClassCardStatus({
     time,
     status,
     statusText
 }: {
     time: string;
-    status: NonNullable<ClassCardProps['status']>;
+    status: ClassStatus;
     statusText?: string;
 }) {
+    const statusInfo = status === 'normal' ? undefined : STATUS[status];
     return (
         <div className="pointer-events-none relative flex items-center gap-2 text-xs">
             <span className="min-w-0 font-semibold text-primary tabular-nums">{time}</span>
-            <ClassCardBadge status={status} statusText={statusText} />
+            {statusInfo && (
+                <Badge
+                    variant={statusInfo.variant}
+                    className={cn('px-1.5 py-0', statusInfo.className)}
+                >
+                    {status === 'in_progress' && (
+                        <span className="size-1.5 animate-pulse rounded-full bg-primary" />
+                    )}
+                    {statusText || statusInfo.label}
+                </Badge>
+            )}
         </div>
     );
 }
 
 function ClassCardBody({
     title,
-    code,
+    planned,
     compact,
-    time,
-    status,
-    statusText,
     location,
     professors,
     grade,
@@ -97,11 +100,9 @@ function ClassCardBody({
     indicator
 }: {
     title: string;
-    code?: string;
+    // código e horário da turma planejada, em volta do título
+    planned?: { code: string; time: string };
     compact: boolean;
-    time: string;
-    status: NonNullable<ClassCardProps['status']>;
-    statusText?: string;
     location?: string | null;
     professors?: string[];
     grade?: Classroom['grade'];
@@ -116,7 +117,7 @@ function ClassCardBody({
 
     return (
         <>
-            {code && <span className="text-xs font-semibold text-primary">{code}</span>}
+            {planned && <span className="text-xs font-semibold text-primary">{planned.code}</span>}
             <div className="pointer-events-none relative flex items-center gap-2">
                 <h3
                     className={cn(
@@ -129,16 +130,13 @@ function ClassCardBody({
                 </h3>
                 {indicator}
             </div>
-            {code && (
-                <div className="pointer-events-none relative flex flex-wrap items-center gap-2">
-                    <Badge
-                        variant="secondary"
-                        className="h-auto max-w-full min-w-0 shrink py-0 text-left whitespace-normal tabular-nums"
-                    >
-                        {time}
-                    </Badge>
-                    <ClassCardBadge status={status} statusText={statusText} />
-                </div>
+            {planned && (
+                <Badge
+                    variant="secondary"
+                    className="pointer-events-none h-auto max-w-full min-w-0 self-start py-0 text-left whitespace-normal tabular-nums"
+                >
+                    {planned.time}
+                </Badge>
             )}
             <div className="pointer-events-none relative flex items-center gap-1 text-xs text-muted-foreground">
                 {grade ? (
@@ -168,34 +166,30 @@ function ClassCardBody({
     );
 }
 
-export const ClassCard: React.FC<ClassCardProps> = ({
-    title,
-    code,
-    compact = false,
-    time,
-    location,
-    professors,
-    grade,
-    status = 'normal',
-    statusText,
-    onLocationClick,
-    onClick,
-    indicator,
-    action,
-    plain = false
-}) => {
+export const ClassCard: React.FC<ClassCardProps> = (props) => {
+    const {
+        title,
+        compact = false,
+        time,
+        location,
+        professors,
+        onLocationClick,
+        indicator,
+        action,
+        plain = false
+    } = props;
+    const lesson = props.variant === 'planned' ? undefined : props;
+    const status = lesson?.status ?? 'normal';
+    const onClick = lesson?.onClick;
     const active = status === 'in_progress';
     const body = (
         <ClassCardBody
             title={title}
-            code={code}
+            planned={props.variant === 'planned' ? { code: props.code, time } : undefined}
             compact={compact}
-            time={time}
-            status={status}
-            statusText={statusText}
             location={location}
             professors={professors}
-            grade={grade}
+            grade={lesson?.grade}
             cancelled={status === 'cancelled'}
             onLocationClick={onLocationClick}
             indicator={indicator}
@@ -215,7 +209,9 @@ export const ClassCard: React.FC<ClassCardProps> = ({
                     )}
                 />
             )}
-            {!code && <ClassCardStatus time={time} status={status} statusText={statusText} />}
+            {lesson && (
+                <ClassCardStatus time={time} status={status} statusText={lesson.statusText} />
+            )}
             {action ? (
                 <div className="flex items-center justify-between gap-2">
                     <div className="flex min-w-0 flex-col gap-1">{body}</div>

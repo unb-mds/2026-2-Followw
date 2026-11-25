@@ -272,3 +272,19 @@ def test_totais_sem_chamada_do_sigaa_vem_so_das_marcacoes():
     )
     cancelada = _row(date(2026, 9, 24), LessonStatus.CANCELADA, marked=True)
     assert _view([cancelada], NOT_REGISTERED).totals is None
+
+
+def test_andamento_conta_aulas_dadas_sobre_as_planejadas_sem_canceladas():
+    rows = [
+        *_sigaa_rows(),
+        _row(date(2026, 9, 24), LessonStatus.CANCELADA, marked=True),
+        _row(date(2026, 9, 29)),
+        _row(date(2026, 10, 6)),
+        _row(date(2026, 10, 8)),
+    ]
+    assert _view(rows).progress == ClassroomProgress(taught=3, total=5, percentage=60)
+
+
+def test_turma_sem_plano_mantem_o_andamento_do_sigaa():
+    rows = [_row(date(2026, 9, 20), LessonStatus.PRESENTE, scheduled=False)]
+    assert _view(rows).progress == FREQUENCY.progress

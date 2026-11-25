@@ -1,5 +1,3 @@
-import type { PlannedClass } from '@followw/core/lib/planned-schedule.ts';
-
 import { ApiError } from '@followw/core/queries/errors.ts';
 import { type SubjectsQuery, subjectsQueryOptions } from '@followw/core/queries/subjects.ts';
 import { noop, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -9,21 +7,7 @@ import { SubjectPageSection } from '#/components/search/SubjectPageSection';
 import { TurmaSectionSkeleton } from '#/components/search/TurmaSection';
 import { refreshQuery } from '#/queries/refresh';
 
-export function SubjectResults({
-    query,
-    title,
-    currentPeriod,
-    planned,
-    availability,
-    taken
-}: {
-    query: SubjectsQuery;
-    title: string;
-    currentPeriod: number | null;
-    planned?: readonly PlannedClass[];
-    availability?: Set<string> | null;
-    taken: Set<string> | null;
-}) {
+export function SubjectResults({ query, title }: { query: SubjectsQuery; title: string }) {
     const client = useQueryClient();
     const options = subjectsQueryOptions(query);
     const result = useQuery(options);
@@ -44,14 +28,9 @@ export function SubjectResults({
             >
                 {(data) => (
                     <SubjectPageSection
-                        key={JSON.stringify(query)}
                         first={data}
                         query={query}
                         title={title}
-                        currentPeriod={currentPeriod}
-                        planned={planned}
-                        availability={availability}
-                        taken={taken}
                         refreshFirst={refresh}
                         empty="Nenhuma matéria encontrada. Tente mudar a busca."
                     />

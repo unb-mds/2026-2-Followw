@@ -227,7 +227,7 @@ test('clique na busca exibe o campo antes das turmas e mantÃ©m o mesmo campo apÃ
         }
     });
     const recommendations = page.client.query({
-        ...recommendationsQueryOptions,
+        ...recommendationsQueryOptions(),
         queryFn: async () => {
             await gate;
             return [];

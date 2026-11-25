@@ -4,6 +4,7 @@ import {
     addDays,
     classesOn,
     describeSchedule,
+    formatDuration,
     nextDays,
     nowInBrasilia,
     parseSchedule,
@@ -146,4 +147,13 @@ describe('addDays', () => {
         expect(addDays('2026-09-28', 7)).toBe('2026-10-05');
         expect(addDays('2026-10-05', -7)).toBe('2026-09-28');
     });
+});
+
+test.each([
+    [45, '45min', '45min'],
+    [120, '2h', '2h'],
+    [270, '4h30min', '4h30']
+])('formata %i minutos como %s e, curto, %s', (minutes, long, short) => {
+    expect(formatDuration(minutes)).toBe(long);
+    expect(formatDuration(minutes, { short: true })).toBe(short);
 });

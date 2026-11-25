@@ -103,6 +103,7 @@ export function SchedulePreview() {
                             >
                                 <ClassCard
                                     compact
+                                    variant="planned"
                                     code={item.code}
                                     title={item.name}
                                     time={describeSchedule(item.schedule) ?? 'Horário a definir'}
@@ -185,7 +186,7 @@ export function SchedulePreview() {
                 </Button>
             </SelectionBar>
             <DialogContent
-                className="max-h-9/10 overflow-y-auto rounded-2xl sm:max-w-3xl"
+                className="max-h-9/10 grid-cols-1 overflow-y-auto rounded-2xl sm:max-w-3xl"
                 showCloseButton={false}
             >
                 <DialogHeader className="flex-row items-center justify-between gap-3">

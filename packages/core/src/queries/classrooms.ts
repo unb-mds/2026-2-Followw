@@ -13,6 +13,16 @@ export type PostType = components['schemas']['PostType'];
 
 export const finalGrade = (classroom: Classroom) => classroom.grade ?? null;
 
+/** Conta no semestre: trancamento ou indeferimento tiram a turma. */
+export const countsInSemester = ({ status }: Classroom) =>
+    status !== 'trancado' && status !== 'denied';
+
+/** Matrícula efetivada numa turma do SIGAA, com avaliações para acompanhar. */
+export const isEnrolled = (classroom: Classroom) =>
+    countsInSemester(classroom) &&
+    classroom.sigaa_id != null &&
+    classroom.status !== 'pending_enrollment';
+
 export const classroomsQueryOptions = api.queryOptions('get', '/classrooms');
 
 export const semesterClassroomsQueryOptions = (semester: string) =>

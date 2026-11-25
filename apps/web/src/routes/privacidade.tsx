@@ -43,9 +43,9 @@ function PrivacyPage() {
                         </a>
                         <a
                             className="text-primary underline underline-offset-4"
-                            href="#termos-de-servico"
+                            href="#termos-de-uso"
                         >
-                            Termos de serviço
+                            Termos de uso
                         </a>
                     </nav>
                 </header>
@@ -128,14 +128,14 @@ function PrivacyPage() {
                         </div>
                     </section>
                     <section
-                        aria-labelledby="termos-de-servico"
+                        aria-labelledby="termos-de-uso"
                         className="article flex flex-col gap-4 border-border pt-8"
                     >
                         <h2
-                            id="termos-de-servico"
+                            id="termos-de-uso"
                             className="scroll-mt-6 text-xl font-bold text-foreground"
                         >
-                            Termos de serviço
+                            Termos de uso
                         </h2>
                         <p>
                             Use o Followw com responsabilidade e respeite a privacidade das outras

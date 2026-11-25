@@ -100,6 +100,7 @@ test.each([
     expect(svg).toContain('Matriz 01 · 2025.1');
     expect(svg).toContain('1º semestre');
     expect(svg).toContain(`${periodCount}º semestre`);
+    expect(svg).toContain('followw.app');
     expect(svg).toContain('Cálculo &amp; Álgebra');
     expect(svg).toContain('Projetos');
     expect(svg).toContain('marker-end="url(#');

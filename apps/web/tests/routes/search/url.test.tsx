@@ -24,6 +24,7 @@ describeSearchPage('URL da busca', (fixture) => {
             }
         ]);
         const page = fixture.renderPage('?q=6T6+6N1&unit=ADM&days=4&hours=60');
+        // `unit` não é estado da busca: a URL ignora o parâmetro.
         expect(await page.findByRole('button', { name: /ADM0002/ })).toBeDefined();
         expect(fixture.searchbox(page).value).toBe('6T6 6N1');
         expect(fixture.requests.map((url) => url.pathname)).toEqual([
@@ -32,7 +33,6 @@ describeSearchPage('URL da busca', (fixture) => {
         ]);
         expect(Object.fromEntries(fixture.requests[1].searchParams)).toEqual({
             q: '6T6 6N1',
-            unit: 'ADM',
             days: '4',
             hours: '60',
             offered: 'true'

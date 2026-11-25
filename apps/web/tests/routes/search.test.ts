@@ -146,7 +146,7 @@ describe('loader das categorias da busca', () => {
         expect(
             await loadWith(
                 { registration: '1', unit: null, course: { id: 42 }, entry_semester: '2024.1' },
-                '?q=fisica&electives=true'
+                '?q=fisica&kind=optional'
             )
         ).toEqual([
             ['get', '/me'],

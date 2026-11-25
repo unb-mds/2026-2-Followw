@@ -2,6 +2,8 @@ import type { GridSemester, PlannedClass } from '@followw/core/lib/planned-sched
 
 import { describeSchedule } from '@followw/core/lib/schedule.ts';
 
+import { canvasToPng, ellipsize } from '#/lib/canvas';
+
 const WIDTH = 1200;
 const PADDING = 40;
 const CONTENT = WIDTH - PADDING * 2;
@@ -30,12 +32,8 @@ export async function createSchedulePng(sections: GridSemester[]): Promise<Blob>
         fill: dark ? '--background' : '--foreground',
         text: dark ? '--foreground' : '--background'
     };
-    const fit = (text: string, max: number) => {
-        if (ctx.measureText(text).width <= max) return text;
-        let cut = text;
-        while (cut && ctx.measureText(`${cut}…`).width > max) cut = cut.slice(0, -1);
-        return `${cut.trimEnd()}…`;
-    };
+    const fit = (text: string, max: number) =>
+        ellipsize(text, (value) => ctx.measureText(value).width <= max);
     const roundRect = (x: number, y: number, width: number, height: number, radius: number) => {
         ctx.beginPath();
         ctx.roundRect(x, y, width, height, radius);
@@ -164,10 +162,5 @@ export async function createSchedulePng(sections: GridSemester[]): Promise<Blob>
     ctx.fillStyle = color('--muted-foreground');
     font(16, 500);
     ctx.fillText('followw.app', WIDTH / 2, height - FOOTER_HEIGHT / 2);
-    return new Promise((resolve, reject) =>
-        canvas.toBlob(
-            (blob) => (blob ? resolve(blob) : reject(new Error('Não foi possível gerar o PNG.'))),
-            'image/png'
-        )
-    );
+    return canvasToPng(canvas, 'Não foi possível gerar o PNG.');
 }

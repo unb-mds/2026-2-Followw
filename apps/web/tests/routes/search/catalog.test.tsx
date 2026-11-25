@@ -8,7 +8,7 @@ describeSearchPage('Cursos e docentes na busca', (fixture) => {
             {
                 id: 1,
                 sigaa_id: 100,
-                level: 'Graduação',
+                degree: 'Licenciatura',
                 name: 'CÁLCULO APLICADO',
                 shift: 'DIURNO',
                 unit: { id: 1, code: 'MAT', name: 'DEPARTAMENTO DE MATEMÁTICA' }
@@ -21,7 +21,7 @@ describeSearchPage('Cursos e docentes na busca', (fixture) => {
         expect(
             course.compareDocumentPosition(subjects) & Node.DOCUMENT_POSITION_FOLLOWING
         ).toBeTruthy();
-        expect(page.getByText('Graduação · Diurno')).toBeDefined();
+        expect(page.getByText('Licenciatura · Diurno')).toBeDefined();
         expect(page.getByText('Departamento de Matemática')).toBeDefined();
         expect(fixture.searchbox(page).placeholder).toBe(
             'Busque por matéria, horário, curso ou professor...'

@@ -33,9 +33,15 @@ describeSearchPage('Montagem da grade pela busca', (fixture) => {
         );
         initial.unmount();
 
-        const page = fixture.renderPage('?freeModules=true&hideConflicts=true');
+        const page = fixture.renderPage('?kind=free&hideConflicts=true');
         const more = await page.findByRole('button', { name: 'Mostrar mais' });
         expect(page.queryByText(/Conflitante/)).toBeNull();
+        expect(page.getByText('26 resultados · 25 ocultas por conflito')).toBeDefined();
+        expect(
+            page.getByText(
+                'As matérias carregadas conflitam com a sua grade. Mostre mais para continuar.'
+            )
+        ).toBeDefined();
         fixture.testing.fireEvent.click(more);
         expect(await page.findByText('Livre sem conflito')).toBeDefined();
         const second = fixture.requests.find((url) => url.searchParams.get('page') === '2');
@@ -105,7 +111,7 @@ describeSearchPage('Montagem da grade pela busca', (fixture) => {
         fixture.testing.fireEvent.click(
             await page.findByRole('button', { name: 'Adicionar à grade: MAT0001, turma 01' })
         );
-        await page.findByText('2 resultados');
+        await page.findByText('3 resultados · 1 oculta por conflito');
         expect(page.queryByText('Bloqueada')).toBeNull();
         fixture.testing.fireEvent.click(page.getByRole('button', { name: /Parcial/ }));
         expect(
@@ -117,7 +123,8 @@ describeSearchPage('Montagem da grade pela busca', (fixture) => {
         fixture.testing.fireEvent.change(fixture.searchbox(page), {
             target: { value: 'bloqueada' }
         });
-        await page.findByText('Nenhuma matéria encontrada. Tente mudar a busca.');
+        await page.findByText('Todas as matérias encontradas conflitam com a sua grade.');
+        expect(page.getByText('1 resultado · 1 oculta por conflito')).toBeDefined();
         expect(page.queryByText('Bloqueada')).toBeNull();
         fixture.testing.fireEvent.click(
             page.getByRole('button', { name: 'Filtros de matérias ativos' })
@@ -131,8 +138,8 @@ describeSearchPage('Montagem da grade pela busca', (fixture) => {
     test.each([
         '?q=matematica&category=classrooms',
         '?q=matematica&start=10%3A00',
-        '?electives=true',
-        '?q=matematica&start=10%3A00&electives=true'
+        '?kind=optional',
+        '?q=matematica&start=10%3A00&kind=optional'
     ])('exibe matérias aprovadas, em andamento e reprovadas em %s', async (params) => {
         fixture.client.setQueryData(meQueryOptions.queryKey, electiveStudent);
         const approved = { code: 'MAT1000', name: 'Matemática Aprovada' };

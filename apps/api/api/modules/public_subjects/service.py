@@ -7,11 +7,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.db.main import DatabaseDep
 from api.db.models import Subject
 from api.db.units import find_unit_id
-from api.modules.public_subjects.filters import SubjectFilters, SubjectKind
+from api.modules.me.repository import UserRepository
+from api.modules.public_subjects.filters import SubjectFilters
 from api.modules.public_subjects.repository import (
     SUBJECTS_PAGE_SIZE,
     UNRANKED_SUBJECT_PRIORITY,
     SubjectCatalogRepository,
+    SubjectCriteria,
 )
 from api.modules.public_subjects.schedule_search import (
     ScheduleSearch,
@@ -28,6 +30,7 @@ from api.schemas import (
     CatalogRequirements,
     ClassroomOffer,
     DisplayedRequirements,
+    SubjectKind,
     SubjectReference,
     UserSubject,
     displayed_requirements,
@@ -72,7 +75,6 @@ class CatalogSubject(UserSubject, DisplayedRequirements):
     prerequisites: CatalogRequirements | None = None
     corequisites: CatalogRequirements | None = None
     equivalences: CatalogRequirements | None = None
-    prerequisite_equivalences: dict[str, list[list[str]]] = Field(default_factory=dict)
     classrooms: list[SubjectClassroom]
     # Tipo na matriz estimada de quem está logado; nulo sem login ou sem matriz.
     kind: SubjectKind | None = None
@@ -92,9 +94,13 @@ class PublicSubjectService:
     def __init__(self, db: DatabaseDep) -> None:
         self._db = db
 
-    async def recommendations(self, sync: Sync) -> list[CatalogSubject]:
+    async def recommendations(
+        self, sync: Sync, *, available: bool = False
+    ) -> list[CatalogSubject]:
         ranking = await RecommendationService(sync).recommend()
-        return await self._db.read(lambda session: _recommended(session, ranking))
+        return await self._db.read(
+            lambda session: _recommended(session, ranking, available)
+        )
 
     async def search(
         self, filters: SubjectFilters, sync: Sync | None = None
@@ -109,54 +115,35 @@ async def _search(
     session: AsyncSession, filters: SubjectFilters, registration: str | None
 ) -> SubjectPage:
     repository = SubjectCatalogRepository(session)
-    unit_id = await find_unit_id(session, filters.unit)
-    semester = filters.semester or await repository.latest_semester()
-    curriculum = None
-    if registration is not None:
-        curriculum = await RecommendationRepository(session).curriculum(registration)
-    included = excluded = None
-    if filters.kind:
-        if curriculum is None:
-            raise HTTPException(404, "Matriz curricular do aluno não encontrada.")
-        selected = {
-            code
-            for code in curriculum
-            if subject_kind(curriculum, code) in filters.kind
-        }
-        if "free" in filters.kind:
-            excluded = curriculum.keys() - selected
-        else:
-            included = selected
-    schedules: list[ScheduleSearch] = []
-    if schedule := filters.schedule():
-        schedules.append(schedule)
-    q = filters.q
-    if q is not None and (schedule_code := parse_schedule_code(q)) is not None:
-        q = None
-        schedules.append(schedule_code)
-    priority = (
-        {
-            code: _CURRICULUM_PRIORITY.get(
-                subject_kind(curriculum, code), UNRANKED_SUBJECT_PRIORITY
-            )
-            for code in curriculum
-        }
-        if curriculum
+    students = RecommendationRepository(session)
+    user = (
+        await UserRepository(session).get_by_registration(registration)
+        if registration
         else None
     )
-    subjects, total = await repository.list_subjects(
+    curriculum = (
+        await students.components(user.curriculum_id)
+        if user and user.curriculum_id
+        else None
+    )
+    semester = filters.semester or await repository.latest_semester()
+    q, schedules = _text_and_schedules(filters)
+    codes, excluded = _kind_scope(curriculum, filters.kind)
+    criteria = SubjectCriteria(
+        semester=semester,
         q=q,
         code=filters.code,
-        unit_id=unit_id,
-        semester=semester,
-        schedules=schedules,
-        hours=filters.hours or (),
-        codes=included,
+        codes=codes,
         excluded_codes=excluded,
+        unit_id=await find_unit_id(session, filters.unit),
+        hours=filters.hours or (),
+        schedules=schedules,
         offered=filters.offered,
-        priority=priority,
-        page=filters.page,
+        available=filters.available,
+        done=await students.done(user.id) if filters.available and user else None,
+        priority=_curriculum_priority(curriculum),
     )
+    subjects, total = await repository.page_subjects(criteria, filters.page)
     return SubjectPage(
         items=await _catalog(session, curriculum, subjects, semester),
         total=total,
@@ -164,14 +151,62 @@ async def _search(
     )
 
 
-async def _recommended(session: AsyncSession, ranking: Ranking) -> list[CatalogSubject]:
+def _text_and_schedules(
+    filters: SubjectFilters,
+) -> tuple[str | None, list[ScheduleSearch]]:
+    """Um código de horário do SIGAA em `q` vira busca por horário."""
+    schedules: list[ScheduleSearch] = []
+    if schedule := filters.schedule():
+        schedules.append(schedule)
+    if filters.q is not None and (code := parse_schedule_code(filters.q)):
+        return None, [*schedules, code]
+    return filters.q, schedules
+
+
+def _kind_scope(
+    curriculum: dict[str, Component] | None, kinds: list[SubjectKind] | None
+) -> tuple[set[str] | None, set[str]]:
+    """Os códigos a incluir e a excluir; livres são as matérias fora da matriz."""
+    if not kinds:
+        return None, set()
+    if curriculum is None:
+        raise HTTPException(404, "Matriz curricular do aluno não encontrada.")
+    selected = {code for code in curriculum if subject_kind(curriculum, code) in kinds}
+    if "free" in kinds:
+        return None, curriculum.keys() - selected
+    return selected, set()
+
+
+def _curriculum_priority(
+    curriculum: dict[str, Component] | None,
+) -> dict[str, int] | None:
+    """Obrigatórias, depois optativas e por fim as demais."""
+    if not curriculum:
+        return None
+    return {
+        code: _CURRICULUM_PRIORITY.get(
+            subject_kind(curriculum, code), UNRANKED_SUBJECT_PRIORITY
+        )
+        for code in curriculum
+    }
+
+
+async def _recommended(
+    session: AsyncSession, ranking: Ranking, available: bool
+) -> list[CatalogSubject]:
+    """As recomendadas; o ranking já cuida dos requisitos, `available` só tira as cheias."""
     if not ranking.items:
         return []
     repository = SubjectCatalogRepository(session)
     order = {item.code: index for index, item in enumerate(ranking.items)}
     semester = ranking.semester or await repository.latest_semester()
-    subjects, _ = await repository.list_subjects(
-        codes=set(order), semester=semester, offered=True
+    subjects = await repository.list_subjects(
+        SubjectCriteria(
+            semester=semester,
+            codes=set(order),
+            offered=True,
+            available=available,
+        )
     )
     subjects.sort(key=lambda subject: order[normalize(subject.code)])
     return [
@@ -197,9 +232,7 @@ async def _catalog(
         {subject.code for subject in subjects}, semester
     )
     codes = requirement_codes(subjects)
-    references = await repository.subject_references(codes)
-    names = {code: name for code, (name, _) in references.items()}
-    equivalents = {code: groups for code, (_, groups) in references.items() if groups}
+    names = await repository.subject_names(codes)
     offered = {
         normalize(code)
         for code in await repository.offered_subject_codes(codes, semester)
@@ -211,12 +244,6 @@ async def _catalog(
             hours=subject.hours,
             unit=unit_ref(subject.unit),
             prerequisites=named_requirements(subject.prerequisites, names),
-            prerequisite_equivalences={
-                code: equivalents[code]
-                for group in subject.prerequisites or []
-                for code in map(normalize, group)
-                if code in equivalents
-            },
             corequisites=named_requirements(subject.corequisites, names),
             equivalences=named_requirements(subject.equivalences, names),
             **displayed_requirements(subject, names, curriculum, offered),

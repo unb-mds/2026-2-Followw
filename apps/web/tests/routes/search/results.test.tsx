@@ -20,7 +20,7 @@ describeSearchPage('Resultados da busca', (fixture) => {
             {
                 id: 1,
                 sigaa_id: 100,
-                level: 'Graduação',
+                degree: 'Bacharelado',
                 name: 'CÁLCULO APLICADO',
                 shift: null,
                 unit: { id: 1, code: null, name: 'MATEMÁTICA' }
@@ -76,7 +76,7 @@ describeSearchPage('Resultados da busca', (fixture) => {
             {
                 id: 1,
                 sigaa_id: 100,
-                level: 'Graduação',
+                degree: 'Bacharelado',
                 name: 'ESTUDOS CARLOS SILVA',
                 shift: null,
                 unit: { id: 1, code: null, name: 'UNIDADE' }

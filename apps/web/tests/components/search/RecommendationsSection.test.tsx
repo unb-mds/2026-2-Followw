@@ -11,6 +11,7 @@ import {
 } from '@tanstack/react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 import { Window } from 'happy-dom';
+import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import {
@@ -131,9 +132,15 @@ describe('seção de recomendações', () => {
         apiClient.eject(middleware);
     });
     const renderSection = async (
-        props: React.ComponentProps<typeof RecommendationsSection> = {}
+        props: React.ComponentProps<typeof RecommendationsSection> = { available: false }
     ) => {
-        const root = createRootRoute({ component: () => <RecommendationsSection {...props} /> });
+        const root = createRootRoute({
+            component: () => (
+                <NuqsTestingAdapter>
+                    <RecommendationsSection {...props} />
+                </NuqsTestingAdapter>
+            )
+        });
         const router = createRouter({
             routeTree: root,
             history: createMemoryHistory({ initialEntries: ['/'] })
@@ -189,6 +196,13 @@ describe('seção de recomendações', () => {
             url.endsWith('/public/subjects/recommendations')
         );
         expect(subjects).toHaveLength(1);
+    });
+    test('com available pede só as disponíveis à API', async () => {
+        const page = await renderSection({ available: true });
+        await testing.waitFor(() =>
+            expect(page.getByRole('button', { name: /FGA0001/ })).toBeDefined()
+        );
+        expect(new URL(requests[0].url).searchParams.get('available')).toBe('true');
     });
     test('exibe 25 recomendações e carrega mais sob demanda', async () => {
         response = () =>

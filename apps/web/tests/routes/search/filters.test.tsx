@@ -13,7 +13,7 @@ describeSearchPage('Filtros da busca', (fixture) => {
     });
 
     test('filtro de optativas solicita login ao visitante sem consultar uma matriz', () => {
-        const page = fixture.renderPage('?electives=true');
+        const page = fixture.renderPage('?kind=optional');
         expect(page.getByRole('link', { name: 'Entre na sua conta' }).getAttribute('href')).toBe(
             '/login'
         );
@@ -85,5 +85,50 @@ describeSearchPage('Filtros da busca', (fixture) => {
                 'optional'
             ]);
         });
+    });
+
+    test('ocultar indisponíveis pede à API só as disponíveis, inclusive nas próximas páginas', async () => {
+        fixture.scheduleResults.set(
+            'calculo',
+            Array.from({ length: 30 }, (_, index) => ({
+                code: `MAT${String(index).padStart(4, '0')}`,
+                name: `Cálculo ${index}`,
+                classrooms: []
+            }))
+        );
+        const page = fixture.renderPage('?q=calculo&hideUnavailable=true');
+        fixture.testing.fireEvent.click(await page.findByRole('button', { name: 'Mostrar mais' }));
+        await fixture.testing.waitFor(() => expect(fixture.requests).toHaveLength(2));
+        const [search, next] = fixture.requests;
+        expect(search.pathname).toBe('/api/public/search');
+        expect(search.searchParams.get('available')).toBe('true');
+        expect(next.pathname).toBe('/api/public/subjects');
+        expect(next.searchParams.get('available')).toBe('true');
+        expect(page.getByText('30 resultados')).toBeDefined();
+    });
+
+    test('alternar indisponíveis volta à primeira página da nova consulta', async () => {
+        fixture.scheduleResults.set(
+            'calculo',
+            Array.from({ length: 60 }, (_, index) => ({
+                code: `MAT${String(index).padStart(4, '0')}`,
+                name: `Cálculo ${index}`,
+                classrooms: []
+            }))
+        );
+        const page = fixture.renderPage('?q=calculo&category=classrooms');
+        fixture.testing.fireEvent.click(await page.findByRole('button', { name: 'Mostrar mais' }));
+        await page.findByText('Cálculo 49');
+        fixture.testing.fireEvent.click(page.getByRole('button', { name: 'Filtros de matérias' }));
+        fixture.testing.fireEvent.click(
+            page.getByRole('checkbox', { name: 'Ocultar turmas indisponíveis' })
+        );
+        await fixture.testing.waitFor(() =>
+            expect(fixture.requests.at(-1)?.searchParams.get('available')).toBe('true')
+        );
+        await fixture.testing.act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+        const available = fixture.requests.filter((url) => url.searchParams.has('available'));
+        expect(available.map((url) => url.pathname)).toEqual(['/api/public/search']);
+        expect(page.queryByText('Cálculo 49')).toBeNull();
     });
 });

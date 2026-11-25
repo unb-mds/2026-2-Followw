@@ -2,10 +2,13 @@ import { describe, expect, test } from 'bun:test';
 import { createSerializer } from 'nuqs/server';
 
 import {
+    hasSubjectFilters,
+    kindsTitle,
     loadSearchParams,
     parseRouterSearch,
     searchParsers,
     stringifyRouterSearch,
+    subjectsQueryFrom,
     validateSearch
 } from '#/lib/search-params';
 
@@ -23,11 +26,8 @@ describe('parâmetros da busca', () => {
         expect(loadSearchParams('?q=calculo&category=courses')).toEqual({
             hideConflicts: false,
             hideUnavailable: false,
-            electives: false,
-            freeModules: false,
-            mandatory: false,
+            kind: [],
             days: '',
-            unit: '',
             start: [],
             hours: [],
             q: 'calculo',
@@ -39,11 +39,8 @@ describe('parâmetros da busca', () => {
         expect(loadSearchParams('?category=Eletiva')).toEqual({
             hideConflicts: false,
             hideUnavailable: false,
-            electives: false,
-            freeModules: false,
-            mandatory: false,
+            kind: [],
             days: '',
-            unit: '',
             start: [],
             hours: [],
             q: '',
@@ -55,7 +52,7 @@ describe('parâmetros da busca', () => {
         const filters = {
             hours: [60, '90+' as const],
             start: ['08:00', '10:00'],
-            mandatory: true
+            kind: ['mandatory' as const, 'free' as const]
         };
         const url = createSerializer(searchParsers)(filters);
         expect(loadSearchParams(url)).toMatchObject(filters);
@@ -86,5 +83,49 @@ describe('parâmetros da busca', () => {
         ).toEqual({
             value: { q: 'Carlos Silva', category: 'courses' }
         });
+    });
+
+    test('tipos inválidos na URL são descartados', () => {
+        expect(loadSearchParams('?kind=optional&kind=eletiva&kind=free').kind).toEqual([
+            'optional',
+            'free'
+        ]);
+    });
+});
+
+describe('consulta de matérias pelos filtros', () => {
+    const empty = loadSearchParams('');
+
+    test('sem filtro que restrinja a oferta não há consulta própria', () => {
+        expect(subjectsQueryFrom({ ...empty, hideUnavailable: true }, 'calculo')).toBeNull();
+        expect(hasSubjectFilters(empty)).toBe(false);
+        expect(hasSubjectFilters({ ...empty, hideConflicts: true })).toBe(true);
+    });
+
+    test('expande o bloco de início e repassa disponibilidade e tipos', () => {
+        const filters = loadSearchParams('?start=08:00&kind=free&hideUnavailable=true&days=02');
+        expect(subjectsQueryFrom(filters, 'calculo')).toEqual({
+            q: 'calculo',
+            offered: true,
+            available: true,
+            kind: ['free'],
+            days: '02',
+            start: ['08:00', '08:55']
+        });
+    });
+
+    test('título segue a ordem da matriz', () => {
+        expect(kindsTitle(['free', 'mandatory'])).toBe('Obrigatórias e Livres');
+        expect(kindsTitle([])).toBe('Matérias');
+    });
+
+    test('ignora dias inválidos e organiza os válidos', () => {
+        expect(loadSearchParams('?days=abc').days).toBe('');
+        expect(loadSearchParams('?days=99').days).toBe('');
+        expect(loadSearchParams('?days=4220').days).toBe('024');
+    });
+
+    test('consulta da unidade existe mesmo sem filtros', () => {
+        expect(subjectsQueryFrom(empty, null, 'FCTE')).toEqual({ unit: 'FCTE', offered: true });
     });
 });

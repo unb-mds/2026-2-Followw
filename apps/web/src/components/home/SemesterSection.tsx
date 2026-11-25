@@ -2,10 +2,14 @@ import type { SemesterCalendar } from '@followw/core/calendar.ts';
 import type { ReactNode } from 'react';
 
 import { getActiveSemester } from '@followw/core/calendar.ts';
-import { daysFrom, formatClassroomDate } from '@followw/core/lib/classroom-details.ts';
+import { formatClassroomDate } from '@followw/core/lib/classroom-details.ts';
 import { formatDuration, minutesOf, parseSchedule } from '@followw/core/lib/schedule.ts';
-import { upcomingSemesterDates } from '@followw/core/lib/semester-dates.ts';
-import { semesterClassroomsQueryOptions } from '@followw/core/queries/classrooms.ts';
+import { semesterProgress, upcomingSemesterDates } from '@followw/core/lib/semester-dates.ts';
+import {
+    countsInSemester,
+    isEnrolled,
+    semesterClassroomsQueryOptions
+} from '@followw/core/queries/classrooms.ts';
 import { latestPostsQueryOptions } from '@followw/core/queries/posts.ts';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
@@ -22,20 +26,7 @@ export function SemesterSection({ today, loggedIn }: { today: string; loggedIn: 
     const semester = getActiveSemester(today);
     if (!semester) return null;
 
-    const { start, end } = semester.classes;
-    const duration = daysFrom(start, end);
-    const elapsed = daysFrom(start, today);
-    const remaining = daysFrom(today, end);
-    const percent = remaining <= 0 ? 100 : Math.round((100 * Math.max(0, elapsed)) / duration);
-    const weeks = Math.ceil((duration + 1) / 7);
-    const week = Math.min(weeks, Math.floor(elapsed / 7) + 1);
-    const countdown =
-        remaining === 0
-            ? 'Último dia de aulas'
-            : `${remaining} ${remaining === 1 ? 'dia' : 'dias'} até o fim das aulas`;
-    let status = `Semana ${week} de ${weeks} · ${countdown}`;
-    if (today < start) status = `Aulas começam em ${formatClassroomDate(start).slice(0, 5)}`;
-    if (today > end) status = 'Período de aulas encerrado';
+    const { percent, status } = semesterProgress(semester, today);
     return (
         <section aria-label="Semestre">
             <SectionHeader title="Semestre" />
@@ -70,14 +61,10 @@ function StudentSemesterDetails({
     const { data, isPending, isLoadingError, isError, refetch } = useQuery(
         semesterClassroomsQueryOptions(semester.semester)
     );
-    const classrooms = (data ?? []).filter(
-        ({ status }) => status !== 'trancado' && status !== 'denied'
-    );
+    const classrooms = (data ?? []).filter(countsInSemester);
     const activities = useQuery({
         ...latestPostsQueryOptions,
-        enabled: classrooms.some(
-            ({ sigaa_id, status }) => sigaa_id != null && status !== 'pending_enrollment'
-        )
+        enabled: classrooms.some(isEnrolled)
     });
     const minutes = classrooms
         .flatMap(({ schedule }) => parseSchedule(schedule))
@@ -109,7 +96,7 @@ function StudentSemesterDetails({
                             <div className="flex justify-between gap-2">
                                 <dt className="text-muted-foreground">Carga horária semanal</dt>
                                 <dd className="font-medium tabular-nums">
-                                    {formatDuration(minutes).replace(/h(\d+)min$/, 'h$1')}
+                                    {formatDuration(minutes, { short: true })}
                                 </dd>
                             </div>
                         </dl>

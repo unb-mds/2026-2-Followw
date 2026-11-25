@@ -6,7 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
 from api.modules.public_courses.service import by_shift, in_force, revision
-from api.schemas import groups_within, normalize
+from api.schemas import SubjectKind, groups_within, normalize
 
 _KIND_ORDER = {"required": 0, "optional": 1, "complementary": 2}
 type Rules = list[list[str]] | None
@@ -142,9 +142,7 @@ def target_period(
     return max(pending) if pending else max(periods) + 1
 
 
-def subject_kind(
-    curriculum: dict[str, Component], code: str
-) -> Literal["mandatory", "optional", "free"]:
+def subject_kind(curriculum: dict[str, Component], code: str) -> SubjectKind:
     """O tipo da matéria na matriz; complementares contam como optativas."""
     component = curriculum.get(normalize(code))
     if component is None:

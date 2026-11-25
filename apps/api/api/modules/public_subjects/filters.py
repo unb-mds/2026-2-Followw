@@ -4,9 +4,8 @@ from pydantic import BaseModel, Field, StringConstraints, model_validator
 
 from api.modules.public_classrooms.code import ClassroomCode
 from api.modules.public_subjects.schedule_search import ScheduleFilter
-from api.schemas import SearchText, UnitFilter
+from api.schemas import SearchText, SubjectKind, UnitFilter
 
-SubjectKind = Literal["mandatory", "optional", "free"]
 type WorkloadFilter = Annotated[int, Field(gt=0, le=32767)] | Literal["90+"]
 type ClockTime = Annotated[
     str, StringConstraints(pattern=r"^(?:[01][0-9]|2[0-3]):[0-5][0-9]$")
@@ -43,6 +42,10 @@ class SubjectFilters(BaseModel):
     offered: bool = Field(
         False, description="Somente matérias com turma no semestre, inclusive cheias."
     )
+    available: bool = Field(
+        False,
+        description="Somente turmas com vaga e, para o aluno autenticado, matérias com pré-requisitos cumpridos ou em andamento.",
+    )
     page: int = Field(1, ge=1)
 
     @model_validator(mode="after")
@@ -56,6 +59,7 @@ class SubjectFilters(BaseModel):
             self.hours,
             self.kind,
             self.offered,
+            self.available,
         )
         if not any(criteria):
             raise ValueError("Informe `q`, `code`, `unit` ou algum filtro.")

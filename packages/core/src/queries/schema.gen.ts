@@ -845,14 +845,9 @@ export interface components {
             prerequisites?: components["schemas"]["CatalogRequirements"] | null;
             corequisites?: components["schemas"]["CatalogRequirements"] | null;
             equivalences?: components["schemas"]["CatalogRequirements"] | null;
-            /** Prerequisite Equivalences */
-            prerequisite_equivalences?: {
-                [key: string]: string[][];
-            };
             /** Classrooms */
             classrooms: components["schemas"]["SubjectClassroom"][];
-            /** Kind */
-            kind?: ("mandatory" | "optional" | "free") | null;
+            kind?: components["schemas"]["SubjectKind"] | null;
             /** Unlocks */
             unlocks?: components["schemas"]["SubjectReference"][];
             /** Curriculum Period */
@@ -1586,8 +1581,8 @@ export interface components {
             /** Shift */
             shift: string | null;
             unit: components["schemas"]["UnitRef"];
-            /** Level */
-            level: "Graduação" | null;
+            /** Degree */
+            degree: string | null;
         };
         /** @enum {string} */
         ReasonCode: "required" | "target_period" | "overdue" | "same_unit" | "chain_length" | "chain_width" | "hours";
@@ -1733,6 +1728,8 @@ export interface components {
             /** Room */
             room?: string | null;
         };
+        /** @enum {string} */
+        SubjectKind: "mandatory" | "optional" | "free";
         /** SubjectPage */
         SubjectPage: {
             /** Items */
@@ -3598,6 +3595,8 @@ export interface operations {
                 unit?: number | string | null;
                 /** @description Somente matérias com turma no semestre. */
                 offered?: boolean;
+                /** @description Somente turmas com vaga e pré-requisitos cumpridos ou em andamento. */
+                available?: boolean;
             };
             header?: {
                 /** @description `no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente). */
@@ -3628,7 +3627,10 @@ export interface operations {
     };
     subject_recommendations_public_subjects_recommendations_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Somente turmas com vaga; o ranking já considera os pré-requisitos. */
+                available?: boolean;
+            };
             header?: {
                 /** @description `no-cache`: revalidar; `max-age=N`: idade máxima em segundos; `stale-if-error[=N]`: aceitar cache na falha; `only-if-cached`: usar só cache (504 se ausente). */
                 "Cache-Control"?: string | null;
@@ -3727,11 +3729,13 @@ export interface operations {
                 /** @description Cargas horárias exatas ou 90+ para cargas de 90 horas ou mais. */
                 hours?: components["schemas"]["WorkloadFilter"][] | null;
                 /** @description Tipos da matéria na matriz do aluno autenticado. */
-                kind?: ("mandatory" | "optional" | "free")[] | null;
+                kind?: components["schemas"]["SubjectKind"][] | null;
                 /** @description Semestre das turmas. */
                 semester?: string | null;
                 /** @description Somente matérias com turma no semestre, inclusive cheias. */
                 offered?: boolean;
+                /** @description Somente turmas com vaga e, para o aluno autenticado, matérias com pré-requisitos cumpridos ou em andamento. */
+                available?: boolean;
                 page?: number;
             };
             header?: {

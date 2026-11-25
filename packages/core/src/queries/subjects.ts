@@ -10,7 +10,8 @@ export type CatalogSubject = components['schemas']['CatalogSubject'];
 export type SubjectPage = components['schemas']['SubjectPage'];
 export type SubjectClassroom = components['schemas']['SubjectClassroom'];
 export type Requirements = components['schemas']['CatalogRequirements'];
-export type SubjectKind = NonNullable<CatalogSubject['kind']>;
+export type SubjectKind = components['schemas']['SubjectKind'];
+export const SUBJECT_KINDS = ['mandatory', 'optional', 'free'] as const satisfies SubjectKind[];
 type RequirementFields = Pick<
     CatalogSubject,
     | 'prerequisites'
@@ -42,12 +43,12 @@ export function displayedRequirements(subject: RequirementFields) {
 export const SEARCH_MIN_LENGTH = 3;
 export const SEARCH_MAX_LENGTH = 32;
 const APPROVED = new Set(['SS', 'MS', 'MM']);
+
 /** Texto válido da busca; fora dos limites mantém o anterior. */
 export function searchText(q: string, previous: string | null = null): string | null {
     const text = q.trim();
     if (!text) return null;
-    if (text.length > SEARCH_MAX_LENGTH) return previous;
-    return text.length >= SEARCH_MIN_LENGTH ? text : previous;
+    return text.length < SEARCH_MIN_LENGTH || text.length > SEARCH_MAX_LENGTH ? previous : text;
 }
 
 export const subjectsQueryOptions = (query: SubjectsQuery) =>
@@ -115,32 +116,6 @@ export function withoutScheduleConflicts(
     return subjects.flatMap((subject) => {
         const classrooms = subject.classrooms.filter(
             (classroom) => !conflict(subject.code, classroom)
-        );
-        return classrooms.length ? [{ ...subject, classrooms }] : [];
-    });
-}
-
-export function availableSubjects(subjects: CatalogSubject[], approved: Set<string> | null) {
-    return subjects.flatMap((subject) => {
-        const { prerequisites, prerequisite_equivalences } = subject;
-        if (
-            approved &&
-            prerequisites?.length &&
-            !prerequisites.some((group) =>
-                group.every(
-                    ({ code }) =>
-                        approved.has(code) ||
-                        prerequisite_equivalences?.[code]?.some(
-                            (alternative) =>
-                                alternative.length > 0 &&
-                                alternative.every((item) => approved.has(item))
-                        )
-                )
-            )
-        )
-            return [];
-        const classrooms = subject.classrooms.filter(
-            (classroom) => seats(classroom)?.occupancy !== 'full'
         );
         return classrooms.length ? [{ ...subject, classrooms }] : [];
     });

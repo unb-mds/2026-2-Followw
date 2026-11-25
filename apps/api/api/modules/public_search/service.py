@@ -50,10 +50,12 @@ class SearchService:
         sync: Sync | None,
         *,
         offered: bool = False,
+        available: bool = False,
     ) -> SearchResult:
         searches: dict[SearchType, Callable[[], Awaitable[Any]]] = {
             "subjects": lambda: self._subjects.search(
-                SubjectFilters(q=q, unit=unit, offered=offered), sync
+                SubjectFilters(q=q, unit=unit, offered=offered, available=available),
+                sync,
             ),
             "courses": lambda: self._courses.list_courses(
                 q, unit, 1, COURSES_PAGE_SIZE
