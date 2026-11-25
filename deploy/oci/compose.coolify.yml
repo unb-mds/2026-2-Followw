@@ -1,0 +1,126 @@
+x-api: &api
+  image: followw-coolify-api
+  build:
+    context: ../..
+    dockerfile: deploy/oci/Dockerfile
+    target: api
+  environment: &api-env
+    ENVIRONMENT: production
+    JWT_SECRET_KEY: ${JWT_SECRET_KEY:?defina JWT_SECRET_KEY}
+    OAUTH_SECRET_KEY: ${OAUTH_SECRET_KEY:?defina OAUTH_SECRET_KEY}
+    RATE_LIMIT_SECRET_KEY: ${RATE_LIMIT_SECRET_KEY:?defina RATE_LIMIT_SECRET_KEY}
+    PUBLIC_URL: https://oracle.followw.app/api
+    CORS_ORIGINS: '["https://oracle.followw.app"]'
+    QSTASH_URL: http://qstash:8080
+    QSTASH_TOKEN: ${QSTASH_TOKEN:?defina QSTASH_TOKEN}
+    QSTASH_CURRENT_SIGNING_KEY: ${QSTASH_CURRENT_SIGNING_KEY:?defina QSTASH_CURRENT_SIGNING_KEY}
+    QSTASH_NEXT_SIGNING_KEY: ${QSTASH_NEXT_SIGNING_KEY:?defina QSTASH_NEXT_SIGNING_KEY}
+    UPSTASH_REDIS_REST_URL: http://redis-http
+    UPSTASH_REDIS_REST_TOKEN: ${UPSTASH_REDIS_REST_TOKEN:?defina UPSTASH_REDIS_REST_TOKEN}
+  logging:
+    driver: local
+
+services:
+  db-init:
+    <<: *api
+    command: [db-init]
+    environment:
+      <<: *api-env
+      DATABASE_URL: postgresql+asyncpg://followw:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@db/followw
+    networks: [backend]
+
+  api:
+    <<: *api
+    restart: unless-stopped
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+          # O Redis local executa os scripts sem a opção de bloqueio por chave do Upstash.
+          sed -i 's/#!lua flags=allow-key-locking//' /app/.venv/lib/python3.14/site-packages/upstash_ratelimit/limiter.py
+          exec "$$@"
+      - --
+    command: [uvicorn, api.main:app, --host, 0.0.0.0, --port, '8000', --forwarded-allow-ips, '*', --no-access-log]
+    environment:
+      <<: *api-env
+      DATABASE_URL: postgresql+asyncpg://followw_app:${POSTGRES_APP_PASSWORD:?defina POSTGRES_APP_PASSWORD}@db/followw
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - 'import urllib.request as u; u.urlopen(u.Request("http://127.0.0.1:8000/public/subjects?code=MAT0025", headers={"X-Forwarded-Proto": "https"}), timeout=4).close()'
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    networks:
+      default:
+        aliases: [followw-coolify-backend]
+      backend: {}
+      coolify: {}
+    labels:
+      traefik.enable: ${FOLLOWW_COOLIFY_ROUTE:-false}
+      traefik.docker.network: coolify
+      traefik.http.routers.followw-coolify-api.rule: Host(`oracle.followw.app`) && PathPrefix(`/api/`)
+      traefik.http.routers.followw-coolify-api.priority: '200'
+      traefik.http.routers.followw-coolify-api.entrypoints: https
+      traefik.http.routers.followw-coolify-api.tls.certresolver: letsencrypt
+      traefik.http.routers.followw-coolify-api.service: followw-coolify-api
+      traefik.http.routers.followw-coolify-api.middlewares: followw-coolify-noindex,followw-coolify-prefix,followw-coolify-size
+      traefik.http.services.followw-coolify-api.loadbalancer.server.port: '8000'
+      traefik.http.middlewares.followw-coolify-prefix.stripprefix.prefixes: /api
+      traefik.http.middlewares.followw-coolify-size.buffering.maxrequestbodybytes: '4500000'
+
+  web:
+    build:
+      context: ../..
+      dockerfile: deploy/oci/Dockerfile
+      target: web
+      args:
+        VITE_POSTHOG_KEY: ${VITE_POSTHOG_KEY:-}
+        VITE_POSTHOG_HOST: ${VITE_POSTHOG_HOST:-https://us.i.posthog.com}
+    restart: unless-stopped
+    logging:
+      driver: local
+    environment:
+      FOLLOWW_SSR_API_ORIGIN: http://followw-coolify-backend:8000
+      FOLLOWW_TRUST_PROXY: '1'
+      RATE_LIMIT_SECRET_KEY: ${RATE_LIMIT_SECRET_KEY:?defina RATE_LIMIT_SECRET_KEY}
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, node, -e, 'fetch("http://127.0.0.1:3000/login").then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    networks: [default, coolify]
+    labels:
+      traefik.enable: ${FOLLOWW_COOLIFY_ROUTE:-false}
+      traefik.docker.network: coolify
+      traefik.http.routers.followw-coolify-web.rule: Host(`oracle.followw.app`)
+      traefik.http.routers.followw-coolify-web.priority: '60'
+      traefik.http.routers.followw-coolify-web.entrypoints: https
+      traefik.http.routers.followw-coolify-web.tls.certresolver: letsencrypt
+      traefik.http.routers.followw-coolify-web.service: followw-coolify-web
+      traefik.http.routers.followw-coolify-web.middlewares: followw-coolify-noindex
+      traefik.http.services.followw-coolify-web.loadbalancer.server.port: '3000'
+      traefik.http.middlewares.followw-coolify-noindex.headers.customresponseheaders.X-Robots-Tag: noindex
+      traefik.http.routers.followw-coolify-redirect.rule: Host(`oracle.followw.app`)
+      traefik.http.routers.followw-coolify-redirect.priority: '60'
+      traefik.http.routers.followw-coolify-redirect.entrypoints: http
+      traefik.http.routers.followw-coolify-redirect.service: followw-coolify-web
+      traefik.http.routers.followw-coolify-redirect.middlewares: followw-coolify-https
+      traefik.http.middlewares.followw-coolify-https.redirectscheme.scheme: https
+      traefik.http.middlewares.followw-coolify-https.redirectscheme.permanent: 'true'
+
+networks:
+  backend:
+    external: true
+    name: followw-preview_default
+  coolify:
+    external: true

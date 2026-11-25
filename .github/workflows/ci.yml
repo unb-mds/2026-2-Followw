@@ -66,6 +66,15 @@ jobs:
       UPSTASH_REDIS_REST_TOKEN: smoke
     steps:
       - uses: actions/checkout@v7
+      - name: Validar o Compose do Coolify
+        run: |
+          docker compose -f compose.coolify.yml config --format json | jq -e '
+            (.services | keys == ["api", "db-init", "web"]) and
+            .networks.backend.external and
+            .networks.backend.name == "followw-preview_default" and
+            .services.api.labels["traefik.enable"] == "false" and
+            .services.web.labels["traefik.enable"] == "false"
+          '
       - name: Subir com HTTPS local
         run: |
           { printf '{\n\tlocal_certs\n}\n\n'; cat Caddyfile.preview; } > Caddyfile.smoke
