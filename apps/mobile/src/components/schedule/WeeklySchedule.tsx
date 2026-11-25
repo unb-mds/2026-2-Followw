@@ -17,9 +17,8 @@ import { cn } from '@/lib/utils';
 const TIMELINE_INSET = 16;
 const BLOCK_GAP = 3;
 const HOUR_COLUMN = 52;
-// mesma largura mínima e altura máxima da grade do web (min-w-md, max-h-144)
+// mesma largura mínima da grade do web (min-w-md); na vertical, rola a tela que a contém
 const MIN_WIDTH = 448;
-const MAX_HEIGHT = 576;
 
 export interface WeeklyEntry {
     key: string;
@@ -54,7 +53,7 @@ export function WeeklySchedule({
             {range && (
                 <ScrollView
                     horizontal
-                    showsHorizontalScrollIndicator={false}
+                    nestedScrollEnabled
                     className="rounded-xl border border-border"
                     contentContainerStyle={{ minWidth: MIN_WIDTH, flexGrow: 1 }}
                 >
@@ -75,30 +74,28 @@ export function WeeklySchedule({
                                 </Text>
                             ))}
                         </View>
-                        <ScrollView nestedScrollEnabled style={{ maxHeight: MAX_HEIGHT }}>
+                        <View
+                            className="flex-row"
+                            style={{ height: timelineHeight(range) + TIMELINE_INSET * 2 }}
+                        >
                             <View
-                                className="flex-row"
-                                style={{ height: timelineHeight(range) + TIMELINE_INSET * 2 }}
+                                style={{ width: HOUR_COLUMN }}
+                                className="border-r border-foreground/10 bg-muted/50"
                             >
-                                <View
-                                    style={{ width: HOUR_COLUMN }}
-                                    className="border-r border-foreground/10 bg-muted/50"
-                                >
-                                    {ticks.map(({ minute, top }) => (
-                                        <Text
-                                            key={minute}
-                                            className="absolute right-3 text-xs font-medium text-muted-foreground"
-                                            style={{ top: top + TIMELINE_INSET - 8 }}
-                                        >
-                                            {formatMinutes(minute)}
-                                        </Text>
-                                    ))}
-                                </View>
-                                {days.map(({ weekday, label: day }) => (
-                                    <View key={weekday} className="relative flex-1">
-                                        {dayLanes(
-                                            times.filter((time) => time.weekday === weekday)
-                                        ).map(({ entry, start, end, lane, lanes }) => {
+                                {ticks.map(({ minute, top }) => (
+                                    <Text
+                                        key={minute}
+                                        className="absolute right-3 text-xs font-medium text-muted-foreground"
+                                        style={{ top: top + TIMELINE_INSET - 8 }}
+                                    >
+                                        {formatMinutes(minute)}
+                                    </Text>
+                                ))}
+                            </View>
+                            {days.map(({ weekday, label: day }) => (
+                                <View key={weekday} className="relative flex-1">
+                                    {dayLanes(times.filter((time) => time.weekday === weekday)).map(
+                                        ({ entry, start, end, lane, lanes }) => {
                                             const top = timePosition(start, range);
                                             const style = {
                                                 top: top + TIMELINE_INSET + BLOCK_GAP,
@@ -111,44 +108,55 @@ export function WeeklySchedule({
                                                 paddingHorizontal: BLOCK_GAP
                                             };
                                             const description = `${day}, ${start}–${end}: ${entry.name}, ${entry.code}, turma ${entry.number}`;
-                                            return (
+                                            const block = (
+                                                <View
+                                                    className={cn(
+                                                        'flex-1 justify-center gap-0.5 overflow-hidden rounded-lg border border-primary/50 bg-primary/10 px-1 py-2',
+                                                        onSelect && 'active:bg-primary/20'
+                                                    )}
+                                                >
+                                                    <Text
+                                                        numberOfLines={1}
+                                                        className="text-center text-xs font-semibold text-primary"
+                                                    >
+                                                        {entry.code}
+                                                    </Text>
+                                                    <Text
+                                                        numberOfLines={1}
+                                                        className="text-center text-xs text-foreground/70"
+                                                    >
+                                                        T{entry.number}
+                                                    </Text>
+                                                </View>
+                                            );
+                                            // sem ação, um View comum não disputa o toque com a rolagem
+                                            return onSelect ? (
                                                 <Pressable
                                                     key={`${entry.key}-${start}`}
-                                                    disabled={!onSelect}
-                                                    accessibilityRole={
-                                                        onSelect ? 'button' : undefined
-                                                    }
+                                                    accessibilityRole="button"
                                                     accessibilityLabel={description}
                                                     style={style}
                                                     className="absolute"
-                                                    onPress={() => onSelect?.(entry.key)}
+                                                    onPress={() => onSelect(entry.key)}
                                                 >
-                                                    <View
-                                                        className={cn(
-                                                            'flex-1 justify-center gap-0.5 overflow-hidden rounded-lg border border-primary/50 bg-primary/10 px-1 py-2',
-                                                            onSelect && 'active:bg-primary/20'
-                                                        )}
-                                                    >
-                                                        <Text
-                                                            numberOfLines={1}
-                                                            className="text-center text-xs font-semibold text-primary"
-                                                        >
-                                                            {entry.code}
-                                                        </Text>
-                                                        <Text
-                                                            numberOfLines={1}
-                                                            className="text-center text-xs text-foreground/70"
-                                                        >
-                                                            T{entry.number}
-                                                        </Text>
-                                                    </View>
+                                                    {block}
                                                 </Pressable>
+                                            ) : (
+                                                <View
+                                                    key={`${entry.key}-${start}`}
+                                                    accessible
+                                                    accessibilityLabel={description}
+                                                    style={style}
+                                                    className="absolute"
+                                                >
+                                                    {block}
+                                                </View>
                                             );
-                                        })}
-                                    </View>
-                                ))}
-                            </View>
-                        </ScrollView>
+                                        }
+                                    )}
+                                </View>
+                            ))}
+                        </View>
                     </View>
                 </ScrollView>
             )}
