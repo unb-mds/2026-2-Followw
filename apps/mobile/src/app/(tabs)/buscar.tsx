@@ -1,7 +1,7 @@
 import type { SearchCategory } from '@followw/core/lib/search-categories.ts';
 import type { UserProfile } from '@followw/core/queries/me.ts';
+import type { SubjectsQuery } from '@followw/core/queries/subjects.ts';
 
-import { getCurrentSemester } from '@followw/core/calendar.ts';
 import {
     SEARCH_CATEGORIES,
     searchCategoryLabels,
@@ -9,7 +9,11 @@ import {
     searchTypes,
     showsSubjects
 } from '@followw/core/lib/search-categories.ts';
-import { allClassroomsQueryOptions } from '@followw/core/queries/classrooms.ts';
+import {
+    kindsTitle,
+    type SubjectFilterParams,
+    subjectsQueryFrom
+} from '@followw/core/lib/subject-filters.ts';
 import { internshipsQueryOptions } from '@followw/core/queries/internships.ts';
 import { meQueryOptions } from '@followw/core/queries/me.ts';
 import {
@@ -19,18 +23,14 @@ import {
 import { refreshQuery } from '@followw/core/queries/refresh.ts';
 import { searchQueryOptions } from '@followw/core/queries/search.ts';
 import {
-    currentCurriculumPeriod,
     SEARCH_MAX_LENGTH,
-    SEARCH_MIN_LENGTH,
     searchText,
-    subjectsQueryOptions,
-    takenCodes,
-    approvedCodes
+    subjectsQueryOptions
 } from '@followw/core/queries/subjects.ts';
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Briefcase, Search } from 'lucide-react-native';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import { HeaderBar, HeaderTitle } from '@/components/HeaderBar';
@@ -44,37 +44,55 @@ import {
 import { InternshipResults } from '@/components/search/InternshipSection';
 import { RecommendationsSection } from '@/components/search/RecommendationsSection';
 import { SearchResults } from '@/components/search/SearchResults';
+import { SubjectFilters } from '@/components/search/SubjectFilters';
 import { SubjectResults } from '@/components/search/SubjectResults';
 import { TabFilter } from '@/components/TabFilter';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
+import { useSubjectFilters } from '@/lib/search-filters';
+import { cn } from '@/lib/utils';
 
 export { ErrorState as ErrorBoundary } from '@/components/ErrorState';
 
 type SearchView =
-    | { kind: 'recommendations' }
+    | { kind: 'recommendations'; available: boolean }
     | { kind: 'catalog'; category: CatalogCategory }
-    | { kind: 'search'; text: string }
-    | { kind: 'unit'; unit: string }
+    | { kind: 'search'; text: string; available: boolean }
+    | { kind: 'subjects'; query: SubjectsQuery; title: string }
+    | { kind: 'curriculum-login' }
     | { kind: 'internships'; text: string | null };
 
-/** Sem texto, as abas com matérias mostram as recomendações ou a unidade do aluno, e as demais o catálogo. */
+/** Filtros de matéria levam à lista filtrada; sem texto, recomendações, a unidade do aluno ou o catálogo. */
 function searchView(
     category: SearchCategory,
     q: string,
     text: string | null,
-    user: UserProfile | null | undefined
+    user: UserProfile | null | undefined,
+    filters: SubjectFilterParams
 ): SearchView | null {
-    if (category === 'internships') return { kind: 'internships', text };
     const subjects = showsSubjects(category);
-    if (subjects && user && showRecommendations(user, { q })) return { kind: 'recommendations' };
-    if (text) return { kind: 'search', text };
+    const available = filters.hideUnavailable;
+    if (subjects && filters.kind.length && !user) return { kind: 'curriculum-login' };
+    const query = subjects && subjectsQueryFrom(filters, text);
+    if (query) return { kind: 'subjects', query, title: kindsTitle(filters.kind) };
+    if (category === 'internships') return { kind: 'internships', text };
+    if (subjects && user && showRecommendations(user, { q })) {
+        return { kind: 'recommendations', available };
+    }
+    if (text) return { kind: 'search', text, available };
     if (category === 'courses' || category === 'professors') return { kind: 'catalog', category };
-    const unit = user?.unit?.code;
-    return subjects && unit ? { kind: 'unit', unit } : null;
+    const unit = subjects && user?.unit?.code;
+    const unitQuery = unit && subjectsQueryFrom(filters, null, unit);
+    return unitQuery ? { kind: 'subjects', query: unitQuery, title: `Matérias da ${unit}` } : null;
 }
+
+const searchLabels: Partial<Record<SearchCategory, string>> = {
+    all: 'Busque por matéria, horário, curso ou professor',
+    classrooms: 'Busque por matéria, horário ou departamento',
+    internships: 'Busque por estágio'
+};
 
 const isCategory = (value: unknown): value is SearchCategory =>
     SEARCH_CATEGORIES.some((category) => category === value);
@@ -86,11 +104,8 @@ export default function SearchScreen() {
     const user = me.data;
     const [q, setQ] = useState('');
     const [category, setCategory] = useState<SearchCategory>('all');
+    const filters = useSubjectFilters();
     const subjects = showsSubjects(category);
-    const currentPeriod = currentCurriculumPeriod(
-        user?.entry_semester,
-        getCurrentSemester()?.semester
-    );
 
     // links vindos de outras telas (matéria, docente, curso) preenchem a busca
     useEffect(() => {
@@ -109,18 +124,12 @@ export default function SearchScreen() {
         const timer = setTimeout(() => setText((previous) => searchText(q, previous)), 300);
         return () => clearTimeout(timer);
     }, [q]);
-    const view = searchView(category, q, text, user);
+    const view = searchView(category, q, text, user, filters);
+    // Com filtros de matéria, o texto busca só matérias.
     const searchLabel =
-        category === 'internships'
-            ? 'Busque por estágio'
-            : 'Busque por matéria, curso ou professor';
-    const history = useQuery({ ...allClassroomsQueryOptions, enabled: subjects && Boolean(user) });
-    const completed = user?.completed_subjects;
-    const taken = useMemo(
-        () =>
-            history.data ? takenCodes(history.data, approvedCodes(history.data, completed)) : null,
-        [history.data, completed]
-    );
+        subjects && subjectsQueryFrom(filters, null)
+            ? 'Busque por matéria, horário ou departamento'
+            : (searchLabels[category] ?? 'Busque por matéria, curso ou professor');
 
     return (
         <View className="relative flex-1 bg-background">
@@ -136,16 +145,19 @@ export default function SearchScreen() {
                     if (view?.kind === 'search')
                         return refreshQuery(
                             queryClient,
-                            searchQueryOptions(view.text, searchTypes[category])
+                            searchQueryOptions(view.text, searchTypes[category], view.available)
                         );
                     if (view?.kind === 'recommendations')
-                        return refreshQuery(queryClient, recommendationsQueryOptions);
+                        return refreshQuery(
+                            queryClient,
+                            recommendationsQueryOptions(view.available)
+                        );
                     if (view?.kind === 'catalog')
                         return view.category === 'courses'
                             ? refreshQuery(queryClient, catalogQueryOptions.courses)
                             : refreshQuery(queryClient, catalogQueryOptions.professors);
-                    if (view?.kind === 'unit')
-                        return refreshQuery(queryClient, subjectsQueryOptions({ unit: view.unit }));
+                    if (view?.kind === 'subjects')
+                        return refreshQuery(queryClient, subjectsQueryOptions(view.query));
                     if (view?.kind === 'internships' && user)
                         return refreshQuery(queryClient, internshipsQueryOptions);
                     return refreshQuery(queryClient, meQueryOptions);
@@ -168,8 +180,9 @@ export default function SearchScreen() {
                         clearButtonMode="while-editing"
                         placeholder={`${searchLabel}...`}
                         aria-label={searchLabel}
-                        className="h-11 bg-card pl-10 text-sm"
+                        className={cn('h-11 bg-card pl-10 text-sm', subjects && 'pr-12')}
                     />
+                    {subjects && <SubjectFilters />}
                 </View>
                 <TabFilter
                     label="Categoria da busca"
@@ -181,40 +194,53 @@ export default function SearchScreen() {
                 />
                 <View className="gap-5 pb-8">
                     {!view && (
-                        <Text className="py-8 text-center text-sm text-muted-foreground">{`Digite de ${SEARCH_MIN_LENGTH} a ${SEARCH_MAX_LENGTH} caracteres do nome, código da matéria, curso ou professor para ver os resultados.`}</Text>
-                    )}
-                    {subjects && !user && !me.isPending && text && (
-                        <Text className="text-sm text-muted-foreground">
-                            <Text
-                                className="text-sm font-bold text-primary"
-                                onPress={() => router.push('/login')}
-                            >
-                                Entre na sua conta
-                            </Text>{' '}
-                            para visualizar seu fluxo.
+                        <Text className="py-8 text-center text-sm text-muted-foreground">
+                            Busque por matéria, departamento ou código de horário do SIGAA, como
+                            24M34. Para selecionar horários, abra o filtro de matérias.
                         </Text>
                     )}
+                    {subjects &&
+                        !user &&
+                        !me.isPending &&
+                        text &&
+                        view?.kind !== 'curriculum-login' && (
+                            <Text className="text-sm text-muted-foreground">
+                                <Text
+                                    className="text-sm font-bold text-primary"
+                                    onPress={() => router.push('/login')}
+                                >
+                                    Entre na sua conta
+                                </Text>{' '}
+                                para visualizar seu fluxo.
+                            </Text>
+                        )}
                     {view?.kind === 'recommendations' && (
-                        <RecommendationsSection currentPeriod={currentPeriod} taken={taken} />
+                        <RecommendationsSection available={view.available} />
                     )}
                     {view?.kind === 'search' && (
                         <SearchResults
                             key={category}
                             text={view.text}
                             types={searchTypes[category]}
+                            available={view.available}
                             empty={searchEmptyMessages[category]}
-                            currentPeriod={currentPeriod}
-                            taken={taken}
                             onShowCategory={category === 'all' ? setCategory : undefined}
                         />
                     )}
                     {view?.kind === 'catalog' && <CatalogResults category={view.category} />}
-                    {view?.kind === 'unit' && (
-                        <SubjectResults
-                            unit={view.unit}
-                            currentPeriod={currentPeriod}
-                            taken={taken}
-                        />
+                    {view?.kind === 'subjects' && (
+                        <SubjectResults query={view.query} title={view.title} />
+                    )}
+                    {view?.kind === 'curriculum-login' && (
+                        <Text>
+                            <Text
+                                className="font-bold text-primary"
+                                onPress={() => router.push('/login')}
+                            >
+                                Entre na sua conta
+                            </Text>{' '}
+                            para filtrar as matérias pela matriz do seu curso.
+                        </Text>
                     )}
                     {view?.kind === 'internships' &&
                         (user ? (

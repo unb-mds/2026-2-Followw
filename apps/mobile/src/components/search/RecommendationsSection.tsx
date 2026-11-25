@@ -2,7 +2,6 @@ import type { CatalogSubject } from '@followw/core/queries/subjects.ts';
 
 import { reasonLabel, recommendationsQueryOptions } from '@followw/core/queries/recommendations.ts';
 import { refreshQuery } from '@followw/core/queries/refresh.ts';
-import { withClassrooms } from '@followw/core/queries/subjects.ts';
 import { noop, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, CircleHelp } from 'lucide-react-native';
 import { View } from 'react-native';
@@ -10,6 +9,7 @@ import { View } from 'react-native';
 import { ErrorCard } from '@/components/ErrorState';
 import { LoadingSkeleton } from '@/components/LoadingSkeleton';
 import { TurmaSection, TurmaSectionSkeleton } from '@/components/search/TurmaSection';
+import { useSubjectListing } from '@/components/search/useSubjectListing';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -66,19 +66,20 @@ function WhyDialog({ subject }: { subject: CatalogSubject }) {
     );
 }
 
-export function RecommendationsSection({
-    currentPeriod,
-    taken
-}: {
-    currentPeriod?: number | null;
-    taken?: Set<string> | null;
-}) {
+/** Com `available`, só turmas com vaga e pré-requisitos cumpridos. */
+export function RecommendationsSection({ available }: { available: boolean }) {
     const client = useQueryClient();
-    const query = useQuery(recommendationsQueryOptions);
-    const refresh = () => void refreshQuery(client, recommendationsQueryOptions).catch(noop);
-    const subjects = query.data && withClassrooms(query.data);
+    const options = recommendationsQueryOptions(available);
+    const query = useQuery(options);
+    const refresh = () => void refreshQuery(client, options).catch(noop);
+    const { currentPeriod, taken, visible } = useSubjectListing();
+    const subjects = query.data && visible(query.data);
     return (
-        <View accessibilityLabel="Matérias recomendadas" className="gap-3">
+        <View
+            accessibilityLabel="Matérias recomendadas"
+            aria-busy={query.isFetching}
+            className="gap-3"
+        >
             {query.isPending ? (
                 <LoadingSkeleton label="Buscando recomendações...">
                     <TurmaSectionSkeleton />
@@ -109,6 +110,7 @@ export function RecommendationsSection({
                             taken={taken}
                             // oxlint-disable-next-line react/no-unstable-nested-components -- render prop
                             footer={(subject) => <WhyDialog subject={subject} />}
+                            clientPagination
                         />
                     )}
                 </>

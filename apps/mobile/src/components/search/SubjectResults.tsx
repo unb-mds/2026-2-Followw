@@ -1,55 +1,41 @@
+import { ApiError } from '@followw/core/queries/errors.ts';
 import { refreshQuery } from '@followw/core/queries/refresh.ts';
-import { subjectsQueryOptions, withClassrooms } from '@followw/core/queries/subjects.ts';
-import { keepPreviousData, noop, useQuery, useQueryClient } from '@tanstack/react-query';
+import { type SubjectsQuery, subjectsQueryOptions } from '@followw/core/queries/subjects.ts';
+import { noop, useQuery, useQueryClient } from '@tanstack/react-query';
 import { View } from 'react-native';
 
 import { QueryState } from '@/components/QueryState';
-import { TurmaSection, TurmaSectionSkeleton } from '@/components/search/TurmaSection';
-import { Text } from '@/components/ui/text';
+import { SubjectPageSection } from '@/components/search/SubjectPageSection';
+import { TurmaSectionSkeleton } from '@/components/search/TurmaSection';
 
-/** Matérias da unidade, listadas sem texto de busca. */
-export function SubjectResults({
-    unit,
-    currentPeriod,
-    taken
-}: {
-    unit: string;
-    currentPeriod: number | null;
-    taken: Set<string> | null;
-}) {
+export function SubjectResults({ query, title }: { query: SubjectsQuery; title: string }) {
     const client = useQueryClient();
-    const options = subjectsQueryOptions({ unit });
-    const result = useQuery({ ...options, placeholderData: keepPreviousData });
+    const options = subjectsQueryOptions(query);
+    const result = useQuery(options);
+    const error: unknown = result.error;
     const refresh = () => void refreshQuery(client, options).catch(noop);
     return (
-        <View className="gap-5">
+        <View aria-busy={result.isFetching} className="gap-5">
             <QueryState
                 query={result}
                 loading="Buscando matérias..."
-                error="Não foi possível buscar as matérias."
+                error={
+                    query.kind?.length && error instanceof ApiError && error.isNotFound
+                        ? 'Matriz curricular não encontrada para filtrar por tipo de matéria.'
+                        : 'Não foi possível buscar as matérias.'
+                }
                 stale="Não foi possível atualizar as matérias. Exibindo os dados salvos."
                 skeleton={<TurmaSectionSkeleton title />}
             >
-                {(data) => {
-                    const subjects = withClassrooms(data);
-                    return (
-                        <>
-                            <TurmaSection
-                                key={unit}
-                                title={`Matérias da ${unit}`}
-                                subjects={subjects}
-                                currentPeriod={currentPeriod}
-                                taken={taken}
-                                onOpenDetails={refresh}
-                            />
-                            {subjects.length === 0 && (
-                                <Text className="py-8 text-center text-sm text-muted-foreground">
-                                    Nenhuma matéria encontrada. Tente mudar a busca.
-                                </Text>
-                            )}
-                        </>
-                    );
-                }}
+                {(data) => (
+                    <SubjectPageSection
+                        first={data}
+                        query={query}
+                        title={title}
+                        refreshFirst={refresh}
+                        empty="Nenhuma matéria encontrada. Tente mudar a busca."
+                    />
+                )}
             </QueryState>
         </View>
     );

@@ -21,21 +21,26 @@ const PAGE_SIZE = 25;
 
 export function TurmaSection({
     title,
+    summary,
     subjects,
     taken,
     onOpenDetails,
     currentPeriod,
-    footer
+    footer,
+    clientPagination = false
 }: {
     currentPeriod?: number | null;
     title?: string;
+    // texto ao lado do título; por padrão, a quantidade exibida
+    summary?: string;
     subjects: CatalogSubject[];
     taken?: Set<string> | null;
-    onOpenDetails?: () => void;
+    onOpenDetails?: (subject: CatalogSubject) => void;
     footer?: (subject: CatalogSubject) => ReactNode;
+    clientPagination?: boolean;
 }) {
     const [limit, setLimit] = useState(PAGE_SIZE);
-    if (subjects.length === 0) return null;
+    const shown = clientPagination ? subjects.slice(0, limit) : subjects;
 
     return (
         <View className="gap-3">
@@ -49,50 +54,58 @@ export function TurmaSection({
                         {title}
                     </Text>
                     <Text className="shrink-0 text-xs text-muted-foreground">
-                        {`${subjects.length} ${subjects.length === 1 ? 'resultado' : 'resultados'}`}
+                        {summary ??
+                            `${subjects.length} ${subjects.length === 1 ? 'resultado' : 'resultados'}`}
                     </Text>
                 </View>
             )}
-            <Accordion type="multiple">
-                <View className="gap-2">
-                    {subjects.slice(0, limit).map((subject) => (
-                        <AccordionItem
-                            key={subject.code}
-                            value={subject.code}
-                            className="overflow-hidden rounded-2xl border border-border bg-card"
-                        >
-                            <AccordionTrigger className="items-center gap-3 rounded-none px-3 py-3 active:bg-primary/5">
-                                <SubjectSummary
-                                    subject={subject}
-                                    currentPeriod={currentPeriod}
-                                    done={covered(taken, subject)}
-                                />
-                                <Text className="shrink-0 text-xs font-normal text-muted-foreground">
-                                    {`${subject.classrooms.length} ${subject.classrooms.length === 1 ? 'turma' : 'turmas'}`}
-                                </Text>
-                            </AccordionTrigger>
-                            <AccordionContent className="pb-0">
-                                <View className="border-t border-border">
-                                    {subject.classrooms.map((classroom, index) => (
-                                        <View
-                                            key={`${classroom.semester}-${classroom.number}`}
-                                            className={index > 0 ? 'border-t border-border' : ''}
-                                        >
-                                            <TurmaCard
-                                                subject={subject}
-                                                classroom={classroom}
-                                                onOpenDetails={onOpenDetails}
-                                            />
-                                        </View>
-                                    ))}
-                                </View>
-                                {footer?.(subject)}
-                            </AccordionContent>
-                        </AccordionItem>
-                    ))}
-                </View>
-            </Accordion>
-            {subjects.length > limit && (
+            {subjects.length > 0 && (
+                <Accordion type="multiple">
+                    <View className="gap-2">
+                        {shown.map((subject) => (
+                            <AccordionItem
+                                key={subject.code}
+                                value={subject.code}
+                                className="overflow-hidden rounded-2xl border border-border bg-card"
+                            >
+                                <AccordionTrigger className="items-center gap-3 rounded-none px-3 py-3 active:bg-primary/5">
+                                    <SubjectSummary
+                                        subject={subject}
+                                        currentPeriod={currentPeriod}
+                                        done={covered(taken, subject)}
+                                    />
+                                    <Text className="shrink-0 text-xs font-normal text-muted-foreground">
+                                        {`${subject.classrooms.length} ${subject.classrooms.length === 1 ? 'turma' : 'turmas'}`}
+                                    </Text>
+                                </AccordionTrigger>
+                                <AccordionContent className="pb-0">
+                                    <View className="border-t border-border">
+                                        {subject.classrooms.map((classroom, index) => (
+                                            <View
+                                                key={`${classroom.semester}-${classroom.number}`}
+                                                className={
+                                                    index > 0 ? 'border-t border-border' : ''
+                                                }
+                                            >
+                                                <TurmaCard
+                                                    subject={subject}
+                                                    classroom={classroom}
+                                                    onOpenDetails={
+                                                        onOpenDetails &&
+                                                        (() => onOpenDetails(subject))
+                                                    }
+                                                />
+                                            </View>
+                                        ))}
+                                    </View>
+                                    {footer?.(subject)}
+                                </AccordionContent>
+                            </AccordionItem>
+                        ))}
+                    </View>
+                </Accordion>
+            )}
+            {clientPagination && subjects.length > limit && (
                 <Button
                     variant="outline"
                     className="self-center"
