@@ -1,7 +1,5 @@
 ![Followw UnB — capa com o ICC em verde e azul-petróleo](docs/assets/readme-cover.webp)
 
-# Followw UnB
-
 O Followw é open-source e reúne o SIGAA e outros serviços da UnB em um aplicativo web para
 estudantes. O cardápio do RU, a busca e os fluxos de cursos são públicos. Para acompanhar seus dados
 acadêmicos, você entra com a mesma matrícula e senha do SIGAA. Suas credenciais são criptografadas e
