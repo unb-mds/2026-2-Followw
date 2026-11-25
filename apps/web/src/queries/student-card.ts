@@ -3,10 +3,10 @@ import {
     hasValidCard,
     type RestaurantCredentials
 } from '@followw/core/queries/restaurant-account.ts';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo } from 'react';
+import { type QueryClient, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 
-import { localStorageRepository, STORAGE_KEYS } from '#/lib/local-storage';
+import { localStorageRepository, STORAGE_KEYS, STORAGE_PREFIX } from '#/lib/local-storage';
 
 // sem `credentials`, é o marcador de que o SIGAA devolveu uma carteirinha vencida
 interface SavedCard {
@@ -33,7 +33,27 @@ function isCredentials(value: unknown): value is RestaurantCredentials {
     );
 }
 
-function readCard(registration: string): SavedCard | undefined {
+const CARD_STORAGE_KEY = `${STORAGE_PREFIX}${STORAGE_KEYS.STUDENT_CARD}`;
+
+function readRawCard(): string | null {
+    try {
+        return typeof window === 'undefined' ? null : window.localStorage.getItem(CARD_STORAGE_KEY);
+    } catch {
+        return null;
+    }
+}
+
+function subscribeCardStorage(notify: () => void) {
+    if (typeof window === 'undefined') return () => {};
+    const onStorage = (event: StorageEvent) => {
+        if (event.key === null || event.key === CARD_STORAGE_KEY) notify();
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+}
+
+function readCard(raw: string | null, registration: string): SavedCard | undefined {
+    if (!raw) return undefined;
     const saved = localStorageRepository.get<SavedCard>(STORAGE_KEYS.STUDENT_CARD);
     if (
         saved?.registration !== registration ||
@@ -43,6 +63,23 @@ function readCard(registration: string): SavedCard | undefined {
         return undefined;
     if (saved.credentials === undefined) return { registration, updatedAt: saved.updatedAt };
     return isCredentials(saved.credentials) && hasValidCard(saved.credentials) ? saved : undefined;
+}
+
+function forgetQuery(queryClient: QueryClient, queryKey: readonly unknown[]) {
+    const entry = queryClient.getQueryCache().find({ queryKey, exact: true });
+    if (!entry) return false;
+    const idle = entry.state.fetchStatus === 'idle';
+    entry.setState({
+        data: undefined,
+        dataUpdatedAt: 0,
+        status: 'pending',
+        error: null,
+        isInvalidated: false
+    });
+    if (idle && !entry.isDisabled()) {
+        void queryClient.refetchQueries({ queryKey, exact: true, type: 'active' });
+    }
+    return !idle;
 }
 
 // A cópia mais recente (cache em memória ou armazenamento local) vence.
@@ -74,9 +111,12 @@ function planSync(
 
 export function useStudentCard(registration: string) {
     const queryClient = useQueryClient();
+    const raw = useSyncExternalStore(subscribeCardStorage, readRawCard, () => null);
     const options = credentialsQueryOptions(registration);
-    const saved = useMemo(() => readCard(registration), [registration]);
+    const saved = readCard(raw, registration);
     const cached = queryClient.getQueryState(options.queryKey);
+    const synced = useRef('');
+    const discarded = useRef('');
     // não busca na rede antes de o efeito aplicar a cópia local mais nova
     const behindLocal =
         saved !== undefined &&
@@ -90,26 +130,31 @@ export function useStudentCard(registration: string) {
         initialData: saved?.credentials,
         initialDataUpdatedAt: saved?.credentials ? saved.updatedAt : undefined
     });
-    const { data, dataUpdatedAt } = query;
+    const { data, dataUpdatedAt, fetchStatus } = query;
     useEffect(() => {
         const { queryKey } = credentialsQueryOptions(registration);
-        const action = planSync(registration, readCard(registration), data, dataUpdatedAt);
+        if (data && discarded.current === `${registration}:${data.token}`) {
+            discarded.current = '';
+            forgetQuery(queryClient, queryKey);
+            return;
+        }
+        if (fetchStatus === 'idle') discarded.current = '';
+        const action = planSync(registration, readCard(raw, registration), data, dataUpdatedAt);
         if (action?.kind === 'restore') {
             queryClient.setQueryData(queryKey, action.card, { updatedAt: action.updatedAt });
         } else if (action?.kind === 'forget') {
-            queryClient.getQueryCache().find({ queryKey, exact: true })?.setState({
-                data: undefined,
-                dataUpdatedAt: 0,
-                status: 'pending',
-                error: null,
-                fetchStatus: 'idle',
-                isInvalidated: false
-            });
-            // sem dado, o estado pendente não busca sozinho
-            void queryClient.invalidateQueries({ queryKey, exact: true });
-        } else if (action?.kind === 'save') {
+            if (forgetQuery(queryClient, queryKey) && data) {
+                discarded.current = `${registration}:${data.token}`;
+            }
+        } else if (
+            action?.kind === 'save' &&
+            synced.current !== `${registration}:${dataUpdatedAt}`
+        ) {
             localStorageRepository.set(STORAGE_KEYS.STUDENT_CARD, action.saved);
         }
-    }, [queryClient, registration, data, dataUpdatedAt]);
+        if (action?.kind !== 'restore' && action?.kind !== 'forget' && data && dataUpdatedAt > 0) {
+            synced.current = `${registration}:${dataUpdatedAt}`;
+        }
+    }, [queryClient, registration, raw, data, dataUpdatedAt, fetchStatus]);
     return query;
 }

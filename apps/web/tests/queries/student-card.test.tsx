@@ -5,7 +5,7 @@ import { credentialsQueryOptions } from '@followw/core/queries/restaurant-accoun
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, mock, setSystemTime, test } from 'bun:test';
 
-import { localStorageRepository, STORAGE_KEYS } from '#/lib/local-storage';
+import { localStorageRepository, STORAGE_KEYS, STORAGE_PREFIX } from '#/lib/local-storage';
 import { clearSession } from '#/queries/auth';
 import { refreshQuery } from '#/queries/refresh';
 import { useStudentCard } from '#/queries/student-card';
@@ -23,6 +23,16 @@ function mountCard(registration: string, client: QueryClient) {
         wrapper: ({ children }) => (
             <QueryClientProvider client={client}>{children}</QueryClientProvider>
         )
+    });
+}
+
+function emitCardStorage() {
+    dom.testing.act(() => {
+        window.dispatchEvent(
+            new window.StorageEvent('storage', {
+                key: `${STORAGE_PREFIX}${STORAGE_KEYS.STUDENT_CARD}`
+            })
+        );
     });
 }
 
@@ -149,6 +159,76 @@ describe('useStudentCard', () => {
             await clearSession(client);
             apiClient.eject(middleware);
         }
+    });
+
+    test('preserva o fetch em andamento ao chegar marcador de vencimento e descarta se a resposta devolver o mesmo QR', async () => {
+        const registration = '202699999';
+        const options = credentialsQueryOptions(registration);
+        const stale = { token: 'qr-antigo', valid_until: '2027-03-01' };
+        const renewed = { token: 'qr-renovado', valid_until: '2028-03-01' };
+        const resolvers: ((response: Response) => void)[] = [];
+        const signals: AbortSignal[] = [];
+        const middleware: Middleware = {
+            onRequest: ({ request }) => {
+                signals.push(request.signal);
+                return new Promise<Response>((resolve) => {
+                    resolvers.push(resolve);
+                });
+            }
+        };
+        apiClient.use(middleware);
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        client.setQueryData(options.queryKey, stale, { updatedAt: Date.now() - 86400000 });
+        try {
+            const view = mountCard(registration, client);
+            const inFlight = refreshQuery(client, options, { retry: false });
+            await dom.testing.waitFor(() => expect(resolvers).toHaveLength(1));
+
+            localStorageRepository.set(STORAGE_KEYS.STUDENT_CARD, {
+                registration,
+                updatedAt: Date.now()
+            });
+            emitCardStorage();
+
+            await dom.testing.waitFor(() => expect(view.result.current.data).toBeUndefined());
+            expect(view.result.current.isFetching).toBe(true);
+            expect(signals[0].aborted).toBe(false);
+            expect(resolvers).toHaveLength(1);
+
+            // resposta atrasada com o mesmo token invalidado é descartada e dispara nova busca
+            resolvers[0](Response.json(stale));
+            await inFlight;
+            await dom.testing.waitFor(() => expect(resolvers).toHaveLength(2));
+            expect(view.result.current.data).toBeUndefined();
+            expect(
+                localStorageRepository.get<Record<string, unknown>>(STORAGE_KEYS.STUDENT_CARD)
+                    ?.credentials
+            ).toBeUndefined();
+
+            resolvers[1](Response.json(renewed));
+            await dom.testing.waitFor(() => expect(view.result.current.data).toEqual(renewed));
+            expect(view.result.current.isFetching).toBe(false);
+            view.unmount();
+        } finally {
+            await clearSession(client);
+            apiClient.eject(middleware);
+        }
+    });
+
+    test('não regrava a carteirinha no armazenamento local após logout em outra aba', () => {
+        const registration = '202612345';
+        const options = credentialsQueryOptions(registration);
+        const card = { token: 'qr-sessao', valid_until: '2027-03-01' };
+        const client = disabledClient();
+        client.setQueryData(options.queryKey, card, { updatedAt: Date.now() - 86400000 });
+        const view = mountCard(registration, client);
+        expect(localStorageRepository.get(STORAGE_KEYS.STUDENT_CARD)).not.toBeNull();
+
+        localStorageRepository.remove(STORAGE_KEYS.STUDENT_CARD);
+        emitCardStorage();
+
+        expect(localStorageRepository.get(STORAGE_KEYS.STUDENT_CARD)).toBeNull();
+        view.unmount();
     });
 
     test('impede que uma aba desatualizada restaure o QR após resposta de vencimento do SIGAA, preservando a cópia em falha de rede', async () => {

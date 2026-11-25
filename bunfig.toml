@@ -1,5 +1,2 @@
 [install]
 linker = "hoisted"
-
-[test]
-preload = ["./apps/web/tests/setup.ts", "./apps/web/tests/helpers/animation-frame.ts", "./apps/web/tests/helpers/motion.ts"]
