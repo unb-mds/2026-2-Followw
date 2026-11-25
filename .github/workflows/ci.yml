@@ -90,8 +90,9 @@ jobs:
         run: |
           curl --fail --silent --show-error --retry 12 --retry-connrefused \
             --cacert "$RUNNER_TEMP/caddy.crt" --resolve oracle.followw.app:443:127.0.0.1 \
-            'https://oracle.followw.app/api/public/subjects?code=MAT0025' \
-            | jq -e 'any(.[]; .code == "MAT0025")'
+            --output "$RUNNER_TEMP/subjects.json" \
+            'https://oracle.followw.app/api/public/subjects?code=MAT0025'
+          jq -e 'any(.items[]; .code == "MAT0025")' "$RUNNER_TEMP/subjects.json"
           curl --fail --silent --show-error --cacert "$RUNNER_TEMP/caddy.crt" \
             --resolve oracle.followw.app:443:127.0.0.1 https://oracle.followw.app/login \
             -D - -o /dev/null | grep -qi '^x-robots-tag: noindex'
