@@ -1,11 +1,12 @@
 import type { Lesson } from '@followw/core/queries/classrooms.ts';
+import type { TriggerRef } from '@rn-primitives/dropdown-menu';
 
 import { getHoliday } from '@followw/core/calendar.ts';
 import { lessonsByDay } from '@followw/core/lib/classroom-details.ts';
 import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { useMemo, useRef, useState } from 'react';
+import { Pressable, View } from 'react-native';
 
 import { LessonMenuContent, markable, type MarkLessons } from '@/components/classroom/LessonMenu';
 import { Button } from '@/components/ui/button';
@@ -133,6 +134,7 @@ function LessonDay({
     onMark: MarkLessons;
     pending: boolean;
 }) {
+    const anchor = useRef<TriggerRef>(null);
     const editable = lessons.filter(markable);
     const cancelled =
         lessons.length > 0 && lessons.every((lesson) => lesson.status === 'cancelada');
@@ -175,15 +177,22 @@ function LessonDay({
                 {content}
             </View>
         );
+    // o menu ancora num View medido, como o da lista; o toque fica no Pressable
     return (
         <DropdownMenu>
-            <DropdownMenuTrigger
-                accessibilityLabel={`Marcar aulas de ${dayLabel(day)}`}
-                accessibilityHint={label}
-                disabled={pending}
-                className={cn(cellClass, 'active:bg-muted', pending && 'opacity-50')}
-            >
-                {content}
+            <DropdownMenuTrigger asChild ref={anchor}>
+                <View>
+                    <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Marcar aulas de ${dayLabel(day)}`}
+                        accessibilityHint={label}
+                        disabled={pending}
+                        onPress={() => anchor.current?.open()}
+                        className={cn(cellClass, 'active:bg-muted', pending && 'opacity-50')}
+                    >
+                        {content}
+                    </Pressable>
+                </View>
             </DropdownMenuTrigger>
             <LessonMenuContent lessons={editable} onMark={onMark} />
         </DropdownMenu>
