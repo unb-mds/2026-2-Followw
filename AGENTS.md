@@ -31,8 +31,8 @@ trabalhar nas suas respectivas pastas.
 uv sync --all-packages  # instala o workspace Python
 bun install             # instala o workspace TypeScript
 bun dev                 # API e web em paralelo
-bun run check           # check do core e web
-bun run test            # testes do core e web
+bun run check           # check do core, web e mobile
+bun run test            # testes do core, web e mobile
 uv run pytest -n auto   # testes em paralelo (requer Docker ativo para a api)
 uv run pytest <pasta>   # roda apenas o pacote ou diretório desejado
 uv run ruff format .    # sempre formate ao alterar o código
@@ -56,3 +56,9 @@ uv run ruff format .    # sempre formate ao alterar o código
   necessário/muito útil.
 - Use meios de validar suas alterações, se necessário, você pode utilizar as envs TEST_REGISTRATION
   e TEST_PASSWORD para fazer login pela api ou pelo navegador.
+- O app mobile espelha os recursos do site: um recurso novo ou alterado no `apps/web` também entra
+  no `apps/mobile`, exceto os que ficam só no site:
+  - páginas estáticas, como a política de privacidade (`/privacidade`);
+  - o portal de desenvolvedores (`/developers`), que o app só abre no navegador;
+  - a autorização OAuth de apps de terceiros (`/autorizar`);
+  - a instalação do PWA (convite e instruções de instalação).

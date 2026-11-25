@@ -25,6 +25,7 @@ bun doctor                   # expo-doctor
 
 - `ios/` e `android/` são gerados (CNG) e ficam fora do git: configure tudo em `app.config.ts` e
   plugins.
+- Os recursos são os do web, exceto os listados no `AGENTS.md` da raiz.
 - A interface replica a do web 1:1 (estrutura, textos e classes); padrões nativos só para status
   bar, share sheet, teclado e pull-to-refresh.
 - Rotas em `src/app/` (só telas e layouts), sem headers nativos: cada tela passa o header do web
