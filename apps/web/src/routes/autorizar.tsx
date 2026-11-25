@@ -127,8 +127,9 @@ function Consent({ request, returnTo }: { request: AuthorizationRequest; returnT
                 ))}
             </ul>
             <p className="text-sm text-muted-foreground">
-                Sua senha não é entregue ao aplicativo. Você pode revogar este acesso nas
-                configurações do Followw.
+                Sua senha do SIGAA não fica visível para o aplicativo nem salva no Followw. Ela é
+                criptografada no token de acesso e só o Followw pode usá-la para consultar seus
+                dados. Você pode revogar o acesso nas configurações.
             </p>
             {decision.isError && (
                 <p role="alert" className="text-sm text-destructive">

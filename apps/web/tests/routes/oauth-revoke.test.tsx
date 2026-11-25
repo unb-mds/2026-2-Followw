@@ -39,6 +39,7 @@ test('confirma revogação, permite repetir após falha e remove o acesso após 
         confidential: true,
         scopes: ['profile:read'],
         created_at: '2026-11-24T12:00:00Z',
+        last_access_at: '2026-11-25T12:00:00Z',
         expires_at: '2026-12-08T12:00:00Z'
     };
     client.setQueryData(oauthGrantsQueryOptions.queryKey, [grant]);

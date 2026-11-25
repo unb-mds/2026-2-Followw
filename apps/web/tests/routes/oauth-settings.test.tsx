@@ -51,7 +51,7 @@ async function failRefresh(client: QueryClient) {
 }
 
 test.each([false, true])(
-    'esconde seção e aviso sem acessos, mesmo após falha (%s)',
+    'mostra a seção vazia e sem aviso quando não há acessos, mesmo após falha (%s)',
     async (failed) => {
         const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
         client.setQueryData(oauthGrantsQueryOptions.queryKey, []);
@@ -60,7 +60,8 @@ test.each([false, true])(
         expect(html).toContain('Aparência');
         expect(html).toContain('Portal de desenvolvedores');
         expect(html).not.toContain('Voltar ao perfil');
-        expect(html).not.toContain('Aplicativos autorizados');
+        expect(html).toContain('Apps conectados');
+        expect(html).toContain('Nenhum app conectado');
         expect(html).not.toContain('Não foi possível atualizar seus acessos');
         expect(html).not.toContain('Tentar novamente');
         client.clear();
@@ -78,12 +79,13 @@ test('mantém o aviso de falha quando há acessos na tela', async () => {
         confidential: true,
         scopes: ['profile:read'],
         created_at: '2026-11-24T12:00:00Z',
+        last_access_at: '2026-11-25T12:00:00Z',
         expires_at: '2026-12-08T12:00:00Z'
     };
     client.setQueryData(oauthGrantsQueryOptions.queryKey, [grant]);
     await failRefresh(client);
     const html = await renderSettings(client);
-    expect(html).toContain('Aplicativos autorizados');
+    expect(html).toContain('Apps conectados');
     expect(html).toContain('Agenda UnB');
     expect(html).toContain('Não foi possível atualizar seus acessos');
     expect(html).toContain('Tentar novamente');

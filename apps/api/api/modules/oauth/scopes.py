@@ -46,7 +46,7 @@ PERMISSIONS: dict[Scope, Permission] = {
         requires=Scope.CLASSROOMS,
     ),
     Scope.GRADES: Permission(
-        label="Ler menções das turmas autorizadas, IRA e MP",
+        label="Ler menções de todas as turmas, IRA e MP",
         trust_level="high",
         requires=Scope.CLASSROOMS,
     ),
@@ -66,7 +66,7 @@ PERMISSIONS: dict[Scope, Permission] = {
         requires=Scope.FREQUENCY,
     ),
     Scope.POSTS: Permission(
-        label="Ler posts e baixar materiais das turmas autorizadas",
+        label="Ler posts e baixar materiais de todas as turmas",
         trust_level="medium",
         requires=Scope.CLASSROOMS,
     ),

@@ -10,12 +10,19 @@ if (typeof window !== 'undefined' && import.meta.env.VITE_POSTHOG_KEY) {
         cross_subdomain_cookie: false,
         disable_surveys: true,
         before_send: (event) => {
-            const sensitivePage = /\/(?:autorizar|login)(?:[/?#]|$)/;
+            const sensitivePath = /^\/(?:autorizar|login)(?:\/|$)/;
             return [
                 window.location.href,
                 event.properties.$current_url,
                 event.properties.$referrer
-            ].some((value) => typeof value === 'string' && sensitivePage.test(value))
+            ].some((value) => {
+                if (typeof value !== 'string') return false;
+                try {
+                    return sensitivePath.test(new URL(value, window.location.origin).pathname);
+                } catch {
+                    return false;
+                }
+            })
                 ? null
                 : event;
         },

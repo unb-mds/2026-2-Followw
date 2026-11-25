@@ -49,9 +49,9 @@ def test_troca_codigo_uma_vez_e_permite_revogacao(client, troca):
     "campo,valor",
     [("code_verifier", "x" * 43), ("redirect_uri", "https://intruso.test")],
 )
-def test_troca_invalida_nao_consume_codigo(client, troca, campo, valor):
+def test_troca_invalida_consome_codigo(client, troca, campo, valor):
     assert client.post("/oauth/token", data=troca | {campo: valor}).status_code == 400
-    assert client.post("/oauth/token", data=troca).status_code == 200
+    assert client.post("/oauth/token", data=troca).status_code == 400
 
 
 def test_codigo_exige_salt_do_banco_para_decifrar(db, troca):

@@ -14,7 +14,7 @@ export function EmptyClients({ disabled, onCreate }: { disabled: boolean; onCrea
                     <h2 className="text-base font-semibold">Nenhuma aplicação cadastrada</h2>
                     <p className="text-sm text-muted-foreground">
                         Crie sua primeira aplicação OAuth para obter um <code>client_id</code> e
-                        integrar bots, apps mobile ou projetos web à API do Followw.
+                        integrar bots, apps ou projetos à API do Followw.
                     </p>
                 </div>
                 <Button onClick={onCreate} disabled={disabled} className="gap-2">

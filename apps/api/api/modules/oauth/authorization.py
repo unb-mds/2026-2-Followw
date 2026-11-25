@@ -145,15 +145,20 @@ async def exchange_code(
     code_verifier: str,
     proof: Proof | None = None,
 ) -> TokenPair:
-    async def exchange(session: AsyncSession) -> TokenPair:
+    async def exchange(session: AsyncSession) -> TokenPair | None:
         app = await authenticate_client(session, client_id, client_secret, proof=proof)
         try:
             record_id, encrypted = code.split(".", 1)
             record = await session.get(
                 OAuthAuthorizationCode, UUID(record_id), with_for_update=True
             )
-            if record is None or record.expires_at <= datetime.now(UTC):
-                raise ValueError
+        except ValueError:
+            return None
+        if record is None or record.expires_at <= datetime.now(UTC):
+            return None
+        # Uso único: uma tentativa inválida também consome o código.
+        await session.delete(record)
+        try:
             claims = decrypt_claims(encrypted, _key(f"code:{record.id}", record.salt))
             challenge = (
                 urlsafe_b64encode(sha256(code_verifier.encode()).digest())
@@ -166,12 +171,11 @@ async def exchange_code(
                 or redirect_uri not in app.redirect_uris
                 or not compare_digest(claims["code_challenge"], challenge)
             ):
-                raise ValueError
+                return None
             credentials = Credentials.model_validate(claims)
             scopes = granted_scopes(claims["scopes"])
         except JoseError, KeyError, TypeError, ValueError:
-            raise InvalidToken from None
-        await session.delete(record)
+            return None
         return await create_token_pair(
             session,
             client_id=client_id,
@@ -181,4 +185,7 @@ async def exchange_code(
             proof=proof,
         )
 
-    return await db.write(exchange)
+    pair = await db.write(exchange)
+    if pair is None:
+        raise InvalidToken
+    return pair

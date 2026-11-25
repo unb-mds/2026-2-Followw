@@ -1431,6 +1431,11 @@ export interface components {
              */
             created_at: string;
             /**
+             * Last Access At
+             * Format: date-time
+             */
+            last_access_at: string;
+            /**
              * Expires At
              * Format: date-time
              */

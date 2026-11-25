@@ -109,15 +109,19 @@ export function subjectsQueryFrom(
 }
 
 // Valores que o Router leria como JSON (números, listas) continuam texto.
-// OAuth usa valores opacos: zeros iniciais, JSON e parâmetros repetidos não podem mudar.
-const textKeys = ['days', 'returnTo', ...AUTHORIZATION_SEARCH_KEYS] as const;
+const textKeys = ['q', 'days', 'returnTo'] as const;
+// OAuth usa valores opacos: parâmetros repetidos precisam chegar intactos para serem rejeitados.
+const opaqueKeys = AUTHORIZATION_SEARCH_KEYS;
 const arrayKeys = ['kind', 'start', 'hours'] as const;
 
 export function parseRouterSearch(searchStr: string) {
     const search: Record<string, unknown> = { ...defaultParseSearch(searchStr) };
     const params = new URLSearchParams(searchStr);
-    const textLookup = new Set<string>(['q', ...textKeys]);
-    for (const key of textLookup) {
+    for (const key of textKeys) {
+        const value = params.get(key);
+        if (value !== null) search[key] = value;
+    }
+    for (const key of opaqueKeys) {
         const values = params.getAll(key);
         if (values.length) search[key] = values.length === 1 ? values[0] : values;
     }
@@ -129,8 +133,11 @@ export function parseRouterSearch(searchStr: string) {
 
 export function stringifyRouterSearch(search: Record<string, unknown>) {
     const params = new URLSearchParams(defaultStringifySearch(search));
-    const textLookup = new Set<string>(['q', ...textKeys]);
-    for (const key of textLookup) {
+    for (const key of textKeys) {
+        const value = search[key];
+        if (typeof value === 'string') params.set(key, value);
+    }
+    for (const key of opaqueKeys) {
         const value = search[key];
         if (typeof value === 'string') params.set(key, value);
         else if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {

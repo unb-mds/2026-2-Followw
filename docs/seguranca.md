@@ -63,6 +63,13 @@ vencimento. A API deriva chaves distintas para access e refresh com HKDF, o salt
 cifrada no token do cliente. Cada chamada Bearer valida a
 autorização antes de servir o cache. Excluir o registro invalida imediatamente os dois tokens.
 
+O Followw não guarda a senha, mas precisa dela para sincronizar os dados do SIGAA. Por isso, ao
+aprovar o consentimento, a senha é cifrada e vai dentro do código de autorização e depois dos
+tokens entregues ao aplicativo. O aplicativo carrega esse conteúdo sem poder lê-lo: só o Followw tem
+a chave, então a senha nunca fica visível para o aplicativo. A tela de autorização informa isso ao
+usuário em linguagem simples. O código vale 5 minutos, é de uso único e é consumido mesmo quando a
+troca falha (verifier ou redirect incorretos).
+
 O access vale 40 minutos. Na renovação, a API autentica no SIGAA, cifra a nova sessão no access e
 agenda o sync da conta, como o refresh da web. A autorização é conferida novamente após o login. O
 sucesso estende por 14 dias o prazo do mesmo refresh. Para clientes públicos, `POST /oauth/token`
@@ -89,7 +96,7 @@ imediatamente seus tokens. Pedidos de consentimento não são persistidos no cac
 No OpenAPI, `x-oauth-scopes` traz o título, o nível de confiança e as dependências de cada
 permissão. O nível informa a sensibilidade do acesso. Cada operação delegável declara seu
 `x-oauth-scope`. As respostas OAuth contêm apenas os campos concedidos. O perfil básico inclui nome,
-matrícula, foto e curso. `grades:read` acrescenta IRA, MP e menções nas turmas autorizadas. A agenda
+matrícula, foto e curso. `grades:read` acrescenta IRA, MP e menções em todas as turmas. A agenda
 omite presença e marcação sem `classrooms.frequency:read`. Consultar uma turma passada por ID também
 exige `classrooms.history:read`.
 

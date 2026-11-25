@@ -277,6 +277,7 @@ class OAuthGrantView(BaseModel):
     confidential: bool
     scopes: list[Scope]
     created_at: datetime
+    last_access_at: datetime
     expires_at: datetime
 
 
@@ -440,6 +441,8 @@ async def list_grants(db: Database, registration: str) -> list[OAuthGrantView]:
                     Scope(scope) for scope in grant.scopes if scope in _VALID_SCOPES
                 ],
                 created_at=grant.created_at,
+                # `updated_at` só muda na emissão e na renovação do token.
+                last_access_at=grant.updated_at,
                 expires_at=grant.expires_at,
             )
             for grant, client in rows
