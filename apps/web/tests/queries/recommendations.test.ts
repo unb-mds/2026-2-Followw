@@ -6,6 +6,7 @@ import { shouldPersistQuery } from '#/integrations/offline/storage';
 
 test('recomendações não são gravadas no cache offline; catálogo continua persistido', () => {
     const client = new QueryClient();
+    client.getQueryCache().build(client, recommendationsQueryOptions());
     client.setQueryData(recommendationsQueryOptions().queryKey, { items: [] });
     client.setQueryData(['get', '/public/subjects'], []);
     expect(

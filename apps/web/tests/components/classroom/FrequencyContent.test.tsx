@@ -319,6 +319,20 @@ describe('marcação das aulas', () => {
         ]);
     });
 
+    test('conta as aulas duplas como duas horas-aula nas sequências', () => {
+        const dupla = { start_time: '14:00:00', end_time: '15:50:00' };
+        expect(
+            lessonRuns([
+                lesson('2026-10-07', { status: 'falta', absences: 2, ...dupla }),
+                lesson('2026-10-06', { status: 'presente', ...dupla }),
+                lesson('2026-10-05', { status: 'presente', start_time: '08:00', end_time: '08:55' })
+            ])
+        ).toMatchObject([
+            { status: 'presente', count: 3 },
+            { status: 'falta', count: 2 }
+        ]);
+    });
+
     test('mostra o andamento das aulas segmentado junto dos totais', () => {
         const markup = render(registered);
         expect(markup).toMatch(/Frequência<\/dt>[\s\S]*Andamento das aulas/);

@@ -15,14 +15,14 @@ import { Button, buttonVariants } from '#/components/ui/button';
 import { Input } from '#/components/ui/input';
 import { Label } from '#/components/ui/label';
 import { isStorageBlocked } from '#/lib/local-storage';
-import { loginParsers, safeLoginReturn, validateLoginSearch } from '#/lib/login-return';
+import { DEFAULT_LOGIN_RETURN, loginParsers, validateLoginSearch } from '#/lib/login-return';
 import { cn } from '#/lib/shadcn';
 import { SessionNotStoredError, useLogin } from '#/queries/auth';
 import { meQueryOptions } from '#/queries/me';
 
 export const Route = createFileRoute('/login')({
     validateSearch: validateLoginSearch,
-    loaderDeps: ({ search }) => ({ returnTo: safeLoginReturn(search.returnTo) }),
+    loaderDeps: ({ search }) => ({ returnTo: search.returnTo ?? DEFAULT_LOGIN_RETURN }),
     loader: async ({ context, deps }) => {
         try {
             const user = await loadQuery(context.queryClient, meQueryOptions);
@@ -82,8 +82,7 @@ function LoginPage() {
                         login.mutate(
                             { body: { registration, password } },
                             {
-                                onSuccess: () =>
-                                    router.history.replace(safeLoginReturn(search.returnTo))
+                                onSuccess: () => router.history.replace(search.returnTo)
                             }
                         );
                     }}

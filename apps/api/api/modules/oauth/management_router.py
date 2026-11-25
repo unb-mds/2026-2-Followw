@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Path
+from fastapi import APIRouter, Depends, HTTPException, Path
 
 from api.cache import NoStore
 from api.db.main import DatabaseDep
@@ -17,6 +17,7 @@ from api.modules.oauth.clients import (
     delete_client,
     list_clients,
     list_grants,
+    resolve_user_id,
     rotate_client_secret,
     update_client,
 )
@@ -30,6 +31,13 @@ router = APIRouter()
 ClientId = Annotated[str, Path(min_length=1, max_length=128)]
 
 
+async def _user_id(connection: SigaaConnectionDep, db: DatabaseDep) -> UUID:
+    return await resolve_user_id(db, connection.registration)
+
+
+UserId = Annotated[UUID, Depends(_user_id)]
+
+
 @router.get(
     "/clients",
     response_model=list[OAuthClientView],
@@ -37,10 +45,8 @@ ClientId = Annotated[str, Path(min_length=1, max_length=128)]
     responses=SIGAA_ERRORS,
     dependencies=[NoStore],
 )
-async def get_oauth_clients(
-    connection: SigaaConnectionDep, db: DatabaseDep
-) -> list[OAuthClientView]:
-    return await list_clients(db, connection.registration)
+async def get_oauth_clients(owner_id: UserId, db: DatabaseDep) -> list[OAuthClientView]:
+    return await list_clients(db, owner_id)
 
 
 @router.post(
@@ -56,9 +62,9 @@ async def get_oauth_clients(
     dependencies=[NoStore],
 )
 async def post_oauth_client(
-    body: OAuthClientCreate, connection: SigaaConnectionDep, db: DatabaseDep
+    body: OAuthClientCreate, owner_id: UserId, db: DatabaseDep
 ) -> OAuthClientCreated:
-    return await create_client(db, connection.registration, body)
+    return await create_client(db, owner_id, body)
 
 
 @router.patch(
@@ -75,10 +81,10 @@ async def post_oauth_client(
 async def patch_oauth_client(
     client_id: ClientId,
     body: OAuthClientUpdate,
-    connection: SigaaConnectionDep,
+    owner_id: UserId,
     db: DatabaseDep,
 ) -> OAuthClientView:
-    return await update_client(db, connection.registration, client_id, body)
+    return await update_client(db, owner_id, client_id, body)
 
 
 @router.post(
@@ -94,9 +100,9 @@ async def patch_oauth_client(
     dependencies=[NoStore],
 )
 async def post_rotate_oauth_client_secret(
-    client_id: ClientId, connection: SigaaConnectionDep, db: DatabaseDep
+    client_id: ClientId, owner_id: UserId, db: DatabaseDep
 ) -> OAuthClientSecret:
-    return await rotate_client_secret(db, connection.registration, client_id)
+    return await rotate_client_secret(db, owner_id, client_id)
 
 
 @router.delete(
@@ -111,9 +117,9 @@ async def post_rotate_oauth_client_secret(
     dependencies=[NoStore],
 )
 async def delete_oauth_client(
-    client_id: ClientId, connection: SigaaConnectionDep, db: DatabaseDep
+    client_id: ClientId, owner_id: UserId, db: DatabaseDep
 ) -> None:
-    await delete_client(db, connection.registration, client_id)
+    await delete_client(db, owner_id, client_id)
 
 
 @router.get(
@@ -123,10 +129,8 @@ async def delete_oauth_client(
     responses=SIGAA_ERRORS,
     dependencies=[NoStore],
 )
-async def get_oauth_grants(
-    connection: SigaaConnectionDep, db: DatabaseDep
-) -> list[OAuthGrantView]:
-    return await list_grants(db, connection.registration)
+async def get_oauth_grants(user_id: UserId, db: DatabaseDep) -> list[OAuthGrantView]:
+    return await list_grants(db, user_id)
 
 
 @router.delete(
@@ -139,8 +143,6 @@ async def get_oauth_grants(
     },
     dependencies=[NoStore],
 )
-async def delete_oauth_grant(
-    grant_id: UUID, connection: SigaaConnectionDep, db: DatabaseDep
-) -> None:
-    if not await revoke(db, grant_id, registration=connection.registration):
+async def delete_oauth_grant(grant_id: UUID, user_id: UserId, db: DatabaseDep) -> None:
+    if not await revoke(db, grant_id, user_id=user_id):
         raise HTTPException(404, "Autorização não encontrada.")

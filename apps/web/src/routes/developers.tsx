@@ -4,11 +4,12 @@ import { useOnline } from '@followw/core/lib/online.ts';
 import { loadQuery } from '@followw/core/queries/load.ts';
 import { oauthClientsQueryOptions } from '@followw/core/queries/oauth.ts';
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
-import { createFileRoute, Navigate, redirect } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 
 import type { RevealedSecret } from '#/components/developers/use-client-actions';
 
+import { LoginRedirect } from '#/components/auth/LoginRedirect';
 import { ClientCard } from '#/components/developers/ClientCard';
 import { ClientFormDialog } from '#/components/developers/ClientFormDialog';
 import { ClientSecretDialog } from '#/components/developers/ClientSecretDialog';
@@ -19,13 +20,13 @@ import { ErrorCard, ErrorState } from '#/components/ErrorState';
 import { LoadingSkeleton } from '#/components/LoadingSkeleton';
 import { Skeleton } from '#/components/ui/skeleton';
 import { Toaster } from '#/components/ui/toast';
+import { requireUser } from '#/lib/require-user';
 import { meQueryOptions } from '#/queries/me';
 
 export const Route = createFileRoute('/developers')({
     head: () => ({ meta: [{ title: 'Portal de Desenvolvedores | Followw' }] }),
-    loader: async ({ context: { queryClient } }) => {
-        const user = await loadQuery(queryClient, meQueryOptions);
-        if (!user) throw redirect({ to: '/login', search: { returnTo: '/developers' } });
+    loader: async ({ context: { queryClient }, location }) => {
+        await requireUser(queryClient, location.href);
         await loadQuery(queryClient, oauthClientsQueryOptions).catch(() => null);
     },
     errorComponent: ErrorState,
@@ -42,7 +43,7 @@ function DevelopersPage() {
     const [revealedSecret, setRevealedSecret] = useState<RevealedSecret | null>(null);
     const { create, update, rotate, remove, busy, error } = useClientActions(setRevealedSecret);
 
-    if (!user) return <Navigate to="/login" search={{ returnTo: '/developers' }} replace />;
+    if (!user) return <LoginRedirect />;
 
     const items = clients.data ?? [];
 

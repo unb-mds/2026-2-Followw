@@ -1,7 +1,6 @@
-import { createStandardSchemaV1, parseAsString } from 'nuqs/server';
+import { createParser, createStandardSchemaV1 } from 'nuqs/server';
 
-export const loginParsers = { returnTo: parseAsString };
-export const validateLoginSearch = createStandardSchemaV1(loginParsers, { partialOutput: true });
+export const DEFAULT_LOGIN_RETURN = '/perfil';
 
 export function safeLoginReturn(value: unknown): string {
     if (
@@ -12,19 +11,28 @@ export function safeLoginReturn(value: unknown): string {
             (char) => char === '\\' || char.charCodeAt(0) <= 32 || char.charCodeAt(0) === 127
         )
     )
-        return '/perfil';
+        return DEFAULT_LOGIN_RETURN;
     const url = new URL(value, 'https://followw.invalid');
     let pathname: string;
     try {
         pathname = decodeURIComponent(url.pathname).replace(/\/+$/, '');
     } catch {
-        return '/perfil';
+        return DEFAULT_LOGIN_RETURN;
     }
     if (
         url.origin !== 'https://followw.invalid' ||
         url.pathname.startsWith('//') ||
         pathname === '/login'
     )
-        return '/perfil';
+        return DEFAULT_LOGIN_RETURN;
     return `${url.pathname}${url.search}${url.hash}`;
 }
+
+// Um retorno inseguro vira o padrão já na leitura da URL.
+const parseAsLoginReturn = createParser({
+    parse: safeLoginReturn,
+    serialize: (value: string) => value
+}).withDefault(DEFAULT_LOGIN_RETURN);
+
+export const loginParsers = { returnTo: parseAsLoginReturn };
+export const validateLoginSearch = createStandardSchemaV1(loginParsers, { partialOutput: true });

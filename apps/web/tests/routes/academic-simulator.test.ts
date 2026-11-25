@@ -17,7 +17,7 @@ test('carrega o perfil e o histórico para usar a matriz vinculada ao aluno', as
               }
             : [];
     });
-    await runLoader(Route, { context: { queryClient } });
+    await runLoader(Route, { context: { queryClient }, location: { href: '/perfil/simulador' } });
     expect(keys).toEqual([meQueryOptions.queryKey, allClassroomsQueryOptions.queryKey]);
 });
 
@@ -27,9 +27,12 @@ test('solicita login antes de consultar o histórico de turmas', async () => {
         paths.push(key[1]);
         return null;
     });
-    const error = await runLoader(Route, { context: { queryClient } }).catch(
-        (caught: unknown) => caught
-    );
-    expect(error).toMatchObject({ options: { to: '/login' } });
+    const error = await runLoader(Route, {
+        context: { queryClient },
+        location: { href: '/perfil/simulador' }
+    }).catch((caught: unknown) => caught);
+    expect(error).toMatchObject({
+        options: { to: '/login', search: { returnTo: '/perfil/simulador' } }
+    });
     expect(paths).toEqual(['/me']);
 });

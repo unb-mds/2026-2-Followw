@@ -33,13 +33,13 @@ def test_emissao_sem_o_perfil_e_recusada_e_nao_grava_autorizacao(db, database):
         assert session.scalars(select(OAuthGrant)).all() == []
 
 
-def test_toda_autorizacao_emitida_guarda_o_perfil(db, database):
+def test_toda_autorizacao_emitida_guarda_o_perfil(emitir, database):
     for extra in (
         [],
         [Scope.CLASSROOMS, Scope.POSTS],
         [Scope.CLASSROOMS, Scope.GRADES],
     ):
-        pair = _emitir(db, [Scope.PROFILE, *extra])
+        pair = emitir(*extra)
         assert Scope.PROFILE in pair.scopes
         with database.begin() as session:
             assert Scope.PROFILE in session.get(OAuthGrant, pair.grant_id).scopes

@@ -1,8 +1,6 @@
-import type { components } from '@followw/core/queries/schema.gen.ts';
+import type { OAuthGrant } from '@followw/core/queries/oauth.ts';
 
 import { Button } from '#/components/ui/button';
-
-type Grant = components['schemas']['OAuthGrantView'];
 
 const lastAccessFormat: Intl.DateTimeFormatOptions = { dateStyle: 'short', timeStyle: 'short' };
 
@@ -11,7 +9,7 @@ export function GrantItem({
     disabled,
     onRevoke
 }: {
-    grant: Grant;
+    grant: OAuthGrant;
     disabled: boolean;
     onRevoke: () => void;
 }) {

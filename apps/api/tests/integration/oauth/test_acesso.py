@@ -7,7 +7,6 @@ from sqlalchemy import update
 from api.db.models import OAuthGrant, User
 from api.modules.classrooms.service import sync_classrooms
 from api.modules.oauth.scopes import Scope
-from api.modules.oauth.tokens import revoke
 from api.sync.engine import Step
 
 
@@ -50,7 +49,7 @@ def test_perfil_basico_e_desempenho_tem_campos_distintos(client, stub_sigaa, emi
 
 
 def test_revogacao_bloqueia_cache_e_preserva_outro_aplicativo(
-    client, stub_sigaa, emitir, db
+    client, stub_sigaa, emitir, revogar
 ):
     agenda, ru = emitir(), emitir(client_id="ru")
 
@@ -58,9 +57,9 @@ def test_revogacao_bloqueia_cache_e_preserva_outro_aplicativo(
         return client.get("/me", headers={"Authorization": f"Bearer {token}"})
 
     assert perfil(agenda.access_token).status_code == 200
-    asyncio.run(revoke(db, agenda.grant_id, registration="250000001"))
+    asyncio.run(revogar(agenda.grant_id, "250000001"))
     assert perfil(agenda.access_token).status_code == 200
-    asyncio.run(revoke(db, agenda.grant_id, registration="251000000"))
+    asyncio.run(revogar(agenda.grant_id))
     assert perfil(agenda.access_token).status_code == 401
     assert perfil(ru.access_token).status_code == 200
 

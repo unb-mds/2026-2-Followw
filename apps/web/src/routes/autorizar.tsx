@@ -3,21 +3,19 @@ import type { AuthorizationRequest } from '@followw/core/queries/oauth.ts';
 import { useOnline } from '@followw/core/lib/online.ts';
 import { api } from '@followw/core/queries/api.ts';
 import { ApiError } from '@followw/core/queries/errors.ts';
-import { loadQuery } from '@followw/core/queries/load.ts';
 import { oauthAuthorizationQueryOptions } from '@followw/core/queries/oauth.ts';
 import { useQuery } from '@tanstack/react-query';
-import { createFileRoute, Link, redirect, useLocation } from '@tanstack/react-router';
+import { createFileRoute, Link, useLocation } from '@tanstack/react-router';
 
 import { FollowwLogo } from '#/components/FollowwLogo';
 import { LoadingSkeleton, CardSkeleton } from '#/components/LoadingSkeleton';
 import { Button, buttonVariants } from '#/components/ui/button';
 import { readAuthorizationRequest } from '#/lib/oauth-request';
-import { meQueryOptions } from '#/queries/me';
+import { requireUser } from '#/lib/require-user';
 
 export const Route = createFileRoute('/autorizar')({
     loader: async ({ context, location }) => {
-        const user = await loadQuery(context.queryClient, meQueryOptions);
-        if (!user) throw redirect({ to: '/login', search: { returnTo: location.href } });
+        await requireUser(context.queryClient, location.href);
     },
     head: () => ({
         meta: [

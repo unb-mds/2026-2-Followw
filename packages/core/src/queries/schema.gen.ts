@@ -832,6 +832,30 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AuthorizationCodeGrant */
+        AuthorizationCodeGrant: {
+            /** Client Id */
+            client_id?: string | null;
+            /** Client Secret */
+            client_secret?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            grant_type: "authorization_code";
+            /**
+             * Code
+             * Format: password
+             */
+            code: string;
+            /** Redirect Uri */
+            redirect_uri: string;
+            /**
+             * Code Verifier
+             * Format: password
+             */
+            code_verifier: string;
+        };
         /** AuthorizationDecision */
         AuthorizationDecision: {
             /**
@@ -1652,6 +1676,23 @@ export interface components {
         };
         /** @enum {string} */
         ReasonCode: "required" | "target_period" | "overdue" | "same_unit" | "chain_length" | "chain_width" | "hours";
+        /** RefreshTokenGrant */
+        RefreshTokenGrant: {
+            /** Client Id */
+            client_id?: string | null;
+            /** Client Secret */
+            client_secret?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            grant_type: "refresh_token";
+            /**
+             * Refresh Token
+             * Format: password
+             */
+            refresh_token: string;
+        };
         /** RestaurantCredentials */
         RestaurantCredentials: {
             /** Token */
@@ -1871,26 +1912,6 @@ export interface components {
             end_date: string;
             /** Description */
             description: string | null;
-        };
-        /** TokenGrant */
-        TokenGrant: {
-            /**
-             * Grant Type
-             * @enum {string}
-             */
-            grant_type: "refresh_token" | "authorization_code";
-            /** Client Id */
-            client_id?: string | null;
-            /** Client Secret */
-            client_secret?: string | null;
-            /** Refresh Token */
-            refresh_token?: string | null;
-            /** Code */
-            code?: string | null;
-            /** Redirect Uri */
-            redirect_uri?: string | null;
-            /** Code Verifier */
-            code_verifier?: string | null;
         };
         /** TokenResponse */
         TokenResponse: {
@@ -2154,7 +2175,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/x-www-form-urlencoded": components["schemas"]["TokenGrant"];
+                "application/x-www-form-urlencoded": components["schemas"]["AuthorizationCodeGrant"] | components["schemas"]["RefreshTokenGrant"];
             };
         };
         responses: {
@@ -2167,19 +2188,23 @@ export interface operations {
                     "application/json": components["schemas"]["TokenResponse"];
                 };
             };
-            /** @description Refresh ou prova DPoP inválidos. */
+            /** @description Código, refresh ou DPoP inválidos. */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["OAuthProblem"];
+                };
             };
             /** @description Aplicação não registrada ou client_secret inválido. */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["OAuthProblem"];
+                };
             };
             /** @description Validation Error */
             422: {

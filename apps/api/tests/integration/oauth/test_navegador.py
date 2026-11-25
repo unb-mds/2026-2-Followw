@@ -1,6 +1,6 @@
 import asyncio
 
-from api.modules.oauth.clients import OAuthClientCreate, create_client
+from api.modules.oauth.clients import OAuthClientCreate, create_client, resolve_user_id
 
 
 def test_preflight_de_aplicativo_externo_permite_bearer_e_dpop_sem_cookies(api):
@@ -51,13 +51,14 @@ def test_origem_do_followw_pode_enviar_credenciais_apos_preflight_com_authorizat
 
 
 def test_token_externo_sem_dpop_mantem_cors_para_expor_erro_oauth(client, db):
-    publico = asyncio.run(
-        create_client(
+    async def cadastrar():
+        return await create_client(
             db,
-            "251000000",
+            await resolve_user_id(db, "251000000"),
             OAuthClientCreate(name="Agenda", redirect_uris=["agenda://callback"]),
         )
-    )
+
+    publico = asyncio.run(cadastrar())
     response = client.post(
         "/oauth/token",
         data={

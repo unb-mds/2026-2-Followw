@@ -9,7 +9,7 @@ from api.modules.oauth.authorization import Consent, decide_consent, prepare_con
 from api.modules.oauth.clients import MAX_URI_LENGTH
 from api.modules.oauth.protocol import (
     PRIVATE_HEADERS,
-    OAuthError,
+    InvalidScope,
     OAuthProblem,
     ProtocolRoute,
 )
@@ -74,19 +74,13 @@ class AuthorizationRedirect(BaseModel):
 )
 async def get_authorization(
     params: Annotated[AuthorizationRequest, Query()],
-    request: Request,
     session: WebSessionDep,
     db: DatabaseDep,
 ) -> AuthorizationDetails:
-    if any(
-        len(request.query_params.getlist(name)) > 1
-        for name in AuthorizationRequest.model_fields
-    ):
-        raise OAuthError("invalid_request")
     try:
         scopes = granted_scopes([Scope.PROFILE, *params.scope.split()])
     except ValueError:
-        raise OAuthError("invalid_scope") from None
+        raise InvalidScope("Escopos inválidos.") from None
     consent = Consent(
         client_id=params.client_id,
         redirect_uri=params.redirect_uri,
@@ -117,7 +111,6 @@ async def get_authorization(
 )
 async def post_authorization(
     body: AuthorizationDecision,
-    request: Request,
     session: WebSessionDep,
     db: DatabaseDep,
 ) -> AuthorizationRedirect:

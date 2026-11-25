@@ -31,3 +31,10 @@ test.each(['000123', '{"id":1}', 'a+b & c'])(
         ).toBe(state);
     }
 );
+
+test('a busca do login troca retorno inseguro pelo padrão', async () => {
+    const { validateLoginSearch } = await import('#/lib/login-return');
+    const { validate } = validateLoginSearch['~standard'];
+    expect(validate({ returnTo: '//intruso.test' })).toEqual({ value: { returnTo: '/perfil' } });
+    expect(validate({ returnTo: '/turmas' })).toEqual({ value: { returnTo: '/turmas' } });
+});

@@ -1,4 +1,4 @@
-import type { components } from '@followw/core/queries/schema.gen.ts';
+import type { OAuthGrant } from '@followw/core/queries/oauth.ts';
 
 import { useOnline } from '@followw/core/lib/online.ts';
 import { api } from '@followw/core/queries/api.ts';
@@ -13,14 +13,13 @@ import { NoGrants } from '#/components/settings/NoGrants';
 import { RevokeGrantDialog } from '#/components/settings/RevokeGrantDialog';
 import { Button } from '#/components/ui/button';
 
-type Grant = components['schemas']['OAuthGrantView'];
 type Selected = { id: string; name: string };
 
 function useRevokeGrant(onDone: () => void) {
     const queryClient = useQueryClient();
     return api.useMutation('delete', '/oauth/grants/{grant_id}', {
         onSuccess: (_data, variables) => {
-            queryClient.setQueryData<Grant[]>(oauthGrantsQueryOptions.queryKey, (previous) =>
+            queryClient.setQueryData<OAuthGrant[]>(oauthGrantsQueryOptions.queryKey, (previous) =>
                 previous?.filter((grant) => grant.id !== variables.params.path.grant_id)
             );
             onDone();
@@ -46,21 +45,22 @@ export function ConnectedApps() {
     const grants = useQuery(oauthGrantsQueryOptions);
     const [selected, setSelected] = useState<Selected | null>(null);
     const revoke = useRevokeGrant(() => setSelected(null));
-    const list = grants.data ?? [];
+    const list = grants.data;
+    const failed = !online || grants.isError;
     return (
         <section className="flex flex-col gap-3">
             <h2 className="text-lg font-semibold">Apps conectados</h2>
-            {grants.isPending && online && (
+            {list === undefined && !failed && (
                 <LoadingSkeleton label="Carregando acessos autorizados">
                     <CardSkeleton />
                 </LoadingSkeleton>
             )}
-            {grants.data?.length !== 0 && (!online || grants.isError) && (
+            {list?.length !== 0 && failed && (
                 <GrantsError fetching={grants.isFetching} onRetry={() => void grants.refetch()} />
             )}
             <div className="overflow-hidden rounded-2xl border bg-card">
-                {grants.data?.length === 0 && <NoGrants />}
-                {list.length > 0 && (
+                {list?.length === 0 && <NoGrants />}
+                {list && list.length > 0 && (
                     <div className="flex flex-col divide-y">
                         {list.map((grant) => (
                             <GrantItem

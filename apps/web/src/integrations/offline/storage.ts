@@ -1,8 +1,7 @@
 import type { Query, QueryClient } from '@tanstack/react-query';
 
-import { recommendationsQueryOptions } from '@followw/core/queries/recommendations.ts';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
-import { hashKey, noop } from '@tanstack/react-query';
+import { noop } from '@tanstack/react-query';
 import { persistQueryClient, persistQueryClientSave } from '@tanstack/react-query-persist-client';
 import { del, get, set } from 'idb-keyval';
 
@@ -20,15 +19,10 @@ let stopPersisting: () => void = noop;
 let warming: AbortController | undefined;
 let clearing: Promise<void> | undefined;
 
-const recommendationHashes = new Set(
-    [false, true].map((available) => hashKey(recommendationsQueryOptions(available).queryKey))
-);
-
-// Uma falha ao atualizar não invalida o último dado salvo.
+// Uma falha ao atualizar não invalida o último dado salvo; `meta.persist: false` fica só na memória.
 export function shouldPersistQuery(query: Query, now = Date.now()) {
     return (
         query.meta?.persist !== false &&
-        !recommendationHashes.has(query.queryHash) &&
         query.state.data !== undefined &&
         now - query.state.dataUpdatedAt < PERSIST_MAX_AGE
     );

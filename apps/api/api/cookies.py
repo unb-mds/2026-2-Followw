@@ -1,5 +1,4 @@
 from datetime import UTC, datetime, timedelta
-from uuid import uuid4
 
 from fastapi import Request, Response
 from joserfc import jwt
@@ -43,7 +42,7 @@ class WebSession(BaseModel):
 
 
 def set_refresh_cookie(
-    response: Response, credentials: Credentials, session_id: str | None = None
+    response: Response, credentials: Credentials, session_id: str
 ) -> None:
     _set_cookie(
         response,
@@ -51,7 +50,7 @@ def set_refresh_cookie(
         {
             "registration": credentials.registration,
             "password": credentials.password.get_secret_value(),
-            "session_id": session_id or str(uuid4()),
+            "session_id": session_id,
         },
         settings.refresh_token_expire_minutes,
     )
@@ -59,14 +58,11 @@ def set_refresh_cookie(
 
 def read_refresh_cookie(request: Request) -> WebSession | None:
     payload = _read_cookie(request, REFRESH_COOKIE_NAME)
+    if not payload:
+        return None
     try:
-        return (
-            WebSession(
-                credentials=Credentials.model_validate(payload),
-                session_id=payload.get("session_id"),
-            )
-            if payload
-            else None
+        return WebSession.model_validate(
+            {"credentials": payload, "session_id": payload.get("session_id")}
         )
     except ValidationError:
         return None

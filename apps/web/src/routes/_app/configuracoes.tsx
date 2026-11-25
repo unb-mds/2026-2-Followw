@@ -1,15 +1,13 @@
-import { loadQuery } from '@followw/core/queries/load.ts';
-import { createFileRoute, redirect } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
 
 import { BackHeader } from '#/components/HeaderBar';
 import { AppearanceSection } from '#/components/settings/AppearanceSection';
 import { ConnectedApps } from '#/components/settings/ConnectedApps';
-import { meQueryOptions } from '#/queries/me';
+import { requireUser } from '#/lib/require-user';
 
 export const Route = createFileRoute('/_app/configuracoes')({
     loader: async ({ context, location }) => {
-        const user = await loadQuery(context.queryClient, meQueryOptions);
-        if (!user) throw redirect({ to: '/login', search: { returnTo: location.href } });
+        await requireUser(context.queryClient, location.href);
     },
     head: () => ({ meta: [{ title: 'Configurações | Followw' }] }),
     staticData: {

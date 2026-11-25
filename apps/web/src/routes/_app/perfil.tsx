@@ -1,11 +1,11 @@
 import { useOnline } from '@followw/core/lib/online.ts';
-import { loadQuery } from '@followw/core/queries/load.ts';
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { Link, Navigate, createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
+import { Link, createFileRoute, useNavigate } from '@tanstack/react-router';
 import { ChevronRight, GitFork, LogOut } from 'lucide-react';
 
 import type { UserProfile } from '#/queries/me';
 
+import { LoginRedirect } from '#/components/auth/LoginRedirect';
 import { useDesktop } from '#/components/DesktopContext';
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
@@ -32,6 +32,7 @@ import {
     AlertDialogTrigger
 } from '#/components/ui/alert-dialog';
 import { Button, buttonVariants } from '#/components/ui/button';
+import { requireUser } from '#/lib/require-user';
 import { cn } from '#/lib/shadcn';
 import { useLogout } from '#/queries/auth';
 import { useDownloadDocument } from '#/queries/documents';
@@ -39,10 +40,8 @@ import { meQueryOptions } from '#/queries/me';
 import { useUserSettings } from '#/queries/settings';
 
 export const Route = createFileRoute('/_app/perfil')({
-    loader: async ({ context }) => {
-        const user = await loadQuery(context.queryClient, meQueryOptions);
-        if (!user) throw redirect({ to: '/login', search: { returnTo: '/perfil' } });
-        return user;
+    loader: ({ context, location }) => {
+        return requireUser(context.queryClient, location.href);
     },
     head: () => ({ meta: [{ title: 'Perfil | Followw' }] }),
     staticData: { header: ProfileHeader },
@@ -65,7 +64,7 @@ function PerfilPage() {
     const download = useDownloadDocument();
 
     // sessão encerrada por um 401 em qualquer query ou mutation
-    if (!user) return <Navigate to="/login" search={{ returnTo: '/perfil' }} replace />;
+    if (!user) return <LoginRedirect />;
 
     return (
         <div className="profile-columns lg:grid lg:items-start lg:gap-x-10 lg:gap-y-8">

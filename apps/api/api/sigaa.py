@@ -36,6 +36,7 @@ class SigaaConnection:
         access: AccessPolicy = FULL_ACCESS,
     ) -> None:
         self.credentials = credentials
+        # Uma conexão sem sessão anterior abre uma nova sessão web.
         self.session_id = session_id or str(uuid4())
         self.access = access
         self._session_token = session_token

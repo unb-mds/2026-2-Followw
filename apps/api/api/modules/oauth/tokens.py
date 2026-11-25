@@ -12,18 +12,25 @@ from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.core.config import settings
-from api.crypto import decrypt_claims, derive_secret, encrypt_claims
 from api.db.main import Database
 from api.db.models import OAuthGrant
-from api.modules.oauth.clients import authenticate_client
+from api.modules.oauth.clients import authenticate_client, user_id_of
 from api.modules.oauth.proof import InvalidProof, Proof
+from api.modules.oauth.protocol import OAuthError
 from api.modules.oauth.scopes import Scope, granted_scopes
+from api.modules.oauth.sealed import (
+    login_claims,
+    oauth_key,
+    seal,
+    split_sealed,
+    unseal,
+)
 
 MAX_TOKEN_LENGTH = 16384
 
 
-class InvalidToken(ValueError):
-    pass
+class InvalidToken(OAuthError):
+    code = "invalid_grant"
 
 
 class Access(BaseModel):
@@ -47,15 +54,11 @@ def _deadline(now: datetime) -> datetime:
 
 
 def _key(grant: OAuthGrant, purpose: str) -> OctKey:
-    return OctKey.import_key(
-        derive_secret(
-            settings.oauth_secret_key, f"followw:oauth:{grant.id}:{purpose}", grant.salt
-        )
-    )
+    return oauth_key(f"{grant.id}:{purpose}", grant.salt)
 
 
 def _seal(grant: OAuthGrant, purpose: str, claims: dict) -> str:
-    return f"{grant.id}.{encrypt_claims(claims, _key(grant, purpose))}"
+    return seal(claims, _key(grant, purpose), record_id=grant.id)
 
 
 def _issue_access(
@@ -82,9 +85,7 @@ async def create_token_pair(
     session_token: str | None = None,
     proof: Proof | None = None,
 ) -> TokenPair:
-    """Recebe o aceite validado pela autorização. Clientes públicos exigem a prova verificada."""
-    if not authenticated_client and proof is None:
-        raise InvalidProof("Clientes públicos precisam comprovar a posse da chave.")
+    """Recebe o aceite validado e o cliente autenticado (públicos, com a prova)."""
     scopes = granted_scopes(accepted)
     if proof is not None:
         await proof.consume(session)
@@ -93,17 +94,14 @@ async def create_token_pair(
         id=uuid4(),
         client_id=client_id,
         confidential=authenticated_client,
-        registration=credentials.registration,
+        user_id=await user_id_of(session, credentials.registration),
         scopes=scopes,
         expires_at=_deadline(now),
         salt=secrets.token_bytes(32),
         key_thumbprint=proof.thumbprint if proof else None,
     )
     session.add(grant)
-    login = {
-        "registration": credentials.registration,
-        "password": credentials.password.get_secret_value(),
-    }
+    login = login_claims(credentials)
     access_token, expires_in = _issue_access(grant, login, session_token, now)
     return TokenPair(
         grant.id,
@@ -119,16 +117,14 @@ async def _open(
     session: AsyncSession, encoded: str, purpose: str
 ) -> tuple[OAuthGrant, dict]:
     try:
-        grant_id, token = encoded.split(".", 1)
+        grant_id, token = split_sealed(encoded)
         if len(encoded) > MAX_TOKEN_LENGTH or token.count(".") != 4:
             raise ValueError
-        grant = await session.get(OAuthGrant, UUID(grant_id))
+        grant = await session.get(OAuthGrant, grant_id)
         now = datetime.now(UTC)
         if grant is None or grant.expires_at <= now:
             raise ValueError
-        claims = decrypt_claims(token, _key(grant, purpose))
-        if purpose == "access" and claims["exp"] <= now.timestamp():
-            raise ValueError
+        claims = unseal(token, _key(grant, purpose), now=now)
     except (JoseError, KeyError, ValueError, TypeError) as error:
         raise InvalidToken("Token OAuth inválido ou expirado.") from error
     return grant, claims
@@ -197,13 +193,13 @@ async def renew_access(
     return await db.write(renew)
 
 
-async def revoke(db: Database, grant_id: UUID, *, registration: str) -> bool:
-    """Indica se havia uma autorização desse estudante para revogar."""
+async def revoke(db: Database, grant_id: UUID, *, user_id: UUID) -> bool:
+    """Indica se havia uma autorização desse usuário para revogar."""
 
     async def remove(session: AsyncSession) -> bool:
         result = await session.execute(
             delete(OAuthGrant).where(
-                OAuthGrant.id == grant_id, OAuthGrant.registration == registration
+                OAuthGrant.id == grant_id, OAuthGrant.user_id == user_id
             )
         )
         return result.rowcount > 0

@@ -6,10 +6,15 @@ import { fakeQueryClient, runLoader } from '../helpers/route';
 
 describe('navegação de autenticação', () => {
     test('o perfil sem sessão segue para a página de login', async () => {
-        const context = { context: { queryClient: fakeQueryClient(() => null) } };
+        const context = {
+            context: { queryClient: fakeQueryClient(() => null) },
+            location: { href: '/perfil' }
+        };
 
         const redirect = await runLoader(ProfileRoute, context).catch((error: unknown) => error);
 
-        expect(redirect).toMatchObject({ options: { to: '/login' } });
+        expect(redirect).toMatchObject({
+            options: { to: '/login', search: { returnTo: '/perfil' } }
+        });
     });
 });

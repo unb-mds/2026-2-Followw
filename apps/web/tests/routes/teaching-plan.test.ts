@@ -28,7 +28,12 @@ function setup(respond: (key: QueryKey) => unknown) {
         return respond(key);
     });
     const invalidate = spyOn(queryClient, 'invalidateQueries');
-    const load = () => runLoader(Route, { context: { queryClient }, params: { id: 'AAA' } });
+    const load = () =>
+        runLoader(Route, {
+            context: { queryClient },
+            params: { id: 'AAA' },
+            location: { href: '/turmas/AAA/plano-de-ensino' }
+        });
     return { paths, invalidate, load };
 }
 

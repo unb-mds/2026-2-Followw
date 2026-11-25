@@ -31,7 +31,9 @@ class OAuthClient(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "oauth_clients"
 
     client_id: Mapped[str] = mapped_column(unique=True)
-    owner_registration: Mapped[str] = mapped_column(index=True)
+    owner_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
     name: Mapped[str] = mapped_column()
     description: Mapped[str | None] = mapped_column()
     homepage_url: Mapped[str | None] = mapped_column()
@@ -44,8 +46,12 @@ class OAuthClient(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 class OAuthGrant(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "oauth_grants"
 
-    registration: Mapped[str] = mapped_column(index=True)
-    client_id: Mapped[str]
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    client_id: Mapped[str] = mapped_column(
+        ForeignKey("oauth_clients.client_id", ondelete="CASCADE"), index=True
+    )
     confidential: Mapped[bool]
     scopes: Mapped[list[str]] = mapped_column(JSONB)
     salt: Mapped[bytes]

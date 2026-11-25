@@ -10,6 +10,7 @@ export const AUTHORIZATION_SEARCH_KEYS = [
     'code_challenge_method'
 ] as const satisfies readonly (keyof AuthorizationRequest)[];
 
+/** Pedido da URL, ou `null` se repete parâmetros do OAuth (como a API) ou não usa código com S256. */
 export function readAuthorizationRequest(search: string): AuthorizationRequest | null {
     const params = new URLSearchParams(search);
     if (

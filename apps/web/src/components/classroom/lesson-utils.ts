@@ -1,5 +1,6 @@
 import type { Lesson, LessonMarkStatus } from '@followw/core/queries/classrooms.ts';
 
+import { SCHEDULE_SLOTS } from '@followw/core/lib/schedule.ts';
 import { CircleCheck, CircleDashed, CircleSlash, CircleX } from 'lucide-react';
 
 export type MarkLessons = (lessons: Lesson[], status: LessonMarkStatus | null) => void;
@@ -20,14 +21,24 @@ export type LessonRunStatus = 'presente' | 'falta' | 'nao_registrada';
 
 export type LessonRun = { id: string; status: LessonRunStatus; count: number };
 
-/** Aulas em ordem cronológica, agrupadas em sequências de mesma situação. */
+/** Horas-aula da aula, como o SIGAA conta: uma sem horário; ao menos as de falta. */
+export function lessonHours({ start_time, end_time, absences }: Lesson) {
+    const start = start_time?.slice(0, 5);
+    const end = end_time?.slice(0, 5);
+    const slots =
+        start && end ? SCHEDULE_SLOTS.filter(([from, to]) => from >= start && to <= end).length : 0;
+    return Math.max(slots || 1, absences);
+}
+
+/** Aulas em ordem cronológica, agrupadas em sequências de mesma situação; `count` em horas-aula. */
 export function lessonRuns(lessons: Lesson[]): LessonRun[] {
     const runs: LessonRun[] = [];
     for (const lesson of lessons.toReversed()) {
         if (lesson.status === 'cancelada') continue;
         const last = runs.at(-1);
-        if (last?.status === lesson.status) last.count++;
-        else runs.push({ id: lesson.id, status: lesson.status, count: 1 });
+        const count = lessonHours(lesson);
+        if (last?.status === lesson.status) last.count += count;
+        else runs.push({ id: lesson.id, status: lesson.status, count });
     }
     return runs;
 }

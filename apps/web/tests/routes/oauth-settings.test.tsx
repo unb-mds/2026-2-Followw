@@ -1,4 +1,4 @@
-import type { components } from '@followw/core/queries/schema.gen.ts';
+import type { OAuthGrant } from '@followw/core/queries/oauth.ts';
 
 import { oauthGrantsQueryOptions } from '@followw/core/queries/oauth.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -70,7 +70,7 @@ test.each([false, true])(
 
 test('mantém o aviso de falha quando há acessos na tela', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
-    const grant: components['schemas']['OAuthGrantView'] = {
+    const grant: OAuthGrant = {
         id: '11111111-1111-4111-8111-111111111111',
         client_id: 'flw_app_agenda',
         client_name: 'Agenda UnB',

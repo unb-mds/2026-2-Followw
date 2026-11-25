@@ -1,4 +1,4 @@
-import type { components } from '@followw/core/queries/schema.gen.ts';
+import type { OAuthGrant } from '@followw/core/queries/oauth.ts';
 import type { Middleware } from 'openapi-fetch';
 
 import { apiClient } from '@followw/core/queries/client.ts';
@@ -30,7 +30,7 @@ test('confirma revogação, permite repetir após falha e remove o acesso após 
     const client = new QueryClient({
         defaultOptions: { queries: { staleTime: Infinity, retry: false } }
     });
-    const grant: components['schemas']['OAuthGrantView'] = {
+    const grant: OAuthGrant = {
         id: '11111111-1111-4111-8111-111111111111',
         client_id: 'flw_app_agenda',
         client_name: 'Agenda UnB',

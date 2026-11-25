@@ -8,6 +8,7 @@ export type OAuthClientCreated = components['schemas']['OAuthClientCreated'];
 export type OAuthClientCreate = components['schemas']['OAuthClientCreate'];
 export type OAuthClientUpdate = components['schemas']['OAuthClientUpdate'];
 export type OAuthClientSecret = components['schemas']['OAuthClientSecret'];
+export type OAuthGrant = components['schemas']['OAuthGrantView'];
 
 export const oauthClientsQueryOptions = api.queryOptions('get', '/oauth/clients');
 

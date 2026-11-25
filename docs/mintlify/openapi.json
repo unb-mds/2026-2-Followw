@@ -142,7 +142,22 @@
           "content": {
             "application/x-www-form-urlencoded": {
               "schema": {
-                "$ref": "#/components/schemas/TokenGrant"
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/AuthorizationCodeGrant"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RefreshTokenGrant"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "grant_type",
+                  "mapping": {
+                    "authorization_code": "#/components/schemas/AuthorizationCodeGrant",
+                    "refresh_token": "#/components/schemas/RefreshTokenGrant"
+                  }
+                },
+                "title": "Body"
               }
             }
           }
@@ -159,10 +174,24 @@
             }
           },
           "400": {
-            "description": "Refresh ou prova DPoP inválidos."
+            "description": "Código, refresh ou DPoP inválidos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthProblem"
+                }
+              }
+            }
           },
           "401": {
-            "description": "Aplicação não registrada ou client_secret inválido."
+            "description": "Aplicação não registrada ou client_secret inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthProblem"
+                }
+              }
+            }
           },
           "502": {
             "description": "SIGAA indisponível durante a renovação."
@@ -3640,6 +3669,73 @@
   },
   "components": {
     "schemas": {
+      "AuthorizationCodeGrant": {
+        "properties": {
+          "client_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Id"
+          },
+          "client_secret": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256,
+                "minLength": 1,
+                "format": "password",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Secret"
+          },
+          "grant_type": {
+            "type": "string",
+            "const": "authorization_code",
+            "title": "Grant Type"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 16384,
+            "minLength": 1,
+            "format": "password",
+            "title": "Code",
+            "writeOnly": true
+          },
+          "redirect_uri": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Redirect Uri"
+          },
+          "code_verifier": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 43,
+            "format": "password",
+            "title": "Code Verifier",
+            "writeOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "grant_type",
+          "code",
+          "redirect_uri",
+          "code_verifier"
+        ],
+        "title": "AuthorizationCodeGrant"
+      },
       "AuthorizationDecision": {
         "properties": {
           "request_token": {
@@ -6342,6 +6438,57 @@
           "hours"
         ]
       },
+      "RefreshTokenGrant": {
+        "properties": {
+          "client_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Id"
+          },
+          "client_secret": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256,
+                "minLength": 1,
+                "format": "password",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Secret"
+          },
+          "grant_type": {
+            "type": "string",
+            "const": "refresh_token",
+            "title": "Grant Type"
+          },
+          "refresh_token": {
+            "type": "string",
+            "maxLength": 16384,
+            "minLength": 1,
+            "format": "password",
+            "title": "Refresh Token",
+            "writeOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "grant_type",
+          "refresh_token"
+        ],
+        "title": "RefreshTokenGrant"
+      },
       "RestaurantCredentials": {
         "properties": {
           "token": {
@@ -6720,6 +6867,14 @@
         ],
         "title": "SubjectClassroom"
       },
+      "SubjectKind": {
+        "type": "string",
+        "enum": [
+          "mandatory",
+          "optional",
+          "free"
+        ]
+      },
       "SubjectPage": {
         "properties": {
           "items": {
@@ -6977,108 +7132,6 @@
           "description"
         ],
         "title": "TeachingPlanScheduleEntry"
-      },
-      "TokenGrant": {
-        "properties": {
-          "grant_type": {
-            "type": "string",
-            "enum": [
-              "refresh_token",
-              "authorization_code"
-            ],
-            "title": "Grant Type"
-          },
-          "client_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 256,
-                "minLength": 1
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Client Id"
-          },
-          "client_secret": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 256,
-                "minLength": 1,
-                "format": "password",
-                "writeOnly": true
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Client Secret"
-          },
-          "refresh_token": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 16384,
-                "minLength": 1,
-                "format": "password",
-                "writeOnly": true
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Refresh Token"
-          },
-          "code": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 16384,
-                "minLength": 1,
-                "format": "password",
-                "writeOnly": true
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Code"
-          },
-          "redirect_uri": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 2048
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Redirect Uri"
-          },
-          "code_verifier": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 128,
-                "minLength": 43,
-                "format": "password",
-                "writeOnly": true
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Code Verifier"
-          }
-        },
-        "type": "object",
-        "required": [
-          "grant_type"
-        ],
-        "title": "TokenGrant"
       },
       "TokenResponse": {
         "properties": {
@@ -7583,14 +7636,6 @@
             "type": "string",
             "const": "90+"
           }
-        ]
-      },
-      "SubjectKind": {
-        "type": "string",
-        "enum": [
-          "mandatory",
-          "optional",
-          "free"
         ]
       }
     },

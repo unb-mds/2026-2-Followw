@@ -18,14 +18,25 @@ from sqlalchemy import select
 
 from api.db.main import Database
 from api.db.models import OAuthClient
-from api.modules.oauth.clients import generate_client_secret
+from api.modules.me.repository import UserRepository
+from api.modules.oauth.clients import generate_client_secret, resolve_user_id
 from api.modules.oauth.scopes import Scope
-from api.modules.oauth.tokens import create_token_pair
+from api.modules.oauth.tokens import create_token_pair, revoke
 
 
 @pytest.fixture
 def db(async_database):
     return Database(async_database)
+
+
+@pytest.fixture
+def revogar(db):
+    async def revoke_for(grant_id, registration="251000000"):
+        return await revoke(
+            db, grant_id, user_id=await resolve_user_id(db, registration)
+        )
+
+    return revoke_for
 
 
 @pytest.fixture
@@ -39,6 +50,9 @@ def emitir(db):
                     select(OAuthClient).where(OAuthClient.client_id == client_id)
                 )
                 if existente is None:
+                    users = UserRepository(session)
+                    await users.register("251000000")
+                    owner = await users.get_by_registration("251000000")
                     salt = digest = None
                     if is_confidential:
                         _, salt, _ = generate_client_secret()
@@ -46,7 +60,7 @@ def emitir(db):
                     session.add(
                         OAuthClient(
                             client_id=client_id,
-                            owner_registration="251000000",
+                            owner_id=owner.id,
                             name=client_id,
                             description=None,
                             homepage_url=None,

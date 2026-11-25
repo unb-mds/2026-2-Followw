@@ -10,13 +10,14 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.models import OAuthProof
+from api.modules.oauth.protocol import OAuthError
 
 MAX_PROOF_LENGTH = 8192
 _PROOF_AGE = timedelta(minutes=5)
 
 
-class InvalidProof(ValueError):
-    pass
+class InvalidProof(OAuthError):
+    code = "invalid_dpop_proof"
 
 
 @dataclass(frozen=True)
