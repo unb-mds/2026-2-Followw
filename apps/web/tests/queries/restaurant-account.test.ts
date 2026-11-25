@@ -11,12 +11,13 @@ import {
     statementQueryOptions
 } from '@followw/core/queries/restaurant-account.ts';
 import { noop, QueryClient, QueryObserver } from '@tanstack/react-query';
-import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, setSystemTime, test } from 'bun:test';
 
 import { clearSession } from '#/queries/auth';
 import { refreshQuery } from '#/queries/refresh';
 
 const registration = '251000000';
+const NOW = new Date('2026-11-24T15:00:00Z');
 const statement: RestaurantStatement = {
     balance: '-1.50',
     group: 2,
@@ -24,7 +25,7 @@ const statement: RestaurantStatement = {
 };
 const credentials: RestaurantCredentials = {
     token: 'token-da-carteirinha',
-    valid_until: '2026-12-01'
+    valid_until: '2027-03-01'
 };
 
 describe('conta do RU', () => {
@@ -34,6 +35,7 @@ describe('conta do RU', () => {
     let client: QueryClient;
 
     beforeEach(() => {
+        setSystemTime(NOW);
         requests = [];
         response = (request) =>
             Response.json(
@@ -50,6 +52,7 @@ describe('conta do RU', () => {
     });
 
     afterEach(() => {
+        setSystemTime();
         client.clear();
         apiClient.eject(middleware);
     });
@@ -92,6 +95,29 @@ describe('conta do RU', () => {
         expect(requests).toHaveLength(0);
     });
 
+    test('a carteirinha válida não volta a ser refeita em mount, foco ou reconexão após falha manual', async () => {
+        const options = credentialsQueryOptions(registration);
+        client.setQueryData(options.queryKey, credentials);
+        const available = response;
+        response = () => {
+            throw new TypeError('Sem conexão');
+        };
+        await refreshQuery(client, options, { retry: false }).catch(() => null);
+        expect(client.getQueryState(options.queryKey)?.isInvalidated).toBe(true);
+
+        response = available;
+        requests = [];
+        const observer = new QueryObserver(client, { ...options, networkMode: 'always' });
+        const unsubscribe = observer.subscribe(noop);
+        try {
+            client.getQueryCache().onOnline();
+            client.getQueryCache().onFocus();
+            expect(requests).toHaveLength(0);
+        } finally {
+            unsubscribe();
+        }
+    });
+
     test('ao reconectar, refaz a carteirinha que falhou sem dado salvo', async () => {
         const observer = new QueryObserver(client, {
             ...credentialsQueryOptions(registration),
@@ -115,7 +141,7 @@ describe('conta do RU', () => {
 
     test('a carteirinha vencida é refeita depois de 90 minutos', async () => {
         const { queryKey } = credentialsQueryOptions(registration);
-        const expired = { ...credentials, valid_until: '2020-01-01' };
+        const expired = { ...credentials, valid_until: '2026-03-01' };
         client.setQueryData(queryKey, expired, { updatedAt: Date.now() - 89 * 60_000 });
         await client.query(credentialsQueryOptions(registration));
         expect(requests).toHaveLength(0);

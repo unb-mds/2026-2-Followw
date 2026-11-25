@@ -51,6 +51,28 @@ describe('modo offline', () => {
         expect(states.at(-1)).toBe(false);
     });
 
+    test('aguarda a restauração quando o perfil chega depois da montagem inicial', async () => {
+        let completeRestore: (() => void) | undefined;
+        const persist = spyOn(offlineStorage, 'persistQueryCache').mockImplementation(
+            (_client, onRestored) => {
+                completeRestore = onRestored;
+                return () => {};
+            }
+        );
+        try {
+            const { states, queryClient } = renderWith(null);
+            expect(states.at(-1)).toBe(false);
+
+            queryClient.setQueryData(meQueryOptions.queryKey, user);
+            await dom.testing.waitFor(() => expect(states.at(-1)).toBe(true));
+
+            await dom.testing.act(async () => completeRestore?.());
+            expect(states.at(-1)).toBe(false);
+        } finally {
+            persist.mockRestore();
+        }
+    });
+
     test('libera as consultas de visitante se a sessão acabar durante a restauração', async () => {
         const persist = spyOn(offlineStorage, 'persistQueryCache').mockReturnValue(() => {});
         try {

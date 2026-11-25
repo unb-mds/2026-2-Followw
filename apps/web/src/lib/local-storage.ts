@@ -4,6 +4,7 @@ export const STORAGE_KEYS = {
     THEME: 'theme',
     SCHEDULE: 'schedule',
     SEEN_NEWS: 'seen-news',
+    STUDENT_CARD: 'student-card',
     ACADEMIC_SIMULATION: 'academic-simulation'
 } as const;
 
@@ -115,6 +116,7 @@ export const localStorageRepository: LocalStorageRepository = {
 const ACCOUNT_KEYS: string[] = [
     STORAGE_KEYS.SCHEDULE,
     STORAGE_KEYS.SEEN_NEWS,
+    STORAGE_KEYS.STUDENT_CARD,
     STORAGE_KEYS.ACADEMIC_SIMULATION
 ];
 const stores = new Map<string, { clear: () => void }>();

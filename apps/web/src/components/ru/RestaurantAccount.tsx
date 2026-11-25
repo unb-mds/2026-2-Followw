@@ -10,6 +10,7 @@ import { cardIsExpired, insufficientMealBalance } from '@followw/core/lib/restau
 import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import {
     credentialsQueryOptions,
+    hasValidCard,
     statementQueryOptions
 } from '@followw/core/queries/restaurant-account.ts';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -41,6 +42,7 @@ import { Spinner } from '#/components/ui/spinner';
 import { cn } from '#/lib/shadcn';
 import { documentRefusal } from '#/queries/documents';
 import { refreshQuery } from '#/queries/refresh';
+import { useStudentCard } from '#/queries/student-card';
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const dateTime = new Intl.DateTimeFormat('pt-BR', {
@@ -65,7 +67,7 @@ export function RestaurantAccount({
     const statementOptions = statementQueryOptions(registration);
     const credentialsOptions = credentialsQueryOptions(registration);
     const statement = useQuery(statementOptions);
-    const credentials = useQuery(credentialsOptions);
+    const credentials = useStudentCard(registration);
     const [refreshing, setRefreshing] = useState(false);
     const [coolingDown, setCoolingDown] = useState(false);
     const [cardOpen, setCardOpen] = useState(false);
@@ -80,10 +82,18 @@ export function RestaurantAccount({
         []
     );
 
-    const refreshDisabled =
-        coolingDown || refreshing || statement.isFetching || credentials.isFetching;
+    const validCard = hasValidCard(credentials.data);
+    const statementRefreshDisabled = coolingDown || refreshing || statement.isFetching;
+    const credentialsRefreshDisabled = coolingDown || refreshing || credentials.isFetching;
+    const refreshDisabled = statementRefreshDisabled || (!validCard && credentialsRefreshDisabled);
     const refresh = async (target: 'statement' | 'credentials' | 'all' = 'all') => {
-        if (cooldownTimer.current !== null || refreshDisabled) return;
+        const disabled =
+            target === 'statement'
+                ? statementRefreshDisabled
+                : target === 'credentials'
+                  ? credentialsRefreshDisabled
+                  : refreshDisabled;
+        if (cooldownTimer.current !== null || disabled) return;
         cooldownTimer.current = setTimeout(() => {
             cooldownTimer.current = null;
             setCoolingDown(false);
@@ -95,7 +105,7 @@ export function RestaurantAccount({
             if (target !== 'credentials') {
                 pending.push(refreshQuery(queryClient, statementOptions, { retry: false }));
             }
-            if (target !== 'statement') {
+            if (target === 'credentials' || (target === 'all' && !validCard)) {
                 pending.push(refreshQuery(queryClient, credentialsOptions, { retry: false }));
             }
             await Promise.allSettled(pending);
@@ -107,10 +117,11 @@ export function RestaurantAccount({
     const cardDrawer = (
         <StudentCardDrawer
             credentials={credentials}
+            cardIsValid={validCard}
             open={cardOpen}
             onOpenChange={setCardOpen}
             onRetry={() => refresh('credentials')}
-            retryDisabled={refreshDisabled}
+            retryDisabled={credentialsRefreshDisabled}
         />
     );
 
@@ -121,7 +132,7 @@ export function RestaurantAccount({
             hasData={Boolean(statement.data)}
             label="saldo e extrato"
             onRetry={() => refresh('statement')}
-            retryDisabled={refreshDisabled}
+            retryDisabled={statementRefreshDisabled}
         />
     );
 
@@ -171,12 +182,14 @@ export function RestaurantAccount({
 
 function StudentCardDrawer({
     credentials,
+    cardIsValid,
     open,
     onOpenChange,
     onRetry,
     retryDisabled
 }: {
     credentials: UseQueryResult<RestaurantCredentials>;
+    cardIsValid: boolean;
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onRetry: () => Promise<void>;
@@ -216,15 +229,17 @@ function StudentCardDrawer({
                             <Skeleton className="h-3 w-32" />
                         </LoadingSkeleton>
                     )}
-                    <AccountStatus
-                        query={credentials}
-                        hasData={Boolean(credentials.data)}
-                        label="carteirinha"
-                        failure={documentRefusal(credentials.error)}
-                        showUpdatedAt={false}
-                        onRetry={onRetry}
-                        retryDisabled={retryDisabled}
-                    />
+                    {!cardIsValid && (
+                        <AccountStatus
+                            query={credentials}
+                            hasData={Boolean(credentials.data)}
+                            label="carteirinha"
+                            failure={documentRefusal(credentials.error)}
+                            showUpdatedAt={false}
+                            onRetry={onRetry}
+                            retryDisabled={retryDisabled}
+                        />
+                    )}
                 </div>
                 <DrawerFooter>
                     <DrawerClose render={<Button variant="outline" />}>Fechar</DrawerClose>

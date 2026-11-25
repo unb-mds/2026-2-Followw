@@ -1,6 +1,11 @@
 import type { MenuSection } from '@followw/core/queries/restaurant.ts';
 
-import { highlightMenu, MEAL_TIMES, groupSalads } from '@followw/core/lib/restaurant.ts';
+import {
+    highlightMenu,
+    MEAL_TIMES,
+    groupSalads,
+    renameSections
+} from '@followw/core/lib/restaurant.ts';
 import { CAMPUS_LABELS } from '@followw/core/queries/restaurant.ts';
 import { Egg, Leaf } from 'lucide-react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -62,7 +67,7 @@ export function RestaurantShareImage({
     };
     const meal = MEAL_TIMES.find(({ key }) => key === selection.meal)!;
     const { main, alternatives, others: ungrouped } = highlightMenu(sections);
-    const others = groupSalads(ungrouped);
+    const others = groupSalads(renameSections(ungrouped));
     const date = shareDateFormat.format(new Date(`${selection.date}T12:00:00Z`));
     const length = sections.reduce((total, section) => total + section.items.join(', ').length, 0);
     const fontSize = length > 750 ? 16 : length > 450 ? 19 : 22;

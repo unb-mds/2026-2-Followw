@@ -20,7 +20,8 @@ export function useOfflineSupport() {
     const { data: user } = useQuery(meQueryOptions);
     const loggedIn = Boolean(user);
     const registration = user?.registration;
-    const [restoring, setRestoring] = useState(loggedIn);
+    const [restoredRegistration, setRestoredRegistration] = useState<string | null>(null);
+    const restoring = Boolean(registration) && restoredRegistration !== registration;
     const campus = campusOf(user?.unit?.code);
 
     useEffect(() => onlineManager.setOnline(navigator.onLine), []);
@@ -29,7 +30,11 @@ export function useOfflineSupport() {
     useEffect(() => {
         if (!registration) return undefined;
         if (serviceWorkerEnabled()) navigator.serviceWorker.register('/sw.js').catch(noop);
-        return persistQueryCache(queryClient, () => setRestoring(false));
+        const stop = persistQueryCache(queryClient, () => setRestoredRegistration(registration));
+        return () => {
+            stop();
+            setRestoredRegistration(null);
+        };
     }, [queryClient, registration]);
 
     // com o app aberto e online, deixa páginas e cardápio da semana prontos para o modo offline
@@ -44,5 +49,5 @@ export function useOfflineSupport() {
         return () => clearTimeout(timeout);
     }, [queryClient, online, loggedIn, campus, registration]);
 
-    return loggedIn && restoring;
+    return restoring;
 }

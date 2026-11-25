@@ -95,6 +95,11 @@ export function groupSalads(sections: MenuSection[]): MenuSection[] {
     return sections.flatMap((s) => (s === salads[0] ? [grouped] : salads.includes(s) ? [] : [s]));
 }
 
+const SECTION_RENAMES: Record<string, string> = { 'Bebida (refresco de)': 'Refresco sabor' };
+
+export const renameSections = (sections: MenuSection[]): MenuSection[] =>
+    sections.map((s) => (s.name in SECTION_RENAMES ? { ...s, name: SECTION_RENAMES[s.name] } : s));
+
 export function mainMenuDish(sections: MenuSection[] | null | undefined) {
     if (!sections?.length) return undefined;
     const section = highlightMenu(sections).main ?? sections[0];
