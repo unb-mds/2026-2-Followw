@@ -80,14 +80,24 @@ export interface ClassTime extends TimeRange {
 export function parseSchedule(code: string | null | undefined): ClassTime[] {
     const times: ClassTime[] = [];
     for (const [, days, shift, slots] of (code ?? '').matchAll(/([1-7]+)([MTN])([1-6]+)/g)) {
-        const ranges = Array.from(slots, (slot) => SLOTS[shift][Number(slot) - 1]).filter(Boolean);
-        if (ranges.length === 0) continue;
+        // Horários não consecutivos (`M13`) viram blocos separados.
+        const runs: [string, string][][] = [];
+        let previous = 0;
+        for (const digit of Array.from(slots, Number)) {
+            const range = SLOTS[shift][digit - 1];
+            if (!range) continue;
+            if (digit === previous + 1 && runs.length > 0) runs.at(-1)!.push(range);
+            else runs.push([range]);
+            previous = digit;
+        }
         for (const day of days) {
-            times.push({
-                weekday: Number(day) - 1,
-                start: ranges[0][0],
-                end: ranges[ranges.length - 1][1]
-            });
+            for (const run of runs) {
+                times.push({
+                    weekday: Number(day) - 1,
+                    start: run[0][0],
+                    end: run[run.length - 1][1]
+                });
+            }
         }
     }
     // Junta blocos colados no mesmo dia, como `M5T1` (12:00–13:50) e `T6N1` (18:00–19:50).

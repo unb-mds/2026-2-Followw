@@ -47,6 +47,21 @@ describe('parseSchedule', () => {
         expect(parseSchedule('2T3 2T4')).toHaveLength(2);
     });
 
+    test('horários intervalados no mesmo dia não são agrupados', () => {
+        expect(parseSchedule('35M13')).toEqual(
+            [
+                { weekday: 2, start: '08:00', end: '08:55' },
+                { weekday: 2, start: '10:00', end: '10:55' },
+                { weekday: 4, start: '08:00', end: '08:55' },
+                { weekday: 4, start: '10:00', end: '10:55' }
+            ].toSorted((a, b) => a.weekday - b.weekday || a.start.localeCompare(b.start))
+        );
+        expect(parseSchedule('2M124')).toEqual([
+            { weekday: 1, start: '08:00', end: '09:50' },
+            { weekday: 1, start: '10:55', end: '11:50' }
+        ]);
+    });
+
     test('ignora código vazio ou inválido', () => {
         expect(parseSchedule(null)).toEqual([]);
         expect(parseSchedule('99Z9')).toEqual([]);
