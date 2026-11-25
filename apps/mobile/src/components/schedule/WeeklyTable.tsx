@@ -1,27 +1,22 @@
 import type { GridSemester } from '@followw/core/lib/planned-schedule.ts';
 
-import { classKey, GRID_DAYS } from '@followw/core/lib/planned-schedule.ts';
-import { ScrollView, View } from 'react-native';
+import { classKey } from '@followw/core/lib/planned-schedule.ts';
+import { View } from 'react-native';
 
 import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
 
 const TIME_WIDTH = 84;
-const DAY_WIDTH = 68;
 
-interface WeeklyTableProps {
+/** Tabela da grade para a imagem exportada, como a do PNG do web. */
+export function WeeklyTable({
+    grid: { semester, hours, rows, days, unscheduled },
+    maxHours
+}: {
     grid: GridSemester;
     maxHours: number | null;
-    // colunas flexíveis, sem rolagem (imagem exportada)
-    fill?: boolean;
-}
-
-export function WeeklyTable({
-    grid: { semester, hours, rows, unscheduled },
-    maxHours,
-    fill
-}: WeeklyTableProps) {
-    const column = (width: number) => (fill ? { flex: 1 } : { width });
+}) {
+    const column = { flex: 1 };
     const table = (
         <View className="overflow-hidden rounded-lg border border-border">
             <View className="flex-row bg-foreground dark:bg-background">
@@ -31,10 +26,10 @@ export function WeeklyTable({
                 >
                     Horários
                 </Text>
-                {GRID_DAYS.map(({ label }) => (
+                {days.map(({ label }) => (
                     <Text
                         key={label}
-                        style={column(DAY_WIDTH)}
+                        style={column}
                         className="p-2 text-center text-xs font-bold text-background dark:text-foreground"
                     >
                         {label}
@@ -50,8 +45,8 @@ export function WeeklyTable({
                     </View>
                     {cells.map((entry, index) => (
                         <View
-                            key={GRID_DAYS[index].label}
-                            style={column(DAY_WIDTH)}
+                            key={days[index].label}
+                            style={column}
                             className={cn(
                                 'items-center justify-center border-l border-border p-2',
                                 entry && 'bg-primary/5'
@@ -87,18 +82,7 @@ export function WeeklyTable({
                     {maxHours == null ? `${hours}h` : `${hours}h de ${maxHours}h`}
                 </Text>
             </View>
-            {rows.length > 0 &&
-                (fill ? (
-                    table
-                ) : (
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        className="w-full"
-                    >
-                        {table}
-                    </ScrollView>
-                ))}
+            {rows.length > 0 && table}
             {unscheduled.map((entry) => (
                 <Text key={classKey(entry)} className="text-sm text-muted-foreground">
                     {entry.code} · T{entry.number}: horário a definir.

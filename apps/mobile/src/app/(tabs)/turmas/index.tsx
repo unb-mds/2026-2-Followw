@@ -1,6 +1,5 @@
 import { groupBySemester } from '@followw/core/lib/classroom-details.ts';
-import { describeSchedule } from '@followw/core/lib/schedule.ts';
-import { allClassroomsQueryOptions, finalGrade } from '@followw/core/queries/classrooms.ts';
+import { allClassroomsQueryOptions } from '@followw/core/queries/classrooms.ts';
 import { meQueryOptions } from '@followw/core/queries/me.ts';
 import { refreshQuery } from '@followw/core/queries/refresh.ts';
 import { useQuery } from '@tanstack/react-query';
@@ -8,9 +7,10 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 
+import { ClassroomCard } from '@/components/classroom/ClassroomCard';
 import { ErrorCard, SIGAA_DOWN_MESSAGE } from '@/components/ErrorState';
 import { HeaderBar, HeaderTitle } from '@/components/HeaderBar';
-import { ClassCard, ClassCardSkeleton } from '@/components/home/ClassCard';
+import { ClassCardSkeleton } from '@/components/home/ClassCard';
 import { LoginPromptCard } from '@/components/home/LoginPromptCard';
 import { LoadingSkeleton, repeat } from '@/components/LoadingSkeleton';
 import { QueryState } from '@/components/QueryState';
@@ -79,17 +79,9 @@ function Classrooms() {
             )}
             <View className="flex-col gap-2">
                 {items?.map((classroom) => (
-                    <ClassCard
+                    <ClassroomCard
                         key={classroom.id}
-                        title={classroom.subject.name}
-                        time={describeSchedule(classroom.schedule) ?? 'Horário a definir'}
-                        location={
-                            classroom.current
-                                ? (classroom.room ?? 'Local não informado')
-                                : undefined
-                        }
-                        grade={finalGrade(classroom)}
-                        status={classroom.status === 'pending_enrollment' ? 'pending' : 'normal'}
+                        classroom={classroom}
                         onClick={() =>
                             router.push({ pathname: '/turmas/[id]', params: { id: classroom.id } })
                         }

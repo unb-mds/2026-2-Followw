@@ -32,7 +32,11 @@ export function ClassroomSummary({ classroom }: { classroom: Classroom }) {
                         {schedule ?? 'Horário a definir'}
                     </Text>
                 </SummaryItem>
-                {classroom.current ? (
+                {grade ? (
+                    <SummaryItem icon={Award}>
+                        <GradeText grade={grade} className="text-sm" />
+                    </SummaryItem>
+                ) : classroom.current ? (
                     <SummaryItem icon={MapPin}>
                         <Text className="text-sm text-muted-foreground">
                             {classroom.room ?? 'Local não informado'}
@@ -40,13 +44,7 @@ export function ClassroomSummary({ classroom }: { classroom: Classroom }) {
                     </SummaryItem>
                 ) : (
                     <SummaryItem icon={Award}>
-                        {grade ? (
-                            <GradeText grade={grade} className="text-sm" />
-                        ) : (
-                            <Text className="text-sm text-muted-foreground">
-                                Menção não disponível
-                            </Text>
-                        )}
+                        <Text className="text-sm text-muted-foreground">Menção não disponível</Text>
                     </SummaryItem>
                 )}
                 {classroom.subject.hours != null && (

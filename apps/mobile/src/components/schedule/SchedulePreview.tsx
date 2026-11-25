@@ -7,7 +7,7 @@ import { ScrollView, useWindowDimensions, View } from 'react-native';
 import { ClassCard } from '@/components/home/ClassCard';
 import { ScheduleImageExport } from '@/components/schedule/ScheduleImage';
 import { usePlannedSchedule } from '@/components/schedule/usePlannedSchedule';
-import { WeeklyTable } from '@/components/schedule/WeeklyTable';
+import { WeeklySchedule } from '@/components/schedule/WeeklySchedule';
 import { SelectionBar } from '@/components/SelectionBar';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,7 +19,9 @@ import {
     DialogTrigger
 } from '@/components/ui/dialog';
 import { Icon } from '@/components/ui/icon';
+import { Progress } from '@/components/ui/progress';
 import { Text } from '@/components/ui/text';
+import { cn } from '@/lib/utils';
 
 /** Barra flutuante acima da navegação inferior; renderize dentro de um container `relative flex-1`. */
 export function SchedulePreview() {
@@ -65,7 +67,39 @@ export function SchedulePreview() {
                     contentContainerClassName="w-full gap-4"
                 >
                     {grid.map((semester) => (
-                        <WeeklyTable key={semester.semester} grid={semester} maxHours={maxHours} />
+                        <View key={semester.semester} className="gap-4">
+                            <View className="flex-row items-center justify-between gap-3">
+                                <Text role="heading" aria-level={3} className="text-sm">
+                                    Planejamento · {semester.semester}
+                                </Text>
+                                <Text
+                                    className={cn(
+                                        'text-sm text-muted-foreground',
+                                        maxHours != null &&
+                                            semester.hours > maxHours &&
+                                            'text-destructive'
+                                    )}
+                                >
+                                    {maxHours == null
+                                        ? `${semester.hours}h`
+                                        : `${semester.hours}h de ${maxHours}h`}
+                                </Text>
+                            </View>
+                            {maxHours != null && maxHours > 0 && (
+                                <Progress
+                                    accessibilityLabel={`Carga horária de ${semester.semester}`}
+                                    value={Math.min(100, (semester.hours / maxHours) * 100)}
+                                    className="h-1"
+                                />
+                            )}
+                            <WeeklySchedule
+                                label={`Grade semanal ${semester.semester}`}
+                                entries={semester.classes.map((entry) => ({
+                                    ...entry,
+                                    key: classKey(entry)
+                                }))}
+                            />
+                        </View>
                     ))}
                     {items.length === 0 ? (
                         <View className="min-h-56 items-center justify-center gap-3 py-8">
@@ -83,6 +117,8 @@ export function SchedulePreview() {
                                 <ClassCard
                                     key={classKey(item)}
                                     compact
+                                    variant="planned"
+                                    code={item.code}
                                     title={item.name}
                                     time={describeSchedule(item.schedule) ?? 'Horário a definir'}
                                     location={item.room ?? undefined}

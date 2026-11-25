@@ -1,4 +1,6 @@
+import { getActiveSemester } from '@followw/core/calendar.ts';
 import { lessonsOn, nowInBrasilia, weekDays } from '@followw/core/lib/schedule.ts';
+import { semesterClassroomsQueryOptions } from '@followw/core/queries/classrooms.ts';
 import { weekLessonsQueryOptions } from '@followw/core/queries/lessons.ts';
 import { meQueryOptions } from '@followw/core/queries/me.ts';
 import { latestPostsQueryOptions } from '@followw/core/queries/posts.ts';
@@ -16,6 +18,7 @@ import { BackToTodayBar } from '@/components/BackToTodayBar';
 import { HeaderBar, HeaderToggle } from '@/components/HeaderBar';
 import { NewsNotifications } from '@/components/home/NewsNotifications';
 import { PublicInfoSection } from '@/components/home/PublicInfoSection';
+import { SemesterSection } from '@/components/home/SemesterSection';
 import { TodayClassesSection } from '@/components/home/TodayClassesSection';
 import { Screen } from '@/components/Screen';
 import { WeekDayPicker } from '@/components/WeekDayPicker';
@@ -53,6 +56,7 @@ export default function HomeScreen() {
 
     const me = useQuery(meQueryOptions);
     const user = me.data;
+    const semester = getActiveSemester(now.date);
     const lessons = useQuery({ ...weekLessonsQueryOptions, enabled: Boolean(user) });
     const campus = campusOf(user?.unit?.code);
     const preview = useMenuPreview({ campus, date: selectedDay.date, now });
@@ -85,28 +89,38 @@ export default function HomeScreen() {
                             weeklyMenuQueryOptions({ campus, date: selectedDay.date })
                         ),
                         user && refreshQuery(queryClient, weekLessonsQueryOptions),
+                        user &&
+                            semester &&
+                            refreshQuery(
+                                queryClient,
+                                semesterClassroomsQueryOptions(semester.semester)
+                            ),
                         user && refreshQuery(queryClient, latestPostsQueryOptions)
                     ])
                 }
             >
-                {weekOpen && (
-                    <WeekDayPicker
-                        days={days}
-                        selectedDate={selectedDay.date}
-                        onSelect={(day) => setPicked(day.date === now.date ? null : day.date)}
-                    />
-                )}
-
                 <View className="flex-col gap-6">
-                    <TodayClassesSection
-                        loggedIn={Boolean(user)}
-                        noClassReason={selected?.no_class_reason ?? undefined}
-                        isLoadingError={lessons.isLoadingError}
-                        onRetry={() => void lessons.refetch()}
-                        classes={classes}
-                        date={selectedDay.date}
-                        now={now}
-                    />
+                    <View className="min-w-0">
+                        {weekOpen && (
+                            <WeekDayPicker
+                                variant="tiles"
+                                days={days}
+                                selectedDate={selectedDay.date}
+                                onSelect={(day) =>
+                                    setPicked(day.date === now.date ? null : day.date)
+                                }
+                            />
+                        )}
+                        <TodayClassesSection
+                            loggedIn={Boolean(user)}
+                            noClassReason={selected?.no_class_reason ?? undefined}
+                            isLoadingError={lessons.isLoadingError}
+                            onRetry={() => void lessons.refetch()}
+                            classes={classes}
+                            date={selectedDay.date}
+                            now={now}
+                        />
+                    </View>
                     <PublicInfoSection
                         campus={campus}
                         menus={preview.menus}
@@ -115,6 +129,7 @@ export default function HomeScreen() {
                         date={selectedDay.date}
                         now={now}
                     />
+                    <SemesterSection today={now.date} loggedIn={Boolean(user)} />
                 </View>
             </Screen>
             <BackToTodayBar open={!isToday} onBack={() => setPicked(null)} />

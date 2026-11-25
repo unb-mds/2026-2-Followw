@@ -12,22 +12,38 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
 
-export interface ClassCardProps {
+export type ClassStatus = 'in_progress' | 'next' | 'pending' | 'normal' | 'warning' | 'cancelled';
+
+interface BaseClassCardProps {
     title: string;
     compact?: boolean;
     time: string;
-    location?: string;
+    /** `null` é turma sem local lançado; `undefined` omite o local. */
+    location?: string | null;
     professors?: string[];
-    grade?: Classroom['grade'];
-    status?: 'in_progress' | 'next' | 'pending' | 'normal' | 'warning' | 'cancelled';
-    statusText?: string;
     onLocationClick?: () => void;
-    onClick?: () => void;
     indicator?: React.ReactNode;
     action?: React.ReactNode;
     // sem a moldura do card, para listar dentro de outro card
     plain?: boolean;
 }
+
+/** Aula ou turma cursada: horário e situação acima do título. */
+interface LessonCardProps extends BaseClassCardProps {
+    variant?: 'lesson';
+    grade?: Classroom['grade'];
+    status?: ClassStatus;
+    statusText?: string;
+    onClick?: () => void;
+}
+
+/** Turma da grade planejada: código acima do título e horário logo abaixo. */
+interface PlannedCardProps extends BaseClassCardProps {
+    variant: 'planned';
+    code: string;
+}
+
+export type ClassCardProps = LessonCardProps | PlannedCardProps;
 
 const STATUS = {
     in_progress: {
@@ -57,28 +73,33 @@ const STATUS = {
     }
 } as const;
 
-export function ClassCard({
-    title,
-    compact = false,
-    time,
-    location,
-    professors,
-    grade,
-    status = 'normal',
-    statusText,
-    onLocationClick,
-    onClick,
-    indicator,
-    action,
-    plain = false
-}: ClassCardProps) {
+export function ClassCard(props: ClassCardProps) {
+    const {
+        title,
+        compact = false,
+        time,
+        location,
+        professors,
+        onLocationClick,
+        indicator,
+        action,
+        plain = false
+    } = props;
+    const lesson = props.variant === 'planned' ? undefined : props;
+    const planned = props.variant === 'planned' ? props.code : undefined;
+    const grade = lesson?.grade;
+    const status = lesson?.status ?? 'normal';
+    const onClick = lesson?.onClick;
     const statusInfo = status === 'normal' ? undefined : STATUS[status];
     const active = status === 'in_progress';
     const professorNames = professors?.join(', ');
-    const details = [location, professorNames].filter(Boolean).join(' · ');
+    // A menção lançada ocupa o lugar do local.
+    const place = grade || location === undefined ? undefined : (location ?? 'Local não informado');
+    const details = [place, professorNames].filter(Boolean).join(' · ');
 
     const body = (
         <View className={cn('flex-col', compact && !action ? 'gap-0.5' : 'gap-1')}>
+            {planned && <Text className="text-xs font-semibold text-primary">{planned}</Text>}
             <View className="flex-row items-center gap-2">
                 <Text
                     role="heading"
@@ -93,13 +114,16 @@ export function ClassCard({
                 </Text>
                 {indicator}
             </View>
+            {planned && (
+                <Badge variant="secondary" className="max-w-full self-start py-0">
+                    <Text className="text-xs">{time}</Text>
+                </Badge>
+            )}
             <View className="flex-row items-center gap-1">
                 {grade ? (
                     <Icon as={Award} className="size-3 shrink-0 text-muted-foreground" />
                 ) : (
-                    location && (
-                        <Icon as={MapPin} className="size-3 shrink-0 text-muted-foreground" />
-                    )
+                    place && <Icon as={MapPin} className="size-3 shrink-0 text-muted-foreground" />
                 )}
                 <Text numberOfLines={1} className="min-w-0 shrink text-xs text-muted-foreground">
                     {grade && <GradeText grade={grade} className="text-xs" />}
@@ -123,20 +147,22 @@ export function ClassCard({
 
     const content = (
         <>
-            <View className="flex-row items-center gap-2">
-                <Text className="min-w-0 text-xs font-semibold text-primary">{time}</Text>
-                {statusInfo && (
-                    <Badge
-                        variant={statusInfo.variant}
-                        className={cn('px-1.5 py-0', statusInfo.className)}
-                    >
-                        {active && <View className="size-1.5 rounded-full bg-primary" />}
-                        <Text className={cn('text-xs', statusInfo.textClassName)}>
-                            {statusText || statusInfo.label}
-                        </Text>
-                    </Badge>
-                )}
-            </View>
+            {lesson && (
+                <View className="flex-row items-center gap-2">
+                    <Text className="min-w-0 text-xs font-semibold text-primary">{time}</Text>
+                    {statusInfo && (
+                        <Badge
+                            variant={statusInfo.variant}
+                            className={cn('px-1.5 py-0', statusInfo.className)}
+                        >
+                            {active && <View className="size-1.5 rounded-full bg-primary" />}
+                            <Text className={cn('text-xs', statusInfo.textClassName)}>
+                                {lesson?.statusText || statusInfo.label}
+                            </Text>
+                        </Badge>
+                    )}
+                </View>
+            )}
             {action ? (
                 <View className="flex-row items-center justify-between gap-2">
                     <View className="min-w-0 flex-1">{body}</View>

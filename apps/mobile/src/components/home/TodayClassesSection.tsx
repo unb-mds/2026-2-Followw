@@ -2,14 +2,14 @@ import type { Day, ScheduledClass } from '@followw/core/lib/schedule.ts';
 import type { WeekLesson } from '@followw/core/queries/lessons.ts';
 
 import { dayTimeline } from '@followw/core/lib/day-timeline.ts';
-import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
+import { formatDuration, nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { useRouter } from 'expo-router';
 import { Fragment } from 'react';
 import { View } from 'react-native';
 
 import { ErrorCard, SIGAA_DOWN_MESSAGE } from '@/components/ErrorState';
-import { ClassCard } from '@/components/home/ClassCard';
 import { ClassProgress } from '@/components/home/ClassProgress';
+import { LessonCard } from '@/components/home/LessonCard';
 import { LoginPromptCard } from '@/components/home/LoginPromptCard';
 import { SectionHeader } from '@/components/SectionHeader';
 import { Card } from '@/components/ui/card';
@@ -89,12 +89,11 @@ function TodayClassesContent({
                                 index === timeline.length - 1 && 'rounded-b-2xl'
                             )}
                         >
-                            <ClassCard
-                                plain
-                                title={item.classroom.subject.name}
-                                time={`${start}–${end}`}
-                                location={item.classroom.room ?? 'Local não informado'}
-                                status={cancelled(item) ? 'cancelled' : status}
+                            <LessonCard
+                                lesson={item}
+                                start={start}
+                                end={end}
+                                status={status}
                                 onClick={() =>
                                     router.push({
                                         pathname: '/turmas/[id]',
@@ -115,11 +114,7 @@ function Divider({ gap, overlap }: { gap: number; overlap: boolean }) {
     const label = overlap
         ? 'Horários sobrepostos'
         : gap > 0
-          ? `Intervalo de ${
-                gap >= 60
-                    ? `${Math.floor(gap / 60)}h${gap % 60 ? `${gap % 60}min` : ''}`
-                    : `${gap}min`
-            }`
+          ? `Intervalo de ${formatDuration(gap)}`
           : null;
     if (!label) return <View className="my-auto h-px flex-1 bg-border" />;
     return (

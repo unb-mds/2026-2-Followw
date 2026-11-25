@@ -23,13 +23,38 @@ interface WeekDayPickerProps {
     selectedDate: string;
     onSelect: (day: Day) => void;
     week?: WeekNavigation;
+    variant?: keyof typeof variants;
 }
 
-export function WeekDayPicker({ days, selectedDate, onSelect, week }: WeekDayPickerProps) {
+// `tiles` é a grade compacta da home; `solid`, a faixa preenchida do RU.
+const variants = {
+    solid: {
+        row: '',
+        button: 'h-16 min-w-0 flex-1 gap-1',
+        activeButton: 'default',
+        active: '',
+        weekday: 'tracking-wider',
+        activeWeekday: 'text-primary-foreground/90',
+        date: 'text-lg font-extrabold',
+        activeDate: ''
+    },
+    tiles: {
+        row: '',
+        button: 'aspect-3/2 h-auto min-h-11 min-w-11 flex-1 gap-0',
+        activeButton: 'ghost',
+        active: 'border border-primary/30 bg-primary/12 active:bg-primary/12',
+        weekday: 'leading-tight',
+        activeWeekday: 'text-primary',
+        date: 'text-sm font-bold',
+        activeDate: 'text-primary'
+    }
+} as const;
+
+export function WeekDayPicker({ week, ...dayButtons }: WeekDayPickerProps) {
     return (
         <>
-            {week && <WeekHeader days={days} week={week} />}
-            <DayButtons days={days} selectedDate={selectedDate} onSelect={onSelect} />
+            {week && <WeekHeader days={dayButtons.days} week={week} />}
+            <DayButtons {...dayButtons} />
         </>
     );
 }
@@ -66,29 +91,41 @@ function WeekHeader({ days, week }: { days: Day[]; week: WeekNavigation }) {
     );
 }
 
-function DayButtons({ days, selectedDate, onSelect }: Omit<WeekDayPickerProps, 'week'>) {
+function DayButtons({
+    days,
+    selectedDate,
+    onSelect,
+    variant = 'solid'
+}: Omit<WeekDayPickerProps, 'week'>) {
+    const style = variants[variant];
     return (
-        <View className="mb-4 flex-row items-center gap-1 py-1" accessibilityLabel="Escolher dia">
+        <View
+            className={cn('mb-4 flex-row items-center gap-1 py-1', style.row)}
+            accessibilityLabel="Escolher dia"
+        >
             {days.map((day) => {
                 const isActive = day.date === selectedDate;
                 return (
                     <Button
                         key={day.date}
-                        variant={isActive ? 'default' : 'outline'}
+                        variant={isActive ? style.activeButton : 'outline'}
                         onPress={() => onSelect(day)}
                         aria-label={day.date}
                         accessibilityState={{ selected: isActive }}
-                        className="h-16 min-w-0 flex-1 flex-col gap-1 px-0"
+                        className={cn('flex-col px-0', style.button, isActive && style.active)}
                     >
                         <Text
                             className={cn(
-                                'text-xs font-bold tracking-wider uppercase',
-                                isActive ? 'text-primary-foreground/90' : 'text-muted-foreground'
+                                'text-xs font-bold uppercase',
+                                style.weekday,
+                                isActive ? style.activeWeekday : 'text-muted-foreground'
                             )}
                         >
                             {WEEKDAYS[day.weekday]}
                         </Text>
-                        <Text className="text-lg font-extrabold">{Number(day.date.slice(8))}</Text>
+                        <Text className={cn(style.date, isActive && style.activeDate)}>
+                            {Number(day.date.slice(8))}
+                        </Text>
                     </Button>
                 );
             })}
