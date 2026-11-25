@@ -151,7 +151,7 @@ const courses: PublicCourse[] = [
         id: 42,
         name: 'CURSO TESTE',
         sigaa_id: 100,
-        level: 'Graduação',
+        degree: 'Bacharelado',
         shift: null,
         unit: { id: 1, code: 'UNI', name: 'UNIDADE' }
     },
@@ -159,7 +159,7 @@ const courses: PublicCourse[] = [
         id: 99,
         name: 'OUTRO CURSO',
         sigaa_id: 101,
-        level: 'Graduação',
+        degree: 'Bacharelado',
         shift: null,
         unit: { id: 1, code: 'UNI', name: 'UNIDADE' }
     }

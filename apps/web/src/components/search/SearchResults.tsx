@@ -5,7 +5,6 @@ import { searchTypes } from '@followw/core/lib/search-categories.ts';
 import { filterInternships, internshipsQueryOptions } from '@followw/core/queries/internships.ts';
 import { meQueryOptions } from '@followw/core/queries/me.ts';
 import { searchQueryOptions } from '@followw/core/queries/search.ts';
-import { withClassrooms } from '@followw/core/queries/subjects.ts';
 import {
     type UseQueryResult,
     keepPreviousData,
@@ -22,7 +21,7 @@ import {
     InternshipSectionSkeleton
 } from '#/components/search/InternshipSection';
 import { ProfessorSection } from '#/components/search/ProfessorSection';
-import { TurmaSection } from '#/components/search/TurmaSection';
+import { SubjectPageSection } from '#/components/search/SubjectPageSection';
 import { refreshQuery } from '#/queries/refresh';
 
 type PreviewCategory = 'courses' | 'professors' | 'internships';
@@ -49,22 +48,25 @@ function seedCategoryPage(
 
 function SearchResultSections({
     text,
+    available,
     data,
-    currentPeriod,
-    taken,
+    placeholder,
+    empty,
     onShowCategory,
-    onOpenDetails
+    onRefresh
 }: {
     text: string;
+    available: boolean;
     data: SearchResult;
-    currentPeriod: number | null;
-    taken: Set<string> | null;
+    placeholder: boolean;
+    // sem estágios para exibir; vale só quando não há cursos nem docentes
+    empty?: string;
     onShowCategory?: (category: PreviewCategory) => void;
-    onOpenDetails: () => void;
+    onRefresh: () => void;
 }) {
     const { courses, professors, subjects } = data;
-    const offered = withClassrooms(subjects ?? []);
-    if (!courses?.items.length && !professors?.items.length && !offered.length) return null;
+    if (!hasSearchResults(data)) return null;
+    const hasCoursesOrProfessors = Boolean(courses?.items.length || professors?.items.length);
 
     return (
         <Fragment key={text}>
@@ -82,13 +84,16 @@ function SearchResultSections({
                     onShowAll={onShowCategory && (() => onShowCategory('professors'))}
                 />
             )}
-            <TurmaSection
-                title="Turmas"
-                subjects={offered}
-                currentPeriod={currentPeriod}
-                taken={taken}
-                onOpenDetails={onOpenDetails}
-            />
+            {subjects && (
+                <SubjectPageSection
+                    first={subjects}
+                    query={{ q: text, offered: true, available: available || undefined }}
+                    title="Turmas"
+                    refreshFirst={onRefresh}
+                    placeholder={placeholder}
+                    empty={hasCoursesOrProfessors ? undefined : empty}
+                />
+            )}
         </Fragment>
     );
 }
@@ -96,9 +101,7 @@ function SearchResultSections({
 function hasSearchResults(data: SearchResult | undefined) {
     if (!data) return false;
     return Boolean(
-        data.courses?.items.length ||
-        data.professors?.items.length ||
-        withClassrooms(data.subjects ?? []).length
+        data.courses?.items.length || data.professors?.items.length || data.subjects?.total
     );
 }
 
@@ -143,26 +146,24 @@ function InternshipPreview({
     );
 }
 
-/** Cursos, docentes e matérias pedidos em `types` numa só consulta. */
+/** Cursos, docentes e matérias pedidos em `types` numa só consulta; `available` vale para as matérias. */
 export function SearchResults({
     text,
     types,
+    available,
     empty,
-    currentPeriod,
-    taken,
     onShowCategory
 }: {
     text: string;
     types: SearchType[] | undefined;
+    available: boolean;
     empty: string;
-    currentPeriod: number | null;
-    taken: Set<string> | null;
     // na aba Todos, cursos, docentes e estágios viram prévias que levam à aba própria
     onShowCategory?: (category: PreviewCategory) => void;
 }) {
     const client = useQueryClient();
     const { data: user } = useQuery(meQueryOptions);
-    const options = searchQueryOptions(text, types);
+    const options = searchQueryOptions(text, types, available);
     const result = useQuery({ ...options, placeholderData: keepPreviousData });
 
     const showInternships = Boolean(user && onShowCategory);
@@ -184,6 +185,7 @@ export function SearchResults({
     const refresh = () => void refreshQuery(client, options).catch(noop);
     const busy = result.isFetching || (showInternships && internships.isFetching);
     const showEmpty = isSearchEmpty(result, showInternships, internships);
+    const noInternships = !showInternships || (internships.isSuccess && !internships.data.length);
 
     return (
         <div aria-busy={busy} className="flex flex-col gap-5">
@@ -197,11 +199,12 @@ export function SearchResults({
                 {(data) => (
                     <SearchResultSections
                         text={text}
+                        available={available}
                         data={data}
-                        currentPeriod={currentPeriod}
-                        taken={taken}
+                        placeholder={result.isPlaceholderData}
+                        empty={noInternships ? empty : undefined}
                         onShowCategory={showCategory}
-                        onOpenDetails={refresh}
+                        onRefresh={refresh}
                     />
                 )}
             </QueryState>

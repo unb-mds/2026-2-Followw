@@ -1,12 +1,12 @@
 import type { WeekLesson } from '@followw/core/queries/lessons.ts';
 
-import { ClassCard, type ClassCardProps } from '#/components/home/ClassCard';
+import { ClassCard, type ClassStatus } from '#/components/home/ClassCard';
 
 interface LessonCardProps {
     lesson: WeekLesson;
     start: string;
     end: string;
-    status: ClassCardProps['status'];
+    status?: ClassStatus;
     onClick?: () => void;
 }
 

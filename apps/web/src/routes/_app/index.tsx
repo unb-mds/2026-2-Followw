@@ -1,4 +1,6 @@
+import { getActiveSemester } from '@followw/core/calendar.ts';
 import { nowInBrasilia, weekDays } from '@followw/core/lib/schedule.ts';
+import { semesterClassroomsQueryOptions } from '@followw/core/queries/classrooms.ts';
 import { weekLessonsQueryOptions } from '@followw/core/queries/lessons.ts';
 import { loadQuery } from '@followw/core/queries/load.ts';
 import { weeklyMenuQueryOptions } from '@followw/core/queries/restaurant.ts';
@@ -37,9 +39,15 @@ export const Route = createFileRoute('/_app/')({
     loader: async ({ context: { queryClient } }) => {
         const now = nowInBrasilia();
         const user = await loadQuery(queryClient, meQueryOptions);
+        const semester = getActiveSemester(now.date);
         await Promise.all([
             loadQuery(queryClient, weeklyMenuQueryOptions({ date: now.date, user })).catch(noop),
-            user && loadQuery(queryClient, weekLessonsQueryOptions).catch(noop)
+            user && loadQuery(queryClient, weekLessonsQueryOptions).catch(noop),
+            user &&
+                semester &&
+                loadQuery(queryClient, semesterClassroomsQueryOptions(semester.semester)).catch(
+                    noop
+                )
         ]);
         return { now };
     },
@@ -122,15 +130,22 @@ function HomePage() {
 
     return (
         <>
-            {weekOpen && (
-                <WeekDayPicker
-                    days={days}
-                    selectedDate={selectedDay.date}
-                    onSelect={(day) => setPicked(day.date === now.date ? null : day.date)}
-                />
-            )}
-
-            <TodayDashboard user={user} day={selectedDay} now={now} label={label} />
+            <TodayDashboard
+                user={user}
+                day={selectedDay}
+                now={now}
+                label={label}
+                dayPicker={
+                    weekOpen && (
+                        <WeekDayPicker
+                            variant="tiles"
+                            days={days}
+                            selectedDate={selectedDay.date}
+                            onSelect={(day) => setPicked(day.date === now.date ? null : day.date)}
+                        />
+                    )
+                }
+            />
             <BackToTodayBar open={!isToday} onBack={() => setPicked(null)} />
         </>
     );

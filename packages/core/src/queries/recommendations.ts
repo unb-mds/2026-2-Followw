@@ -4,13 +4,14 @@ import { api } from './api.ts';
 
 export type Recommendation = NonNullable<CatalogSubject['recommendation']>;
 
-/** Sem filtros, o /public/subjects devolve as recomendações do aluno logado. */
-export const recommendationsQueryOptions = api.queryOptions(
-    'get',
-    '/public/subjects',
-    {},
-    { staleTime: 0, gcTime: 60_000 }
-);
+/** Com `available`, só turmas com vaga e pré-requisitos cumpridos. */
+export const recommendationsQueryOptions = (available = false) =>
+    api.queryOptions(
+        'get',
+        '/public/subjects/recommendations',
+        available ? { params: { query: { available } } } : {},
+        { staleTime: 0, gcTime: 60_000 }
+    );
 
 type Reason = Recommendation['reasons'][number];
 

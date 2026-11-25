@@ -11,7 +11,6 @@ import {
     approvedCodes,
     covered,
     currentCurriculumPeriod,
-    withClassrooms,
     seats,
     subjectRequirementLabel,
     searchText,
@@ -40,13 +39,14 @@ describe('busca de matérias', () => {
     let middleware: Middleware;
     let client: QueryClient;
     let requests: Request[];
+    const page = { items: [subject], total: 1, page: 1, page_size: 25 };
 
     beforeEach(() => {
         requests = [];
         middleware = {
             onRequest: ({ request }) => {
                 requests.push(request);
-                return Response.json([subject]);
+                return Response.json(page);
             }
         };
         apiClient.use(middleware);
@@ -58,7 +58,7 @@ describe('busca de matérias', () => {
     });
 
     test('consulta o endpoint público com o filtro escolhido', async () => {
-        expect(await client.query(subjectsQueryOptions({ q: 'compila' }))).toEqual([subject]);
+        expect(await client.query(subjectsQueryOptions({ q: 'compila' }))).toEqual(page);
         const url = new URL(requests[0].url);
         expect(url.pathname).toBe('/api/public/subjects');
         expect(url.searchParams.get('q')).toBe('compila');
@@ -68,6 +68,9 @@ describe('busca de matérias', () => {
         ['FGA0003', 'FGA0003'],
         [' fga0003 ', 'fga0003'],
         [' cálculo 1 ', 'cálculo 1'],
+        ['10', null],
+        ['8', null],
+        ['24', null],
         ['ab', null],
         ['abc', 'abc'],
         ['a'.repeat(32), 'a'.repeat(32)],
@@ -135,11 +138,7 @@ describe('pré-requisitos', () => {
     });
 });
 
-describe('filtros no cliente', () => {
-    test('descarta matérias sem turmas', () => {
-        expect(withClassrooms([subject, { ...subject, classrooms: [] }])).toEqual([subject]);
-    });
-
+describe('ocupação das turmas', () => {
     test.each([
         [40, 10, 30, 'free'],
         [40, 31, 9, 'filling'],

@@ -39,7 +39,18 @@ async def search(
         UnitFilter | None,
         Query(description="ID ou sigla da unidade, para todos os tipos."),
     ] = None,
+    offered: Annotated[
+        bool, Query(description="Somente matérias com turma no semestre.")
+    ] = False,
+    available: Annotated[
+        bool,
+        Query(
+            description="Somente turmas com vaga e pré-requisitos cumpridos ou em andamento."
+        ),
+    ] = False,
 ) -> SearchResult:
-    result = await service.search(q, type, unit, sync)
+    result = await service.search(
+        q, type, unit, sync, offered=offered, available=available
+    )
     no_store(response)
     return result

@@ -43,6 +43,41 @@ def test_lista_cursos_com_ids_turnos_e_unidades(client, database):
                 ),
             ]
         )
+        session.flush()
+        session.add_all(
+            [
+                Curriculum(
+                    course_id=10,
+                    sigaa_id=1001,
+                    code="1001",
+                    valid_from="2020.1",
+                    created_year=2020,
+                    active=True,
+                    shift="D",
+                    matrix="ADMINISTRAÇÃO/ADM - Bacharelado - Presencial - D",
+                ),
+                Curriculum(
+                    course_id=11,
+                    sigaa_id=1101,
+                    code="1101",
+                    valid_from="2019.1",
+                    created_year=2020,
+                    active=True,
+                    shift="D",
+                    matrix="ADMINISTRAÇÃO/ADM - Bacharelado - Presencial - N",
+                ),
+                Curriculum(
+                    course_id=11,
+                    sigaa_id=1102,
+                    code="1102",
+                    valid_from="2023.1",
+                    created_year=2020,
+                    active=True,
+                    shift="D",
+                    matrix="ADMINISTRAÇÃO/ADM - Licenciatura - Presencial - N",
+                ),
+            ]
+        )
     response = client.get("/public/courses")
     assert response.status_code == 200
     assert response.headers["cache-control"] == "no-store"
@@ -56,7 +91,7 @@ def test_lista_cursos_com_ids_turnos_e_unidades(client, database):
             "name": "ADMINISTRAÇÃO",
             "shift": "DIURNO",
             "unit": {"id": 673, "code": "FCTE", "name": "CAMPUS UNB GAMA"},
-            "level": "Graduação",
+            "degree": "Bacharelado",
         },
         {
             "id": 11,
@@ -64,7 +99,7 @@ def test_lista_cursos_com_ids_turnos_e_unidades(client, database):
             "name": "ADMINISTRAÇÃO",
             "shift": "NOTURNO",
             "unit": {"id": 673, "code": "FCTE", "name": "CAMPUS UNB GAMA"},
-            "level": "Graduação",
+            "degree": "Licenciatura",
         },
         {
             "id": 12,
@@ -72,7 +107,7 @@ def test_lista_cursos_com_ids_turnos_e_unidades(client, database):
             "name": "CRIADO NO SYNC",
             "shift": None,
             "unit": {"id": 999, "code": None, "name": "UNIDADE SEM SIGLA"},
-            "level": None,
+            "degree": None,
         },
         {
             "id": 50,
@@ -80,7 +115,7 @@ def test_lista_cursos_com_ids_turnos_e_unidades(client, database):
             "name": "TURISMO",
             "shift": "INTEGRAL",
             "unit": {"id": 673, "code": "FCTE", "name": "CAMPUS UNB GAMA"},
-            "level": "Graduação",
+            "degree": None,
         },
     ]
 
@@ -102,6 +137,19 @@ def courses(database):
                 Course(id=2, sigaa_id=20, name="ENGENHARIA ELETRÔNICA", unit_id=673),
                 Course(id=3, sigaa_id=30, name="FARMÁCIA", unit_id=518),
             ]
+        )
+        session.flush()
+        session.add(
+            Curriculum(
+                course_id=3,
+                sigaa_id=301,
+                code="301",
+                valid_from="2020.1",
+                created_year=2020,
+                active=True,
+                shift="D",
+                matrix="FARMÁCIA - Bacharelado - Presencial - D",
+            )
         )
 
 
@@ -159,7 +207,7 @@ def test_consulta_curso_pelo_id(client, courses):
         "name": "FARMÁCIA",
         "shift": None,
         "unit": {"id": 518, "code": "FCE", "name": "CAMPUS UNB CEILÂNDIA"},
-        "level": "Graduação",
+        "degree": "Bacharelado",
     }
     assert client.get("/public/courses/99").status_code == 404
     assert client.get("/public/courses/0").status_code == 422

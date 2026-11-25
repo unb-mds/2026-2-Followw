@@ -7,8 +7,10 @@ import { callRoute, fakeQueryClient, runLoader } from '../helpers/route';
 
 interface User {
     registration: string;
-    unit: { id: number; code: string | null; name: string };
+    unit: { id: number; code: string | null; name: string } | null;
     level?: string;
+    course?: { id: number };
+    entry_semester?: string;
 }
 
 const loadWith = async (user: User | null, searchStr = '') => {
@@ -39,7 +41,11 @@ describe('loader da busca de turmas', () => {
         environmentManager.setIsServer(() => false);
         try {
             await runLoader(Route, { location: { searchStr: '' }, context: { queryClient } });
-            expect(keys.map((key) => key[1])).toEqual(['/me', '/classrooms', '/public/subjects']);
+            expect(keys.map((key) => key[1])).toEqual([
+                '/me',
+                '/classrooms',
+                '/public/subjects/recommendations'
+            ]);
         } finally {
             resolve([]);
             environmentManager.setIsServer(() => wasServer);
@@ -79,7 +85,7 @@ describe('loader da busca de turmas', () => {
             unit: { id: 673, code: 'FCTE', name: 'CAMPUS UNB GAMA' }
         });
         expect(keys.map((key) => key[1])).toEqual(['/me', '/classrooms', '/public/subjects']);
-        expect(keys[2][2]).toEqual({ params: { query: { unit: 'FCTE' } } });
+        expect(keys[2][2]).toEqual({ params: { query: { unit: 'FCTE', offered: true } } });
     });
 
     test.each([
@@ -89,7 +95,7 @@ describe('loader da busca de turmas', () => {
         const keys = await loadWith(user, '?q=calculo');
         const search = keys.filter((key) => String(key[1]).startsWith('/public/'));
         expect(search).toEqual([
-            ['get', '/public/search', { params: { query: { q: 'calculo' } } }]
+            ['get', '/public/search', { params: { query: { q: 'calculo', offered: true } } }]
         ]);
     });
 
@@ -99,7 +105,9 @@ describe('loader da busca de turmas', () => {
             `?q=${q}`
         );
         const subjects = keys.filter((key) => key[1] === '/public/subjects');
-        expect(subjects.map((key) => key[2])).toEqual([{ params: { query: { unit: 'FCTE' } } }]);
+        expect(subjects.map((key) => key[2])).toEqual([
+            { params: { query: { unit: 'FCTE', offered: true } } }
+        ]);
         expect((await loadWith(null, `?q=${q}`)).map((key) => key[1])).toEqual(['/me']);
     });
 
@@ -117,7 +125,11 @@ describe('recomendações somente na busca', () => {
     };
     test('graduação sem texto e filtros carrega recomendações em vez da lista da unidade', async () => {
         const keys = await loadWith(student);
-        expect(keys.map((key) => key[1])).toEqual(['/me', '/classrooms', '/public/subjects']);
+        expect(keys.map((key) => key[1])).toEqual([
+            '/me',
+            '/classrooms',
+            '/public/subjects/recommendations'
+        ]);
         expect(keys[2][2]).toEqual({});
     });
     test('pesquisa usa a busca única em vez das recomendações', async () => {
@@ -130,6 +142,23 @@ describe('recomendações somente na busca', () => {
 });
 
 describe('loader das categorias da busca', () => {
+    test('filtro de optativas pré-carrega o histórico e as ofertas filtradas', async () => {
+        expect(
+            await loadWith(
+                { registration: '1', unit: null, course: { id: 42 }, entry_semester: '2024.1' },
+                '?q=fisica&kind=optional'
+            )
+        ).toEqual([
+            ['get', '/me'],
+            ['get', '/classrooms', { params: { query: { semester: 'all' } } }],
+            [
+                'get',
+                '/public/subjects',
+                { params: { query: { q: 'fisica', offered: true, kind: ['optional'] } } }
+            ]
+        ]);
+    });
+
     test.each([
         ['classrooms', ['/me', '/classrooms', '/public/search'], ['subjects']],
         ['all', ['/me', '/classrooms', '/public/search'], undefined],
@@ -148,7 +177,13 @@ describe('loader das categorias da busca', () => {
             );
             expect(keys.map((key) => key[1])).toEqual([...expected]);
             expect(keys.at(-1)?.[2]).toStrictEqual({
-                params: { query: { q: 'Carlos Silva', type } }
+                params: {
+                    query: {
+                        q: 'Carlos Silva',
+                        type,
+                        offered: category === 'all' || category === 'classrooms' || undefined
+                    }
+                }
             });
         }
     );

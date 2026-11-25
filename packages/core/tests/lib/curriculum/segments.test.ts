@@ -71,5 +71,18 @@ test('marca bifurcações reais sem transformar cruzamentos independentes em jun
         { x: 5, y: -10 },
         { x: 5, y: 40 }
     ];
-    expect(connectionSegments([first, crossing]).junctions).toEqual([]);
+    const separated = connectionSegments([first, crossing]);
+    expect(separated.junctions).toEqual([]);
+    const atCrossing = separated.segments
+        .filter(({ points }) => points[0].x === 5 && points[1].x === 5)
+        .map(({ points }) => points.map(({ y }) => y));
+    expect(atCrossing).toEqual([
+        [-10, -4],
+        [4, 40]
+    ]);
+    expect(connectionSegments([first, { ...crossing, color: 1 }]).segments).toContainEqual({
+        points: [crossing.points[0], crossing.points[1]],
+        edgeIds: ['C'],
+        color: 1
+    });
 });

@@ -1,13 +1,17 @@
+import type { PlannedClass } from '../lib/planned-schedule.ts';
 import type { Classroom } from './classrooms.ts';
 import type { components, operations } from './schema.gen.ts';
 
+import { scheduleConflictFinder } from '../lib/planned-schedule.ts';
 import { api } from './api.ts';
 import { finalGrade } from './classrooms.ts';
 
 export type CatalogSubject = components['schemas']['CatalogSubject'];
+export type SubjectPage = components['schemas']['SubjectPage'];
 export type SubjectClassroom = components['schemas']['SubjectClassroom'];
 export type Requirements = components['schemas']['CatalogRequirements'];
-export type SubjectKind = NonNullable<CatalogSubject['kind']>;
+export type SubjectKind = components['schemas']['SubjectKind'];
+export const SUBJECT_KINDS = ['mandatory', 'optional', 'free'] as const satisfies SubjectKind[];
 type RequirementFields = Pick<
     CatalogSubject,
     | 'prerequisites'
@@ -103,8 +107,19 @@ export function seats({ vacancies, occupied }: SubjectClassroom): Seats | null {
     };
 }
 
-export const withClassrooms = (subjects: CatalogSubject[]) =>
-    subjects.filter((subject) => subject.classrooms.length > 0);
+export function withoutScheduleConflicts(
+    subjects: CatalogSubject[],
+    planned?: readonly PlannedClass[]
+) {
+    if (!planned?.length) return subjects;
+    const conflict = scheduleConflictFinder(planned);
+    return subjects.flatMap((subject) => {
+        const classrooms = subject.classrooms.filter(
+            (classroom) => !conflict(subject.code, classroom)
+        );
+        return classrooms.length ? [{ ...subject, classrooms }] : [];
+    });
+}
 
 export function currentCurriculumPeriod(
     entry: string | null | undefined,

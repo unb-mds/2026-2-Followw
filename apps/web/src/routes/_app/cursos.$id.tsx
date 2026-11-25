@@ -136,6 +136,7 @@ function FlowContent({
         <CurriculumView
             key={course.id}
             courseId={course.id}
+            courseName={course.name}
             entrySemester={entrySemester}
             completedSubjects={completedSubjects}
             currentPeriod={currentPeriod}

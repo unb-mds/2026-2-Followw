@@ -234,7 +234,7 @@ describe('montagem da grade semanal', () => {
         }
         fireEvent.click(view.getByRole('button', { name: 'Ver grade' }));
         await view.findByRole('dialog', { name: 'Minha grade semanal' });
-        expect(view.getAllByRole('table')).toHaveLength(2);
+        expect(view.getAllByRole('region', { name: /^Grade semanal/ })).toHaveLength(2);
         expect(view.queryByText('Choque de horário')).toBeNull();
     });
 
@@ -246,25 +246,24 @@ describe('montagem da grade semanal', () => {
         expect(view.queryByText('Minha grade semanal')).toBeNull();
         fireEvent.click(view.getByRole('button', { name: 'Ver grade' }));
         await view.findByRole('dialog', { name: 'Minha grade semanal' });
-        const table = view.getByRole('table');
         expect(view.getByRole('button', { name: 'Baixar imagem' }).hasAttribute('disabled')).toBe(
             false
         );
-        expect(table.textContent).toContain('14:00–14:55');
-        expect(table.textContent).toContain('14:55–15:50');
-        const row = dom.testing.within(table).getAllByRole('row')[1];
-        const cells = dom.testing.within(row).getAllByRole('cell');
-        expect(cells[1].textContent).toContain('FGA0108');
-        expect(cells[3].textContent).toContain('FGA0108');
-        expect(cells[0].textContent).toBe('—');
-        const listItem = view.getByRole('listitem');
-        expect(listItem.textContent).toContain('Matemática Discreta 2');
-        expect(listItem.textContent).not.toContain('FGA0108 · T01');
-        expect(listItem.textContent).not.toContain('2026.2');
+        for (const day of ['Ter', 'Qui'])
+            expect(
+                view.getByRole('figure', { name: new RegExp(`${day}, 14:00–15:50: .*FGA0108`) })
+            ).toBeTruthy();
+        const card = dom.testing.within(view.getByRole('listitem'));
+        const code = card.getByText('FGA0108');
+        const name = card.getByRole('heading', { name: 'Matemática Discreta 2' });
+        const time = card.getByText('Ter, Qui · 14:00–15:50');
+        expect(code.compareDocumentPosition(name)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+        expect(name.compareDocumentPosition(time)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+        expect(card.queryByText('2026.2')).toBeNull();
         fireEvent.click(
             view.getAllByRole('button', { name: 'Remover da grade: FGA0108, turma 01' })[0]
         );
-        expect(view.queryByRole('table')).toBeNull();
+        expect(view.queryByRole('region', { name: /^Grade semanal/ })).toBeNull();
         expect(view.queryByRole('button', { name: 'Baixar imagem' })).toBeNull();
         expect(view.getByRole('heading', { name: 'Monte sua grade' })).toBeTruthy();
         expect(
@@ -293,8 +292,12 @@ describe('montagem da grade semanal', () => {
         fireEvent.click(blocked);
         fireEvent.click(view.getByRole('button', { name: 'Ver grade' }));
         await view.findByRole('dialog', { name: 'Minha grade semanal' });
-        expect(view.getByRole('table').textContent).toContain('FGA0001');
-        expect(view.getByRole('table').textContent).not.toContain('FGA0108');
+        expect(view.getByRole('region', { name: 'Grade semanal 2026.2' }).textContent).toContain(
+            'FGA0001'
+        );
+        expect(
+            view.getByRole('region', { name: 'Grade semanal 2026.2' }).textContent
+        ).not.toContain('FGA0108');
     });
 
     test('barra aparece com turmas selecionadas e limpar esvazia a grade', async () => {
@@ -337,12 +340,16 @@ describe('montagem da grade semanal', () => {
         const trigger = view.getByRole('button', { name: 'Ver grade' });
         fireEvent.click(trigger);
         await view.findByRole('dialog', { name: 'Minha grade semanal' });
-        expect(view.getByRole('table').textContent).toContain('FGA0001');
+        expect(view.getByRole('region', { name: 'Grade semanal 2026.2' }).textContent).toContain(
+            'FGA0001'
+        );
         fireEvent.click(view.getByRole('button', { name: 'Fechar grade semanal' }));
         expect(trigger.getAttribute('aria-expanded')).toBe('false');
         fireEvent.click(trigger);
         await view.findByRole('dialog', { name: 'Minha grade semanal' });
-        expect(view.getByRole('table').textContent).toContain('FGA0001');
+        expect(view.getByRole('region', { name: 'Grade semanal 2026.2' }).textContent).toContain(
+            'FGA0001'
+        );
     });
 
     test('horários adjacentes não conflitam e a grade exibe segunda a sábado', async () => {
@@ -355,15 +362,21 @@ describe('montagem da grade semanal', () => {
         fireEvent.click(view.getByRole('button', { name: 'Ver grade' }));
         await view.findByRole('dialog', { name: 'Minha grade semanal' });
         expect(view.queryByText('Choque de horário')).toBeNull();
-        const rows = dom.testing.within(view.getByRole('table')).getAllByRole('row');
-        const cells = dom.testing.within(rows.at(-1)!).getAllByRole('cell');
-        expect(cells).toHaveLength(6);
-        expect(cells[0].textContent).toBe('—');
-        expect(cells[5].textContent).toContain('FGA0001');
-        expect(view.queryByRole('columnheader', { name: 'Dom' })).toBeNull();
+        const grid = view.getByRole('region', { name: 'Grade semanal 2026.2' });
+        const columns = dom.testing.within(grid).getAllByText(/^(Seg|Ter|Qua|Qui|Sex|Sáb|Dom)$/);
+        expect(columns.map((column) => column.textContent)).toEqual([
+            'Seg',
+            'Ter',
+            'Qua',
+            'Qui',
+            'Sex',
+            'Sáb'
+        ]);
+        expect(view.getByRole('figure', { name: /Sáb, 19:00–19:50: .*FGA0001/ })).toBeTruthy();
+        expect(view.queryByRole('figure', { name: /Dom/ })).toBeNull();
     });
 
-    test('turma sem horário fica na lista e semestres diferentes têm tabelas separadas', async () => {
+    test('turma sem horário fica na lista e semestres diferentes têm grades separadas', async () => {
         const { fireEvent } = dom.testing;
         const view = setup({ semester: '2027.1', schedule: null });
         for (const code of ['FGA0108', 'FGA0001'])
@@ -373,8 +386,8 @@ describe('montagem da grade semanal', () => {
         fireEvent.click(view.getByRole('button', { name: 'Ver grade' }));
         await view.findByRole('dialog', { name: 'Minha grade semanal' });
         expect(view.getByText('FGA0001 · T01: horário a definir.')).toBeTruthy();
-        expect(view.getByRole('heading', { name: 'Semestre 2027.1' })).toBeTruthy();
-        expect(view.getAllByRole('table')).toHaveLength(1);
+        expect(view.getByRole('heading', { name: 'Planejamento · 2027.1' })).toBeTruthy();
+        expect(view.getAllByRole('region', { name: /^Grade semanal/ })).toHaveLength(2);
         expect(view.queryByText('Choque de horário')).toBeNull();
     });
 });

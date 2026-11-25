@@ -1,5 +1,5 @@
 from collections.abc import Container, Iterable
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
@@ -71,6 +71,8 @@ class SubjectRequirement(BaseModel):
 
 
 type CatalogRequirements = list[list[SubjectRequirement]]
+# Tipo da matéria na matriz do aluno; complementares contam como optativas.
+type SubjectKind = Literal["mandatory", "optional", "free"]
 
 
 def named_requirements(

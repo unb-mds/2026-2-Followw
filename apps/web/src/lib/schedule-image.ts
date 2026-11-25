@@ -1,17 +1,14 @@
 import type { GridSemester, PlannedClass } from '@followw/core/lib/planned-schedule.ts';
 
-import { GRID_DAYS } from '@followw/core/lib/planned-schedule.ts';
 import { describeSchedule } from '@followw/core/lib/schedule.ts';
 
-import { compactGridRows } from '#/lib/weekly-timeline';
+import { canvasToPng, ellipsize } from '#/lib/canvas';
 
 const WIDTH = 1200;
 const PADDING = 40;
 const CONTENT = WIDTH - PADDING * 2;
 const TITLE_HEIGHT = 64;
 const ROW_HEIGHT = 64;
-const DAYS = ['Horários', ...GRID_DAYS.map(({ label }) => label)];
-const COLUMN_WIDTH = CONTENT / DAYS.length;
 const CARD_GAP = 12;
 const SECTION_GAP = 40;
 const FOOTER_HEIGHT = 64;
@@ -21,10 +18,6 @@ const details = (item: PlannedClass) =>
 const cardHeight = (item: PlannedClass) => (details(item) ? 100 : 76);
 
 export async function createSchedulePng(sections: GridSemester[]): Promise<Blob> {
-    const compact = sections.map((section) => ({
-        ...section,
-        rows: compactGridRows(section.rows)
-    }));
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Não foi possível gerar a imagem da grade.');
@@ -39,12 +32,8 @@ export async function createSchedulePng(sections: GridSemester[]): Promise<Blob>
         fill: dark ? '--background' : '--foreground',
         text: dark ? '--foreground' : '--background'
     };
-    const fit = (text: string, max: number) => {
-        if (ctx.measureText(text).width <= max) return text;
-        let cut = text;
-        while (cut && ctx.measureText(`${cut}…`).width > max) cut = cut.slice(0, -1);
-        return `${cut.trimEnd()}…`;
-    };
+    const fit = (text: string, max: number) =>
+        ellipsize(text, (value) => ctx.measureText(value).width <= max);
     const roundRect = (x: number, y: number, width: number, height: number, radius: number) => {
         ctx.beginPath();
         ctx.roundRect(x, y, width, height, radius);
@@ -52,7 +41,7 @@ export async function createSchedulePng(sections: GridSemester[]): Promise<Blob>
 
     const height =
         PADDING +
-        compact.reduce(
+        sections.reduce(
             (sum, { classes, rows }) =>
                 sum +
                 TITLE_HEIGHT +
@@ -72,7 +61,7 @@ export async function createSchedulePng(sections: GridSemester[]): Promise<Blob>
     ctx.textBaseline = 'middle';
 
     let y = PADDING;
-    for (const { semester, classes, rows } of compact) {
+    for (const { semester, classes, rows, days } of sections) {
         ctx.textAlign = 'left';
         ctx.fillStyle = color('--foreground');
         font(30, 700);
@@ -80,6 +69,8 @@ export async function createSchedulePng(sections: GridSemester[]): Promise<Blob>
         y += TITLE_HEIGHT;
 
         if (rows.length) {
+            const labels = ['Horários', ...days.map(({ label }) => label)];
+            const columnWidth = CONTENT / labels.length;
             const tableHeight = (rows.length + 1) * ROW_HEIGHT;
             ctx.save();
             roundRect(PADDING, y, CONTENT, tableHeight, 12);
@@ -89,31 +80,18 @@ export async function createSchedulePng(sections: GridSemester[]): Promise<Blob>
             ctx.fillStyle = color(header.text);
             ctx.textAlign = 'center';
             font(18, 700);
-            DAYS.forEach((day, column) =>
-                ctx.fillText(day, PADDING + COLUMN_WIDTH * (column + 0.5), y + ROW_HEIGHT / 2)
+            labels.forEach((day, column) =>
+                ctx.fillText(day, PADDING + columnWidth * (column + 0.5), y + ROW_HEIGHT / 2)
             );
             let rowY = y + ROW_HEIGHT;
-            for (const { start, end, cells, omitted } of rows) {
-                if (omitted) {
-                    ctx.fillStyle = color('--muted');
-                    ctx.fillRect(PADDING, rowY, CONTENT, ROW_HEIGHT);
-                    ctx.fillStyle = color('--muted-foreground');
-                    font(16, 500);
-                    ctx.fillText(
-                        `Intervalo omitido · ${start}–${end}`,
-                        WIDTH / 2,
-                        rowY + ROW_HEIGHT / 2
-                    );
-                    rowY += ROW_HEIGHT;
-                    continue;
-                }
-                for (let column = 0; column < DAYS.length; column++) {
-                    const x = PADDING + column * COLUMN_WIDTH;
-                    const center = x + COLUMN_WIDTH / 2;
+            for (const { start, end, cells } of rows) {
+                for (let column = 0; column < labels.length; column++) {
+                    const x = PADDING + column * columnWidth;
+                    const center = x + columnWidth / 2;
                     ctx.fillStyle = color(column === 0 ? '--muted' : '--card');
-                    ctx.fillRect(x, rowY, COLUMN_WIDTH, ROW_HEIGHT);
+                    ctx.fillRect(x, rowY, columnWidth, ROW_HEIGHT);
                     ctx.strokeStyle = color('--border');
-                    ctx.strokeRect(x, rowY, COLUMN_WIDTH, ROW_HEIGHT);
+                    ctx.strokeRect(x, rowY, columnWidth, ROW_HEIGHT);
                     if (column === 0) {
                         ctx.fillStyle = color('--foreground');
                         font(16, 500);
@@ -129,7 +107,7 @@ export async function createSchedulePng(sections: GridSemester[]): Promise<Blob>
                     }
                     ctx.fillStyle = color('--primary');
                     ctx.globalAlpha = 0.05;
-                    ctx.fillRect(x, rowY, COLUMN_WIDTH, ROW_HEIGHT);
+                    ctx.fillRect(x, rowY, columnWidth, ROW_HEIGHT);
                     ctx.globalAlpha = 1;
                     font(16, 700);
                     ctx.fillText(entry.code, center, rowY + 22);
@@ -184,10 +162,5 @@ export async function createSchedulePng(sections: GridSemester[]): Promise<Blob>
     ctx.fillStyle = color('--muted-foreground');
     font(16, 500);
     ctx.fillText('followw.app', WIDTH / 2, height - FOOTER_HEIGHT / 2);
-    return new Promise((resolve, reject) =>
-        canvas.toBlob(
-            (blob) => (blob ? resolve(blob) : reject(new Error('Não foi possível gerar o PNG.'))),
-            'image/png'
-        )
-    );
+    return canvasToPng(canvas, 'Não foi possível gerar o PNG.');
 }
