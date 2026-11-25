@@ -5,11 +5,12 @@ import {
 import { meQueryOptions } from '@followw/core/queries/me.ts';
 import { refreshQuery } from '@followw/core/queries/refresh.ts';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { useEffect } from 'react';
 import { Pressable, View } from 'react-native';
 
+import { LoginRedirect } from '@/components/auth/LoginRedirect';
 import { ClassroomTeachingPlan } from '@/components/classroom/ClassroomTeachingPlan';
 import { FollowwLogo } from '@/components/FollowwLogo';
 import { QueryState } from '@/components/QueryState';
@@ -42,7 +43,7 @@ export default function TeachingPlanScreen() {
         router.replace({ pathname: '/turmas/[id]', params: { id } });
     }, [missing, queryClient, router, id]);
 
-    if (me.isSuccess && !me.data) return <Redirect href="/login" />;
+    if (me.isSuccess && !me.data) return <LoginRedirect />;
 
     const back = () =>
         router.canGoBack()

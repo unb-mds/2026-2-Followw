@@ -1,7 +1,7 @@
 export const NAV_HREFS = ['/', '/turmas', '/ru', '/buscar', '/perfil'] as const;
 
 // rotas com a barra; as demais (login, curso, plano de ensino) ocupam a tela toda
-const WITH_NAVIGATION = /^\/(turmas|ru|buscar|perfil|professores)?(\/|$)/;
+const WITH_NAVIGATION = /^\/(turmas|ru|buscar|perfil|professores|configuracoes)?(\/|$)/;
 const DOUBLE_TAP_MS = 400;
 
 export function isDoubleTap(previous: number | null, now: number) {
@@ -12,7 +12,8 @@ export function activeNavIndex(pathname: string) {
     return NAV_HREFS.findIndex(
         (href) =>
             href === pathname ||
-            ((href === '/turmas' || href === '/perfil') && pathname.startsWith(`${href}/`))
+            ((href === '/turmas' || href === '/perfil') && pathname.startsWith(`${href}/`)) ||
+            (href === '/perfil' && pathname === '/configuracoes')
     );
 }
 

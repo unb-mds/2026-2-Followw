@@ -3,9 +3,10 @@ import { meQueryOptions } from '@followw/core/queries/me.ts';
 import { refreshQuery } from '@followw/core/queries/refresh.ts';
 import { settingsQueryOptions } from '@followw/core/queries/settings.ts';
 import { useQuery } from '@tanstack/react-query';
-import { Redirect, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { View } from 'react-native';
 
+import { LoginRedirect } from '@/components/auth/LoginRedirect';
 import { HeaderBar, HeaderTitle } from '@/components/HeaderBar';
 import { AccountSection } from '@/components/profile/AccountSection';
 import { DocumentDownloads } from '@/components/profile/DocumentDownloads';
@@ -17,7 +18,7 @@ import {
 } from '@/components/profile/ProfileOverview';
 import { QueryState } from '@/components/QueryState';
 import { Screen } from '@/components/Screen';
-import { ThemeToggle } from '@/components/ThemeToggle';
+import { SettingsLink } from '@/components/SettingsLink';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 
@@ -25,7 +26,7 @@ export { ErrorState as ErrorBoundary } from '@/components/ErrorState';
 
 function ProfileHeader() {
     return (
-        <HeaderBar actions={<ThemeToggle />}>
+        <HeaderBar actions={<SettingsLink />}>
             <HeaderTitle>Perfil</HeaderTitle>
         </HeaderBar>
     );
@@ -87,7 +88,7 @@ export default function ProfileScreen() {
                             </View>
                         </>
                     ) : (
-                        <Redirect href="/login" />
+                        <LoginRedirect />
                     )
                 }
             </QueryState>

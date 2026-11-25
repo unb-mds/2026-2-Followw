@@ -1,6 +1,6 @@
 import { ApiError } from '@followw/core/queries/errors.ts';
 
-import { loginErrorMessage, validateLogin } from '@/lib/login';
+import { loginErrorMessage, safeLoginReturn, validateLogin } from '@/lib/login';
 import { SessionNotStoredError } from '@/queries/auth';
 
 describe('validateLogin', () => {
@@ -67,4 +67,21 @@ describe('loginErrorMessage', () => {
             'Não foi possível conectar ao SIGAA. Tente novamente.'
         );
     });
+});
+
+describe('safeLoginReturn', () => {
+    test('volta para a rota interna de onde a sessão caiu', () => {
+        expect(safeLoginReturn('/configuracoes')).toBe('/configuracoes');
+        expect(safeLoginReturn('/turmas/1/plano-de-ensino')).toBe('/turmas/1/plano-de-ensino');
+    });
+
+    test.each([
+        undefined,
+        '',
+        'https://exemplo.com',
+        '//exemplo.com',
+        '/\\exemplo',
+        '/login',
+        '/login/'
+    ])('retorno %p vira o perfil', (value) => expect(safeLoginReturn(value)).toBe('/perfil'));
 });

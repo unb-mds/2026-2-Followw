@@ -34,3 +34,12 @@ export function loginErrorMessage(error: unknown, online: boolean): string | und
         return 'Não foi possível guardar a sessão neste aparelho. Tente novamente.';
     return 'Não foi possível conectar ao SIGAA. Tente novamente.';
 }
+
+export const DEFAULT_LOGIN_RETURN = '/perfil';
+
+/** Rota interna para voltar após o login; qualquer outra vira o perfil. */
+export function safeLoginReturn(value: unknown): string {
+    if (typeof value !== 'string' || !/^\/(?!\/)[^\s\\]*$/.test(value)) return DEFAULT_LOGIN_RETURN;
+    const pathname = value.split(/[?#]/)[0].replace(/\/+$/, '');
+    return pathname === '/login' ? DEFAULT_LOGIN_RETURN : value;
+}

@@ -1,5 +1,5 @@
 import { useOnline } from '@followw/core/lib/online.ts';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Eye, EyeOff } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import {
@@ -19,7 +19,13 @@ import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
-import { loginErrorMessage, PASSWORD_MAX, REGISTRATION_LENGTH, validateLogin } from '@/lib/login';
+import {
+    loginErrorMessage,
+    PASSWORD_MAX,
+    REGISTRATION_LENGTH,
+    safeLoginReturn,
+    validateLogin
+} from '@/lib/login';
 import { webUrl } from '@/lib/share';
 import { cn } from '@/lib/utils';
 import { useLogin } from '@/queries/auth';
@@ -31,6 +37,7 @@ const FOOTER_LINK = 'text-xs text-muted-foreground underline';
 
 export default function LoginScreen() {
     const router = useRouter();
+    const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
     const login = useLogin();
     const online = useOnline();
     const passwordInput = useRef<TextInputInstance>(null);
@@ -48,7 +55,7 @@ export default function LoginScreen() {
         if (problem) return;
         login.mutate(
             { body: { registration, password } },
-            { onSuccess: () => router.replace('/perfil') }
+            { onSuccess: () => router.replace(safeLoginReturn(returnTo)) }
         );
     };
 

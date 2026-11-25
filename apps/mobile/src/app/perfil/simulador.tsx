@@ -7,6 +7,7 @@ import { refreshQuery } from '@followw/core/queries/refresh.ts';
 import { useQuery } from '@tanstack/react-query';
 import { Redirect } from 'expo-router';
 
+import { LoginRedirect } from '@/components/auth/LoginRedirect';
 import { ErrorCard, StaleDataNotice } from '@/components/ErrorState';
 import { BackHeader } from '@/components/HeaderBar';
 import { LoadingSkeleton } from '@/components/LoadingSkeleton';
@@ -35,7 +36,7 @@ export default function SimulatorScreen() {
             >
                 {(user) =>
                     !user ? (
-                        <Redirect href="/login" />
+                        <LoginRedirect />
                     ) : user.level === 'Graduação' ? (
                         <SimulatorData user={user} />
                     ) : (
