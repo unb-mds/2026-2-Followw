@@ -1,7 +1,10 @@
-import type { SubjectKind, SubjectsQuery } from '@followw/core/queries/subjects.ts';
-
-import { SCHEDULE_BLOCKS } from '@followw/core/lib/schedule.ts';
 import { SEARCH_CATEGORIES } from '@followw/core/lib/search-categories.ts';
+import {
+    type subjectFilterKeys,
+    startTimes,
+    type Workload,
+    workloads
+} from '@followw/core/lib/subject-filters.ts';
 import { SUBJECT_KINDS } from '@followw/core/queries/subjects.ts';
 import { defaultParseSearch, defaultStringifySearch } from '@tanstack/react-router';
 import { useQueryStates } from 'nuqs';
@@ -18,15 +21,7 @@ import {
 
 import { AUTHORIZATION_SEARCH_KEYS } from '#/lib/oauth-request';
 
-export const startTimes = SCHEDULE_BLOCKS.map((block) => block[0][0]);
-export const workloads = [15, 30, 45, 60, 75] as const;
-export const kindLabels: Record<SubjectKind, string> = {
-    mandatory: 'Obrigatórias',
-    optional: 'Optativas',
-    free: 'Livres'
-};
-
-const workloadFilter = createParser<number | '90+'>({
+const workloadFilter = createParser<Workload>({
     parse: (value) =>
         value === '90+' ? value : (workloads.find((hours) => String(hours) === value) ?? null),
     serialize: String
@@ -37,10 +32,6 @@ const weekdaysFilter = createParser<string>({
     parse: (value) => (/^[0-6]{1,7}$/.test(value) ? [...new Set(value)].toSorted().join('') : null),
     serialize: String
 });
-
-/** O início de um bloco inclui os horários nele. */
-export const blockStarts = (start: string) =>
-    SCHEDULE_BLOCKS.find((block) => block[0][0] === start)?.map(([time]) => time) ?? [start];
 
 export const searchParsers = {
     hideUnavailable: parseAsBoolean.withDefault(false),
@@ -57,23 +48,6 @@ export const validateSearch = createStandardSchemaV1(searchParsers, { partialOut
 export const loadSearchParams = createLoader(searchParsers);
 export type SearchParams = inferParserType<typeof searchParsers>;
 
-/** Os parâmetros do filtro de matérias. */
-export const subjectFilterKeys = [
-    'kind',
-    'days',
-    'start',
-    'hours',
-    'hideConflicts',
-    'hideUnavailable'
-] as const;
-export type SubjectFilterParams = Pick<SearchParams, (typeof subjectFilterKeys)[number]>;
-
-export const hasSubjectFilters = (filters: SubjectFilterParams) =>
-    subjectFilterKeys.some((key) => {
-        const value = filters[key];
-        return Array.isArray(value) ? value.length > 0 : Boolean(value);
-    });
-
 export const clearedSubjectFilters = {
     kind: null,
     days: null,
@@ -82,31 +56,6 @@ export const clearedSubjectFilters = {
     hideConflicts: null,
     hideUnavailable: null
 } satisfies Record<(typeof subjectFilterKeys)[number], null>;
-
-/** Títulos na ordem da matriz: obrigatórias, optativas e livres. */
-export const kindsTitle = (kind: readonly SubjectKind[]) =>
-    SUBJECT_KINDS.filter((value) => kind.includes(value))
-        .map((value) => kindLabels[value])
-        .join(' e ') || 'Matérias';
-
-/** A consulta de matérias pelos filtros e pela `unit`; nulo quando nada restringe a oferta. */
-export function subjectsQueryFrom(
-    { kind, days, start, hours, hideUnavailable }: SubjectFilterParams,
-    text: string | null,
-    unit?: string
-): SubjectsQuery | null {
-    if (!kind.length && !days && !start.length && !hours.length && !unit) return null;
-    return {
-        q: text ?? undefined,
-        unit,
-        offered: true,
-        available: hideUnavailable || undefined,
-        kind: kind.length ? kind : undefined,
-        days: days || undefined,
-        start: start.length ? start.flatMap(blockStarts) : undefined,
-        hours: hours.length ? hours : undefined
-    };
-}
 
 // Valores que o Router leria como JSON (números, listas) continuam texto.
 const textKeys = ['q', 'days', 'returnTo'] as const;

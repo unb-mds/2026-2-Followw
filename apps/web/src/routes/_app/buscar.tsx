@@ -9,6 +9,11 @@ import {
     searchTypes,
     showsSubjects
 } from '@followw/core/lib/search-categories.ts';
+import {
+    kindsTitle,
+    type SubjectFilterParams,
+    subjectsQueryFrom
+} from '@followw/core/lib/subject-filters.ts';
 import { allClassroomsQueryOptions } from '@followw/core/queries/classrooms.ts';
 import { internshipsQueryOptions } from '@followw/core/queries/internships.ts';
 import { loadQuery } from '@followw/core/queries/load.ts';
@@ -40,14 +45,7 @@ import { SubjectFilters } from '#/components/search/SubjectFilters';
 import { SubjectResults } from '#/components/search/SubjectResults';
 import { TabFilter } from '#/components/TabFilter';
 import { Input } from '#/components/ui/input';
-import {
-    kindsTitle,
-    loadSearchParams,
-    type SubjectFilterParams,
-    subjectsQueryFrom,
-    useSearchState,
-    validateSearch
-} from '#/lib/search-params';
+import { loadSearchParams, useSearchState, validateSearch } from '#/lib/search-params';
 
 type SearchView =
     | { kind: 'recommendations'; available: boolean }

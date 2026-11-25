@@ -2,13 +2,10 @@ import { describe, expect, test } from 'bun:test';
 import { createSerializer } from 'nuqs/server';
 
 import {
-    hasSubjectFilters,
-    kindsTitle,
     loadSearchParams,
     parseRouterSearch,
     searchParsers,
     stringifyRouterSearch,
-    subjectsQueryFrom,
     validateSearch
 } from '#/lib/search-params';
 
@@ -93,39 +90,10 @@ describe('parâmetros da busca', () => {
     });
 });
 
-describe('consulta de matérias pelos filtros', () => {
-    const empty = loadSearchParams('');
-
-    test('sem filtro que restrinja a oferta não há consulta própria', () => {
-        expect(subjectsQueryFrom({ ...empty, hideUnavailable: true }, 'calculo')).toBeNull();
-        expect(hasSubjectFilters(empty)).toBe(false);
-        expect(hasSubjectFilters({ ...empty, hideConflicts: true })).toBe(true);
-    });
-
-    test('expande o bloco de início e repassa disponibilidade e tipos', () => {
-        const filters = loadSearchParams('?start=08:00&kind=free&hideUnavailable=true&days=02');
-        expect(subjectsQueryFrom(filters, 'calculo')).toEqual({
-            q: 'calculo',
-            offered: true,
-            available: true,
-            kind: ['free'],
-            days: '02',
-            start: ['08:00', '08:55']
-        });
-    });
-
-    test('título segue a ordem da matriz', () => {
-        expect(kindsTitle(['free', 'mandatory'])).toBe('Obrigatórias e Livres');
-        expect(kindsTitle([])).toBe('Matérias');
-    });
-
+describe('dias da semana na URL', () => {
     test('ignora dias inválidos e organiza os válidos', () => {
         expect(loadSearchParams('?days=abc').days).toBe('');
         expect(loadSearchParams('?days=99').days).toBe('');
         expect(loadSearchParams('?days=4220').days).toBe('024');
-    });
-
-    test('consulta da unidade existe mesmo sem filtros', () => {
-        expect(subjectsQueryFrom(empty, null, 'FCTE')).toEqual({ unit: 'FCTE', offered: true });
     });
 });

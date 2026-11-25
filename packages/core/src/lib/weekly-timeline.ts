@@ -1,6 +1,6 @@
-import type { ClassTime } from '@followw/core/lib/schedule.ts';
+import type { ClassTime } from './schedule.ts';
 
-import { minutesOf } from '@followw/core/lib/schedule.ts';
+import { minutesOf } from './schedule.ts';
 
 const PIXELS_PER_MINUTE = 0.8;
 
