@@ -108,28 +108,41 @@ export function subjectsQueryFrom(
     };
 }
 
+// Valores que o Router leria como JSON (números, listas) continuam texto.
 // OAuth usa valores opacos: zeros iniciais, JSON e parâmetros repetidos não podem mudar.
-const TEXT_SEARCH_KEYS = ['q', 'returnTo', ...AUTHORIZATION_SEARCH_KEYS];
+const textKeys = ['days', 'returnTo', ...AUTHORIZATION_SEARCH_KEYS] as const;
+const arrayKeys = ['kind', 'start', 'hours'] as const;
 
 export function parseRouterSearch(searchStr: string) {
     const search: Record<string, unknown> = { ...defaultParseSearch(searchStr) };
     const params = new URLSearchParams(searchStr);
-    for (const key of TEXT_SEARCH_KEYS) {
+    const textLookup = new Set<string>(['q', ...textKeys]);
+    for (const key of textLookup) {
         const values = params.getAll(key);
         if (values.length) search[key] = values.length === 1 ? values[0] : values;
+    }
+    for (const key of arrayKeys) {
+        if (params.has(key)) search[key] = searchParsers[key].parse(params.getAll(key));
     }
     return search;
 }
 
 export function stringifyRouterSearch(search: Record<string, unknown>) {
     const params = new URLSearchParams(defaultStringifySearch(search));
-    for (const key of TEXT_SEARCH_KEYS) {
+    const textLookup = new Set<string>(['q', ...textKeys]);
+    for (const key of textLookup) {
         const value = search[key];
         if (typeof value === 'string') params.set(key, value);
         else if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
             params.delete(key);
             for (const item of value) params.append(key, item);
         }
+    }
+    for (const key of arrayKeys) {
+        const values = search[key];
+        if (!Array.isArray(values)) continue;
+        params.delete(key);
+        for (const value of values) params.append(key, String(value));
     }
     return params.size ? `?${params}` : '';
 }
