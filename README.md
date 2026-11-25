@@ -1,3 +1,5 @@
+![Followw UnB — capa com o ICC em verde e azul-petróleo](docs/assets/readme-cover.webp)
+
 # Followw UnB
 
 O Followw é open-source e reúne o SIGAA e outros serviços da UnB em um aplicativo web para
