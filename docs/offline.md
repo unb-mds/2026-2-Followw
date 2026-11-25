@@ -35,6 +35,8 @@ Atualiza sozinho (`autoUpdate`: `skipWaiting` + `clientsClaim`).
   `gcTime` não bastaria, já que a restauração reinicia o prazo a cada sessão.
 - `buster`: hash de `packages/core/src/queries/schema.gen.ts`. Mudou o contrato da API, o cache
   salvo é descartado.
+- A carteirinha do RU também fica no armazenamento local, vinculada à matrícula. Enquanto estiver
+  válida, ela pode ser reaberta mesmo após o descarte do cache geral. O logout apaga essa cópia.
 - O cardápio é uma query por campus e semana (segunda a domingo); cada dia é um `select` dela. A
   semana do campus do usuário é pré-carregada (`prefetchWeekMenus`), salvo se já estiver no cache.
 

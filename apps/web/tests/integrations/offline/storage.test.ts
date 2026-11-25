@@ -270,6 +270,57 @@ describe('cache de dados no IndexedDB', () => {
         expect(await saved()).toBeUndefined();
     });
 
+    test('limpa a invalidação ao persistir erro só na carteirinha, preservando outras consultas', async () => {
+        const client = new QueryClient();
+        const { promise, resolve } = Promise.withResolvers<void>();
+        const stop = persistQueryCache(client, resolve);
+        await promise;
+
+        const cardKey = ['get', '/me/ru-token', undefined, '251000000'];
+        const card = { token: 'qr-local', valid_until: '2027-03-01' };
+        const frequencyKey = [
+            'get',
+            '/classrooms/{classroom_id}/frequency',
+            { params: { path: { classroom_id: '1' } } }
+        ];
+        client.setQueryData(cardKey, card);
+        client.setQueryData(frequencyKey, { lessons: [] });
+        await Promise.all([
+            client
+                .query({
+                    queryKey: cardKey,
+                    queryFn: () => Promise.reject(new TypeError('Sem conexão')),
+                    retry: false
+                })
+                .catch(() => null),
+            client
+                .query({
+                    queryKey: frequencyKey,
+                    queryFn: () => Promise.reject(new TypeError('Sem conexão')),
+                    retry: false
+                })
+                .catch(() => null)
+        ]);
+        await throttle();
+        stop();
+
+        const restored = new QueryClient();
+        const done = Promise.withResolvers<void>();
+        const stopRestored = persistQueryCache(restored, done.resolve);
+        await done.promise;
+        stopRestored();
+
+        const cardState = restored.getQueryState(cardKey);
+        expect(cardState?.data).toEqual(card);
+        expect(cardState?.status).toBe('success');
+        expect(cardState?.isInvalidated).toBe(false);
+
+        const frequencyState = restored.getQueryState(frequencyKey);
+        expect(frequencyState?.data).toEqual({ lessons: [] });
+        expect(frequencyState?.status).toBe('success');
+        expect(frequencyState?.isInvalidated).toBe(true);
+    });
+
     test('depois do logout nenhuma mudança volta a ser salva', async () => {
         const client = new QueryClient();
         const { promise, resolve } = Promise.withResolvers<void>();

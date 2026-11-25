@@ -39,14 +39,14 @@ const STATEMENT_STALE_TIME = 90 * 60_000;
 export const statementQueryOptions = (registration: string) =>
     accountQuery(api.queryOptions('get', '/me/ru-statement'), registration);
 
-// Dentro da validade, a carteirinha salva só é refeita pelo botão de atualizar.
+const hasValidCard = (data: RestaurantCredentials | undefined) =>
+    Boolean(data && !cardIsExpired(data.valid_until, nowInBrasilia().date));
+
+// Dentro da validade, a carteirinha salva não é refeita automaticamente.
 export const credentialsQueryOptions = (registration: string) => {
     const options = accountQuery(api.queryOptions('get', '/me/ru-token'), registration);
     return queryOptions({
         ...options,
-        staleTime: ({ state: { data } }) =>
-            data && !cardIsExpired(data.valid_until, nowInBrasilia().date)
-                ? Infinity
-                : STATEMENT_STALE_TIME
+        staleTime: ({ state: { data } }) => (hasValidCard(data) ? 'static' : STATEMENT_STALE_TIME)
     });
 };

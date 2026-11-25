@@ -1,9 +1,12 @@
+import type { Middleware } from 'openapi-fetch';
+
+import { apiClient } from '@followw/core/queries/client.ts';
 import {
     credentialsQueryOptions,
     statementQueryOptions
 } from '@followw/core/queries/restaurant-account.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, mock, setSystemTime, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import {
@@ -11,12 +14,73 @@ import {
     StatementDetails,
     StudentCard
 } from '#/components/ru/RestaurantAccount';
+import { clearSession } from '#/queries/auth';
 
 import { useDom } from '../../helpers/dom';
 
 const dom = useDom();
+const NOW = new Date('2026-11-24T15:00:00Z');
 
 describe('RestaurantAccount', () => {
+    beforeEach(() => setSystemTime(NOW));
+    afterEach(() => setSystemTime());
+
+    test('atualizar a conta renova o saldo sem recarregar uma carteirinha válida', async () => {
+        const registration = '202622222';
+        const requests: string[] = [];
+        const middleware: Middleware = {
+            onRequest: ({ request }) => {
+                const { pathname } = new URL(request.url);
+                requests.push(pathname);
+                if (pathname === '/api/me/ru-token') {
+                    return Response.json({ token: 'novo-qr', valid_until: '2027-03-01' });
+                }
+                return Response.json({ balance: '15.00', group: 2, entries: [] });
+            }
+        };
+        apiClient.use(middleware);
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        try {
+            const validCard = { token: 'qr-valido', valid_until: '2027-03-01' };
+            client.setQueryData(statementQueryOptions(registration).queryKey, {
+                balance: '10.00',
+                group: 2,
+                entries: []
+            });
+            client.setQueryData(credentialsQueryOptions(registration).queryKey, validCard);
+
+            const view = dom.testing.render(
+                <QueryClientProvider client={client}>
+                    <RestaurantAccount registration={registration} />
+                </QueryClientProvider>
+            );
+            dom.testing.fireEvent.click(view.getByRole('button', { name: 'Atualizar' }));
+            await dom.testing.waitFor(() => expect(requests).toContain('/api/me/ru-statement'));
+            expect(requests).not.toContain('/api/me/ru-token');
+            expect(client.getQueryData(credentialsQueryOptions(registration).queryKey)).toEqual(
+                validCard
+            );
+            view.unmount();
+
+            requests.length = 0;
+            client.setQueryData(credentialsQueryOptions(registration).queryKey, {
+                token: 'qr-vencido',
+                valid_until: '2026-03-01'
+            });
+            const expiredView = dom.testing.render(
+                <QueryClientProvider client={client}>
+                    <RestaurantAccount registration={registration} />
+                </QueryClientProvider>
+            );
+            dom.testing.fireEvent.click(expiredView.getByRole('button', { name: 'Atualizar' }));
+            await dom.testing.waitFor(() => expect(requests).toContain('/api/me/ru-token'));
+            expiredView.unmount();
+        } finally {
+            await clearSession(client);
+            apiClient.eject(middleware);
+        }
+    });
+
     test('oferece botão para abrir o QR code em um drawer sem exibi-lo na página', () => {
         const queryClient = new QueryClient();
         const registration = '202600001';

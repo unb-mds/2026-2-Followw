@@ -52,12 +52,13 @@ export function persistQueryCache(queryClient: QueryClient, onRestored: () => vo
             }
         },
         serialize: (snapshot) => {
-            for (const { state } of snapshot.clientState.queries) {
+            for (const { queryKey, state } of snapshot.clientState.queries) {
                 if (state.status === 'error') {
                     state.status = 'success';
                     state.error = null;
                     state.fetchFailureReason = null;
                     state.fetchFailureCount = 0;
+                    if (queryKey[1] === '/me/ru-token') state.isInvalidated = false;
                 }
             }
             return JSON.stringify(snapshot);
