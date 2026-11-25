@@ -3,9 +3,11 @@ name: CI
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [oracle-cloud-deploy]
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number }}
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -105,3 +107,74 @@ jobs:
         run: docker compose logs
       - if: always()
         run: docker compose down -v
+
+  deploy-oci:
+    name: Publicar o preview na Oracle
+    if: github.event_name == 'push'
+    needs: [python, web, oci]
+    runs-on: ubuntu-latest
+    permissions: {}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Enfileirar o commit testado no Coolify
+        env:
+          FOLLOWW_WEBHOOK_SECRET: ${{ secrets.FOLLOWW_OCI_WEBHOOK_SECRET }}
+        run: |
+          latest="$(git ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" | cut -f1)"
+          if [[ "$latest" != "$GITHUB_SHA" ]]; then
+            echo "A branch avançou. O commit mais recente tem sua própria execução."
+            exit 0
+          fi
+          python3 - <<'PY'
+          import hashlib
+          import hmac
+          import json
+          import os
+          from urllib.request import Request, urlopen
+
+          secret = os.environ["FOLLOWW_WEBHOOK_SECRET"]
+          if not secret:
+              raise SystemExit("O segredo FOLLOWW_OCI_WEBHOOK_SECRET está ausente.")
+          event = json.dumps({
+              "ref": os.environ["GITHUB_REF"],
+              "after": os.environ["GITHUB_SHA"],
+              "repository": {"full_name": os.environ["GITHUB_REPOSITORY"]},
+          }).encode()
+          signature = hmac.new(secret.encode(), event, hashlib.sha256).hexdigest()
+          request = Request(
+              "https://oracle.followw.app/_ops/followw-deploy",
+              data=event,
+              headers={
+                  "Content-Type": "application/json",
+                  "X-GitHub-Event": "push",
+                  "X-GitHub-Delivery": os.environ["GITHUB_RUN_ID"] + "-" + os.environ["GITHUB_RUN_ATTEMPT"],
+                  "X-Hub-Signature-256": "sha256=" + signature,
+              },
+          )
+          with urlopen(request, timeout=30) as response:
+              deployments = json.load(response)
+          if not isinstance(deployments, list) or not any(
+              item.get("status") == "success" and item.get("deployment_uuid")
+              for item in deployments
+          ):
+              raise SystemExit("O Coolify não confirmou o enfileiramento do commit.")
+          PY
+      - name: Confirmar a revisão do frontend e da API
+        run: |
+          latest="$(git ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" | cut -f1)"
+          if [[ "$latest" != "$GITHUB_SHA" ]]; then exit 0; fi
+          revision_is_ready() {
+            curl --fail --silent --max-time 10 --dump-header - --output /dev/null "$1" \
+              | tr -d '\r' | grep -ix "x-followw-revision: $GITHUB_SHA"
+          }
+          for attempt in {1..60}; do
+            if revision_is_ready https://oracle.followw.app/login &&
+               revision_is_ready 'https://oracle.followw.app/api/public/subjects?code=MAT0025'; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "O commit $GITHUB_SHA não foi confirmado no frontend e na API."
+          exit 1

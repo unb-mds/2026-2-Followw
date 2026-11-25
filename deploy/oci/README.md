@@ -54,6 +54,12 @@ docker compose run --rm --no-deps -T -v "$(realpath professors.csv):/tmp/profess
 
 O Caddy publica somente `80/TCP` e `443/TCP` em IPv4. A API, o SSR e o PostgreSQL usam a rede interna do Compose.
 
+## Deploy do preview pelo Coolify
+
+Na VM com Coolify, mantenha PostgreSQL, Redis e QStash no projeto Compose `followw-preview`. O recurso **Followw Oracle Preview** usa o modo Raw com `deploy/oci/compose.coolify.yml` na branch `oracle-cloud-deploy`. Ele usa a rede privada existente `followw-preview_default`. Depois de conferir a API e o frontend, ative `FOLLOWW_COOLIFY_ROUTE=true` nas variáveis do recurso.
+
+O CI valida a branch e envia ao webhook do Coolify a revisão que passou nos testes. O Traefik encaminha o POST em `https://oracle.followw.app/_ops/followw-deploy` para `/webhooks/source/github/events/manual`. O segredo **FOLLOWW_OCI_WEBHOOK_SECRET** no GitHub Actions precisa corresponder ao segredo do webhook no recurso. O CI confere o cabeçalho `X-Followw-Revision` do frontend e da API após o deploy.
+
 ## Preparar a configuração de produção
 
 Crie um arquivo separado `deploy/oci/.env.production` com permissões 600. Use `COMPOSE_PROJECT_NAME=followw`, `CADDYFILE=./Caddyfile`, `PUBLIC_URL=https://api.followw.app` e `CORS_ORIGINS='["https://followw.app"]'`. Preencha as credenciais de produção e reutilize as chaves JWT, OAuth e de limite da implantação atual. Nos procedimentos de produção abaixo, use `docker compose --env-file .env.production`.
