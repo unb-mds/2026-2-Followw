@@ -8,6 +8,8 @@ import { loadQuery } from '@followw/core/queries/load.ts';
 import { noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, notFound, rootRouteId } from '@tanstack/react-router';
 
+import type { UserProfile } from '#/queries/me';
+
 import { CourseSummary } from '#/components/curriculum/CourseSummary';
 import { CurriculumView } from '#/components/curriculum/CurriculumView';
 import { useDesktop } from '#/components/DesktopContext';

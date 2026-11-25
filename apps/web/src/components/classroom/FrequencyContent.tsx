@@ -17,11 +17,7 @@ import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { CalendarDays, List } from 'lucide-react';
 import { useRef, useState } from 'react';
 
-import {
-    LESSON_VIEW,
-    selectable,
-    type MarkLessons
-} from '#/components/classroom/lesson-utils';
+import { LESSON_VIEW, selectable, type MarkLessons } from '#/components/classroom/lesson-utils';
 import { LessonCalendar } from '#/components/classroom/LessonCalendar';
 import { LessonMenuContent } from '#/components/classroom/LessonMenu';
 import { ListCard, Meter } from '#/components/ListCard';
