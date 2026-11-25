@@ -6,6 +6,7 @@ from api.db.models import (
 )
 
 from .helpers import (
+    CATALOG_URL,
     URL,
     codes,
 )
@@ -57,7 +58,7 @@ async def test_sem_matriz_recomendacoes_sao_rejeitadas(scene, assign, mode):
 def test_sem_matriz_a_busca_comum_continua_funcionando(scene, stub_sigaa):
     scene.subject("A")
     scene.user(curriculum_id=None)
-    (item,) = scene.client.get(URL, params={"unit": "673"}).json()
+    (item,) = scene.client.get(CATALOG_URL, params={"unit": "673"}).json()["items"]
     assert item["kind"] is None
     stub_sigaa.classrooms.list_classrooms.assert_not_awaited()
 

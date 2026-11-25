@@ -31,7 +31,8 @@ _offline_, proteção contra abusos via rate limiting (Redis) e catálogo públi
 - **Modularidade e Baixo Acoplamento:** A arquitetura separa a biblioteca de comunicação com o SIGAA
   (`sigaa-client`), os módulos de portais públicos da UnB (`unb-browser`), a API e o front-end web.
 - **Experiência Offline-First e PWA:** Dados acadêmicos disponíveis no cache local podem ser
-  acessados sem conexão por até 14 dias, sujeitos às condições descritas em [offline.md](offline.md).
+  acessados sem conexão por até 14 dias, sujeitos às condições descritas em
+  [offline.md](offline.md).
 - **Resiliência e Proteção Institucional:** Rate limiting distribuído em memória (Redis) para
   prevenir abusos de força bruta e sobrecarga no CAS/SIGAA, operando em modelo tolerante a falhas
   (_fail-open_).
@@ -101,8 +102,8 @@ interface.
   `Max-Age=0`.
 - A camada cliente deve limpar chaves de dados confidenciais do discente armazenadas em
   `localStorage` e `IndexedDB`.
-- Requisições protegidas sem cookies válidos devem receber HTTP 401. Como a sessão é stateless,
-  o logout não revoga uma cópia dos cookies em todos os dispositivos.
+- Requisições protegidas sem cookies válidos devem receber HTTP 401. Como a sessão é stateless, o
+  logout não revoga uma cópia dos cookies em todos os dispositivos.
 
 #### 1.3: Visualização de Perfil Acadêmico e Carga Horária Pendente
 
@@ -152,11 +153,11 @@ interface.
 - A alteração de preferências deve ser pontual (suportando atualização parcial de campos via PATCH).
 
 Foto e bio são editadas por `PATCH /me/profile` e alteram o SIGAA. Nome de exibição é uma
-preferência do Followw. A bio aceita até 1.024 caracteres; sua omissão preserva o texto existente
-e uma string vazia o limpa. A foto aceita JPEG/PNG de até 4 MB e 16 milhões de pixels, normalizada
+preferência do Followw. A bio aceita até 1.024 caracteres; sua omissão preserva o texto existente e
+uma string vazia o limpa. A foto aceita JPEG/PNG de até 4 MB e 16 milhões de pixels, normalizada
 para JPEG de 800 × 1.000. Remover a foto exige requisição separada da edição da bio.
 
-#### 1.5: Política de Privacidade e Termos de Serviço
+#### 1.5: Política de Privacidade e Termos de Uso
 
 **Histórias de Usuário:**
 
@@ -164,8 +165,8 @@ para JPEG de 800 × 1.000. Remover a foto exige requisição separada da ediçã
   solicitar sua exclusão e quais são as regras de uso do serviço antes de entrar.
 
 - **RF18 — Consulta Pública de Privacidade e Termos (`/privacidade`):** O sistema deve oferecer uma
-  página pública e transparente com política de privacidade e termos de serviço, acessível por link
-  no rodapé do login e navegação, acompanhado do aviso de concordância ao entrar.
+  página pública e transparente com política de privacidade e termos de uso, acessível por link no
+  rodapé do login e navegação, acompanhado do aviso de concordância ao entrar.
 
 **Critérios de Aceitação:**
 
@@ -237,9 +238,9 @@ inscrito, histórico letivo, controle de frequência, avisos dos professores e a
   SIGAA tenham precedência sobre as marcações manuais realizadas.
 
 - **RF07 — Gestão e Estimativa de Frequência (`GET /classrooms/{id}/frequency` e
-  `PATCH /classrooms/{id}/frequency/lessons`):** O sistema
-  deve permitir ao aluno registrar marcações locais de frequência em aulas sem chamada oficial,
-  calculando o percentual projetado e sinalizando em cores de alerta o risco de reprovação.
+  `PATCH /classrooms/{id}/frequency/lessons`):** O sistema deve permitir ao aluno registrar
+  marcações locais de frequência em aulas sem chamada oficial, calculando o percentual projetado e
+  sinalizando em cores de alerta o risco de reprovação.
 
 **Critérios de Aceitação:**
 
@@ -267,8 +268,8 @@ inscrito, histórico letivo, controle de frequência, avisos dos professores e a
 - Links externos presentes nas notícias devem abrir obrigatoriamente em nova aba
   (`target="_blank" rel="noopener noreferrer"`).
 - Notícias consultadas anteriormente devem permanecer legíveis em modo offline.
-- A API deve permitir confirmar e desfazer a leitura de cada post por usuário, pelo endpoint
-  `PUT` ou `DELETE /classrooms/{id}/posts/{post_id}/read`, e informar `is_read` na resposta.
+- A API deve permitir confirmar e desfazer a leitura de cada post por usuário, pelo endpoint `PUT`
+  ou `DELETE /classrooms/{id}/posts/{post_id}/read`, e informar `is_read` na resposta.
 
 #### 2.5: Agenda Diária e Calendário Acadêmico
 
@@ -302,16 +303,15 @@ inscrito, histórico letivo, controle de frequência, avisos dos professores e a
 
 - **RF10 — Sincronização Paralela e Invalidação de Cache:** A API deve suportar requisições
   concorrentes com sessões independentes do SIGAA, servindo respostas imediatas via cache e
-  aceitando o cabeçalho `Cache-Control: no-cache` para atualização
-  manual.
+  aceitando o cabeçalho `Cache-Control: no-cache` para atualização manual.
 
 **Critérios de Aceitação:**
 
 - Dados históricos sem TTL não vencem por tempo, mas podem ser revalidados manualmente. Os
-  participantes congelam após o sync final previsto no calendário; menções continuam com TTL de
-  24 horas. As regras por recurso estão em [cache-e-sincronizacao.md](cache-e-sincronizacao.md).
-- Caso o SIGAA falhe na revalidação síncrona, o cache deve ser preservado. A API só o entrega
-  nessa falha se a requisição aceitar `stale-if-error`; na web, o Query mantém dados já disponíveis.
+  participantes congelam após o sync final previsto no calendário; menções continuam com TTL de 24
+  horas. As regras por recurso estão em [cache-e-sincronizacao.md](cache-e-sincronizacao.md).
+- Caso o SIGAA falhe na revalidação síncrona, o cache deve ser preservado. A API só o entrega nessa
+  falha se a requisição aceitar `stale-if-error`; na web, o Query mantém dados já disponíveis.
 
 ---
 
@@ -333,8 +333,8 @@ analisar concorrência de vagas, pré-requisitos, quadro de professores e recome
 - **US29:** Como estudante autenticado, quero receber recomendações que considerem meu histórico,
   pré-requisitos e equivalências.
 
-- **RF11 — Catálogo Geral e Pesquisa Pública de Turmas:** `GET /public/subjects` consulta o
-  catálogo local de matérias e ofertas; `GET /public/search` reúne matérias, cursos e docentes.
+- **RF11 — Catálogo Geral e Pesquisa Pública de Turmas:** `GET /public/subjects` consulta o catálogo
+  local de matérias e ofertas; `GET /public/search` reúne matérias, cursos e docentes.
   `GET /public/classrooms` consulta ofertas diretamente no SIGAA, com filtros próprios de unidade,
   código, semestre e outros parâmetros.
 
@@ -356,8 +356,8 @@ analisar concorrência de vagas, pré-requisitos, quadro de professores e recome
   de aprovação e reprovação de cada professor na matéria.
 - **US31:** Como estudante, quero consultar resultados históricos disponíveis para comparar turmas.
 
-- **RF12 — Estatísticas de Rendimento:** `GET /classrooms/{id}/statistics` consulta os resultados
-  de uma turma do usuário. `GET /public/subjects/{code}/statistics` consulta médias de turmas de
+- **RF12 — Estatísticas de Rendimento:** `GET /classrooms/{id}/statistics` consulta os resultados de
+  uma turma do usuário. `GET /public/subjects/{code}/statistics` consulta médias de turmas de
   semestres anteriores com o mesmo conjunto de docentes; a cobertura depende dos dados coletados.
 
 **Critérios de Aceitação:**
@@ -373,9 +373,9 @@ analisar concorrência de vagas, pré-requisitos, quadro de professores e recome
 - **US42:** Como estudante autenticado, quero recomendações que excluam disciplinas já cursadas ou
   em andamento, inclusive equivalentes, permitindo repetição somente com reprovação confirmada.
 
-- **RF16 — Exclusão de Disciplinas Cursadas e Equivalências (`GET /public/subjects`):** O sistema
-  deve excluir aprovações, matrículas atuais e tentativas sem resultado, considerando as expressões
-  de equivalência do catálogo.
+- **RF16 — Exclusão de Disciplinas Cursadas e Equivalências
+  (`GET /public/subjects/recommendations`):** O sistema deve excluir aprovações, matrículas atuais e
+  tentativas sem resultado, considerando as expressões de equivalência do catálogo.
 
 **Critérios de Aceitação:**
 
@@ -428,8 +428,8 @@ analisar concorrência de vagas, pré-requisitos, quadro de professores e recome
 #### 3.7: Simulador de índices
 
 - **RF22 — Simulação de IRA e MP:** estudantes de graduação autenticados podem alterar menções
-  simuladas do semestre atual e de semestres anteriores, visualizar os índices e a evolução do IRA
-  e limpar a simulação. As alterações são locais e não modificam o SIGAA.
+  simuladas do semestre atual e de semestres anteriores, visualizar os índices e a evolução do IRA e
+  limpar a simulação. As alterações são locais e não modificam o SIGAA.
 - As menções SS, MS, MM, MI, II e SR recebem pesos de 5 a 0. O IRA pondera a carga horária pelo
   período desde o ingresso, limitado a 6; o MP pondera a carga horária das matérias da matriz.
   Disciplinas sem menção ou carga horária válida não entram no cálculo.
@@ -541,10 +541,10 @@ Os requisitos não funcionais definem os critérios técnicos de qualidade, conf
 conformidade de arquitetura e segurança da informação.
 
 - **RNF01 — Documentação Interativa de Endpoints (Mintlify / OpenAPI):**
-    - Os endpoints públicos da API devem ser documentados com modelos de entrada, códigos de
-      retorno HTTP (200, 401, 404, 422, 502) e exemplos claros via OpenAPI, renderizados pela
-      interface Mintlify. `/docs` redireciona para o portal e `/openapi.json` fornece o contrato;
-      a rota interna de jobs não é exposta nesse contrato.
+    - Os endpoints públicos da API devem ser documentados com modelos de entrada, códigos de retorno
+      HTTP (200, 401, 404, 422, 502) e exemplos claros via OpenAPI, renderizados pela interface
+      Mintlify. `/docs` redireciona para o portal e `/openapi.json` fornece o contrato; a rota
+      interna de jobs não é exposta nesse contrato.
 
 - **RNF02 — Cobertura Abrangente de Testes Automatizados:**
     - Toda funcionalidade e correção deve conter testes automatizados. O back-end utiliza **Pytest**
@@ -603,8 +603,8 @@ conformidade de arquitetura e segurança da informação.
 - **RNF11 — Observabilidade e Monitoramento de Produção:**
     - A API deve emitir logs estruturados padronizados contendo identificadores de requisição e
       tempos de execução, e o front-end deve integrar telemetria analítica e de erros (PostHog)
-      conforme a política publicada em `/privacidade`. O filtro de campos dos logs da API é
-      descrito em [observabilidade.md](observabilidade.md).
+      conforme a política publicada em `/privacidade`. O filtro de campos dos logs da API é descrito
+      em [observabilidade.md](observabilidade.md).
 
 - **RNF12 — Controle de Taxa de Requisições e Proteção contra Abuso (Rate Limiting via Redis):**
     - A API deve implementar controle de taxa distribuído em memória por janela fixa com Redis para
@@ -689,8 +689,8 @@ O desenvolvimento do Followw UnB é conduzido de forma incremental através de s
   `POST /oauth/token`; cadastro no portal de desenvolvedores, consentimento com PKCE S256
   e revogação de acessos nas configurações.
 
-O desenvolvimento atual segue rolling release. As seções R1 e R2 acima são registros históricos;
-o comportamento atual é descrito nos requisitos e nos documentos técnicos.
+O desenvolvimento atual segue rolling release. As seções R1 e R2 acima são registros históricos; o
+comportamento atual é descrito nos requisitos e nos documentos técnicos.
 
 ### Backlog Evolutivo
 
@@ -725,7 +725,8 @@ o comportamento atual é descrito nos requisitos e nos documentos técnicos.
 - **Documentação de Arquitetura C4-PlantUML:** [`docs/arquitetura.md`](arquitetura.md)
 - **Documentação de Cache e Sincronização:**
   [`docs/cache-e-sincronizacao.md`](cache-e-sincronizacao.md)
-- **Documentação de Redis e Rate Limit:** [`docs/limite-de-requisicoes.md`](limite-de-requisicoes.md)
+- **Documentação de Redis e Rate Limit:**
+  [`docs/limite-de-requisicoes.md`](limite-de-requisicoes.md)
 - **Documentação de Uso Offline:** [`docs/offline.md`](offline.md)
 - **Documentação de Segurança:** [`docs/seguranca.md`](seguranca.md)
 - **Documentação de Recomendação de Matérias:** [`docs/recomendacoes.md`](recomendacoes.md)

@@ -15,7 +15,9 @@ from api.modules.public_professors.service import (
     ProfessorPage,
     ProfessorServiceDep,
 )
-from api.modules.public_subjects.service import CatalogSubject, PublicSubjectServiceDep
+from api.modules.public_subjects.filters import SubjectFilters
+from api.modules.public_subjects.schedule_search import parse_schedule_code
+from api.modules.public_subjects.service import PublicSubjectServiceDep, SubjectPage
 from api.sync import Sync
 
 type SearchType = Literal["subjects", "courses", "professors"]
@@ -24,7 +26,7 @@ type SearchType = Literal["subjects", "courses", "professors"]
 class SearchResult(BaseModel):
     """Cada tipo no formato do seu endpoint; nulo quando não foi pedido."""
 
-    subjects: list[CatalogSubject] | None
+    subjects: SubjectPage | None
     courses: CoursePage | None
     professors: ProfessorPage | None
 
@@ -46,9 +48,15 @@ class SearchService:
         types: Collection[SearchType] | None,
         unit: int | str | None,
         sync: Sync | None,
+        *,
+        offered: bool = False,
+        available: bool = False,
     ) -> SearchResult:
         searches: dict[SearchType, Callable[[], Awaitable[Any]]] = {
-            "subjects": lambda: self._subjects.search(q, unit=unit, sync=sync),
+            "subjects": lambda: self._subjects.search(
+                SubjectFilters(q=q, unit=unit, offered=offered, available=available),
+                sync,
+            ),
             "courses": lambda: self._courses.list_courses(
                 q, unit, 1, COURSES_PAGE_SIZE
             ),
@@ -56,7 +64,8 @@ class SearchService:
                 q, unit, None, 1, PROFESSORS_PAGE_SIZE
             ),
         }
-        wanted = [name for name in searches if not types or name in types]
+        requested = types or (("subjects",) if parse_schedule_code(q) else searches)
+        wanted = [name for name in searches if name in requested]
         # Espera todas as buscas antes de propagar a primeira falha.
         results = await asyncio.gather(
             *(searches[name]() for name in wanted), return_exceptions=True

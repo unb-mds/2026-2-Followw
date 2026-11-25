@@ -60,7 +60,7 @@ describe('privacidade e termos', () => {
             expect(PrivacyRoute.options.beforeLoad).toBeUndefined();
             const markup = await renderPage('/privacidade', user);
             expect(markup).toContain('Política de privacidade');
-            expect(markup).toContain('Termos de serviço');
+            expect(markup).toContain('Termos de uso');
             expect(markup).toContain('href="/login"');
         }
     );
@@ -85,7 +85,7 @@ describe('privacidade e termos', () => {
         expect(markup).toContain('automações são permitidos');
     });
 
-    test('rodapé do login oferece links para privacidade e termos de serviço', async () => {
+    test('rodapé do login oferece links para privacidade e termos de uso', async () => {
         const browser = new Window();
         try {
             browser.document.body.innerHTML = await renderPage('/login');
@@ -95,7 +95,7 @@ describe('privacidade e termos', () => {
             }));
             expect(links).toEqual([
                 { text: 'Política de privacidade', href: '/privacidade#politica-de-privacidade' },
-                { text: 'Termos de serviço', href: '/privacidade#termos-de-servico' }
+                { text: 'Termos de uso', href: '/privacidade#termos-de-uso' }
             ]);
         } finally {
             await browser.happyDOM.abort();

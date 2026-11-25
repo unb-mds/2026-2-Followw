@@ -74,9 +74,7 @@ export function getNoClassReason(date: string): string | undefined {
     const event = getNoClassEvents(date)[0];
     if (event) return event.name;
 
-    const semester = listSemesters().find(
-        ({ period }) => period.start <= date && date <= period.end
-    );
+    const semester = getActiveSemester(date);
     if (semester && (date < semester.classes.start || date > semester.classes.end)) {
         return 'Fora do período de aulas';
     }
@@ -91,13 +89,17 @@ export function listSemesters(): SemesterCalendar[] {
     return Object.values(academicCalendar.semesters);
 }
 
+export function getActiveSemester(date: string): SemesterCalendar | undefined {
+    return listSemesters().find(({ period }) => period.start <= date && date <= period.end);
+}
+
 export function getCurrentSemester(date: Date = new Date()): SemesterCalendar | undefined {
     const today = date.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
     const semesters = listSemesters();
 
     // Retorna o semestre atual ou o futuro mais próximo
     return (
-        semesters.find(({ period }) => period.start <= today && today <= period.end) ??
+        getActiveSemester(today) ??
         semesters
             .filter(({ period }) => period.start > today)
             .reduce<SemesterCalendar | undefined>(

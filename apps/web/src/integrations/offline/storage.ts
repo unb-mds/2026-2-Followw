@@ -20,6 +20,11 @@ let stopPersisting: () => void = noop;
 let warming: AbortController | undefined;
 let clearing: Promise<void> | undefined;
 
+// Recomendações dependem do histórico do momento e não vão para o disco.
+const recommendationHashes = new Set(
+    [false, true].map((available) => hashKey(recommendationsQueryOptions(available).queryKey))
+);
+
 // Uma falha ao atualizar não invalida o último dado salvo.
 export function shouldPersistQuery(query: Query, now = Date.now()) {
     return (

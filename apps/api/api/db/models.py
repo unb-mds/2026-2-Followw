@@ -232,9 +232,9 @@ class Subject(Base, TimestampMixin):
     hours: Mapped[int | None] = mapped_column(SmallInteger)
     unit_id: Mapped[int | None] = mapped_column(ForeignKey("units.id"))
     # Expressões em OU de Es: `[["A", "B"], ["C"]]` é `(A E B) OU C`.
-    prerequisites: Mapped[Requirements | None] = mapped_column(JSONB)
-    corequisites: Mapped[Requirements | None] = mapped_column(JSONB)
-    equivalences: Mapped[Requirements | None] = mapped_column(JSONB)
+    prerequisites: Mapped[Requirements | None] = mapped_column(JSONB(none_as_null=True))
+    corequisites: Mapped[Requirements | None] = mapped_column(JSONB(none_as_null=True))
+    equivalences: Mapped[Requirements | None] = mapped_column(JSONB(none_as_null=True))
 
     unit: Mapped[Unit | None] = relationship(lazy="joined")
     classrooms: Mapped[list[Classroom]] = relationship(back_populates="subject")

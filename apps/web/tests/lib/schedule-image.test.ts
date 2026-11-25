@@ -59,7 +59,7 @@ describe('exportação da grade em PNG', () => {
         for (const text of [
             'Minha grade · 2026.2',
             'Seg',
-            'Sáb',
+            'Sex',
             '14:00–14:55',
             '14:55–15:50',
             'FGA0108',
@@ -71,6 +71,7 @@ describe('exportação da grade em PNG', () => {
             'followw.app'
         ])
             expect(texts).toContain(text);
+        expect(texts).not.toContain('Sáb');
         expect(texts).not.toContain('Semestre 2026.2');
     });
 
@@ -85,7 +86,7 @@ describe('exportação da grade em PNG', () => {
         expect(texts).toContain('Horário a definir');
     });
 
-    test('exporta manhã e noite até 22h30 e marca a quebra comum sem ocultar a tarde de outro dia', async () => {
+    test('exporta manhã, tarde e noite até 22h30 sem omitir intervalos', async () => {
         const { fillText } = canvasMock();
         await createSchedulePng([
             { ...items[0], schedule: '2M12' },
@@ -97,8 +98,7 @@ describe('exportação da grade em PNG', () => {
         expect(texts).toContain('14:00–14:55');
         expect(texts).toContain('NOITE');
         expect(texts).toContain('TARDE');
-        expect(texts).toContain('Intervalo omitido · 09:50–14:00');
-        expect(texts).toContain('Intervalo omitido · 15:50–20:50');
+        expect(texts.some((text) => text.startsWith('Intervalo omitido'))).toBe(false);
     });
 
     test('corta textos longos com reticências', async () => {

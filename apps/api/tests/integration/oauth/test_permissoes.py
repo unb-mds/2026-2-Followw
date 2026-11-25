@@ -67,7 +67,7 @@ def test_busca_publica_com_bearer_so_oferece_catalogo(client, emitir):
         "/public/subjects", headers={"Authorization": f"Bearer {pair.access_token}"}
     )
     assert response.status_code == 422
-    assert "q" in response.json()["detail"]
+    assert "`q`" in response.text
 
 
 def test_oauth_nao_permite_marcar_post_como_lido(client, emitir):

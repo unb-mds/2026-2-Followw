@@ -7,7 +7,7 @@ import { FollowwLogo } from '#/components/FollowwLogo';
 import { SearchPill } from '#/components/SearchPill';
 import { SettingsLink } from '#/components/SettingsLink';
 import { useRestaurantShortcut } from '#/components/useRestaurantShortcut';
-import { ease, spring } from '#/lib/motion';
+import { spring } from '#/lib/motion';
 import { cn } from '#/lib/shadcn';
 import { meQueryOptions } from '#/queries/me';
 
@@ -71,25 +71,12 @@ export function DesktopNavigation() {
                             </Link>
                         );
                     })}
-                    <m.div
-                        className="relative h-12 overflow-hidden"
-                        initial={false}
-                        animate={{ width: searching ? 0 : 112, opacity: searching ? 0 : 1 }}
-                        transition={{ duration: 0.2, ease }}
-                    >
-                        {!searching && (
-                            <>
-                                <SearchPill />
-                                <Link
-                                    to="/buscar"
-                                    className={cn(itemClass, 'text-muted-foreground')}
-                                >
-                                    <Search aria-hidden="true" className="relative size-5" />
-                                    <span className="relative">Buscar</span>
-                                </Link>
-                            </>
-                        )}
-                    </m.div>
+                    {!searching && (
+                        <Link to="/buscar" className={cn(itemClass, 'text-muted-foreground')}>
+                            <Search aria-hidden="true" className="relative size-5" />
+                            <span className="relative">Buscar</span>
+                        </Link>
+                    )}
                 </nav>
             </div>
             <div className="flex shrink-0 items-center gap-3">

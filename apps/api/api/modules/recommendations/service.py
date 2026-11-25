@@ -22,15 +22,12 @@ from api.modules.recommendations.ranking import (
     Recommendation,
     rank,
 )
-from api.modules.recommendations.repository import RecommendationRepository
+from api.modules.recommendations.repository import (
+    WITHOUT_ATTEMPT,
+    RecommendationRepository,
+)
 from api.schemas import normalize
 from api.sync import Cached, Sync
-
-# Trancamento ou indeferimento não deixa menção pendente: a tentativa não conta.
-_WITHOUT_ATTEMPT = {
-    ClassroomStatus.TRANCADO,
-    ClassroomStatus.DENIED,
-}
 
 
 class Ranking(NamedTuple):
@@ -191,7 +188,7 @@ async def _rank(
         unresolved={
             normalize(link.row.classroom.subject_code)
             for link in links
-            if link.row.grade is None and link.row.status not in _WITHOUT_ATTEMPT
+            if link.row.grade is None and link.row.status not in WITHOUT_ATTEMPT
         },
         unit_id=student.unit_id,
     )

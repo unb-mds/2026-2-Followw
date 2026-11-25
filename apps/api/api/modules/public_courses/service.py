@@ -37,8 +37,8 @@ class PublicCourse(BaseModel):
     name: str
     shift: str | None
     unit: UnitRef
-    # O seed só traz cursos de graduação do SIGAA; os criados pelo sync não têm nível.
-    level: Literal["Graduação"] | None
+    # Grau da matriz mais recente (Bacharelado, Licenciatura...); nulo sem matriz.
+    degree: str | None
 
 
 class CoursePage(BaseModel):
@@ -134,11 +134,11 @@ async def _list_courses(
     page_size: int,
 ) -> CoursePage:
     unit_id = await find_unit_id(session, unit)
-    courses, total = await PublicCourseRepository(session).list_courses(
-        q, unit_id, page, page_size
-    )
+    repository = PublicCourseRepository(session)
+    courses, total = await repository.list_courses(q, unit_id, page, page_size)
+    matrices = await repository.latest_matrices([course.id for course in courses])
     return CoursePage(
-        items=[_course(course) for course in courses],
+        items=[_course(course, matrices.get(course.id)) for course in courses],
         total=total,
         page=page,
         page_size=page_size,
@@ -146,20 +146,22 @@ async def _list_courses(
 
 
 async def _get_course(session: AsyncSession, course_id: int) -> PublicCourse:
-    course = await PublicCourseRepository(session).get_course(course_id)
+    repository = PublicCourseRepository(session)
+    course = await repository.get_course(course_id)
     if course is None:
         raise HTTPException(404, "Curso não encontrado.")
-    return _course(course)
+    matrices = await repository.latest_matrices([course_id])
+    return _course(course, matrices.get(course_id))
 
 
-def _course(course: Course) -> PublicCourse:
+def _course(course: Course, matrix: str | None) -> PublicCourse:
     return PublicCourse(
         id=course.id,
         sigaa_id=course.sigaa_id,
         name=course.name,
         shift=course.shift,
         unit=UnitRef.model_validate(course.unit),
-        level="Graduação" if course.sigaa_id is not None else None,
+        degree=_matrix_part(matrix, -3) if matrix else None,
     )
 
 

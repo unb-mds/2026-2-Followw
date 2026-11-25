@@ -1,7 +1,7 @@
 import type { SearchCategory } from '@followw/core/lib/search-categories.ts';
 import type { UserProfile } from '@followw/core/queries/me.ts';
+import type { SubjectsQuery } from '@followw/core/queries/subjects.ts';
 
-import { getCurrentSemester } from '@followw/core/calendar.ts';
 import {
     SEARCH_CATEGORIES,
     searchCategoryLabels,
@@ -19,21 +19,15 @@ import {
 } from '@followw/core/queries/recommendations.ts';
 import { searchQueryOptions } from '@followw/core/queries/search.ts';
 import {
-    approvedCodes,
-    currentCurriculumPeriod,
     SEARCH_MAX_LENGTH,
-    SEARCH_MIN_LENGTH,
     searchText,
-    subjectsQueryOptions,
-    takenCodes
+    subjectsQueryOptions
 } from '@followw/core/queries/subjects.ts';
-import { environmentManager, noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import { environmentManager, noop, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { Search, Briefcase } from 'lucide-react';
-import { m, type Variants } from 'motion/react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
-import { useDesktop } from '#/components/DesktopContext';
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
 import { SchedulePreview } from '#/components/schedule/SchedulePreview';
@@ -42,34 +36,47 @@ import { CatalogResults, type CatalogCategory } from '#/components/search/Catalo
 import { InternshipResults } from '#/components/search/InternshipSection';
 import { RecommendationsSection } from '#/components/search/RecommendationsSection';
 import { SearchResults } from '#/components/search/SearchResults';
+import { SubjectFilters } from '#/components/search/SubjectFilters';
 import { SubjectResults } from '#/components/search/SubjectResults';
-import { SearchPill } from '#/components/SearchPill';
 import { TabFilter } from '#/components/TabFilter';
 import { Input } from '#/components/ui/input';
-import { ease, useEntrance } from '#/lib/motion';
-import { loadSearchParams, useSearchState, validateSearch } from '#/lib/search-params';
+import {
+    kindsTitle,
+    loadSearchParams,
+    type SubjectFilterParams,
+    subjectsQueryFrom,
+    useSearchState,
+    validateSearch
+} from '#/lib/search-params';
 
 type SearchView =
-    | { kind: 'recommendations' }
+    | { kind: 'recommendations'; available: boolean }
     | { kind: 'catalog'; category: CatalogCategory }
-    | { kind: 'search'; text: string }
-    | { kind: 'unit'; unit: string }
+    | { kind: 'search'; text: string; available: boolean }
+    | { kind: 'subjects'; query: SubjectsQuery; title: string }
+    | { kind: 'curriculum-login' }
     | { kind: 'internships'; text: string | null };
 
-/** Sem texto, as abas com matérias mostram as recomendações ou a unidade do aluno, e as demais o catálogo. */
+/** Filtros de matéria levam à lista filtrada; sem texto, recomendações, a unidade do aluno ou o catálogo. */
 function searchView(
     category: SearchCategory,
     q: string,
     text: string | null,
-    user: UserProfile | null
+    user: UserProfile | null,
+    filters: SubjectFilterParams
 ): SearchView | null {
-    if (category === 'internships') return { kind: 'internships', text };
     const subjects = showsSubjects(category);
-    if (subjects && showRecommendations(user, { q })) return { kind: 'recommendations' };
-    if (text) return { kind: 'search', text };
+    const available = filters.hideUnavailable;
+    if (subjects && filters.kind.length && !user) return { kind: 'curriculum-login' };
+    const query = subjects && subjectsQueryFrom(filters, text);
+    if (query) return { kind: 'subjects', query, title: kindsTitle(filters.kind) };
+    if (category === 'internships') return { kind: 'internships', text };
+    if (subjects && showRecommendations(user, { q })) return { kind: 'recommendations', available };
+    if (text) return { kind: 'search', text, available };
     if (category === 'courses' || category === 'professors') return { kind: 'catalog', category };
-    const unit = user?.unit?.code;
-    return subjects && unit ? { kind: 'unit', unit } : null;
+    const unit = subjects && user?.unit?.code;
+    const unitQuery = unit && subjectsQueryFrom(filters, null, unit);
+    return unitQuery ? { kind: 'subjects', query: unitQuery, title: `Matérias da ${unit}` } : null;
 }
 
 export const Route = createFileRoute('/_app/buscar')({
@@ -78,25 +85,26 @@ export const Route = createFileRoute('/_app/buscar')({
     shouldReload: ({ cause }) => cause !== 'stay',
     loader: async ({ context: { queryClient }, location }) => {
         const user = await loadQuery(queryClient, meQueryOptions);
-        const { q, category } = loadSearchParams(location.searchStr);
-        const view = searchView(category, q, searchText(q), user);
+        const { q, category, ...filters } = loadSearchParams(location.searchStr);
+        const view = searchView(category, q, searchText(q), user, filters);
         const results = Promise.all([
             showsSubjects(category) &&
                 user &&
                 loadQuery(queryClient, allClassroomsQueryOptions).catch(noop),
             view?.kind === 'recommendations' &&
-                loadQuery(queryClient, recommendationsQueryOptions).catch(noop),
+                loadQuery(queryClient, recommendationsQueryOptions(view.available)).catch(noop),
             view?.kind === 'search' &&
-                loadQuery(queryClient, searchQueryOptions(view.text, searchTypes[category])).catch(
-                    noop
-                ),
+                loadQuery(
+                    queryClient,
+                    searchQueryOptions(view.text, searchTypes[category], view.available)
+                ).catch(noop),
             view?.kind === 'catalog' &&
                 (view.category === 'courses'
                     ? loadQuery(queryClient, catalogQueryOptions.courses)
                     : loadQuery(queryClient, catalogQueryOptions.professors)
                 ).catch(noop),
-            view?.kind === 'unit' &&
-                loadQuery(queryClient, subjectsQueryOptions({ unit: view.unit })).catch(noop),
+            view?.kind === 'subjects' &&
+                loadQuery(queryClient, subjectsQueryOptions(view.query)).catch(noop),
             view?.kind === 'internships' &&
                 user &&
                 loadQuery(queryClient, internshipsQueryOptions).catch(noop)
@@ -115,77 +123,56 @@ export const Route = createFileRoute('/_app/buscar')({
     component: BuscarPage
 });
 
-// o conteúdo do campo aparece depois que a pílula termina de expandir
-const fieldContent: Variants = {
-    hidden: { opacity: 0 },
-    show: { opacity: 1, transition: { duration: 0.2, ease, delay: 0.2 } }
+const searchLabels: Partial<Record<SearchCategory, string>> = {
+    all: 'Busque por matéria, horário, curso ou professor',
+    classrooms: 'Busque por matéria, horário ou departamento',
+    internships: 'Busque por estágio'
 };
 
 function BuscarPage() {
     const { data: user } = useSuspenseQuery(meQueryOptions);
-    const [{ q, category }, setSearch] = useSearchState();
+    const [{ q, category, ...filters }, setSearch] = useSearchState();
     const subjects = showsSubjects(category);
-    const currentPeriod = currentCurriculumPeriod(
-        user?.entry_semester,
-        getCurrentSemester()?.semester
-    );
     // Texto aplicado após o debounce de 300 ms; inválido mantém o anterior.
     const [text, setText] = useState(() => searchText(q));
     useEffect(() => {
         const timer = setTimeout(() => setText((previous) => searchText(q, previous)), 300);
         return () => clearTimeout(timer);
     }, [q]);
-    const view = searchView(category, q, text, user);
+    const view = searchView(category, q, text, user, filters);
+    // Com filtros de matéria, o texto busca só matérias.
     const searchLabel =
-        category === 'internships'
-            ? 'Busque por estágio'
-            : 'Busque por matéria, curso ou professor';
-    const { data: history } = useQuery({
-        ...allClassroomsQueryOptions,
-        enabled: subjects && Boolean(user)
-    });
-    const completed = user?.completed_subjects;
-    const taken = useMemo(
-        () => (history ? takenCodes(history, approvedCodes(history, completed)) : null),
-        [history, completed]
-    );
-    const desktop = useDesktop();
-    const entrance = useEntrance();
+        subjects && subjectsQueryFrom(filters, null)
+            ? 'Busque por matéria, horário ou departamento'
+            : (searchLabels[category] ?? 'Busque por matéria, curso ou professor');
     return (
         <div className="search-columns flex flex-col gap-5 lg:grid lg:items-start lg:gap-x-10">
-            <m.div layoutRoot className="desktop-search-field relative lg:fixed">
-                <SearchPill className="hidden border border-primary bg-background lg:block" />
-                <m.div
-                    className="relative"
-                    initial={desktop ? entrance.initial : false}
-                    animate="show"
-                    variants={fieldContent}
-                >
-                    <Search
-                        className="pointer-events-none absolute top-1/2 left-3.5 size-5 -translate-y-1/2 text-muted-foreground"
-                        aria-hidden="true"
-                    />
-                    <Input
-                        type="search"
-                        value={q}
-                        onChange={(event) => {
-                            const value = event.target.value.slice(0, SEARCH_MAX_LENGTH);
-                            void setSearch({ q: value.trim() ? value : null });
-                        }}
-                        maxLength={SEARCH_MAX_LENGTH}
-                        placeholder={`${searchLabel}...`}
-                        aria-label={searchLabel}
-                        className="h-11 bg-card pl-10 text-sm lg:h-14 lg:rounded-full lg:border-transparent lg:bg-transparent lg:pl-12 lg:dark:bg-transparent"
-                    />
-                </m.div>
-            </m.div>
+            <div className="desktop-search-field relative lg:fixed">
+                <Search
+                    className="pointer-events-none absolute top-1/2 left-3.5 size-5 -translate-y-1/2 text-muted-foreground"
+                    aria-hidden="true"
+                />
+                <Input
+                    type="search"
+                    value={q}
+                    onChange={(event) => {
+                        const value = event.target.value.slice(0, SEARCH_MAX_LENGTH);
+                        void setSearch({ q: value.trim() ? value : null });
+                    }}
+                    maxLength={SEARCH_MAX_LENGTH}
+                    placeholder={`${searchLabel}...`}
+                    aria-label={searchLabel}
+                    className="h-11 bg-card pr-12 pl-10 text-sm transition-none lg:h-14 lg:rounded-full lg:border-primary lg:bg-background lg:pl-12 lg:dark:bg-background"
+                />
+                {subjects && <SubjectFilters />}
+            </div>
             <TabFilter
                 label="Categoria da busca"
                 value={category}
                 options={SEARCH_CATEGORIES}
                 labels={searchCategoryLabels}
                 onChange={(value) => void setSearch({ category: value })}
-                className="search-filters -my-2 lg:col-start-1 lg:row-start-1 lg:my-0 lg:mb-4 lg:w-fit"
+                className="search-filters -my-2 lg:col-start-1 lg:row-start-1 lg:my-0 lg:mb-4 lg:w-fit lg:max-w-full"
             />
             <SchedulePreview />
             <div
@@ -193,9 +180,12 @@ function BuscarPage() {
                 className="search-results flex min-w-0 flex-col gap-5 pb-8 lg:col-start-1 lg:row-start-2"
             >
                 {!view && (
-                    <p className="py-8 text-center text-sm text-muted-foreground">{`Digite de ${SEARCH_MIN_LENGTH} a ${SEARCH_MAX_LENGTH} caracteres do nome, código da matéria, curso ou professor para ver os resultados.`}</p>
+                    <p className="py-8 text-center text-sm text-muted-foreground">
+                        Busque por matéria, departamento ou código de horário do SIGAA, como 24M34.
+                        Para selecionar horários, abra o filtro de matérias.
+                    </p>
                 )}
-                {subjects && !user && text && (
+                {subjects && !user && text && view?.kind !== 'curriculum-login' && (
                     <p className="text-sm text-muted-foreground">
                         <Link className="font-bold text-primary hover:underline" to="/login">
                             Entre na sua conta
@@ -204,16 +194,15 @@ function BuscarPage() {
                     </p>
                 )}
                 {view?.kind === 'recommendations' && (
-                    <RecommendationsSection currentPeriod={currentPeriod} taken={taken} />
+                    <RecommendationsSection available={view.available} />
                 )}
                 {view?.kind === 'search' && (
                     <SearchResults
                         key={category}
                         text={view.text}
                         types={searchTypes[category]}
+                        available={view.available}
                         empty={searchEmptyMessages[category]}
-                        currentPeriod={currentPeriod}
-                        taken={taken}
                         onShowCategory={
                             category === 'all'
                                 ? (value) => void setSearch({ category: value })
@@ -222,8 +211,16 @@ function BuscarPage() {
                     />
                 )}
                 {view?.kind === 'catalog' && <CatalogResults category={view.category} />}
-                {view?.kind === 'unit' && (
-                    <SubjectResults unit={view.unit} currentPeriod={currentPeriod} taken={taken} />
+                {view?.kind === 'subjects' && (
+                    <SubjectResults query={view.query} title={view.title} />
+                )}
+                {view?.kind === 'curriculum-login' && (
+                    <p>
+                        <Link className="font-bold text-primary" to="/login">
+                            Entre na sua conta
+                        </Link>{' '}
+                        para filtrar as matérias pela matriz do seu curso.
+                    </p>
                 )}
                 {view?.kind === 'internships' &&
                     (user ? (

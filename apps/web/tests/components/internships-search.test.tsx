@@ -119,9 +119,8 @@ test('exibe estágios na aba Todos enquanto a busca pública está pendente', ()
             <SearchResults
                 text="python"
                 types={undefined}
+                available={false}
                 empty="Nenhum resultado"
-                currentPeriod={null}
-                taken={null}
                 onShowCategory={() => {}}
             />
         </QueryClientProvider>

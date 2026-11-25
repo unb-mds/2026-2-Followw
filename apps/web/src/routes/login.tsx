@@ -173,10 +173,10 @@ function LoginPage() {
                 </Link>
                 <Link
                     to="/privacidade"
-                    hash="termos-de-servico"
+                    hash="termos-de-uso"
                     className="block underline underline-offset-4 hover:text-foreground"
                 >
-                    Termos de serviço
+                    Termos de uso
                 </Link>
             </footer>
         </main>

@@ -35,7 +35,13 @@ def catalog(client, database):
                     prerequisites=[["FGA0001", "FGA0002"], ["FGA0010"]],
                     equivalences=[["CIC0004"]],
                 ),
-                Subject(code="FGA0001", name="CÁLCULO 1", hours=90, unit_id=673),
+                Subject(
+                    code="FGA0001",
+                    name="CÁLCULO 1",
+                    hours=90,
+                    unit_id=673,
+                    equivalences=[["ANT0001", "ANT0002"]],
+                ),
                 Subject(code="FCE0001", name="CÁLCULO APLICADO", unit_id=518),
                 Subject(code="XYZ0001", name="SEM UNIDADE"),
             ]
@@ -65,7 +71,21 @@ def catalog(client, database):
 def _search(client, **params):
     response = client.get("/public/subjects", params=params)
     assert response.status_code == 200, response.text
-    return response.json()
+    return response.json()["items"]
+
+
+def test_combina_carga_exata_com_a_faixa_de_90_horas_ou_mais(catalog, database):
+    with database.begin() as session:
+        for hours in [30, 89, 90, 91, 180, 960, 975]:
+            code = f"MAT{hours:04d}"
+            session.add(Subject(code=code, name=code, hours=hours))
+            session.flush()
+            session.add(Classroom(subject_code=code, number="01", semester="2026.2"))
+    offered = _search(catalog, hours=[30, "90+"], offered=True)
+    assert [subject["hours"] for subject in offered] == [30, 90, 91, 180, 960, 975]
+    assert [subject["hours"] for subject in _search(catalog, hours=89)] == [89]
+    # Sem `offered`, a carga também traz quem não tem turma no semestre.
+    assert "FGA0001" in {subject["code"] for subject in _search(catalog, hours=90)}
 
 
 @pytest.mark.parametrize(
@@ -149,7 +169,7 @@ def test_componente_traz_as_turmas_do_semestre_mais_recente(catalog):
 
     assert response.status_code == 200
     assert "no-store" in response.headers["cache-control"]
-    assert response.json() == [
+    assert response.json()["items"] == [
         {
             "code": "FGA0003",
             "name": "COMPILAÇÃO DE PROGRAMAS",
@@ -247,7 +267,8 @@ def test_unit_por_id_ou_codigo_combina_com_q(catalog, unit):
 
 def test_filtros_invalidos_sao_422(catalog, subtests):
     for params, detail in [
-        ({}, "Informe `q`, `code` ou `unit`."),
+        ({}, "Informe `q`, `code`, `unit` ou algum filtro."),
+        ({"semester": "2026.2"}, "Informe `q`, `code`, `unit` ou algum filtro."),
         ({"unit": "999"}, "Unidade `999` não encontrada."),
         ({"unit": "ceilandia"}, "Unidade `ceilandia` não encontrada."),
         ({"unit": "FC"}, "Unidade `FC` não encontrada."),
@@ -256,12 +277,23 @@ def test_filtros_invalidos_sao_422(catalog, subtests):
         with subtests.test(params=params):
             response = catalog.get("/public/subjects", params=params)
             assert response.status_code == 422
-            assert detail in response.json()["detail"]
+            assert detail in response.text
 
 
 @pytest.mark.parametrize(
     "params",
-    [{"q": " "}, {"code": "0003"}, {"unit": ""}, {"semester": "2026-2"}],
+    [
+        {"q": " "},
+        {"code": "0003"},
+        {"unit": ""},
+        {"semester": "2026-2"},
+        {"days": "07"},
+        {"start": "25:00"},
+        {"kind": "other"},
+        {"hours": 0},
+        {"page": 0},
+        {"hours": 32768},
+    ],
 )
 def test_validacao_de_parametros(catalog, params):
     assert catalog.get("/public/subjects", params=params).status_code == 422
@@ -272,7 +304,7 @@ def test_q_invalida_nao_consulta_o_catalogo(catalog, monkeypatch, subtests):
 
     search = AsyncMock(side_effect=AssertionError("Query inválida consultou o banco"))
     monkeypatch.setattr(
-        "api.modules.public_subjects.repository.SubjectCatalogRepository.list_subjects",
+        "api.modules.public_subjects.repository.SubjectCatalogRepository.page_subjects",
         search,
     )
     for q in ["", "a", "ab", "a" * 33, " a ", "   "]:
@@ -370,9 +402,16 @@ def test_openapi_so_tem_os_filtros_do_banco(api):
         "code",
         "unit",
         "semester",
+        "days",
+        "start",
+        "hours",
+        "kind",
+        "offered",
+        "available",
+        "page",
         "Cache-Control",
     }
-    assert set(operation["responses"]) == {"200", "401", "422", "502", "503"}
+    assert set(operation["responses"]) == {"200", "404", "422"}
 
 
 def test_desbloqueia_lista_dependentes_diretos_com_turmas_no_semestre(

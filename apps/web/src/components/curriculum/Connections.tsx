@@ -5,25 +5,27 @@ import { pathData } from '@followw/core/lib/curriculum/geometry.ts';
 import { connectionSegments } from '@followw/core/lib/curriculum/segments.ts';
 import { useId, useMemo } from 'react';
 
-// uma classe por índice de RoutedEdge.color
 const palette = [
-    'text-flow-1',
-    'text-flow-2',
-    'text-flow-3',
-    'text-flow-4',
-    'text-flow-5',
-    'text-flow-6',
-    'text-flow-7'
+    '--flow-1',
+    '--flow-2',
+    '--flow-3',
+    '--flow-4',
+    '--flow-5',
+    '--flow-6',
+    '--flow-7'
 ];
+const themeColor = (token: string) => `var(${token})`;
 
 export function Connections({
     model,
     geometry,
-    visibleEdges
+    visibleEdges,
+    colorOf = themeColor
 }: {
     model: CurriculumModel;
     geometry: FlowGeometry;
     visibleEdges: Set<string> | null;
+    colorOf?: (token: string) => string;
 }) {
     const marker = useId().replaceAll(':', '');
     const routes = useMemo(
@@ -36,14 +38,14 @@ export function Connections({
             className="pointer-events-none absolute inset-0"
             width={geometry.width}
             height={geometry.height}
-            aria-label="Pré-requisitos e correquisitos, coloridos por matéria de destino; correquisitos com duas pontas, verticais no mesmo semestre. Alternativas detalhadas nos cartões."
+            aria-label="Pré-requisitos e correquisitos, coloridos por rede; correquisitos com duas pontas, verticais no mesmo semestre. Alternativas detalhadas nos cartões."
         >
             <defs>
                 {palette.map((color, index) => (
                     <marker
                         key={color}
                         id={`${marker}-${index}`}
-                        className={color}
+                        style={{ color: colorOf(color) }}
                         markerWidth="5"
                         markerHeight="5"
                         refX="4"
@@ -57,13 +59,13 @@ export function Connections({
             {segments.map(({ points, color }) => (
                 <g
                     key={`${color}:${pathData(points)}`}
-                    className={palette[color]}
+                    style={{ color: colorOf(palette[color]) }}
                     data-route-segment="true"
                 >
                     <path
                         d={pathData(points)}
                         fill="none"
-                        stroke="var(--background)"
+                        stroke={colorOf('--background')}
                         strokeWidth="5"
                     />
                     <path d={pathData(points)} fill="none" stroke="currentColor" strokeWidth="1" />
@@ -72,11 +74,10 @@ export function Connections({
             {junctions.map(({ x, y, color }) => (
                 <circle
                     key={`${color}:${x}:${y}`}
-                    className={palette[color]}
+                    fill={colorOf(palette[color])}
                     cx={x}
                     cy={y}
                     r="2"
-                    fill="currentColor"
                 />
             ))}
             {routes.map(({ edge }) => (
@@ -87,7 +88,7 @@ export function Connections({
                         .map(({ points, color, startArrow, endArrow }) => (
                             <path
                                 key={`${startArrow}:${pathData(points)}`}
-                                className={palette[color]}
+                                style={{ color: colorOf(palette[color]) }}
                                 d={pathData(points)}
                                 fill="none"
                                 stroke="currentColor"

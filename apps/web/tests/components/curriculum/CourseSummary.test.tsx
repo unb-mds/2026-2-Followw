@@ -21,7 +21,7 @@ const course: PublicCourse = {
     name: 'ENGENHARIA DE SOFTWARE',
     shift: 'DIURNO',
     unit: { id: 1, code: 'FCTE', name: 'FACULDADE DE CIÊNCIAS E TECNOLOGIAS EM ENGENHARIA' },
-    level: 'Graduação'
+    degree: 'Bacharelado'
 };
 const matrix: CourseCurriculum = {
     sigaa_id: 2,

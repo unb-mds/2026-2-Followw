@@ -1,4 +1,4 @@
-import { type QueryKey, useQueries, type UseQueryOptions } from '@tanstack/react-query';
+import { hashKey, type QueryKey, useQueries, type UseQueryOptions } from '@tanstack/react-query';
 import { useState } from 'react';
 
 export interface Page<T> {
@@ -8,12 +8,14 @@ export interface Page<T> {
     page_size: number;
 }
 
-/** Soma à primeira página as seguintes, pedidas uma a uma por `loadMore`. */
+/** Soma à primeira página as seguintes, pedidas uma a uma por `loadMore`; outra consulta volta à primeira. */
 export function useNextPages<T, E, K extends QueryKey>(
     first: Page<T>,
     pageOptions: (page: number) => UseQueryOptions<Page<T>, E, Page<T>, K>
 ) {
-    const [count, setCount] = useState(1);
+    const identity = hashKey(pageOptions(1).queryKey);
+    const [loaded, setLoaded] = useState({ identity, count: 1 });
+    const count = loaded.identity === identity ? loaded.count : 1;
     const pages = useQueries({
         queries: Array.from({ length: count - 1 }, (_, index) => pageOptions(index + 2))
     });
@@ -24,6 +26,7 @@ export function useNextPages<T, E, K extends QueryKey>(
         remaining: Math.max(0, first.total - items.length),
         loading: last?.isPending ?? false,
         failed: last?.isError ?? false,
-        loadMore: () => (last?.isError ? void last.refetch() : setCount(count + 1))
+        loadMore: () =>
+            last?.isError ? void last.refetch() : setLoaded({ identity, count: count + 1 })
     };
 }

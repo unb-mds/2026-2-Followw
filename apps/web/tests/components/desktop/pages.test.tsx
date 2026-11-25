@@ -106,7 +106,10 @@ test.each([1440, 390])(
         const account = view.getByRole('region', { name: 'Conta' });
         expect(dom.testing.within(account).queryByRole('button', { name: /Baixar/ })).toBeNull();
         expect(view.queryByText('Não exigidas')).toBeNull();
-        expect(progress.textContent).toContain('37%+5%1.140h+120h');
+        // o percentual conta a partir de 0 ao montar
+        await dom.testing.waitFor(() =>
+            expect(progress.textContent).toContain('37%+5%1.140h+120h')
+        );
         expect(view.getByRole('button', { name: 'Baixar histórico acadêmico' })).toBeDefined();
         expect(
             view.getByRole('link', { name: 'Visualizar fluxo acadêmico' }).getAttribute('href')
@@ -224,7 +227,7 @@ test('clique na busca exibe o campo antes das turmas e mantém o mesmo campo ap�
         }
     });
     const recommendations = page.client.query({
-        ...recommendationsQueryOptions,
+        ...recommendationsQueryOptions(),
         queryFn: async () => {
             await gate;
             return [];
@@ -284,7 +287,7 @@ test('redimensionar a busca preserva o campo e a URL e troca uma única navegaç
     expect(view.getAllByRole('complementary', { name: 'Minha grade' })).toHaveLength(1);
 });
 
-test('navegação pendente mantém um único controle de busca durante a transformação', async () => {
+test('navegação pendente mantém o campo até o link de busca voltar', async () => {
     const view = await render('/buscar?q=MAT1000&category=classrooms', true);
     let release: () => void;
     const gate = new Promise<void>((resolve) => {
@@ -296,17 +299,17 @@ test('navegação pendente mantém um único controle de busca durante a transfo
     if (!target) throw new Error('Rota de turmas ausente');
     target.options.loader = () => gate;
     let navigation: Promise<void>;
-    const sharedIcons = () => view.container.querySelectorAll('[data-desktop-search]');
-    expect(sharedIcons()).toHaveLength(1);
+    const field = view.getByRole('searchbox');
+    expect(view.queryByRole('link', { name: 'Buscar' })).toBeNull();
     await dom.testing.act(async () => {
         navigation = page.router.navigate({ to: '/turmas' });
     });
-    expect(view.getByRole('searchbox')).toBeDefined();
-    expect(sharedIcons()).toHaveLength(1);
+    expect(view.getByRole('searchbox')).toBe(field);
+    expect(view.queryByRole('link', { name: 'Buscar' })).toBeNull();
     await dom.testing.act(async () => {
         release();
         await navigation;
     });
     expect(view.queryByRole('searchbox')).toBeNull();
-    expect(sharedIcons()).toHaveLength(1);
+    expect(view.getByRole('link', { name: 'Buscar' })).toBeDefined();
 });

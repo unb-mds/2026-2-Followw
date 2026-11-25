@@ -1,9 +1,17 @@
+import type { SubjectKind, SubjectsQuery } from '@followw/core/queries/subjects.ts';
+
+import { SCHEDULE_BLOCKS } from '@followw/core/lib/schedule.ts';
 import { SEARCH_CATEGORIES } from '@followw/core/lib/search-categories.ts';
+import { SUBJECT_KINDS } from '@followw/core/queries/subjects.ts';
 import { defaultParseSearch, defaultStringifySearch } from '@tanstack/react-router';
 import { useQueryStates } from 'nuqs';
 import {
     createLoader,
     createStandardSchemaV1,
+    createParser,
+    type inferParserType,
+    parseAsNativeArrayOf,
+    parseAsBoolean,
     parseAsString,
     parseAsStringLiteral
 } from 'nuqs/server';
@@ -11,12 +19,74 @@ import {
 import { AUTHORIZATION_SEARCH_KEYS } from '#/lib/oauth-request';
 
 export const searchParsers = {
+    hideUnavailable: parseAsBoolean.withDefault(false),
+    hideConflicts: parseAsBoolean.withDefault(false),
+    kind: parseAsNativeArrayOf(parseAsStringLiteral(SUBJECT_KINDS)),
+    days: weekdaysFilter.withDefault(''),
+    start: parseAsNativeArrayOf(parseAsStringLiteral(startTimes)),
+    hours: parseAsNativeArrayOf(workloadFilter),
     q: parseAsString.withDefault(''),
     category: parseAsStringLiteral(SEARCH_CATEGORIES).withDefault('all')
 };
 
 export const validateSearch = createStandardSchemaV1(searchParsers, { partialOutput: true });
 export const loadSearchParams = createLoader(searchParsers);
+export type SearchParams = inferParserType<typeof searchParsers>;
+
+/** Os parâmetros do filtro de matérias. */
+export const subjectFilterKeys = [
+    'kind',
+    'days',
+    'start',
+    'hours',
+    'hideConflicts',
+    'hideUnavailable'
+] as const;
+export type SubjectFilterParams = Pick<SearchParams, (typeof subjectFilterKeys)[number]>;
+
+export const hasSubjectFilters = (filters: SubjectFilterParams) =>
+    subjectFilterKeys.some((key) => {
+        const value = filters[key];
+        return Array.isArray(value) ? value.length > 0 : Boolean(value);
+    });
+
+export const clearedSubjectFilters = {
+    kind: null,
+    days: null,
+    start: null,
+    hours: null,
+    hideConflicts: null,
+    hideUnavailable: null
+} satisfies Record<(typeof subjectFilterKeys)[number], null>;
+
+/** Títulos na ordem da matriz: obrigatórias, optativas e livres. */
+export const kindsTitle = (kind: readonly SubjectKind[]) =>
+    SUBJECT_KINDS.filter((value) => kind.includes(value))
+        .map((value) => kindLabels[value])
+        .join(' e ') || 'Matérias';
+
+/** A consulta de matérias pelos filtros e pela `unit`; nulo quando nada restringe a oferta. */
+export function subjectsQueryFrom(
+    { kind, days, start, hours, hideUnavailable }: SubjectFilterParams,
+    text: string | null,
+    unit?: string
+): SubjectsQuery | null {
+    if (!kind.length && !days && !start.length && !hours.length && !unit) return null;
+    return {
+        q: text ?? undefined,
+        unit,
+        offered: true,
+        available: hideUnavailable || undefined,
+        kind: kind.length ? kind : undefined,
+        days: days || undefined,
+        start: start.length ? start.flatMap(blockStarts) : undefined,
+        hours: hours.length ? hours : undefined
+    };
+}
+
+// Valores que o Router leria como JSON (números, listas) continuam texto.
+const textKeys = ['q', 'days'] as const;
+const arrayKeys = ['kind', 'start', 'hours'] as const;
 
 // OAuth usa valores opacos: zeros iniciais, JSON e parâmetros repetidos não podem mudar.
 const TEXT_SEARCH_KEYS = ['q', 'returnTo', ...AUTHORIZATION_SEARCH_KEYS];

@@ -1,7 +1,7 @@
 import type { ScheduledClass, Day } from '@followw/core/lib/schedule.ts';
 import type { WeekLesson } from '@followw/core/queries/lessons.ts';
 
-import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
+import { formatDuration, nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { useNavigate } from '@tanstack/react-router';
 import { m } from 'motion/react';
 import { Fragment } from 'react';
@@ -125,12 +125,7 @@ function Divider({ gap, overlap }: { gap: number; overlap: boolean }) {
     if (overlap) return <p className={cn(line, 'text-warning')}>Horários sobrepostos</p>;
     if (gap > 0)
         return (
-            <p className={cn(line, 'text-muted-foreground')}>
-                Intervalo de{' '}
-                {gap >= 60
-                    ? `${Math.floor(gap / 60)}h${gap % 60 ? `${gap % 60}min` : ''}`
-                    : `${gap}min`}
-            </p>
+            <p className={cn(line, 'text-muted-foreground')}>Intervalo de {formatDuration(gap)}</p>
         );
     return <div className="my-auto h-px flex-1 bg-border" />;
 }
