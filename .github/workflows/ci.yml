@@ -149,6 +149,7 @@ jobs:
               data=event,
               headers={
                   "Content-Type": "application/json",
+                  "User-Agent": "Followw-OCI-Deploy/1.0",
                   "X-GitHub-Event": "push",
                   "X-GitHub-Delivery": os.environ["GITHUB_RUN_ID"] + "-" + os.environ["GITHUB_RUN_ATTEMPT"],
                   "X-Hub-Signature-256": "sha256=" + signature,
