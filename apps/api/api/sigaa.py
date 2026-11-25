@@ -1,6 +1,7 @@
 from collections.abc import AsyncGenerator
 from contextlib import suppress
 from typing import Annotated
+from uuid import uuid4
 
 import httpx
 from fastapi import Depends, HTTPException, Request, Response, status
@@ -31,9 +32,12 @@ class SigaaConnection:
         session_token: str | None = None,
         *,
         response: Response | None = None,
+        session_id: str | None = None,
         access: AccessPolicy = FULL_ACCESS,
     ) -> None:
         self.credentials = credentials
+        # Uma conexão sem sessão anterior abre uma nova sessão web.
+        self.session_id = session_id or str(uuid4())
         self.access = access
         self._session_token = session_token
         self._response = response
@@ -81,18 +85,19 @@ class SigaaConnection:
         self._session_token = token
         # Se a chamada ao SIGAA falhar, o handler do erro descarta estes cookies.
         if self._response is not None:
-            set_refresh_cookie(self._response, self.credentials)
+            set_refresh_cookie(self._response, self.credentials, self.session_id)
             set_access_cookie(self._response, token, self.registration)
 
 
 def _cookie_connection(request: Request, response: Response) -> SigaaConnection | None:
-    credentials = read_refresh_cookie(request)
-    if credentials is None:
+    session = read_refresh_cookie(request)
+    if session is None:
         return None
     return SigaaConnection(
-        credentials,
-        read_access_cookie(request, credentials.registration),
+        session.credentials,
+        read_access_cookie(request, session.credentials.registration),
         response=response,
+        session_id=session.session_id,
     )
 
 

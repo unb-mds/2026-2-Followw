@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
     RouterProvider,
+    Outlet,
     createMemoryHistory,
     createRootRoute,
     createRoute,
@@ -8,6 +9,7 @@ import {
 } from '@tanstack/react-router';
 import { describe, expect, test } from 'bun:test';
 import { Window } from 'happy-dom';
+import { NuqsAdapter } from 'nuqs/adapters/tanstack-router';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { meQueryOptions } from '#/queries/me';
@@ -17,7 +19,13 @@ import { Route as PrivacyRoute } from '#/routes/privacidade';
 async function renderPage(path: string, user: { name: string } | null = null) {
     const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
     client.setQueryData<{ name: string } | null>(meQueryOptions.queryKey, user);
-    const root = createRootRoute();
+    const root = createRootRoute({
+        component: () => (
+            <NuqsAdapter>
+                <Outlet />
+            </NuqsAdapter>
+        )
+    });
     const privacy = createRoute({
         getParentRoute: () => root,
         path: '/privacidade',

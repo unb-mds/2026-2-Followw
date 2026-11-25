@@ -38,11 +38,13 @@ test('redireciona para /login quando não autenticado', async () => {
     const queryClient = fakeQueryClient(() => null);
     let thrown: unknown;
     try {
-        await runLoader(Route, { context: { queryClient } });
+        await runLoader(Route, { context: { queryClient }, location: { href: '/developers' } });
     } catch (error) {
         thrown = error;
     }
-    expect(thrown).toMatchObject({ options: { to: '/login' } });
+    expect(thrown).toMatchObject({
+        options: { to: '/login', search: { returnTo: '/developers' } }
+    });
 });
 
 test('exibe estado vazio quando o desenvolvedor ainda não possui aplicações', async () => {

@@ -45,12 +45,12 @@ describe('ClientFormDialog', () => {
 
         const publicRadio = view.getByRole('radio', { name: /Pública/i });
         const confidentialRadio = view.getByRole('radio', { name: /Confidencial/i });
-        expect(publicRadio).toHaveProperty('checked', true);
-        expect(confidentialRadio).toHaveProperty('checked', false);
+        expect(publicRadio.getAttribute('aria-checked')).toBe('true');
+        expect(confidentialRadio.getAttribute('aria-checked')).toBe('false');
 
         fireEvent.click(confidentialRadio);
-        expect(publicRadio).toHaveProperty('checked', false);
-        expect(confidentialRadio).toHaveProperty('checked', true);
+        expect(publicRadio.getAttribute('aria-checked')).toBe('false');
+        expect(confidentialRadio.getAttribute('aria-checked')).toBe('true');
 
         fireEvent.change(view.getByLabelText('Nome da aplicação'), {
             target: { value: 'Bot UnB' }

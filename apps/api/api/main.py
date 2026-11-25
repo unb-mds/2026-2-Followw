@@ -14,7 +14,9 @@ from api.modules.classrooms.router import router as classrooms_router
 from api.modules.lessons.router import router as lessons_router
 from api.modules.me.router import router as me_router
 from api.modules.me.upload_guard import ProfileUploadGuard
+from api.modules.oauth.authorization_router import router as authorization_router
 from api.modules.oauth.cors import FollowwCORS
+from api.modules.oauth.management_router import router as oauth_management_router
 from api.modules.oauth.router import router as oauth_router
 from api.modules.oauth.scopes import PERMISSIONS
 from api.modules.posts.router import router as posts_router
@@ -175,6 +177,8 @@ app.add_middleware(RequestLoggingMiddleware)
 
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 app.include_router(oauth_router, prefix="/oauth", tags=["Auth"])
+app.include_router(authorization_router, prefix="/oauth", tags=["Auth"])
+app.include_router(oauth_management_router, prefix="/oauth", tags=["Auth"])
 app.include_router(classrooms_router, prefix="/classrooms", tags=["Classrooms"])
 app.include_router(
     public_classrooms_router, prefix="/public/classrooms", tags=["Public Classrooms"]

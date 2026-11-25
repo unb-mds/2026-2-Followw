@@ -222,7 +222,7 @@ def _totals(
     """Em horas-aula; sem chamada ou cancelada, presença só na porcentagem."""
     presences = absences = total = 0
     for lesson in lessons:
-        length = max(hours(lesson.start_time, lesson.end_time), lesson.absences)
+        length = _length(lesson)
         total += length
         absences += lesson.absences
         if _attendance(lesson):
@@ -245,14 +245,24 @@ def _progress(
     lessons: Collection[Lesson],
     rows: Collection[tuple[models.Lesson, models.LessonAttendance | None]],
 ) -> ClassroomProgress:
-    """Aulas dadas sobre as do plano, sem as canceladas."""
+    """Horas-aula dadas sobre as do plano, sem as canceladas."""
     total = sum(
-        not (attendance and attendance.status is LessonStatus.CANCELADA)
-        for _, attendance in rows
+        hours(row.start_time, row.end_time)
+        for row, attendance in rows
+        if not (attendance and attendance.status is LessonStatus.CANCELADA)
     )
-    taught = sum(lesson.status is not LessonStatus.CANCELADA for lesson in lessons)
+    taught = sum(
+        _length(lesson)
+        for lesson in lessons
+        if lesson.status is not LessonStatus.CANCELADA
+    )
     percentage = round(taught * 100 / total) if total else 0
     return ClassroomProgress(taught=taught, total=total, percentage=percentage)
+
+
+def _length(lesson: Lesson) -> int:
+    """Horas-aula da aula, ao menos as de falta."""
+    return max(hours(lesson.start_time, lesson.end_time), lesson.absences)
 
 
 def _attendance(lesson: Lesson) -> bool:

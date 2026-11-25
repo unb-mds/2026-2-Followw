@@ -57,6 +57,8 @@ def hoje(monkeypatch):
 def cookies():
     """Monta os cookies de sessão como a própria app os emitiria."""
     # Importado aqui dentro: `api.core.config` lê o ambiente já no import.
+    from uuid import uuid4
+
     from fastapi import Response
 
     from api.cookies import set_access_cookie, set_refresh_cookie
@@ -69,7 +71,7 @@ def cookies():
             login = refresh.registration if refresh else "251000000"
             set_access_cookie(response, access, login)
         if refresh is not None:
-            set_refresh_cookie(response, refresh)
+            set_refresh_cookie(response, refresh, str(uuid4()))
         return {nome: morsel.value for nome, morsel in _carregar(response).items()}
 
     return _build

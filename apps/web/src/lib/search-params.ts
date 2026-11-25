@@ -7,14 +7,16 @@ import { defaultParseSearch, defaultStringifySearch } from '@tanstack/react-rout
 import { useQueryStates } from 'nuqs';
 import {
     createLoader,
-    createStandardSchemaV1,
     createParser,
+    createStandardSchemaV1,
     type inferParserType,
     parseAsNativeArrayOf,
     parseAsBoolean,
     parseAsString,
     parseAsStringLiteral
 } from 'nuqs/server';
+
+import { AUTHORIZATION_SEARCH_KEYS } from '#/lib/oauth-request';
 
 export const startTimes = SCHEDULE_BLOCKS.map((block) => block[0][0]);
 export const workloads = [15, 30, 45, 60, 75] as const;
@@ -107,7 +109,9 @@ export function subjectsQueryFrom(
 }
 
 // Valores que o Router leria como JSON (números, listas) continuam texto.
-const textKeys = ['q', 'days'] as const;
+const textKeys = ['q', 'days', 'returnTo'] as const;
+// OAuth usa valores opacos: parâmetros repetidos precisam chegar intactos para serem rejeitados.
+const opaqueKeys = AUTHORIZATION_SEARCH_KEYS;
 const arrayKeys = ['kind', 'start', 'hours'] as const;
 
 export function parseRouterSearch(searchStr: string) {
@@ -116,6 +120,10 @@ export function parseRouterSearch(searchStr: string) {
     for (const key of textKeys) {
         const value = params.get(key);
         if (value !== null) search[key] = value;
+    }
+    for (const key of opaqueKeys) {
+        const values = params.getAll(key);
+        if (values.length) search[key] = values.length === 1 ? values[0] : values;
     }
     for (const key of arrayKeys) {
         if (params.has(key)) search[key] = searchParsers[key].parse(params.getAll(key));
@@ -128,6 +136,14 @@ export function stringifyRouterSearch(search: Record<string, unknown>) {
     for (const key of textKeys) {
         const value = search[key];
         if (typeof value === 'string') params.set(key, value);
+    }
+    for (const key of opaqueKeys) {
+        const value = search[key];
+        if (typeof value === 'string') params.set(key, value);
+        else if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
+            params.delete(key);
+            for (const item of value) params.append(key, item);
+        }
     }
     for (const key of arrayKeys) {
         const values = search[key];

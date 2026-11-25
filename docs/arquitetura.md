@@ -112,8 +112,10 @@ suas interações com as bibliotecas do monorepo e dados.
 - Aplicações usam Bearer nas rotas delegáveis. A API valida o registro da autorização e seus
   escopos antes de acessar o cache, filtra campos da resposta e exige permissão adicional para
   histórico de turmas.
-- `POST /oauth/token` renova autorizações existentes com uma prova DPoP ES256 da instalação.
-  Cadastro, consentimento e emissão inicial ainda não têm rotas públicas implementadas.
+- `/oauth/clients` gerencia aplicativos; `/oauth/authorize` valida o consentimento da sessão web.
+- `POST /oauth/token` troca códigos de uso único com PKCE S256 ou renova autorizações. Clientes
+  públicos exigem DPoP ES256; confidenciais autenticam com segredo.
+- `/autorizar` apresenta permissões; `/configuracoes` permite revogar cada acesso concedido.
 - `OAUTH_SECRET_KEY` é obrigatório e distinto de `JWT_SECRET_KEY`. As regras de cache e jobs são
   compartilhadas com a sessão web; CORS OAuth permite clientes externos sem cookies.
 

@@ -10,9 +10,10 @@ from joserfc.jwk import ECKey
 from api.cookies import decrypt_cookie
 from api.db.models import OAuthGrant
 from api.modules.auth.account import sync_account
+from api.modules.oauth.clients import InvalidClient
 from api.modules.oauth.proof import Proof
 from api.modules.oauth.scopes import Scope
-from api.modules.oauth.tokens import InvalidToken, renew_access, revoke
+from api.modules.oauth.tokens import InvalidToken, renew_access
 from api.sync.engine import Step
 
 ENDPOINT = "https://api.followw.test/oauth/token"
@@ -75,13 +76,18 @@ def test_refresh_publico_reutilizavel_exige_prova_nova_da_mesma_instalacao(
 
 
 def test_refresh_confidencial_exige_aplicacao_autenticada_e_autorizacao_ativa(
-    db, emitir, sigaa
+    db, emitir, revogar, sigaa
 ):
     pair = emitir(Scope.RU)
 
     def renew(token, app, authenticated):
         return asyncio.run(
-            renew_access(db, token, client_id=app, authenticated_client=authenticated)
+            renew_access(
+                db,
+                token,
+                client_id=app,
+                client_secret="segredo-teste" if authenticated else None,
+            )
         )
 
     for token, app, authenticated in (
@@ -89,15 +95,15 @@ def test_refresh_confidencial_exige_aplicacao_autenticada_e_autorizacao_ativa(
         (pair.refresh_token, "agenda", False),
         (pair.access_token, "agenda", True),
     ):
-        with pytest.raises(InvalidToken):
+        with pytest.raises((InvalidToken, InvalidClient)):
             renew(token, app, authenticated)
     renewed = renew(pair.refresh_token, "agenda", True)
     assert renewed.access_token != pair.access_token
     assert renewed.refresh_token == pair.refresh_token
     assert renewed.scopes == pair.scopes
     assert decrypt_cookie("access_token", renewed.access_token.split(".", 1)[1]) is None
-    asyncio.run(revoke(db, pair.grant_id, registration="251000000"))
-    with pytest.raises(InvalidToken):
+    asyncio.run(revogar(pair.grant_id))
+    with pytest.raises((InvalidToken, InvalidClient)):
         renew(pair.refresh_token, "agenda", True)
 
 
@@ -187,21 +193,48 @@ def test_recusa_do_cas_preserva_validade_e_exige_nova_prova(
     )
 
 
-def test_revogacao_durante_login_no_cas_impede_renovacao(db, emitir, monkeypatch):
+def test_revogacao_durante_login_no_cas_impede_renovacao(
+    db, emitir, revogar, monkeypatch
+):
     from sigaa_client import SigaaClient
 
     pair = emitir()
 
     async def durante_login(_client):
-        await asyncio.wait_for(
-            revoke(db, pair.grant_id, registration="251000000"), timeout=3
-        )
+        await asyncio.wait_for(revogar(pair.grant_id), timeout=3)
         return "app14~NOVA"
 
     monkeypatch.setattr(SigaaClient, "authenticate", durante_login)
-    with pytest.raises(InvalidToken):
+    with pytest.raises((InvalidToken, InvalidClient)):
         asyncio.run(
             renew_access(
-                db, pair.refresh_token, client_id="agenda", authenticated_client=True
+                db,
+                pair.refresh_token,
+                client_id="agenda",
+                client_secret="segredo-teste",
+            )
+        )
+
+
+def test_rotacao_do_segredo_durante_login_impede_renovacao(db, emitir, monkeypatch):
+    from sigaa_client import SigaaClient
+
+    from api.modules.oauth.clients import resolve_user_id, rotate_client_secret
+
+    pair = emitir()
+
+    async def durante_login(_client):
+        owner_id = await resolve_user_id(db, "251000000")
+        await rotate_client_secret(db, owner_id, "agenda")
+        return "app14~NOVA"
+
+    monkeypatch.setattr(SigaaClient, "authenticate", durante_login)
+    with pytest.raises(InvalidClient):
+        asyncio.run(
+            renew_access(
+                db,
+                pair.refresh_token,
+                client_id="agenda",
+                client_secret="segredo-teste",
             )
         )

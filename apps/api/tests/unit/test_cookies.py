@@ -101,18 +101,20 @@ def test_access_cookie_sem_login_e_descartado():
 
 def test_refresh_cookie_devolve_as_credenciais(ler_cookies):
     response = Response()
-    set_refresh_cookie(response, CREDENCIAIS)
+    set_refresh_cookie(response, CREDENCIAIS, "sessao")
 
     lidas = read_refresh_cookie(_request(**_cookies(response, ler_cookies)))
 
-    assert lidas == CREDENCIAIS
-    assert lidas.password.get_secret_value() == SENHA
+    assert lidas is not None
+    assert lidas.credentials == CREDENCIAIS
+    assert lidas.session_id == "sessao"
+    assert lidas.credentials.password.get_secret_value() == SENHA
 
 
 def test_cookies_sao_jwe_compacto_com_aes_gcm(ler_cookies):
     response = Response()
     set_access_cookie(response, "app14~TOKEN1", CREDENCIAIS.registration)
-    set_refresh_cookie(response, CREDENCIAIS)
+    set_refresh_cookie(response, CREDENCIAIS, "sessao")
 
     for token in _cookies(response, ler_cookies).values():
         partes = token.split(".")
@@ -131,7 +133,7 @@ def test_cookies_sao_jwe_compacto_com_aes_gcm(ler_cookies):
 def test_nenhum_segredo_fica_legivel_no_cookie(ler_cookies):
     response = Response()
     set_access_cookie(response, "app14~TOKEN1", CREDENCIAIS.registration)
-    set_refresh_cookie(response, CREDENCIAIS)
+    set_refresh_cookie(response, CREDENCIAIS, "sessao")
 
     for token in _cookies(response, ler_cookies).values():
         visivel = _visivel(token)
@@ -151,7 +153,7 @@ def test_mesmo_payload_gera_cookies_diferentes():
 def test_cookie_carrega_exp_do_lado_de_dentro(ler_cookies):
     response = Response()
     set_access_cookie(response, "app14~TOKEN1", CREDENCIAIS.registration)
-    set_refresh_cookie(response, CREDENCIAIS)
+    set_refresh_cookie(response, CREDENCIAIS, "sessao")
 
     jar = _cookies(response, ler_cookies)
     exp = {nome: decrypt_cookie(nome, token)["exp"] for nome, token in jar.items()}

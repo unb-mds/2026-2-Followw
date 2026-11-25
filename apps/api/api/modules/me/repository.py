@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.courses import course_ids
 from api.db.enums import UserLevel
-from api.db.models import ClassroomParticipant, Course, User
+from api.db.models import ClassroomParticipant, Course, OAuthClient, OAuthGrant, User
 from api.modules.classrooms.post_reading import PostReadingRepository
 from api.modules.me.transcript import TranscriptRepository
 from api.modules.public_courses.repository import PublicCourseRepository
@@ -175,6 +175,13 @@ class UserRepository:
             .values(user_id=account.id)
             .execution_options(synchronize_session=False)
         )
+        for model, column in ((OAuthClient, "owner_id"), (OAuthGrant, "user_id")):
+            await self._session.execute(
+                update(model)
+                .where(getattr(model, column) == shadow.id)
+                .values({column: account.id})
+                .execution_options(synchronize_session=False)
+            )
         email, photo = shadow.email, shadow.photo
         await PostReadingRepository(self._session).merge_users(account.id, shadow.id)
         await self._session.execute(delete(User).where(User.id == shadow.id))

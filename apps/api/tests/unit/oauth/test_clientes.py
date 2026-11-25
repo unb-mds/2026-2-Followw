@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from uuid import uuid4
 
 import pytest
 
@@ -69,7 +70,7 @@ def test_segredo_usa_prefixo_salt_e_verificacao_em_tempo_constante():
     now = datetime.now(UTC)
     confidencial = OAuthClient(
         client_id="flw_app_1",
-        owner_registration="251000000",
+        owner_id=uuid4(),
         name="Bot",
         description=None,
         homepage_url=None,
@@ -82,7 +83,7 @@ def test_segredo_usa_prefixo_salt_e_verificacao_em_tempo_constante():
     )
     publico = OAuthClient(
         client_id="flw_app_2",
-        owner_registration="251000000",
+        owner_id=uuid4(),
         name="Mobile",
         description=None,
         homepage_url=None,

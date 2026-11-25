@@ -4,7 +4,7 @@ import { House, Search, User, UserRoundGroup, Utensils } from 'lucide-react';
 import { m } from 'motion/react';
 
 import { FollowwLogo } from '#/components/FollowwLogo';
-import { ThemeToggle } from '#/components/ThemeToggle';
+import { SettingsLink } from '#/components/SettingsLink';
 import { useRestaurantShortcut } from '#/components/useRestaurantShortcut';
 import { spring } from '#/lib/motion';
 import { cn } from '#/lib/shadcn';
@@ -79,7 +79,7 @@ export function DesktopNavigation() {
                 </nav>
             </div>
             <div className="flex shrink-0 items-center gap-3">
-                {profile && <ThemeToggle />}
+                {profile && <SettingsLink />}
                 <Link
                     to="/perfil"
                     aria-current={profile ? 'page' : undefined}

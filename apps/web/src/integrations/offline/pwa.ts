@@ -84,7 +84,11 @@ export const pwaPlugins = (buildId: string) =>
                 cleanupOutdatedCaches: true,
                 runtimeCaching: [
                     {
-                        urlPattern: ({ request }) => request.mode === 'navigate',
+                        urlPattern: ({ request, url }) =>
+                            request.mode === 'navigate' &&
+                            !['/autorizar', '/login', '/developers', '/configuracoes'].includes(
+                                url.pathname
+                            ),
                         handler: 'NetworkFirst',
                         options: {
                             cacheName: pagesCacheName(buildId),

@@ -28,7 +28,10 @@ test('abre o Perfil sem esperar pelas preferências', async () => {
     await runLoader(AppRoute, { context: { queryClient } });
     expect(paths).toEqual(['/me']);
     paths.length = 0;
-    const user = await runLoader(Route, { context: { queryClient } });
+    const user = await runLoader(Route, {
+        context: { queryClient },
+        location: { href: '/perfil' }
+    });
     expect(user?.registration).toBe('202600001');
     expect(paths).toEqual(['/me']);
 });

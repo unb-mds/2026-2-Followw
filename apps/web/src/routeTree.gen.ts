@@ -11,11 +11,13 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SplatRouteImport } from './routes/$'
 import { Route as AppRouteImport } from './routes/_app'
+import { Route as AutorizarRouteImport } from './routes/autorizar'
 import { Route as DevelopersRouteImport } from './routes/developers'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppBuscarRouteImport } from './routes/_app/buscar'
+import { Route as AppConfiguracoesRouteImport } from './routes/_app/configuracoes'
 import { Route as AppPerfilRouteImport } from './routes/_app/perfil'
 import { Route as AppRuRouteImport } from './routes/_app/ru'
 import { Route as AppTurmasRouteImport } from './routes/_app/turmas'
@@ -33,6 +35,11 @@ const SplatRoute = SplatRouteImport.update({
 } as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AutorizarRoute = AutorizarRouteImport.update({
+  id: '/autorizar',
+  path: '/autorizar',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DevelopersRoute = DevelopersRouteImport.update({
@@ -58,6 +65,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppBuscarRoute = AppBuscarRouteImport.update({
   id: '/buscar',
   path: '/buscar',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppConfiguracoesRoute = AppConfiguracoesRouteImport.update({
+  id: '/configuracoes',
+  path: '/configuracoes',
   getParentRoute: () => AppRoute,
 } as any)
 const AppPerfilRoute = AppPerfilRouteImport.update({
@@ -109,10 +121,12 @@ const TurmasIdPlanoDeEnsinoRoute = TurmasIdPlanoDeEnsinoRouteImport.update({
 export interface FileRoutesByFullPath {
   '/$': typeof SplatRoute
   '/': typeof AppIndexRoute
+  '/autorizar': typeof AutorizarRoute
   '/developers': typeof DevelopersRoute
   '/login': typeof LoginRoute
   '/privacidade': typeof PrivacidadeRoute
   '/buscar': typeof AppBuscarRoute
+  '/configuracoes': typeof AppConfiguracoesRoute
   '/perfil': typeof AppPerfilRoute
   '/ru': typeof AppRuRoute
   '/turmas': typeof AppTurmasRoute
@@ -125,10 +139,12 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/$': typeof SplatRoute
+  '/autorizar': typeof AutorizarRoute
   '/developers': typeof DevelopersRoute
   '/login': typeof LoginRoute
   '/privacidade': typeof PrivacidadeRoute
   '/buscar': typeof AppBuscarRoute
+  '/configuracoes': typeof AppConfiguracoesRoute
   '/perfil': typeof AppPerfilRoute
   '/ru': typeof AppRuRoute
   '/turmas': typeof AppTurmasRoute
@@ -144,10 +160,12 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/$': typeof SplatRoute
   '/_app': typeof AppRouteWithChildren
+  '/autorizar': typeof AutorizarRoute
   '/developers': typeof DevelopersRoute
   '/login': typeof LoginRoute
   '/privacidade': typeof PrivacidadeRoute
   '/_app/buscar': typeof AppBuscarRoute
+  '/_app/configuracoes': typeof AppConfiguracoesRoute
   '/_app/perfil': typeof AppPerfilRoute
   '/_app/ru': typeof AppRuRoute
   '/_app/turmas': typeof AppTurmasRoute
@@ -164,10 +182,12 @@ export interface FileRouteTypes {
   fullPaths:
     | '/$'
     | '/'
+    | '/autorizar'
     | '/developers'
     | '/login'
     | '/privacidade'
     | '/buscar'
+    | '/configuracoes'
     | '/perfil'
     | '/ru'
     | '/turmas'
@@ -180,10 +200,12 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/$'
+    | '/autorizar'
     | '/developers'
     | '/login'
     | '/privacidade'
     | '/buscar'
+    | '/configuracoes'
     | '/perfil'
     | '/ru'
     | '/turmas'
@@ -198,10 +220,12 @@ export interface FileRouteTypes {
     | '__root__'
     | '/$'
     | '/_app'
+    | '/autorizar'
     | '/developers'
     | '/login'
     | '/privacidade'
     | '/_app/buscar'
+    | '/_app/configuracoes'
     | '/_app/perfil'
     | '/_app/ru'
     | '/_app/turmas'
@@ -217,6 +241,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   SplatRoute: typeof SplatRoute
   AppRoute: typeof AppRouteWithChildren
+  AutorizarRoute: typeof AutorizarRoute
   DevelopersRoute: typeof DevelopersRoute
   LoginRoute: typeof LoginRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
@@ -238,6 +263,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/autorizar': {
+      id: '/autorizar'
+      path: '/autorizar'
+      fullPath: '/autorizar'
+      preLoaderRoute: typeof AutorizarRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/developers': {
@@ -273,6 +305,13 @@ declare module '@tanstack/react-router' {
       path: '/buscar'
       fullPath: '/buscar'
       preLoaderRoute: typeof AppBuscarRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/configuracoes': {
+      id: '/_app/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof AppConfiguracoesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/perfil': {
@@ -343,6 +382,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppBuscarRoute: typeof AppBuscarRoute
+  AppConfiguracoesRoute: typeof AppConfiguracoesRoute
   AppPerfilRoute: typeof AppPerfilRoute
   AppRuRoute: typeof AppRuRoute
   AppTurmasRoute: typeof AppTurmasRoute
@@ -355,6 +395,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppBuscarRoute: AppBuscarRoute,
+  AppConfiguracoesRoute: AppConfiguracoesRoute,
   AppPerfilRoute: AppPerfilRoute,
   AppRuRoute: AppRuRoute,
   AppTurmasRoute: AppTurmasRoute,
@@ -370,6 +411,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   SplatRoute: SplatRoute,
   AppRoute: AppRouteWithChildren,
+  AutorizarRoute: AutorizarRoute,
   DevelopersRoute: DevelopersRoute,
   LoginRoute: LoginRoute,
   PrivacidadeRoute: PrivacidadeRoute,

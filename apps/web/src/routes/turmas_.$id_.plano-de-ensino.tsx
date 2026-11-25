@@ -7,12 +7,11 @@ import { createFileRoute, notFound, redirect } from '@tanstack/react-router';
 
 import { ClassroomTeachingPlanPage } from '#/components/classroom/ClassroomTeachingPlanPage';
 import { ErrorState } from '#/components/ErrorState';
-import { meQueryOptions } from '#/queries/me';
+import { requireUser } from '#/lib/require-user';
 
 export const Route = createFileRoute('/turmas_/$id_/plano-de-ensino')({
-    loader: async ({ context: { queryClient }, params: { id } }) => {
-        const user = await loadQuery(queryClient, meQueryOptions);
-        if (!user) throw redirect({ to: '/login' });
+    loader: async ({ context: { queryClient }, params: { id }, location }) => {
+        await requireUser(queryClient, location.href);
         const classrooms = await loadQuery(queryClient, allClassroomsQueryOptions);
         const classroom = classrooms.find((item) => item.id === id);
         if (!classroom) throw notFound();

@@ -6,6 +6,7 @@ import { Navigate, createFileRoute, redirect } from '@tanstack/react-router';
 
 import type { UserProfile } from '#/queries/me';
 
+import { LoginRedirect } from '#/components/auth/LoginRedirect';
 import { ErrorCard, ErrorState, StaleDataNotice } from '#/components/ErrorState';
 import { BackHeader } from '#/components/HeaderBar';
 import { LoadingSkeleton } from '#/components/LoadingSkeleton';
@@ -13,12 +14,12 @@ import {
     AcademicSimulator,
     AcademicSimulatorSkeleton
 } from '#/components/profile/AcademicSimulator';
+import { requireUser } from '#/lib/require-user';
 import { meQueryOptions } from '#/queries/me';
 
 export const Route = createFileRoute('/_app/perfil_/simulador')({
-    loader: async ({ context: { queryClient } }) => {
-        const user = await loadQuery(queryClient, meQueryOptions);
-        if (!user) throw redirect({ to: '/login' });
+    loader: async ({ context: { queryClient }, location }) => {
+        const user = await requireUser(queryClient, location.href);
         if (user.level !== 'Graduação') throw redirect({ to: '/perfil' });
         await loadQuery(queryClient, allClassroomsQueryOptions).catch(noop);
     },
@@ -32,7 +33,7 @@ export const Route = createFileRoute('/_app/perfil_/simulador')({
 
 function SimulatorPage() {
     const { data: user } = useSuspenseQuery(meQueryOptions);
-    if (!user) return <Navigate to="/login" replace />;
+    if (!user) return <LoginRedirect />;
     if (user.level !== 'Graduação') return <Navigate to="/perfil" replace />;
     return <SimulatorData user={user} />;
 }

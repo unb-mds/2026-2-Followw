@@ -17,10 +17,19 @@ import {
     DialogHeader,
     DialogTitle
 } from '#/components/ui/dialog';
+import {
+    Field,
+    FieldContent,
+    FieldDescription,
+    FieldLabel,
+    FieldLegend,
+    FieldSet,
+    FieldTitle
+} from '#/components/ui/field';
 import { Input } from '#/components/ui/input';
 import { Label } from '#/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '#/components/ui/radio-group';
 import { Textarea } from '#/components/ui/textarea';
-import { cn } from '#/lib/shadcn';
 
 const MAX_REDIRECT_URIS = 5;
 
@@ -164,53 +173,40 @@ export function ClientFormDialog(props: Props) {
                     </div>
 
                     {!editing && (
-                        <fieldset className="flex flex-col gap-2">
-                            <legend className="text-sm leading-none font-medium">
-                                Tipo de aplicação
-                            </legend>
-                            <div className="grid grid-cols-2 gap-2">
-                                <label
-                                    className={cn(
-                                        'flex cursor-pointer flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors has-focus-visible:ring-2 has-focus-visible:ring-ring',
-                                        !confidential
-                                            ? 'border-primary bg-primary/5'
-                                            : 'border-border hover:bg-muted/50'
-                                    )}
-                                >
-                                    <input
-                                        type="radio"
-                                        name="dev-app-type"
-                                        checked={!confidential}
-                                        onChange={() => setConfidential(false)}
-                                        className="sr-only"
-                                    />
-                                    <span className="text-sm font-medium">Pública</span>
-                                    <span className="text-xs text-muted-foreground">
-                                        SPA, mobile ou CLI. Sem segredo; exige PKCE + DPoP.
-                                    </span>
-                                </label>
-                                <label
-                                    className={cn(
-                                        'flex cursor-pointer flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors has-focus-visible:ring-2 has-focus-visible:ring-ring',
-                                        confidential
-                                            ? 'border-primary bg-primary/5'
-                                            : 'border-border hover:bg-muted/50'
-                                    )}
-                                >
-                                    <input
-                                        type="radio"
-                                        name="dev-app-type"
-                                        checked={confidential}
-                                        onChange={() => setConfidential(true)}
-                                        className="sr-only"
-                                    />
-                                    <span className="text-sm font-medium">Confidencial</span>
-                                    <span className="text-xs text-muted-foreground">
-                                        Servidor backend capaz de guardar client_secret.
-                                    </span>
-                                </label>
-                            </div>
-                        </fieldset>
+                        <FieldSet>
+                            <FieldLegend variant="label">Tipo de aplicação</FieldLegend>
+                            <RadioGroup
+                                value={confidential ? 'confidential' : 'public'}
+                                onValueChange={(value) => setConfidential(value === 'confidential')}
+                                className="grid-cols-2"
+                            >
+                                <FieldLabel htmlFor="dev-app-type-public">
+                                    <Field orientation="horizontal">
+                                        <FieldContent>
+                                            <FieldTitle>Pública</FieldTitle>
+                                            <FieldDescription>
+                                                SPA, mobile ou CLI. Sem segredo; exige PKCE + DPoP.
+                                            </FieldDescription>
+                                        </FieldContent>
+                                        <RadioGroupItem value="public" id="dev-app-type-public" />
+                                    </Field>
+                                </FieldLabel>
+                                <FieldLabel htmlFor="dev-app-type-confidential">
+                                    <Field orientation="horizontal">
+                                        <FieldContent>
+                                            <FieldTitle>Confidencial</FieldTitle>
+                                            <FieldDescription>
+                                                Servidor backend capaz de guardar client_secret.
+                                            </FieldDescription>
+                                        </FieldContent>
+                                        <RadioGroupItem
+                                            value="confidential"
+                                            id="dev-app-type-confidential"
+                                        />
+                                    </Field>
+                                </FieldLabel>
+                            </RadioGroup>
+                        </FieldSet>
                     )}
 
                     <div className="flex flex-col gap-2">
@@ -258,9 +254,8 @@ export function ClientFormDialog(props: Props) {
                             ))}
                         </div>
                         <p className="text-xs text-muted-foreground">
-                            Correspondência exata, sem wildcards. HTTPS obrigatório (localhost,
-                            127.0.0.1 e [::1] liberados para dev; esquemas customizados apenas em
-                            apps públicos).
+                            Correspondência exata, sem wildcards. HTTPS obrigatório, localhost estão
+                            sempre liberados.
                         </p>
                     </div>
 

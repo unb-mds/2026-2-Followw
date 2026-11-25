@@ -10,6 +10,7 @@ from api.modules.oauth.clients import (
     MAX_CLIENTS_PER_USER,
     OAuthClientCreate,
     create_client,
+    resolve_user_id,
 )
 
 
@@ -154,6 +155,7 @@ def test_limite_de_aplicacoes_por_conta(client, cookies):
 
 def test_limite_de_aplicacoes_resiste_a_criacao_concorrente(db):
     async def disparar():
+        owner_id = await resolve_user_id(db, "251000000")
         body = OAuthClientCreate(
             name="App concorrente",
             confidential=False,
@@ -161,7 +163,7 @@ def test_limite_de_aplicacoes_resiste_a_criacao_concorrente(db):
         )
         return await asyncio.gather(
             *(
-                create_client(db, "251000000", body)
+                create_client(db, owner_id, body)
                 for _ in range(MAX_CLIENTS_PER_USER + 5)
             ),
             return_exceptions=True,

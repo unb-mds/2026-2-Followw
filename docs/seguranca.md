@@ -63,19 +63,40 @@ vencimento. A API deriva chaves distintas para access e refresh com HKDF, o salt
 cifrada no token do cliente. Cada chamada Bearer valida a
 autorização antes de servir o cache. Excluir o registro invalida imediatamente os dois tokens.
 
+O Followw não guarda a senha, mas precisa dela para sincronizar os dados do SIGAA. Por isso, ao
+aprovar o consentimento, a senha é cifrada e vai dentro do código de autorização e depois dos
+tokens entregues ao aplicativo. O aplicativo carrega esse conteúdo sem poder lê-lo: só o Followw tem
+a chave, então a senha nunca fica visível para o aplicativo. A tela de autorização informa isso ao
+usuário em linguagem simples. O código vale 5 minutos, é de uso único e é consumido mesmo quando a
+troca falha (verifier ou redirect incorretos).
+
 O access vale 40 minutos. Na renovação, a API autentica no SIGAA, cifra a nova sessão no access e
 agenda o sync da conta, como o refresh da web. A autorização é conferida novamente após o login. O
 sucesso estende por 14 dias o prazo do mesmo refresh. Para clientes públicos, `POST /oauth/token`
 recebe o formulário `grant_type=refresh_token`, `client_id`, `refresh_token` e uma prova DPoP ES256
 nova, vinculada à chave da instalação e à URL `PUBLIC_URL/oauth/token`. Clientes no navegador usam
-`credentials: "omit"`. O cadastro, o aceite e a emissão pública inicial pertencem à etapa de
-autorização de aplicações, ainda sem rotas públicas de cadastro, consentimento e emissão inicial
-implementadas. O endpoint público atual permite renovar uma autorização já existente.
+`credentials: "omit"`. O cadastro usa `/oauth/clients`; o aceite usa
+`GET/POST /oauth/authorize`. A troca inicial em `/oauth/token` exige PKCE S256 e devolve access e
+refresh tokens. Códigos duram cinco minutos e só podem ser usados uma vez. A chave de cada código
+usa um salt aleatório do banco, que não armazena as credenciais. Seu consumo e a criação da
+concessão são atômicos. O pedido de consentimento dura dez minutos e é vinculado à identidade
+cifrada da sessão web, preservada no refresh e substituída em um novo login.
+
+Para iniciar uma conexão, o aplicativo abre `/autorizar` no Followw com `response_type=code`,
+`client_id`, `redirect_uri`, `scope`, `state`, `code_challenge` e `code_challenge_method=S256`.
+O desafio é o SHA-256 do verifier aleatório (43–128 caracteres), codificado em base64url sem padding.
+O aplicativo confere o `state` recebido e troca o código por tokens com `grant_type=authorization_code`,
+`client_id`, `redirect_uri`, `code` e `code_verifier`. Clientes confidenciais incluem o segredo;
+clientes públicos incluem uma prova DPoP nova. O código nunca deve aparecer em logs ou analytics.
+
+A tela `/autorizar` apresenta as permissões e mantém erros de validação no Followw. O login aceita
+somente caminhos locais como retorno. `/configuracoes` permite revogar cada concessão, invalidando
+imediatamente seus tokens. Pedidos de consentimento não são persistidos no cache offline.
 
 No OpenAPI, `x-oauth-scopes` traz o título, o nível de confiança e as dependências de cada
 permissão. O nível informa a sensibilidade do acesso. Cada operação delegável declara seu
 `x-oauth-scope`. As respostas OAuth contêm apenas os campos concedidos. O perfil básico inclui nome,
-matrícula, foto e curso. `grades:read` acrescenta IRA, MP e menções nas turmas autorizadas. A agenda
+matrícula, foto e curso. `grades:read` acrescenta IRA, MP e menções em todas as turmas. A agenda
 omite presença e marcação sem `classrooms.frequency:read`. Consultar uma turma passada por ID também
 exige `classrooms.history:read`.
 

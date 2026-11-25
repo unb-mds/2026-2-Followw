@@ -39,10 +39,6 @@ export function DevelopersHeader({
                         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
                             Portal de Desenvolvedores
                         </h1>
-                        <p className="text-sm text-muted-foreground">
-                            Cadastre aplicações para autenticar estudantes com &quot;Entrar com
-                            Followw&quot; e consumir a API com escopos OAuth.
-                        </p>
                     </div>
                 </div>
 

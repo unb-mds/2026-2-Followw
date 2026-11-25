@@ -3,16 +3,19 @@ import hmac
 import re
 import secrets
 from datetime import UTC, datetime
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 from uuid import UUID
 
 from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-from sqlalchemy import delete, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.main import Database
 from api.db.models import OAuthClient, OAuthGrant
+from api.modules.me.repository import UserRepository
+from api.modules.oauth.proof import InvalidProof, Proof
+from api.modules.oauth.protocol import OAuthError
 from api.modules.oauth.scopes import Scope
 
 MAX_CLIENTS_PER_USER = 10
@@ -40,6 +43,13 @@ def validate_redirect_uri(uri: str, *, confidential: bool) -> str:
         raise ValueError("URI de redirecionamento não pode conter espaços.")
 
     parsed = urlsplit(value)
+    if "\\" in value or parsed.username or parsed.password or "#" in value:
+        raise ValueError("URI de redirecionamento inválida.")
+    _ = parsed.port
+    if {"code", "error", "state"} & parse_qs(
+        parsed.query, keep_blank_values=True
+    ).keys():
+        raise ValueError("A URI não pode conter parâmetros reservados pelo OAuth.")
     scheme = parsed.scheme.lower()
     if not scheme or not _SCHEME_RE.match(scheme):
         raise ValueError("URI de redirecionamento precisa de um esquema válido.")
@@ -98,8 +108,11 @@ def generate_client_secret() -> tuple[str, bytes, bytes]:
     return plain, salt, digest
 
 
-class InvalidClient(ValueError):
+class InvalidClient(OAuthError):
     """Aplicação inexistente ou credenciais de cliente inválidas."""
+
+    code = "invalid_client"
+    status = 401
 
 
 def verify_client_secret(client: OAuthClient, secret: str) -> bool:
@@ -114,16 +127,17 @@ def verify_client_secret(client: OAuthClient, secret: str) -> bool:
 
 
 async def authenticate_client(
-    db: Database, client_id: str, client_secret: str | None
+    session: AsyncSession,
+    client_id: str,
+    client_secret: str | None,
+    *,
+    proof: Proof | None,
 ) -> OAuthClient:
-    """Valida a existência da aplicação cadastrada e o client_secret quando confidencial."""
-
-    async def read(session: AsyncSession) -> OAuthClient | None:
-        return await session.scalar(
-            select(OAuthClient).where(OAuthClient.client_id == client_id)
-        )
-
-    client = await db.read(read)
+    client = await session.scalar(
+        select(OAuthClient)
+        .where(OAuthClient.client_id == client_id)
+        .with_for_update(read=True)
+    )
     if client is None:
         raise InvalidClient("Aplicação não registrada.")
     if client.confidential:
@@ -131,6 +145,8 @@ async def authenticate_client(
             raise InvalidClient("Credenciais da aplicação inválidas.")
     elif client_secret is not None:
         raise InvalidClient("Aplicações públicas não aceitam client_secret.")
+    if not client.confidential and proof is None:
+        raise InvalidProof("Prova DPoP ausente.")
     return client
 
 
@@ -268,15 +284,29 @@ class OAuthGrantView(BaseModel):
     confidential: bool
     scopes: list[Scope]
     created_at: datetime
+    last_access_at: datetime
     expires_at: datetime
 
 
-async def list_clients(db: Database, owner_registration: str) -> list[OAuthClientView]:
+async def user_id_of(session: AsyncSession, registration: str) -> UUID:
+    """Id do usuário da matrícula (ou da antiga), criando o usuário sombra se faltar."""
+    users = UserRepository(session)
+    await users.register(registration)
+    user = await users.get_by_registration(registration)
+    assert user is not None
+    return user.id
+
+
+async def resolve_user_id(db: Database, registration: str) -> UUID:
+    return await db.write(lambda session: user_id_of(session, registration))
+
+
+async def list_clients(db: Database, owner_id: UUID) -> list[OAuthClientView]:
     async def read(session: AsyncSession) -> list[OAuthClientView]:
         rows = (
             await session.scalars(
                 select(OAuthClient)
-                .where(OAuthClient.owner_registration == owner_registration)
+                .where(OAuthClient.owner_id == owner_id)
                 .order_by(OAuthClient.created_at.desc())
             )
         ).all()
@@ -286,21 +316,21 @@ async def list_clients(db: Database, owner_registration: str) -> list[OAuthClien
 
 
 async def create_client(
-    db: Database, owner_registration: str, body: OAuthClientCreate
+    db: Database, owner_id: UUID, body: OAuthClientCreate
 ) -> OAuthClientCreated:
     async def write(session: AsyncSession) -> OAuthClientCreated:
-        # Serializa criações da mesma matrícula para evitar race condition no limite.
+        # Serializa criações do mesmo dono para evitar race condition no limite.
         await session.execute(
             select(
                 func.pg_advisory_xact_lock(
-                    func.hashtextextended(f"oauth_clients:{owner_registration}", 0)
+                    func.hashtextextended(f"oauth_clients:{owner_id}", 0)
                 )
             )
         )
         count = await session.scalar(
             select(func.count())
             .select_from(OAuthClient)
-            .where(OAuthClient.owner_registration == owner_registration)
+            .where(OAuthClient.owner_id == owner_id)
         )
         if (count or 0) >= MAX_CLIENTS_PER_USER:
             raise HTTPException(
@@ -316,7 +346,7 @@ async def create_client(
 
         client = OAuthClient(
             client_id=generate_client_id(),
-            owner_registration=owner_registration,
+            owner_id=owner_id,
             name=body.name,
             description=body.description,
             homepage_url=body.homepage_url,
@@ -334,13 +364,15 @@ async def create_client(
 
 
 async def _owned_client(
-    session: AsyncSession, owner_registration: str, client_id: str
+    session: AsyncSession, owner_id: UUID, client_id: str
 ) -> OAuthClient:
     client = await session.scalar(
-        select(OAuthClient).where(
+        select(OAuthClient)
+        .where(
             OAuthClient.client_id == client_id,
-            OAuthClient.owner_registration == owner_registration,
+            OAuthClient.owner_id == owner_id,
         )
+        .with_for_update()
     )
     if client is None:
         raise HTTPException(404, "Aplicação não encontrada.")
@@ -348,12 +380,12 @@ async def _owned_client(
 
 
 async def update_client(
-    db: Database, owner_registration: str, client_id: str, body: OAuthClientUpdate
+    db: Database, owner_id: UUID, client_id: str, body: OAuthClientUpdate
 ) -> OAuthClientView:
     fields = body.model_fields_set
 
     async def write(session: AsyncSession) -> OAuthClientView:
-        client = await _owned_client(session, owner_registration, client_id)
+        client = await _owned_client(session, owner_id, client_id)
         if body.name is not None:
             client.name = body.name
         if "description" in fields:
@@ -376,10 +408,10 @@ async def update_client(
 
 
 async def rotate_client_secret(
-    db: Database, owner_registration: str, client_id: str
+    db: Database, owner_id: UUID, client_id: str
 ) -> OAuthClientSecret:
     async def write(session: AsyncSession) -> OAuthClientSecret:
-        client = await _owned_client(session, owner_registration, client_id)
+        client = await _owned_client(session, owner_id, client_id)
         if not client.confidential:
             raise HTTPException(422, "Aplicações públicas não possuem client_secret.")
         plain, salt, digest = generate_client_secret()
@@ -391,18 +423,15 @@ async def rotate_client_secret(
     return await db.write(write)
 
 
-async def delete_client(db: Database, owner_registration: str, client_id: str) -> None:
+async def delete_client(db: Database, owner_id: UUID, client_id: str) -> None:
     async def write(session: AsyncSession) -> None:
-        client = await _owned_client(session, owner_registration, client_id)
-        await session.execute(
-            delete(OAuthGrant).where(OAuthGrant.client_id == client.client_id)
-        )
-        await session.delete(client)
+        # As autorizações caem junto pela FK.
+        await session.delete(await _owned_client(session, owner_id, client_id))
 
     await db.write(write)
 
 
-async def list_grants(db: Database, registration: str) -> list[OAuthGrantView]:
+async def list_grants(db: Database, user_id: UUID) -> list[OAuthGrantView]:
     now = datetime.now(UTC)
 
     async def read(session: AsyncSession) -> list[OAuthGrantView]:
@@ -411,7 +440,7 @@ async def list_grants(db: Database, registration: str) -> list[OAuthGrantView]:
                 select(OAuthGrant, OAuthClient)
                 .outerjoin(OAuthClient, OAuthGrant.client_id == OAuthClient.client_id)
                 .where(
-                    OAuthGrant.registration == registration,
+                    OAuthGrant.user_id == user_id,
                     OAuthGrant.expires_at > now,
                 )
                 .order_by(OAuthGrant.created_at.desc())
@@ -429,6 +458,8 @@ async def list_grants(db: Database, registration: str) -> list[OAuthGrantView]:
                     Scope(scope) for scope in grant.scopes if scope in _VALID_SCOPES
                 ],
                 created_at=grant.created_at,
+                # `updated_at` só muda na emissão e na renovação do token.
+                last_access_at=grant.updated_at,
                 expires_at=grant.expires_at,
             )
             for grant, client in rows

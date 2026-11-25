@@ -140,12 +140,15 @@ function PrivacyPage() {
                         <p>
                             Use o Followw com responsabilidade e respeite a privacidade das outras
                             pessoas. Integrações, scripts e automações são permitidos desde que
-                            respeitem os controles de acesso e não prejudiquem o Followw ou os
-                            sistemas da UnB.
+                            utilizem o OAuth para acessar contas de outras pessoas, solicitem apenas
+                            as permissões necessárias, respeitem os controles de acesso e não
+                            prejudiquem o Followw ou os sistemas da UnB.
                         </p>
                         <p>
-                            Caso tenha dúvidas ou precise integrar nossa API, entre em contato
-                            conosco através do e-mail{' '}
+                            Aplicativos de terceiros não devem solicitar sua senha do SIGAA. Você
+                            pode revisar e revogar os acessos nas configurações. Caso tenha dúvidas
+                            ou precise integrar nossa API, entre em contato conosco através do
+                            e-mail{' '}
                             <a
                                 className="text-primary underline underline-offset-4"
                                 href={mailto(EMAILS.contact)}

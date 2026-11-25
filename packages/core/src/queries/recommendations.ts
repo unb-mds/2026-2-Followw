@@ -4,13 +4,13 @@ import { api } from './api.ts';
 
 export type Recommendation = NonNullable<CatalogSubject['recommendation']>;
 
-/** Com `available`, só turmas com vaga e pré-requisitos cumpridos. */
+/** Com `available`, só turmas com vaga e pré-requisitos cumpridos. Dependem do histórico do momento e não vão para o disco. */
 export const recommendationsQueryOptions = (available = false) =>
     api.queryOptions(
         'get',
         '/public/subjects/recommendations',
         available ? { params: { query: { available } } } : {},
-        { staleTime: 0, gcTime: 60_000 }
+        { staleTime: 0, gcTime: 60_000, meta: { persist: false } }
     );
 
 type Reason = Recommendation['reasons'][number];
