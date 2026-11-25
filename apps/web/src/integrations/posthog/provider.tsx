@@ -9,6 +9,16 @@ if (typeof window !== 'undefined' && import.meta.env.VITE_POSTHOG_KEY) {
         person_profiles: 'identified_only',
         cross_subdomain_cookie: false,
         disable_surveys: true,
+        before_send: (event) => {
+            const sensitivePage = /\/(?:autorizar|login)(?:[/?#]|$)/;
+            return [
+                window.location.href,
+                event.properties.$current_url,
+                event.properties.$referrer
+            ].some((value) => typeof value === 'string' && sensitivePage.test(value))
+                ? null
+                : event;
+        },
         capture_performance: {
             web_vitals: true,
             web_vitals_attribution: ['INP', 'LCP']

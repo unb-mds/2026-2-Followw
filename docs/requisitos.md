@@ -686,7 +686,8 @@ O desenvolvimento do Followw UnB é conduzido de forma incremental através de s
   limite de 16 milhões de pixels e cotas de edição por IP e matrícula. Omitir a bio a preserva;
   enviar uma string vazia a limpa. A remoção de foto é uma requisição separada.
 - Acesso delegado por escopos OAuth e renovação de autorizações existentes com DPoP em
-  `POST /oauth/token`; cadastro, consentimento e emissão pública inicial ainda não implementados.
+  `POST /oauth/token`; cadastro no portal de desenvolvedores, consentimento com PKCE S256
+  e revogação de acessos nas configurações.
 
 O desenvolvimento atual segue rolling release. As seções R1 e R2 acima são registros históricos;
 o comportamento atual é descrito nos requisitos e nos documentos técnicos.

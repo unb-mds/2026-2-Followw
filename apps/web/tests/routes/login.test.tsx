@@ -14,6 +14,7 @@ import {
     createRouter
 } from '@tanstack/react-router';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { NuqsAdapter } from 'nuqs/adapters/tanstack-router';
 
 import { Route as LoginRoute } from '#/routes/login';
 
@@ -69,7 +70,13 @@ describe('página de login', () => {
     });
 
     async function renderLogin() {
-        const root = createRootRoute({ component: Outlet });
+        const root = createRootRoute({
+            component: () => (
+                <NuqsAdapter>
+                    <Outlet />
+                </NuqsAdapter>
+            )
+        });
         const router = createRouter({
             routeTree: root.addChildren([
                 createRoute({
@@ -174,12 +181,15 @@ const contextFailing = (error: unknown) => ({
 });
 
 describe('loader do login', () => {
-    test('uma sessão ativa segue para a Home', async () => {
-        const context = { context: { queryClient: fakeQueryClient(() => user) } };
+    test('uma sessão ativa segue para o retorno validado', async () => {
+        const context = {
+            context: { queryClient: fakeQueryClient(() => user) },
+            deps: { returnTo: '/autorizar?state=0001' }
+        };
 
         const redirect = await runLoader(LoginRoute, context).catch((error: unknown) => error);
 
-        expect(redirect).toMatchObject({ options: { to: '/' } });
+        expect(redirect).toMatchObject({ options: { href: '/autorizar?state=0001' } });
     });
 
     test.each([new ApiError(502, 'SIGAA is unavailable'), new TypeError('Failed to fetch')])(

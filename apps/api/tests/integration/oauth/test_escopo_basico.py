@@ -6,19 +6,21 @@ from sqlalchemy import select
 
 from api.db.models import OAuthGrant
 from api.modules.oauth.scopes import Scope
-from api.modules.oauth.tokens import issue_tokens
+from api.modules.oauth.tokens import create_token_pair
 
 CREDENCIAIS = Credentials(registration="251000000", password="senha123")
 
 
 def _emitir(db, accepted):
     return asyncio.run(
-        issue_tokens(
-            db,
-            client_id="agenda",
-            credentials=CREDENCIAIS,
-            accepted=accepted,
-            authenticated_client=True,
+        db.write(
+            lambda session: create_token_pair(
+                session,
+                client_id="agenda",
+                credentials=CREDENCIAIS,
+                accepted=accepted,
+                authenticated_client=True,
+            )
         )
     )
 

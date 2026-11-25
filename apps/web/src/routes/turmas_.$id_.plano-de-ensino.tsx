@@ -12,7 +12,11 @@ import { meQueryOptions } from '#/queries/me';
 export const Route = createFileRoute('/turmas_/$id_/plano-de-ensino')({
     loader: async ({ context: { queryClient }, params: { id } }) => {
         const user = await loadQuery(queryClient, meQueryOptions);
-        if (!user) throw redirect({ to: '/login' });
+        if (!user)
+            throw redirect({
+                to: '/login',
+                search: { returnTo: `/turmas/${encodeURIComponent(id)}/plano-de-ensino` }
+            });
         const classrooms = await loadQuery(queryClient, allClassroomsQueryOptions);
         const classroom = classrooms.find((item) => item.id === id);
         if (!classroom) throw notFound();

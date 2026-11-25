@@ -1,5 +1,9 @@
+import type { OAuthClientUpdate } from '@followw/core/queries/oauth.ts';
+
 import { ApiError } from '@followw/core/queries/errors.ts';
 import {
+    createOAuthClient,
+    updateOAuthClient,
     deleteOAuthClient,
     oauthClientsQueryOptions,
     rotateOAuthClientSecret
@@ -32,9 +36,31 @@ export function useClientActions(onSecret: (secret: RevealedSecret) => void) {
         };
     }
 
+    const create = useMutation({
+        mutationFn: createOAuthClient,
+        gcTime: 0,
+        onSuccess: (created) => {
+            if (created.client_secret)
+                onSecret({
+                    clientId: created.client_id,
+                    clientSecret: created.client_secret,
+                    title: 'Aplicação criada — salve seu client_secret'
+                });
+            void invalidate();
+        }
+    });
+    const update = useMutation({
+        mutationFn: ({ clientId, body }: { clientId: string; body: OAuthClientUpdate }) =>
+            updateOAuthClient(clientId, body),
+        onSuccess: () => {
+            void invalidate();
+        }
+    });
+
     const rotate = useMutation({
         mutationKey: ACTION_KEY,
         mutationFn: rotateOAuthClientSecret,
+        gcTime: 0,
         onMutate: () => setError(null),
         onSuccess: (result) => {
             onSecret({
@@ -71,5 +97,5 @@ export function useClientActions(onSecret: (secret: RevealedSecret) => void) {
     });
     const busy = (id: string) => pending.includes(id);
 
-    return { rotate, remove, busy, error, invalidate };
+    return { create, update, rotate, remove, busy, error };
 }

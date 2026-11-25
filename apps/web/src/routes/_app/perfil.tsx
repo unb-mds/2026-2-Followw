@@ -19,7 +19,7 @@ import {
     ProfileSection,
     ProgressSection
 } from '#/components/profile/ProfileOverview';
-import { ThemeToggle } from '#/components/ThemeToggle';
+import { SettingsLink } from '#/components/SettingsLink';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -41,7 +41,7 @@ import { useUserSettings } from '#/queries/settings';
 export const Route = createFileRoute('/_app/perfil')({
     loader: async ({ context }) => {
         const user = await loadQuery(context.queryClient, meQueryOptions);
-        if (!user) throw redirect({ to: '/login' });
+        if (!user) throw redirect({ to: '/login', search: { returnTo: '/perfil' } });
         return user;
     },
     head: () => ({ meta: [{ title: 'Perfil | Followw' }] }),
@@ -53,7 +53,7 @@ export const Route = createFileRoute('/_app/perfil')({
 function ProfileHeader() {
     const desktop = useDesktop();
     return (
-        <HeaderBar hideOnDesktop actions={!desktop && <ThemeToggle />}>
+        <HeaderBar hideOnDesktop actions={!desktop && <SettingsLink />}>
             <HeaderTitle>Perfil</HeaderTitle>
         </HeaderBar>
     );
@@ -65,7 +65,7 @@ function PerfilPage() {
     const download = useDownloadDocument();
 
     // sessão encerrada por um 401 em qualquer query ou mutation
-    if (!user) return <Navigate to="/login" replace />;
+    if (!user) return <Navigate to="/login" search={{ returnTo: '/perfil' }} replace />;
 
     return (
         <div className="profile-columns lg:grid lg:items-start lg:gap-x-10 lg:gap-y-8">

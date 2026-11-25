@@ -347,6 +347,8 @@ def test_login_nao_devolve_nenhum_segredo_legivel(client, sigaa):
         token = header.split("=", 1)[1].split(";", 1)[0]
         for segredo in segredos:
             assert segredo not in _visivel(token)
-    assert read_refresh_cookie(_request(**dict(response.cookies))) == Credentials(
-        registration="251000000", password=SecretStr(senha)
-    )
+    session = read_refresh_cookie(_request(**dict(response.cookies)))
+    assert session is not None
+    assert session.credentials.registration == "251000000"
+    assert session.credentials.password == SecretStr(senha)
+    assert session.session_id

@@ -1,10 +1,11 @@
 from datetime import UTC, datetime, timedelta
+from uuid import uuid4
 
 from fastapi import Request, Response
 from joserfc import jwt
 from joserfc.errors import JoseError
 from joserfc.jwk import OctKey
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 from sigaa_client import Credentials
 
 from api.core.config import settings
@@ -36,22 +37,37 @@ def read_access_cookie(request: Request, registration: str) -> str | None:
     return payload.get("session_token")
 
 
-def set_refresh_cookie(response: Response, credentials: Credentials) -> None:
+class WebSession(BaseModel):
+    credentials: Credentials
+    session_id: str
+
+
+def set_refresh_cookie(
+    response: Response, credentials: Credentials, session_id: str | None = None
+) -> None:
     _set_cookie(
         response,
         REFRESH_COOKIE_NAME,
         {
             "registration": credentials.registration,
             "password": credentials.password.get_secret_value(),
+            "session_id": session_id or str(uuid4()),
         },
         settings.refresh_token_expire_minutes,
     )
 
 
-def read_refresh_cookie(request: Request) -> Credentials | None:
+def read_refresh_cookie(request: Request) -> WebSession | None:
     payload = _read_cookie(request, REFRESH_COOKIE_NAME)
     try:
-        return Credentials.model_validate(payload) if payload else None
+        return (
+            WebSession(
+                credentials=Credentials.model_validate(payload),
+                session_id=payload.get("session_id"),
+            )
+            if payload
+            else None
+        )
     except ValidationError:
         return None
 

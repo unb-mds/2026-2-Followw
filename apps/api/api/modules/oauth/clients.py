@@ -3,7 +3,7 @@ import hmac
 import re
 import secrets
 from datetime import UTC, datetime
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.main import Database
 from api.db.models import OAuthClient, OAuthGrant
+from api.modules.oauth.proof import InvalidProof, Proof
 from api.modules.oauth.scopes import Scope
 
 MAX_CLIENTS_PER_USER = 10
@@ -40,6 +41,13 @@ def validate_redirect_uri(uri: str, *, confidential: bool) -> str:
         raise ValueError("URI de redirecionamento não pode conter espaços.")
 
     parsed = urlsplit(value)
+    if "\\" in value or parsed.username or parsed.password or "#" in value:
+        raise ValueError("URI de redirecionamento inválida.")
+    _ = parsed.port
+    if {"code", "error", "state"} & parse_qs(
+        parsed.query, keep_blank_values=True
+    ).keys():
+        raise ValueError("A URI não pode conter parâmetros reservados pelo OAuth.")
     scheme = parsed.scheme.lower()
     if not scheme or not _SCHEME_RE.match(scheme):
         raise ValueError("URI de redirecionamento precisa de um esquema válido.")
@@ -114,16 +122,15 @@ def verify_client_secret(client: OAuthClient, secret: str) -> bool:
 
 
 async def authenticate_client(
-    db: Database, client_id: str, client_secret: str | None
+    session: AsyncSession,
+    client_id: str,
+    client_secret: str | None,
+    *,
+    proof: Proof | None,
 ) -> OAuthClient:
-    """Valida a existência da aplicação cadastrada e o client_secret quando confidencial."""
-
-    async def read(session: AsyncSession) -> OAuthClient | None:
-        return await session.scalar(
-            select(OAuthClient).where(OAuthClient.client_id == client_id)
-        )
-
-    client = await db.read(read)
+    client = await session.scalar(
+        select(OAuthClient).where(OAuthClient.client_id == client_id).with_for_update()
+    )
     if client is None:
         raise InvalidClient("Aplicação não registrada.")
     if client.confidential:
@@ -131,6 +138,8 @@ async def authenticate_client(
             raise InvalidClient("Credenciais da aplicação inválidas.")
     elif client_secret is not None:
         raise InvalidClient("Aplicações públicas não aceitam client_secret.")
+    if not client.confidential and proof is None:
+        raise InvalidProof("Prova DPoP ausente.")
     return client
 
 
@@ -337,10 +346,12 @@ async def _owned_client(
     session: AsyncSession, owner_registration: str, client_id: str
 ) -> OAuthClient:
     client = await session.scalar(
-        select(OAuthClient).where(
+        select(OAuthClient)
+        .where(
             OAuthClient.client_id == client_id,
             OAuthClient.owner_registration == owner_registration,
         )
+        .with_for_update()
     )
     if client is None:
         raise HTTPException(404, "Aplicação não encontrada.")

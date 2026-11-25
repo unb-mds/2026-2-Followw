@@ -53,6 +53,13 @@ class OAuthGrant(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     key_thumbprint: Mapped[str | None]
 
 
+class OAuthAuthorizationCode(Base, UUIDPrimaryKeyMixin):
+    __tablename__ = "oauth_authorization_codes"
+
+    salt: Mapped[bytes]
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+
 class OAuthProof(Base):
     __tablename__ = "oauth_proofs"
 

@@ -98,8 +98,9 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Renovar o acesso OAuth de uma instalação com DPoP",
-        "operationId": "refresh_oauth_token_post",
+        "summary": "Trocar um código ou renovar o acesso OAuth",
+        "description": "Valida a aplicação cadastrada: clientes confidenciais autenticam com client_secret (formulário ou HTTP Basic) e clientes públicos exigem prova DPoP.",
+        "operationId": "token_oauth_token_post",
         "parameters": [
           {
             "name": "dpop",
@@ -117,6 +118,23 @@
               ],
               "title": "Dpop"
             }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 1024
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
           }
         ],
         "requestBody": {
@@ -124,7 +142,7 @@
           "content": {
             "application/x-www-form-urlencoded": {
               "schema": {
-                "$ref": "#/components/schemas/RefreshGrant"
+                "$ref": "#/components/schemas/TokenGrant"
               }
             }
           }
@@ -143,8 +161,478 @@
           "400": {
             "description": "Refresh ou prova DPoP inválidos."
           },
+          "401": {
+            "description": "Aplicação não registrada ou client_secret inválido."
+          },
           "502": {
             "description": "SIGAA indisponível durante a renovação."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oauth/authorize": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Consultar a aplicação e as permissões solicitadas",
+        "operationId": "get_authorization_oauth_authorize_get",
+        "parameters": [
+          {
+            "name": "response_type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "const": "code",
+              "type": "string",
+              "title": "Response Type"
+            }
+          },
+          {
+            "name": "client_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "title": "Client Id"
+            }
+          },
+          {
+            "name": "redirect_uri",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048,
+              "title": "Redirect Uri"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512,
+              "default": "",
+              "title": "Scope"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "name": "code_challenge",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{43}$",
+              "title": "Code Challenge"
+            }
+          },
+          {
+            "name": "code_challenge_method",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "const": "S256",
+              "type": "string",
+              "title": "Code Challenge Method"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorizationDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Aplicação, URI ou escopos inválidos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthProblem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Aprovar ou recusar a autorização OAuth",
+        "operationId": "post_authorization_oauth_authorize_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthorizationDecision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorizationRedirect"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Pedido de autorização inválido ou expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthProblem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oauth/clients": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Listar aplicações OAuth do desenvolvedor",
+        "operationId": "get_oauth_clients_oauth_clients_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OAuthClientView"
+                  },
+                  "type": "array",
+                  "title": "Response Get Oauth Clients Oauth Clients Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciais ausentes ou inválidas."
+          },
+          "502": {
+            "description": "SIGAA indisponível."
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Cadastrar uma nova aplicação OAuth",
+        "description": "Aplicações confidenciais recebem o client_secret uma única vez na resposta.",
+        "operationId": "post_oauth_client_oauth_clients_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OAuthClientCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthClientCreated"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciais ausentes ou inválidas."
+          },
+          "502": {
+            "description": "SIGAA indisponível."
+          },
+          "422": {
+            "description": "Dados inválidos ou limite de aplicações atingido."
+          }
+        }
+      }
+    },
+    "/oauth/clients/{client_id}": {
+      "patch": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Atualizar uma aplicação OAuth",
+        "operationId": "patch_oauth_client_oauth_clients__client_id__patch",
+        "parameters": [
+          {
+            "name": "client_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "title": "Client Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OAuthClientUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthClientView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciais ausentes ou inválidas."
+          },
+          "502": {
+            "description": "SIGAA indisponível."
+          },
+          "404": {
+            "description": "Aplicação não encontrada."
+          },
+          "422": {
+            "description": "Dados inválidos."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Excluir uma aplicação OAuth",
+        "description": "Remove a aplicação e revoga todas as autorizações vinculadas a ela.",
+        "operationId": "delete_oauth_client_oauth_clients__client_id__delete",
+        "parameters": [
+          {
+            "name": "client_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "title": "Client Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Credenciais ausentes ou inválidas."
+          },
+          "502": {
+            "description": "SIGAA indisponível."
+          },
+          "404": {
+            "description": "Aplicação não encontrada."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oauth/clients/{client_id}/rotate-secret": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Gerar novo client_secret para uma aplicação confidencial",
+        "description": "Invalida o segredo anterior imediatamente e retorna o novo uma única vez.",
+        "operationId": "post_rotate_oauth_client_secret_oauth_clients__client_id__rotate_secret_post",
+        "parameters": [
+          {
+            "name": "client_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "title": "Client Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthClientSecret"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciais ausentes ou inválidas."
+          },
+          "502": {
+            "description": "SIGAA indisponível."
+          },
+          "404": {
+            "description": "Aplicação não encontrada."
+          },
+          "422": {
+            "description": "Aplicações públicas não possuem client_secret."
+          }
+        }
+      }
+    },
+    "/oauth/grants": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Listar aplicações autorizadas pelo usuário",
+        "operationId": "get_oauth_grants_oauth_grants_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OAuthGrantView"
+                  },
+                  "type": "array",
+                  "title": "Response Get Oauth Grants Oauth Grants Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciais ausentes ou inválidas."
+          },
+          "502": {
+            "description": "SIGAA indisponível."
+          }
+        }
+      }
+    },
+    "/oauth/grants/{grant_id}": {
+      "delete": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Revogar a autorização de uma aplicação",
+        "operationId": "delete_oauth_grant_oauth_grants__grant_id__delete",
+        "parameters": [
+          {
+            "name": "grant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Grant Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Credenciais ausentes ou inválidas."
+          },
+          "502": {
+            "description": "SIGAA indisponível."
+          },
+          "404": {
+            "description": "Autorização não encontrada."
           },
           "422": {
             "description": "Validation Error",
@@ -2952,6 +3440,72 @@
   },
   "components": {
     "schemas": {
+      "AuthorizationDecision": {
+        "properties": {
+          "request_token": {
+            "type": "string",
+            "maxLength": 16384,
+            "minLength": 1,
+            "format": "password",
+            "title": "Request Token",
+            "writeOnly": true
+          },
+          "approved": {
+            "type": "boolean",
+            "title": "Approved"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_token",
+          "approved"
+        ],
+        "title": "AuthorizationDecision"
+      },
+      "AuthorizationDetails": {
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "title": "Client Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "permissions": {
+            "items": {
+              "$ref": "#/components/schemas/PermissionResponse"
+            },
+            "type": "array",
+            "title": "Permissions"
+          },
+          "request_token": {
+            "type": "string",
+            "title": "Request Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "client_id",
+          "name",
+          "permissions",
+          "request_token"
+        ],
+        "title": "AuthorizationDetails"
+      },
+      "AuthorizationRedirect": {
+        "properties": {
+          "redirect_uri": {
+            "type": "string",
+            "title": "Redirect Uri"
+          }
+        },
+        "type": "object",
+        "required": [
+          "redirect_uri"
+        ],
+        "title": "AuthorizationRedirect"
+      },
       "Body_update_profile_me_profile_patch": {
         "properties": {
           "photo_action": {
@@ -4525,6 +5079,375 @@
         ],
         "title": "NewsAttachment"
       },
+      "OAuthClientCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 280
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "homepage_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2048
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Homepage Url"
+          },
+          "confidential": {
+            "type": "boolean",
+            "title": "Confidential",
+            "default": false
+          },
+          "redirect_uris": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 5,
+            "minItems": 1,
+            "title": "Redirect Uris"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "redirect_uris"
+        ],
+        "title": "OAuthClientCreate"
+      },
+      "OAuthClientCreated": {
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "title": "Client Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "homepage_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Homepage Url"
+          },
+          "confidential": {
+            "type": "boolean",
+            "title": "Confidential"
+          },
+          "redirect_uris": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Redirect Uris"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "client_secret": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Secret"
+          }
+        },
+        "type": "object",
+        "required": [
+          "client_id",
+          "name",
+          "description",
+          "homepage_url",
+          "confidential",
+          "redirect_uris",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "OAuthClientCreated"
+      },
+      "OAuthClientSecret": {
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "title": "Client Id"
+          },
+          "client_secret": {
+            "type": "string",
+            "title": "Client Secret"
+          }
+        },
+        "type": "object",
+        "required": [
+          "client_id",
+          "client_secret"
+        ],
+        "title": "OAuthClientSecret"
+      },
+      "OAuthClientUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 280
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "homepage_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2048
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Homepage Url"
+          },
+          "redirect_uris": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 5,
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Redirect Uris"
+          }
+        },
+        "type": "object",
+        "title": "OAuthClientUpdate"
+      },
+      "OAuthClientView": {
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "title": "Client Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "homepage_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Homepage Url"
+          },
+          "confidential": {
+            "type": "boolean",
+            "title": "Confidential"
+          },
+          "redirect_uris": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Redirect Uris"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "client_id",
+          "name",
+          "description",
+          "homepage_url",
+          "confidential",
+          "redirect_uris",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "OAuthClientView"
+      },
+      "OAuthGrantView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "client_id": {
+            "type": "string",
+            "title": "Client Id"
+          },
+          "client_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Name"
+          },
+          "client_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Description"
+          },
+          "client_homepage_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Homepage Url"
+          },
+          "confidential": {
+            "type": "boolean",
+            "title": "Confidential"
+          },
+          "scopes": {
+            "items": {
+              "$ref": "#/components/schemas/Scope"
+            },
+            "type": "array",
+            "title": "Scopes"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "client_id",
+          "client_name",
+          "client_description",
+          "client_homepage_url",
+          "confidential",
+          "scopes",
+          "created_at",
+          "expires_at"
+        ],
+        "title": "OAuthGrantView"
+      },
+      "OAuthProblem": {
+        "properties": {
+          "error": {
+            "type": "string",
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "title": "OAuthProblem"
+      },
       "ParticipantClassroom": {
         "properties": {
           "professors": {
@@ -4712,6 +5635,43 @@
           "name"
         ],
         "title": "ParticipantSubject"
+      },
+      "PermissionResponse": {
+        "properties": {
+          "scope": {
+            "$ref": "#/components/schemas/Scope"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "trust_level": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Trust Level"
+          },
+          "requires": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Scope"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "scope",
+          "label",
+          "trust_level"
+        ],
+        "title": "PermissionResponse"
       },
       "PostType": {
         "type": "string",
@@ -5183,36 +6143,6 @@
           "hours"
         ]
       },
-      "RefreshGrant": {
-        "properties": {
-          "grant_type": {
-            "type": "string",
-            "const": "refresh_token",
-            "title": "Grant Type"
-          },
-          "client_id": {
-            "type": "string",
-            "maxLength": 256,
-            "minLength": 1,
-            "title": "Client Id"
-          },
-          "refresh_token": {
-            "type": "string",
-            "maxLength": 16384,
-            "minLength": 1,
-            "format": "password",
-            "title": "Refresh Token",
-            "writeOnly": true
-          }
-        },
-        "type": "object",
-        "required": [
-          "grant_type",
-          "client_id",
-          "refresh_token"
-        ],
-        "title": "RefreshGrant"
-      },
       "RestaurantCredentials": {
         "properties": {
           "token": {
@@ -5293,6 +6223,24 @@
           "amount"
         ],
         "title": "RestaurantStatementEntry"
+      },
+      "Scope": {
+        "type": "string",
+        "enum": [
+          "profile:read",
+          "profile:write",
+          "classrooms:read",
+          "classrooms.history:read",
+          "grades:read",
+          "classrooms.members:read",
+          "classrooms.frequency:read",
+          "classrooms.frequency:write",
+          "classrooms.posts:read",
+          "transcript:read",
+          "ru:read",
+          "internships:read"
+        ],
+        "title": "Scope"
       },
       "SearchResult": {
         "properties": {
@@ -5804,6 +6752,108 @@
         ],
         "title": "TeachingPlanScheduleEntry"
       },
+      "TokenGrant": {
+        "properties": {
+          "grant_type": {
+            "type": "string",
+            "enum": [
+              "refresh_token",
+              "authorization_code"
+            ],
+            "title": "Grant Type"
+          },
+          "client_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Id"
+          },
+          "client_secret": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256,
+                "minLength": 1,
+                "format": "password",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Secret"
+          },
+          "refresh_token": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16384,
+                "minLength": 1,
+                "format": "password",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refresh Token"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16384,
+                "minLength": 1,
+                "format": "password",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "redirect_uri": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2048
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Redirect Uri"
+          },
+          "code_verifier": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128,
+                "minLength": 43,
+                "format": "password",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code Verifier"
+          }
+        },
+        "type": "object",
+        "required": [
+          "grant_type"
+        ],
+        "title": "TokenGrant"
+      },
       "TokenResponse": {
         "properties": {
           "access_token": {
@@ -5823,6 +6873,17 @@
           "scope": {
             "type": "string",
             "title": "Scope"
+          },
+          "refresh_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refresh Token"
           }
         },
         "type": "object",

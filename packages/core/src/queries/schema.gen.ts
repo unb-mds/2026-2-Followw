@@ -52,10 +52,28 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Renovar o acesso OAuth de uma aplicação registrada
+         * Trocar um código ou renovar o acesso OAuth
          * @description Valida a aplicação cadastrada: clientes confidenciais autenticam com client_secret (formulário ou HTTP Basic) e clientes públicos exigem prova DPoP.
          */
-        post: operations["refresh_oauth_token_post"];
+        post: operations["token_oauth_token_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/oauth/authorize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Consultar a aplicação e as permissões solicitadas */
+        get: operations["get_authorization_oauth_authorize_get"];
+        put?: never;
+        /** Aprovar ou recusar a autorização OAuth */
+        post: operations["post_authorization_oauth_authorize_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -797,6 +815,32 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AuthorizationDecision */
+        AuthorizationDecision: {
+            /**
+             * Request Token
+             * Format: password
+             */
+            request_token: string;
+            /** Approved */
+            approved: boolean;
+        };
+        /** AuthorizationDetails */
+        AuthorizationDetails: {
+            /** Client Id */
+            client_id: string;
+            /** Name */
+            name: string;
+            /** Permissions */
+            permissions: components["schemas"]["PermissionResponse"][];
+            /** Request Token */
+            request_token: string;
+        };
+        /** AuthorizationRedirect */
+        AuthorizationRedirect: {
+            /** Redirect Uri */
+            redirect_uri: string;
+        };
         /** Body_update_profile_me_profile_patch */
         Body_update_profile_me_profile_patch: {
             /**
@@ -1375,6 +1419,11 @@ export interface components {
              */
             expires_at: string;
         };
+        /** OAuthProblem */
+        OAuthProblem: {
+            /** Error */
+            error: string;
+        };
         /**
          * ParticipantClassroom
          * @description A turma com a menção do usuário, `None` enquanto não lançada ou sincronizada.
@@ -1434,6 +1483,18 @@ export interface components {
             unit?: components["schemas"]["UnitRef"] | null;
             /** Kind */
             kind?: ("mandatory" | "optional" | "free") | null;
+        };
+        /** PermissionResponse */
+        PermissionResponse: {
+            scope: components["schemas"]["Scope"];
+            /** Label */
+            label: string;
+            /**
+             * Trust Level
+             * @enum {string}
+             */
+            trust_level: "low" | "medium" | "high";
+            requires?: components["schemas"]["Scope"] | null;
         };
         /**
          * PostType
@@ -1569,23 +1630,6 @@ export interface components {
         };
         /** @enum {string} */
         ReasonCode: "required" | "target_period" | "overdue" | "same_unit" | "chain_length" | "chain_width" | "hours";
-        /** RefreshGrant */
-        RefreshGrant: {
-            /**
-             * Grant Type
-             * @constant
-             */
-            grant_type: "refresh_token";
-            /** Client Id */
-            client_id?: string | null;
-            /** Client Secret */
-            client_secret?: string | null;
-            /**
-             * Refresh Token
-             * Format: password
-             */
-            refresh_token: string;
-        };
         /** RestaurantCredentials */
         RestaurantCredentials: {
             /** Token */
@@ -1791,6 +1835,26 @@ export interface components {
             /** Description */
             description: string | null;
         };
+        /** TokenGrant */
+        TokenGrant: {
+            /**
+             * Grant Type
+             * @enum {string}
+             */
+            grant_type: "refresh_token" | "authorization_code";
+            /** Client Id */
+            client_id?: string | null;
+            /** Client Secret */
+            client_secret?: string | null;
+            /** Refresh Token */
+            refresh_token?: string | null;
+            /** Code */
+            code?: string | null;
+            /** Redirect Uri */
+            redirect_uri?: string | null;
+            /** Code Verifier */
+            code_verifier?: string | null;
+        };
         /** TokenResponse */
         TokenResponse: {
             /** Access Token */
@@ -1805,6 +1869,8 @@ export interface components {
             expires_in: number;
             /** Scope */
             scope: string;
+            /** Refresh Token */
+            refresh_token?: string | null;
         };
         /**
          * UnitRef
@@ -2038,7 +2104,7 @@ export interface operations {
             };
         };
     };
-    refresh_oauth_token_post: {
+    token_oauth_token_post: {
         parameters: {
             query?: never;
             header?: {
@@ -2050,7 +2116,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/x-www-form-urlencoded": components["schemas"]["RefreshGrant"];
+                "application/x-www-form-urlencoded": components["schemas"]["TokenGrant"];
             };
         };
         responses: {
@@ -2092,6 +2158,94 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    get_authorization_oauth_authorize_get: {
+        parameters: {
+            query: {
+                response_type: "code";
+                client_id: string;
+                redirect_uri: string;
+                scope?: string;
+                state?: string | null;
+                code_challenge: string;
+                code_challenge_method: "S256";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthorizationDetails"];
+                };
+            };
+            /** @description Aplicação, URI ou escopos inválidos. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthProblem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_authorization_oauth_authorize_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuthorizationDecision"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthorizationRedirect"];
+                };
+            };
+            /** @description Pedido de autorização inválido ou expirado. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthProblem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };

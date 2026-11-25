@@ -42,3 +42,20 @@ export async function deleteOAuthClient(clientId: string): Promise<void> {
         params: { path: { client_id: clientId } }
     });
 }
+
+export type AuthorizationRequest = NonNullable<
+    import('./schema.gen.ts').paths['/oauth/authorize']['get']['parameters']['query']
+>;
+export const oauthGrantsQueryOptions = api.queryOptions(
+    'get',
+    '/oauth/grants',
+    {},
+    { meta: { persist: false } }
+);
+export const oauthAuthorizationQueryOptions = (query: AuthorizationRequest) =>
+    api.queryOptions(
+        'get',
+        '/oauth/authorize',
+        { params: { query } },
+        { staleTime: 0, gcTime: 0, retry: false, meta: { persist: false } }
+    );

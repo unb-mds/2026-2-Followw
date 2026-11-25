@@ -10,6 +10,7 @@ from joserfc.jwk import ECKey
 from api.cookies import decrypt_cookie
 from api.db.models import OAuthGrant
 from api.modules.auth.account import sync_account
+from api.modules.oauth.clients import InvalidClient
 from api.modules.oauth.proof import Proof
 from api.modules.oauth.scopes import Scope
 from api.modules.oauth.tokens import InvalidToken, renew_access, revoke
@@ -81,7 +82,12 @@ def test_refresh_confidencial_exige_aplicacao_autenticada_e_autorizacao_ativa(
 
     def renew(token, app, authenticated):
         return asyncio.run(
-            renew_access(db, token, client_id=app, authenticated_client=authenticated)
+            renew_access(
+                db,
+                token,
+                client_id=app,
+                client_secret="segredo-teste" if authenticated else None,
+            )
         )
 
     for token, app, authenticated in (
@@ -89,7 +95,7 @@ def test_refresh_confidencial_exige_aplicacao_autenticada_e_autorizacao_ativa(
         (pair.refresh_token, "agenda", False),
         (pair.access_token, "agenda", True),
     ):
-        with pytest.raises(InvalidToken):
+        with pytest.raises((InvalidToken, InvalidClient)):
             renew(token, app, authenticated)
     renewed = renew(pair.refresh_token, "agenda", True)
     assert renewed.access_token != pair.access_token
@@ -97,7 +103,7 @@ def test_refresh_confidencial_exige_aplicacao_autenticada_e_autorizacao_ativa(
     assert renewed.scopes == pair.scopes
     assert decrypt_cookie("access_token", renewed.access_token.split(".", 1)[1]) is None
     asyncio.run(revoke(db, pair.grant_id, registration="251000000"))
-    with pytest.raises(InvalidToken):
+    with pytest.raises((InvalidToken, InvalidClient)):
         renew(pair.refresh_token, "agenda", True)
 
 
@@ -199,9 +205,35 @@ def test_revogacao_durante_login_no_cas_impede_renovacao(db, emitir, monkeypatch
         return "app14~NOVA"
 
     monkeypatch.setattr(SigaaClient, "authenticate", durante_login)
-    with pytest.raises(InvalidToken):
+    with pytest.raises((InvalidToken, InvalidClient)):
         asyncio.run(
             renew_access(
-                db, pair.refresh_token, client_id="agenda", authenticated_client=True
+                db,
+                pair.refresh_token,
+                client_id="agenda",
+                client_secret="segredo-teste",
+            )
+        )
+
+
+def test_rotacao_do_segredo_durante_login_impede_renovacao(db, emitir, monkeypatch):
+    from sigaa_client import SigaaClient
+
+    from api.modules.oauth.clients import rotate_client_secret
+
+    pair = emitir()
+
+    async def durante_login(_client):
+        await rotate_client_secret(db, "251000000", "agenda")
+        return "app14~NOVA"
+
+    monkeypatch.setattr(SigaaClient, "authenticate", durante_login)
+    with pytest.raises(InvalidClient):
+        asyncio.run(
+            renew_access(
+                db,
+                pair.refresh_token,
+                client_id="agenda",
+                client_secret="segredo-teste",
             )
         )

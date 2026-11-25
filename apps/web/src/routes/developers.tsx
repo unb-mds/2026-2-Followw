@@ -2,11 +2,7 @@ import type { OAuthClient } from '@followw/core/queries/oauth.ts';
 
 import { useOnline } from '@followw/core/lib/online.ts';
 import { loadQuery } from '@followw/core/queries/load.ts';
-import {
-    createOAuthClient,
-    oauthClientsQueryOptions,
-    updateOAuthClient
-} from '@followw/core/queries/oauth.ts';
+import { oauthClientsQueryOptions } from '@followw/core/queries/oauth.ts';
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Navigate, redirect } from '@tanstack/react-router';
 import { useState } from 'react';
@@ -29,7 +25,7 @@ export const Route = createFileRoute('/developers')({
     head: () => ({ meta: [{ title: 'Portal de Desenvolvedores | Followw' }] }),
     loader: async ({ context: { queryClient } }) => {
         const user = await loadQuery(queryClient, meQueryOptions);
-        if (!user) throw redirect({ to: '/login' });
+        if (!user) throw redirect({ to: '/login', search: { returnTo: '/developers' } });
         await loadQuery(queryClient, oauthClientsQueryOptions).catch(() => null);
     },
     errorComponent: ErrorState,
@@ -44,9 +40,9 @@ function DevelopersPage() {
     const [createOpen, setCreateOpen] = useState(false);
     const [editing, setEditing] = useState<OAuthClient | null>(null);
     const [revealedSecret, setRevealedSecret] = useState<RevealedSecret | null>(null);
-    const { rotate, remove, busy, error, invalidate } = useClientActions(setRevealedSecret);
+    const { create, update, rotate, remove, busy, error } = useClientActions(setRevealedSecret);
 
-    if (!user) return <Navigate to="/login" replace />;
+    if (!user) return <Navigate to="/login" search={{ returnTo: '/developers' }} replace />;
 
     const items = clients.data ?? [];
 
@@ -99,15 +95,7 @@ function DevelopersPage() {
                         open={createOpen}
                         onOpenChange={setCreateOpen}
                         onSubmit={async (body) => {
-                            const created = await createOAuthClient(body);
-                            await invalidate();
-                            if (created.client_secret) {
-                                setRevealedSecret({
-                                    clientId: created.client_id,
-                                    clientSecret: created.client_secret,
-                                    title: 'Aplicação criada — salve seu client_secret'
-                                });
-                            }
+                            await create.mutateAsync(body);
                         }}
                     />
                 )}
@@ -120,8 +108,7 @@ function DevelopersPage() {
                         open
                         onOpenChange={(open) => !open && setEditing(null)}
                         onSubmit={async (body) => {
-                            await updateOAuthClient(editing.client_id, body);
-                            await invalidate();
+                            await update.mutateAsync({ clientId: editing.client_id, body });
                         }}
                     />
                 )}

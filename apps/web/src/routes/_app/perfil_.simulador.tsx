@@ -18,7 +18,7 @@ import { meQueryOptions } from '#/queries/me';
 export const Route = createFileRoute('/_app/perfil_/simulador')({
     loader: async ({ context: { queryClient } }) => {
         const user = await loadQuery(queryClient, meQueryOptions);
-        if (!user) throw redirect({ to: '/login' });
+        if (!user) throw redirect({ to: '/login', search: { returnTo: '/perfil/simulador' } });
         if (user.level !== 'Graduação') throw redirect({ to: '/perfil' });
         await loadQuery(queryClient, allClassroomsQueryOptions).catch(noop);
     },
@@ -32,7 +32,7 @@ export const Route = createFileRoute('/_app/perfil_/simulador')({
 
 function SimulatorPage() {
     const { data: user } = useSuspenseQuery(meQueryOptions);
-    if (!user) return <Navigate to="/login" replace />;
+    if (!user) return <Navigate to="/login" search={{ returnTo: '/perfil/simulador' }} replace />;
     if (user.level !== 'Graduação') return <Navigate to="/perfil" replace />;
     return <SimulatorData user={user} />;
 }

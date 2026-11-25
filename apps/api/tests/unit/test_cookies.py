@@ -105,8 +105,10 @@ def test_refresh_cookie_devolve_as_credenciais(ler_cookies):
 
     lidas = read_refresh_cookie(_request(**_cookies(response, ler_cookies)))
 
-    assert lidas == CREDENCIAIS
-    assert lidas.password.get_secret_value() == SENHA
+    assert lidas is not None
+    assert lidas.credentials == CREDENCIAIS
+    assert lidas.session_id
+    assert lidas.credentials.password.get_secret_value() == SENHA
 
 
 def test_cookies_sao_jwe_compacto_com_aes_gcm(ler_cookies):

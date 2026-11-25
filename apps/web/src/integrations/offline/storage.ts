@@ -23,6 +23,7 @@ let clearing: Promise<void> | undefined;
 // Uma falha ao atualizar não invalida o último dado salvo.
 export function shouldPersistQuery(query: Query, now = Date.now()) {
     return (
+        query.meta?.persist !== false &&
         query.queryHash !== hashKey(recommendationsQueryOptions.queryKey) &&
         query.state.data !== undefined &&
         now - query.state.dataUpdatedAt < PERSIST_MAX_AGE

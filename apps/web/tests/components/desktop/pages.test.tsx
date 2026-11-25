@@ -77,10 +77,10 @@ test('busca com barra final mantém um único campo e recolhe o atalho da navega
     expect(view.queryByRole('link', { name: 'Buscar' })).toBeNull();
 });
 
-test('perfil com barra final mantém a indicação de página atual e o seletor de tema', async () => {
+test('perfil com barra final mantém a indicação de página atual e o acesso às configurações', async () => {
     const view = await render('/perfil/');
     expect(view.getByRole('link', { name: 'Perfil' }).getAttribute('aria-current')).toBe('page');
-    expect(view.getAllByRole('button', { name: /Alternar tema/ })).toHaveLength(1);
+    expect(view.getAllByRole('link', { name: 'Configurações' })).toHaveLength(1);
 });
 
 test.each([1440, 390])(
@@ -94,7 +94,7 @@ test.each([1440, 390])(
         expect(view.queryByRole('link', { name: 'Followw, início' }) !== null).toBe(
             viewportWidth >= 1024
         );
-        expect(view.getAllByRole('button', { name: /Alternar tema/ })).toHaveLength(1);
+        expect(view.getAllByRole('link', { name: 'Configurações' })).toHaveLength(1);
         expect(view.queryByRole('link', { name: 'Entrar' })).toBeNull();
         expect(view.getByText('3,72')).toBeDefined();
         expect(view.getByText('3,55')).toBeDefined();

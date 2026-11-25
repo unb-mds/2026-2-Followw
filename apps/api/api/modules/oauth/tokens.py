@@ -15,6 +15,7 @@ from api.core.config import settings
 from api.crypto import decrypt_claims, derive_secret, encrypt_claims
 from api.db.main import Database
 from api.db.models import OAuthGrant
+from api.modules.oauth.clients import authenticate_client
 from api.modules.oauth.proof import InvalidProof, Proof
 from api.modules.oauth.scopes import Scope, granted_scopes
 
@@ -71,8 +72,8 @@ def _issue_access(
     return token, max(0, int((expires - now).total_seconds()))
 
 
-async def issue_tokens(
-    db: Database,
+async def create_token_pair(
+    session: AsyncSession,
     *,
     client_id: str,
     credentials: Credentials,
@@ -85,37 +86,33 @@ async def issue_tokens(
     if not authenticated_client and proof is None:
         raise InvalidProof("Clientes públicos precisam comprovar a posse da chave.")
     scopes = granted_scopes(accepted)
-
-    async def create(session: AsyncSession) -> TokenPair:
-        if proof is not None:
-            await proof.consume(session)
-        now = datetime.now(UTC)
-        grant = OAuthGrant(
-            id=uuid4(),
-            client_id=client_id,
-            confidential=authenticated_client,
-            registration=credentials.registration,
-            scopes=scopes,
-            expires_at=_deadline(now),
-            salt=secrets.token_bytes(32),
-            key_thumbprint=proof.thumbprint if proof else None,
-        )
-        session.add(grant)
-        login = {
-            "registration": credentials.registration,
-            "password": credentials.password.get_secret_value(),
-        }
-        access_token, expires_in = _issue_access(grant, login, session_token, now)
-        return TokenPair(
-            grant.id,
-            access_token,
-            _seal(grant, "refresh", login),
-            expires_in,
-            tuple(scopes),
-            credentials,
-        )
-
-    return await db.write(create)
+    if proof is not None:
+        await proof.consume(session)
+    now = datetime.now(UTC)
+    grant = OAuthGrant(
+        id=uuid4(),
+        client_id=client_id,
+        confidential=authenticated_client,
+        registration=credentials.registration,
+        scopes=scopes,
+        expires_at=_deadline(now),
+        salt=secrets.token_bytes(32),
+        key_thumbprint=proof.thumbprint if proof else None,
+    )
+    session.add(grant)
+    login = {
+        "registration": credentials.registration,
+        "password": credentials.password.get_secret_value(),
+    }
+    access_token, expires_in = _issue_access(grant, login, session_token, now)
+    return TokenPair(
+        grant.id,
+        access_token,
+        _seal(grant, "refresh", login),
+        expires_in,
+        tuple(scopes),
+        credentials,
+    )
 
 
 async def _open(
@@ -157,17 +154,15 @@ async def renew_access(
     refresh_token: str,
     *,
     client_id: str,
-    authenticated_client: bool,
+    client_secret: str | None,
     proof: Proof | None = None,
 ) -> TokenPair:
-    """A camada de aplicações autentica o cliente confidencial antes da chamada."""
 
     async def authorize(session: AsyncSession) -> tuple[OAuthGrant, dict]:
+        await authenticate_client(session, client_id, client_secret, proof=proof)
         grant, login = await _open(session, refresh_token, "refresh")
         if grant.client_id != client_id:
             raise InvalidToken("Token de outra aplicação.")
-        if grant.confidential and not authenticated_client:
-            raise InvalidToken("A aplicação precisa se autenticar.")
         if grant.key_thumbprint is not None:
             if proof is None or proof.thumbprint != grant.key_thumbprint:
                 raise InvalidProof("Prova da instalação exigida.")
@@ -183,6 +178,7 @@ async def renew_access(
         raise InvalidToken("A credencial da autorização expirou.") from error
 
     async def renew(session: AsyncSession) -> TokenPair:
+        await authenticate_client(session, client_id, client_secret, proof=proof)
         grant = await session.get(OAuthGrant, authorized.id, with_for_update=True)
         now = datetime.now(UTC)
         if grant is None or grant.salt != authorized.salt or grant.expires_at <= now:

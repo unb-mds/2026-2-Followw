@@ -1,5 +1,6 @@
 import asyncio
 from datetime import date
+from hashlib import sha256
 from unittest.mock import AsyncMock
 
 import pytest
@@ -19,7 +20,7 @@ from api.db.main import Database
 from api.db.models import OAuthClient
 from api.modules.oauth.clients import generate_client_secret
 from api.modules.oauth.scopes import Scope
-from api.modules.oauth.tokens import issue_tokens
+from api.modules.oauth.tokens import create_token_pair
 
 
 @pytest.fixture
@@ -40,7 +41,8 @@ def emitir(db):
                 if existente is None:
                     salt = digest = None
                     if is_confidential:
-                        _, salt, digest = generate_client_secret()
+                        _, salt, _ = generate_client_secret()
+                        digest = sha256(salt + b"segredo-teste").digest()
                     session.add(
                         OAuthClient(
                             client_id=client_id,
@@ -56,14 +58,18 @@ def emitir(db):
                     )
 
             await db.write(ensure)
-            return await issue_tokens(
-                db,
-                client_id=client_id,
-                accepted=(Scope.PROFILE, *scopes),
-                credentials=Credentials(registration="251000000", password="senha123"),
-                session_token="app14~SESSAO-EXPIRADA",
-                proof=proof,
-                authenticated_client=is_confidential,
+            return await db.write(
+                lambda session: create_token_pair(
+                    session,
+                    client_id=client_id,
+                    accepted=(Scope.PROFILE, *scopes),
+                    credentials=Credentials(
+                        registration="251000000", password="senha123"
+                    ),
+                    session_token="app14~SESSAO-EXPIRADA",
+                    proof=proof,
+                    authenticated_client=is_confidential,
+                )
             )
 
         return asyncio.run(_ensure_client_and_issue())
@@ -104,3 +110,34 @@ def noticias(turmas):
     )
     turmas.classrooms.list_classroom_posts = AsyncMock(return_value=[post])
     turmas.classrooms.list_dashboard_posts = AsyncMock(return_value=[])
+
+
+@pytest.fixture
+def autorizacao(client, cookies, stub_sigaa):
+    from base64 import urlsafe_b64encode
+    from hashlib import sha256
+
+    client.cookies.update(
+        cookies(refresh=Credentials(registration="251000000", password="senha123"))
+    )
+    app = client.post(
+        "/oauth/clients",
+        json={
+            "name": "Agenda",
+            "confidential": True,
+            "redirect_uris": ["https://agenda.test/callback?view=calendar"],
+        },
+    ).json()
+    verifier = "v" * 43
+    params = {
+        "response_type": "code",
+        "client_id": app["client_id"],
+        "redirect_uri": app["redirect_uris"][0],
+        "scope": "profile:read",
+        "state": "estado com & e +",
+        "code_challenge_method": "S256",
+        "code_challenge": urlsafe_b64encode(sha256(verifier.encode()).digest())
+        .decode()
+        .rstrip("="),
+    }
+    return app, params, verifier
