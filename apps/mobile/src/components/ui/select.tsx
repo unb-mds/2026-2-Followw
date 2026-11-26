@@ -78,7 +78,7 @@ function SelectTrigger({
             disabled={disabled}
             onPress={() => setOpen(true)}
             className={cn(
-                'flex-row items-center justify-between gap-1.5 self-start rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 active:bg-input/50 dark:bg-input/30',
+                'flex-row items-center justify-between gap-1.5 self-start rounded-lg border border-input bg-transparent pr-2 pl-2.5 active:bg-input/50 dark:bg-input/30',
                 size === 'default' ? 'h-8' : 'h-7 rounded-md',
                 disabled && 'opacity-50',
                 className
@@ -95,9 +95,10 @@ function SelectValue({ className, placeholder }: { className?: string; placehold
     const { value, items } = useSelect();
     const label = items.find((item) => item.value === value)?.label ?? value;
     return (
+        // sem min-width: auto no Yoga, flex-1 zera a largura num gatilho sem largura própria
         <Text
             numberOfLines={1}
-            className={cn('flex-1 text-left text-sm', !label && 'text-muted-foreground', className)}
+            className={cn('shrink text-left text-sm', !label && 'text-muted-foreground', className)}
         >
             {label || placeholder}
         </Text>
