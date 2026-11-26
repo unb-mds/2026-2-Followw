@@ -53,7 +53,9 @@ export function DocumentDownloads() {
                                 <Icon as={icon} className="size-4 text-primary" />
                             </View>
                             <View className="min-w-0 flex-1">
-                                <Text className="text-sm">{shortLabel}</Text>
+                                <Text numberOfLines={1} className="text-sm">
+                                    {shortLabel}
+                                </Text>
                                 {(isPending || message) && (
                                     <Text
                                         role={message ? 'alert' : undefined}
@@ -69,7 +71,8 @@ export function DocumentDownloads() {
                             <Button
                                 size="icon-sm"
                                 variant="ghost"
-                                className="size-9"
+                                // o ícone tem folga dentro do botão; sem isso "Carteirinha" não cabe
+                                className="-mx-1 size-9"
                                 disabled={!online || pending !== null}
                                 accessibilityLabel={`Baixar ${label.toLowerCase()}`}
                                 accessibilityState={{ busy: isPending }}
