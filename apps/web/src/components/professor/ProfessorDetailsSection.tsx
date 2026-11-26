@@ -5,6 +5,7 @@ import type {
 } from '@followw/core/queries/professors.ts';
 
 import { titleCase } from '@followw/core/lib/profile.ts';
+import { disciplinesBySemester } from '@followw/core/queries/professors.ts';
 import { Link } from '@tanstack/react-router';
 import { BookOpen, Calendar, GraduationCap, Lightbulb, type LucideIcon, User } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -14,26 +15,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card';
 
 const INITIAL_SEMESTERS_COUNT = 6;
 
-// semestres do mais recente ao mais antigo, matérias por código
-function groupBySemester(disciplines: ProfessorDiscipline[]) {
-    const groups = new Map<string, ProfessorDiscipline[]>();
-    for (const item of disciplines) {
-        const group = groups.get(item.semester);
-        if (group) group.push(item);
-        else groups.set(item.semester, [item]);
-    }
-    return [...groups]
-        .toSorted(([a], [b]) => b.localeCompare(a))
-        .map(([semester, items]) => ({
-            semester,
-            items: items.toSorted((a, b) => a.code.localeCompare(b.code))
-        }));
-}
-
 export function ProfessorDetailsSection({ professor }: { professor: ProfessorDetails }) {
     const [showAllSemesters, setShowAllSemesters] = useState(false);
     const semesters = useMemo(
-        () => groupBySemester(professor.disciplines),
+        () => disciplinesBySemester(professor.disciplines),
         [professor.disciplines]
     );
     const hiddenSemesters = semesters.length - INITIAL_SEMESTERS_COUNT;

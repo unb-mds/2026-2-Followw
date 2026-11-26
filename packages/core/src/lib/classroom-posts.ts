@@ -9,6 +9,20 @@ export const postTypeLabels: Record<PostType, string> = {
     assessment: 'Avaliação'
 };
 
+export const POST_FILTERS = ['all', 'news', 'topic', 'material', 'assessment'] as const;
+export type PostFilter = (typeof POST_FILTERS)[number];
+
+export const postFilterLabels: Record<PostFilter, string> = {
+    all: 'Todas',
+    news: 'Notícias',
+    topic: 'Tópicos de aula',
+    material: 'Materiais',
+    assessment: 'Avaliações'
+};
+
+export const filterPosts = (posts: ClassroomPost[], filter: PostFilter) =>
+    filter === 'all' ? posts : posts.filter((post) => post.type === filter);
+
 export function postDateLabel(post: ClassroomPost) {
     if (post.starts_at) return formatClassroomDateTime(post.starts_at);
     if (post.starts_on) {
@@ -45,4 +59,14 @@ export function groupTopics(posts: ClassroomPost[]) {
         }
     }
     return { topics, materials };
+}
+
+/** Prévia em texto simples: tira a marcação e as quebras do markdown. */
+export function postPreview(content: string | null | undefined) {
+    const text = content
+        ?.replaceAll(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+        .replaceAll(/[*_`>#~]+/g, '')
+        .replaceAll(/\s+/g, ' ')
+        .trim();
+    return text || 'Toque para ler mais.';
 }

@@ -1,5 +1,6 @@
 import type { CatalogSubject } from './subjects.ts';
 
+import { plural } from '../lib/plural.ts';
 import { api } from './api.ts';
 
 export type Recommendation = NonNullable<CatalogSubject['recommendation']>;
@@ -14,8 +15,6 @@ export const recommendationsQueryOptions = (available = false) =>
     );
 
 type Reason = Recommendation['reasons'][number];
-
-const plural = (value: number, one: string, many: string) => `${value} ${value === 1 ? one : many}`;
 
 const reasonLabels: Record<Reason['code'], (value: number) => string> = {
     required: () => 'Obrigatória',

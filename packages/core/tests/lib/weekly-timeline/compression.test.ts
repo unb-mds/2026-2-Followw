@@ -1,7 +1,12 @@
-import { parseSchedule } from '@followw/core/lib/schedule.ts';
 import { describe, expect, test } from 'bun:test';
 
-import { dayLanes, timelineHeight, timePosition, weeklyTimeline } from '#/lib/weekly-timeline';
+import { parseSchedule } from '../../../src/lib/schedule.ts';
+import {
+    dayLanes,
+    timelineHeight,
+    timePosition,
+    weeklyTimeline
+} from '../../../src/lib/weekly-timeline.ts';
 
 describe('escala semanal compartilhada', () => {
     test('mantém manhã, noite até 22h30 e sábado na mesma escala, sem encolher o meio', () => {

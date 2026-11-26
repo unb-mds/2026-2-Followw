@@ -1,8 +1,5 @@
 import { visibleGridDays } from '@followw/core/lib/planned-schedule.ts';
 import { parseSchedule } from '@followw/core/lib/schedule.ts';
-import { useMemo } from 'react';
-
-import { cn } from '#/lib/shadcn';
 import {
     dayLanes,
     formatMinutes,
@@ -10,7 +7,10 @@ import {
     timelineHeight,
     timeTicks,
     weeklyTimeline
-} from '#/lib/weekly-timeline';
+} from '@followw/core/lib/weekly-timeline.ts';
+import { useMemo } from 'react';
+
+import { cn } from '#/lib/shadcn';
 
 const TIMELINE_INSET = 16;
 const BLOCK_GAP = 3;

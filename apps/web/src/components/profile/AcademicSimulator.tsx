@@ -1,11 +1,19 @@
 import type { Classroom } from '@followw/core/queries/classrooms.ts';
 
+import {
+    gradeWeights,
+    isFreeModule,
+    isGrade,
+    simulateIndexes,
+    simulationClassrooms,
+    simulationGrade,
+    simulationKey,
+    type Grade
+} from '@followw/core/lib/academic-simulation.ts';
 import { groupBySemester } from '@followw/core/lib/classroom-details.ts';
 import { formatAcademicIndex, titleCase } from '@followw/core/lib/profile.ts';
 import { ChevronDown } from 'lucide-react';
 import { lazy, Suspense, useSyncExternalStore } from 'react';
-
-import type { Grade } from '#/lib/academic-simulation';
 
 import { LoadingSkeleton } from '#/components/LoadingSkeleton';
 import { Button } from '#/components/ui/button';
@@ -18,16 +26,7 @@ import {
     SelectValue
 } from '#/components/ui/select';
 import { Skeleton } from '#/components/ui/skeleton';
-import {
-    gradeWeights,
-    isFreeModule,
-    isGrade,
-    simulateIndexes,
-    simulatedGrades,
-    simulationClassrooms,
-    simulationGrade,
-    simulationKey
-} from '#/lib/academic-simulation';
+import { simulatedGrades } from '#/lib/academic-simulation';
 import { repeat } from '#/lib/repeat';
 
 const AcademicSimulatorChart = lazy(() =>

@@ -1,7 +1,7 @@
-import { parseSchedule } from '@followw/core/lib/schedule.ts';
 import { describe, expect, test } from 'bun:test';
 
-import { timePosition, timeTicks, weeklyTimeline } from '#/lib/weekly-timeline';
+import { parseSchedule } from '../../../src/lib/schedule.ts';
+import { timePosition, timeTicks, weeklyTimeline } from '../../../src/lib/weekly-timeline.ts';
 
 describe('marcadores de horário da grade semanal', () => {
     test('termina em hora cheia com espaçamento uniforme sem apertar o fim da aula', () => {

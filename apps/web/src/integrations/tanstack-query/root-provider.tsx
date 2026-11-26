@@ -1,4 +1,5 @@
 import { ApiError } from '@followw/core/queries/errors.ts';
+import { PERSIST_MAX_AGE } from '@followw/core/queries/persist.ts';
 import {
     MutationCache,
     QueryCache,
@@ -7,7 +8,6 @@ import {
     onlineManager
 } from '@tanstack/react-query';
 
-import { PERSIST_MAX_AGE } from '#/integrations/offline/storage.ts';
 import { clearSession } from '#/queries/auth.ts';
 
 export function getContext() {

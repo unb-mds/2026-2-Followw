@@ -1,6 +1,6 @@
-import { describe, expect, test } from 'bun:test';
+import type { RestaurantSelection } from '@followw/core/lib/restaurant.ts';
 
-import type { RestaurantSelection } from '#/lib/restaurant-share';
+import { describe, expect, test } from 'bun:test';
 
 import { isDefaultSelection } from '#/lib/restaurant-share';
 

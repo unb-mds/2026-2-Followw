@@ -5,5 +5,7 @@ import { api } from './api.ts';
 export type LessonDay = components['schemas']['LessonDay'];
 export type WeekLesson = components['schemas']['WeekLesson'];
 
+export const isWeekLessonCancelled = (lesson: WeekLesson) => lesson.status === 'cancelada';
+
 /** Domingo a sábado da semana atual, com a situação do aluno em cada aula. */
 export const weekLessonsQueryOptions = api.queryOptions('get', '/lessons');

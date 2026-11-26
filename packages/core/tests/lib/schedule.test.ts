@@ -4,6 +4,7 @@ import {
     addDays,
     classesOn,
     describeSchedule,
+    formatDayRange,
     formatDuration,
     nextDays,
     nowInBrasilia,
@@ -171,4 +172,25 @@ test.each([
 ])('formata %i minutos como %s e, curto, %s', (minutes, long, short) => {
     expect(formatDuration(minutes)).toBe(long);
     expect(formatDuration(minutes, { short: true })).toBe(short);
+});
+
+const utcDate = (value: string) => new Date(`${value}T00:00:00Z`);
+
+describe('formatDayRange', () => {
+    test('escreve o intervalo igual ao Intl.DateTimeFormat.formatRange', () => {
+        const intl = new Intl.DateTimeFormat('pt-BR', {
+            day: 'numeric',
+            month: 'short',
+            timeZone: 'UTC'
+        });
+        const ranges = [
+            ['2026-11-02', '2026-11-08'],
+            ['2026-10-28', '2026-11-03'],
+            ['2026-12-29', '2027-01-04'],
+            ['2026-11-08', '2026-11-08']
+        ];
+        for (const [start, end] of ranges) {
+            expect(formatDayRange(start, end)).toBe(intl.formatRange(utcDate(start), utcDate(end)));
+        }
+    });
 });

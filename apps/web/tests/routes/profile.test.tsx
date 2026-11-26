@@ -89,7 +89,8 @@ test.each([42, null])(
             const documents = browser.document.querySelector('section[aria-label="Documentos"]');
             expect(documents?.textContent).toContain('Carteirinha');
             expect(documents?.textContent).toContain('Histórico');
-            expect(documents?.querySelectorAll('button')).toHaveLength(2);
+            expect(documents?.textContent).toContain('Diploma');
+            expect(documents?.querySelectorAll('button')).toHaveLength(3);
             expect(account?.querySelector('button[aria-label^="Baixar"]')).toBeNull();
         } finally {
             client.clear();

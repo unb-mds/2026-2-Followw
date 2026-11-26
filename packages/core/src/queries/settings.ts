@@ -1,9 +1,10 @@
-import { queryOptions } from '@tanstack/react-query';
+import { queryOptions, useQueryClient } from '@tanstack/react-query';
 
 import type { components } from './schema.gen.ts';
 
 import { api } from './api.ts';
 import { ApiError } from './errors.ts';
+import { meQueryOptions } from './me.ts';
 
 export type UserSettings = components['schemas']['UserSettings'];
 export type UserSettingsPatch = components['schemas']['UserSettingsPatch'];
@@ -25,3 +26,14 @@ export const settingsQueryOptions = (registration: string | null) =>
             }
         }
     });
+
+export function useUpdateSettings() {
+    const queryClient = useQueryClient();
+    return api.useMutation('patch', '/me/settings', {
+        onSuccess: (data) => {
+            const user = queryClient.getQueryData(meQueryOptions.queryKey);
+            if (!data || !user) return;
+            queryClient.setQueryData(settingsQueryOptions(user.registration).queryKey, data);
+        }
+    });
+}

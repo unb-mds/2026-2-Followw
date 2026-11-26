@@ -1,7 +1,9 @@
 import type { ScheduledClass, Day } from '@followw/core/lib/schedule.ts';
 import type { WeekLesson } from '@followw/core/queries/lessons.ts';
 
+import { dayTimeline } from '@followw/core/lib/day-timeline.ts';
 import { formatDuration, nowInBrasilia } from '@followw/core/lib/schedule.ts';
+import { isWeekLessonCancelled } from '@followw/core/queries/lessons.ts';
 import { useNavigate } from '@tanstack/react-router';
 import { m } from 'motion/react';
 import { Fragment } from 'react';
@@ -12,7 +14,6 @@ import { LessonCard } from '#/components/home/LessonCard';
 import { LoginPromptCard } from '#/components/home/LoginPromptCard';
 import { SectionHeader } from '#/components/SectionHeader';
 import { Card } from '#/components/ui/card';
-import { dayTimeline } from '#/lib/day-timeline';
 import { rise, useEntrance } from '#/lib/motion';
 import { cn } from '#/lib/shadcn';
 
@@ -84,7 +85,7 @@ function TodayClassesContent({
                         )}
                         <div className="flex gap-3 lg:gap-4">
                             <ClassProgress
-                                progress={cancelled(item) ? 0 : progress}
+                                progress={isWeekLessonCancelled(item) ? 0 : progress}
                                 absent={item.status === 'falta'}
                             />
                             <div
@@ -131,5 +132,3 @@ function Divider({ gap, overlap }: { gap: number; overlap: boolean }) {
 }
 
 const CONTENT = 'min-w-0 flex-1';
-
-const cancelled = (lesson: WeekLesson) => lesson.status === 'cancelada';
