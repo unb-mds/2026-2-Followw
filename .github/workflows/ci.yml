@@ -123,7 +123,18 @@ jobs:
             --output "$RUNNER_TEMP/subjects-h2.json" "http://$api_ip:8000/public/subjects?code=MAT0025")" = 2
           jq -e 'any(.items[]; .code == "MAT0025")' "$RUNNER_TEMP/subjects-h2.json"
           test "$(curl "${curl_args[@]}" --write-out '%{http_version}' \
-            --output /dev/null "http://$web_ip:3000/login")" = 2
+            --output "$RUNNER_TEMP/login-h2.html" "http://$web_ip:3000/login")" = 2
+          assets=$(grep -oE '/assets/[a-zA-Z0-9_.-]+\.(js|css)' "$RUNNER_TEMP/login-h2.html" | sort -u)
+          echo "$assets" | grep -q '\.js$'
+          echo "$assets" | grep -q '\.css$'
+          while IFS= read -r asset; do
+            format=$(curl "${curl_args[@]}" --output /dev/null --write-out '%{content_type}' \
+              "http://$web_ip:3000$asset")
+            case "$asset:$format" in
+              *.js:text/javascript*|*.js:application/javascript*|*.css:text/css*) ;;
+              *) echo "Tipo de conteúdo inesperado em $asset: $format"; exit 1;;
+            esac
+          done <<< "$assets"
       - if: failure()
         run: |
           docker compose logs

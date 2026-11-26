@@ -24,6 +24,7 @@ const config = defineConfig({
     plugins: [
         nitro({
             rollupConfig: { external: [/^@sentry\//] },
+            serveStatic: process.env.NITRO_PRESET === 'node-middleware' ? 'node' : undefined,
             // só no dev; na Vercel, o vercel.json faz o mesmo
             devProxy: { '/api/**': 'http://127.0.0.1:8000' }
         }),
