@@ -22,24 +22,7 @@ import {
 } from '@followw/core/queries/restaurant.ts';
 import { environmentManager, noop, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Link, useLocation, useNavigate } from '@tanstack/react-router';
-import {
-    Apple,
-    Carrot,
-    ChevronLeft,
-    ChevronRight,
-    Coffee,
-    Croissant,
-    CupSoda,
-    Droplet,
-    Egg,
-    IceCreamCone,
-    Leaf,
-    Salad,
-    Sandwich,
-    Soup,
-    UtensilsCrossed,
-    Wheat
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight, Coffee, Leaf, Soup, UtensilsCrossed } from 'lucide-react';
 import { AnimatePresence, m } from 'motion/react';
 import { useQueryStates } from 'nuqs';
 import { lazy, Suspense, useCallback, useEffect, useSyncExternalStore } from 'react';
@@ -51,6 +34,7 @@ import { HeaderBar, HeaderTitle, HeaderToggle } from '#/components/HeaderBar';
 import { LinesSkeleton, LoadingSkeleton } from '#/components/LoadingSkeleton';
 import { SlideSwitch } from '#/components/Motion';
 import { usePageState } from '#/components/PageState';
+import { ALTERNATIVES, SECTION_ICONS } from '#/components/ru/menu-icons';
 import { ShareButton } from '#/components/ShareButton';
 import { Button, buttonVariants } from '#/components/ui/button';
 import { Card, CardContent } from '#/components/ui/card';
@@ -91,35 +75,6 @@ const MEALS = MEAL_TIMES.map(({ key, label, start, end }) => ({
     end,
     icon: MEAL_ICONS[key]
 }));
-
-interface AlternativeInfo {
-    label: string;
-    icon: React.FC<{ className?: string }>;
-}
-
-const ALTERNATIVES: Partial<Record<NonNullable<MenuSection['key']>, AlternativeInfo>> = {
-    main_dish_vegetarian: { label: 'Ovolactovegetariano', icon: Egg },
-    main_dish_vegan: { label: 'Vegetariano estrito', icon: Leaf },
-    complement_vegetarian: { label: 'Ovolactovegetariano', icon: Egg },
-    complement_vegan: { label: 'Vegetariano estrito', icon: Leaf }
-};
-
-const SECTION_ICONS: Partial<Record<NonNullable<MenuSection['key']>, AlternativeInfo['icon']>> = {
-    drink: CupSoda,
-    bread: Croissant,
-    extra: Wheat,
-    spread: Droplet,
-    fruit: Apple,
-    salad_1: Salad,
-    salad_2: Salad,
-    salad_dressing: Droplet,
-    side_dish: Carrot,
-    accompaniments: Carrot,
-    soup: Soup,
-    toast: Sandwich,
-    dessert: IceCreamCone,
-    complement: Egg
-};
 
 declare module '@tanstack/history' {
     interface HistoryState {
