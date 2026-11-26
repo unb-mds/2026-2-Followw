@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import * as DialogPrimitive from '@rn-primitives/dialog';
 import { X } from 'lucide-react-native';
 import * as React from 'react';
-import { Platform, View, type GestureResponderEvent, type ViewProps } from 'react-native';
+import { Platform, Pressable, View, type GestureResponderEvent, type ViewProps } from 'react-native';
 import { FadeIn, FadeOut, ReduceMotion } from 'react-native-reanimated';
 import { FullWindowOverlay as RNFullWindowOverlay } from 'react-native-screens';
 
@@ -48,12 +48,23 @@ function DialogOverlay({
           className
         )}
         {...props}
-        onPress={Platform.select({ web: onOverlayPress, native: onPress })}
+        onPress={Platform.select({ web: onOverlayPress })}
         asChild={Platform.OS !== 'web'}>
         <NativeOnlyAnimatedView
           entering={FadeIn.duration(200).reduceMotion(ReduceMotion.System)}
-          exiting={FadeOut.duration(150).reduceMotion(ReduceMotion.System)}
-          as="Pressable">
+          exiting={FadeOut.duration(150).reduceMotion(ReduceMotion.System)}>
+          {/* fundo irmão do conteúdo: no Android, quem envolve e assume o toque rouba a rolagem */}
+          {Platform.OS !== 'web' && (
+            <Pressable
+              testID="dialog-backdrop"
+              accessible={false}
+              className="absolute bottom-0 left-0 right-0 top-0"
+              onPress={(event) => {
+                onPress?.(event);
+                if (!event.isDefaultPrevented()) onOpenChange(false);
+              }}
+            />
+          )}
           <>{children}</>
         </NativeOnlyAnimatedView>
       </DialogPrimitive.Overlay>
@@ -81,6 +92,7 @@ function DialogContent({
             }),
             className
           )}
+          onStartShouldSetResponder={Platform.select({ native: () => false })}
           {...props}>
           <TextClassContext.Provider value="text-sm text-popover-foreground">
             <>{children}</>
