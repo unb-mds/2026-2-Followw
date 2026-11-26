@@ -40,7 +40,7 @@ export function QueryState<T, E>({
     return (
         <>
             {query.isError && online && (
-                <ErrorCard message={stale} onRetry={() => void query.refetch()} />
+                <ErrorCard message={stale} className="mb-4" onRetry={() => void query.refetch()} />
             )}
             {children?.(query.data)}
         </>

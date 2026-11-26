@@ -15,12 +15,13 @@ interface ErrorCardProps {
     // sem conexão, dá lugar ao aviso de offline
     message: string;
     onRetry: () => void;
+    className?: string;
 }
 
-export function ErrorCard({ message, onRetry }: ErrorCardProps) {
+export function ErrorCard({ message, onRetry, className }: ErrorCardProps) {
     const failureMessage = useFailureMessage(message);
     return (
-        <Card>
+        <Card className={className}>
             <CardContent className="items-center">
                 <Icon as={CloudOff} className="size-8 text-muted-foreground" />
                 <Text role="alert" className="mt-2 text-center text-sm font-semibold">
