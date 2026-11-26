@@ -1,3 +1,5 @@
+import type { Href } from 'expo-router';
+
 import { OFFLINE_MESSAGE } from '@followw/core/lib/online.ts';
 import { ApiError } from '@followw/core/queries/errors.ts';
 
@@ -35,11 +37,16 @@ export function loginErrorMessage(error: unknown, online: boolean): string | und
     return 'Não foi possível conectar ao SIGAA. Tente novamente.';
 }
 
-export const DEFAULT_LOGIN_RETURN = '/perfil';
+export const DEFAULT_LOGIN_RETURN: Href = '/perfil';
+
+// caminho da própria app; uma rota inexistente cai no +not-found
+function isInternalPath(value: unknown): value is Extract<Href, string> {
+    return typeof value === 'string' && /^\/(?!\/)[^\s\\]*$/.test(value);
+}
 
 /** Rota interna para voltar após o login; qualquer outra vira o perfil. */
-export function safeLoginReturn(value: unknown): string {
-    if (typeof value !== 'string' || !/^\/(?!\/)[^\s\\]*$/.test(value)) return DEFAULT_LOGIN_RETURN;
+export function safeLoginReturn(value: unknown): Href {
+    if (!isInternalPath(value)) return DEFAULT_LOGIN_RETURN;
     const pathname = value.split(/[?#]/)[0].replace(/\/+$/, '');
     return pathname === '/login' ? DEFAULT_LOGIN_RETURN : value;
 }
