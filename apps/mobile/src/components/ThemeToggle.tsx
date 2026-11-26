@@ -1,3 +1,4 @@
+import { nextTheme, THEME_LABELS, type Theme } from '@followw/core/lib/theme.ts';
 import { Moon, Sun, SunMoon } from 'lucide-react-native';
 import { View } from 'react-native';
 import Animated, { type EntryExitAnimationFunction, withSpring } from 'react-native-reanimated';
@@ -6,7 +7,7 @@ import { changeTheme } from '@/components/ThemeFade';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { spring } from '@/lib/motion';
-import { nextTheme, THEME_LABELS, type Theme, useThemePreference } from '@/lib/theme';
+import { useThemePreference } from '@/lib/theme';
 
 const ICONS = { system: SunMoon, light: Sun, dark: Moon } satisfies Record<Theme, typeof Sun>;
 

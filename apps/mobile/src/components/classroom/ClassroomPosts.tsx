@@ -1,8 +1,12 @@
-import type { ClassroomPost, PostType } from '@followw/core/queries/classrooms.ts';
+import type { ClassroomPost } from '@followw/core/queries/classrooms.ts';
 
 import {
+    filterPosts,
     groupTopics,
+    POST_FILTERS,
     postDateLabel,
+    type PostFilter,
+    postFilterLabels,
     postLink,
     postTypeLabels
 } from '@followw/core/lib/classroom-posts.ts';
@@ -36,21 +40,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Text } from '@/components/ui/text';
 import { Rise, Spin } from '@/lib/motion';
 
-const filters = ['all', 'news', 'topic', 'material', 'assessment'] as const;
-const filterLabels: Record<(typeof filters)[number], string> = {
-    all: 'Todas',
-    news: 'Notícias',
-    topic: 'Tópicos de aula',
-    material: 'Materiais',
-    assessment: 'Avaliações'
-};
-
 export function ClassroomPosts({ id }: { id: string }) {
     const queryClient = useQueryClient();
     const options = classroomPostsQueryOptions(id);
     const posts = useQuery(options);
     const [openedId, setOpenedId] = useState<string | null>(null);
-    const [type, setType] = useState<PostType | 'all'>('all');
+    const [type, setType] = useState<PostFilter>('all');
 
     if (posts.isPending)
         return (
@@ -73,7 +68,7 @@ export function ClassroomPosts({ id }: { id: string }) {
     if (posts.isLoadingError)
         return <ErrorCard message={SIGAA_DOWN_MESSAGE} onRetry={() => void posts.refetch()} />;
 
-    const visible = posts.data.filter((post) => type === 'all' || post.type === type);
+    const visible = filterPosts(posts.data, type);
     const { topics, materials } = groupTopics(posts.data);
 
     return (
@@ -83,8 +78,8 @@ export function ClassroomPosts({ id }: { id: string }) {
                     label="Filtrar postagens por tipo"
                     size="sm"
                     value={type}
-                    options={filters}
-                    labels={filterLabels}
+                    options={POST_FILTERS}
+                    labels={postFilterLabels}
                     onChange={(next) => {
                         setType(next);
                         setOpenedId(null);

@@ -1,30 +1,16 @@
-import type { components } from '@followw/core/queries/schema.gen.ts';
+import type {
+    StatisticsShare,
+    StatisticsSituation
+} from '@followw/core/queries/subject-statistics.ts';
 
+import { shareLabel, situationLabels } from '@followw/core/queries/subject-statistics.ts';
 import { View } from 'react-native';
 import { PieChart } from 'react-native-gifted-charts';
 
 import { Text } from '@/components/ui/text';
 import { useColor } from '@/lib/colors';
 
-type Situation = components['schemas']['StatisticsShare']['situation'];
-
-const situations: Record<Situation, { label: string }> = {
-    aprovado: { label: 'Aprovado' },
-    reprovado: { label: 'Reprovado' },
-    reprovado_por_faltas: { label: 'Reprovado por faltas' },
-    reprovado_por_media_e_por_faltas: {
-        label: 'Reprovado por média e faltas'
-    },
-    aprovado_por_nota: { label: 'Aprovado por nota' },
-    reprovado_por_nota: { label: 'Reprovado por nota' },
-    reprovado_por_nota_e_faltas: { label: 'Reprovado por nota e faltas' },
-    trancado: { label: 'Trancado' },
-    matriculado: { label: 'Matriculado' }
-};
-
-const percentage = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 });
-
-function useSituationColors(): Record<Situation, string> {
+function useSituationColors(): Record<StatisticsSituation, string> {
     const success = useColor('success');
     const destructive = useColor('destructive');
     const warning = useColor('warning');
@@ -43,13 +29,7 @@ function useSituationColors(): Record<Situation, string> {
     };
 }
 
-export function StatisticsChart({
-    data,
-    label
-}: {
-    data: components['schemas']['StatisticsShare'][];
-    label: string;
-}) {
+export function StatisticsChart({ data, label }: { data: StatisticsShare[]; label: string }) {
     const colors = useSituationColors();
     const background = useColor('card');
     const shares = data
@@ -82,10 +62,10 @@ export function StatisticsChart({
                             style={{ backgroundColor: share.color }}
                         />
                         <Text className="flex-1 text-xs text-foreground">
-                            {situations[share.situation].label}
+                            {situationLabels[share.situation]}
                         </Text>
                         <Text className="text-xs font-medium text-foreground">
-                            {percentage.format(share.percentage)}%
+                            {shareLabel(share.percentage)}
                         </Text>
                     </View>
                 ))}

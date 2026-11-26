@@ -2,13 +2,17 @@ import type { Lesson } from '@followw/core/queries/classrooms.ts';
 import type { TriggerRef } from '@rn-primitives/dropdown-menu';
 
 import { getHoliday } from '@followw/core/calendar.ts';
-import { lessonsByDay } from '@followw/core/lib/classroom-details.ts';
+import {
+    isLessonMarkable,
+    lessonsByDay,
+    type MarkLessons
+} from '@followw/core/lib/classroom-details.ts';
 import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useMemo, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
-import { LessonMenuContent, markable, type MarkLessons } from '@/components/classroom/LessonMenu';
+import { LessonMenuContent } from '@/components/classroom/LessonMenu';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -135,7 +139,7 @@ function LessonDay({
     pending: boolean;
 }) {
     const anchor = useRef<TriggerRef>(null);
-    const editable = lessons.filter(markable);
+    const editable = lessons.filter(isLessonMarkable);
     const cancelled =
         lessons.length > 0 && lessons.every((lesson) => lesson.status === 'cancelada');
     const holiday = getHoliday(day);

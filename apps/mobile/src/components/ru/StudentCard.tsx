@@ -2,16 +2,11 @@ import type { RestaurantCredentials } from '@followw/core/queries/restaurant-acc
 
 import { cardIsExpired } from '@followw/core/lib/restaurant.ts';
 import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
+import { formatCardValidity } from '@followw/core/queries/restaurant-account.ts';
 import { useWindowDimensions, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 
 import { Text } from '@/components/ui/text';
-
-const validity = new Intl.DateTimeFormat('pt-BR', {
-    timeZone: 'UTC',
-    month: 'long',
-    year: 'numeric'
-});
 
 /** QR da carteirinha: fundo branco fixo para leitura em qualquer tema. */
 export function StudentCard({ credentials }: { credentials: RestaurantCredentials }) {
@@ -44,7 +39,7 @@ export function StudentCard({ credentials }: { credentials: RestaurantCredential
                 </>
             )}
             <Text className="mt-2 text-center text-xs font-bold text-muted-foreground">
-                Validade: {validity.format(new Date(`${credentials.valid_until}T00:00:00Z`))}
+                Validade: {formatCardValidity(credentials.valid_until)}
             </Text>
         </View>
     );

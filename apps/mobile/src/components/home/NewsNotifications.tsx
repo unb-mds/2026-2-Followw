@@ -1,6 +1,7 @@
 import type { FeedPost } from '@followw/core/queries/posts.ts';
 
 import { postDateLabel, postPreview } from '@followw/core/lib/classroom-posts.ts';
+import { STORAGE_KEYS } from '@followw/core/lib/storage-keys.ts';
 import { latestPostsQueryOptions } from '@followw/core/queries/posts.ts';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
@@ -21,7 +22,7 @@ import {
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { Rise } from '@/lib/motion';
-import { STORAGE_KEYS, storedValue } from '@/lib/storage';
+import { storedValue } from '@/lib/storage';
 import { cn } from '@/lib/utils';
 
 // chaves das notificações vistas ao abrir a lista, separadas por vírgula

@@ -3,6 +3,7 @@ import type { WeekLesson } from '@followw/core/queries/lessons.ts';
 
 import { dayTimeline } from '@followw/core/lib/day-timeline.ts';
 import { formatDuration, nowInBrasilia } from '@followw/core/lib/schedule.ts';
+import { isWeekLessonCancelled } from '@followw/core/queries/lessons.ts';
 import { useRouter } from 'expo-router';
 import { Fragment } from 'react';
 import { View } from 'react-native';
@@ -39,8 +40,6 @@ export function TodayClassesSection(props: TodayClassesSectionProps) {
         </View>
     );
 }
-
-const cancelled = (lesson: WeekLesson) => lesson.status === 'cancelada';
 
 function TodayClassesContent({
     loggedIn,
@@ -81,7 +80,7 @@ function TodayClassesContent({
                         )}
                         <View className="flex-row gap-3">
                             <ClassProgress
-                                progress={cancelled(item) ? 0 : progress}
+                                progress={isWeekLessonCancelled(item) ? 0 : progress}
                                 absent={item.status === 'falta'}
                             />
                             <View

@@ -1,10 +1,12 @@
+import type { Theme } from '@followw/core/lib/theme.ts';
+
 import { useEffect, useRef, useState } from 'react';
 import { Image, Platform, StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { captureScreen } from 'react-native-view-shot';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import { setTheme, type Theme } from '@/lib/theme';
+import { setTheme } from '@/lib/theme';
 
 const FADE_MS = 300;
 

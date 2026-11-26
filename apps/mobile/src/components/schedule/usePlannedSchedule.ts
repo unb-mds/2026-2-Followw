@@ -1,12 +1,13 @@
 import type { PlannedClass } from '@followw/core/lib/planned-schedule.ts';
 
 import { addError, classKey } from '@followw/core/lib/planned-schedule.ts';
+import { STORAGE_KEYS } from '@followw/core/lib/storage-keys.ts';
 import { meQueryOptions } from '@followw/core/queries/me.ts';
 import { useQuery } from '@tanstack/react-query';
 import { useSyncExternalStore } from 'react';
 
 import { toast } from '@/components/ui/toast';
-import { STORAGE_KEYS, storedValue } from '@/lib/storage';
+import { storedValue } from '@/lib/storage';
 
 const EMPTY: PlannedClass[] = [];
 const plannedSchedule = storedValue(STORAGE_KEYS.SCHEDULE, EMPTY);

@@ -11,7 +11,9 @@ import {
     formatClassroomWeekday,
     formatRelativeDay,
     frequencyTone,
-    lessonRuns
+    isLessonSelectable,
+    lessonRuns,
+    type MarkLessons
 } from '@followw/core/lib/classroom-details.ts';
 import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { Portal } from '@rn-primitives/portal';
@@ -20,12 +22,7 @@ import { useRef, useState } from 'react';
 import { View } from 'react-native';
 
 import { LessonCalendar } from '@/components/classroom/LessonCalendar';
-import {
-    LESSON_VIEW,
-    LessonMenuContent,
-    selectable,
-    type MarkLessons
-} from '@/components/classroom/LessonMenu';
+import { LESSON_VIEW, LessonMenuContent } from '@/components/classroom/LessonMenu';
 import { ListCard, Meter } from '@/components/ListCard';
 import { repeat } from '@/components/LoadingSkeleton';
 import { SelectionBar } from '@/components/SelectionBar';
@@ -65,7 +62,9 @@ export function FrequencyContent({
     const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
     const [view, setView] = useState<'list' | 'calendar'>('list');
     // a aula some da seleção quando deixa de ser selecionável (marcada ou registrada)
-    const selected = lessons.filter((lesson) => selectable(lesson) && selectedIds.has(lesson.id));
+    const selected = lessons.filter(
+        (lesson) => isLessonSelectable(lesson) && selectedIds.has(lesson.id)
+    );
 
     const marked = lessons.filter((lesson) => lesson.marked);
 
@@ -336,7 +335,7 @@ function LessonRow({
 
     return (
         <View className="flex-row flex-wrap items-center gap-2 py-2.5">
-            {selectable(lesson) ? (
+            {isLessonSelectable(lesson) ? (
                 <SelectableLesson
                     lesson={lesson}
                     onMark={onMark}

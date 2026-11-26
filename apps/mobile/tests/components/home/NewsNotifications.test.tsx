@@ -1,11 +1,12 @@
 import type { Classroom, ClassroomPost } from '@followw/core/queries/classrooms.ts';
 
+import { STORAGE_KEYS } from '@followw/core/lib/storage-keys.ts';
 import { latestPostsQueryOptions } from '@followw/core/queries/posts.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { NewsNotifications } from '@/components/home/NewsNotifications';
-import { clearAccountStorage, STORAGE_KEYS, storage } from '@/lib/storage';
+import { clearAccountStorage, storage } from '@/lib/storage';
 
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
 jest.mock('lucide-react-native', () => ({ Bell: 'View' }));

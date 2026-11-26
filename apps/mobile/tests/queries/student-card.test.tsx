@@ -1,10 +1,11 @@
 import type { RestaurantCredentials } from '@followw/core/queries/restaurant-account.ts';
 
 import { addDays, nowInBrasilia } from '@followw/core/lib/schedule.ts';
+import { STORAGE_KEYS } from '@followw/core/lib/storage-keys.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react-native';
 
-import { clearAccountStorage, STORAGE_KEYS, storage } from '@/lib/storage';
+import { clearAccountStorage, storage } from '@/lib/storage';
 import { useStudentCard } from '@/queries/student-card';
 
 import { fakeApi } from '../fakes';

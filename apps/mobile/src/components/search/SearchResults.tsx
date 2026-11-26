@@ -1,11 +1,14 @@
 import type { InternshipItem } from '@followw/core/queries/internships.ts';
 import type { SearchResult, SearchType } from '@followw/core/queries/search.ts';
 
-import { searchTypes } from '@followw/core/lib/search-categories.ts';
 import { filterInternships, internshipsQueryOptions } from '@followw/core/queries/internships.ts';
 import { meQueryOptions } from '@followw/core/queries/me.ts';
 import { refreshQuery } from '@followw/core/queries/refresh.ts';
-import { searchQueryOptions } from '@followw/core/queries/search.ts';
+import {
+    hasSearchResults,
+    searchQueryOptions,
+    seedCategoryPage
+} from '@followw/core/queries/search.ts';
 import {
     type UseQueryResult,
     keepPreviousData,
@@ -27,33 +30,6 @@ import { SubjectPageSection } from '@/components/search/SubjectPageSection';
 import { Text } from '@/components/ui/text';
 
 type PreviewCategory = 'courses' | 'professors' | 'internships';
-
-function seedCategoryPage(
-    client: ReturnType<typeof useQueryClient>,
-    text: string,
-    queryKey: readonly unknown[],
-    category: 'courses' | 'professors'
-) {
-    const data = client.getQueryData<SearchResult>(queryKey)?.[category];
-    if (!data) return;
-    client.setQueryData(
-        searchQueryOptions(text, searchTypes[category]).queryKey,
-        (old) =>
-            old ?? {
-                subjects: null,
-                courses: null,
-                professors: null,
-                [category]: data
-            }
-    );
-}
-
-function hasSearchResults(data: SearchResult | undefined) {
-    if (!data) return false;
-    return Boolean(
-        data.courses?.items.length || data.professors?.items.length || data.subjects?.total
-    );
-}
 
 function SearchResultSections({
     text,

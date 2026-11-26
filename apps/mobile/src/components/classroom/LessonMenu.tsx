@@ -1,5 +1,6 @@
-import type { Lesson, LessonMarkStatus } from '@followw/core/queries/classrooms.ts';
+import type { Lesson } from '@followw/core/queries/classrooms.ts';
 
+import { LESSON_MARKS, type MarkLessons } from '@followw/core/lib/classroom-details.ts';
 import { CircleCheck, CircleDashed, CircleSlash, CircleX } from 'lucide-react-native';
 
 import {
@@ -11,8 +12,6 @@ import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
 
-export type MarkLessons = (lessons: Lesson[], status: LessonMarkStatus | null) => void;
-
 export const LESSON_VIEW = {
     presente: { icon: CircleCheck, color: 'text-primary', name: 'Presença' },
     falta: { icon: CircleX, color: 'text-destructive', name: 'Falta' },
@@ -20,19 +19,11 @@ export const LESSON_VIEW = {
     cancelada: { icon: CircleSlash, color: 'text-muted-foreground', name: 'Aula cancelada' }
 } as const;
 
-// Marcações que o aluno pode dar a uma aula sem chamada no SIGAA.
-const MARKS: LessonMarkStatus[] = ['presente', 'falta', 'cancelada'];
-
-export const selectable = (lesson: Lesson) => !lesson.marked && lesson.status === 'nao_registrada';
-
-/** Aulas que o aluno pode marcar: sem chamada ou já marcadas por ele. */
-export const markable = (lesson: Lesson) => selectable(lesson) || lesson.marked;
-
 export function LessonMenuContent({ lessons, onMark }: { lessons: Lesson[]; onMark: MarkLessons }) {
     const marked = lessons.filter((lesson) => lesson.marked);
     return (
         <DropdownMenuContent className="w-44">
-            {MARKS.map((mark) => {
+            {LESSON_MARKS.map((mark) => {
                 const option = LESSON_VIEW[mark];
                 return (
                     <DropdownMenuItem

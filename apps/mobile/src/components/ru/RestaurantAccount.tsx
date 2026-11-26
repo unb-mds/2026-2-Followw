@@ -16,6 +16,8 @@ import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { refreshQuery } from '@followw/core/queries/refresh.ts';
 import {
     credentialsQueryOptions,
+    formatBalance,
+    formatStatementTime,
     hasValidCard,
     statementQueryOptions
 } from '@followw/core/queries/restaurant-account.ts';
@@ -50,13 +52,6 @@ import { Text } from '@/components/ui/text';
 import { useColor } from '@/lib/colors';
 import { cn } from '@/lib/utils';
 import { useStudentCard } from '@/queries/student-card';
-
-const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
-const dateTime = new Intl.DateTimeFormat('pt-BR', {
-    timeZone: 'America/Sao_Paulo',
-    dateStyle: 'short',
-    timeStyle: 'short'
-});
 
 export function RestaurantAccount({
     registration,
@@ -291,7 +286,7 @@ export function StatementDetails({
                         insufficient && 'text-destructive'
                     )}
                 >
-                    {currency.format(Number(statement.balance))}
+                    {formatBalance(statement.balance)}
                 </Text>
                 {action}
             </View>
@@ -325,7 +320,7 @@ export function StatementDetails({
                                                 {entryDescription(entry.description)}
                                             </Text>
                                             <Text className="shrink-0 text-xs text-muted-foreground">
-                                                {dateTime.format(new Date(entry.occurred_at))}
+                                                {formatStatementTime(entry.occurred_at)}
                                             </Text>
                                             <Text
                                                 className={cn(
@@ -335,7 +330,7 @@ export function StatementDetails({
                                                         : 'text-success'
                                                 )}
                                             >
-                                                {currency.format(Number(entry.amount))}
+                                                {formatBalance(entry.amount)}
                                             </Text>
                                         </View>
                                     ))}
@@ -393,7 +388,7 @@ function AccountStatus({
             )}
             {showUpdatedAt && hasData && query.dataUpdatedAt > 0 && (
                 <Text className="text-xs text-muted-foreground">
-                    Atualizado em {dateTime.format(new Date(query.dataUpdatedAt))}
+                    Atualizado em {formatStatementTime(query.dataUpdatedAt)}
                 </Text>
             )}
         </View>

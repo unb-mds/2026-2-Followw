@@ -1,5 +1,6 @@
 import type { SubjectPage, SubjectsQuery } from '@followw/core/queries/subjects.ts';
 
+import { resultsSummary } from '@followw/core/lib/subject-filters.ts';
 import { useNextPages } from '@followw/core/queries/pages.ts';
 import { refreshQuery } from '@followw/core/queries/refresh.ts';
 import { subjectsQueryOptions } from '@followw/core/queries/subjects.ts';
@@ -10,17 +11,7 @@ import { useSubjectListing } from '@/components/search/useSubjectListing';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 
-const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
-
 /** O total do servidor; as ocultas por conflito são só as já carregadas. */
-export const resultsSummary = (total: number, hidden: number) =>
-    [
-        plural(total, 'resultado', 'resultados'),
-        hidden > 0 && plural(hidden, 'oculta por conflito', 'ocultas por conflito')
-    ]
-        .filter(Boolean)
-        .join(' · ');
-
 export function SubjectPageSection({
     first,
     query,

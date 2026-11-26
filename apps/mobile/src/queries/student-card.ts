@@ -1,3 +1,4 @@
+import { STORAGE_KEYS } from '@followw/core/lib/storage-keys.ts';
 import {
     credentialsQueryOptions,
     hasValidCard,
@@ -6,7 +7,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useSyncExternalStore } from 'react';
 
-import { STORAGE_KEYS, storedValue } from '@/lib/storage';
+import { storedValue } from '@/lib/storage';
 
 interface SavedCard {
     registration: string;

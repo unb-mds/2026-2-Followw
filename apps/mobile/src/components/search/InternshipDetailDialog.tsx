@@ -2,6 +2,7 @@ import type { InternshipDetail, InternshipItem } from '@followw/core/queries/int
 
 import { titleCase } from '@followw/core/lib/profile.ts';
 import { ApiError } from '@followw/core/queries/errors.ts';
+import { formatInternshipDate, formatInternshipMoney } from '@followw/core/queries/internships.ts';
 import {
     internshipDetailQueryOptions,
     internshipsQueryOptions
@@ -12,7 +13,6 @@ import { Pressable, ScrollView, View } from 'react-native';
 
 import { LinesSkeleton, LoadingSkeleton, repeat } from '@/components/LoadingSkeleton';
 import { Markdown, openLink } from '@/components/Markdown';
-import { formatCurrency, formatDate } from '@/components/search/InternshipCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -70,7 +70,7 @@ export function InternshipDetailView({ detail }: { detail: InternshipDetail }) {
                     {titleCase(detail.title)}
                 </DialogTitle>
                 <DialogDescription className="text-xs text-muted-foreground">
-                    {`Publicado de ${formatDate(detail.published_from)} até ${formatDate(detail.published_until)}`}
+                    {`Publicado de ${formatInternshipDate(detail.published_from)} até ${formatInternshipDate(detail.published_until)}`}
                 </DialogDescription>
             </DialogHeader>
 
@@ -100,14 +100,14 @@ export function InternshipDetailView({ detail }: { detail: InternshipDetail }) {
                 <Fact
                     icon={Wallet}
                     label="Bolsa"
-                    value={formatCurrency(detail.stipend) ?? 'A combinar'}
+                    value={formatInternshipMoney(detail.stipend) ?? 'A combinar'}
                 />
                 <Fact
                     icon={Briefcase}
                     label="Aux. Transporte"
                     value={
                         detail.transport_allowance
-                            ? `${formatCurrency(detail.transport_allowance.amount)} / ${detail.transport_allowance.period}`
+                            ? `${formatInternshipMoney(detail.transport_allowance.amount)} / ${detail.transport_allowance.period}`
                             : 'Não informado'
                     }
                 />
@@ -196,7 +196,7 @@ export function InternshipDetailDialog({
                                 {titleCase(summary?.title ?? 'Detalhes da vaga')}
                             </DialogTitle>
                             <DialogDescription>
-                                {`Inscrições até ${summary ? formatDate(summary.published_until) : ''}`}
+                                {`Inscrições até ${summary ? formatInternshipDate(summary.published_until) : ''}`}
                             </DialogDescription>
                             <LoadingSkeleton
                                 label="Carregando detalhes da vaga..."

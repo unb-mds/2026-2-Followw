@@ -1,8 +1,11 @@
 import type { UserProfile } from '@followw/core/queries/me.ts';
 
 import { useOnline } from '@followw/core/lib/online.ts';
-import { MAX_PROFILE_BIO_LENGTH, truncateProfileBio } from '@followw/core/lib/profile.ts';
-import { ApiError } from '@followw/core/queries/errors.ts';
+import {
+    MAX_PROFILE_BIO_LENGTH,
+    profileEditRefusal,
+    truncateProfileBio
+} from '@followw/core/lib/profile.ts';
 import { useUpdateSettings } from '@followw/core/queries/settings.ts';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
@@ -33,16 +36,6 @@ import { type PickedPhoto, useEditProfile } from '@/queries/profile-edit';
 const PHOTO_SIZE = { width: 800, height: 1000 };
 
 type PhotoEdit = { action: 'keep' | 'remove' } | { action: 'replace'; photo: PickedPhoto };
-
-function errorReason(error: unknown) {
-    if (!(error instanceof ApiError)) return null;
-    if (error.isTooManyRequests) return 'Muitas tentativas. Aguarde um pouco e tente novamente.';
-    if (error.status === 413 || error.status === 422)
-        return typeof error.detail === 'string'
-            ? error.detail
-            : 'Confira os dados e tente novamente.';
-    return null;
-}
 
 /** Galeria com o corte nativo em 4:5, reduzida ao tamanho final em JPEG. */
 async function pickPhoto(): Promise<PickedPhoto | null> {
@@ -175,7 +168,7 @@ function ProfileForm({
             });
             close();
         } catch (failed) {
-            const message = done + (errorReason(failed) ?? failure);
+            const message = done + (profileEditRefusal(failed) ?? failure);
             setError(message);
             toast.add({
                 type: 'error',

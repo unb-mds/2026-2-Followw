@@ -6,6 +6,7 @@ import {
     DMSans_700Bold,
     useFonts
 } from '@expo-google-fonts/dm-sans';
+import { PERSIST_MAX_AGE, shouldPersistQuery } from '@followw/core/queries/persist.ts';
 import { PortalHost } from '@rn-primitives/portal';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { Stack, ThemeProvider } from 'expo-router';
@@ -19,13 +20,7 @@ import { ThemeFade } from '@/components/ThemeFade';
 import { Toaster } from '@/components/ui/toast';
 import { AnalyticsProvider } from '@/lib/analytics';
 import { useNavigationTheme } from '@/lib/colors';
-import {
-    PERSIST_BUSTER,
-    PERSIST_MAX_AGE,
-    persister,
-    queryClient,
-    shouldPersistQuery
-} from '@/lib/query-client';
+import { PERSIST_BUSTER, persister, queryClient } from '@/lib/query-client';
 import { installApiClient } from '@/lib/session';
 import { applyStoredTheme } from '@/lib/theme';
 import { useSessionRefresh } from '@/queries/auth';

@@ -1,5 +1,6 @@
 import type { InternshipItem } from '@followw/core/queries/internships.ts';
 
+import { vacanciesLabel } from '@followw/core/queries/internships.ts';
 import { filterInternships, internshipsQueryOptions } from '@followw/core/queries/internships.ts';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowRight } from 'lucide-react-native';
@@ -19,10 +20,6 @@ const GROUPS = [
     { label: 'Seu curso', mine: true },
     { label: 'Outros cursos', mine: false }
 ];
-
-function countLabel(count: number) {
-    return `${count} ${count === 1 ? 'vaga' : 'vagas'}`;
-}
 
 export function InternshipSection({
     internships,
@@ -63,7 +60,7 @@ export function InternshipSection({
                             {title}
                         </Text>
                         <Text className="shrink-0 text-xs text-muted-foreground">
-                            {countLabel(internships.length)}
+                            {vacanciesLabel(internships.length)}
                         </Text>
                     </View>
                     {onShowAll && hasMore && (
@@ -97,7 +94,7 @@ export function InternshipSection({
                                 {label}
                             </Text>
                             <Text className="text-xs text-muted-foreground">
-                                {countLabel(total)}
+                                {vacanciesLabel(total)}
                             </Text>
                         </View>
                         {visible.map((internship) => (
