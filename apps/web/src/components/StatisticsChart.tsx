@@ -1,50 +1,49 @@
-import type { components } from '@followw/core/queries/schema.gen.ts';
+import type {
+    StatisticsShare,
+    StatisticsSituation
+} from '@followw/core/queries/subject-statistics.ts';
 
+import { shareLabel, situationLabels } from '@followw/core/queries/subject-statistics.ts';
 import { Pie, PieChart } from 'recharts';
 
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '#/components/ui/chart';
 
-type Situation = components['schemas']['StatisticsShare']['situation'];
+const withColor = (situation: StatisticsSituation, value: string) => ({
+    label: situationLabels[situation],
+    color: value
+});
 
-const situations: Record<Situation, { label: string; color: string }> = {
-    aprovado: { label: 'Aprovado', color: 'var(--color-success)' },
-    reprovado: { label: 'Reprovado', color: 'var(--color-destructive)' },
-    reprovado_por_faltas: { label: 'Reprovado por faltas', color: 'var(--color-warning)' },
-    reprovado_por_media_e_por_faltas: {
-        label: 'Reprovado por média e faltas',
-        color: 'var(--color-rose-500)'
-    },
-    aprovado_por_nota: { label: 'Aprovado por nota', color: 'var(--color-primary)' },
-    reprovado_por_nota: { label: 'Reprovado por nota', color: 'var(--color-red-700)' },
-    reprovado_por_nota_e_faltas: {
-        label: 'Reprovado por nota e faltas',
-        color: 'var(--color-purple-500)'
-    },
-    trancado: { label: 'Trancado', color: 'var(--color-muted-foreground)' },
-    matriculado: { label: 'Matriculado', color: 'var(--color-blue-500)' }
+const situations: Record<StatisticsSituation, { label: string; color: string }> = {
+    aprovado: withColor('aprovado', 'var(--color-success)'),
+    reprovado: withColor('reprovado', 'var(--color-destructive)'),
+    reprovado_por_faltas: withColor('reprovado_por_faltas', 'var(--color-warning)'),
+    reprovado_por_media_e_por_faltas: withColor(
+        'reprovado_por_media_e_por_faltas',
+        'var(--color-rose-500)'
+    ),
+    aprovado_por_nota: withColor('aprovado_por_nota', 'var(--color-primary)'),
+    reprovado_por_nota: withColor('reprovado_por_nota', 'var(--color-red-700)'),
+    reprovado_por_nota_e_faltas: withColor(
+        'reprovado_por_nota_e_faltas',
+        'var(--color-purple-500)'
+    ),
+    trancado: withColor('trancado', 'var(--color-muted-foreground)'),
+    matriculado: withColor('matriculado', 'var(--color-blue-500)')
 };
 
-const isSituation = (value: unknown): value is Situation =>
+const isSituation = (value: unknown): value is StatisticsSituation =>
     typeof value === 'string' && value in situations;
-
-const percentage = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 });
 
 const formatTooltip: NonNullable<React.ComponentProps<typeof ChartTooltipContent>['formatter']> = (
     value,
     name
 ) => (
     <span>
-        {isSituation(name) ? situations[name].label : name}: {percentage.format(Number(value))}%
+        {isSituation(name) ? situationLabels[name] : name}: {shareLabel(Number(value))}
     </span>
 );
 
-export function StatisticsChart({
-    data,
-    label
-}: {
-    data: components['schemas']['StatisticsShare'][];
-    label: string;
-}) {
+export function StatisticsChart({ data, label }: { data: StatisticsShare[]; label: string }) {
     const shares = data
         .filter((share) => share.percentage > 0)
         .map((share) => ({
@@ -88,9 +87,9 @@ export function StatisticsChart({
                             style={{ backgroundColor: share.fill }}
                             aria-hidden="true"
                         />
-                        <span className="flex-1">{situations[share.situation].label}</span>
+                        <span className="flex-1">{situationLabels[share.situation]}</span>
                         <span className="font-medium tabular-nums">
-                            {percentage.format(share.percentage)}%
+                            {shareLabel(share.percentage)}
                         </span>
                     </li>
                 ))}

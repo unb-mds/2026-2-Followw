@@ -1,16 +1,14 @@
-import type { Lesson, LessonMarkStatus } from '@followw/core/queries/classrooms.ts';
+import type { Lesson } from '@followw/core/queries/classrooms.ts';
 
+import { LESSON_MARKS, type MarkLessons } from '@followw/core/lib/classroom-details.ts';
 import { CircleDashed } from 'lucide-react';
 
-import { LESSON_VIEW, type MarkLessons } from '#/components/classroom/lesson-utils';
+import { LESSON_VIEW } from '#/components/classroom/lesson-utils';
 import {
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuSeparator
 } from '#/components/ui/dropdown-menu';
-
-// Marcações que o aluno pode dar a uma aula sem chamada no SIGAA.
-const MARKS: LessonMarkStatus[] = ['presente', 'falta', 'cancelada'];
 
 export function LessonMenuContent({
     lessons,
@@ -24,7 +22,7 @@ export function LessonMenuContent({
     const marked = lessons.filter((lesson) => lesson.marked);
     return (
         <DropdownMenuContent className="w-44" anchor={anchor}>
-            {MARKS.map((mark) => {
+            {LESSON_MARKS.map((mark) => {
                 const option = LESSON_VIEW[mark];
                 return (
                     <DropdownMenuItem

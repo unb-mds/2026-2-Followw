@@ -1,6 +1,7 @@
 import type { SubjectKind, SubjectsQuery } from '../queries/subjects.ts';
 
 import { SUBJECT_KINDS } from '../queries/subjects.ts';
+import { plural } from './plural.ts';
 import { SCHEDULE_BLOCKS } from './schedule.ts';
 
 export const startTimes = SCHEDULE_BLOCKS.map((block) => block[0][0]);
@@ -74,3 +75,12 @@ export function subjectsQueryFrom(
         hours: hours.length ? hours : undefined
     };
 }
+
+/** Total da lista e quantas matérias ficaram ocultas por conflito com a grade. */
+export const resultsSummary = (total: number, hidden: number) =>
+    [
+        plural(total, 'resultado', 'resultados'),
+        hidden > 0 && plural(hidden, 'oculta por conflito', 'ocultas por conflito')
+    ]
+        .filter(Boolean)
+        .join(' · ');

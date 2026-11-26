@@ -1,11 +1,12 @@
 import type { Middleware } from 'openapi-fetch';
 
+import { STORAGE_KEYS } from '@followw/core/lib/storage-keys.ts';
 import { apiClient } from '@followw/core/queries/client.ts';
 import { credentialsQueryOptions } from '@followw/core/queries/restaurant-account.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, mock, setSystemTime, test } from 'bun:test';
 
-import { localStorageRepository, STORAGE_KEYS, STORAGE_PREFIX } from '#/lib/local-storage';
+import { localStorageRepository, STORAGE_PREFIX } from '#/lib/local-storage';
 import { clearSession } from '#/queries/auth';
 import { refreshQuery } from '#/queries/refresh';
 import { useStudentCard } from '#/queries/student-card';

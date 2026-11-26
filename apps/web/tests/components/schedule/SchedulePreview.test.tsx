@@ -2,6 +2,7 @@ import type { components } from '@followw/core/queries/schema.gen.ts';
 import type { CatalogSubject, SubjectClassroom } from '@followw/core/queries/subjects.ts';
 import type { Middleware } from 'openapi-fetch';
 
+import { STORAGE_KEYS } from '@followw/core/lib/storage-keys.ts';
 import { apiClient } from '@followw/core/queries/client.ts';
 import { ApiError } from '@followw/core/queries/errors.ts';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -9,7 +10,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, mock, test } from 'bu
 import { useLayoutEffect } from 'react';
 
 import { getContext } from '#/integrations/tanstack-query/root-provider';
-import { localStorageRepository, STORAGE_KEYS } from '#/lib/local-storage';
+import { localStorageRepository } from '#/lib/local-storage';
 import { clearSession, startSession } from '#/queries/auth';
 import { meQueryOptions } from '#/queries/me';
 

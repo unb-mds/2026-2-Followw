@@ -12,6 +12,8 @@ import {
     formatRelativeDays,
     frequencyTone,
     groupBySemester,
+    isLessonMarkable,
+    isLessonSelectable,
     lessonRuns,
     lessonsByDay
 } from '../../src/lib/classroom-details.ts';
@@ -159,5 +161,20 @@ describe('lessonsByDay', () => {
         ]);
         expect([...days.keys()]).toEqual(['2026-10-05', '2026-10-07', '2026-10-09']);
         expect(days.get('2026-10-05')!.map((item) => item.status)).toEqual(['presente', 'falta']);
+    });
+});
+
+describe('marcação de aulas pelo aluno', () => {
+    test('só aula sem chamada e ainda não marcada pode ser selecionada', () => {
+        expect(isLessonSelectable(lesson('2026-03-02', 'nao_registrada'))).toBe(true);
+        expect(isLessonSelectable(lesson('2026-03-02', 'presente'))).toBe(false);
+        expect(isLessonSelectable(lesson('2026-03-02', 'nao_registrada', { marked: true }))).toBe(
+            false
+        );
+    });
+
+    test('aula já marcada pelo aluno continua editável', () => {
+        expect(isLessonMarkable(lesson('2026-03-02', 'presente', { marked: true }))).toBe(true);
+        expect(isLessonMarkable(lesson('2026-03-02', 'falta'))).toBe(false);
     });
 });

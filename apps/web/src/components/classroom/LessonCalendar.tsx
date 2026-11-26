@@ -2,12 +2,15 @@ import type { Lesson } from '@followw/core/queries/classrooms.ts';
 import type { DayProps } from 'react-day-picker';
 
 import { getHoliday } from '@followw/core/calendar.ts';
-import { lessonsByDay } from '@followw/core/lib/classroom-details.ts';
+import {
+    isLessonMarkable,
+    lessonsByDay,
+    type MarkLessons
+} from '@followw/core/lib/classroom-details.ts';
 import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { createContext, use, useMemo } from 'react';
 import { ptBR } from 'react-day-picker/locale';
 
-import { markable, type MarkLessons } from '#/components/classroom/lesson-utils';
 import { LessonMenuContent } from '#/components/classroom/LessonMenu';
 import { Calendar } from '#/components/ui/calendar';
 import { Card } from '#/components/ui/card';
@@ -62,7 +65,7 @@ const isoOf = (date: Date) =>
 function LessonDay({ day, modifiers, children, className, ...props }: DayProps) {
     const { days, onMark, pending } = use(CalendarContext);
     const lessons = days.get(day.isoDate) ?? [];
-    const editable = lessons.filter(markable);
+    const editable = lessons.filter(isLessonMarkable);
     const cancelled = lessons.length > 0 && lessons.every((l) => l.status === 'cancelada');
     const cellClass = cn(
         'flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-(--cell-radius) text-sm tabular-nums',

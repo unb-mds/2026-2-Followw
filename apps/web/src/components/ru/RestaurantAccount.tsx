@@ -16,6 +16,9 @@ import {
 import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import {
     credentialsQueryOptions,
+    formatBalance,
+    formatCardValidity,
+    formatStatementTime,
     hasValidCard,
     statementQueryOptions
 } from '@followw/core/queries/restaurant-account.ts';
@@ -48,18 +51,6 @@ import { Spinner } from '#/components/ui/spinner';
 import { cn } from '#/lib/shadcn';
 import { refreshQuery } from '#/queries/refresh';
 import { useStudentCard } from '#/queries/student-card';
-
-const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
-const dateTime = new Intl.DateTimeFormat('pt-BR', {
-    timeZone: 'America/Sao_Paulo',
-    dateStyle: 'short',
-    timeStyle: 'short'
-});
-const validity = new Intl.DateTimeFormat('pt-BR', {
-    timeZone: 'UTC',
-    month: 'long',
-    year: 'numeric'
-});
 
 export function RestaurantAccount({
     registration,
@@ -274,7 +265,7 @@ export function StatementDetails({
                         insufficient && 'text-destructive'
                     )}
                 >
-                    {currency.format(Number(statement.balance))}
+                    {formatBalance(statement.balance)}
                 </p>
                 {action}
             </div>
@@ -297,7 +288,7 @@ export function StatementDetails({
                                             {entryDescription(entry.description)}
                                         </p>
                                         <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                                            {dateTime.format(new Date(entry.occurred_at))}
+                                            {formatStatementTime(entry.occurred_at)}
                                         </span>
                                         <span
                                             className={cn(
@@ -307,7 +298,7 @@ export function StatementDetails({
                                                     : 'text-success'
                                             )}
                                         >
-                                            {currency.format(Number(entry.amount))}
+                                            {formatBalance(entry.amount)}
                                         </span>
                                     </li>
                                 ))}
@@ -368,7 +359,7 @@ export function StudentCard({
                 </>
             )}
             <p className="mt-2 text-xs font-bold text-muted-foreground">
-                Validade: {validity.format(new Date(`${credentials.valid_until}T00:00:00Z`))}
+                Validade: {formatCardValidity(credentials.valid_until)}
             </p>
         </div>
     );
@@ -415,7 +406,7 @@ function AccountStatus({
                 </p>
             )}
             {showUpdatedAt && hasData && query.dataUpdatedAt > 0 && (
-                <p>Atualizado em {dateTime.format(new Date(query.dataUpdatedAt))}</p>
+                <p>Atualizado em {formatStatementTime(query.dataUpdatedAt)}</p>
             )}
         </div>
     );

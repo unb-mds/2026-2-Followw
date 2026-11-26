@@ -1,6 +1,10 @@
 import type { Query, QueryClient } from '@tanstack/react-query';
 
-import { credentialsQueryOptions } from '@followw/core/queries/restaurant-account.ts';
+import {
+    PERSIST_MAX_AGE,
+    serializeCache,
+    shouldPersistQuery
+} from '@followw/core/queries/persist.ts';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { noop } from '@tanstack/react-query';
 import { persistQueryClient, persistQueryClientSave } from '@tanstack/react-query-persist-client';
@@ -12,23 +16,10 @@ import {
     pagesCacheName
 } from '#/integrations/offline/pages-cache';
 
-// também é o gcTime das queries no navegador, senão a query sai do cache antes de vencer no disco
-export const PERSIST_MAX_AGE = 14 * 24 * 60 * 60 * 1000;
-
-const CARD_PATH = credentialsQueryOptions('').queryKey[1];
 const QUERY_CACHE_KEY = 'followw-query-cache';
 let stopPersisting: () => void = noop;
 let warming: AbortController | undefined;
 let clearing: Promise<void> | undefined;
-
-// Uma falha ao atualizar não invalida o último dado salvo; `meta.persist: false` fica só na memória.
-export function shouldPersistQuery(query: Query, now = Date.now()) {
-    return (
-        query.meta?.persist !== false &&
-        query.state.data !== undefined &&
-        now - query.state.dataUpdatedAt < PERSIST_MAX_AGE
-    );
-}
 
 /** Restaura o cache salvo no IndexedDB (avisando em `onRestored`) e salva cada mudança; devolve a função que para de salvar. */
 export function persistQueryCache(queryClient: QueryClient, onRestored: () => void = noop) {
@@ -53,18 +44,7 @@ export function persistQueryCache(queryClient: QueryClient, onRestored: () => vo
                 if (!stopped) await del(key);
             }
         },
-        serialize: (snapshot) => {
-            for (const { queryKey, state } of snapshot.clientState.queries) {
-                if (state.status === 'error') {
-                    state.status = 'success';
-                    state.error = null;
-                    state.fetchFailureReason = null;
-                    state.fetchFailureCount = 0;
-                    if (queryKey[1] === CARD_PATH) state.isInvalidated = false;
-                }
-            }
-            return JSON.stringify(snapshot);
-        }
+        serialize: serializeCache
     });
     const options = {
         queryClient,

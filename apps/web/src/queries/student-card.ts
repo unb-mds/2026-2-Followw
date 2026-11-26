@@ -1,3 +1,4 @@
+import { STORAGE_KEYS } from '@followw/core/lib/storage-keys.ts';
 import {
     credentialsQueryOptions,
     hasValidCard,
@@ -6,7 +7,7 @@ import {
 import { type QueryClient, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 
-import { localStorageRepository, STORAGE_KEYS, STORAGE_PREFIX } from '#/lib/local-storage';
+import { localStorageRepository, STORAGE_PREFIX } from '#/lib/local-storage';
 
 // sem `credentials`, é o marcador de que o SIGAA devolveu uma carteirinha vencida
 interface SavedCard {

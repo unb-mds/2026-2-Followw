@@ -1,4 +1,4 @@
-import type { Lesson } from '../queries/classrooms.ts';
+import type { Lesson, LessonMarkStatus } from '../queries/classrooms.ts';
 
 import { SCHEDULE_SLOTS } from './schedule.ts';
 
@@ -65,6 +65,17 @@ export function classroomTab(tab: ClassroomTab, current: boolean): ClassroomTab 
     if (tab !== 'frequency' && tab !== 'statistics') return tab;
     return current ? 'frequency' : 'statistics';
 }
+
+// marcações que o aluno pode dar a uma aula sem chamada no SIGAA
+export const LESSON_MARKS: LessonMarkStatus[] = ['presente', 'falta', 'cancelada'];
+
+export type MarkLessons = (lessons: Lesson[], status: LessonMarkStatus | null) => void;
+
+export const isLessonSelectable = (lesson: Lesson) =>
+    !lesson.marked && lesson.status === 'nao_registrada';
+
+/** Aulas que o aluno pode marcar: sem chamada ou já marcadas por ele. */
+export const isLessonMarkable = (lesson: Lesson) => isLessonSelectable(lesson) || lesson.marked;
 
 export type LessonRunStatus = 'presente' | 'falta' | 'nao_registrada';
 

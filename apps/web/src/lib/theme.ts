@@ -1,23 +1,9 @@
-import { STORAGE_KEYS, STORAGE_PREFIX, localStorageRepository } from '#/lib/local-storage';
+import { STORAGE_KEYS } from '@followw/core/lib/storage-keys.ts';
+import { isTheme, type Theme } from '@followw/core/lib/theme.ts';
 
-export type Theme = 'system' | 'light' | 'dark';
+import { STORAGE_PREFIX, localStorageRepository } from '#/lib/local-storage';
 
-const THEMES: Theme[] = ['system', 'light', 'dark'];
 const DARK_QUERY = '(prefers-color-scheme: dark)';
-
-export const THEME_LABELS: Record<Theme, string> = {
-    system: 'Sistema',
-    light: 'Claro',
-    dark: 'Escuro'
-};
-
-export function isTheme(value: unknown): value is Theme {
-    return THEMES.some((theme) => theme === value);
-}
-
-export function nextTheme(theme: Theme): Theme {
-    return THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
-}
 
 export function isDarkTheme(theme: Theme, systemDark: boolean): boolean {
     return theme === 'dark' || (theme === 'system' && systemDark);

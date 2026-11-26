@@ -4,6 +4,7 @@ import {
     emptySubjectFilters,
     hasSubjectFilters,
     kindsTitle,
+    resultsSummary,
     subjectsQueryFrom
 } from '../../src/lib/subject-filters.ts';
 
@@ -44,5 +45,12 @@ describe('consulta de matérias pelos filtros', () => {
             unit: 'FCTE',
             offered: true
         });
+    });
+});
+
+describe('resultsSummary', () => {
+    test('conta os resultados e as matérias ocultas por conflito', () => {
+        expect(resultsSummary(1, 0)).toBe('1 resultado');
+        expect(resultsSummary(12, 2)).toBe('12 resultados · 2 ocultas por conflito');
     });
 });

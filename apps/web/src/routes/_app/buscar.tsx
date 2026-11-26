@@ -1,7 +1,3 @@
-import type { SearchCategory } from '@followw/core/lib/search-categories.ts';
-import type { UserProfile } from '@followw/core/queries/me.ts';
-import type { SubjectsQuery } from '@followw/core/queries/subjects.ts';
-
 import {
     SEARCH_CATEGORIES,
     searchCategoryLabels,
@@ -9,19 +5,13 @@ import {
     searchTypes,
     showsSubjects
 } from '@followw/core/lib/search-categories.ts';
-import {
-    kindsTitle,
-    type SubjectFilterParams,
-    subjectsQueryFrom
-} from '@followw/core/lib/subject-filters.ts';
+import { searchPlaceholder, searchView } from '@followw/core/lib/search-view.ts';
+import { catalogQueryOptions } from '@followw/core/queries/catalog.ts';
 import { allClassroomsQueryOptions } from '@followw/core/queries/classrooms.ts';
 import { internshipsQueryOptions } from '@followw/core/queries/internships.ts';
 import { loadQuery } from '@followw/core/queries/load.ts';
 import { meQueryOptions } from '@followw/core/queries/me.ts';
-import {
-    recommendationsQueryOptions,
-    showRecommendations
-} from '@followw/core/queries/recommendations.ts';
+import { recommendationsQueryOptions } from '@followw/core/queries/recommendations.ts';
 import { searchQueryOptions } from '@followw/core/queries/search.ts';
 import {
     SEARCH_MAX_LENGTH,
@@ -36,8 +26,7 @@ import { useEffect, useState } from 'react';
 import { ErrorState } from '#/components/ErrorState';
 import { HeaderBar, HeaderTitle } from '#/components/HeaderBar';
 import { SchedulePreview } from '#/components/schedule/SchedulePreview';
-import { catalogQueryOptions } from '#/components/search/catalog-queries';
-import { CatalogResults, type CatalogCategory } from '#/components/search/CatalogResults';
+import { CatalogResults } from '#/components/search/CatalogResults';
 import { InternshipResults } from '#/components/search/InternshipSection';
 import { RecommendationsSection } from '#/components/search/RecommendationsSection';
 import { SearchResults } from '#/components/search/SearchResults';
@@ -46,36 +35,6 @@ import { SubjectResults } from '#/components/search/SubjectResults';
 import { TabFilter } from '#/components/TabFilter';
 import { Input } from '#/components/ui/input';
 import { loadSearchParams, useSearchState, validateSearch } from '#/lib/search-params';
-
-type SearchView =
-    | { kind: 'recommendations'; available: boolean }
-    | { kind: 'catalog'; category: CatalogCategory }
-    | { kind: 'search'; text: string; available: boolean }
-    | { kind: 'subjects'; query: SubjectsQuery; title: string }
-    | { kind: 'curriculum-login' }
-    | { kind: 'internships'; text: string | null };
-
-/** Filtros de matéria levam à lista filtrada; sem texto, recomendações, a unidade do aluno ou o catálogo. */
-function searchView(
-    category: SearchCategory,
-    q: string,
-    text: string | null,
-    user: UserProfile | null,
-    filters: SubjectFilterParams
-): SearchView | null {
-    const subjects = showsSubjects(category);
-    const available = filters.hideUnavailable;
-    if (subjects && filters.kind.length && !user) return { kind: 'curriculum-login' };
-    const query = subjects && subjectsQueryFrom(filters, text);
-    if (query) return { kind: 'subjects', query, title: kindsTitle(filters.kind) };
-    if (category === 'internships') return { kind: 'internships', text };
-    if (subjects && showRecommendations(user, { q })) return { kind: 'recommendations', available };
-    if (text) return { kind: 'search', text, available };
-    if (category === 'courses' || category === 'professors') return { kind: 'catalog', category };
-    const unit = subjects && user?.unit?.code;
-    const unitQuery = unit && subjectsQueryFrom(filters, null, unit);
-    return unitQuery ? { kind: 'subjects', query: unitQuery, title: `Matérias da ${unit}` } : null;
-}
 
 export const Route = createFileRoute('/_app/buscar')({
     validateSearch,
@@ -121,12 +80,6 @@ export const Route = createFileRoute('/_app/buscar')({
     component: BuscarPage
 });
 
-const searchLabels: Partial<Record<SearchCategory, string>> = {
-    all: 'Busque por matéria, horário, curso ou professor',
-    classrooms: 'Busque por matéria, horário ou departamento',
-    internships: 'Busque por estágio'
-};
-
 function BuscarPage() {
     const { data: user } = useSuspenseQuery(meQueryOptions);
     const [{ q, category, ...filters }, setSearch] = useSearchState();
@@ -138,11 +91,7 @@ function BuscarPage() {
         return () => clearTimeout(timer);
     }, [q]);
     const view = searchView(category, q, text, user, filters);
-    // Com filtros de matéria, o texto busca só matérias.
-    const searchLabel =
-        subjects && subjectsQueryFrom(filters, null)
-            ? 'Busque por matéria, horário ou departamento'
-            : (searchLabels[category] ?? 'Busque por matéria, curso ou professor');
+    const searchLabel = searchPlaceholder(category, filters);
     return (
         <div className="search-columns flex flex-col gap-5 lg:grid lg:items-start lg:gap-x-10">
             <div className="desktop-search-field relative lg:fixed">

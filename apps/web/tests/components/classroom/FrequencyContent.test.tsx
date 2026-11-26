@@ -1,10 +1,9 @@
+import type { MarkLessons } from '@followw/core/lib/classroom-details.ts';
 import type { ClassroomFrequency, Lesson } from '@followw/core/queries/classrooms.ts';
 
 import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
-
-import type { MarkLessons } from '#/components/classroom/lesson-utils';
 
 import { mockBrowserLayoutEffect } from '../../helpers/base-ui';
 import { useDom } from '../../helpers/dom';

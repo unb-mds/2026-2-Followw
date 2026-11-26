@@ -1,9 +1,8 @@
 import type { InternshipItem } from '@followw/core/queries/internships.ts';
 
 import { titleCase } from '@followw/core/lib/profile.ts';
+import { formatInternshipDate, formatInternshipMoney } from '@followw/core/queries/internships.ts';
 import { Briefcase, Calendar, Users } from 'lucide-react';
-
-import { formatCurrency, formatDate } from '#/components/search/internship-format';
 
 export function InternshipCard({
     internship,
@@ -12,7 +11,7 @@ export function InternshipCard({
     internship: InternshipItem;
     onClick: () => void;
 }) {
-    const stipendFormatted = formatCurrency(internship.stipend);
+    const stipendFormatted = formatInternshipMoney(internship.stipend);
 
     return (
         <button
@@ -46,7 +45,7 @@ export function InternshipCard({
                 </div>
                 <div className="flex items-center gap-1">
                     <Calendar className="size-3.5" aria-hidden="true" />
-                    <span>Inscrições até {formatDate(internship.published_until)}</span>
+                    <span>Inscrições até {formatInternshipDate(internship.published_until)}</span>
                 </div>
             </div>
         </button>

@@ -11,13 +11,15 @@ import {
     formatClassroomWeekday,
     formatRelativeDay,
     frequencyTone,
-    lessonRuns
+    isLessonSelectable,
+    lessonRuns,
+    type MarkLessons
 } from '@followw/core/lib/classroom-details.ts';
 import { nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { CalendarDays, List } from 'lucide-react';
 import { useRef, useState } from 'react';
 
-import { LESSON_VIEW, selectable, type MarkLessons } from '#/components/classroom/lesson-utils';
+import { LESSON_VIEW } from '#/components/classroom/lesson-utils';
 import { LessonCalendar } from '#/components/classroom/LessonCalendar';
 import { LessonMenuContent } from '#/components/classroom/LessonMenu';
 import { ListCard, Meter } from '#/components/ListCard';
@@ -57,7 +59,9 @@ export function FrequencyContent({
     const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
     const [view, setView] = useState<'list' | 'calendar'>('list');
     // a aula some da seleção quando deixa de ser selecionável (marcada ou registrada)
-    const selected = lessons.filter((lesson) => selectable(lesson) && selectedIds.has(lesson.id));
+    const selected = lessons.filter(
+        (lesson) => isLessonSelectable(lesson) && selectedIds.has(lesson.id)
+    );
 
     const marked = lessons.filter((lesson) => lesson.marked);
 
@@ -301,7 +305,7 @@ function LessonRow({
         <div
             className={cn('flex flex-wrap items-center gap-2 py-2.5 text-sm', tinted && view.color)}
         >
-            {selectable(lesson) ? (
+            {isLessonSelectable(lesson) ? (
                 <SelectableLesson
                     lesson={lesson}
                     onMark={onMark}

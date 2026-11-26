@@ -3,6 +3,7 @@ import { describe, expect, test } from 'bun:test';
 import type { ClassroomPost } from '../../src/queries/classrooms.ts';
 
 import {
+    filterPosts,
     groupTopics,
     postDateLabel,
     postLink,
@@ -118,5 +119,17 @@ describe('postPreview', () => {
     test('sem conteúdo convida a ler mais', () => {
         expect(postPreview('  ')).toBe('Toque para ler mais.');
         expect(postPreview(null)).toBe('Toque para ler mais.');
+    });
+});
+
+describe('filterPosts', () => {
+    const news: ClassroomPost = { ...post, id: 'news:1', type: 'news' };
+
+    test('todas mantém a lista inteira', () => {
+        expect(filterPosts([post, news], 'all')).toEqual([post, news]);
+    });
+
+    test('um tipo mostra só as postagens dele', () => {
+        expect(filterPosts([post, news], 'news')).toEqual([news]);
     });
 });

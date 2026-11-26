@@ -1,24 +1,4 @@
-import { recommendationsQueryOptions } from '@followw/core/queries/recommendations.ts';
-import { QueryClient } from '@tanstack/react-query';
 import { expect, test } from 'bun:test';
-
-import { shouldPersistQuery } from '#/integrations/offline/storage';
-
-test('recomendações não são gravadas no cache offline; catálogo continua persistido', () => {
-    const client = new QueryClient();
-    client.getQueryCache().build(client, recommendationsQueryOptions());
-    client.setQueryData(recommendationsQueryOptions().queryKey, { items: [] });
-    client.setQueryData(['get', '/public/subjects'], []);
-    expect(
-        shouldPersistQuery(
-            client.getQueryCache().find({ queryKey: recommendationsQueryOptions().queryKey })!
-        )
-    ).toBe(false);
-    expect(
-        shouldPersistQuery(client.getQueryCache().find({ queryKey: ['get', '/public/subjects'] })!)
-    ).toBe(true);
-    client.clear();
-});
 
 test('recomendações aparecem só para graduação e sem pesquisa', async () => {
     const { showRecommendations } = await import('@followw/core/queries/recommendations.ts');
