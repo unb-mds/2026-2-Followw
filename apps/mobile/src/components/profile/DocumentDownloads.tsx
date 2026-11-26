@@ -1,9 +1,10 @@
 import { studentDocuments, type StudentDocument } from '@followw/core/lib/documents.ts';
 import { useOnline } from '@followw/core/lib/online.ts';
-import { Download, GraduationCap, IdCard } from 'lucide-react-native';
+import { Download, FileText, GraduationCap, IdCard } from 'lucide-react-native';
 import { useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
+import { ListCard } from '@/components/ListCard';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
@@ -11,12 +12,14 @@ import { useColor } from '@/lib/colors';
 import { cn } from '@/lib/utils';
 import { documentFailureMessage, shareDocument } from '@/queries/documents';
 
-const documents = [
+// sem `document`, o download ainda não existe e a linha fica desativada
+const documents: { document?: StudentDocument; icon: typeof IdCard; shortLabel: string }[] = [
     { document: 'student-card', icon: IdCard, shortLabel: 'Carteirinha' },
-    { document: 'transcript', icon: GraduationCap, shortLabel: 'Histórico' }
-] satisfies { document: StudentDocument; icon: typeof IdCard; shortLabel: string }[];
+    { icon: GraduationCap, shortLabel: 'Diploma' },
+    { document: 'transcript', icon: FileText, shortLabel: 'Histórico' }
+];
 
-/** Cards para baixar a carteirinha e o histórico (PDF aberto na folha de compartilhamento). */
+/** Lista para baixar os documentos (PDF aberto na folha de compartilhamento). */
 export function DocumentDownloads() {
     const [pending, setPending] = useState<StudentDocument | null>(null);
     const [failure, setFailure] = useState<{ document: StudentDocument; message: string } | null>(
@@ -38,46 +41,44 @@ export function DocumentDownloads() {
     }
 
     return (
-        <View className="gap-3">
-            <View className="flex-row gap-3">
+        <View className="gap-2">
+            <ListCard>
                 {documents.map(({ document, icon, shortLabel }) => {
-                    const { label } = studentDocuments[document];
-                    const isPending = pending === document;
-                    const message = failure?.document === document ? failure.message : null;
+                    const label = document ? studentDocuments[document].label : shortLabel;
+                    const isPending = document != null && pending === document;
+                    const message =
+                        document && failure?.document === document ? failure.message : null;
                     return (
-                        <View
-                            key={document}
-                            className="min-w-0 flex-1 flex-row items-center gap-2 rounded-2xl border border-border bg-card p-2 shadow-sm shadow-black/5"
-                        >
-                            <View className="size-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                                <Icon as={icon} className="size-4 text-primary" />
-                            </View>
-                            <View className="min-w-0 flex-1">
-                                <Text numberOfLines={1} className="text-sm">
-                                    {shortLabel}
-                                </Text>
-                                {(isPending || message) && (
-                                    <Text
-                                        role={message ? 'alert' : undefined}
-                                        className={cn(
-                                            'text-xs',
-                                            message ? 'text-destructive' : 'text-muted-foreground'
-                                        )}
-                                    >
-                                        {isPending ? 'Processando documento...' : message}
-                                    </Text>
-                                )}
-                            </View>
+                        <View key={shortLabel} className="-mx-3">
                             <Button
-                                size="icon-sm"
                                 variant="ghost"
-                                // o ícone tem folga dentro do botão; sem isso "Carteirinha" não cabe
-                                className="-mx-1 size-9"
-                                disabled={!online || pending !== null}
+                                className="h-auto min-h-12 w-full justify-start gap-3 rounded-none px-3 py-2.5"
+                                disabled={!document || !online || pending !== null}
                                 accessibilityLabel={`Baixar ${label.toLowerCase()}`}
                                 accessibilityState={{ busy: isPending }}
-                                onPress={() => void handleDownload(document)}
+                                onPress={() => {
+                                    if (document) void handleDownload(document);
+                                }}
                             >
+                                <View className="size-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                                    <Icon as={icon} className="size-4 text-primary" />
+                                </View>
+                                <View className="min-w-0 flex-1">
+                                    <Text className="text-left font-normal">{shortLabel}</Text>
+                                    {(isPending || message) && (
+                                        <Text
+                                            role={message ? 'alert' : undefined}
+                                            className={cn(
+                                                'text-xs font-normal',
+                                                message
+                                                    ? 'text-destructive'
+                                                    : 'text-muted-foreground'
+                                            )}
+                                        >
+                                            {isPending ? 'Processando documento...' : message}
+                                        </Text>
+                                    )}
+                                </View>
                                 {isPending ? (
                                     <ActivityIndicator size="small" color={muted} />
                                 ) : (
@@ -87,9 +88,9 @@ export function DocumentDownloads() {
                         </View>
                     );
                 })}
-            </View>
+            </ListCard>
             {!online && (
-                <Text role="status" className="py-2 text-xs text-muted-foreground">
+                <Text role="status" className="px-1 text-xs text-muted-foreground">
                     Conecte-se à internet para baixar os documentos.
                 </Text>
             )}

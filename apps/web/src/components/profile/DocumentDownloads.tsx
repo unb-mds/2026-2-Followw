@@ -4,18 +4,21 @@ import {
     type StudentDocument
 } from '@followw/core/lib/documents.ts';
 import { useOnline } from '@followw/core/lib/online.ts';
-import { Download, GraduationCap, IdCard } from 'lucide-react';
+import { Download, FileText, GraduationCap, IdCard } from 'lucide-react';
 
 import type { useDownloadDocument } from '#/queries/documents';
 
+import { ListCard } from '#/components/ListCard';
 import { Button } from '#/components/ui/button';
 import { Spinner } from '#/components/ui/spinner';
 import { cn } from '#/lib/shadcn';
 
-const documents = [
+// sem `document`, o download ainda não existe e a linha fica desativada
+const documents: { document?: StudentDocument; icon: typeof IdCard; shortLabel: string }[] = [
     { document: 'student-card', icon: IdCard, shortLabel: 'Carteirinha' },
-    { document: 'transcript', icon: GraduationCap, shortLabel: 'Histórico' }
-] satisfies { document: StudentDocument; icon: typeof IdCard; shortLabel: string }[];
+    { icon: GraduationCap, shortLabel: 'Diploma' },
+    { document: 'transcript', icon: FileText, shortLabel: 'Histórico' }
+];
 
 export function DocumentDownloads({
     download
@@ -34,56 +37,55 @@ export function DocumentDownloads({
     const online = useOnline();
 
     return (
-        <>
-            {documents.map(({ document, icon: Icon, shortLabel }) => {
-                const { label } = studentDocuments[document];
-                const isPending = pending === document;
-                const message = failure?.document === document ? failure.message : null;
-                return (
-                    <div
-                        key={document}
-                        className="flex min-w-0 items-center gap-2 rounded-2xl border bg-card p-2 shadow-sm @sm:gap-3 @sm:p-3"
-                    >
-                        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary @sm:size-8">
-                            <Icon className="size-4" aria-hidden="true" />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                            <span className="block text-sm @sm:text-base">{shortLabel}</span>
-                            <span
-                                role={message ? 'alert' : undefined}
-                                className={cn(
-                                    'block text-xs wrap-anywhere',
-                                    message ? 'text-destructive' : 'text-muted-foreground'
-                                )}
-                                aria-live="polite"
-                            >
-                                {isPending ? 'Processando documento...' : message}
-                            </span>
-                        </span>
+        <div className="flex flex-col gap-2">
+            <ListCard>
+                {documents.map(({ document, icon: Icon, shortLabel }) => {
+                    const label = document ? studentDocuments[document].label : shortLabel;
+                    const isPending = document != null && pending === document;
+                    const message =
+                        document && failure?.document === document ? failure.message : null;
+                    return (
                         <Button
+                            key={shortLabel}
                             type="button"
-                            size="icon-sm"
                             variant="ghost"
-                            className="size-11"
-                            disabled={!online || pending !== null}
+                            className="-mx-3 h-auto min-h-12 justify-start gap-3 rounded-none px-3 py-2.5"
+                            disabled={!document || !online || pending !== null}
                             aria-label={`Baixar ${label.toLowerCase()}`}
                             aria-busy={isPending}
-                            onClick={() => download.mutate(document)}
+                            onClick={() => document && download.mutate(document)}
                         >
+                            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                                <Icon className="size-4" aria-hidden="true" />
+                            </span>
+                            <span className="flex min-w-0 flex-1 flex-col text-left">
+                                <span>{shortLabel}</span>
+                                {(isPending || message) && (
+                                    <span
+                                        role={message ? 'alert' : undefined}
+                                        className={cn(
+                                            'text-xs font-normal wrap-anywhere whitespace-normal',
+                                            message ? 'text-destructive' : 'text-muted-foreground'
+                                        )}
+                                    >
+                                        {isPending ? 'Processando documento...' : message}
+                                    </span>
+                                )}
+                            </span>
                             {isPending ? (
                                 <Spinner aria-label="Preparando download" />
                             ) : (
                                 <Download aria-hidden="true" className="text-muted-foreground" />
                             )}
                         </Button>
-                    </div>
-                );
-            })}
+                    );
+                })}
+            </ListCard>
             {!online && (
-                <output className="col-span-full block py-2 text-xs text-muted-foreground">
+                <output className="block px-1 text-xs text-muted-foreground">
                     Conecte-se à internet para baixar os documentos.
                 </output>
             )}
-        </>
+        </div>
     );
 }
