@@ -12,9 +12,9 @@ import {
     onlineManager
 } from '@tanstack/react-query';
 import Constants from 'expo-constants';
-import * as Network from 'expo-network';
 import { AppState, Platform } from 'react-native';
 
+import { watchNetwork } from '@/lib/network';
 import { cacheStorage } from '@/lib/storage';
 import { clearSession } from '@/queries/auth';
 
@@ -60,12 +60,7 @@ export function shouldPersistQuery(query: Query, now = Date.now()) {
     );
 }
 
-onlineManager.setEventListener((setOnline) => {
-    const subscription = Network.addNetworkStateListener((state) =>
-        setOnline(state.isConnected !== false)
-    );
-    return () => subscription.remove();
-});
+onlineManager.setEventListener(watchNetwork);
 
 if (Platform.OS !== 'web') {
     AppState.addEventListener('change', (state) => focusManager.setFocused(state === 'active'));

@@ -5,7 +5,7 @@ import { QueryClient } from '@tanstack/react-query';
 
 import { serializeCache, shouldPersistQuery } from '@/lib/query-client';
 
-jest.mock('expo-network', () => ({ addNetworkStateListener: () => ({ remove: jest.fn() }) }));
+jest.mock('@/lib/network', () => ({ watchNetwork: () => jest.fn() }));
 jest.mock('@/queries/auth', () => ({ clearSession: jest.fn() }));
 
 const query = (queryKey: readonly unknown[], meta?: Record<string, unknown>) => {
