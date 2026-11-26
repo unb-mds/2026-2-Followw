@@ -54,6 +54,7 @@ jobs:
         shell: bash
     env:
       CADDYFILE: ./Caddyfile.smoke
+      COMPOSE_PROJECT_NAME: followw-preview
       PUBLIC_URL: https://oracle.followw.app/api
       CORS_ORIGINS: '["https://oracle.followw.app"]'
       POSTGRES_PASSWORD: smoke-db-admin
@@ -75,7 +76,9 @@ jobs:
             .networks.backend.external and
             .networks.backend.name == "followw-preview_default" and
             .services.api.labels["traefik.enable"] == "false" and
-            .services.web.labels["traefik.enable"] == "false"
+            .services.web.labels["traefik.enable"] == "false" and
+            .services.api.labels["traefik.http.services.followw-coolify-api.loadbalancer.server.scheme"] == "h2c" and
+            .services.web.labels["traefik.http.services.followw-coolify-web.loadbalancer.server.scheme"] == "h2c"
           '
       - name: Subir com HTTPS local
         run: |
@@ -104,10 +107,31 @@ jobs:
           test "$(docker compose exec -T -e PGPASSWORD="$POSTGRES_APP_PASSWORD" db \
             psql -X -h db -U followw_app -d followw -Atc \
             "SELECT has_schema_privilege(current_user, 'public', 'CREATE'), has_table_privilege(current_user, 'public.subjects', 'INSERT')")" = 'f|t'
+      - name: Conferir HTTP/2 nos serviços do Coolify
+        run: |
+          docker network create coolify
+          docker compose -p followw-ci-coolify -f compose.coolify.yml up -d --build
+
+          service_ip() {
+            docker inspect --format '{{(index .NetworkSettings.Networks "coolify").IPAddress}}' \
+              "$(docker compose -p followw-ci-coolify -f compose.coolify.yml ps -q "$1")"
+          }
+          api_ip="$(service_ip api)"
+          web_ip="$(service_ip web)"
+          curl_args=(--http2-prior-knowledge --fail --silent --show-error --retry 10 --retry-connrefused --max-time 8)
+          test "$(curl "${curl_args[@]}" -H 'X-Forwarded-Proto: https' --write-out '%{http_version}' \
+            --output "$RUNNER_TEMP/subjects-h2.json" "http://$api_ip:8000/public/subjects?code=MAT0025")" = 2
+          jq -e 'any(.items[]; .code == "MAT0025")' "$RUNNER_TEMP/subjects-h2.json"
+          test "$(curl "${curl_args[@]}" --write-out '%{http_version}' \
+            --output /dev/null "http://$web_ip:3000/login")" = 2
       - if: failure()
-        run: docker compose logs
+        run: |
+          docker compose logs
+          docker compose -p followw-ci-coolify -f compose.coolify.yml logs
       - if: always()
-        run: docker compose down -v
+        run: |
+          docker compose -p followw-ci-coolify -f compose.coolify.yml down
+          docker compose down -v
 
   deploy-oci:
     name: Publicar o preview na Oracle

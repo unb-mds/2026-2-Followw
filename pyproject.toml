@@ -16,6 +16,7 @@ unb-browser = { workspace = true }
 members = ["apps/api", "packages/sigaa-client", "packages/unb-browser"]
 
 [dependency-groups]
+oci = ["hypercorn>=0.18,<0.19"]
 dev = [
     "pytest>=9.2.0",
     "pytest-asyncio>=1.5.0",

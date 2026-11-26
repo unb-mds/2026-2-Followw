@@ -60,6 +60,8 @@ Na VM com Coolify, mantenha PostgreSQL, Redis e QStash no projeto Compose `follo
 
 O CI valida a branch e envia ao webhook do Coolify a revisão que passou nos testes. O Traefik encaminha o POST em `https://oracle.followw.app/_ops/followw-deploy` para `/webhooks/source/github/events/manual`. O segredo **FOLLOWW_OCI_WEBHOOK_SECRET** no GitHub Actions precisa corresponder ao segredo do webhook no recurso. O CI confere o cabeçalho `X-Followw-Revision` do frontend e da API após o deploy.
 
+Neste preview, o Traefik usa HTTP/2 sem TLS (`h2c`) na rede privada do Docker para chegar ao frontend e à API. A API usa Hypercorn e aceita HTTP/1.1 para o SSR. O CI valida os dois serviços com HTTP/2 antes de enviar o webhook.
+
 ## Preparar a configuração de produção
 
 Crie um arquivo separado `deploy/oci/.env.production` com permissões 600. Use `COMPOSE_PROJECT_NAME=followw`, `CADDYFILE=./Caddyfile`, `PUBLIC_URL=https://api.followw.app` e `CORS_ORIGINS='["https://followw.app"]'`. Preencha as credenciais de produção e reutilize as chaves JWT, OAuth e de limite da implantação atual. Nos procedimentos de produção abaixo, use `docker compose --env-file .env.production`.

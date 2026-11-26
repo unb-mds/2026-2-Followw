@@ -3,7 +3,7 @@ x-api: &api
   build:
     context: ../..
     dockerfile: deploy/oci/Dockerfile
-    target: api
+    target: api-coolify
   environment: &api-env
     ENVIRONMENT: production
     JWT_SECRET_KEY: ${JWT_SECRET_KEY:-}
@@ -41,7 +41,7 @@ services:
           sed -i 's/#!lua flags=allow-key-locking//' /app/.venv/lib/python3.14/site-packages/upstash_ratelimit/limiter.py
           exec "$$@"
       - --
-    command: [uvicorn, api.main:app, --host, 0.0.0.0, --port, '8000', --forwarded-allow-ips, '*', --no-access-log]
+    command: [hypercorn, --bind, '0.0.0.0:8000', 'api_asgi:application']
     environment:
       <<: *api-env
       DATABASE_URL: postgresql+asyncpg://followw_app:${POSTGRES_APP_PASSWORD:-}@db/followw
@@ -73,6 +73,7 @@ services:
       - 'traefik.http.routers.followw-coolify-api.service=followw-coolify-api'
       - 'traefik.http.routers.followw-coolify-api.middlewares=followw-coolify-noindex,followw-coolify-prefix,followw-coolify-size'
       - 'traefik.http.services.followw-coolify-api.loadbalancer.server.port=8000'
+      - 'traefik.http.services.followw-coolify-api.loadbalancer.server.scheme=h2c'
       - 'traefik.http.middlewares.followw-coolify-prefix.stripprefix.prefixes=/api'
       - 'traefik.http.middlewares.followw-coolify-size.buffering.maxrequestbodybytes=4500000'
 
@@ -84,6 +85,8 @@ services:
       args:
         VITE_POSTHOG_KEY: ${VITE_POSTHOG_KEY:-}
         VITE_POSTHOG_HOST: ${VITE_POSTHOG_HOST:-https://us.i.posthog.com}
+        FOLLOWW_NITRO_PRESET: node-middleware
+    command: [node, web-h2c.mjs]
     restart: unless-stopped
     logging:
       driver: local
@@ -95,7 +98,20 @@ services:
       api:
         condition: service_healthy
     healthcheck:
-      test: [CMD, node, -e, 'fetch("http://127.0.0.1:3000/login").then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))']
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          const client = require('node:http2').connect('http://127.0.0.1:3000');
+          const req = client.request({ ':path': '/login' });
+          const fail = () => process.exit(1);
+          client.on('error', fail);
+          req.on('error', fail);
+          req.on('response', headers => { if (headers[':status'] !== 200) fail(); });
+          req.on('end', () => client.close());
+          req.resume();
+          req.end();
       interval: 10s
       timeout: 5s
       retries: 6
@@ -110,6 +126,7 @@ services:
       - 'traefik.http.routers.followw-coolify-web.service=followw-coolify-web'
       - 'traefik.http.routers.followw-coolify-web.middlewares=followw-coolify-noindex'
       - 'traefik.http.services.followw-coolify-web.loadbalancer.server.port=3000'
+      - 'traefik.http.services.followw-coolify-web.loadbalancer.server.scheme=h2c'
       - 'traefik.http.middlewares.followw-coolify-noindex.headers.customresponseheaders.X-Robots-Tag=noindex'
       - 'traefik.http.middlewares.followw-coolify-noindex.headers.customresponseheaders.X-Followw-Revision=${SOURCE_COMMIT:-unknown}'
       - 'traefik.http.routers.followw-coolify-redirect.rule=Host(`oracle.followw.app`)'
