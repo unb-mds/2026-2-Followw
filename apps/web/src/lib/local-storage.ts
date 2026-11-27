@@ -16,13 +16,7 @@ function getStorage(): Storage | null {
 /** Cookies bloqueados: o navegador também nega o storage do site e o login não se mantém. */
 export function isStorageBlocked(): boolean {
     if (typeof window === 'undefined') return false;
-    if (!window.navigator.cookieEnabled) return true;
-    try {
-        void window.localStorage;
-        return false;
-    } catch {
-        return true;
-    }
+    return !window.navigator.cookieEnabled || !getStorage();
 }
 
 function formatKey(key: string): string {
