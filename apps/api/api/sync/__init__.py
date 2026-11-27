@@ -21,7 +21,7 @@ async def _sync_lifecycle(
     sync = Sync(db, sigaa, cache)
     yield sync
     # Nada roda depois da resposta: os jobs saem antes dela.
-    await queue.enqueue(*sync.jobs())
+    await queue.enqueue(*await sync.jobs())
 
 
 async def get_optional_sync(

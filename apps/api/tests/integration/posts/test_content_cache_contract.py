@@ -13,7 +13,9 @@ from api.sync import Cached, Sync
 def test_conteudo_imutavel_so_reconsulta_com_no_cache(probe_app, loaded, directive):
     value = "Salvo" if loaded else None
     fetch = AsyncMock(return_value="Atualizado")
-    sigaa = SimpleNamespace(client=AsyncMock(return_value=object()))
+    sigaa = SimpleNamespace(
+        registration="251000000", client=AsyncMock(return_value=object())
+    )
 
     async def read(load):
         return await load(None)
@@ -30,7 +32,7 @@ def test_conteudo_imutavel_so_reconsulta_com_no_cache(probe_app, loaded, directi
     async def consultar(cache: CacheControlDep) -> str:
         sync = Sync(SimpleNamespace(read=read), sigaa, cache)
         result = await sync.resolve(task, None, load, immutable=True)
-        assert sync.jobs() == []
+        assert await sync.jobs() == []
         return result
 
     headers = {"Cache-Control": directive} if directive else {}

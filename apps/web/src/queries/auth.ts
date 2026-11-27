@@ -31,6 +31,16 @@ export function clearSession(queryClient: QueryClient) {
     return cleared;
 }
 
+export async function clearAccountData(queryClient: QueryClient) {
+    await clearUserData(queryClient);
+    queryClient.removeQueries({ queryKey: meQueryOptions.queryKey, exact: true });
+}
+
+export async function cancelAccountRequests(queryClient: QueryClient) {
+    sessionRefresh?.abort();
+    await queryClient.cancelQueries();
+}
+
 /** O login deu certo, mas o /me seguinte não levou os cookies que ele gravou. */
 export class SessionNotStoredError extends Error {
     constructor() {
@@ -69,10 +79,7 @@ export function useLogout(onLoggedOut?: () => void) {
     const queryClient = useQueryClient();
     const posthog = usePostHog();
     return api.useMutation('delete', '/auth/sigaa', {
-        onMutate: async () => {
-            sessionRefresh?.abort();
-            await queryClient.cancelQueries();
-        },
+        onMutate: () => cancelAccountRequests(queryClient),
         onSuccess: () => {
             const cleared = clearSession(queryClient);
             posthog.reset();
@@ -82,13 +89,13 @@ export function useLogout(onLoggedOut?: () => void) {
     });
 }
 
-export function useSessionRefresh() {
+export function useSessionRefresh(enabled = true) {
     const queryClient = useQueryClient();
-    const { data: user } = useQuery(meQueryOptions);
+    const { data: user } = useQuery({ ...meQueryOptions, enabled });
     const online = useOnline();
 
     useEffect(() => {
-        if (!user || !online || refreshedRegistration === user.registration) return;
+        if (!enabled || !user || !online || refreshedRegistration === user.registration) return;
         refreshedRegistration = user.registration;
         const controller = new AbortController();
         sessionRefresh = controller;
@@ -101,5 +108,5 @@ export function useSessionRefresh() {
             .finally(() => {
                 if (sessionRefresh === controller) sessionRefresh = undefined;
             });
-    }, [user, online, queryClient]);
+    }, [enabled, user, online, queryClient]);
 }

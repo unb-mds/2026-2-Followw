@@ -1,9 +1,11 @@
+from datetime import datetime
 from functools import partial
 
 from sigaa_client import Credentials
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.cache import Freshness
+from api.db.account_data import SyncDatabase
 from api.db.main import Database
 from api.db.models import OwnLink, User
 from api.modules.classrooms.repository import ClassroomRepository
@@ -23,27 +25,44 @@ from api.sync.queue import QStashQueue
 
 
 async def start_account(
-    connection: SigaaConnection, db: Database, queue: QStashQueue
+    connection: SigaaConnection,
+    db: Database,
+    queue: QStashQueue,
+    *,
+    started_at: datetime,
 ) -> None:
     """Confere a senha (logando, se não houver sessão) e agenda o sync do que venceu."""
     if not connection.authenticated:
         await connection.client()
-    await schedule_account_sync(connection.credentials, db, queue)
+    await schedule_account_sync(
+        connection.credentials, db, queue, started_at=started_at
+    )
 
 
 async def schedule_account_sync(
-    credentials: Credentials, db: Database, queue: QStashQueue
+    credentials: Credentials,
+    db: Database,
+    queue: QStashQueue,
+    *,
+    started_at: datetime,
 ) -> None:
-    await db.write(
+    account_db = SyncDatabase(db, credentials.registration, started_at)
+    await account_db.write(
         lambda session: UserRepository(session).register(credentials.registration)
     )
-    user, links = await db.read(partial(_account, credentials.registration))
+    user, links = await account_db.read(partial(_account, credentials.registration))
     if (
         _stale_account_tasks(user)
         or _stale_grades(user)
         or any(stale_classroom_tasks(l) for l in links)
     ):
-        job = Job(credentials=credentials, steps=(Step.of(sync_account),))
+        version = await account_db.check_current()
+        job = Job(
+            credentials=credentials,
+            steps=(Step.of(sync_account),),
+            created_at=started_at,
+            data_version=version,
+        )
         await queue.enqueue(job)
 
 

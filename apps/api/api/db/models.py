@@ -207,6 +207,15 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
 
 
+class UserDataDeletion(Base):
+    __tablename__ = "user_data_deletions"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    deleted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class Professor(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     """Docente do catálogo (pelo `siape`) ou, sem ele, visto só numa turma."""
 

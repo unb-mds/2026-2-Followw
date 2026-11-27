@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, status
 from sigaa_client import AuthenticationFailed
 from sqlalchemy.exc import IntegrityError
 
+from api.db.account_data import AccountDataOperationExpired
 from api.db.main import DatabaseDep
 from api.logger import event, operation
 from api.modules.auth.account import sync_account
@@ -68,13 +69,17 @@ async def run_job(job: JobDep, db: DatabaseDep, queue: JobQueueDep) -> None:
 
     with operation("job", attempt=job.attempt, step_count=len(job.steps)):
         sigaa = SigaaConnection(job.credentials)
-        sync = Sync(db, sigaa)
+        sync = Sync(db, sigaa, started_at=job.created_at)
         try:
+            await sync.db.check_current()
             failed = await _run(job, sigaa, sync)
+        except AccountDataOperationExpired:
+            event("job.skipped_after_deletion")
+            return
         finally:
             await sigaa.aclose(logout=True)
 
-        jobs = sync.jobs()
+        jobs = await sync.jobs()
         if failed and job.attempt < MAX_ATTEMPTS:
             jobs.append(
                 job.model_copy(update={"steps": failed, "attempt": job.attempt + 1})

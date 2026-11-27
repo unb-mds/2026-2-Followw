@@ -13,6 +13,7 @@ import { Route as SplatRouteImport } from './routes/$'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AutorizarRouteImport } from './routes/autorizar'
 import { Route as DevelopersRouteImport } from './routes/developers'
+import { Route as ExcluirContaRouteImport } from './routes/excluir-conta'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
@@ -45,6 +46,11 @@ const AutorizarRoute = AutorizarRouteImport.update({
 const DevelopersRoute = DevelopersRouteImport.update({
   id: '/developers',
   path: '/developers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExcluirContaRoute = ExcluirContaRouteImport.update({
+  id: '/excluir-conta',
+  path: '/excluir-conta',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -123,6 +129,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/autorizar': typeof AutorizarRoute
   '/developers': typeof DevelopersRoute
+  '/excluir-conta': typeof ExcluirContaRoute
   '/login': typeof LoginRoute
   '/privacidade': typeof PrivacidadeRoute
   '/buscar': typeof AppBuscarRoute
@@ -141,6 +148,7 @@ export interface FileRoutesByTo {
   '/$': typeof SplatRoute
   '/autorizar': typeof AutorizarRoute
   '/developers': typeof DevelopersRoute
+  '/excluir-conta': typeof ExcluirContaRoute
   '/login': typeof LoginRoute
   '/privacidade': typeof PrivacidadeRoute
   '/buscar': typeof AppBuscarRoute
@@ -162,6 +170,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/autorizar': typeof AutorizarRoute
   '/developers': typeof DevelopersRoute
+  '/excluir-conta': typeof ExcluirContaRoute
   '/login': typeof LoginRoute
   '/privacidade': typeof PrivacidadeRoute
   '/_app/buscar': typeof AppBuscarRoute
@@ -184,6 +193,7 @@ export interface FileRouteTypes {
     | '/'
     | '/autorizar'
     | '/developers'
+    | '/excluir-conta'
     | '/login'
     | '/privacidade'
     | '/buscar'
@@ -202,6 +212,7 @@ export interface FileRouteTypes {
     | '/$'
     | '/autorizar'
     | '/developers'
+    | '/excluir-conta'
     | '/login'
     | '/privacidade'
     | '/buscar'
@@ -222,6 +233,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/autorizar'
     | '/developers'
+    | '/excluir-conta'
     | '/login'
     | '/privacidade'
     | '/_app/buscar'
@@ -243,6 +255,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AutorizarRoute: typeof AutorizarRoute
   DevelopersRoute: typeof DevelopersRoute
+  ExcluirContaRoute: typeof ExcluirContaRoute
   LoginRoute: typeof LoginRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
   ShareRuDotpngRoute: typeof ShareRuDotpngRoute
@@ -277,6 +290,13 @@ declare module '@tanstack/react-router' {
       path: '/developers'
       fullPath: '/developers'
       preLoaderRoute: typeof DevelopersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/excluir-conta': {
+      id: '/excluir-conta'
+      path: '/excluir-conta'
+      fullPath: '/excluir-conta'
+      preLoaderRoute: typeof ExcluirContaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -413,6 +433,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AutorizarRoute: AutorizarRoute,
   DevelopersRoute: DevelopersRoute,
+  ExcluirContaRoute: ExcluirContaRoute,
   LoginRoute: LoginRoute,
   PrivacidadeRoute: PrivacidadeRoute,
   ShareRuDotpngRoute: ShareRuDotpngRoute,

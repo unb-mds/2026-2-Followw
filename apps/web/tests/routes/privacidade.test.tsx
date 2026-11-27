@@ -79,7 +79,8 @@ describe('privacidade e termos', () => {
         expect(markup).toContain('QStash (Upstash)');
         expect(markup).toContain('PostHog');
         expect(markup).toContain('gravação de sessões');
-        expect(markup).toContain('href="mailto:removal@followw.app"');
+        expect(markup).toContain('href="/excluir-conta"');
+        expect(markup).not.toContain('mailto:removal@followw.app');
         expect(markup).toContain('não impede novas coletas');
         expect(markup).toContain('stalking');
         expect(markup).toContain('automações são permitidos');

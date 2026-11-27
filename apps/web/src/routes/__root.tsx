@@ -6,7 +6,8 @@ import {
     Outlet,
     Scripts,
     createRootRouteWithContext,
-    isNotFound
+    isNotFound,
+    useRouterState
 } from '@tanstack/react-router';
 import { NuqsAdapter } from 'nuqs/adapters/tanstack-router';
 import { useEffect } from 'react';
@@ -60,10 +61,13 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 });
 
 function RootComponent() {
-    useSessionRefresh();
+    const syncEnabled = useRouterState({
+        select: (state) => state.location.pathname.replace(/\/+$/, '') !== '/excluir-conta'
+    });
+    useSessionRefresh(syncEnabled);
     useEffect(() => reloadOnPreloadError(), []);
     useEffect(() => initializeInstallSupport(), []);
-    const restoring = useOfflineSupport();
+    const restoring = useOfflineSupport(syncEnabled);
 
     return (
         <IsRestoringProvider value={restoring}>

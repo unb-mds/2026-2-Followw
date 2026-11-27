@@ -13,6 +13,7 @@ from sigaa_client import Credentials
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.db.account_data import AccountDataOperationExpired, check_account_data
 from api.db.main import Database
 from api.db.models import OAuthAuthorizationCode, OAuthClient
 from api.modules.oauth.clients import authenticate_client
@@ -66,12 +67,14 @@ async def prepare_consent(
     db: Database, consent: Consent, session_id: str
 ) -> tuple[OAuthClient, str]:
     application = await db.read(lambda session: _load_application(session, consent))
-    expires_at = datetime.now(UTC) + _CONSENT_TTL
+    now = datetime.now(UTC)
+    expires_at = now + _CONSENT_TTL
     token = seal(
         {
             **consent.model_dump(mode="json"),
             "session": _digest(session_id),
             "exp": int(expires_at.timestamp()),
+            "issued_at": now.isoformat(),
         },
         _CONSENT_KEY,
     )
@@ -85,16 +88,17 @@ def _redirect(consent: Consent, **params: str) -> str:
     return f"{consent.redirect_uri}{separator}{urlencode(params)}"
 
 
-def _open_consent(token: str, session_id: str) -> Consent:
+def _open_consent(token: str, session_id: str) -> tuple[Consent, datetime]:
     try:
         claims = unseal(token, _CONSENT_KEY, now=datetime.now(UTC))
         if not compare_digest(claims["session"], _digest(session_id)):
             raise ValueError
         consent = Consent.model_validate(claims)
+        issued_at = datetime.fromisoformat(claims["issued_at"])
         granted_scopes(consent.scopes)
     except JoseError, KeyError, TypeError, ValueError:
         raise OAuthError("Pedido de autorização inválido ou expirado.") from None
-    return consent
+    return consent, issued_at
 
 
 async def decide_consent(
@@ -105,9 +109,17 @@ async def decide_consent(
     *,
     approved: bool,
 ) -> str:
-    consent = _open_consent(token, session_id)
+    consent, issued_at = _open_consent(token, session_id)
 
     async def issue(session: AsyncSession) -> str:
+        try:
+            await check_account_data(
+                session, credentials.registration, issued_at, lock=True
+            )
+        except AccountDataOperationExpired:
+            raise OAuthError(
+                "Os dados foram excluídos. Solicite uma nova autorização."
+            ) from None
         await _load_application(session, consent)
         if not approved:
             return _redirect(consent, error="access_denied")
@@ -120,6 +132,7 @@ async def decide_consent(
                 **consent.model_dump(mode="json", exclude={"state", "redirect_uri"}),
                 "redirect_digest": _digest(consent.redirect_uri),
                 **login_claims(credentials),
+                "issued_at": now.isoformat(),
             },
             _code_key(record),
             record_id=record.id,
@@ -182,19 +195,35 @@ async def exchange_code(
     code_verifier: str,
     proof: Proof | None = None,
 ) -> TokenPair:
-    async def exchange(session: AsyncSession) -> TokenPair | None:
-        application = await authenticate_client(
+    await db.read(
+        lambda session: authenticate_client(
             session, client_id, client_secret, proof=proof
         )
+    )
+
+    async def exchange(session: AsyncSession) -> TokenPair | None:
         claims = await _take_code(session, code)
-        if claims is None or not _matches(
-            claims, application, redirect_uri=redirect_uri, code_verifier=code_verifier
-        ):
+        if claims is None:
             return None
         try:
             credentials = Credentials.model_validate(claims)
             scopes = granted_scopes(claims["scopes"])
+            issued_at = datetime.fromisoformat(claims["issued_at"])
         except KeyError, TypeError, ValueError:
+            return None
+        try:
+            await check_account_data(
+                session, credentials.registration, issued_at, lock=True
+            )
+        except AccountDataOperationExpired:
+            return None
+        # Conta antes da aplicação: a exclusão usa a mesma ordem de locks.
+        application = await authenticate_client(
+            session, client_id, client_secret, proof=proof
+        )
+        if not _matches(
+            claims, application, redirect_uri=redirect_uri, code_verifier=code_verifier
+        ):
             return None
         return await create_token_pair(
             session,

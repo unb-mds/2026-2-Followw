@@ -29,7 +29,7 @@ TTL (`None`), o dado **nunca vence** sozinho.
 | Participantes da turma          | 48 h (12h durante o período de matrícula) | turma                   | semestre passado: sem TTL                          |
 | Estatísticas da turma           | sem TTL                                   | turma                   | Revalidada com `no-cache`                          |
 | Plano de ensino                 | sem TTL                                   | turma                   | Revalidável pelo cliente; ausência também é salva  |
-| Menções do relatório             | 24 h                                      | usuário                 | Sync da conta; não congela após consolidação       |
+| Menções do relatório            | 24 h                                      | usuário                 | Sync da conta; não congela após consolidação       |
 | Frequência da turma             | 24 h                                      | vínculo usuário × turma | Turma de semestre passado: sem TTL                 |
 | Lista de posts da turma         | 24 h                                      | turma                   | Turma de semestre passado: sem TTL                 |
 | Verificação da home do SIGAA    | 1 h                                       | usuário                 | Agenda sync das turmas com novidades não salvas    |
@@ -149,6 +149,18 @@ Não passa pelo `Sync`: o cardápio é público e vem do site da UnB, sem login.
 
 O front tem outra camada, independente: o TanStack Query persiste os dados da API por 14 dias para o
 modo offline. Veja [offline.md](offline.md).
+
+## Exclusão dos dados pessoais
+
+`DELETE /me/data` limpa os dados acadêmicos e preferências, preserva o cadastro compartilhado e
+revoga autorizações OAuth, inclusive os aplicativos criados pelo usuário. A operação é transacional.
+`user_data_deletions` registra a última exclusão: cada gravação de sync confere sua data de início
+sob o mesmo lock usado pela exclusão. Jobs antigos são descartados e os novos usam outra chave de
+deduplicação. Códigos e consentimentos OAuth anteriores também são recusados.
+
+Os cookies de sessão continuam válidos. Consultas iniciadas depois da exclusão podem coletar os dados
+novamente. A página `/excluir-conta` consulta apenas `/me/data`, sem renovar o perfil nem preparar o
+modo offline, e limpa os dados locais após o sucesso.
 
 ## Posts das turmas
 

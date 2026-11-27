@@ -14,12 +14,12 @@ const WARMUP_DELAY = 2_000;
 const serviceWorkerEnabled = () => import.meta.env.PROD && 'serviceWorker' in navigator;
 
 /** Liga o modo offline da sessão logada: cache persistido, service worker e pré-carga. Devolve se o cache ainda está sendo restaurado. */
-export function useOfflineSupport() {
+export function useOfflineSupport(enabled = true) {
     const queryClient = useQueryClient();
     const online = useOnline();
-    const { data: user } = useQuery(meQueryOptions);
-    const loggedIn = Boolean(user);
-    const registration = user?.registration;
+    const { data: user } = useQuery({ ...meQueryOptions, enabled });
+    const loggedIn = enabled && Boolean(user);
+    const registration = enabled ? user?.registration : undefined;
     const [restoredRegistration, setRestoredRegistration] = useState<string | null>(null);
     const restoring = Boolean(registration) && restoredRegistration !== registration;
     const campus = campusOf(user?.unit?.code);

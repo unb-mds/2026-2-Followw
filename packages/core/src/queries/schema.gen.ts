@@ -639,6 +639,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/data": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Consultar dados para exclusão */
+        get: operations["get_account_data_me_data_get"];
+        put?: never;
+        post?: never;
+        /** Excluir dados pessoais do Followw */
+        delete: operations["erase_account_data_me_data_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me": {
         parameters: {
             query?: never;
@@ -832,6 +850,17 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AccountData */
+        AccountData: {
+            /** Registration */
+            registration: string;
+            /** Name */
+            name: string | null;
+            /** Applications */
+            applications: string[];
+            /** Has Connected Applications */
+            has_connected_applications: boolean;
+        };
         /** AuthorizationCodeGrant */
         AuthorizationCodeGrant: {
             /** Client Id */
@@ -4016,6 +4045,44 @@ export interface operations {
             };
             /** @description Cache em atualização. */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_account_data_me_data_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountData"];
+                };
+            };
+        };
+    };
+    erase_account_data_me_data_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };

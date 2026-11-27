@@ -1,6 +1,7 @@
 import base64
 import binascii
 import re
+from datetime import UTC, datetime
 from typing import Annotated, Literal
 from urllib.parse import unquote_plus
 
@@ -8,13 +9,19 @@ from fastapi import APIRouter, Form, Header
 from pydantic import BaseModel, Field, SecretStr, field_validator
 
 from api.core.config import settings
+from api.db.account_data import AccountDataOperationExpired
 from api.db.main import DatabaseDep
 from api.modules.auth.account import schedule_account_sync
 from api.modules.oauth.authorization import exchange_code
 from api.modules.oauth.clients import MAX_URI_LENGTH, InvalidClient
 from api.modules.oauth.proof import MAX_PROOF_LENGTH, Proof
 from api.modules.oauth.protocol import OAuthProblem, ProtocolRoute
-from api.modules.oauth.tokens import MAX_TOKEN_LENGTH, TokenPair, renew_access
+from api.modules.oauth.tokens import (
+    MAX_TOKEN_LENGTH,
+    InvalidToken,
+    TokenPair,
+    renew_access,
+)
 from api.sync.queue import JobQueueDep
 
 router = APIRouter(route_class=ProtocolRoute)
@@ -127,6 +134,7 @@ async def token(
     dpop: Annotated[str | None, Header(max_length=MAX_PROOF_LENGTH)] = None,
     authorization: Annotated[str | None, Header(max_length=1024)] = None,
 ) -> TokenResponse:
+    started_at = datetime.now(UTC)
     client_id, client_secret = _client_credentials(body, authorization)
     proof = (
         Proof.verify(dpop, f"{settings.public_url.rstrip('/')}/oauth/token")
@@ -154,5 +162,12 @@ async def token(
                 proof=proof,
             )
             # Como no refresh da web: agenda o sync da conta do que venceu.
-            await schedule_account_sync(pair.credentials, db, queue)
+            try:
+                await schedule_account_sync(
+                    pair.credentials, db, queue, started_at=started_at
+                )
+            except AccountDataOperationExpired:
+                raise InvalidToken(
+                    "Os dados foram excluídos durante a renovação."
+                ) from None
             return _response(pair, include_refresh=False)

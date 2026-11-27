@@ -29,7 +29,7 @@ function PrivacyPage() {
                         <h1 className="text-3xl font-bold tracking-tight">Privacidade e termos</h1>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                        Atualizado em <time dateTime="2026-10-18">18 de outubro de 2026</time>
+                        Atualizado em <time dateTime="2026-11-27">27 de novembro de 2026</time>
                     </p>
                     <nav
                         aria-label="Nesta página"
@@ -111,19 +111,19 @@ function PrivacyPage() {
                         <div>
                             <h3 className="font-semibold text-foreground">Excluir seus dados</h3>
                             <p>
-                                Para solicitar a exclusão dos seus dados existentes no Followw,
-                                escreva para{' '}
-                                <a
+                                Para apagar seus dados acadêmicos e preferências salvos no Followw,
+                                acesse a página{' '}
+                                <Link
                                     className="text-primary underline underline-offset-4"
-                                    href={mailto(EMAILS.removal)}
+                                    to="/excluir-conta"
                                 >
-                                    {EMAILS.removal}
-                                </a>
-                                . Não envie sua senha. A exclusão não altera seus registros na UnB e
-                                não impede novas coletas: seus dados podem voltar em sincronizações
-                                futuras, inclusive de participantes feitas por outros integrantes da
-                                turma. Para limpar o dispositivo, saia da conta ou remova os dados
-                                do site no navegador.
+                                    Excluir meus dados
+                                </Link>
+                                . Nome, matrícula, foto, e-mail, curso e participação nas turmas são
+                                mantidos, assim como os dados coletivos. A exclusão não altera seus
+                                registros na UnB e não impede novas coletas: as sessões continuam
+                                ativas e seus dados podem voltar ao usar o Followw. A página explica
+                                o que será apagado e pede confirmação antes de excluir.
                             </p>
                         </div>
                     </section>

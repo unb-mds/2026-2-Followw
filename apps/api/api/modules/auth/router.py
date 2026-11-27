@@ -1,4 +1,5 @@
 import asyncio
+from datetime import UTC, datetime
 
 import httpx
 from fastapi import APIRouter, Request, Response, status
@@ -29,11 +30,12 @@ async def sigaa_login(
     db: DatabaseDep,
     queue: JobQueueDep,
 ):
+    started_at = datetime.now(UTC)
     await limit_registration(body.registration)
     credentials = Credentials(registration=body.registration, password=body.password)
     connection = SigaaConnection(credentials, response=response)
     try:
-        await start_account(connection, db, queue)
+        await start_account(connection, db, queue, started_at=started_at)
     finally:
         await connection.aclose()
 
@@ -50,7 +52,7 @@ async def sigaa_refresh(
     connection: SigaaConnectionDep, db: DatabaseDep, queue: JobQueueDep
 ) -> None:
     """Renova o acesso e solicita a atualização dos dados do usuário."""
-    await start_account(connection, db, queue)
+    await start_account(connection, db, queue, started_at=datetime.now(UTC))
 
 
 @router.delete("/sigaa", summary="Sair do SIGAA")
