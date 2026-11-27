@@ -18,9 +18,10 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 40
     refresh_token_expire_minutes: int = 60 * 24 * 14  # 14 days
 
-    # URL pública da API: o QStash entrega os jobs em `{public_url}/jobs`.
+    # URL pública da API, também usada na validação do DPoP.
     public_url: str
     qstash_url: str | None = None
+    qstash_jobs_url: str | None = None
     qstash_token: str
     qstash_current_signing_key: str
     qstash_next_signing_key: str
@@ -28,6 +29,7 @@ class Settings(BaseSettings):
     # REST do Upstash; sem URL ou token, Redis e rate limit ficam desativados.
     upstash_redis_rest_url: str | None = None
     upstash_redis_rest_token: str | None = None
+    redis_standard_lua: bool = False
     redis_timeout_seconds: float = Field(default=1, gt=0, allow_inf_nan=False)
 
     # Cotas por IP em janela fixa; login tem uma cota própria, mais restrita.

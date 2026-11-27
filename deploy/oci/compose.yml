@@ -1,10 +1,10 @@
-name: followw
+name: followw-preview
 
 x-logging: &logging
   driver: local
 
 x-api: &api
-  image: ${COMPOSE_PROJECT_NAME:-followw}-api
+  image: ${COMPOSE_PROJECT_NAME:-followw-preview}-api
   build:
     context: ../..
     dockerfile: deploy/oci/Dockerfile
@@ -15,15 +15,39 @@ x-api: &api
     JWT_SECRET_KEY: ${JWT_SECRET_KEY:?defina JWT_SECRET_KEY}
     OAUTH_SECRET_KEY: ${OAUTH_SECRET_KEY:?defina OAUTH_SECRET_KEY}
     RATE_LIMIT_SECRET_KEY: ${RATE_LIMIT_SECRET_KEY:?defina RATE_LIMIT_SECRET_KEY}
-    PUBLIC_URL: ${PUBLIC_URL:-https://api.followw.app}
-    CORS_ORIGINS: ${CORS_ORIGINS:-["https://followw.app"]}
+    PUBLIC_URL: https://oracle.followw.app/api
+    CORS_ORIGINS: '["https://oracle.followw.app"]'
+    QSTASH_URL: http://qstash:8080
+    QSTASH_JOBS_URL: http://followw-standalone-jobs:8000/jobs
     QSTASH_TOKEN: ${QSTASH_TOKEN:?defina QSTASH_TOKEN}
     QSTASH_CURRENT_SIGNING_KEY: ${QSTASH_CURRENT_SIGNING_KEY:?defina QSTASH_CURRENT_SIGNING_KEY}
     QSTASH_NEXT_SIGNING_KEY: ${QSTASH_NEXT_SIGNING_KEY:?defina QSTASH_NEXT_SIGNING_KEY}
-    UPSTASH_REDIS_REST_URL: ${UPSTASH_REDIS_REST_URL:?defina UPSTASH_REDIS_REST_URL}
+    UPSTASH_REDIS_REST_URL: http://redis-http
     UPSTASH_REDIS_REST_TOKEN: ${UPSTASH_REDIS_REST_TOKEN:?defina UPSTASH_REDIS_REST_TOKEN}
+    REDIS_STANDARD_LUA: 'true'
 
 services:
+  redis:
+    image: redis:8
+    restart: unless-stopped
+    logging: *logging
+
+  redis-http:
+    image: hiett/serverless-redis-http@sha256:5b0bb9239fce53abf87b2018a7a0deb9ec7bd900c5360738fe5fbeeb426f9150
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      SRH_MODE: env
+      SRH_TOKEN: ${UPSTASH_REDIS_REST_TOKEN:?defina UPSTASH_REDIS_REST_TOKEN}
+      SRH_CONNECTION_STRING: redis://redis:6379
+    depends_on: [redis]
+
+  qstash:
+    image: public.ecr.aws/upstash/qstash@sha256:2d447f3cdbe3d898eaffde21202632e0c20f58cce99c9d64716cc38f451baf32
+    command: [qstash, dev]
+    restart: unless-stopped
+    logging: *logging
+
   db:
     image: postgres:18
     restart: unless-stopped
@@ -72,6 +96,23 @@ services:
     depends_on:
       db-init:
         condition: service_completed_successfully
+      redis-http:
+        condition: service_started
+      qstash:
+        condition: service_started
+    networks:
+      default:
+        aliases: [followw-standalone-jobs]
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - 'import urllib.request as u; u.urlopen(u.Request("http://127.0.0.1:8000/public/subjects?code=MAT0025", headers={"X-Forwarded-Proto": "https"}), timeout=4).close()'
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
 
   web:
     build:
@@ -87,6 +128,27 @@ services:
       FOLLOWW_SSR_API_ORIGIN: http://api:8000
       FOLLOWW_TRUST_PROXY: '1'
       RATE_LIMIT_SECRET_KEY: ${RATE_LIMIT_SECRET_KEY:?defina RATE_LIMIT_SECRET_KEY}
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          const client = require('node:http2').connect('http://127.0.0.1:3000');
+          const req = client.request({ ':path': '/login' });
+          const fail = () => process.exit(1);
+          client.on('error', fail);
+          req.on('error', fail);
+          req.on('response', headers => { if (headers[':status'] !== 200) fail(); });
+          req.on('end', () => client.close());
+          req.resume();
+          req.end();
+      interval: 10s
+      timeout: 5s
+      retries: 6
 
   caddy:
     image: caddy:2-alpine
@@ -95,12 +157,15 @@ services:
     ports:
       - '0.0.0.0:80:80/tcp'
       - '0.0.0.0:443:443/tcp'
+      - '0.0.0.0:443:443/udp'
     volumes:
-      - ${CADDYFILE:-./Caddyfile}:/etc/caddy/Caddyfile:ro
+      - ${CADDYFILE:-./Caddyfile.preview}:/etc/caddy/Caddyfile:ro
       - certificados-followw:/data
     depends_on:
-      - api
-      - web
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
 
 volumes:
   postgres-followw:

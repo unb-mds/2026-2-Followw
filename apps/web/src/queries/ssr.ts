@@ -8,9 +8,14 @@ export function ssrApiTarget(path: string, request: Request, publicUrl = request
     const origin = process.env.FOLLOWW_SSR_API_ORIGIN;
     if (!origin) return { url: new URL(path, publicUrl) };
 
+    const forwardedProto = request.headers
+        .get('x-forwarded-proto')
+        ?.split(',')
+        .at(-1)
+        ?.trim()
+        .toLowerCase();
     const protocol =
-        process.env.FOLLOWW_TRUST_PROXY === '1' &&
-        request.headers.get('x-forwarded-proto') === 'https'
+        process.env.FOLLOWW_TRUST_PROXY === '1' && forwardedProto === 'https'
             ? 'https'
             : new URL(request.url).protocol.slice(0, -1);
     return { url: new URL(path.replace(/^\/api(?=\/|\?|$)/, ''), origin), protocol };

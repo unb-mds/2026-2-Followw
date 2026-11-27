@@ -5,11 +5,12 @@ oracle.followw.app {
 		request_body {
 			max_size 4500000
 		}
-		reverse_proxy api:8000
+		encode zstd gzip
+		reverse_proxy h2c://api:8000
 	}
 
 	handle {
-		encode /assets/* zstd gzip
-		reverse_proxy web:3000
+		encode zstd gzip
+		reverse_proxy h2c://web:3000
 	}
 }

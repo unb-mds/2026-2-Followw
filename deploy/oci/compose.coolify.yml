@@ -3,20 +3,23 @@ x-api: &api
   build:
     context: ../..
     dockerfile: deploy/oci/Dockerfile
-    target: api-coolify
+    target: api
   environment: &api-env
     ENVIRONMENT: production
-    JWT_SECRET_KEY: ${JWT_SECRET_KEY:-}
-    OAUTH_SECRET_KEY: ${OAUTH_SECRET_KEY:-}
-    RATE_LIMIT_SECRET_KEY: ${RATE_LIMIT_SECRET_KEY:-}
+    JWT_SECRET_KEY: ${JWT_SECRET_KEY:?defina JWT_SECRET_KEY}
+    OAUTH_SECRET_KEY: ${OAUTH_SECRET_KEY:?defina OAUTH_SECRET_KEY}
+    RATE_LIMIT_SECRET_KEY: ${RATE_LIMIT_SECRET_KEY:?defina RATE_LIMIT_SECRET_KEY}
+    RATE_LIMIT_LOGIN_REQUESTS: ${RATE_LIMIT_LOGIN_REQUESTS:-30}
     PUBLIC_URL: https://oracle.followw.app/api
     CORS_ORIGINS: '["https://oracle.followw.app"]'
     QSTASH_URL: http://qstash:8080
-    QSTASH_TOKEN: ${QSTASH_TOKEN:-}
-    QSTASH_CURRENT_SIGNING_KEY: ${QSTASH_CURRENT_SIGNING_KEY:-}
-    QSTASH_NEXT_SIGNING_KEY: ${QSTASH_NEXT_SIGNING_KEY:-}
+    QSTASH_JOBS_URL: http://followw-coolify-jobs:8000/jobs
+    QSTASH_TOKEN: ${QSTASH_TOKEN:?defina QSTASH_TOKEN}
+    QSTASH_CURRENT_SIGNING_KEY: ${QSTASH_CURRENT_SIGNING_KEY:?defina QSTASH_CURRENT_SIGNING_KEY}
+    QSTASH_NEXT_SIGNING_KEY: ${QSTASH_NEXT_SIGNING_KEY:?defina QSTASH_NEXT_SIGNING_KEY}
     UPSTASH_REDIS_REST_URL: http://redis-http
-    UPSTASH_REDIS_REST_TOKEN: ${UPSTASH_REDIS_REST_TOKEN:-}
+    UPSTASH_REDIS_REST_TOKEN: ${UPSTASH_REDIS_REST_TOKEN:?defina UPSTASH_REDIS_REST_TOKEN}
+    REDIS_STANDARD_LUA: 'true'
   logging:
     driver: local
 
@@ -26,25 +29,15 @@ services:
     command: [db-init]
     environment:
       <<: *api-env
-      DATABASE_URL: postgresql+asyncpg://followw:${POSTGRES_PASSWORD:-}@db/followw
+      DATABASE_URL: postgresql+asyncpg://followw:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@db/followw
     networks: [backend]
 
   api:
     <<: *api
     restart: unless-stopped
-    entrypoint:
-      - /bin/sh
-      - -ec
-      - |
-          : "$${QSTASH_TOKEN:?}" "$${QSTASH_CURRENT_SIGNING_KEY:?}" "$${QSTASH_NEXT_SIGNING_KEY:?}" "$${UPSTASH_REDIS_REST_TOKEN:?}" "$${RATE_LIMIT_SECRET_KEY:?}"
-          # O Redis local executa os scripts sem a opção de bloqueio por chave do Upstash.
-          sed -i 's/#!lua flags=allow-key-locking//' /app/.venv/lib/python3.14/site-packages/upstash_ratelimit/limiter.py
-          exec "$$@"
-      - --
-    command: [hypercorn, --bind, '0.0.0.0:8000', 'api_asgi:application']
     environment:
       <<: *api-env
-      DATABASE_URL: postgresql+asyncpg://followw_app:${POSTGRES_APP_PASSWORD:-}@db/followw
+      DATABASE_URL: postgresql+asyncpg://followw_app:${POSTGRES_APP_PASSWORD:?defina POSTGRES_APP_PASSWORD}@db/followw
     depends_on:
       db-init:
         condition: service_completed_successfully
@@ -61,7 +54,8 @@ services:
     networks:
       default:
         aliases: [followw-coolify-backend]
-      backend: {}
+      backend:
+        aliases: [followw-coolify-jobs]
       coolify: {}
     labels:
       - 'traefik.enable=${FOLLOWW_COOLIFY_ROUTE:-false}'
@@ -71,9 +65,12 @@ services:
       - 'traefik.http.routers.followw-coolify-api.entrypoints=https'
       - 'traefik.http.routers.followw-coolify-api.tls.certresolver=letsencrypt'
       - 'traefik.http.routers.followw-coolify-api.service=followw-coolify-api'
-      - 'traefik.http.routers.followw-coolify-api.middlewares=followw-coolify-noindex,followw-coolify-prefix,followw-coolify-size'
+      - 'traefik.http.routers.followw-coolify-api.middlewares=followw-coolify-api-headers,followw-coolify-api-compress,followw-coolify-prefix,followw-coolify-size'
       - 'traefik.http.services.followw-coolify-api.loadbalancer.server.port=8000'
       - 'traefik.http.services.followw-coolify-api.loadbalancer.server.scheme=h2c'
+      - 'traefik.http.middlewares.followw-coolify-api-headers.headers.customresponseheaders.X-Robots-Tag=noindex'
+      - 'traefik.http.middlewares.followw-coolify-api-headers.headers.customresponseheaders.X-Followw-Revision=${SOURCE_COMMIT:-unknown}'
+      - 'traefik.http.middlewares.followw-coolify-api-compress.compress.includedcontenttypes=application/json,text/html,text/plain'
       - 'traefik.http.middlewares.followw-coolify-prefix.stripprefix.prefixes=/api'
       - 'traefik.http.middlewares.followw-coolify-size.buffering.maxrequestbodybytes=4500000'
 
@@ -85,15 +82,13 @@ services:
       args:
         VITE_POSTHOG_KEY: ${VITE_POSTHOG_KEY:-}
         VITE_POSTHOG_HOST: ${VITE_POSTHOG_HOST:-https://us.i.posthog.com}
-        FOLLOWW_NITRO_PRESET: node-middleware
-    command: [node, web-h2c.mjs]
     restart: unless-stopped
     logging:
       driver: local
     environment:
       FOLLOWW_SSR_API_ORIGIN: http://followw-coolify-backend:8000
       FOLLOWW_TRUST_PROXY: '1'
-      RATE_LIMIT_SECRET_KEY: ${RATE_LIMIT_SECRET_KEY:-}
+      RATE_LIMIT_SECRET_KEY: ${RATE_LIMIT_SECRET_KEY:?defina RATE_LIMIT_SECRET_KEY}
     depends_on:
       api:
         condition: service_healthy
@@ -124,11 +119,12 @@ services:
       - 'traefik.http.routers.followw-coolify-web.entrypoints=https'
       - 'traefik.http.routers.followw-coolify-web.tls.certresolver=letsencrypt'
       - 'traefik.http.routers.followw-coolify-web.service=followw-coolify-web'
-      - 'traefik.http.routers.followw-coolify-web.middlewares=followw-coolify-noindex'
+      - 'traefik.http.routers.followw-coolify-web.middlewares=followw-coolify-web-headers,followw-coolify-web-compress'
       - 'traefik.http.services.followw-coolify-web.loadbalancer.server.port=3000'
       - 'traefik.http.services.followw-coolify-web.loadbalancer.server.scheme=h2c'
-      - 'traefik.http.middlewares.followw-coolify-noindex.headers.customresponseheaders.X-Robots-Tag=noindex'
-      - 'traefik.http.middlewares.followw-coolify-noindex.headers.customresponseheaders.X-Followw-Revision=${SOURCE_COMMIT:-unknown}'
+      - 'traefik.http.middlewares.followw-coolify-web-headers.headers.customresponseheaders.X-Robots-Tag=noindex'
+      - 'traefik.http.middlewares.followw-coolify-web-headers.headers.customresponseheaders.X-Followw-Revision=${SOURCE_COMMIT:-unknown}'
+      - 'traefik.http.middlewares.followw-coolify-web-compress.compress.includedcontenttypes=text/html,text/css,text/javascript,application/javascript,application/json,application/manifest+json,image/svg+xml,text/plain'
       - 'traefik.http.routers.followw-coolify-redirect.rule=Host(`oracle.followw.app`)'
       - 'traefik.http.routers.followw-coolify-redirect.priority=60'
       - 'traefik.http.routers.followw-coolify-redirect.entrypoints=http'

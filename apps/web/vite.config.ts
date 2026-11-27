@@ -15,6 +15,8 @@ const QUERY_CACHE_BUSTER = createHash('sha256')
     .digest('hex')
     .slice(0, 12);
 
+const isNodeMiddleware = process.env.NITRO_PRESET === 'node-middleware';
+
 const config = defineConfig({
     resolve: { tsconfigPaths: true },
     define: {
@@ -24,7 +26,18 @@ const config = defineConfig({
     plugins: [
         nitro({
             rollupConfig: { external: [/^@sentry\//] },
-            serveStatic: process.env.NITRO_PRESET === 'node-middleware' ? 'node' : undefined,
+            serveStatic: isNodeMiddleware ? 'node' : undefined,
+            compressPublicAssets: isNodeMiddleware ? true : undefined,
+            routeRules: isNodeMiddleware
+                ? {
+                      '/assets/**': {
+                          headers: { 'cache-control': 'public, max-age=31536000, immutable' }
+                      },
+                      '/sw.js': {
+                          headers: { 'cache-control': 'no-cache' }
+                      }
+                  }
+                : undefined,
             // só no dev; na Vercel, o vercel.json faz o mesmo
             devProxy: { '/api/**': 'http://127.0.0.1:8000' }
         }),

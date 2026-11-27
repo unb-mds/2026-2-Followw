@@ -55,22 +55,21 @@ jobs:
     env:
       CADDYFILE: ./Caddyfile.smoke
       COMPOSE_PROJECT_NAME: followw-preview
-      PUBLIC_URL: https://oracle.followw.app/api
-      CORS_ORIGINS: '["https://oracle.followw.app"]'
       POSTGRES_PASSWORD: smoke-db-admin
       POSTGRES_APP_PASSWORD: smoke-db-app
       JWT_SECRET_KEY: segredo-de-sessao-somente-do-teste
       OAUTH_SECRET_KEY: segredo-de-oauth-exclusivo-do-teste
       RATE_LIMIT_SECRET_KEY: segredo-de-limite-somente-do-teste
-      QSTASH_TOKEN: smoke
-      QSTASH_CURRENT_SIGNING_KEY: smoke
-      QSTASH_NEXT_SIGNING_KEY: smoke
-      UPSTASH_REDIS_REST_URL: http://127.0.0.1:1
       UPSTASH_REDIS_REST_TOKEN: smoke
+      RATE_LIMIT_LOGIN_REQUESTS: 3
     steps:
       - uses: actions/checkout@v7
-      - name: Validar o Compose do Coolify
+      - run: grep '^QSTASH_' .env.example >> "$GITHUB_ENV"
+      - name: Validar os arquivos Compose
         run: |
+          docker compose config --format json | jq -e '
+            any(.services.caddy.ports[]; .published == "443" and .protocol == "udp")
+          '
           docker compose -f compose.coolify.yml config --format json | jq -e '
             (.services | keys == ["api", "db-init", "web"]) and
             .networks.backend.external and
@@ -78,7 +77,9 @@ jobs:
             .services.api.labels["traefik.enable"] == "false" and
             .services.web.labels["traefik.enable"] == "false" and
             .services.api.labels["traefik.http.services.followw-coolify-api.loadbalancer.server.scheme"] == "h2c" and
-            .services.web.labels["traefik.http.services.followw-coolify-web.loadbalancer.server.scheme"] == "h2c"
+            .services.web.labels["traefik.http.services.followw-coolify-web.loadbalancer.server.scheme"] == "h2c" and
+            (.services.api.labels["traefik.http.middlewares.followw-coolify-api-compress.compress.includedcontenttypes"] | contains("application/json")) and
+            (.services.web.labels["traefik.http.middlewares.followw-coolify-web-compress.compress.includedcontenttypes"] | contains("text/html"))
           '
       - name: Subir com HTTPS local
         run: |
@@ -91,17 +92,20 @@ jobs:
           ' > "$RUNNER_TEMP/caddy.crt"
       - name: Ler matéria semeada pelo proxy e abrir o frontend
         run: |
-          curl --fail --silent --show-error --retry 12 --retry-connrefused \
+          test "$(curl --http2 --fail --silent --show-error --retry 12 --retry-connrefused \
             --cacert "$RUNNER_TEMP/caddy.crt" --resolve oracle.followw.app:443:127.0.0.1 \
-            --output "$RUNNER_TEMP/subjects.json" \
-            'https://oracle.followw.app/api/public/subjects?code=MAT0025'
+            --write-out '%{http_version}' --output "$RUNNER_TEMP/subjects.json" \
+            'https://oracle.followw.app/api/public/subjects?code=MAT0025')" = 2
           jq -e 'any(.items[]; .code == "MAT0025")' "$RUNNER_TEMP/subjects.json"
-          curl --fail --silent --show-error --cacert "$RUNNER_TEMP/caddy.crt" \
+          curl --http2 --fail --silent --show-error --cacert "$RUNNER_TEMP/caddy.crt" \
             --resolve oracle.followw.app:443:127.0.0.1 https://oracle.followw.app/login \
             -D - -o /dev/null | grep -qi '^x-robots-tag: noindex'
-          curl --fail --silent --show-error --cacert "$RUNNER_TEMP/caddy.crt" \
-            --resolve oracle.followw.app:443:127.0.0.1 https://oracle.followw.app/api/openapi.json \
-            | jq -e '.info.title == "Followw UnB API"'
+          curl --http2 --fail --silent --show-error -H 'Accept-Encoding: gzip' \
+            --cacert "$RUNNER_TEMP/caddy.crt" --resolve oracle.followw.app:443:127.0.0.1 \
+            https://oracle.followw.app/api/openapi.json -D "$RUNNER_TEMP/openapi.headers" \
+            --output "$RUNNER_TEMP/openapi.json.gz"
+          grep -qi '^content-encoding: gzip' "$RUNNER_TEMP/openapi.headers"
+          gzip -dc "$RUNNER_TEMP/openapi.json.gz" | jq -e '.info.title == "Followw UnB API"'
       - name: Conferir privilégios da conta da API
         run: |
           test "$(docker compose exec -T -e PGPASSWORD="$POSTGRES_APP_PASSWORD" db \
@@ -110,7 +114,7 @@ jobs:
       - name: Conferir HTTP/2 nos serviços do Coolify
         run: |
           docker network create coolify
-          docker compose -p followw-ci-coolify -f compose.coolify.yml up -d --build
+          docker compose -p followw-ci-coolify -f compose.coolify.yml up -d --build --wait
 
           service_ip() {
             docker inspect --format '{{(index .NetworkSettings.Networks "coolify").IPAddress}}' \
@@ -127,14 +131,77 @@ jobs:
           assets=$(grep -oE '/assets/[a-zA-Z0-9_.-]+\.(js|css)' "$RUNNER_TEMP/login-h2.html" | sort -u)
           echo "$assets" | grep -q '\.js$'
           echo "$assets" | grep -q '\.css$'
+          compressed=0
           while IFS= read -r asset; do
-            format=$(curl "${curl_args[@]}" --output /dev/null --write-out '%{content_type}' \
+            format=$(curl "${curl_args[@]}" -H 'Accept-Encoding: br, gzip' \
+              -D "$RUNNER_TEMP/asset.headers" --output /dev/null --write-out '%{content_type}' \
               "http://$web_ip:3000$asset")
             case "$asset:$format" in
               *.js:text/javascript*|*.js:application/javascript*|*.css:text/css*) ;;
               *) echo "Tipo de conteúdo inesperado em $asset: $format"; exit 1;;
             esac
+            grep -qi '^cache-control:.*immutable' "$RUNNER_TEMP/asset.headers"
+            if grep -qi '^content-encoding: \(br\|gzip\|zstd\)' "$RUNNER_TEMP/asset.headers"; then
+              compressed=1
+            fi
           done <<< "$assets"
+          test "$compressed" = 1
+          curl "${curl_args[@]}" -D "$RUNNER_TEMP/sw.headers" --output /dev/null "http://$web_ip:3000/sw.js"
+          grep -qi '^cache-control:.*no-cache' "$RUNNER_TEMP/sw.headers"
+          curl "${curl_args[@]}" --output /dev/null "http://$web_ip:3000/manifest.json"
+          curl "${curl_args[@]}" --output /dev/null "http://$web_ip:3000/favicon.svg"
+      - name: Confirmar cotas por visitante e entrega pela fila privada
+        run: |
+          docker compose -p followw-ci-coolify -f compose.coolify.yml exec -T api python - <<'PY'
+          import asyncio
+
+          import httpx
+          from sigaa_client.models import Credentials
+
+          from api.sync.engine import Job, Step
+          from api.sync.queue import QStashQueue
+
+          with httpx.Client(base_url="http://127.0.0.1:8000") as client:
+              def status(edge, visitor):
+                  return client.post(
+                      "/auth/sigaa",
+                      json={},
+                      headers={
+                          "X-Forwarded-Proto": "https",
+                          "X-Forwarded-For": edge,
+                          "CF-Connecting-IP": visitor,
+                      },
+                  ).status_code
+
+              edge, visitor = "104.21.58.165", "203.0.113.1"
+              assert [status(edge, visitor) for _ in range(4)] == [422, 422, 422, 429]
+              assert status(edge, "203.0.113.2") == 422
+              assert [status("198.51.100.1", ip) for ip in (
+                  "203.0.113.2", "203.0.113.3", "203.0.113.4", "203.0.113.5"
+              )] == [422, 422, 422, 429]
+              assert client.post(
+                  "/jobs", headers={"X-Forwarded-For": edge, "X-Forwarded-Proto": "https"}
+              ).status_code == 404
+
+          async def publish():
+              queue = QStashQueue()
+              try:
+                  await queue.enqueue(Job(
+                      credentials=Credentials(registration="000000000", password="smoke"),
+                      steps=(Step(task="smoke-desconhecida"),),
+                  ))
+              finally:
+                  await queue.aclose()
+
+          asyncio.run(publish())
+          PY
+          # A tarefa sentinela é recusada só depois que a API valida e decifra o job.
+          timeout 30s bash -c '
+            until docker compose -p followw-ci-coolify -f compose.coolify.yml logs --no-color api |
+              grep -E "\"route\": \"/jobs\", \"status_code\": 400" > /dev/null; do
+                sleep 1
+            done
+          '
       - if: failure()
         run: |
           docker compose logs
@@ -142,6 +209,7 @@ jobs:
       - if: always()
         run: |
           docker compose -p followw-ci-coolify -f compose.coolify.yml down
+          docker network rm coolify || true
           docker compose down -v
 
   deploy-oci:

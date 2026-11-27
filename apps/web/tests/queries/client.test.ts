@@ -99,7 +99,11 @@ describe('cliente da API', () => {
     test('no SSR usa a API interna sem o prefixo do proxy e preserva o cookie', async () => {
         process.env.FOLLOWW_SSR_API_ORIGIN = 'http://api:8000';
         process.env.FOLLOWW_TRUST_PROXY = '1';
-        ssr = { url: 'http://followw.app/turmas', forwardedProto: 'https', cookie: 'access=abc' };
+        ssr = {
+            url: 'http://followw.app/turmas',
+            forwardedProto: 'http, HTTPS',
+            cookie: 'access=abc'
+        };
 
         const request = await getMe();
 

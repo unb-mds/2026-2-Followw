@@ -19,7 +19,7 @@ from api.crypto import derive_key
 from api.logger import event, operation
 from api.sync.engine import Job
 
-JOBS_URL = f"{settings.public_url.rstrip('/')}/jobs"
+JOBS_URL = settings.qstash_jobs_url or f"{settings.public_url.rstrip('/')}/jobs"
 
 # Agendar nunca segura a resposta por mais que isso.
 _PUBLISH_TIMEOUT = 3
