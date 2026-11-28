@@ -1,9 +1,13 @@
 import type { Classroom } from '@followw/core/queries/classrooms.ts';
 
 import {
-    curriculumProgress,
-    projectedCategoryHours,
-    projectedIntegralization
+    categoryForecast,
+    categoryGain,
+    hoursLabel,
+    percentLabel,
+    percentOf,
+    progressSummary,
+    type WorkloadCategory
 } from '@followw/core/lib/profile.ts';
 import { m } from 'motion/react';
 
@@ -14,62 +18,7 @@ import { Card } from '#/components/ui/card';
 import { ease, useEntrance } from '#/lib/motion';
 import { cn } from '#/lib/shadcn';
 
-const hoursLabel = (hours: number) => `${hours.toLocaleString('pt-BR')}h`;
-const percentLabel = (value: number) =>
-    `${value.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}%`;
 const NO_CLASSROOMS: readonly Classroom[] = [];
-
-function progressSummary(user: UserProfile, classrooms: readonly Classroom[]) {
-    const { integralization, workload } = user;
-    const progress = curriculumProgress(workload);
-    const forecast = projectedCategoryHours(classrooms);
-    const projected = projectedIntegralization(user, forecast);
-    const categories = workload && [
-        {
-            label: 'Obrigatórias',
-            pending: workload.pending_mandatory,
-            required: workload.mandatory,
-            projected: forecast.mandatory
-        },
-        {
-            label: 'Optativas',
-            pending: workload.pending_optional,
-            required: workload.optional,
-            projected: forecast.optional
-        },
-        {
-            label: 'Complementares',
-            pending: workload.pending_complementary,
-            required: workload.complementary,
-            projected: 0
-        }
-    ];
-    const showForecast =
-        projected != null || !!categories?.some((category) => categoryForecast(category) != null);
-    // acréscimo com uma casa, que só chega a 100% quando conclui o curso
-    const percentGain =
-        projected == null || integralization == null
-            ? null
-            : Math.round(
-                  Math.min(
-                      (projected >= 100 ? 100 : 99.9) - integralization,
-                      Math.max(0.1, projected - integralization)
-                  ) * 10
-              ) / 10;
-    const hoursGain = categories
-        ? categories.reduce((sum, category) => sum + categoryGain(category), 0)
-        : 0;
-    return {
-        integralization,
-        workload,
-        progress,
-        projected,
-        categories,
-        showForecast,
-        percentGain,
-        hoursGain
-    };
-}
 
 function ProgressLegend({ showForecast }: { showForecast: boolean }) {
     return (
@@ -231,26 +180,7 @@ export function CourseProgress({
     );
 }
 
-interface Category {
-    label: string;
-    pending: number;
-    required: number | null;
-    projected: number;
-}
-
-const percentOf = (hours: number, required: number) => Math.min(100, (hours / required) * 100);
-const categoryGain = ({ pending, projected }: Category) =>
-    Math.max(0, Math.min(projected, pending));
-
-// largura prevista da barra, só quando avança além do concluído
-function categoryForecast({ pending, required, projected }: Category) {
-    if (!required || projected <= 0) return null;
-    const completed = Math.max(0, required - pending);
-    const forecast = percentOf(completed + projected, required);
-    return forecast > percentOf(completed, required) ? forecast : null;
-}
-
-function CategoryProgress(category: Category) {
+function CategoryProgress(category: WorkloadCategory) {
     const { label, pending, required } = category;
     // Sem a matriz, mostra só o que falta.
     if (required == null)

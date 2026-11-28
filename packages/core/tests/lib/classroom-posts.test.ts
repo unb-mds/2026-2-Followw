@@ -3,9 +3,11 @@ import { describe, expect, test } from 'bun:test';
 import type { ClassroomPost } from '../../src/queries/classrooms.ts';
 
 import {
+    filterPosts,
     groupTopics,
     postDateLabel,
     postLink,
+    postPreview,
     postTypeLabels
 } from '../../src/lib/classroom-posts.ts';
 
@@ -24,17 +26,29 @@ describe('postagens da turma', () => {
     });
 
     test('tópicos mostram o período sem deslocamento de fuso nem dia repetido', () => {
-        expect(postDateLabel({ ...post, starts_on: '2026-10-15', ends_on: '2026-10-20' })).toBe(
-            '15/10/2026 a 20/10/2026'
-        );
-        expect(postDateLabel({ ...post, starts_on: '2026-10-15', ends_on: '2026-10-15' })).toBe(
-            '15/10/2026'
-        );
+        expect(
+            postDateLabel({
+                ...post,
+                starts_on: '2026-10-15',
+                ends_on: '2026-10-20'
+            })
+        ).toBe('15/10/2026 a 20/10/2026');
+        expect(
+            postDateLabel({
+                ...post,
+                starts_on: '2026-10-15',
+                ends_on: '2026-10-15'
+            })
+        ).toBe('15/10/2026');
     });
 
     test('avaliações preservam hora precisa e textos como Hora da aula', () => {
         expect(
-            postDateLabel({ ...post, type: 'assessment', starts_at: '2026-10-29T16:00:00' })
+            postDateLabel({
+                ...post,
+                type: 'assessment',
+                starts_at: '2026-10-29T16:00:00'
+            })
         ).toBe('29/10/2026 16:00');
         expect(
             postDateLabel({
@@ -50,9 +64,13 @@ describe('postagens da turma', () => {
         expect(postDateLabel({ ...post, type: 'news', published_on: '2026-10-15' })).toBe(
             '15/10/2026'
         );
-        expect(postDateLabel({ ...post, type: 'news', published_at: '2026-10-15T10:30:00' })).toBe(
-            '15/10/2026 10:30'
-        );
+        expect(
+            postDateLabel({
+                ...post,
+                type: 'news',
+                published_at: '2026-10-15T10:30:00'
+            })
+        ).toBe('15/10/2026 10:30');
         expect(postTypeLabels).toEqual({
             news: 'Notícia',
             topic: 'Tópico de aula',
@@ -88,5 +106,30 @@ describe('postagens da turma', () => {
         expect([...topics.keys()]).toEqual([post.id, outro.id]);
         expect(materials.get(post.id)?.map((item) => item.id)).toEqual(['m1', 'm3']);
         expect(materials.has(outro.id)).toBe(false);
+    });
+});
+
+describe('postPreview', () => {
+    test('remove a marcação do markdown e junta as linhas', () => {
+        expect(postPreview('**Aviso** com [link](https://x.com)\n\n- item')).toBe(
+            'Aviso com link - item'
+        );
+    });
+
+    test('sem conteúdo convida a ler mais', () => {
+        expect(postPreview('  ')).toBe('Toque para ler mais.');
+        expect(postPreview(null)).toBe('Toque para ler mais.');
+    });
+});
+
+describe('filterPosts', () => {
+    const news: ClassroomPost = { ...post, id: 'news:1', type: 'news' };
+
+    test('todas mantém a lista inteira', () => {
+        expect(filterPosts([post, news], 'all')).toEqual([post, news]);
+    });
+
+    test('um tipo mostra só as postagens dele', () => {
+        expect(filterPosts([post, news], 'news')).toEqual([news]);
     });
 });

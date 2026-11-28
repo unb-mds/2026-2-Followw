@@ -1,4 +1,10 @@
 import { GRID_DAYS } from '@followw/core/lib/planned-schedule.ts';
+import {
+    hasSubjectFilters,
+    kindLabels,
+    startTimes,
+    workloads
+} from '@followw/core/lib/subject-filters.ts';
 import { SUBJECT_KINDS } from '@followw/core/queries/subjects.ts';
 import { Funnel } from 'lucide-react';
 import { useId } from 'react';
@@ -8,14 +14,7 @@ import { Checkbox } from '#/components/ui/checkbox';
 import { Label } from '#/components/ui/label';
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '#/components/ui/popover';
 import { ToggleGroup, ToggleGroupItem } from '#/components/ui/toggle-group';
-import {
-    clearedSubjectFilters,
-    hasSubjectFilters,
-    kindLabels,
-    startTimes,
-    useSearchState,
-    workloads
-} from '#/lib/search-params';
+import { clearedSubjectFilters, useSearchState } from '#/lib/search-params';
 
 // A API conta os dias de segunda (0) a domingo (6).
 const weekdays = GRID_DAYS.map(({ label, weekday }) => ({ label, value: String(weekday - 1) }));

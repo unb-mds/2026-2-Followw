@@ -1,6 +1,7 @@
 import type { PublicCourse } from '@followw/core/queries/courses.ts';
 
 import { normalizeCurriculum } from '@followw/core/lib/curriculum/model.ts';
+import { plural } from '@followw/core/lib/plural.ts';
 import { titleCase, unitLabel } from '@followw/core/lib/profile.ts';
 import { courseQueryOptions } from '@followw/core/queries/courses.ts';
 import { curriculumQueryOptions, shiftLabels } from '@followw/core/queries/curriculum.ts';
@@ -62,10 +63,6 @@ export function CourseSummary({ course, entrySemester }: CourseSummaryProps) {
             </ul>
         </section>
     );
-}
-
-function plural(count: number, one: string, many: string) {
-    return `${count} ${count === 1 ? one : many}`;
 }
 
 function SummaryItem({

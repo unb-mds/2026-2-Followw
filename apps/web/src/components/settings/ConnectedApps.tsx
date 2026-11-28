@@ -1,9 +1,6 @@
-import type { OAuthGrant } from '@followw/core/queries/oauth.ts';
-
 import { useOnline } from '@followw/core/lib/online.ts';
-import { api } from '@followw/core/queries/api.ts';
-import { oauthGrantsQueryOptions } from '@followw/core/queries/oauth.ts';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { oauthGrantsQueryOptions, useRevokeGrant } from '@followw/core/queries/oauth.ts';
+import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { LoadingSkeleton, CardSkeleton } from '#/components/LoadingSkeleton';
@@ -14,19 +11,6 @@ import { RevokeGrantDialog } from '#/components/settings/RevokeGrantDialog';
 import { Button } from '#/components/ui/button';
 
 type Selected = { id: string; name: string };
-
-function useRevokeGrant(onDone: () => void) {
-    const queryClient = useQueryClient();
-    return api.useMutation('delete', '/oauth/grants/{grant_id}', {
-        onSuccess: (_data, variables) => {
-            queryClient.setQueryData<OAuthGrant[]>(oauthGrantsQueryOptions.queryKey, (previous) =>
-                previous?.filter((grant) => grant.id !== variables.params.path.grant_id)
-            );
-            onDone();
-            void queryClient.invalidateQueries({ queryKey: oauthGrantsQueryOptions.queryKey });
-        }
-    });
-}
 
 function GrantsError({ fetching, onRetry }: { fetching: boolean; onRetry: () => void }) {
     const online = useOnline();

@@ -1,7 +1,5 @@
+import { CLASSROOM_TABS } from '@followw/core/lib/classroom-details.ts';
 import { createLoader, createStandardSchemaV1, parseAsStringLiteral } from 'nuqs/server';
-
-export const CLASSROOM_TABS = ['frequency', 'statistics', 'posts', 'members'] as const;
-export type ClassroomTab = (typeof CLASSROOM_TABS)[number];
 
 export const classroomSearchParsers = {
     tab: parseAsStringLiteral(CLASSROOM_TABS).withDefault('frequency')
@@ -11,9 +9,3 @@ export const validateClassroomSearch = createStandardSchemaV1(classroomSearchPar
     partialOutput: true
 });
 export const loadClassroomSearch = createLoader(classroomSearchParsers);
-
-// turma em andamento tem frequência; encerrada, estatísticas
-export function classroomTab(tab: ClassroomTab, current: boolean): ClassroomTab {
-    if (tab !== 'frequency' && tab !== 'statistics') return tab;
-    return current ? 'frequency' : 'statistics';
-}

@@ -1,15 +1,14 @@
+import type { CatalogCategory } from '@followw/core/queries/catalog.ts';
 import type { ReactNode } from 'react';
 
+import { catalogQueryOptions } from '@followw/core/queries/catalog.ts';
 import { type UseQueryResult, useQuery } from '@tanstack/react-query';
 
 import { CardSkeleton, SectionHeaderSkeleton } from '#/components/LoadingSkeleton';
 import { QueryState } from '#/components/QueryState';
-import { catalogQueryOptions } from '#/components/search/catalog-queries';
 import { CourseSection } from '#/components/search/CourseSection';
 import { ProfessorSection } from '#/components/search/ProfessorSection';
 import { repeat } from '#/lib/repeat';
-
-export type CatalogCategory = 'courses' | 'professors';
 
 const courseSkeleton = repeat(5, () => (
     <CardSkeleton

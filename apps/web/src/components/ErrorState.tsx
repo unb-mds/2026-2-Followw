@@ -13,13 +13,14 @@ interface ErrorCardProps {
     // sem conexão, dá lugar ao aviso de offline
     message: string;
     onRetry: () => void;
+    className?: string;
 }
 
-export const ErrorCard: React.FC<ErrorCardProps> = ({ message, onRetry }) => {
+export const ErrorCard: React.FC<ErrorCardProps> = ({ message, onRetry, className }) => {
     const failureMessage = useFailureMessage(message);
 
     return (
-        <Card className="text-center">
+        <Card className={cn('text-center', className)}>
             <CardContent>
                 <CloudOff className="mx-auto size-8 text-muted-foreground" />
                 <p className="mt-2 text-sm font-semibold">{failureMessage}</p>

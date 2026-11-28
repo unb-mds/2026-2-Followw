@@ -6,7 +6,6 @@ import { meQueryOptions } from '@followw/core/queries/me.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, expect, test } from 'bun:test';
 
-import { formatCurrency, formatDate } from '#/components/search/internship-format';
 import { InternshipCard } from '#/components/search/InternshipCard';
 import { InternshipDetailView } from '#/components/search/InternshipDetailDialog';
 import { InternshipSection } from '#/components/search/InternshipSection';
@@ -74,18 +73,6 @@ beforeEach(() => {
     client = new QueryClient({
         defaultOptions: { queries: { retry: false } }
     });
-});
-
-test('formatCurrency formata valores monetários corretamente', () => {
-    expect(formatCurrency('1500.00')).toContain('1.500,00');
-    expect(formatCurrency(null)).toBeNull();
-    expect(formatCurrency(0)).toBeNull();
-    expect(formatCurrency('invalid')).toBeNull();
-});
-
-test('formatDate formata data em formato pt-BR', () => {
-    const formatted = formatDate('2026-12-01T18:00:00Z');
-    expect(formatted).toMatch(/\d{2}\/\d{2}\/\d{4}/);
 });
 
 test('filtra o mural por todos os termos sem acentos e mantém a ordem', () => {

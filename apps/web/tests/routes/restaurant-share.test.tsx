@@ -1,12 +1,11 @@
+import type { RestaurantSelection } from '@followw/core/lib/restaurant.ts';
 import type { MenuSection } from '@followw/core/queries/restaurant.ts';
 
-import { lastMenuDay } from '@followw/core/lib/restaurant.ts';
+import { lastMenuDay, restaurantSharePath } from '@followw/core/lib/restaurant.ts';
 import { addDays, nowInBrasilia } from '@followw/core/lib/schedule.ts';
 import { afterEach, beforeAll, describe, expect, mock, spyOn, test } from 'bun:test';
 import { createSerializer } from 'nuqs/server';
 import { renderToStaticMarkup } from 'react-dom/server';
-
-import type { RestaurantSelection } from '#/lib/restaurant-share';
 
 import { RestaurantShareImage } from '#/components/ru/RestaurantShareImage';
 import {
@@ -14,7 +13,6 @@ import {
     restaurantPageHead,
     restaurantSearchParsers,
     restaurantSelection,
-    restaurantSharePath,
     validateRestaurantSearch
 } from '#/lib/restaurant-share';
 import { restaurantShareResponse } from '#/lib/restaurant-share.server';

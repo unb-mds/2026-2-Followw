@@ -1,3 +1,5 @@
+import { useQueryClient } from '@tanstack/react-query';
+
 import type { components } from './schema.gen.ts';
 
 import { api } from './api.ts';
@@ -60,3 +62,17 @@ export const oauthAuthorizationQueryOptions = (query: AuthorizationRequest) =>
         { params: { query } },
         { staleTime: 0, gcTime: 0, retry: false, meta: { persist: false } }
     );
+
+/** Revoga o acesso de um app e o tira da lista na hora, antes de revalidar. */
+export function useRevokeGrant(onDone: () => void) {
+    const queryClient = useQueryClient();
+    return api.useMutation('delete', '/oauth/grants/{grant_id}', {
+        onSuccess: (_data, variables) => {
+            queryClient.setQueryData<OAuthGrant[]>(oauthGrantsQueryOptions.queryKey, (previous) =>
+                previous?.filter((grant) => grant.id !== variables.params.path.grant_id)
+            );
+            onDone();
+            void queryClient.invalidateQueries({ queryKey: oauthGrantsQueryOptions.queryKey });
+        }
+    });
+}

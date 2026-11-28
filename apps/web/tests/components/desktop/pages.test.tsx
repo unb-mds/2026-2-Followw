@@ -102,7 +102,7 @@ test.each([1440, 390])(
         expect(dom.testing.within(progress).getByText('Complementares')).toBeDefined();
         expect(dom.testing.within(progress).getByText('1.140h')).toBeDefined();
         const documents = view.getByRole('region', { name: 'Documentos' });
-        expect(dom.testing.within(documents).getAllByRole('button')).toHaveLength(2);
+        expect(dom.testing.within(documents).getAllByRole('button')).toHaveLength(3);
         const account = view.getByRole('region', { name: 'Conta' });
         expect(dom.testing.within(account).queryByRole('button', { name: /Baixar/ })).toBeNull();
         expect(view.queryByText('Não exigidas')).toBeNull();

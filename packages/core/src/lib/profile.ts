@@ -1,9 +1,22 @@
 import type { components } from '../queries/schema.gen.ts';
 
+import { ApiError } from '../queries/errors.ts';
+
 type UserProfile = components['schemas']['UserProfile'];
 type Classroom = components['schemas']['ParticipantClassroom'];
 
 export const MAX_PROFILE_BIO_LENGTH = 1024;
+
+/** Motivo legível de uma edição de perfil recusada pela API. */
+export function profileEditRefusal(error: unknown) {
+    if (!(error instanceof ApiError)) return null;
+    if (error.isTooManyRequests) return 'Muitas tentativas. Aguarde um pouco e tente novamente.';
+    if (error.status === 413 || error.status === 422)
+        return typeof error.detail === 'string'
+            ? error.detail
+            : 'Confira os dados e tente novamente.';
+    return null;
+}
 
 export function truncateProfileBio(text: string) {
     if (text.length <= MAX_PROFILE_BIO_LENGTH) return text;
@@ -85,6 +98,86 @@ export function projectedCategoryHours(classrooms: readonly Classroom[]) {
         if (subject.kind === 'mandatory' || subject.kind === 'optional')
             hours[subject.kind] += subject.hours;
     return hours;
+}
+
+export const hoursLabel = (hours: number) => `${hours.toLocaleString('pt-BR')}h`;
+export const percentLabel = (value: number) =>
+    `${value.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}%`;
+
+export interface WorkloadCategory {
+    label: string;
+    pending: number;
+    required: number | null;
+    projected: number;
+}
+
+export const percentOf = (hours: number, required: number) =>
+    Math.min(100, (hours / required) * 100);
+
+export const categoryGain = ({ pending, projected }: WorkloadCategory) =>
+    Math.max(0, Math.min(projected, pending));
+
+// largura prevista da barra, só quando avança além do concluído
+export function categoryForecast({ pending, required, projected }: WorkloadCategory) {
+    if (!required || projected <= 0) return null;
+    const completed = Math.max(0, required - pending);
+    const forecast = percentOf(completed + projected, required);
+    return forecast > percentOf(completed, required) ? forecast : null;
+}
+
+export function progressSummary(
+    user: Pick<UserProfile, 'integralization' | 'workload'>,
+    classrooms: readonly Classroom[]
+) {
+    const { integralization, workload } = user;
+    const progress = curriculumProgress(workload);
+    const forecast = projectedCategoryHours(classrooms);
+    const projected = projectedIntegralization(user, forecast);
+    const categories: WorkloadCategory[] | null = workload && [
+        {
+            label: 'Obrigatórias',
+            pending: workload.pending_mandatory,
+            required: workload.mandatory,
+            projected: forecast.mandatory
+        },
+        {
+            label: 'Optativas',
+            pending: workload.pending_optional,
+            required: workload.optional,
+            projected: forecast.optional
+        },
+        {
+            label: 'Complementares',
+            pending: workload.pending_complementary,
+            required: workload.complementary,
+            projected: 0
+        }
+    ];
+    const showForecast =
+        projected != null || !!categories?.some((category) => categoryForecast(category) != null);
+    // acréscimo com uma casa, que só chega a 100% quando conclui o curso
+    const percentGain =
+        projected == null || integralization == null
+            ? null
+            : Math.round(
+                  Math.min(
+                      (projected >= 100 ? 100 : 99.9) - integralization,
+                      Math.max(0.1, projected - integralization)
+                  ) * 10
+              ) / 10;
+    const hoursGain = categories
+        ? categories.reduce((sum, category) => sum + categoryGain(category), 0)
+        : 0;
+    return {
+        integralization,
+        workload,
+        progress,
+        projected,
+        categories,
+        showForecast,
+        percentGain,
+        hoursGain
+    };
 }
 
 const SEMESTER = /^(\d{4})\.([124])$/;

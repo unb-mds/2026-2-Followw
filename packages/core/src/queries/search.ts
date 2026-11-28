@@ -1,5 +1,8 @@
+import type { QueryClient } from '@tanstack/react-query';
+
 import type { components } from './schema.gen.ts';
 
+import { searchTypes } from '../lib/search-categories.ts';
 import { api } from './api.ts';
 
 export type SearchResult = components['schemas']['SearchResult'];
@@ -18,4 +21,32 @@ export function searchQueryOptions(q: string, type?: SearchType[], available = f
             }
         }
     });
+}
+
+export function hasSearchResults(data: SearchResult | undefined) {
+    if (!data) return false;
+    return Boolean(
+        data.courses?.items.length || data.professors?.items.length || data.subjects?.total
+    );
+}
+
+/** Reaproveita a prévia da busca geral como primeira página da aba de cursos ou docentes. */
+export function seedCategoryPage(
+    client: QueryClient,
+    text: string,
+    queryKey: readonly unknown[],
+    category: 'courses' | 'professors'
+) {
+    const data = client.getQueryData<SearchResult>(queryKey)?.[category];
+    if (!data) return;
+    client.setQueryData(
+        searchQueryOptions(text, searchTypes[category]).queryKey,
+        (old) =>
+            old ?? {
+                subjects: null,
+                courses: null,
+                professors: null,
+                [category]: data
+            }
+    );
 }

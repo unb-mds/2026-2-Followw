@@ -1,6 +1,10 @@
 import { useOnline } from '@followw/core/lib/online.ts';
-import { MAX_PROFILE_BIO_LENGTH, truncateProfileBio } from '@followw/core/lib/profile.ts';
-import { ApiError } from '@followw/core/queries/errors.ts';
+import {
+    MAX_PROFILE_BIO_LENGTH,
+    profileEditRefusal,
+    truncateProfileBio
+} from '@followw/core/lib/profile.ts';
+import { useUpdateSettings } from '@followw/core/queries/settings.ts';
 import { ChevronRight, ImagePlus, Pencil, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -23,22 +27,11 @@ import { PersonPhoto } from '#/components/ui/person-photo';
 import { Textarea } from '#/components/ui/textarea';
 import { toast } from '#/components/ui/toast';
 import { useEditProfile } from '#/queries/profile-edit';
-import { useUpdateSettings } from '#/queries/settings';
 
 const MAX_ORIGINAL_PHOTO_MB = 4;
 const PHOTO_EXTENSIONS = /\.(jpe?g|png)$/i;
 
 type PhotoEdit = { action: 'keep' | 'remove' } | { action: 'replace'; file: File; preview: string };
-
-function errorReason(error: unknown) {
-    if (!(error instanceof ApiError)) return null;
-    if (error.isTooManyRequests) return 'Muitas tentativas. Aguarde um pouco e tente novamente.';
-    if (error.status === 413 || error.status === 422)
-        return typeof error.detail === 'string'
-            ? error.detail
-            : 'Confira os dados e tente novamente.';
-    return null;
-}
 
 export function EditProfile({
     user,
@@ -47,12 +40,13 @@ export function EditProfile({
     user: UserProfile;
     displayName?: string | null;
 }) {
+    const online = useOnline();
     const [open, setOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger
-                disabled={saving}
+                disabled={saving || !online}
                 render={
                     <Button
                         variant="ghost"
@@ -154,7 +148,7 @@ export function ProfileForm({
             });
             close();
         } catch (failed) {
-            const message = done + (errorReason(failed) ?? failure);
+            const message = done + (profileEditRefusal(failed) ?? failure);
             setError(message);
             toast.add({
                 type: 'error',

@@ -1,5 +1,6 @@
 import type { Classroom, ClassroomPost } from '@followw/core/queries/classrooms.ts';
 
+import { STORAGE_KEYS } from '@followw/core/lib/storage-keys.ts';
 import { latestPostsQueryOptions } from '@followw/core/queries/posts.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
@@ -13,7 +14,7 @@ import { createLoader, createSerializer } from 'nuqs/server';
 import { useLayoutEffect } from 'react';
 
 import { classroomSearchParsers, validateClassroomSearch } from '#/lib/classroom-search';
-import { localStorageRepository, STORAGE_KEYS } from '#/lib/local-storage';
+import { localStorageRepository } from '#/lib/local-storage';
 import { parseRouterSearch, stringifyRouterSearch } from '#/lib/search-params';
 import { Route as ClassroomRoute } from '#/routes/_app/turmas_.$id';
 

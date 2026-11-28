@@ -2,6 +2,7 @@ import type { InternshipDetail, InternshipItem } from '@followw/core/queries/int
 
 import { titleCase } from '@followw/core/lib/profile.ts';
 import { ApiError } from '@followw/core/queries/errors.ts';
+import { formatInternshipDate, formatInternshipMoney } from '@followw/core/queries/internships.ts';
 import {
     internshipDetailQueryOptions,
     internshipsQueryOptions
@@ -10,7 +11,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Briefcase, Building2, Download, GraduationCap, Users, Wallet } from 'lucide-react';
 
 import { LinesSkeleton, LoadingSkeleton } from '#/components/LoadingSkeleton';
-import { formatCurrency, formatDate } from '#/components/search/internship-format';
 import { Badge } from '#/components/ui/badge';
 import { Button } from '#/components/ui/button';
 import {
@@ -43,8 +43,8 @@ export function InternshipDetailView({ detail }: { detail: InternshipDetail }) {
                     {titleCase(detail.title)}
                 </DialogTitle>
                 <DialogDescription className="text-xs text-muted-foreground">
-                    Publicado de {formatDate(detail.published_from)} até{' '}
-                    {formatDate(detail.published_until)}
+                    Publicado de {formatInternshipDate(detail.published_from)} até{' '}
+                    {formatInternshipDate(detail.published_until)}
                 </DialogDescription>
             </DialogHeader>
 
@@ -73,7 +73,7 @@ export function InternshipDetailView({ detail }: { detail: InternshipDetail }) {
                         Bolsa
                     </span>
                     <span className="text-sm font-semibold text-foreground">
-                        {formatCurrency(detail.stipend) ?? 'A combinar'}
+                        {formatInternshipMoney(detail.stipend) ?? 'A combinar'}
                     </span>
                 </div>
                 <div className="flex flex-col gap-1 rounded-xl border p-3">
@@ -83,7 +83,7 @@ export function InternshipDetailView({ detail }: { detail: InternshipDetail }) {
                     </span>
                     <span className="text-sm font-semibold text-foreground">
                         {detail.transport_allowance
-                            ? `${formatCurrency(detail.transport_allowance.amount)} / ${detail.transport_allowance.period}`
+                            ? `${formatInternshipMoney(detail.transport_allowance.amount)} / ${detail.transport_allowance.period}`
                             : 'Não informado'}
                     </span>
                 </div>
@@ -177,7 +177,8 @@ export function InternshipDetailDialog({
                     <DialogHeader className="pr-8">
                         <DialogTitle>{titleCase(summary?.title ?? 'Detalhes da vaga')}</DialogTitle>
                         <DialogDescription>
-                            Inscrições até {summary && formatDate(summary.published_until)}
+                            Inscrições até{' '}
+                            {summary && formatInternshipDate(summary.published_until)}
                         </DialogDescription>
                         <LoadingSkeleton
                             label="Carregando detalhes da vaga..."

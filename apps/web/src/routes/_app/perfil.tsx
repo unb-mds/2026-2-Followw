@@ -95,11 +95,7 @@ function PerfilPage() {
                 </div>
                 <div className="lg:col-start-2 lg:row-start-2">
                     <ProfileSection title="Documentos">
-                        <div className="@container">
-                            <div className="grid gap-3 lg:gap-4 @xs:grid-cols-2">
-                                <DocumentDownloads download={download} />
-                            </div>
-                        </div>
+                        <DocumentDownloads download={download} />
                     </ProfileSection>
                 </div>
                 <div className="profile-account flex flex-col gap-6 lg:col-start-2 lg:row-start-3">

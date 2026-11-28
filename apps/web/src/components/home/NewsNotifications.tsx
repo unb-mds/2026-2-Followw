@@ -2,6 +2,7 @@ import type { FeedPost } from '@followw/core/queries/posts.ts';
 import type { Components } from 'react-markdown';
 
 import { postDateLabel } from '@followw/core/lib/classroom-posts.ts';
+import { STORAGE_KEYS } from '@followw/core/lib/storage-keys.ts';
 import { latestPostsQueryOptions } from '@followw/core/queries/posts.ts';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
@@ -14,7 +15,7 @@ import { ErrorCard, SIGAA_DOWN_MESSAGE, StaleDataNotice } from '#/components/Err
 import { LinesSkeleton, LoadingSkeleton } from '#/components/LoadingSkeleton';
 import { Button } from '#/components/ui/button';
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '#/components/ui/popover';
-import { STORAGE_KEYS, storedValue } from '#/lib/local-storage';
+import { storedValue } from '#/lib/local-storage';
 import { rise, useEntrance } from '#/lib/motion';
 import { repeat } from '#/lib/repeat';
 

@@ -1,20 +1,12 @@
+import { nextTheme, THEME_LABELS, type Theme } from '@followw/core/lib/theme.ts';
 import { Moon, Sun, SunMoon } from 'lucide-react';
 import { AnimatePresence, m } from 'motion/react';
 import { useSyncExternalStore } from 'react';
 import { flushSync } from 'react-dom';
 
-import type { Theme } from '#/lib/theme';
-
 import { Button } from '#/components/ui/button';
 import { spring } from '#/lib/motion';
-import {
-    THEME_LABELS,
-    applyTheme,
-    nextTheme,
-    readTheme,
-    saveTheme,
-    subscribeTheme
-} from '#/lib/theme';
+import { applyTheme, readTheme, saveTheme, subscribeTheme } from '#/lib/theme';
 
 const ICONS: Record<Theme, React.FC<{ className?: string }>> = {
     system: SunMoon,

@@ -50,3 +50,21 @@ export const credentialsQueryOptions = (registration: string) => {
         staleTime: ({ state: { data } }) => (hasValidCard(data) ? 'static' : STATEMENT_STALE_TIME)
     });
 };
+
+const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const dateTime = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    dateStyle: 'short',
+    timeStyle: 'short'
+});
+const validity = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'UTC',
+    month: 'long',
+    year: 'numeric'
+});
+
+export const formatBalance = (value: string | number) => money.format(Number(value));
+export const formatStatementTime = (value: string | number) => dateTime.format(new Date(value));
+/** Mês e ano da validade da carteirinha (`YYYY-MM-DD`). */
+export const formatCardValidity = (validUntil: string) =>
+    validity.format(new Date(`${validUntil}T00:00:00Z`));
