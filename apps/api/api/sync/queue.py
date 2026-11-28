@@ -103,7 +103,10 @@ def encode_job(job: Job) -> str:
 
 
 def decode_job(body: bytes) -> Job:
-    return Job.model_validate_json(_cipher().decrypt(body))
+    job = Job.model_validate_json(_cipher().decrypt(body))
+    if "created_at" not in job.model_fields_set:
+        raise InvalidToken("Job sem data de criação")
+    return job
 
 
 def _message(job: Job) -> BatchRequest:

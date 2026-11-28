@@ -18,6 +18,7 @@ from api.cache import CacheControl, NoStore
 from api.db.main import DatabaseDep
 from api.downloads import attachment
 from api.errors import SIGAA_ERRORS
+from api.modules.me.deletion import AccountData, account_data, delete_account_data
 from api.modules.me.edit import edit_profile
 from api.modules.me.internships import (
     InternshipDetail,
@@ -33,12 +34,30 @@ from api.modules.me.settings import (
     read_settings,
     save_settings,
 )
+from api.modules.oauth.authorization_router import WebSessionDep
 from api.modules.oauth.redaction import json_response
 from api.modules.oauth.scopes import Scope, oauth
 from api.rate_limit import limit_profile_edits
 from api.sigaa import SigaaClientDep, SigaaConnection, SigaaConnectionDep
 
 router = APIRouter()
+
+
+@router.get("/data", summary="Consultar dados para exclusão", dependencies=[NoStore])
+async def get_account_data(session: WebSessionDep, db: DatabaseDep) -> AccountData:
+    return await account_data(db, session.credentials.registration)
+
+
+@router.delete(
+    "/data",
+    status_code=204,
+    summary="Excluir dados pessoais do Followw",
+    dependencies=[NoStore],
+)
+async def erase_account_data(session: WebSessionDep, db: DatabaseDep) -> None:
+    await delete_account_data(db, session.credentials.registration)
+
+
 _DOCUMENT_ERRORS = {
     **SIGAA_ERRORS,
     422: {"description": "O SIGAA recusou emitir o documento (ex.: perfil sem foto)."},

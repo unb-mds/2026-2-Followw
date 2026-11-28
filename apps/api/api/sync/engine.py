@@ -1,12 +1,12 @@
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import NamedTuple
 
 import httpx
 from fastapi import HTTPException, status
-from pydantic import BaseModel, ConfigDict, field_serializer
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_serializer
 from sigaa_client import (
     AuthenticationFailed,
     ClassroomNotFound,
@@ -19,6 +19,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.cache import NO_DIRECTIVES, CacheControl, Freshness
+from api.db.account_data import AccountDataOperationExpired, SyncDatabase
 from api.db.main import Database
 from api.db.models import OwnLink
 from api.logger import event, operation
@@ -94,6 +95,8 @@ class Job(BaseModel):
     classroom_id: str | None = None
     steps: tuple[Step, ...]
     attempt: int = 1
+    created_at: AwareDatetime = Field(default_factory=lambda: datetime.now(UTC))
+    data_version: AwareDatetime | None = None
 
     @property
     def registration(self) -> str:
@@ -106,7 +109,13 @@ class Job(BaseModel):
             step.task if step.item_id is None else f"{step.task}={step.item_id}"
             for step in self.steps
         )
-        parts = (self.registration, self.classroom_id, steps, f"#{self.attempt}")
+        parts = (
+            self.registration,
+            self.classroom_id,
+            steps,
+            f"#{self.attempt}",
+            self.data_version.isoformat() if self.data_version else None,
+        )
         return ":".join(part for part in parts if part is not None)
 
     @field_serializer("credentials")
@@ -129,8 +138,11 @@ class Sync:
         db: Database,
         sigaa: SigaaConnection,
         cache: CacheControl = NO_DIRECTIVES,
+        *,
+        started_at: datetime | None = None,
     ) -> None:
-        self.db = db
+        self.started_at = started_at or datetime.now(UTC)
+        self.db = SyncDatabase(db, sigaa.registration, self.started_at)
         self._sigaa = sigaa
         self._cache = cache
         self._pending: dict[str | None, dict[Step, None]] = {}
@@ -216,12 +228,20 @@ class Sync:
                 classroom_id, step = None, Step.of(task)
         self._pending.setdefault(classroom_id, {})[step] = None
 
-    def jobs(self) -> list[Job]:
+    async def jobs(self) -> list[Job]:
+        if not self._pending:
+            return []
+        try:
+            version = await self.db.check_current()
+        except AccountDataOperationExpired:
+            return []
         return [
             Job(
                 credentials=self._sigaa.credentials,
                 classroom_id=classroom_id,
                 steps=tuple(steps),
+                created_at=self.started_at,
+                data_version=version,
             )
             for classroom_id, steps in self._pending.items()
         ]

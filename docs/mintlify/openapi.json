@@ -3108,6 +3108,39 @@
         ]
       }
     },
+    "/me/data": {
+      "get": {
+        "tags": [
+          "Me"
+        ],
+        "summary": "Consultar dados para exclusão",
+        "operationId": "get_account_data_me_data_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountData"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Me"
+        ],
+        "summary": "Excluir dados pessoais do Followw",
+        "operationId": "erase_account_data_me_data_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        }
+      }
+    },
     "/me": {
       "get": {
         "tags": [
@@ -3669,6 +3702,44 @@
   },
   "components": {
     "schemas": {
+      "AccountData": {
+        "properties": {
+          "registration": {
+            "type": "string",
+            "title": "Registration"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "applications": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Applications"
+          },
+          "has_connected_applications": {
+            "type": "boolean",
+            "title": "Has Connected Applications"
+          }
+        },
+        "type": "object",
+        "required": [
+          "registration",
+          "name",
+          "applications",
+          "has_connected_applications"
+        ],
+        "title": "AccountData"
+      },
       "AuthorizationCodeGrant": {
         "properties": {
           "client_id": {

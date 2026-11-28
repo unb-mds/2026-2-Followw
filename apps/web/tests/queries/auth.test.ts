@@ -358,4 +358,9 @@ describe('hooks de sessão', () => {
 
         expect(requests).toHaveLength(0);
     });
+
+    test('página de exclusão não consulta nem renova o perfil em segundo plano', () => {
+        renderHook(() => useSessionRefresh(false), '251000007');
+        expect(requests).toHaveLength(0);
+    });
 });

@@ -61,6 +61,8 @@ test.each([false, true])(
         expect(html).toContain('Portal de desenvolvedores');
         expect(html).not.toContain('Voltar ao perfil');
         expect(html).toContain('Apps conectados');
+        expect(html).toContain('href="/excluir-conta"');
+        expect(html).toContain('Excluir meus dados');
         expect(html).toContain('Nenhum app conectado');
         expect(html).not.toContain('Não foi possível atualizar seus acessos');
         expect(html).not.toContain('Tentar novamente');

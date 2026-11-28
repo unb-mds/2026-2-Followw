@@ -65,12 +65,15 @@ def _gravacao_concorrente(monkeypatch, async_database, *, vence: bool) -> None:
     from api.modules.me.repository import UserRepository
 
     save_profile = UserRepository.save_profile
+    committed = False
 
     async def concorrente(self, profile, now, login=None):
-        if vence:
+        nonlocal committed
+        if vence and not committed:
             async with async_database() as session:
                 await save_profile(UserRepository(session), profile, now, login)
                 await session.commit()
+            committed = True
         raise IntegrityError("INSERT INTO users", {}, Exception("unique"))
 
     monkeypatch.setattr(UserRepository, "save_profile", concorrente)
