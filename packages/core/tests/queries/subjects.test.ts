@@ -124,7 +124,7 @@ describe('pré-requisitos', () => {
         expect([...approved]).toEqual(['A', 'B', 'E']);
     });
     test('aprovadas incluem as cumpridas no histórico do perfil', () => {
-        expect([...approvedCodes([history('A', 'SS')], ['B'])].toSorted()).toEqual(['A', 'B']);
+        expect([...approvedCodes([history('A', 'SS')], { B: 60 })].toSorted()).toEqual(['A', 'B']);
     });
 
     test('mostra nomes resolvidos e mantém códigos sem relacionamento', () => {

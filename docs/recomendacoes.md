@@ -43,8 +43,8 @@ Para o ranking, toda tentativa sem menção presume aprovação: satisfaz pré/c
 concluída no fluxo, inclusive após a consolidação. Essa inferência não altera a menção armazenada.
 
 Componentes com situação APR ou CUMP no histórico acadêmico do SIGAA contam como aprovados. O
-sync do perfil relê o histórico quando a leitura anterior vence ou a consulta força atualização. Os códigos ficam em `user_completed_subjects` e
-chegam ao front em `completed_subjects` do `/me`. O histórico de outra matrícula é descartado.
+sync do perfil relê o histórico na virada do semestre letivo, após a janela de consolidação ou quando a consulta força atualização. Os códigos ficam em `user_completed_subjects` e
+chegam ao front com suas cargas horárias em `completed_subjects` do `/me`. O histórico de outra matrícula é descartado.
 
 A matriz é inferida pelo semestre de entrada do perfil (`entry_semester`), com curso e turno do
 perfil armazenado: vale a vigência mais recente até a entrada; se a entrada preceder todas, a mais

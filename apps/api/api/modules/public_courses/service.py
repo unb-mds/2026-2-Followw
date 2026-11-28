@@ -89,11 +89,11 @@ class CurriculumPeriod(BaseModel):
 
 
 class CourseCurriculum(CurriculumOption):
-    total_workload: int | None = None
-    required_workload: int | None = None
-    optional_min_workload: int | None = None
-    complementary_min_workload: int | None = None
-    elective_max_workload: int | None = None
+    total_workload: int | None
+    required_workload: int | None
+    optional_min_workload: int | None
+    complementary_min_workload: int | None
+    elective_max_workload: int | None
     course_id: int
     entry_semester: str
     periods: list[CurriculumPeriod]

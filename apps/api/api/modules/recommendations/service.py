@@ -159,7 +159,7 @@ async def _rank(
         for link in links
         if link.row.grade and link.row.grade.approved
     }
-    completed |= await TranscriptRepository(session).completed(student.user_id)
+    completed.update(await TranscriptRepository(session).completed(student.user_id))
     enrolled = {
         normalize(link.row.classroom.subject_code)
         for link in links

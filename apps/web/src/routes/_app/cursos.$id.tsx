@@ -94,7 +94,7 @@ function FlowContent({
     course: UserProfile['course'] | undefined;
     entrySemester?: string | null;
     currentPeriod: number | null;
-    completedSubjects?: string[];
+    completedSubjects?: UserProfile['completed_subjects'];
     subject?: string | null;
     desktop: boolean | null;
     isPending: boolean;

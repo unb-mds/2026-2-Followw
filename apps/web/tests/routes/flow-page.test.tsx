@@ -542,7 +542,7 @@ describe('fluxograma integrado', () => {
     });
     test('histórico aprovado prevalece sobre atraso mesmo sem menção na turma', async () => {
         width = 1200;
-        const profile: typeof user = { ...user, completed_subjects: ['A'] };
+        const profile: typeof user = { ...user, completed_subjects: { A: 60 } };
         client.setQueryData(meQueryOptions.queryKey, profile);
         client.setQueryData(allClassroomsQueryOptions.queryKey, []);
         const page = await renderPage('/cursos/42');
@@ -579,14 +579,14 @@ describe('fluxograma integrado', () => {
                         elective_max_workload: 60
                     }
                 );
-                const profile: typeof user = { ...user, completed_subjects: ['A'] };
+                const profile: typeof user = { ...user, completed_subjects: { A: 60 } };
                 client.setQueryData(meQueryOptions.queryKey, profile);
                 const page = await renderPage('/cursos/99');
                 await page.findByRole('button', { name: /A, Base, Concluída/ });
                 const summary = page.getByRole('region', { name: 'Informações do curso' });
                 const progress = await testing
                     .within(summary)
-                    .findByText('Integralização estimada: 60 de 240 h (25%)');
+                    .findByText('Integralização estimada: 60h de 240h (25%)');
                 const download = page.getByRole('button', { name: 'Baixar fluxograma' });
                 expect(
                     progress.compareDocumentPosition(download) &

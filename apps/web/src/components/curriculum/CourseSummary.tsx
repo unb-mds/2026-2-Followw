@@ -3,7 +3,7 @@ import type { PublicCourse } from '@followw/core/queries/courses.ts';
 import { normalizeCurriculum } from '@followw/core/lib/curriculum/model.ts';
 import { estimatedProgress } from '@followw/core/lib/curriculum/progress.ts';
 import { plural } from '@followw/core/lib/plural.ts';
-import { titleCase, unitLabel } from '@followw/core/lib/profile.ts';
+import { hoursLabel, titleCase, unitLabel } from '@followw/core/lib/profile.ts';
 import { allClassroomsQueryOptions } from '@followw/core/queries/classrooms.ts';
 import { courseQueryOptions } from '@followw/core/queries/courses.ts';
 import { curriculumQueryOptions, shiftLabels } from '@followw/core/queries/curriculum.ts';
@@ -16,7 +16,7 @@ import type { UserProfile } from '#/queries/me';
 export interface CourseSummaryProps {
     course: Pick<PublicCourse, 'id' | 'name' | 'shift'>;
     entrySemester?: string | null;
-    student?: Pick<UserProfile, 'completed_subjects' | 'completed_subject_hours'>;
+    student?: Pick<UserProfile, 'completed_subjects'>;
 }
 
 /** Erros e carregamento ficam com a página; aqui só o que já estiver em cache. */
@@ -32,12 +32,7 @@ export function CourseSummary({ course, entrySemester, student }: CourseSummaryP
     const progress = useMemo(
         () =>
             student && curriculum && history.data
-                ? estimatedProgress(
-                      curriculum,
-                      history.data,
-                      student.completed_subjects,
-                      student.completed_subject_hours
-                  )
+                ? estimatedProgress(curriculum, history.data, student.completed_subjects)
                 : null,
         [student, curriculum, history.data]
     );
@@ -81,16 +76,31 @@ export function CourseSummary({ course, entrySemester, student }: CourseSummaryP
                         ].join(' · ')}
                     </SummaryItem>
                 )}
-                {student && curriculum && history.data && (
+                {student && curriculum && (
                     <SummaryItem icon={ChartPie}>
-                        {progress
-                            ? `Integralização estimada: ${progress.completed} de ${progress.total} h (${progress.percentage.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%)`
-                            : 'Carga horária da matriz indisponível para estimar a integralização.'}
+                        <ProgressSummary history={history} progress={progress} />
                     </SummaryItem>
                 )}
             </ul>
         </section>
     );
+}
+
+function ProgressSummary({
+    history,
+    progress
+}: {
+    history: { data?: unknown; isError: boolean };
+    progress: ReturnType<typeof estimatedProgress>;
+}) {
+    if (!history.data) {
+        return history.isError
+            ? 'Histórico indisponível para estimar a integralização.'
+            : 'Calculando integralização...';
+    }
+    if (!progress) return 'Carga horária da matriz indisponível para estimar a integralização.';
+    const percent = progress.percentage.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+    return `Integralização estimada: ${hoursLabel(progress.completed)} de ${hoursLabel(progress.total)} (${percent}%)`;
 }
 
 function SummaryItem({

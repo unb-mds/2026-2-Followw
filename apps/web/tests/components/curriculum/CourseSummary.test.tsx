@@ -2,6 +2,7 @@ import type { PublicCourse } from '@followw/core/queries/courses.ts';
 import type { CourseCurriculum } from '@followw/core/queries/curriculum.ts';
 import type { Middleware } from 'openapi-fetch';
 
+import { allClassroomsQueryOptions } from '@followw/core/queries/classrooms.ts';
 import { apiClient } from '@followw/core/queries/client.ts';
 import { courseQueryOptions } from '@followw/core/queries/courses.ts';
 import { curriculumQueryOptions } from '@followw/core/queries/curriculum.ts';
@@ -33,6 +34,11 @@ const matrix: CourseCurriculum = {
     shift: 'D',
     degree: 'Bacharelado',
     modality: 'Presencial',
+    total_workload: null,
+    required_workload: null,
+    optional_min_workload: null,
+    complementary_min_workload: null,
+    elective_max_workload: null,
     periods: [
         { period: 1, subjects: [{ code: 'A', name: 'Base', hours: 60 }] },
         { period: 2, subjects: [{ code: 'B', name: 'Prática', hours: 30 }] }
@@ -152,4 +158,26 @@ test('grau e modalidade ausentes na matriz são omitidos', () => {
     const page = renderSummary();
     expect(page.getByText('Diurno')).toBeDefined();
     expect(page.queryByText('Bacharelado')).toBeNull();
+});
+
+test('exibe estado de carregamento e falha do histórico na integralização estimada', async () => {
+    const page = renderSummary({
+        course,
+        entrySemester: '2026.2',
+        student: { completed_subjects: { A: 60 } }
+    });
+    expect(page.getByText('Calculando integralização...')).toBeDefined();
+    await page.findByText('Histórico indisponível para estimar a integralização.');
+});
+
+test('avisa quando a matriz não possui carga horária publicada', () => {
+    client.setQueryData(allClassroomsQueryOptions.queryKey, []);
+    const page = renderSummary({
+        course,
+        entrySemester: '2026.2',
+        student: { completed_subjects: { A: 60 } }
+    });
+    expect(
+        page.getByText('Carga horária da matriz indisponível para estimar a integralização.')
+    ).toBeDefined();
 });

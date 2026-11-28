@@ -11,10 +11,20 @@ const REQUIREMENTS = [
 ] as const;
 export type RawSubject = Omit<CurriculumSubject, (typeof REQUIREMENTS)[number]> &
     Partial<Record<(typeof REQUIREMENTS)[number], Codes>>;
-export interface RawCurriculum extends Omit<
-    CourseCurriculum,
-    'periods' | 'complementary' | 'degree' | 'modality'
-> {
+const WORKLOADS = [
+    'total_workload',
+    'required_workload',
+    'optional_min_workload',
+    'complementary_min_workload',
+    'elective_max_workload'
+] as const;
+export interface RawCurriculum
+    extends
+        Omit<
+            CourseCurriculum,
+            'periods' | 'complementary' | 'degree' | 'modality' | (typeof WORKLOADS)[number]
+        >,
+        Partial<Pick<CourseCurriculum, (typeof WORKLOADS)[number]>> {
     periods: { period: number; subjects: RawSubject[] }[];
     complementary?: RawSubject[];
     degree?: string | null;
@@ -53,6 +63,11 @@ export function curriculum(
     return {
         degree: null,
         modality: null,
+        total_workload: null,
+        required_workload: null,
+        optional_min_workload: null,
+        complementary_min_workload: null,
+        elective_max_workload: null,
         ...rest,
         periods: periods.map(({ period, subjects }) => ({
             period,

@@ -45,7 +45,7 @@ export function normalizeCurriculum(curriculum: CourseCurriculum): CurriculumMod
 export function academicState(
     history: Classroom[] | undefined,
     currentPeriod: number | null,
-    completed: readonly string[] | undefined
+    completed: Parameters<typeof approvedCodes>[1]
 ): (subject: FlowSubject) => AcademicState {
     const approved = approvedCodes(history ?? [], completed);
     const taken = takenCodes(history ?? [], approved);
