@@ -27,6 +27,11 @@ test.each([
         shift: null,
         degree: null,
         modality: null,
+        total_workload: null,
+        required_workload: null,
+        optional_min_workload: null,
+        complementary_min_workload: null,
+        elective_max_workload: null,
         complementary: [],
         periods: [
             { period: 1, subjects: [base] },

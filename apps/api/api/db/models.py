@@ -259,7 +259,7 @@ class Subject(Base, TimestampMixin):
 
 
 class UserCompletedSubject(Base, TimestampMixin):
-    """Componente com situação CUMP no histórico acadêmico."""
+    """Componente com situação APR ou CUMP no histórico acadêmico."""
 
     __tablename__ = "user_completed_subjects"
 

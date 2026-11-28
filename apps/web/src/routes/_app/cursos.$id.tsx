@@ -94,7 +94,7 @@ function FlowContent({
     course: UserProfile['course'] | undefined;
     entrySemester?: string | null;
     currentPeriod: number | null;
-    completedSubjects?: string[];
+    completedSubjects?: UserProfile['completed_subjects'];
     subject?: string | null;
     desktop: boolean | null;
     isPending: boolean;
@@ -150,7 +150,13 @@ function FlowPage() {
         <div ref={ref} className="flex min-h-0 flex-1 flex-col">
             <div className="shrink-0 px-4 pb-5 lg:px-6">
                 <FlowHeader />
-                {course && <CourseSummary course={course} entrySemester={entrySemester} />}
+                {course && (
+                    <CourseSummary
+                        course={course}
+                        entrySemester={entrySemester}
+                        student={ownCourse ? undefined : (user ?? undefined)}
+                    />
+                )}
             </div>
             <FlowContent
                 ownCourse={ownCourse}

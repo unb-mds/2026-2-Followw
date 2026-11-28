@@ -1045,6 +1045,16 @@ export interface components {
             matrix: string;
             /** Shift */
             shift: ("D" | "N") | null;
+            /** Total Workload */
+            total_workload: number | null;
+            /** Required Workload */
+            required_workload: number | null;
+            /** Optional Min Workload */
+            optional_min_workload: number | null;
+            /** Complementary Min Workload */
+            complementary_min_workload: number | null;
+            /** Elective Max Workload */
+            elective_max_workload: number | null;
             /** Course Id */
             course_id: number;
             /** Entry Semester */
@@ -1969,7 +1979,9 @@ export interface components {
             /** Curriculum Subject Codes */
             curriculum_subject_codes?: string[] | null;
             /** Completed Subjects */
-            completed_subjects?: string[];
+            completed_subjects?: {
+                [key: string]: number | null;
+            };
             /** Integralization */
             integralization: number | null;
             workload: components["schemas"]["Workload"] | null;

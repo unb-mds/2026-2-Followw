@@ -54,13 +54,16 @@ export function searchText(q: string, previous: string | null = null): string | 
 export const subjectsQueryOptions = (query: SubjectsQuery) =>
     api.queryOptions('get', '/public/subjects', { params: { query } });
 
-/** Aprovadas nas turmas mais as cumpridas (CUMP) no histórico do perfil. */
+export const normalizeCode = (code: string) => code.trim().toUpperCase();
+
+/** Aprovações nas turmas e componentes aprovados ou cumpridos no histórico. */
 export function approvedCodes(
     history: Classroom[],
-    completed: readonly string[] | undefined
+    completed: Record<string, number | null> | undefined
 ): Set<string> {
-    const approved = new Set(completed);
-    for (const c of history) if (APPROVED.has(finalGrade(c) ?? '')) approved.add(c.subject.code);
+    const approved = new Set(Object.keys(completed ?? {}).map(normalizeCode));
+    for (const c of history)
+        if (APPROVED.has(finalGrade(c) ?? '')) approved.add(normalizeCode(c.subject.code));
     return approved;
 }
 

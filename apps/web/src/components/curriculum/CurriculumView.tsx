@@ -1,3 +1,4 @@
+import type { CompletedSubjects } from '@followw/core/lib/curriculum/progress.ts';
 import type { CurriculumModel } from '@followw/core/lib/curriculum/types.ts';
 import type { UseQueryResult } from '@tanstack/react-query';
 
@@ -116,7 +117,7 @@ export function CurriculumView({
     courseId: number;
     courseName: string;
     entrySemester: string;
-    completedSubjects?: string[];
+    completedSubjects?: CompletedSubjects;
     currentPeriod: number | null;
     selected?: string;
     ownCourse: boolean;

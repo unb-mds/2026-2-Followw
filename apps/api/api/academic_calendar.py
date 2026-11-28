@@ -91,6 +91,34 @@ def grades_closed(semester: str) -> bool:
     return ended(semester, Event.GRADES_CONSOLIDATION, GRADES_TOLERANCE)
 
 
+def _active_cycle(day: date) -> str | None:
+    started = [
+        item
+        for item in load_academic_calendar().list_semesters()
+        if item.period.start <= day
+    ]
+    return (
+        max(started, key=lambda item: item.period.start).semester if started else None
+    )
+
+
+def transcript_stale(synced_at: datetime) -> bool:
+    """Vence na virada de semestre ou ao fim da janela de consolidação."""
+    synced = local_date(synced_at)
+    current = today()
+    if synced >= current:
+        return False
+    if _active_cycle(synced) != _active_cycle(current):
+        return True
+    return any(
+        ended(item.semester, Event.GRADES_CONSOLIDATION, GRADES_TOLERANCE, current)
+        and not ended(
+            item.semester, Event.GRADES_CONSOLIDATION, GRADES_TOLERANCE, synced
+        )
+        for item in load_academic_calendar().list_semesters()
+    )
+
+
 def member_status(semester: str) -> ClassroomStatus:
     if ended(semester, Event.SEMESTER_END):
         return ClassroomStatus.CONCLUIDO

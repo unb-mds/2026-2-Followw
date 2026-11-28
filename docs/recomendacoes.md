@@ -42,10 +42,9 @@ repetir, desde que não exista outra aprovação, matrícula em andamento ou ten
 Para o ranking, toda tentativa sem menção presume aprovação: satisfaz pré/correquisitos e conta como
 concluída no fluxo, inclusive após a consolidação. Essa inferência não altera a menção armazenada.
 
-Componentes com situação CUMP no histórico acadêmico do SIGAA também contam como aprovados. O
-histórico é lido uma vez por matrícula e curso (`users.transcript_synced_at`), e falhas de leitura
-são tentadas de novo no próximo sync do perfil. Os códigos ficam em `user_completed_subjects` e
-chegam ao front em `completed_subjects` do `/me`. O histórico de outra matrícula é descartado.
+Componentes com situação APR ou CUMP no histórico acadêmico do SIGAA contam como aprovados. O
+sync do perfil relê o histórico na virada do semestre letivo, após a janela de consolidação ou quando a consulta força atualização. Os códigos ficam em `user_completed_subjects` e
+chegam ao front com suas cargas horárias em `completed_subjects` do `/me`. O histórico de outra matrícula é descartado.
 
 A matriz é inferida pelo semestre de entrada do perfil (`entry_semester`), com curso e turno do
 perfil armazenado: vale a vigência mais recente até a entrada; se a entrada preceder todas, a mais

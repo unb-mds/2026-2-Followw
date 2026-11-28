@@ -13,6 +13,7 @@ from sigaa_client import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api import academic_calendar
 from api.cache import Freshness, freshness
 from api.db.models import User
 from api.modules.me.repository import UserRepository
@@ -48,8 +49,8 @@ class UserProfile(BaseModel):
     course: CourseRef | None
     entry_semester: str | None
     curriculum_subject_codes: list[str] | None = None
-    # Componentes CUMP do histórico, além das aprovações nas turmas.
-    completed_subjects: list[str] = Field(default_factory=list)
+    # Componentes aprovados ou cumpridos no histórico acadêmico, com carga horária.
+    completed_subjects: dict[str, int | None] = Field(default_factory=dict)
     integralization: int | None
     workload: Workload | None
     # Carga horária máxima por período da matriz do aluno, em horas.
@@ -63,6 +64,12 @@ def profile_freshness(synced_at: datetime | None) -> Freshness:
     return freshness(synced_at, PROFILE_TTL)
 
 
+def transcript_freshness(synced_at: datetime | None) -> Freshness:
+    if synced_at is None or academic_calendar.transcript_stale(synced_at):
+        return Freshness.STALE
+    return Freshness.FRESH
+
+
 async def sync_profile(ctx: Context[None]) -> None:
     started_at = datetime.now(UTC)
     profile = await ctx.client.profile.get_profile()
@@ -71,7 +78,12 @@ async def sync_profile(ctx: Context[None]) -> None:
             profile, started_at, login=ctx.sync.registration
         )
     )
-    if profile.level != UserLevel.GRADUACAO or user.transcript_synced_at is not None:
+    if profile.level != UserLevel.GRADUACAO:
+        return
+    if (
+        not ctx.refresh
+        and transcript_freshness(user.transcript_synced_at) is Freshness.FRESH
+    ):
         return
     try:
         codes = await ctx.client.documents.get_completed_subjects(profile.registration)
@@ -117,6 +129,7 @@ async def profile_view(
         if user.curriculum_id is not None
         else None
     )
+    completed = await TranscriptRepository(session).completed(user.id)
     return UserProfile(
         name=user.name,
         registration=user.registration,
@@ -127,9 +140,7 @@ async def profile_view(
         course=course_ref(user.course),
         entry_semester=user.entry_semester,
         curriculum_subject_codes=codes,
-        completed_subjects=sorted(
-            await TranscriptRepository(session).completed(user.id)
-        ),
+        completed_subjects=completed,
         integralization=user.integralization,
         workload=_workload(user),
         period_max_workload=user.curriculum.period_max_workload

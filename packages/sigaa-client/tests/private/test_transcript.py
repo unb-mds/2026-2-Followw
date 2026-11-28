@@ -43,7 +43,7 @@ def _pdf(*pages):
     return output.getvalue()
 
 
-async def test_le_componentes_cump_em_multiplas_paginas(monkeypatch):
+async def test_le_aprovadas_e_cumpridas_em_multiplas_paginas(monkeypatch):
     pdf = _pdf(
         [
             "Matrícula: 251000000",
@@ -51,6 +51,7 @@ async def test_le_componentes_cump_em_multiplas_paginas(monkeypatch):
             "2024.1 * MAT0001 Álgebra 60 01 80,0 MM APR",
             "-- # MAT0002 Geometria 60 -- -- -- CUMP",
             "2024.2 MAT0003 Cálculo 60 01 80,0 -- MATR",
+            "2024.1 MAT0007 Física 60 01 80,0 MI REP",
         ],
         [
             "Componentes Curriculares Cursados/Cursando",
@@ -64,7 +65,7 @@ async def test_le_componentes_cump_em_multiplas_paginas(monkeypatch):
 
     result = await Documents(AsyncMock()).get_completed_subjects("251000000")
 
-    assert result == {"MAT0002", "MAT0005"}
+    assert result == {"MAT0001", "MAT0002", "MAT0005"}
 
 
 async def test_rejeita_historico_de_outra_matricula(monkeypatch):

@@ -1,25 +1,41 @@
 import type { PublicCourse } from '@followw/core/queries/courses.ts';
 
 import { normalizeCurriculum } from '@followw/core/lib/curriculum/model.ts';
+import { estimatedProgress } from '@followw/core/lib/curriculum/progress.ts';
 import { plural } from '@followw/core/lib/plural.ts';
-import { titleCase, unitLabel } from '@followw/core/lib/profile.ts';
+import { hoursLabel, titleCase, unitLabel } from '@followw/core/lib/profile.ts';
+import { allClassroomsQueryOptions } from '@followw/core/queries/classrooms.ts';
 import { courseQueryOptions } from '@followw/core/queries/courses.ts';
 import { curriculumQueryOptions, shiftLabels } from '@followw/core/queries/curriculum.ts';
 import { useQuery } from '@tanstack/react-query';
-import { Building2, Clock3, GraduationCap, Layers } from 'lucide-react';
+import { Building2, ChartPie, Clock3, GraduationCap, Layers } from 'lucide-react';
 import { useMemo } from 'react';
+
+import type { UserProfile } from '#/queries/me';
 
 export interface CourseSummaryProps {
     course: Pick<PublicCourse, 'id' | 'name' | 'shift'>;
     entrySemester?: string | null;
+    student?: Pick<UserProfile, 'completed_subjects'>;
 }
 
 /** Erros e carregamento ficam com a página; aqui só o que já estiver em cache. */
-export function CourseSummary({ course, entrySemester }: CourseSummaryProps) {
+export function CourseSummary({ course, entrySemester, student }: CourseSummaryProps) {
     const listed = useQuery(courseQueryOptions(course.id));
     const matrix = useQuery(curriculumQueryOptions(course.id, entrySemester));
     const unit = listed.data?.unit;
     const curriculum = matrix.data;
+    const history = useQuery({
+        ...allClassroomsQueryOptions,
+        enabled: Boolean(student && curriculum)
+    });
+    const progress = useMemo(
+        () =>
+            student && curriculum && history.data
+                ? estimatedProgress(curriculum, history.data, student.completed_subjects)
+                : null,
+        [student, curriculum, history.data]
+    );
     const shift = course.shift ?? (curriculum?.shift && shiftLabels[curriculum.shift]);
     const flow = useMemo(() => (curriculum ? normalizeCurriculum(curriculum) : null), [curriculum]);
     const meta = curriculum && `Matriz ${curriculum.code} - ${curriculum.valid_from}`;
@@ -60,9 +76,31 @@ export function CourseSummary({ course, entrySemester }: CourseSummaryProps) {
                         ].join(' · ')}
                     </SummaryItem>
                 )}
+                {student && curriculum && (
+                    <SummaryItem icon={ChartPie}>
+                        <ProgressSummary history={history} progress={progress} />
+                    </SummaryItem>
+                )}
             </ul>
         </section>
     );
+}
+
+function ProgressSummary({
+    history,
+    progress
+}: {
+    history: { data?: unknown; isError: boolean };
+    progress: ReturnType<typeof estimatedProgress>;
+}) {
+    if (!history.data) {
+        return history.isError
+            ? 'Histórico indisponível para estimar a integralização.'
+            : 'Calculando integralização...';
+    }
+    if (!progress) return 'Carga horária da matriz indisponível para estimar a integralização.';
+    const percent = progress.percentage.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+    return `Integralização estimada: ${hoursLabel(progress.completed)} de ${hoursLabel(progress.total)} (${percent}%)`;
 }
 
 function SummaryItem({

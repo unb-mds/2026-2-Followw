@@ -9,6 +9,7 @@ from api.academic_calendar import (
     member_status,
     members_closed,
     members_frozen,
+    transcript_stale,
 )
 from api.db.enums import ClassroomStatus
 
@@ -89,3 +90,22 @@ def test_matricula_ajusta_as_turmas_do_fim_da_regular_ao_fim_da_extraordinaria(
 
 def test_semestre_fora_do_calendario_nao_ajusta_matricula():
     assert enrollment_adjusting("1900.1") is False
+
+
+@pytest.mark.parametrize(
+    ("dia", "synced_at", "vencido"),
+    [
+        # Dentro de 2026.2 após a janela de consolidação de 2026.1 (24/07): segue válido.
+        (date(2026, 11, 28), datetime(2026, 8, 10, 12, tzinfo=UTC), False),
+        # Virada de 2026.1 para 2026.2 em 24/07.
+        (date(2026, 7, 24), datetime(2026, 7, 20, 12, tzinfo=UTC), True),
+        # Fechamento da tolerância da consolidação de 2026.1 (24/07 -> 25/07).
+        (date(2026, 7, 25), datetime(2026, 7, 24, 12, tzinfo=UTC), True),
+    ],
+)
+def test_historico_vence_apenas_na_virada_de_semestre_ou_consolidacao(
+    hoje, dia, synced_at, vencido
+):
+    hoje(dia)
+
+    assert transcript_stale(synced_at) is vencido

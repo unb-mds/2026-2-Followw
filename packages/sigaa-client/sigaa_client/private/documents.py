@@ -39,7 +39,7 @@ class Documents:
         )
 
     async def get_completed_subjects(self, registration: str) -> set[str]:
-        """Códigos CUMP do histórico; levanta `SigaaParseError` se for de outra matrícula."""
+        """Códigos APR ou CUMP do histórico; levanta `SigaaParseError` se for de outra matrícula."""
         return parse_completed_subjects(await self.get_transcript_pdf(), registration)
 
 
