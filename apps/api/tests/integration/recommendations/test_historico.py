@@ -45,7 +45,7 @@ def test_historico_nao_e_relido_no_mesmo_ciclo_sem_refresh(scene, stub_sigaa):
     read = stub_sigaa.documents.get_completed_subjects
     read.side_effect = None
     read.return_value = {"A"}
-    _me(scene, headers=None)
+    _me(scene)
 
     with scene.db() as session:
         user = session.get(User, scene.user_id)
@@ -53,6 +53,7 @@ def test_historico_nao_e_relido_no_mesmo_ciclo_sem_refresh(scene, stub_sigaa):
         session.commit()
 
     read.return_value = {"A", "B"}
+    assert _me(scene, headers=None)["completed_subjects"] == {"A": 60}
     assert _me(scene, headers=None)["completed_subjects"] == {"A": 60}
     assert read.await_count == 1
 

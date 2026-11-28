@@ -39,5 +39,6 @@ class TranscriptRepository:
                 UserCompletedSubject, UserCompletedSubject.subject_code == Subject.code
             )
             .where(UserCompletedSubject.user_id == user_id)
+            .order_by(Subject.code)
         )
-        return dict(sorted(rows.tuples().all()))
+        return {code: hours for code, hours in rows}
