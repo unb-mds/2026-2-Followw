@@ -808,6 +808,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/institutional-evaluations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Listar avaliações institucionais */
+        get: operations["list_evaluations_me_institutional_evaluations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/institutional-evaluations/{evaluation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Consultar questionário e rascunho da avaliação institucional */
+        get: operations["get_questionnaire_me_institutional_evaluations__evaluation_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/institutional-evaluations/{evaluation_id}/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Salvar rascunho da avaliação institucional */
+        patch: operations["save_draft_me_institutional_evaluations__evaluation_id__draft_patch"];
+        trace?: never;
+    };
+    "/me/institutional-evaluations/{evaluation_id}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Finalizar avaliação institucional */
+        post: operations["submit_evaluation_me_institutional_evaluations__evaluation_id__submit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/posts": {
         parameters: {
             query?: never;
@@ -1118,6 +1186,18 @@ export interface components {
             /** Dinner */
             dinner?: components["schemas"]["MenuSection"][] | null;
         };
+        /** EvaluationAnswers */
+        EvaluationAnswers: {
+            /** Answers */
+            answers?: {
+                [key: string]: string | null;
+            };
+        };
+        /** EvaluationSubmission */
+        EvaluationSubmission: {
+            /** Confirmation */
+            confirmation: string;
+        };
         /** FeedPost */
         FeedPost: {
             classroom: components["schemas"]["ParticipantClassroom"];
@@ -1154,6 +1234,90 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** InstitutionalEvaluation */
+        InstitutionalEvaluation: {
+            /** Sigaa Id */
+            sigaa_id: number;
+            /** Semester */
+            semester: string;
+            /** Title */
+            title: string;
+            /** Respondent Profile */
+            respondent_profile: string;
+            /** Distance Learning */
+            distance_learning: boolean;
+            /**
+             * Response Starts On
+             * Format: date
+             */
+            response_starts_on: string;
+            /**
+             * Response Ends On
+             * Format: date
+             */
+            response_ends_on: string;
+        };
+        /** InstitutionalEvaluationChoice */
+        InstitutionalEvaluationChoice: {
+            /** Value */
+            value: string;
+            /** Label */
+            label: string;
+        };
+        /** InstitutionalEvaluationComment */
+        InstitutionalEvaluationComment: {
+            /** Label */
+            label: string;
+            /** Field */
+            field: string;
+            /** Text */
+            text: string | null;
+            /** Instructor Field */
+            instructor_field: string | null;
+            /** Instructor Answer */
+            instructor_answer: string | null;
+            /**
+             * Instructor Choices
+             * @default []
+             */
+            instructor_choices: components["schemas"]["InstitutionalEvaluationChoice"][];
+            /** Instructor Options */
+            readonly instructor_options: string[];
+        };
+        /** InstitutionalEvaluationQuestion */
+        InstitutionalEvaluationQuestion: {
+            /** Prompt */
+            prompt: string;
+            /** Field */
+            field: string;
+            /** Choices */
+            choices: components["schemas"]["InstitutionalEvaluationChoice"][];
+            /** Answer */
+            answer: string | null;
+            /** Options */
+            readonly options: string[];
+        };
+        /** InstitutionalEvaluationTarget */
+        InstitutionalEvaluationTarget: {
+            /** Classroom Sigaa Id */
+            classroom_sigaa_id: number;
+            /** Classroom Label */
+            classroom_label: string;
+            /** Instructor */
+            instructor: string;
+            /** Questions */
+            questions: components["schemas"]["InstitutionalEvaluationQuestion"][];
+        };
+        /** InstitutionalQuestionnaire */
+        InstitutionalQuestionnaire: {
+            evaluation: components["schemas"]["InstitutionalEvaluation"];
+            /** Instructions */
+            instructions: string | null;
+            /** Targets */
+            targets: components["schemas"]["InstitutionalEvaluationTarget"][];
+            /** Comments */
+            comments: components["schemas"]["InstitutionalEvaluationComment"][];
         };
         /** InternshipAttachment */
         InternshipAttachment: {
@@ -4491,6 +4655,200 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description SIGAA indisponível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_evaluations_me_institutional_evaluations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstitutionalEvaluation"][];
+                };
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description SIGAA indisponível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_questionnaire_me_institutional_evaluations__evaluation_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                evaluation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstitutionalQuestionnaire"];
+                };
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Avaliação indisponível para o discente. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description SIGAA indisponível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    save_draft_me_institutional_evaluations__evaluation_id__draft_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                evaluation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EvaluationAnswers"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstitutionalQuestionnaire"];
+                };
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Avaliação indisponível para o discente. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Respostas inválidas ou gravação recusada pelo SIGAA. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description SIGAA indisponível. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    submit_evaluation_me_institutional_evaluations__evaluation_id__submit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                evaluation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EvaluationAnswers"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvaluationSubmission"];
+                };
+            };
+            /** @description Credenciais ausentes ou inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Avaliação indisponível para o discente. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Respostas inválidas ou gravação recusada pelo SIGAA. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description SIGAA indisponível. */
             502: {

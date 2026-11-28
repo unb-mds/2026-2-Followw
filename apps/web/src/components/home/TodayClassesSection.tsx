@@ -25,15 +25,16 @@ interface TodayClassesSectionProps {
     classes: ScheduledClass<WeekLesson>[];
     date?: string;
     now?: Day & { time: string };
+    className?: string;
 }
 
 export const TodayClassesSection: React.FC<TodayClassesSectionProps> = (props) => {
-    const { loggedIn, noClassReason, isLoadingError, classes } = props;
+    const { loggedIn, noClassReason, isLoadingError, classes, className } = props;
     // sem aulas no dia, a seção some
     if (loggedIn && !noClassReason && !isLoadingError && !classes.length) return null;
 
     return (
-        <section>
+        <section className={className}>
             <SectionHeader title="Aulas do dia" />
             <TodayClassesContent {...props} />
         </section>
