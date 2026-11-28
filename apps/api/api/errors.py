@@ -8,6 +8,10 @@ from sigaa_client import (
     AuthenticationFailed,
     ClassroomNotFound,
     DocumentUnavailable,
+    InstitutionalEvaluationInvalidAnswer,
+    InstitutionalEvaluationNotFound,
+    InstitutionalEvaluationRejected,
+    InstitutionalEvaluationWriteUnconfirmed,
     InternshipNotFound,
     MaterialNotFound,
     MissingProfilePhoto,
@@ -60,6 +64,15 @@ EXCEPTION_HANDLERS: dict[type[Exception], Handler] = {
     AuthenticationFailed: _authentication_failed,
     ClassroomNotFound: _error(404, "Classroom not found"),
     InternshipNotFound: _error(404, "Internship not found"),
+    InstitutionalEvaluationNotFound: _error(
+        404, "Avaliação indisponível para o discente."
+    ),
+    InstitutionalEvaluationInvalidAnswer: _error(422),
+    InstitutionalEvaluationRejected: _error(422),
+    InstitutionalEvaluationWriteUnconfirmed: _error(
+        502,
+        "O SIGAA não confirmou a gravação. Confira o estado da avaliação antes de tentar novamente.",
+    ),
     NewsNotFound: _error(404, "News not found"),
     MaterialNotFound: _error(404, "Material not found"),
     SigaaSearchError: _error(422),

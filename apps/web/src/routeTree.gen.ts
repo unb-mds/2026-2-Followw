@@ -16,12 +16,14 @@ import { Route as DevelopersRouteImport } from './routes/developers'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppAvaliacaoInstitucionalRouteImport } from './routes/_app/avaliacao-institucional'
 import { Route as AppBuscarRouteImport } from './routes/_app/buscar'
 import { Route as AppConfiguracoesRouteImport } from './routes/_app/configuracoes'
 import { Route as AppPerfilRouteImport } from './routes/_app/perfil'
 import { Route as AppRuRouteImport } from './routes/_app/ru'
 import { Route as AppTurmasRouteImport } from './routes/_app/turmas'
 import { Route as ShareRuDotpngRouteImport } from './routes/share.ru[.]png'
+import { Route as AppAvaliacaoInstitucionalIdRouteImport } from './routes/_app/avaliacao-institucional_.$id'
 import { Route as AppCursosIdRouteImport } from './routes/_app/cursos.$id'
 import { Route as AppPerfilSimuladorRouteImport } from './routes/_app/perfil_.simulador'
 import { Route as AppProfessoresSiapeRouteImport } from './routes/_app/professores_.$siape'
@@ -62,6 +64,12 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAvaliacaoInstitucionalRoute =
+  AppAvaliacaoInstitucionalRouteImport.update({
+    id: '/avaliacao-institucional',
+    path: '/avaliacao-institucional',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppBuscarRoute = AppBuscarRouteImport.update({
   id: '/buscar',
   path: '/buscar',
@@ -92,6 +100,12 @@ const ShareRuDotpngRoute = ShareRuDotpngRouteImport.update({
   path: '/share/ru.png',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppAvaliacaoInstitucionalIdRoute =
+  AppAvaliacaoInstitucionalIdRouteImport.update({
+    id: '/avaliacao-institucional_/$id',
+    path: '/avaliacao-institucional/$id',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppCursosIdRoute = AppCursosIdRouteImport.update({
   id: '/cursos/$id',
   path: '/cursos/$id',
@@ -125,12 +139,14 @@ export interface FileRoutesByFullPath {
   '/developers': typeof DevelopersRoute
   '/login': typeof LoginRoute
   '/privacidade': typeof PrivacidadeRoute
+  '/avaliacao-institucional': typeof AppAvaliacaoInstitucionalRoute
   '/buscar': typeof AppBuscarRoute
   '/configuracoes': typeof AppConfiguracoesRoute
   '/perfil': typeof AppPerfilRoute
   '/ru': typeof AppRuRoute
   '/turmas': typeof AppTurmasRoute
   '/share/ru.png': typeof ShareRuDotpngRoute
+  '/avaliacao-institucional/$id': typeof AppAvaliacaoInstitucionalIdRoute
   '/cursos/$id': typeof AppCursosIdRoute
   '/perfil/simulador': typeof AppPerfilSimuladorRoute
   '/professores/$siape': typeof AppProfessoresSiapeRoute
@@ -143,6 +159,7 @@ export interface FileRoutesByTo {
   '/developers': typeof DevelopersRoute
   '/login': typeof LoginRoute
   '/privacidade': typeof PrivacidadeRoute
+  '/avaliacao-institucional': typeof AppAvaliacaoInstitucionalRoute
   '/buscar': typeof AppBuscarRoute
   '/configuracoes': typeof AppConfiguracoesRoute
   '/perfil': typeof AppPerfilRoute
@@ -150,6 +167,7 @@ export interface FileRoutesByTo {
   '/turmas': typeof AppTurmasRoute
   '/share/ru.png': typeof ShareRuDotpngRoute
   '/': typeof AppIndexRoute
+  '/avaliacao-institucional/$id': typeof AppAvaliacaoInstitucionalIdRoute
   '/cursos/$id': typeof AppCursosIdRoute
   '/perfil/simulador': typeof AppPerfilSimuladorRoute
   '/professores/$siape': typeof AppProfessoresSiapeRoute
@@ -164,6 +182,7 @@ export interface FileRoutesById {
   '/developers': typeof DevelopersRoute
   '/login': typeof LoginRoute
   '/privacidade': typeof PrivacidadeRoute
+  '/_app/avaliacao-institucional': typeof AppAvaliacaoInstitucionalRoute
   '/_app/buscar': typeof AppBuscarRoute
   '/_app/configuracoes': typeof AppConfiguracoesRoute
   '/_app/perfil': typeof AppPerfilRoute
@@ -171,6 +190,7 @@ export interface FileRoutesById {
   '/_app/turmas': typeof AppTurmasRoute
   '/share/ru.png': typeof ShareRuDotpngRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/avaliacao-institucional_/$id': typeof AppAvaliacaoInstitucionalIdRoute
   '/_app/cursos/$id': typeof AppCursosIdRoute
   '/_app/perfil_/simulador': typeof AppPerfilSimuladorRoute
   '/_app/professores_/$siape': typeof AppProfessoresSiapeRoute
@@ -186,12 +206,14 @@ export interface FileRouteTypes {
     | '/developers'
     | '/login'
     | '/privacidade'
+    | '/avaliacao-institucional'
     | '/buscar'
     | '/configuracoes'
     | '/perfil'
     | '/ru'
     | '/turmas'
     | '/share/ru.png'
+    | '/avaliacao-institucional/$id'
     | '/cursos/$id'
     | '/perfil/simulador'
     | '/professores/$siape'
@@ -204,6 +226,7 @@ export interface FileRouteTypes {
     | '/developers'
     | '/login'
     | '/privacidade'
+    | '/avaliacao-institucional'
     | '/buscar'
     | '/configuracoes'
     | '/perfil'
@@ -211,6 +234,7 @@ export interface FileRouteTypes {
     | '/turmas'
     | '/share/ru.png'
     | '/'
+    | '/avaliacao-institucional/$id'
     | '/cursos/$id'
     | '/perfil/simulador'
     | '/professores/$siape'
@@ -224,6 +248,7 @@ export interface FileRouteTypes {
     | '/developers'
     | '/login'
     | '/privacidade'
+    | '/_app/avaliacao-institucional'
     | '/_app/buscar'
     | '/_app/configuracoes'
     | '/_app/perfil'
@@ -231,6 +256,7 @@ export interface FileRouteTypes {
     | '/_app/turmas'
     | '/share/ru.png'
     | '/_app/'
+    | '/_app/avaliacao-institucional_/$id'
     | '/_app/cursos/$id'
     | '/_app/perfil_/simulador'
     | '/_app/professores_/$siape'
@@ -300,6 +326,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/avaliacao-institucional': {
+      id: '/_app/avaliacao-institucional'
+      path: '/avaliacao-institucional'
+      fullPath: '/avaliacao-institucional'
+      preLoaderRoute: typeof AppAvaliacaoInstitucionalRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/buscar': {
       id: '/_app/buscar'
       path: '/buscar'
@@ -342,6 +375,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShareRuDotpngRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/avaliacao-institucional_/$id': {
+      id: '/_app/avaliacao-institucional_/$id'
+      path: '/avaliacao-institucional/$id'
+      fullPath: '/avaliacao-institucional/$id'
+      preLoaderRoute: typeof AppAvaliacaoInstitucionalIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/cursos/$id': {
       id: '/_app/cursos/$id'
       path: '/cursos/$id'
@@ -381,12 +421,14 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppAvaliacaoInstitucionalRoute: typeof AppAvaliacaoInstitucionalRoute
   AppBuscarRoute: typeof AppBuscarRoute
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
   AppPerfilRoute: typeof AppPerfilRoute
   AppRuRoute: typeof AppRuRoute
   AppTurmasRoute: typeof AppTurmasRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppAvaliacaoInstitucionalIdRoute: typeof AppAvaliacaoInstitucionalIdRoute
   AppCursosIdRoute: typeof AppCursosIdRoute
   AppPerfilSimuladorRoute: typeof AppPerfilSimuladorRoute
   AppProfessoresSiapeRoute: typeof AppProfessoresSiapeRoute
@@ -394,12 +436,14 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAvaliacaoInstitucionalRoute: AppAvaliacaoInstitucionalRoute,
   AppBuscarRoute: AppBuscarRoute,
   AppConfiguracoesRoute: AppConfiguracoesRoute,
   AppPerfilRoute: AppPerfilRoute,
   AppRuRoute: AppRuRoute,
   AppTurmasRoute: AppTurmasRoute,
   AppIndexRoute: AppIndexRoute,
+  AppAvaliacaoInstitucionalIdRoute: AppAvaliacaoInstitucionalIdRoute,
   AppCursosIdRoute: AppCursosIdRoute,
   AppPerfilSimuladorRoute: AppPerfilSimuladorRoute,
   AppProfessoresSiapeRoute: AppProfessoresSiapeRoute,

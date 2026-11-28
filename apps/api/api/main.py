@@ -11,6 +11,9 @@ from api.errors import EXCEPTION_HANDLERS
 from api.logger import RequestLoggingMiddleware
 from api.modules.auth.router import router as auth_router
 from api.modules.classrooms.router import router as classrooms_router
+from api.modules.institutional_evaluations.router import (
+    router as institutional_evaluations_router,
+)
 from api.modules.lessons.router import router as lessons_router
 from api.modules.me.router import router as me_router
 from api.modules.me.upload_guard import ProfileUploadGuard
@@ -200,5 +203,10 @@ app.include_router(
 )
 app.include_router(lessons_router, prefix="/lessons", tags=["Lessons"])
 app.include_router(me_router, prefix="/me", tags=["Me"])
+app.include_router(
+    institutional_evaluations_router,
+    prefix="/me/institutional-evaluations",
+    tags=["Me"],
+)
 app.include_router(posts_router, prefix="/posts", tags=["Posts"])
 app.include_router(jobs_router, prefix="/jobs", tags=["Jobs"])

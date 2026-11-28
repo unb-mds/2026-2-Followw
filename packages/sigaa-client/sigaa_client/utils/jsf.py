@@ -75,24 +75,48 @@ def build_menu_action(form: Tag, action: str) -> tuple[str, dict[str, str]]:
     return urljoin(SIGAA_BASE_URL, str(form.get("action") or "")), payload
 
 
+def build_link_submit(
+    form: Tag, link: Tag, values: dict[str, str]
+) -> tuple[str, dict[str, str]]:
+    """Reproduz o envio de um formulário preenchido por um link JSF."""
+    params = link_params(link)
+    if not params:
+        raise SigaaParseError("Link de envio sem ação JSF.")
+    action, postback = build_postback(form, params, read_viewstate(form))
+    return action, {**_form_defaults(form), **values, **postback}
+
+
+def option_value(option: Tag) -> str:
+    return str(option.get("value", option.get_text()))
+
+
+def selected_value(select: Tag) -> str:
+    chosen = select.find("option", selected=True) or select.find("option")
+    return option_value(chosen) if isinstance(chosen, Tag) else ""
+
+
 def _form_defaults(form: Tag) -> dict[str, str]:
     payload: dict[str, str] = {}
 
     for field in form.find_all("input"):
         name = field.get("name")
         kind = str(field.get("type") or "text").lower()
-        if not name or kind == "submit":
+        if (
+            not name
+            or field.has_attr("disabled")
+            or kind in {"submit", "image", "button", "reset", "file"}
+        ):
             continue
         if kind in ("checkbox", "radio") and field.get("checked") is None:
             continue
         payload[str(name)] = str(field.get("value") or "")
 
-    for select in form.find_all("select"):
-        name = select.get("name")
-        if not name:
-            continue
-        chosen = select.find("option", selected=True) or select.find("option")
-        payload[str(name)] = str(chosen.get("value") or "") if chosen else ""
+    for field in form.select(
+        "select[name]:not([disabled]), textarea[name]:not([disabled])"
+    ):
+        payload[str(field["name"])] = (
+            selected_value(field) if field.name == "select" else field.get_text()
+        )
 
     return payload
 

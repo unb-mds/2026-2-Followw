@@ -45,6 +45,22 @@ class MaterialNotFound(SigaaError):
     """O arquivo não está nos tópicos da turma solicitada."""
 
 
+class InstitutionalEvaluationInvalidAnswer(SigaaError, ValueError):
+    """A alteração não é compatível com os campos do questionário."""
+
+
+class InstitutionalEvaluationNotFound(SigaaError):
+    """A avaliação não está na lista disponível para o discente."""
+
+
+class InstitutionalEvaluationRejected(SigaaError):
+    """O SIGAA informou por que recusou a gravação da avaliação."""
+
+
+class InstitutionalEvaluationWriteUnconfirmed(SigaaError):
+    """A gravação foi tentada, mas não há confirmação de seu resultado."""
+
+
 class InternshipNotFound(SigaaError):
     """A referência da oferta está inválida, expirada ou ambígua no mural."""
 

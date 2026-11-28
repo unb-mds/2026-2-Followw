@@ -9,6 +9,73 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, computed_field
 
 
+class InstitutionalEvaluation(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    sigaa_id: int
+    semester: str
+    title: str
+    respondent_profile: str
+    distance_learning: bool
+    response_starts_on: date
+    response_ends_on: date
+
+
+class InstitutionalEvaluationChoice(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    value: str
+    label: str
+
+
+class InstitutionalEvaluationQuestion(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    prompt: str
+    field: str
+    choices: tuple[InstitutionalEvaluationChoice, ...]
+    answer: str | None
+
+    @computed_field
+    @property
+    def options(self) -> tuple[str, ...]:
+        return tuple(choice.label for choice in self.choices)
+
+
+class InstitutionalEvaluationTarget(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    classroom_sigaa_id: int
+    classroom_label: str
+    instructor: str
+    questions: tuple[InstitutionalEvaluationQuestion, ...]
+
+
+class InstitutionalEvaluationComment(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    label: str
+    field: str
+    text: str | None
+    instructor_field: str | None
+    instructor_answer: str | None
+    instructor_choices: tuple[InstitutionalEvaluationChoice, ...] = ()
+
+    @computed_field
+    @property
+    def instructor_options(self) -> tuple[str, ...]:
+        return tuple(choice.label for choice in self.instructor_choices)
+
+
+class InstitutionalQuestionnaire(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    evaluation: InstitutionalEvaluation
+    instructions: str | None
+    targets: tuple[InstitutionalEvaluationTarget, ...]
+    comments: tuple[InstitutionalEvaluationComment, ...]
+
+
 class InternshipSummary(BaseModel):
     model_config = ConfigDict(frozen=True)
 

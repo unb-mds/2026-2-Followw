@@ -14,6 +14,7 @@ credentials = Credentials(registration="251000000", password=SecretStr("..."))
 async with SigaaClient(credentials) as client:
     profile = await client.profile.get_profile()
     classrooms = await client.classrooms.list_classrooms()
+    evaluations = await client.institutional_evaluations.list_evaluations()
 
 async with SigaaPublicClient() as client:
     turmas = await client.classrooms.search("gama")
@@ -21,15 +22,43 @@ async with SigaaPublicClient() as client:
     docentes = await client.professors.search("gama")
 ```
 
-| Client              | Login | Módulos                                                                |
-| ------------------- | ----- | ---------------------------------------------------------------------- |
-| `SigaaClient`       | sim   | `.profile`, `.classrooms`, `.documents`, `.restaurant`, `.internships` |
-| `SigaaPublicClient` | não   | `.classrooms`, `.subjects`, `.curricula`, `.professors`                |
+| Client              | Login | Módulos |
+| ------------------- | ----- | ------- |
+| `SigaaClient`       | sim   | `.profile`, `.classrooms`, `.documents`, `.restaurant`, `.internships`, `.institutional_evaluations` |
+| `SigaaPublicClient` | não   | `.classrooms`, `.subjects`, `.curricula`, `.professors` |
 
 O login é feito sob demanda. O token retornado por `authenticate()` pode ser reutilizado com
 `SigaaClient(session_token=...)`: sem credenciais, uma sessão expirada levanta `SessionExpired`.
 
 Todos os erros derivam de `SigaaError`.
+
+`client.institutional_evaluations.list_evaluations()` lê as avaliações disponíveis no Portal
+Discente. Cada `InstitutionalEvaluation` inclui o ID do SIGAA, semestre, título do formulário,
+perfil entrevistado, modalidade a distância e as datas do período de resposta.
+`get_questionnaire(evaluation.sigaa_id)` abre o questionário de avaliação da docência e retorna
+instruções em Markdown, perguntas de cada turma e docente com as opções de resposta e os campos de
+comentário, incluindo as respostas do rascunho atual.
+
+`save_draft(sigaa_id, answers)` grava as alterações e devolve o rascunho reaberto.
+`submit_evaluation(sigaa_id, answers=None)` finaliza o rascunho atual, aplicando as alterações
+informadas, e devolve a mensagem de confirmação do SIGAA. As duas operações preservam os campos
+omitidos de `answers`. Use a chave `question.field` e um `choice.value` para notas, `comment.field`
+para o texto e `comment.instructor_field` com um valor de `comment.instructor_choices` para escolher
+um docente. Passe `None` como valor para limpar uma nota ou um comentário.
+
+```python
+resource = client.institutional_evaluations
+questionnaire = await resource.get_questionnaire(evaluation.sigaa_id)
+question = questionnaire.targets[0].questions[0]
+draft = await resource.save_draft(evaluation.sigaa_id, {question.field: "10"})
+# Após revisar e responder às demais perguntas:
+confirmation = await resource.submit_evaluation(draft.evaluation.sigaa_id)
+```
+
+Valores inválidos levantam `ValueError` antes de gravar. Uma recusa do SIGAA levanta
+`InstitutionalEvaluationRejected` com o motivo. Quando o resultado da gravação fica incerto,
+`InstitutionalEvaluationWriteUnconfirmed` indica que é preciso consultar o SIGAA antes de
+tentar gravar novamente.
 
 `client.internships.list_internships()` lista as ofertas do mural, incluindo resumos repetidos. Use
 `only_my_course=True` para ver só as do seu curso e `get_internship(vaga.reference)` para abrir o
