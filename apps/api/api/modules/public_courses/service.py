@@ -89,6 +89,11 @@ class CurriculumPeriod(BaseModel):
 
 
 class CourseCurriculum(CurriculumOption):
+    total_workload: int | None = None
+    required_workload: int | None = None
+    optional_min_workload: int | None = None
+    complementary_min_workload: int | None = None
+    elective_max_workload: int | None = None
     course_id: int
     entry_semester: str
     periods: list[CurriculumPeriod]
@@ -198,6 +203,11 @@ async def _load(
             periods.setdefault(component.period, []).append(item)
     return CourseCurriculum(
         **CurriculumOption.model_validate(selected).model_dump(),
+        total_workload=selected.total_workload,
+        required_workload=selected.required_workload,
+        optional_min_workload=selected.optional_min_workload,
+        complementary_min_workload=selected.complementary_min_workload,
+        elective_max_workload=selected.elective_max_workload,
         course_id=course_id,
         entry_semester=entry_semester,
         periods=[

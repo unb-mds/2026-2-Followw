@@ -10,8 +10,8 @@ _END_OF_COURSEWORK_RE = re.compile(
     r"Equivalências\s*:|Observações\s*:)",
     re.IGNORECASE,
 )
-_CUMP_ROW_RE = re.compile(
-    r"^(?:\d{4}\.\d\s+|-+\s+)?(?:[*#@&%+]+\s*)?(?P<code>[A-Z]{2,}[0-9]+)\s+.*\s+CUMP$"
+_COMPLETED_ROW_RE = re.compile(
+    r"^(?:\d{4}\.\d\s+|-+\s+)?(?:[*#@&%+]+\s*)?(?P<code>[A-Z]{2,}[0-9]+)\s+.*\s+(?:APR|CUMP)$"
 )
 
 
@@ -33,6 +33,6 @@ def parse_completed_subjects(pdf: bytes, registration: str) -> set[str]:
             in_coursework = True
         elif _END_OF_COURSEWORK_RE.match(line):
             in_coursework = False
-        elif in_coursework and (row := _CUMP_ROW_RE.match(line)):
+        elif in_coursework and (row := _COMPLETED_ROW_RE.match(line)):
             completed.add(row["code"])
     return completed

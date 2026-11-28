@@ -46,6 +46,7 @@ def test_login_seguido_de_me_responde_do_cache(client, sigaa):
         "entry_semester": "2025.1",
         "curriculum_subject_codes": None,
         "completed_subjects": [],
+        "completed_subject_hours": {},
         "integralization": 35,
         "workload": {
             "total": 3525,

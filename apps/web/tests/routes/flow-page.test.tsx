@@ -540,6 +540,14 @@ describe('fluxograma integrado', () => {
         expect(page.queryByRole('list', { name: 'Legenda dos estados acadêmicos' })).toBeNull();
         expect(page.queryByText(/Período atual indisponível/)).toBeNull();
     });
+    test('histórico aprovado prevalece sobre atraso mesmo sem menção na turma', async () => {
+        width = 1200;
+        const profile: typeof user = { ...user, completed_subjects: ['A'] };
+        client.setQueryData(meQueryOptions.queryKey, profile);
+        client.setQueryData(allClassroomsQueryOptions.queryKey, []);
+        const page = await renderPage('/cursos/42');
+        await page.findByRole('button', { name: /A, Base, Concluída/ });
+    });
     describe('outro curso com aluno logado', () => {
         beforeEach(() => {
             width = 1200;
@@ -555,6 +563,37 @@ describe('fluxograma integrado', () => {
             const page = await renderPage('/cursos/99');
             await page.findByRole('button', { name: /A, Base, Em curso/ });
         });
+        test.each([390, 1200])(
+            'exibe a integralização no resumo antes do download em %i px',
+            async (screenWidth) => {
+                width = screenWidth;
+                client.setQueryData(
+                    curriculumQueryOptions(99, getCurrentSemester()!.semester).queryKey,
+                    {
+                        ...matrix,
+                        course_id: 99,
+                        total_workload: 240,
+                        required_workload: 120,
+                        optional_min_workload: 120,
+                        complementary_min_workload: 0,
+                        elective_max_workload: 60
+                    }
+                );
+                const profile: typeof user = { ...user, completed_subjects: ['A'] };
+                client.setQueryData(meQueryOptions.queryKey, profile);
+                const page = await renderPage('/cursos/99');
+                await page.findByRole('button', { name: /A, Base, Concluída/ });
+                const summary = page.getByRole('region', { name: 'Informações do curso' });
+                const progress = await testing
+                    .within(summary)
+                    .findByText('Integralização estimada: 60 de 240 h (25%)');
+                const download = page.getByRole('button', { name: 'Baixar fluxograma' });
+                expect(
+                    progress.compareDocumentPosition(download) &
+                        browser.Node.DOCUMENT_POSITION_FOLLOWING
+                ).toBeTruthy();
+            }
+        );
         test('não calcula atraso', async () => {
             const page = await renderPage('/cursos/99');
             await page.findByRole('button', { name: /A, Base, Em curso/ });

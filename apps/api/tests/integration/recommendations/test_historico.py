@@ -20,20 +20,23 @@ def test_cumpridas_saem_das_recomendacoes_e_satisfazem_requisitos(scene, stub_si
     read.side_effect = None
     read.return_value = {"CUMPRIDA", "FORA_DO_CATALOGO"}
 
-    assert _me(scene)["completed_subjects"] == ["CUMPRIDA"]
+    profile = _me(scene)
+    assert profile["completed_subjects"] == ["CUMPRIDA"]
+    assert profile["completed_subject_hours"] == {"CUMPRIDA": 60}
     assert codes(scene.get()) == ["POSTERIOR"]
 
 
-def test_historico_e_lido_uma_unica_vez(scene, stub_sigaa):
+def test_atualizacao_do_perfil_rele_aprovacoes_do_historico(scene, stub_sigaa):
     scene.subject("A")
     read = stub_sigaa.documents.get_completed_subjects
     read.side_effect = None
     read.return_value = {"A"}
     _me(scene)
 
-    read.return_value = set()
-    assert _me(scene)["completed_subjects"] == ["A"]
-    assert read.await_count == 1
+    scene.subject("B")
+    read.return_value = {"A", "B"}
+    assert _me(scene)["completed_subjects"] == ["A", "B"]
+    assert read.await_count == 2
 
 
 def test_historico_indisponivel_e_tentado_de_novo(scene, stub_sigaa):

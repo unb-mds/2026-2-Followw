@@ -48,8 +48,9 @@ class UserProfile(BaseModel):
     course: CourseRef | None
     entry_semester: str | None
     curriculum_subject_codes: list[str] | None = None
-    # Componentes CUMP do histórico, além das aprovações nas turmas.
+    # Componentes aprovados ou cumpridos no histórico acadêmico.
     completed_subjects: list[str] = Field(default_factory=list)
+    completed_subject_hours: dict[str, int | None] = Field(default_factory=dict)
     integralization: int | None
     workload: Workload | None
     # Carga horária máxima por período da matriz do aluno, em horas.
@@ -71,7 +72,12 @@ async def sync_profile(ctx: Context[None]) -> None:
             profile, started_at, login=ctx.sync.registration
         )
     )
-    if profile.level != UserLevel.GRADUACAO or user.transcript_synced_at is not None:
+    if profile.level != UserLevel.GRADUACAO:
+        return
+    if (
+        not ctx.refresh
+        and profile_freshness(user.transcript_synced_at) is Freshness.FRESH
+    ):
         return
     try:
         codes = await ctx.client.documents.get_completed_subjects(profile.registration)
@@ -117,6 +123,7 @@ async def profile_view(
         if user.curriculum_id is not None
         else None
     )
+    completed = await TranscriptRepository(session).completed_hours(user.id)
     return UserProfile(
         name=user.name,
         registration=user.registration,
@@ -127,9 +134,8 @@ async def profile_view(
         course=course_ref(user.course),
         entry_semester=user.entry_semester,
         curriculum_subject_codes=codes,
-        completed_subjects=sorted(
-            await TranscriptRepository(session).completed(user.id)
-        ),
+        completed_subjects=sorted(completed),
+        completed_subject_hours=completed,
         integralization=user.integralization,
         workload=_workload(user),
         period_max_workload=user.curriculum.period_max_workload

@@ -32,6 +32,16 @@ class TranscriptRepository:
             .values(transcript_synced_at=synced_at)
         )
 
+    async def completed_hours(self, user_id: UUID) -> dict[str, int | None]:
+        rows = await self._session.execute(
+            select(Subject.code, Subject.hours)
+            .join(
+                UserCompletedSubject, UserCompletedSubject.subject_code == Subject.code
+            )
+            .where(UserCompletedSubject.user_id == user_id)
+        )
+        return dict(rows.tuples().all())
+
     async def completed(self, user_id: UUID) -> set[str]:
         codes = await self._session.scalars(
             select(UserCompletedSubject.subject_code).where(
